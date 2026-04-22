@@ -8240,29 +8240,19 @@
             "ApiGenerateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
-            "AppImageAttachment": {
-                "properties": {
-                    "filename": {
-                        "type": "string"
-                    },
-                    "mimeType": {
-                        "type": "string"
-                    },
-                    "s3Key": {
-                        "type": "string"
-                    }
-                },
-                "required": ["filename", "mimeType", "s3Key"],
-                "type": "object",
-                "description": "Image attached to a data app generation request.\nThe image is uploaded to S3 via the backend proxy; the s3Key\nreferences the uploaded object."
-            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "chartUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "appUuid": {
                         "type": "string"
                     },
-                    "image": {
-                        "$ref": "#/components/schemas/AppImageAttachment"
+                    "imageId": {
+                        "type": "string"
                     },
                     "prompt": {
                         "type": "string"
@@ -8271,15 +8261,15 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiSuccess__s3Key-string__": {
+            "ApiSuccess__imageId-string__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "s3Key": {
+                            "imageId": {
                                 "type": "string"
                             }
                         },
-                        "required": ["s3Key"],
+                        "required": ["imageId"],
                         "type": "object"
                     },
                     "status": {
@@ -8292,7 +8282,7 @@
                 "type": "object"
             },
             "ApiAppImageUploadResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__s3Key-string__"
+                "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
             },
             "AppVersionStatus": {
                 "type": "string",
@@ -8337,7 +8327,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -8349,6 +8339,10 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
+                            },
+                            "spaceUuid": {
+                                "type": "string",
+                                "nullable": true
                             },
                             "createdByUserUuid": {
                                 "type": "string"
@@ -8366,6 +8360,7 @@
                         "required": [
                             "hasMore",
                             "versions",
+                            "spaceUuid",
                             "createdByUserUuid",
                             "description",
                             "name",
@@ -8383,7 +8378,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
@@ -10094,19 +10089,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -22843,7 +22825,7 @@
                 "type": "object"
             },
             "ContentType": {
-                "enum": ["chart", "dashboard", "space"],
+                "enum": ["chart", "dashboard", "space", "data_app"],
                 "type": "string"
             },
             "VerifiedContentListItem": {
@@ -23613,10 +23595,10 @@
                 "type": "object"
             },
             "ResourceViewItemType": {
-                "enum": ["chart", "dashboard", "space"],
+                "enum": ["chart", "dashboard", "space", "data_app"],
                 "type": "string"
             },
-            "Pick_ResourceViewItem-at-data.uuid-or-pinnedListOrder_": {
+            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data.uuid-or-pinnedListOrder_": {
                 "properties": {
                     "uuid": {
                         "type": "string"
@@ -23634,7 +23616,7 @@
             "UpdatePinnedItemOrder": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/Pick_ResourceViewItem-at-data.uuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data.uuid-or-pinnedListOrder_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType"
@@ -29735,6 +29717,169 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "ContentType.DATA_APP": {
+                "enum": ["data_app"],
+                "type": "string"
+            },
+            "DataAppContent": {
+                "properties": {
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DATA_APP"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "lastUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "lastUpdatedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "organization": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "space": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object"
+                    },
+                    "pinnedList": {
+                        "properties": {
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "views": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "firstViewedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "latestVersionNumber": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "latestVersionStatus": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AppVersionStatus"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "contentType",
+                    "uuid",
+                    "slug",
+                    "name",
+                    "description",
+                    "createdAt",
+                    "createdBy",
+                    "lastUpdatedAt",
+                    "lastUpdatedBy",
+                    "project",
+                    "organization",
+                    "space",
+                    "pinnedList",
+                    "views",
+                    "firstViewedAt",
+                    "verification",
+                    "latestVersionNumber",
+                    "latestVersionStatus"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
             "SummaryContent": {
                 "anyOf": [
                     {
@@ -29745,6 +29890,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/SpaceContent"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DataAppContent"
                     }
                 ]
             },
@@ -30379,7 +30527,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2775.3",
+        "version": "0.2780.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     ContentType,
     ForbiddenError,
+    ParameterError,
     ResourceViewItemType,
     type FavoriteItems,
     type ResourceViewSpaceItem,
@@ -102,6 +103,11 @@ export class FavoritesService extends BaseService {
                 spaceUuid = dashboard.spaceUuid;
                 break;
             }
+            case ContentType.DATA_APP:
+                // Favoriting data apps is not supported yet
+                throw new ParameterError(
+                    'Favoriting data apps is not supported',
+                );
             default:
                 return assertUnreachable(
                     contentType,
