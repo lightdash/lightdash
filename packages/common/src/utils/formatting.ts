@@ -173,10 +173,6 @@ export function formatTimestamp(
         return 'NaT';
     }
 
-    // Chart hooks that pre-shift values into project-tz-as-UTC for ECharts
-    // pass `timezone: undefined` (so we don't double-convert) but still want
-    // the offset annotation to reflect the project tz, not `(+00:00)`.
-    // `displayTimezone` overrides the `(Z)` token with the named tz's offset.
     if (!timezone && displayTimezone) {
         const offset = moment.tz(value, displayTimezone).format('Z');
         const formatStr = getTimeFormat(timeInterval).replace(

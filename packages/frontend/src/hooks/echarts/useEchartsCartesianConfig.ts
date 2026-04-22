@@ -2419,15 +2419,6 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
-    // When a non-UTC project tz is active on a time axis, we hard-shift the
-    // `.value.raw` of the time column on every row so that ECharts
-    // (useUTC:true) positions ticks and renders default labels as if the
-    // shifted ms were UTC — which visually reads as project-tz wall-clock.
-    // The shift happens at the row boundary (see `rows` useMemo below) so
-    // dataset.source, series inline data, and tooltip row lookups all see
-    // shifted values. Downstream formatters must NOT re-apply tz conversion
-    // on shifted values — they should use `chartTimezone` (undefined while
-    // shift is active) instead of `resolvedTimezone`.
     const timezoneShiftedField = useMemo<
         { fieldId: string; timezone: string } | undefined
     >(() => {
@@ -2448,8 +2439,6 @@ const useEchartsCartesianConfig = (
         if (!field || !isDimension(field) || !field.timeInterval) {
             return undefined;
         }
-        // Week/Month/Quarter/Year render on a category axis (string labels),
-        // not a time axis — tick placement is not ms-based, no shift needed.
         if (
             TIME_INTERVALS_FOR_CATEGORY_AXIS.includes(
                 field.timeInterval as TimeFrames,
@@ -2460,18 +2449,6 @@ const useEchartsCartesianConfig = (
         return { fieldId: timeFieldId, timezone: resolvedTimezone };
     }, [resolvedTimezone, validCartesianConfig, itemsMap]);
 
-    // Two timezones, one source of truth. Downstream formatters receive
-    // values from two paths: ECharts-supplied (shifted ms for axis ticks,
-    // tooltip param.axisValue) and raw backend metadata (pivot values in
-    // legends). They need different handling when the shift is active:
-    //   - chartTimezone: tz for value CONVERSION. `undefined` while shift
-    //     is active so formatters don't re-convert already-shifted values.
-    //     `resolvedTimezone` otherwise (normal UTC→project tz conversion).
-    //   - displayTimezone: tz for the OFFSET ANNOTATION only. Set to
-    //     `resolvedTimezone` while shift is active so the `(Z)` token in
-    //     format strings still renders as `(-11:00)` instead of `(+00:00)`.
-    // Pivot metadata (raw backend values) continues to use `resolvedTimezone`
-    // directly — those bypass the shift entirely.
     const chartTimezone = timezoneShiftedField ? undefined : resolvedTimezone;
     const displayTimezone = timezoneShiftedField ? resolvedTimezone : undefined;
 
