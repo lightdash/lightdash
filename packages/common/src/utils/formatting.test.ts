@@ -1785,6 +1785,62 @@ describe('Formatting', () => {
                     formatDate(utcMidnight, TimeFrames.DAY, false, 'UTC'),
                 ).toBe('2024-01-14');
             });
+
+            test('timezone takes precedence over convertToUTC', () => {
+                expect(
+                    formatDate(
+                        utcTimestamp,
+                        TimeFrames.DAY,
+                        true,
+                        'America/New_York',
+                    ),
+                ).toBe('2020-04-03');
+            });
+
+            test('year boundary falls on different years in Tokyo vs Pago_Pago', () => {
+                // Jan 1 00:00 UTC = Tokyo Jan 1 09:00 (2024), PP Dec 31 13:00 (2023)
+                const yearBoundary = '2024-01-01T00:00:00.000Z';
+                expect(
+                    formatDate(
+                        yearBoundary,
+                        TimeFrames.YEAR,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024');
+                expect(
+                    formatDate(
+                        yearBoundary,
+                        TimeFrames.YEAR,
+                        false,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toBe('2023');
+            });
+
+            test('month boundary shifts with positive offset (Tokyo)', () => {
+                // Tokyo Feb 1 00:00 = UTC Jan 31 15:00
+                const tokyoMonthBoundary = '2024-01-31T15:00:00.000Z';
+                expect(
+                    formatDate(
+                        tokyoMonthBoundary,
+                        TimeFrames.MONTH,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-02');
+            });
+
+            test('returns NaT for invalid input', () => {
+                expect(
+                    formatDate(
+                        'not a date',
+                        TimeFrames.DAY,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('NaT');
+            });
         });
 
         describe('formatTimestamp', () => {
