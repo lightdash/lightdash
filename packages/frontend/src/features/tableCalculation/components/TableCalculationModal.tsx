@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
+    Accordion,
     ActionIcon,
     Badge,
     Box,
@@ -54,6 +55,7 @@ import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
+import { getFormatSummary } from '../../../components/Explorer/FormatForm/getFormatSummary';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -538,7 +540,6 @@ const TableCalculationModal: FC<Props> = ({
             cancelLabel="Cancel"
             modalRootProps={{
                 closeOnClickOutside: false,
-                centered: false,
                 styles: isExpanded
                     ? {
                           content: {
@@ -661,11 +662,40 @@ const TableCalculationModal: FC<Props> = ({
                     </Box>
                 </Stack>
 
-                <FormatForm
-                    formatInputProps={getFormatInputProps}
-                    setFormatFieldValue={setFormatFieldValue}
-                    format={form.values.format}
-                />
+                <Accordion
+                    variant="default"
+                    chevronPosition="right"
+                    defaultValue={
+                        form.values.format.type !== CustomFormatType.DEFAULT
+                            ? 'format'
+                            : null
+                    }
+                    classNames={{
+                        item: classes.formatAccordionItem,
+                        control: classes.formatAccordionControl,
+                        content: classes.formatAccordionContent,
+                    }}
+                >
+                    <Accordion.Item value="format">
+                        <Accordion.Control>
+                            <Group gap="md" wrap="nowrap">
+                                <Text size="sm" fw={500}>
+                                    Formatting
+                                </Text>
+                                <Text size="xs" c="dimmed" truncate>
+                                    {getFormatSummary(form.values.format)}
+                                </Text>
+                            </Group>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                            <FormatForm
+                                formatInputProps={getFormatInputProps}
+                                setFormatFieldValue={setFormatFieldValue}
+                                format={form.values.format}
+                            />
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                </Accordion>
             </Stack>
         </MantineModal>
     );
