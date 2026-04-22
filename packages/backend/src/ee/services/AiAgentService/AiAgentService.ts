@@ -104,6 +104,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { UserModel } from '../../../models/UserModel';
 import PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -219,7 +220,7 @@ function cleanupOAuthCache(): void {
     });
 }
 
-export class AiAgentService {
+export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
 
     private readonly analytics: LightdashAnalytics;
@@ -265,6 +266,7 @@ export class AiAgentService {
     private readonly shareService: ShareService;
 
     constructor(dependencies: AiAgentServiceDependencies) {
+        super();
         this.aiAgentModel = dependencies.aiAgentModel;
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
@@ -332,12 +334,17 @@ export class AiAgentService {
         user: SessionUser,
         agent: AiAgent,
     ): Promise<boolean> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid: agent.organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid: agent.uuid,
+                        agentName: agent.name,
+                    },
                 }),
             )
         ) {
@@ -396,12 +403,17 @@ export class AiAgentService {
             return true;
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid: agent.organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid: agent.uuid,
+                        agentName: agent.name,
+                    },
                 }),
             )
         ) {
@@ -731,13 +743,18 @@ export class AiAgentService {
         }
 
         // Check if user has admin permissions to view all threads
+        const auditedAbility = this.createAuditedAbility(user);
         const canViewAllThreads =
             allUsers &&
-            user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        agentName: agent.name,
+                    },
                 }),
             );
 
@@ -1035,12 +1052,16 @@ export class AiAgentService {
             throw new ForbiddenError('Copilot is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid,
                     projectUuid: body.projectUuid,
+                    metadata: {
+                        agentName: body.name,
+                    },
                 }),
             )
         ) {
@@ -1094,12 +1115,17 @@ export class AiAgentService {
             throw new ForbiddenError('Organization not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        agentName: agent.name,
+                    },
                 }),
             )
         ) {
@@ -1157,12 +1183,17 @@ export class AiAgentService {
             throw new ForbiddenError('Agent not found');
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        agentName: agent.name,
+                    },
                 }),
             )
         ) {
@@ -1295,11 +1326,19 @@ export class AiAgentService {
                 threadUuid,
             });
 
-            const canManageAgent = user.ability.can(
+            if (!user.organizationUuid) {
+                throw new ForbiddenError();
+            }
+            const auditedAbility = this.createAuditedAbility(user);
+            const canManageAgent = auditedAbility.can(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid: user.organizationUuid,
                     projectUuid: prompt.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        threadUuid,
+                    },
                 }),
             );
 
@@ -1338,11 +1377,19 @@ export class AiAgentService {
                 agentUuid,
                 threadUuid,
             });
-            const canManageAgent = user.ability.can(
+            if (!user.organizationUuid) {
+                throw new ForbiddenError();
+            }
+            const auditedAbility = this.createAuditedAbility(user);
+            const canManageAgent = auditedAbility.can(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid: user.organizationUuid,
                     projectUuid: prompt.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        threadUuid,
+                    },
                 }),
             );
 
@@ -1413,12 +1460,17 @@ export class AiAgentService {
         user: SessionUser,
         { agentUuid, projectUuid }: { agentUuid: string; projectUuid: string },
     ): Promise<ReadinessScore> {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid: user.organizationUuid,
                     projectUuid,
+                    metadata: { agentUuid },
                 }),
             )
         ) {
@@ -1924,12 +1976,19 @@ export class AiAgentService {
         }
 
         // Only users who can manage the agent can verify artifacts
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
                     organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        agentName: agent.name,
+                        artifactUuid,
+                        versionUuid,
+                    },
                 }),
             )
         ) {
@@ -2115,12 +2174,17 @@ export class AiAgentService {
         }
 
         // Check view permissions
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('AiAgent', {
                     organizationUuid,
                     projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        agentName: agent.name,
+                    },
                 }),
             )
         ) {
@@ -3322,11 +3386,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             slackPrompt.organizationUuid,
         );
 
-        const canManageAgent = user.ability.can(
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAgent = auditedAbility.can(
             'manage',
             subject('AiAgent', {
                 organizationUuid: slackPrompt.organizationUuid,
                 projectUuid: slackPrompt.projectUuid,
+                metadata: {
+                    promptUuid,
+                    threadUuid: slackPrompt.threadUuid,
+                },
             }),
         );
 
