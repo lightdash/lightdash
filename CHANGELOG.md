@@ -1,3 +1,10 @@
+## [0.2775.3](https://github.com/lightdash/lightdash/compare/0.2775.2...0.2775.3) (2026-04-22)
+
+
+### Bug Fixes
+
+* move total and subtotal calculations to AsyncQueryService ([#22152](https://github.com/lightdash/lightdash/issues/22152)) ([4cc3d7d](https://github.com/lightdash/lightdash/commit/4cc3d7d91f72728d6a26d31bfb033a6a71708749))
+
 ## [0.2775.2](https://github.com/lightdash/lightdash/compare/0.2775.1...0.2775.2) (2026-04-22)
 
 
