@@ -36,6 +36,7 @@ import {
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
     getDashboardFiltersForTileAndTables,
+    getDimensionMapFromTables,
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
@@ -43,6 +44,7 @@ import {
     getItemId,
     getItemMap,
     getMetrics,
+    getMetricsMapFromTables,
     getMetricsWithValidParameters,
     isCartesianChartConfig,
     isCustomBinDimension,
@@ -4041,12 +4043,15 @@ export class AsyncQueryService extends ProjectService {
         // The set is intentionally aligned with the UI's
         // getAvailableFiltersForSavedQueries (filterable, non-hidden).
         const availableFieldIds = [
-            ...getDimensions(explore)
-                .filter((f) => isFilterableDimension(f) && !f.hidden)
-                .map(getItemId),
-            ...getMetrics(explore)
-                .filter((f) => !f.hidden)
-                .map(getItemId),
+            ...Object.entries(getDimensionMapFromTables(explore.tables))
+                .filter(
+                    ([, field]) =>
+                        isFilterableDimension(field) && !field.hidden,
+                )
+                .map(([fieldId]) => fieldId),
+            ...Object.entries(getMetricsMapFromTables(explore.tables))
+                .filter(([, field]) => !field.hidden)
+                .map(([fieldId]) => fieldId),
         ];
         const appliedDashboardFilters: DashboardFilters =
             getDashboardFiltersForTileAndTables(
@@ -5208,7 +5213,7 @@ export class AsyncQueryService extends ProjectService {
         return totalQuery;
     }
 
-    async executeMetricQueryAndGetResultsFromExplore({
+    private async executeMetricQueryAndGetResultsForTotals({
         account,
         projectUuid,
         organizationUuid,
@@ -5513,7 +5518,7 @@ export class AsyncQueryService extends ProjectService {
         const totalMetricQuery =
             AsyncQueryService.getCalculateTotalMetricQuery(metricQuery);
 
-        const { rows } = await this.executeMetricQueryAndGetResultsFromExplore({
+        const { rows } = await this.executeMetricQueryAndGetResultsForTotals({
             account,
             projectUuid,
             organizationUuid,
@@ -5582,7 +5587,7 @@ export class AsyncQueryService extends ProjectService {
                     );
 
                 const { rows, fields } =
-                    await this.executeMetricQueryAndGetResultsFromExplore({
+                    await this.executeMetricQueryAndGetResultsForTotals({
                         account,
                         projectUuid,
                         organizationUuid,
@@ -5633,12 +5638,15 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
         const availableFieldIds = [
-            ...getDimensions(explore)
-                .filter((f) => isFilterableDimension(f) && !f.hidden)
-                .map(getItemId),
-            ...getMetrics(explore)
-                .filter((f) => !f.hidden)
-                .map(getItemId),
+            ...Object.entries(getDimensionMapFromTables(explore.tables))
+                .filter(
+                    ([, field]) =>
+                        isFilterableDimension(field) && !field.hidden,
+                )
+                .map(([fieldId]) => fieldId),
+            ...Object.entries(getMetricsMapFromTables(explore.tables))
+                .filter(([, field]) => !field.hidden)
+                .map(([fieldId]) => fieldId),
         ];
 
         const appliedDashboardFilters = dashboardFilters
