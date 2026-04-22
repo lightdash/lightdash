@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     isAppVersionInProgress,
     type ApiAppVersionSummary,
-    type AppImageAttachment,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -489,20 +488,16 @@ const AppGenerate: FC = () => {
         const newAppUuid = activeAppUuid ? undefined : uuid4();
         const targetAppUuid = activeAppUuid ?? newAppUuid;
 
-        // Upload image via backend proxy, then reference by S3 key
-        let image: AppImageAttachment | undefined;
+        // Upload image via backend proxy, then reference by opaque imageId
+        let imageId: string | undefined;
         if (imageAttachment) {
             try {
-                const { s3Key } = await uploadImage({
+                const result = await uploadImage({
                     projectUuid: projectUuid!,
                     file: imageAttachment.file,
-                    appUuid: targetAppUuid,
+                    appUuid: targetAppUuid!,
                 });
-                image = {
-                    s3Key,
-                    mimeType: imageAttachment.file.type,
-                    filename: imageAttachment.file.name,
-                };
+                imageId = result.imageId;
             } catch {
                 // If upload fails, proceed without the image
                 // rather than blocking the entire submission
@@ -578,7 +573,7 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     appUuid: activeAppUuid,
                     prompt: trimmed,
-                    image,
+                    imageId,
                     chartUuids,
                 },
                 callbacks,
@@ -588,7 +583,7 @@ const AppGenerate: FC = () => {
                 {
                     projectUuid,
                     prompt: trimmed,
-                    image,
+                    imageId,
                     appUuid: newAppUuid,
                     chartUuids,
                 },
