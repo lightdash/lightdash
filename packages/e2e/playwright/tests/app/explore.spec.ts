@@ -323,7 +323,9 @@ test.describe('Explore', () => {
             await scrollTreeToItem(page, 'First name');
             await page.getByTestId('tree-single-node-First name').click();
             await scrollTreeToItem(page, 'Unique order count');
-            await page.getByTestId('tree-single-node-Unique order count').click();
+            await page
+                .getByTestId('tree-single-node-Unique order count')
+                .click();
 
             // run query
             await page
@@ -414,7 +416,9 @@ test.describe('Explore', () => {
                     await scrollTreeToItem(page, 'Order Customer');
                     await page.getByText('Order Customer').click();
                     await scrollTreeToItem(page, 'First name');
-                    await page.getByTestId('tree-single-node-First name').click();
+                    await page
+                        .getByTestId('tree-single-node-First name')
+                        .click();
                     await scrollTreeToItem(page, 'Unique order count');
                     await page
                         .getByTestId('tree-single-node-Unique order count')
@@ -473,7 +477,9 @@ test.describe('Explore', () => {
                     await scrollTreeToItem(page, 'Order Customer');
                     await page.getByText('Order Customer').click();
                     await scrollTreeToItem(page, 'First name');
-                    await page.getByTestId('tree-single-node-First name').click();
+                    await page
+                        .getByTestId('tree-single-node-First name')
+                        .click();
                     await scrollTreeToItem(page, 'Unique order count');
                     await page
                         .getByTestId('tree-single-node-Unique order count')
