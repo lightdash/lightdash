@@ -1,3 +1,10 @@
+# [0.2781.0](https://github.com/lightdash/lightdash/compare/0.2780.1...0.2781.0) (2026-04-22)
+
+
+### Features
+
+* **timeframes:** add toUTC inverse to dateTruncTimezoneConversions ([#22207](https://github.com/lightdash/lightdash/issues/22207)) ([bb4a6d9](https://github.com/lightdash/lightdash/commit/bb4a6d95e2c6c246f7dae0365b240e9598308ce3)), closes [#22142](https://github.com/lightdash/lightdash/issues/22142)
+
 ## [0.2780.1](https://github.com/lightdash/lightdash/compare/0.2780.0...0.2780.1) (2026-04-22)
 
 
