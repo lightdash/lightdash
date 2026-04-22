@@ -406,6 +406,21 @@
     "additionalProperties": false,
     "required": [],
     "$defs": {
+        "filterItem": {
+            "type": "object",
+            "additionalProperties": {
+                "oneOf": [
+                    { "type": "string" },
+                    { "type": "array", "items": { "type": "string" } }
+                ]
+            },
+            "properties": {
+                "required": {
+                    "type": "boolean",
+                    "description": "If true, this filter cannot be removed by users"
+                }
+            }
+        },
         "modelMeta": {
             "type": "object",
             "properties": {
@@ -763,6 +778,80 @@
                     },
                     "description": "Default show underlying values configuration that will be applied to all metrics in this model that don't have their own show_underlying_values defined"
                 },
+                "pre_aggregates": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "dimensions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "metrics": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "filters": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            },
+                            "time_dimension": {
+                                "type": "string"
+                            },
+                            "granularity": {
+                                "type": "string"
+                            },
+                            "max_rows": {
+                                "type": "integer"
+                            },
+                            "refresh": {
+                                "type": "object",
+                                "properties": {
+                                    "cron": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "materialization_role": {
+                                "type": "object",
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "attributes": {
+                                        "type": "object",
+                                        "properties": {},
+                                        "additionalProperties": {
+                                            "oneOf": [
+                                                {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                "required": ["email", "attributes"],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": ["name", "dimensions", "metrics"]
+                    }
+                },
                 "spotlight": {
                     "type": "object",
                     "description": "Set the visibility and/or categories of a metric in Spotlight",
@@ -948,34 +1037,12 @@
                 "default_filters": {
                     "type": "array",
                     "description": "Default filters that are automatically applied when exploring this model",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "properties": {
-                            "required": {
-                                "type": "boolean",
-                                "description": "If true, this filter cannot be removed by users"
-                            }
-                        }
-                    }
+                    "items": { "$ref": "#/$defs/filterItem" }
                 },
                 "required_filters": {
                     "type": "array",
                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
-                    "items": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        },
-                        "properties": {
-                            "required": {
-                                "type": "boolean",
-                                "description": "If true, this filter cannot be removed by users"
-                            }
-                        }
-                    }
+                    "items": { "$ref": "#/$defs/filterItem" }
                 },
                 "explores": {
                     "type": "object",
@@ -987,34 +1054,20 @@
                                 "default_filters": {
                                     "type": "array",
                                     "description": "Default filters that are automatically applied when exploring this explore",
-                                    "items": {
-                                        "type": "object",
-                                        "additionalProperties": {
-                                            "type": "string"
-                                        },
-                                        "properties": {
-                                            "required": {
-                                                "type": "boolean",
-                                                "description": "If true, this filter cannot be removed by users"
-                                            }
-                                        }
-                                    }
+                                    "items": { "$ref": "#/$defs/filterItem" }
                                 },
                                 "required_filters": {
                                     "type": "array",
                                     "description": "Alias for default_filters (deprecated, use default_filters instead)",
-                                    "items": {
-                                        "type": "object",
-                                        "additionalProperties": {
-                                            "type": "string"
-                                        },
-                                        "properties": {
-                                            "required": {
-                                                "type": "boolean",
-                                                "description": "If true, this filter cannot be removed by users"
-                                            }
-                                        }
-                                    }
+                                    "items": { "$ref": "#/$defs/filterItem" }
+                                },
+                                "sql_filter": {
+                                    "type": "string",
+                                    "description": "SQL filter applied to the WHERE clause of all queries using this explore"
+                                },
+                                "sql_where": {
+                                    "type": "string",
+                                    "description": "Alias for sql_filter (deprecated, use sql_filter instead)"
                                 }
                             }
                         }

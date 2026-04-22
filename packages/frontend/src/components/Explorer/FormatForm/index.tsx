@@ -16,6 +16,7 @@ import {
     Anchor,
     Box,
     Flex,
+    Grid,
     Group,
     Paper,
     SegmentedControl,
@@ -25,7 +26,7 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { NumberInput } from '@mantine/core';
-import { type GetInputProps } from '@mantine/form/lib/types';
+import { type UseFormReturnType } from '@mantine/form';
 import {
     IconCalendar,
     IconClockHour4,
@@ -39,7 +40,7 @@ import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
 type Props = {
     formatInputProps: (
         path: keyof CustomFormat,
-    ) => ReturnType<GetInputProps<CustomFormat>>;
+    ) => ReturnType<UseFormReturnType<CustomFormat>['getInputProps']>;
     format: CustomFormat;
     setFormatFieldValue: (
         path: keyof CustomFormat,
@@ -212,138 +213,142 @@ export const FormatForm: FC<Props> = ({
     }, [isDateType, format.custom, sampleDate]);
 
     return (
-        <Stack gap="lg">
+        <Grid gutter="md" columns={12}>
             {/* Format Type Selection */}
             {isDateField ? (
-                <Stack gap="xs">
-                    <Text size="sm" fw={500}>
-                        Format
-                    </Text>
-                    <SegmentedControl
-                        w="fit-content"
-                        size="sm"
-                        radius="md"
-                        data={[
-                            {
-                                label: 'Default',
-                                value: CustomFormatType.DEFAULT,
-                            },
-                            { label: 'Custom', value: 'custom' },
-                        ]}
-                        value={
-                            format.type === CustomFormatType.DEFAULT
-                                ? CustomFormatType.DEFAULT
-                                : 'custom'
-                        }
-                        onChange={(value) => {
-                            if (value === CustomFormatType.DEFAULT) {
-                                setFormatFieldValue(
-                                    'type',
-                                    CustomFormatType.DEFAULT,
-                                );
-                                setFormatFieldValue('custom', undefined);
-                            } else {
-                                // Use CUSTOM type for date/timestamp custom formats
-                                setFormatFieldValue(
-                                    'type',
-                                    CustomFormatType.CUSTOM,
-                                );
+                <Grid.Col span={12}>
+                    <Stack gap="xs">
+                        <Text size="sm" fw={500}>
+                            Format
+                        </Text>
+                        <SegmentedControl
+                            w="fit-content"
+                            size="sm"
+                            radius="md"
+                            data={[
+                                {
+                                    label: 'Default',
+                                    value: CustomFormatType.DEFAULT,
+                                },
+                                { label: 'Custom', value: 'custom' },
+                            ]}
+                            value={
+                                format.type === CustomFormatType.DEFAULT
+                                    ? CustomFormatType.DEFAULT
+                                    : 'custom'
                             }
+                            onChange={(value) => {
+                                if (value === CustomFormatType.DEFAULT) {
+                                    setFormatFieldValue(
+                                        'type',
+                                        CustomFormatType.DEFAULT,
+                                    );
+                                    setFormatFieldValue('custom', undefined);
+                                } else {
+                                    setFormatFieldValue(
+                                        'type',
+                                        CustomFormatType.CUSTOM,
+                                    );
+                                }
+                            }}
+                        />
+                    </Stack>
+                </Grid.Col>
+            ) : (
+                <Grid.Col span={4}>
+                    <Select
+                        label="Format type"
+                        data={formatTypeOptions.map((type) => ({
+                            value: type,
+                            label: getFormatTypeLabel(type),
+                        }))}
+                        {...{
+                            ...formatInputProps('type'),
+                            onChange: (value) => {
+                                if (value) {
+                                    setFormatFieldValue(
+                                        'type',
+                                        value as CustomFormatType,
+                                    );
+                                    setFormatFieldValue('compact', undefined);
+                                    if (
+                                        value !== CustomFormatType.CUSTOM &&
+                                        value !== CustomFormatType.DATE &&
+                                        value !== CustomFormatType.TIMESTAMP
+                                    ) {
+                                        setFormatFieldValue(
+                                            'custom',
+                                            undefined,
+                                        );
+                                    }
+                                }
+                            },
                         }}
                     />
-                </Stack>
-            ) : (
-                <Select
-                    w={200}
-                    label="Format type"
-                    data={formatTypeOptions.map((type) => ({
-                        value: type,
-                        label: getFormatTypeLabel(type),
-                    }))}
-                    {...{
-                        ...formatInputProps('type'),
-                        onChange: (value) => {
-                            if (value) {
-                                setFormatFieldValue(
-                                    'type',
-                                    value as CustomFormatType,
-                                );
-                                setFormatFieldValue('compact', undefined);
-                                // Clear custom format when switching to non-custom types
-                                if (
-                                    value !== CustomFormatType.CUSTOM &&
-                                    value !== CustomFormatType.DATE &&
-                                    value !== CustomFormatType.TIMESTAMP
-                                ) {
-                                    setFormatFieldValue('custom', undefined);
-                                }
-                            }
-                        },
-                    }}
-                />
+                </Grid.Col>
             )}
 
             {/* Date/Timestamp Format Section */}
             {isDateType && (
-                <Stack gap="md">
-                    <Flex align="flex-end" gap="md">
-                        {/* Format Input with Icon */}
-                        <TextInput
-                            style={{ flex: 1 }}
-                            maw={400}
-                            leftSection={
-                                <MantineIcon
-                                    icon={
-                                        isTimestampField
-                                            ? IconClockHour4
-                                            : IconCalendar
-                                    }
-                                    color="ldGray.6"
-                                />
-                            }
-                            label="Custom format"
-                            placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
-                            {...formatInputProps('custom')}
-                        />
-
-                        {/* Preview Area */}
-                        {format.custom && (
-                            <Box pb={2}>
-                                <Text size="xs" c="ldGray.6" fw={500} mb={4}>
-                                    Result
-                                </Text>
-                                <Paper
-                                    withBorder
-                                    px="md"
-                                    h={36}
-                                    display="flex"
-                                    style={{ alignItems: 'center' }}
-                                    radius="md"
-                                    bg="ldGray.0"
-                                >
-                                    <Text
-                                        size="sm"
-                                        fw={600}
-                                        c={
-                                            datePreview === 'Invalid format'
-                                                ? 'red.6'
-                                                : 'inherit'
+                <Grid.Col span={12}>
+                    <Stack gap="md">
+                        <Flex align="flex-end" gap="md">
+                            <TextInput
+                                flex={1}
+                                maw={400}
+                                leftSection={
+                                    <MantineIcon
+                                        icon={
+                                            isTimestampField
+                                                ? IconClockHour4
+                                                : IconCalendar
                                         }
+                                        color="ldGray.6"
+                                    />
+                                }
+                                label="Custom format"
+                                placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
+                                {...formatInputProps('custom')}
+                            />
+                            {format.custom && (
+                                <Box pb={2}>
+                                    <Text
+                                        size="xs"
+                                        c="ldGray.6"
+                                        fw={500}
+                                        mb={4}
                                     >
-                                        {datePreview || '...'}
+                                        Result
                                     </Text>
-                                </Paper>
-                            </Box>
-                        )}
-                    </Flex>
+                                    <Paper
+                                        withBorder
+                                        px="md"
+                                        h={36}
+                                        display="flex"
+                                        radius="md"
+                                        bg="ldGray.0"
+                                    >
+                                        <Text
+                                            size="sm"
+                                            fw={600}
+                                            c={
+                                                datePreview === 'Invalid format'
+                                                    ? 'red.6'
+                                                    : 'inherit'
+                                            }
+                                        >
+                                            {datePreview || '...'}
+                                        </Text>
+                                    </Paper>
+                                </Box>
+                            )}
+                        </Flex>
 
-                    {/* Format Examples */}
-                    <Stack gap="xs">
-                        <Group gap="xs">
-                            <Text size="xs" c="ldGray.6" fw={500}>
-                                Common formats
-                            </Text>
-                            <Group gap="two">
+                        <Stack gap="xs">
+                            <Group gap="xs">
+                                <Text size="xs" c="ldGray.6" fw={500}>
+                                    Common formats
+                                </Text>
                                 <Anchor
                                     href="https://customformats.com"
                                     target="_blank"
@@ -356,55 +361,66 @@ export const FormatForm: FC<Props> = ({
                                     />
                                 </Anchor>
                             </Group>
-                        </Group>
-                        <Flex gap="xs" wrap="wrap">
-                            {dateExamples.map(({ format: fmt, example }) => (
-                                <PolymorphicPaperButton
-                                    key={fmt}
-                                    withBorder
-                                    p="xs"
-                                    shadow="none"
-                                    radius="md"
-                                    onClick={() =>
-                                        setFormatFieldValue('custom', fmt)
-                                    }
-                                >
-                                    <Text size="xs" c="ldDark.8" fw={500}>
-                                        {example}
-                                    </Text>
-                                    <Text size="xs" c="ldGray.5">
-                                        {fmt}
-                                    </Text>
-                                </PolymorphicPaperButton>
-                            ))}
-                        </Flex>
+                            <Flex gap="xs" wrap="wrap">
+                                {dateExamples.map(
+                                    ({ format: fmt, example }) => (
+                                        <PolymorphicPaperButton
+                                            key={fmt}
+                                            withBorder
+                                            p="xs"
+                                            shadow="none"
+                                            radius="md"
+                                            onClick={() =>
+                                                setFormatFieldValue(
+                                                    'custom',
+                                                    fmt,
+                                                )
+                                            }
+                                        >
+                                            <Text
+                                                size="xs"
+                                                c="ldDark.8"
+                                                fw={500}
+                                            >
+                                                {example}
+                                            </Text>
+                                            <Text size="xs" c="ldGray.5">
+                                                {fmt}
+                                            </Text>
+                                        </PolymorphicPaperButton>
+                                    ),
+                                )}
+                            </Flex>
+                        </Stack>
                     </Stack>
-                </Stack>
+                </Grid.Col>
             )}
 
             {/* Custom Format Expression (non-date fields only) */}
             {formatType === CustomFormatType.CUSTOM && !isDateField && (
-                <TextInput
-                    label="Format expression"
-                    placeholder="e.g. #,##0.00"
-                    description={
-                        <Group gap="two">
-                            <MantineIcon
-                                icon={IconExternalLink}
-                                size="sm"
-                                color="blue.6"
-                            />
-                            <Anchor
-                                href="https://customformats.com"
-                                target="_blank"
-                                size="xs"
-                            >
-                                Build your format at customformats.com
-                            </Anchor>
-                        </Group>
-                    }
-                    {...formatInputProps('custom')}
-                />
+                <Grid.Col span={12}>
+                    <TextInput
+                        label="Format expression"
+                        placeholder="e.g. #,##0.00"
+                        description={
+                            <Group gap="two">
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    size="sm"
+                                    color="blue.6"
+                                />
+                                <Anchor
+                                    href="https://customformats.com"
+                                    target="_blank"
+                                    size="xs"
+                                >
+                                    Build your format at customformats.com
+                                </Anchor>
+                            </Group>
+                        }
+                        {...formatInputProps('custom')}
+                    />
+                </Grid.Col>
             )}
 
             {/* Numeric Format Options */}
@@ -416,20 +432,20 @@ export const FormatForm: FC<Props> = ({
                 CustomFormatType.BYTES_IEC,
             ].includes(formatType) && (
                 <>
-                    <Flex gap="md" wrap="wrap">
-                        {formatType === CustomFormatType.CURRENCY && (
+                    {formatType === CustomFormatType.CURRENCY && (
+                        <Grid.Col span={4}>
                             <Select
-                                w={200}
                                 searchable
                                 label="Currency"
                                 data={formatCurrencyOptions}
                                 {...formatInputProps('currency')}
                             />
-                        )}
+                        </Grid.Col>
+                    )}
+                    <Grid.Col span={4}>
                         <NumberInput
                             type="number"
                             min={0}
-                            w={200}
                             label="Decimal places"
                             placeholder="Auto"
                             radius="md"
@@ -443,13 +459,14 @@ export const FormatForm: FC<Props> = ({
                                 },
                             }}
                         />
+                    </Grid.Col>
+                    <Grid.Col span={4}>
                         <Select
-                            w={200}
                             label="Separator style"
                             data={formatSeparatorOptions}
                             {...formatInputProps('separator')}
                         />
-                    </Flex>
+                    </Grid.Col>
                 </>
             )}
 
@@ -460,58 +477,61 @@ export const FormatForm: FC<Props> = ({
                 CustomFormatType.BYTES_SI,
                 CustomFormatType.BYTES_IEC,
             ].includes(formatType) && (
-                <Flex gap="md" wrap="wrap">
-                    <Select
-                        w={200}
-                        clearable
-                        label="Compact"
-                        placeholder={
-                            formatType === CustomFormatType.BYTES_SI
-                                ? 'e.g. kilobytes (KB)'
-                                : formatType === CustomFormatType.BYTES_IEC
-                                  ? 'e.g. kibibytes (KiB)'
-                                  : 'e.g. thousands (K)'
-                        }
-                        data={getCompactOptionsForFormatType(formatType).map(
-                            (c) => ({
+                <>
+                    <Grid.Col span={12}>
+                        <Select
+                            clearable
+                            label="Compact"
+                            placeholder={
+                                formatType === CustomFormatType.BYTES_SI
+                                    ? 'e.g. kilobytes (KB)'
+                                    : formatType === CustomFormatType.BYTES_IEC
+                                      ? 'e.g. kibibytes (KiB)'
+                                      : 'e.g. thousands (K)'
+                            }
+                            data={getCompactOptionsForFormatType(
+                                formatType,
+                            ).map((c) => ({
                                 value: c,
                                 label: CompactConfigMap[c].label,
-                            }),
-                        )}
-                        {...{
-                            ...formatInputProps('compact'),
-                            value: validCompactValue,
-                            onChange: (value) => {
-                                setFormatFieldValue(
-                                    'compact',
-                                    !value || !(value in CompactConfigMap)
-                                        ? undefined
-                                        : value,
-                                );
-                            },
-                        }}
-                    />
+                            }))}
+                            {...{
+                                ...formatInputProps('compact'),
+                                value: validCompactValue,
+                                onChange: (value) => {
+                                    setFormatFieldValue(
+                                        'compact',
+                                        !value || !(value in CompactConfigMap)
+                                            ? undefined
+                                            : value,
+                                    );
+                                },
+                            }}
+                        />
+                    </Grid.Col>
 
                     {formatType === CustomFormatType.NUMBER && (
                         <>
-                            <TextInput
-                                w={200}
-                                label="Prefix"
-                                placeholder="e.g. $"
-                                {...formatInputProps('prefix')}
-                            />
-                            <TextInput
-                                w={200}
-                                label="Suffix"
-                                placeholder="e.g. km/h"
-                                {...formatInputProps('suffix')}
-                            />
+                            <Grid.Col span={4}>
+                                <TextInput
+                                    label="Prefix"
+                                    placeholder="e.g. $"
+                                    {...formatInputProps('prefix')}
+                                />
+                            </Grid.Col>
+                            <Grid.Col span={4}>
+                                <TextInput
+                                    label="Suffix"
+                                    placeholder="e.g. km/h"
+                                    {...formatInputProps('suffix')}
+                                />
+                            </Grid.Col>
                         </>
                     )}
-                </Flex>
+                </>
             )}
 
-            {/* Format Expression Display (for numeric types) */}
+            {/* Format Expression Display */}
             {[
                 CustomFormatType.CURRENCY,
                 CustomFormatType.NUMBER,
@@ -519,14 +539,16 @@ export const FormatForm: FC<Props> = ({
                 CustomFormatType.BYTES_SI,
                 CustomFormatType.BYTES_IEC,
             ].includes(formatType) && (
-                <Text size="xs" c="ldGray.5">
-                    Format expression:{' '}
-                    <Text span fw={500} c="ldGray.7">
-                        {convertCustomFormatToFormatExpression(format) ||
-                            'default'}
+                <Grid.Col span={12}>
+                    <Text size="xs" c="ldGray.5">
+                        Format expression:{' '}
+                        <Text span fw={500} c="ldGray.7">
+                            {convertCustomFormatToFormatExpression(format) ||
+                                'default'}
+                        </Text>
                     </Text>
-                </Text>
+                </Grid.Col>
             )}
-        </Stack>
+        </Grid>
     );
 };

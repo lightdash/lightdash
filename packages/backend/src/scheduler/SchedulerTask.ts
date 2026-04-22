@@ -159,7 +159,7 @@ import { UserService } from '../services/UserService';
 import { ValidationService } from '../services/ValidationService/ValidationService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
-import { getDailyDatesFromCron, SchedulerClient } from './SchedulerClient';
+import { SchedulerClient } from './SchedulerClient';
 
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
@@ -451,6 +451,48 @@ export default class SchedulerTask {
                                 },
                             );
                     }
+                } catch (error) {
+                    if (this.slackClient.isEnabled) {
+                        await this.slackClient.postMessageToNotificationChannel(
+                            {
+                                organizationUuid,
+                                text: `Error sending Scheduled Delivery: ${scheduler.name}`,
+                                blocks: getNotificationChannelErrorBlocks(
+                                    scheduler.name,
+                                    error,
+                                    deliveryUrl,
+                                ),
+                            },
+                        );
+                    }
+
+                    throw error;
+                }
+                break;
+            case SchedulerFormat.PDF:
+                try {
+                    const pdfId = `pdf-notification-${nanoid()}`;
+                    const unfurlPdf = await this.unfurlService.unfurlImage({
+                        url: minimalUrl,
+                        lightdashPage: pageType,
+                        imageId: pdfId,
+                        authUserUuid: userUuid,
+                        outputFormat: 'pdf',
+                        gridWidth:
+                            isDashboardScheduler(scheduler) &&
+                            scheduler.customViewportWidth
+                                ? scheduler.customViewportWidth
+                                : undefined,
+                        context: ScreenshotContext.SCHEDULED_DELIVERY,
+                        contextId: jobId,
+                        selectedTabs,
+                        sendNowSchedulerFilters,
+                        sendNowSchedulerParameters,
+                    });
+                    if (!unfurlPdf.pdfFile) {
+                        throw new Error('Unable to generate PDF');
+                    }
+                    pdfFile = unfurlPdf.pdfFile;
                 } catch (error) {
                     if (this.slackClient.isEnabled) {
                         await this.slackClient.postMessageToNotificationChannel(
@@ -1115,6 +1157,40 @@ export default class SchedulerTask {
                         throw err;
                     }
                 }
+            } else if (format === SchedulerFormat.PDF) {
+                if (!pdfFile) {
+                    throw new Error('Missing PDF file');
+                }
+
+                // Post text message first
+                // Note: footerMarkdown already includes expiration warning
+                // because showExpirationWarning is true for PDF format
+                const blocks = getChartAndDashboardBlocks({
+                    ...getBlocksArgs,
+                });
+
+                await this.slackClient.postMessage({
+                    organizationUuid,
+                    text: name,
+                    channel,
+                    blocks,
+                });
+
+                // Post PDF file as a separate message
+                const pdfBuffer = this.fileStorageClient.isEnabled()
+                    ? await this.fileStorageClient.getFileStream(
+                          pdfFile.fileName,
+                      )
+                    : await fs.readFile(pdfFile.source);
+
+                await this.slackClient.postFileToThread({
+                    organizationUuid,
+                    file: pdfBuffer,
+                    title: name,
+                    channelId: channel,
+                    filename: `${name}.pdf`,
+                    fileType: 'pdf',
+                });
             } else {
                 let blocks;
                 if (savedChartUuid) {
@@ -1371,6 +1447,10 @@ export default class SchedulerTask {
                         image: imageUrl,
                         pdfUrl: pdfFile?.source,
                     });
+            } else if (format === SchedulerFormat.PDF) {
+                throw new ParameterError(
+                    'PDF-only format is not supported for MS Teams webhooks',
+                );
             } else if (format === SchedulerFormat.CSV) {
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {
@@ -1746,6 +1826,12 @@ export default class SchedulerTask {
                 status: SchedulerJobStatus.COMPLETED,
             });
         } catch (error) {
+            if (payload.trigger === 'cron' && error instanceof NotFoundError) {
+                await this.schedulerClient.deleteScheduledPreAggregateCronJobsForDefinition(
+                    payload.preAggregateDefinitionUuid,
+                );
+            }
+
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 details: {
@@ -1780,38 +1866,29 @@ export default class SchedulerTask {
                 }
 
                 try {
-                    const materializationDates = getDailyDatesFromCron(
-                        {
-                            cron: definition.refreshCron,
-                            timezone:
-                                definition.schedulerTimezone || TimeZone.UTC,
-                        },
-                        currentDateStartOfDay,
-                    );
+                    const scheduledJobs =
+                        await this.schedulerClient.schedulePreAggregateCronJobs(
+                            [
+                                {
+                                    organizationUuid:
+                                        definition.organizationUuid,
+                                    projectUuid: definition.projectUuid,
+                                    createdByUserUuid,
+                                    preAggregateDefinitionUuid:
+                                        definition.preAggregateDefinitionUuid,
+                                    refreshCron: definition.refreshCron,
+                                    schedulerTimezone:
+                                        definition.schedulerTimezone ||
+                                        TimeZone.UTC,
+                                    preAggExploreName:
+                                        definition.preAggExploreName,
+                                },
+                            ],
+                            currentDateStartOfDay,
+                            true,
+                        );
 
-                    const materializationJobs = materializationDates.map(
-                        (runAt) =>
-                            this.schedulerClient
-                                .materializePreAggregate(
-                                    {
-                                        organizationUuid:
-                                            definition.organizationUuid,
-                                        projectUuid: definition.projectUuid,
-                                        userUuid: createdByUserUuid,
-                                        preAggregateDefinitionUuid:
-                                            definition.preAggregateDefinitionUuid,
-                                        trigger: 'cron',
-                                    },
-                                    runAt,
-                                )
-                                .then(({ jobId }) => ({
-                                    jobId,
-                                    runAt,
-                                })),
-                    );
-
-                    // eslint-disable-next-line no-await-in-loop
-                    for await (const { jobId, runAt } of materializationJobs) {
+                    scheduledJobs.forEach(({ jobId, runAt }) => {
                         totalScheduledJobs += 1;
 
                         Logger.info(
@@ -1825,7 +1902,7 @@ export default class SchedulerTask {
                                 runAt,
                             },
                         );
-                    }
+                    });
                 } catch (error) {
                     Logger.error(
                         `Failed scheduling pre-aggregate cron jobs for definition ${definition.preAggregateDefinitionUuid} in project ${definition.projectUuid}: ${getErrorMessage(
@@ -2356,9 +2433,18 @@ export default class SchedulerTask {
                     'This is a data alert sent by Lightdash',
                     imageBuffer,
                 );
-            } else if (format === SchedulerFormat.IMAGE) {
-                if (imageUrl === undefined) {
+            } else if (
+                format === SchedulerFormat.IMAGE ||
+                format === SchedulerFormat.PDF
+            ) {
+                if (
+                    format === SchedulerFormat.IMAGE &&
+                    imageUrl === undefined
+                ) {
                     throw new Error('Missing image URL');
+                }
+                if (format === SchedulerFormat.PDF && !pdfFile) {
+                    throw new Error('Missing PDF file');
                 }
                 await this.emailClient.sendImageNotificationEmail(
                     recipient,
@@ -2378,7 +2464,7 @@ export default class SchedulerTask {
                     pdfFile?.source,
                     Math.ceil(emailExpiration / 86400),
                     undefined, // deliveryType
-                    imageBuffer,
+                    format === SchedulerFormat.IMAGE ? imageBuffer : undefined,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -2682,6 +2768,7 @@ export default class SchedulerTask {
                         account,
                         projectUuid: chart.projectUuid,
                         chartUuid: savedChartUuid,
+                        invalidateCache: true,
                         context:
                             QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                         pivotResults: shouldPivot,
@@ -2848,6 +2935,7 @@ export default class SchedulerTask {
                                 dashboardUuid,
                                 dashboardFilters,
                                 dashboardSorts: [],
+                                invalidateCache: true,
                                 context:
                                     QueryExecutionContext.SCHEDULED_GSHEETS_DASHBOARD,
                                 pivotResults: shouldPivotChart,
@@ -3825,21 +3913,48 @@ export default class SchedulerTask {
                     // Fetch all CSVs from presigned URLs in parallel
                     const csvStreams = await Promise.all(
                         successfulResults.map(async (r) => {
-                            const csvResponse = await fetch(r.value.fileUrl);
-                            if (!csvResponse.ok || !csvResponse.body) {
-                                Logger.warn(
-                                    `Failed to fetch CSV for ${r.value.chartName} from presigned URL`,
+                            try {
+                                const csvResponse = await fetch(
+                                    r.value.fileUrl,
+                                );
+                                if (!csvResponse.ok || !csvResponse.body) {
+                                    Logger.warn(
+                                        `Failed to fetch CSV for ${r.value.chartName} from presigned URL: HTTP ${csvResponse.status} ${csvResponse.statusText}`,
+                                    );
+                                    return null;
+                                }
+                                return {
+                                    filename: r.value.filename,
+                                    stream: Readable.fromWeb(
+                                        csvResponse.body as Parameters<
+                                            typeof Readable.fromWeb
+                                        >[0],
+                                    ),
+                                };
+                            } catch (e) {
+                                const cause =
+                                    e instanceof Error && e.cause
+                                        ? e.cause
+                                        : undefined;
+                                Logger.error(
+                                    `Failed to fetch CSV for chart "${r.value.chartName}" from presigned URL: ${e instanceof Error ? e.message : String(e)}`,
+                                    {
+                                        chartName: r.value.chartName,
+                                        // Strip query params — they contain auth signatures
+                                        fileUrl: r.value.fileUrl.split('?')[0],
+                                        cause:
+                                            cause instanceof Error
+                                                ? {
+                                                      message: cause.message,
+                                                      code: (
+                                                          cause as NodeJS.ErrnoException
+                                                      ).code,
+                                                  }
+                                                : cause,
+                                    },
                                 );
                                 return null;
                             }
-                            return {
-                                filename: r.value.filename,
-                                stream: Readable.fromWeb(
-                                    csvResponse.body as Parameters<
-                                        typeof Readable.fromWeb
-                                    >[0],
-                                ),
-                            };
                         }),
                     );
 
@@ -4980,6 +5095,10 @@ export default class SchedulerTask {
                         image: imageUrl,
                         pdfUrl: pdfFile?.source,
                     });
+            } else if (format === SchedulerFormat.PDF) {
+                throw new ParameterError(
+                    'PDF-only format is not supported for Google Chat webhooks',
+                );
             } else if (format === SchedulerFormat.CSV) {
                 if (savedChartUuid) {
                     if (csvUrl === undefined) {

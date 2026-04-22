@@ -134,6 +134,8 @@ export const EditVirtualViewModal: FC<Props> = ({
                                 name: explore.name,
                                 label: explore.label,
                                 sql: explore.tables[activeTableName].sqlTable,
+                                savedParameterValues:
+                                    explore.savedParameterValues,
                                 onCloseEditVirtualView: onClose,
                             }}
                         />

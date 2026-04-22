@@ -20,6 +20,12 @@
         {
             "path": "./packages/warehouses"
         },
+        {
+            "path": "./packages/formula"
+        },
+        {
+            "path": "./packages/formula-tests"
+        },
     ],
     "exclude": [
         "dist",

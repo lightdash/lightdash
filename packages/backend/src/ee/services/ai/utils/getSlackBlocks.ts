@@ -408,7 +408,7 @@ export function getDeepLinkBlocks(
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `<${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}/messages/${slackPrompt.promptUuid}/debug|View message data in Lightdash ⚡️>`,
+                text: `<${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View chat in Lightdash ⚡️>`,
             },
         },
     ];

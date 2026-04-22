@@ -184,6 +184,7 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
                 this.lightdashConfig.results.autocompleteEnabled,
+            hasResultsCaching: this.lightdashConfig.results.cacheEnabled,
             appearance: {
                 overrideColorPalette:
                     this.lightdashConfig.appearance.overrideColorPalette,
@@ -236,6 +237,9 @@ export class HealthService extends BaseService {
             },
             dataApps: {
                 enabled: this.lightdashConfig.appRuntime.enabled,
+            },
+            managedAgent: {
+                enabled: this.lightdashConfig.managedAgent.enabled,
             },
         };
     }

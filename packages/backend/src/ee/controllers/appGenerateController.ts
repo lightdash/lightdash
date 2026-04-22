@@ -1,7 +1,15 @@
 import {
     ApiErrorPayload,
+    ParameterError,
+    type ApiAppImageUploadResponse,
+    type ApiCancelAppVersionResponse,
     type ApiGenerateAppResponse,
+    type ApiGetAppResponse,
+    type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
+    type ApiUpdateAppRequest,
+    type ApiUpdateAppResponse,
+    type GenerateAppRequestBody,
 } from '@lightdash/common';
 import {
     Body,
@@ -9,8 +17,10 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -23,10 +33,6 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
-
-type GenerateAppRequestBody = {
-    prompt: string;
-};
 
 @Route('/api/v1/ee/projects/{projectUuid}/apps')
 @Hidden()
@@ -46,6 +52,161 @@ export class AppGenerateController extends BaseController {
             req.user!,
             projectUuid,
             body.prompt,
+            body.image,
+            body.appUuid,
+            body.chartUuids,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Upload an image for a data app generation request.
+     * Send raw image bytes with the appropriate Content-Type header.
+     * The request body is streamed directly to S3 without buffering.
+     * @summary Upload app image
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/upload-image')
+    @OperationId('uploadAppImage')
+    async uploadImage(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() appUuid?: string,
+    ): Promise<ApiAppImageUploadResponse> {
+        this.setStatus(200);
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+        if (!req.headers['content-length']) {
+            throw new ParameterError('Content-Length header is required');
+        }
+        const contentLength = parseInt(req.headers['content-length'], 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+        const result = await this.getAppGenerateService().uploadImage(
+            req.user!,
+            projectUuid,
+            mimeType,
+            req,
+            contentLength,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Get an app with its version history, paginated backwards.
+     * @summary Get app with versions
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}')
+    @OperationId('getApp')
+    async getApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Query() beforeVersion?: number,
+        @Query() limit?: number,
+    ): Promise<ApiGetAppResponse> {
+        const result = await this.getAppGenerateService().getAppVersions(
+            req.user!,
+            projectUuid,
+            appUuid,
+            { beforeVersion, limit },
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Create a new version of an existing app by iterating on it with a follow-up prompt.
+     * Resumes the paused sandbox if available, otherwise creates a new one and restores source.
+     * @summary Iterate on an existing app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions')
+    @OperationId('iterateApp')
+    async iterateApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: GenerateAppRequestBody,
+    ): Promise<ApiGenerateAppResponse> {
+        this.setStatus(200);
+        const result = await this.getAppGenerateService().iterateApp(
+            req.user!,
+            projectUuid,
+            appUuid,
+            body.prompt,
+            body.image,
+            body.chartUuids,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Cancel a building version, killing the sandbox and marking it as cancelled.
+     * @summary Cancel app version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/cancel')
+    @OperationId('cancelAppVersion')
+    async cancelAppVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+    ): Promise<ApiCancelAppVersionResponse> {
+        await this.getAppGenerateService().cancelVersion(
+            req.user!,
+            projectUuid,
+            appUuid,
+            version,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
+     * Update an app's name and/or description.
+     * @summary Update app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{appUuid}')
+    @OperationId('updateApp')
+    async updateApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Body() body: ApiUpdateAppRequest,
+    ): Promise<ApiUpdateAppResponse> {
+        const result = await this.getAppGenerateService().updateApp(
+            req.user!,
+            projectUuid,
+            appUuid,
+            body,
         );
         return {
             status: 'ok',
@@ -67,7 +228,7 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() version: number,
     ): Promise<ApiPreviewTokenResponse> {
-        const token = this.getAppGenerateService().getPreviewToken(
+        const token = await this.getAppGenerateService().getPreviewToken(
             req.user!,
             projectUuid,
             appUuid,
@@ -81,5 +242,35 @@ export class AppGenerateController extends BaseController {
 
     protected getAppGenerateService() {
         return this.services.getAppGenerateService<AppGenerateService>();
+    }
+}
+
+@Route('/api/v1/ee/user/apps')
+@Hidden()
+@Response<ApiErrorPayload>('default', 'Error')
+export class UserAppsController extends BaseController {
+    /**
+     * List the current user's apps with pagination.
+     * @summary List my apps
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('listMyApps')
+    async listMyApps(
+        @Request() req: express.Request,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiMyAppsResponse> {
+        const result = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .listMyApps(
+                req.user!,
+                page && pageSize ? { page, pageSize } : undefined,
+            );
+        return {
+            status: 'ok',
+            results: result,
+        };
     }
 }

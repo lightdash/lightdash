@@ -428,19 +428,6 @@ export const AiAgentFormSetup = ({
                                                     icon={IconInfoCircle}
                                                 />
                                             </Tooltip>
-                                            <Badge
-                                                color="yellow"
-                                                radius="sm"
-                                                variant="light"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconAlertTriangle}
-                                                        size={12}
-                                                    />
-                                                }
-                                            >
-                                                Experimental
-                                            </Badge>
                                         </Group>
                                     }
                                     description={

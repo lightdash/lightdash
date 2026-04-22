@@ -172,7 +172,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                     !isFetching &&
                     totalFetched < totalDBRowCount
                 ) {
-                    void fetchNextPage();
+                    fetchNextPage();
                 }
             }
         },

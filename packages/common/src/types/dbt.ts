@@ -11,7 +11,7 @@ import {
     type CompiledModelNode,
     type ParsedMetric,
 } from './dbtFromSchema';
-import { DbtError, ParseError } from './errors';
+import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
     FieldType,
@@ -50,7 +50,13 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
 };
-export type DbtRawModelNode = CompiledModelNode & {
+export type DbtRawModelNode = Omit<
+    CompiledModelNode,
+    'resource_type' | 'compiled' | 'language'
+> & {
+    resource_type: 'model' | 'seed';
+    compiled?: boolean;
+    language?: string;
     columns: { [name: string]: DbtModelColumn };
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
@@ -97,6 +103,8 @@ type ExploreConfig = {
     group_label?: string;
     joins?: DbtModelJoin[];
     case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
+    sql_filter?: string;
+    sql_where?: string; // alias for sql_filter
     /**
      * Explore-scoped custom dimensions.
      * These dimensions are only available within this specific explore
@@ -112,11 +120,17 @@ export type DbtPreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    filters?: Record<string, AnyType>[];
     time_dimension?: string;
     granularity?: string;
     max_rows?: number;
     refresh?: {
         cron?: string;
+    };
+    materialization_role?: {
+        email?: string;
+        attributes?: Record<string, string | string[]>;
+        [key: string]: unknown;
     };
 };
 
@@ -301,16 +315,22 @@ export const normaliseModelDatabase = (
             );
     }
 };
-export const patchPathParts = (patchPath: string) => {
-    const [project, ...rest] = patchPath.split('://');
-    if (rest.length === 0) {
-        throw new DbtError(
-            'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
-        );
+export const patchPathParts = (
+    patchPath: string,
+): { project: string | null; path: string } => {
+    // dbt-core format: `project://path/to/file.yml`
+    // dbt-fusion format: raw path with no project prefix, may contain Windows backslashes
+    const normalized = patchPath.replace(/\\/g, '/');
+    const separatorIndex = normalized.indexOf('://');
+    if (separatorIndex === -1) {
+        return {
+            project: null,
+            path: normalized,
+        };
     }
     return {
-        project,
-        path: rest.join('://'),
+        project: normalized.slice(0, separatorIndex),
+        path: normalized.slice(separatorIndex + '://'.length),
     };
 };
 
@@ -777,7 +797,7 @@ export const getModelsFromManifest = (
 ): DbtModelNode[] => {
     const models = Object.values(manifest.nodes).filter(
         (node) =>
-            node.resource_type === 'model' &&
+            ['model', 'seed'].includes(node.resource_type) &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
 
@@ -798,6 +818,10 @@ export function getCompiledModels(
     const isAnyModelCompiled = manifestModels.some((model) => model.compiled);
 
     return manifestModels.filter((model) => {
+        // Seeds are always included — they don't appear in dbt ls output
+        // and don't have a compiled field.
+        if (model.resource_type === 'seed') return true;
+
         if (compiledModelIds) {
             return compiledModelIds.includes(model.unique_id);
         }

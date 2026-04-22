@@ -1,4 +1,4 @@
-import { ForbiddenError, isExploreError } from '@lightdash/common';
+import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import { lightdashConfig } from '../config/lightdashConfig';
@@ -20,8 +20,9 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
+import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
-import { generatePreAggregateExplores } from './preAggregates/generatePreAggregateExplores';
+import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
@@ -35,6 +36,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
+import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -74,10 +76,16 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            appGenerateService: ({ context, models }) =>
+            appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
                     catalogModel: models.getCatalogModel(),
+                    appModel: models.getAppModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                    savedChartService: repository.getSavedChartService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -378,6 +386,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
+                    aiAgentService: repository.getAiAgentService(),
                 }),
             slackService: ({ repository, clients }) =>
                 new CommercialSlackService({
@@ -385,24 +394,32 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     aiAgentService: repository.getAiAgentService(),
                 }),
-            deployService: ({ models, clients, repository }) =>
+            managedAgentService: ({ context, models, clients }) =>
+                new ManagedAgentService({
+                    lightdashConfig: context.lightdashConfig,
+                    managedAgentModel: models.getManagedAgentModel(),
+                    analyticsModel: models.getAnalyticsModel(),
+                    projectModel: models.getProjectModel(),
+                    validationModel: models.getValidationModel(),
+                    savedChartModel: models.getSavedChartModel(),
+                    dashboardModel: models.getDashboardModel(),
+                    spaceModel: models.getSpaceModel(),
+                    userModel: models.getUserModel(),
+                    serviceAccountModel: models.getServiceAccountModel(),
+                    schedulerClient: clients.getSchedulerClient(),
+                    slackClient: clients.getSlackClient(),
+                }),
+            deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
                     deploySessionModel: models.getDeploySessionModel(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     schedulerClient: clients.getSchedulerClient(),
                     exploreEnhancer: (explores) =>
-                        explores.flatMap((explore) => {
-                            if (isExploreError(explore)) return [explore];
-                            if (
-                                !explore.preAggregates ||
-                                explore.preAggregates.length === 0
-                            )
-                                return [explore];
-                            return generatePreAggregateExplores({
-                                compiledExplores: [explore],
-                                parsedPreAggregates: explore.preAggregates,
-                            });
+                        enhanceExploresForPreAggregates({
+                            explores,
+                            enabled:
+                                context.lightdashConfig.preAggregates.enabled,
                         }),
                 }),
         },
@@ -419,6 +436,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
                 new ServiceAccountModel({ database }),
+            managedAgentModel: ({ database, utils }) =>
+                new ManagedAgentModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             featureFlagModel: ({ database }) =>
                 new CommercialFeatureFlagModel({ database, lightdashConfig }),
         },
@@ -468,6 +490,10 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 preAggregateModel: context.models.getPreAggregateModel(),
                 preAggregateMaterializationService:
                     context.serviceRepository.getPreAggregateMaterializationService(),
+                managedAgentService:
+                    context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
+                appGenerateService:
+                    context.serviceRepository.getAppGenerateService(),
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

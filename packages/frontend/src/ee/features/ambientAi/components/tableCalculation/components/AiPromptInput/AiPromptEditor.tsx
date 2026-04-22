@@ -11,9 +11,11 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, type FC } from 'react';
+import {
+    generateFieldSuggestion,
+    type FieldSuggestionItem,
+} from '../../../../../../../components/common/SuggestionList';
 import styles from './AiPromptEditor.module.css';
-import { type FieldSuggestionItem } from './FieldSuggestionList';
-import { generateFieldSuggestion } from './generateFieldSuggestion';
 
 const MentionWithLabel = Mention.extend({
     addAttributes() {

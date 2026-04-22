@@ -18,12 +18,13 @@ export default defineConfig({
             process.env.REACT_QUERY_DEVTOOLS_ENABLED ?? true,
     },
     plugins: [
-        svgrPlugin(),
-        reactPlugin(),
         compression({
             include: [/\.(js)$/, /\.(css)$/],
+            algorithms: ['gzip'],
             filename: '[path][base].gzip',
         }),
+        svgrPlugin(),
+        reactPlugin(),
         monacoEditorPlugin({
             forceBuildCDN: true,
             languageWorkers: ['editorWorkerService', 'json', 'html'],
@@ -51,6 +52,7 @@ export default defineConfig({
         include: ['react-vega'],
     },
     resolve: {
+        dedupe: ['react', 'react-dom'],
         alias:
             process.env.NODE_ENV === 'development'
                 ? {
@@ -62,6 +64,10 @@ export default defineConfig({
                           __dirname,
                           '../common/src/index.ts',
                       ),
+                      '@lightdash/formula': path.resolve(
+                          __dirname,
+                          '../formula/src/index.ts',
+                      ),
                   }
                 : undefined,
     },
@@ -72,50 +78,45 @@ export default defineConfig({
         minify: true,
         sourcemap: true,
 
-        rollupOptions: {
+        rolldownOptions: {
             output: {
-                manualChunks: {
-                    react: [
-                        'react',
-                        'react-dom',
-                        'react-router',
-                        'react-use',
-                        // TODO: removed because of PNPM
-                        // 'react-draggable',
-                        '@hello-pangea/dnd',
-                        '@tanstack/react-query',
-                        '@tanstack/react-table',
-                        '@tanstack/react-virtual',
-                    ],
-                    echarts: ['echarts'],
-                    ace: ['ace-builds', 'react-ace/lib'],
-                    modules: [
-                        // TODO: removed because of PNPM
-                        // 'ajv',
-                        // 'ajv-formats',
-                        // 'liquidjs',
-                        // 'pegjs',
-                        'jspdf',
-                        'lodash',
-                        'colorjs.io',
-                        'zod',
-                    ],
-                    thirdparty: [
-                        '@sentry/react',
-                        'rudder-sdk-js',
-                        'posthog-js',
-                    ],
-                    uiw: [
-                        '@uiw/react-markdown-preview',
-                        '@uiw/react-md-editor',
-                    ],
-                    mantine: [
-                        '@mantine/core',
-                        '@mantine/dates',
-                        '@mantine/form',
-                        '@mantine/hooks',
-                        '@mantine/notifications',
-                        '@mantine/prism',
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: 'react',
+                            test: /node_modules[\\/](react|react-dom|react-router|react-use|@hello-pangea[\\/]dnd|@tanstack[\\/]react-query|@tanstack[\\/]react-table|@tanstack[\\/]react-virtual)/,
+                            priority: 20,
+                        },
+                        {
+                            name: 'mantine',
+                            test: /node_modules[\\/]@mantine[\\/](core|dates|form|hooks|notifications|prism)/,
+                            priority: 20,
+                        },
+                        {
+                            name: 'echarts',
+                            test: /node_modules[\\/]echarts/,
+                            priority: 20,
+                        },
+                        {
+                            name: 'ace',
+                            test: /node_modules[\\/](ace-builds|react-ace)/,
+                            priority: 20,
+                        },
+                        {
+                            name: 'modules',
+                            test: /node_modules[\\/](jspdf|lodash|colorjs\.io|zod)/,
+                            priority: 15,
+                        },
+                        {
+                            name: 'thirdparty',
+                            test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js|posthog-js)/,
+                            priority: 15,
+                        },
+                        {
+                            name: 'uiw',
+                            test: /node_modules[\\/]@uiw[\\/](react-markdown-preview|react-md-editor)/,
+                            priority: 15,
+                        },
                     ],
                 },
             },
@@ -128,11 +129,7 @@ export default defineConfig({
         env: {
             VITE_REACT_QUERY_DEVTOOLS_ENABLED: 'false',
         },
-        poolOptions: {
-            forks: {
-                maxForks: '50%',
-            },
-        },
+        maxWorkers: '50%',
     },
     server: {
         port: FE_PORT,

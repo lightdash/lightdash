@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import moment, { type MomentInput } from 'moment';
+import dayjsTimezone from 'dayjs/plugin/timezone';
+import moment, { type MomentInput } from 'moment-timezone';
 import {
     format as formatWithExpression,
     isDateFormat,
@@ -41,8 +41,9 @@ import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import { getItemType, isNumericItem } from './item';
+import { truncatableTimeFrames } from './timeFrames';
 
-dayjs.extend(timezone);
+dayjs.extend(dayjsTimezone);
 
 export const currencies = [
     'USD',
@@ -136,7 +137,10 @@ export function formatDate(
     timeInterval: TimeFrames = TimeFrames.DAY,
     convertToUTC: boolean = false,
 ): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    // moment.utc(date) parses date-only strings as UTC. moment(date).utc()
+    // parses in the local timezone first, shifting the date back a day
+    // in UTC+ browsers (e.g. JST).
+    const momentDate = convertToUTC ? moment.utc(date) : moment(date);
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -149,8 +153,16 @@ export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
+    timezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+    let momentDate;
+    if (timezone) {
+        momentDate = moment.utc(value).tz(timezone);
+    } else if (convertToUTC) {
+        momentDate = moment.utc(value);
+    } else {
+        momentDate = moment(value);
+    }
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -772,6 +784,7 @@ export function formatItemValue(
     value: unknown,
     convertToUTC?: boolean,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -833,6 +846,7 @@ export function formatItemValue(
                 case DimensionType.DATE:
                 case MetricType.DATE:
                 case TableCalculationType.DATE:
+                    // DATE has no time component; timezone doesn't apply.
                     return isMomentInput(value)
                         ? formatDate(
                               value,
@@ -843,11 +857,23 @@ export function formatItemValue(
                 case DimensionType.TIMESTAMP:
                 case MetricType.TIMESTAMP:
                 case TableCalculationType.TIMESTAMP:
+                    const timeInterval = isDimension(item)
+                        ? item.timeInterval
+                        : undefined;
+
+                    // SQL's DATE_TRUNC(... AT TIME ZONE tz) already shifted the
+                    // wall-clock; don't shift again.
+                    const isTruncated =
+                        timezone &&
+                        timeInterval &&
+                        truncatableTimeFrames.has(timeInterval);
+
                     return isMomentInput(value)
                         ? formatTimestamp(
                               value,
-                              isDimension(item) ? item.timeInterval : undefined,
-                              convertToUTC,
+                              timeInterval,
+                              isTruncated ? true : convertToUTC,
+                              isTruncated ? undefined : timezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
@@ -857,6 +883,7 @@ export function formatItemValue(
                             value,
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
+                            timezone,
                         );
                     }
                     break;

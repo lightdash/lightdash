@@ -12,7 +12,6 @@ import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -116,12 +115,6 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
-        featureFlagModel: {
-            get: jest.fn(async () => ({
-                id: '',
-                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
-            })),
-        } as unknown as FeatureFlagModel,
     });
 
 jest.spyOn(analyticsMock, 'track');
@@ -619,24 +612,8 @@ describe('UserService', () => {
             });
         };
 
-        test('should return early when feature flag is disabled', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: false },
-            });
-
-            await callOnLogin(service, makeSessionUser());
-
-            expect(
-                projectModel.getProjectsWithDefaultUserSpaces,
-            ).not.toHaveBeenCalled();
-        });
-
         test('should return early when user has no organization', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
+            const service = createUserService(lightdashConfigMock);
 
             await service.onLogin({
                 userUuid: 'test-user-uuid',
@@ -652,10 +629,7 @@ describe('UserService', () => {
         });
 
         test('should return early when no projects have the feature enabled', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
+            const service = createUserService(lightdashConfigMock);
 
             (
                 projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
@@ -667,10 +641,7 @@ describe('UserService', () => {
         });
 
         test('should create space for interactive viewer', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
+            const service = createUserService(lightdashConfigMock);
 
             (
                 projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
@@ -699,10 +670,7 @@ describe('UserService', () => {
         });
 
         test('should skip space creation for viewer (no manage:SavedChart ability)', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
+            const service = createUserService(lightdashConfigMock);
 
             (
                 projectModel.getProjectsWithDefaultUserSpaces as jest.Mock
@@ -719,10 +687,7 @@ describe('UserService', () => {
         });
 
         test('should create spaces across multiple projects', async () => {
-            const service = createUserService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
+            const service = createUserService(lightdashConfigMock);
 
             const secondProject = {
                 projectId: 2,

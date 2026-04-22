@@ -56,6 +56,43 @@ export const ExpectedNumberFilterSQL: Record<FilterOperator, string | null> = {
         '(customers.age) >= (1) AND (customers.age) <= (2)',
     [FilterOperator.NOT_IN_BETWEEN]:
         '(customers.age) < (1) OR (customers.age) > (2)',
+    [FilterOperator.IN_PERIOD_TO_DATE]: null,
+};
+
+export const YearToDateFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.years },
+};
+
+export const QuarterToDateFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.quarters },
+};
+
+export const MonthToDateFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.months },
+};
+
+export const WeekToDateFilterBase = {
+    id: 'id',
+    target: {
+        fieldId: 'fieldId',
+    },
+    operator: FilterOperator.IN_PERIOD_TO_DATE,
+    settings: { unitOfTime: UnitOfTime.weeks },
 };
 
 export const InTheCurrentFilterBase = {
@@ -72,27 +109,27 @@ export const InTheCurrentFilterBase = {
 };
 
 export const ExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`, // note that all milliseconds filters are working incorrectly #4074
-    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`,
-    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:00') AND (customers.created) <= ('2020-04-04 06:12:59'))`,
-    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:00:00') AND (customers.created) <= ('2020-04-04 06:59:59'))`,
-    [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
-    [UnitOfTime.weeks]: `((customers.created) >= ('2020-03-30 00:00:00') AND (customers.created) <= ('2020-04-05 23:59:59'))`,
-    [UnitOfTime.months]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-04-30 23:59:59'))`,
-    [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-01 00:00:00') AND (customers.created) <= ('2020-06-30 23:59:59'))`,
-    [UnitOfTime.years]: `((customers.created) >= ('2020-01-01 00:00:00') AND (customers.created) <= ('2020-12-31 23:59:59'))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))`,
+    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:00+00:00') AND (customers.created) <= ('2020-04-04 06:12:59+00:00'))`,
+    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:00:00+00:00') AND (customers.created) <= ('2020-04-04 06:59:59+00:00'))`,
+    [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 00:00:00+00:00') AND (customers.created) <= ('2020-04-04 23:59:59+00:00'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-03-30 00:00:00+00:00') AND (customers.created) <= ('2020-04-05 23:59:59+00:00'))`,
+    [UnitOfTime.months]: `((customers.created) >= ('2020-04-01 00:00:00+00:00') AND (customers.created) <= ('2020-04-30 23:59:59+00:00'))`,
+    [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-01 00:00:00+00:00') AND (customers.created) <= ('2020-06-30 23:59:59+00:00'))`,
+    [UnitOfTime.years]: `((customers.created) >= ('2020-01-01 00:00:00+00:00') AND (customers.created) <= ('2020-12-31 23:59:59+00:00'))`,
 };
 
 export const TrinoExpectedInTheCurrentFilterSQL: Record<UnitOfTime, string> = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30' AS timestamp))`, // note that all milliseconds filters are working incorrectly #4074
-    [UnitOfTime.seconds]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30' AS timestamp))`,
-    [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:12:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:59' AS timestamp))`,
-    [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 06:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:59:59' AS timestamp))`,
-    [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-04 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 23:59:59' AS timestamp))`,
-    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-03-30 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-05 23:59:59' AS timestamp))`,
-    [UnitOfTime.months]: `((customers.created) >= CAST('2020-04-01 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-30 23:59:59' AS timestamp))`,
-    [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-04-01 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-06-30 23:59:59' AS timestamp))`,
-    [UnitOfTime.years]: `((customers.created) >= CAST('2020-01-01 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-12-31 23:59:59' AS timestamp))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30+00:00' AS timestamp))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30+00:00' AS timestamp))`,
+    [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:12:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:59+00:00' AS timestamp))`,
+    [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 06:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:59:59+00:00' AS timestamp))`,
+    [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-04 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 23:59:59+00:00' AS timestamp))`,
+    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-03-30 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-05 23:59:59+00:00' AS timestamp))`,
+    [UnitOfTime.months]: `((customers.created) >= CAST('2020-04-01 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-30 23:59:59+00:00' AS timestamp))`,
+    [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-04-01 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-06-30 23:59:59+00:00' AS timestamp))`,
+    [UnitOfTime.years]: `((customers.created) >= CAST('2020-01-01 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-12-31 23:59:59+00:00' AS timestamp))`,
 };
 
 export const InTheNextFilterBase = {
@@ -109,54 +146,54 @@ export const InTheNextFilterBase = {
 };
 
 export const ExpectedInTheNextFilterSQL: Record<UnitOfTime, string> = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`, // note that all milliseconds filters are working incorrectly #4074
-    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:12:31'))`,
-    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 06:13:30'))`,
-    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-04 07:12:30'))`,
-    [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-05 06:12:30'))`,
-    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-04-11 06:12:30'))`,
-    [UnitOfTime.months]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-05-04 06:12:30'))`,
-    [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2020-07-04 06:12:30'))`,
-    [UnitOfTime.years]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) <= ('2021-04-04 06:12:30'))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:31+00:00'))`,
+    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:13:30+00:00'))`,
+    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 07:12:30+00:00'))`,
+    [UnitOfTime.days]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-05 06:12:30+00:00'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-11 06:12:30+00:00'))`,
+    [UnitOfTime.months]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-05-04 06:12:30+00:00'))`,
+    [UnitOfTime.quarters]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-07-04 06:12:30+00:00'))`,
+    [UnitOfTime.years]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2021-04-04 06:12:30+00:00'))`,
 };
 
 export const TrinoExpectedInTheNextFilterSQL: Record<UnitOfTime, string> = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30' AS timestamp))`, // note that all milliseconds filters are working incorrectly #4074
-    [UnitOfTime.seconds]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:31' AS timestamp))`,
-    [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:13:30' AS timestamp))`,
-    [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 07:12:30' AS timestamp))`,
-    [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-05 06:12:30' AS timestamp))`,
-    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-11 06:12:30' AS timestamp))`,
-    [UnitOfTime.months]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-05-04 06:12:30' AS timestamp))`,
-    [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2020-07-04 06:12:30' AS timestamp))`,
-    [UnitOfTime.years]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) <= CAST('2021-04-04 06:12:30' AS timestamp))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30+00:00' AS timestamp))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:31+00:00' AS timestamp))`,
+    [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:13:30+00:00' AS timestamp))`,
+    [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 07:12:30+00:00' AS timestamp))`,
+    [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-05 06:12:30+00:00' AS timestamp))`,
+    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-11 06:12:30+00:00' AS timestamp))`,
+    [UnitOfTime.months]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-05-04 06:12:30+00:00' AS timestamp))`,
+    [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-07-04 06:12:30+00:00' AS timestamp))`,
+    [UnitOfTime.years]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2021-04-04 06:12:30+00:00' AS timestamp))`,
 };
 
 export const ExpectedInTheNextCompleteFilterSQL: Record<UnitOfTime, string> = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30') AND (customers.created) < ('2020-04-04 06:12:30'))`, // note that all milliseconds filters are working incorrectly #4074
-    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:31') AND (customers.created) < ('2020-04-04 06:12:32'))`,
-    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:13:00') AND (customers.created) < ('2020-04-04 06:14:00'))`,
-    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 07:00:00') AND (customers.created) < ('2020-04-04 08:00:00'))`,
-    [UnitOfTime.days]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-06 00:00:00'))`,
-    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-06 00:00:00') AND (customers.created) < ('2020-04-13 00:00:00'))`,
-    [UnitOfTime.months]: `((customers.created) >= ('2020-05-01 00:00:00') AND (customers.created) < ('2020-06-01 00:00:00'))`,
-    [UnitOfTime.quarters]: `((customers.created) >= ('2020-07-01 00:00:00') AND (customers.created) < ('2020-10-01 00:00:00'))`,
-    [UnitOfTime.years]: `((customers.created) >= ('2021-01-01 00:00:00') AND (customers.created) < ('2022-01-01 00:00:00'))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) < ('2020-04-04 06:12:30+00:00'))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= ('2020-04-04 06:12:31+00:00') AND (customers.created) < ('2020-04-04 06:12:32+00:00'))`,
+    [UnitOfTime.minutes]: `((customers.created) >= ('2020-04-04 06:13:00+00:00') AND (customers.created) < ('2020-04-04 06:14:00+00:00'))`,
+    [UnitOfTime.hours]: `((customers.created) >= ('2020-04-04 07:00:00+00:00') AND (customers.created) < ('2020-04-04 08:00:00+00:00'))`,
+    [UnitOfTime.days]: `((customers.created) >= ('2020-04-05 00:00:00+00:00') AND (customers.created) < ('2020-04-06 00:00:00+00:00'))`,
+    [UnitOfTime.weeks]: `((customers.created) >= ('2020-04-06 00:00:00+00:00') AND (customers.created) < ('2020-04-13 00:00:00+00:00'))`,
+    [UnitOfTime.months]: `((customers.created) >= ('2020-05-01 00:00:00+00:00') AND (customers.created) < ('2020-06-01 00:00:00+00:00'))`,
+    [UnitOfTime.quarters]: `((customers.created) >= ('2020-07-01 00:00:00+00:00') AND (customers.created) < ('2020-10-01 00:00:00+00:00'))`,
+    [UnitOfTime.years]: `((customers.created) >= ('2021-01-01 00:00:00+00:00') AND (customers.created) < ('2022-01-01 00:00:00+00:00'))`,
 };
 
 export const TrinoExpectedInTheNextCompleteFilterSQL: Record<
     UnitOfTime,
     string
 > = {
-    [UnitOfTime.milliseconds]: `((customers.created) >= CAST('2020-04-04 06:12:30' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:12:30' AS timestamp))`, // note that all milliseconds filters are working incorrectly #4074
-    [UnitOfTime.seconds]: `((customers.created) >= CAST('2020-04-04 06:12:31' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:12:32' AS timestamp))`,
-    [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:13:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:14:00' AS timestamp))`,
-    [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 07:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 08:00:00' AS timestamp))`,
-    [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-05 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-06 00:00:00' AS timestamp))`,
-    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-04-06 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-13 00:00:00' AS timestamp))`,
-    [UnitOfTime.months]: `((customers.created) >= CAST('2020-05-01 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-06-01 00:00:00' AS timestamp))`,
-    [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-07-01 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-10-01 00:00:00' AS timestamp))`,
-    [UnitOfTime.years]: `((customers.created) >= CAST('2021-01-01 00:00:00' AS timestamp) AND (customers.created) < CAST('2022-01-01 00:00:00' AS timestamp))`,
+    [UnitOfTime.milliseconds]: `((customers.created) >= CAST('2020-04-04 06:12:30+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:12:30+00:00' AS timestamp))`, // note that all milliseconds filters are working incorrectly #4074
+    [UnitOfTime.seconds]: `((customers.created) >= CAST('2020-04-04 06:12:31+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:12:32+00:00' AS timestamp))`,
+    [UnitOfTime.minutes]: `((customers.created) >= CAST('2020-04-04 06:13:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:14:00+00:00' AS timestamp))`,
+    [UnitOfTime.hours]: `((customers.created) >= CAST('2020-04-04 07:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 08:00:00+00:00' AS timestamp))`,
+    [UnitOfTime.days]: `((customers.created) >= CAST('2020-04-05 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-06 00:00:00+00:00' AS timestamp))`,
+    [UnitOfTime.weeks]: `((customers.created) >= CAST('2020-04-06 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-13 00:00:00+00:00' AS timestamp))`,
+    [UnitOfTime.months]: `((customers.created) >= CAST('2020-05-01 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-06-01 00:00:00+00:00' AS timestamp))`,
+    [UnitOfTime.quarters]: `((customers.created) >= CAST('2020-07-01 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-10-01 00:00:00+00:00' AS timestamp))`,
+    [UnitOfTime.years]: `((customers.created) >= CAST('2021-01-01 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2022-01-01 00:00:00+00:00' AS timestamp))`,
 };
 
 export const InThePastFilterBase = {
@@ -176,46 +213,46 @@ export const ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek: Record
     WeekDay.MONDAY | WeekDay.SUNDAY,
     string
 > = {
-    [WeekDay.MONDAY]: `((customers.created) >= ('2020-03-23 00:00:00') AND (customers.created) < ('2020-03-30 00:00:00'))`,
-    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-03-22 00:00:00') AND (customers.created) < ('2020-03-29 00:00:00'))`,
+    [WeekDay.MONDAY]: `((customers.created) >= ('2020-03-23 00:00:00+00:00') AND (customers.created) < ('2020-03-30 00:00:00+00:00'))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-03-22 00:00:00+00:00') AND (customers.created) < ('2020-03-29 00:00:00+00:00'))`,
 };
 
 export const TrinoExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek: Record<
     WeekDay.MONDAY | WeekDay.SUNDAY,
     string
 > = {
-    [WeekDay.MONDAY]: `((customers.created) >= CAST('2020-03-23 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-03-30 00:00:00' AS timestamp))`,
-    [WeekDay.SUNDAY]: `((customers.created) >= CAST('2020-03-22 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-03-29 00:00:00' AS timestamp))`,
+    [WeekDay.MONDAY]: `((customers.created) >= CAST('2020-03-23 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-03-30 00:00:00+00:00' AS timestamp))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= CAST('2020-03-22 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-03-29 00:00:00+00:00' AS timestamp))`,
 };
 
 export const ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek: Record<
     WeekDay.MONDAY | WeekDay.SUNDAY,
     string
 > = {
-    [WeekDay.MONDAY]: `((customers.created) >= ('2020-03-30 00:00:00') AND (customers.created) <= ('2020-04-05 23:59:59'))`,
-    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-03-29 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))`,
+    [WeekDay.MONDAY]: `((customers.created) >= ('2020-03-30 00:00:00+00:00') AND (customers.created) <= ('2020-04-05 23:59:59+00:00'))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-03-29 00:00:00+00:00') AND (customers.created) <= ('2020-04-04 23:59:59+00:00'))`,
 };
 export const TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek: Record<
     WeekDay.MONDAY | WeekDay.SUNDAY,
     string
 > = {
-    [WeekDay.MONDAY]: `((customers.created) >= CAST('2020-03-30 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-05 23:59:59' AS timestamp))`,
-    [WeekDay.SUNDAY]: `((customers.created) >= CAST('2020-03-29 00:00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 23:59:59' AS timestamp))`,
+    [WeekDay.MONDAY]: `((customers.created) >= CAST('2020-03-30 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-05 23:59:59+00:00' AS timestamp))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= CAST('2020-03-29 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 23:59:59+00:00' AS timestamp))`,
 };
 export const ExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek: Record<
     WeekDay.MONDAY | WeekDay.SUNDAY,
     string
 > = {
-    [WeekDay.MONDAY]: `((customers.created) >= ('2020-04-06 00:00:00') AND (customers.created) < ('2020-04-13 00:00:00'))`,
-    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-04-05 00:00:00') AND (customers.created) < ('2020-04-12 00:00:00'))`,
+    [WeekDay.MONDAY]: `((customers.created) >= ('2020-04-06 00:00:00+00:00') AND (customers.created) < ('2020-04-13 00:00:00+00:00'))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= ('2020-04-05 00:00:00+00:00') AND (customers.created) < ('2020-04-12 00:00:00+00:00'))`,
 };
 
 export const TrinoExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek: Record<
     WeekDay.MONDAY | WeekDay.SUNDAY,
     string
 > = {
-    [WeekDay.MONDAY]: `((customers.created) >= CAST('2020-04-06 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-13 00:00:00' AS timestamp))`,
-    [WeekDay.SUNDAY]: `((customers.created) >= CAST('2020-04-05 00:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-12 00:00:00' AS timestamp))`,
+    [WeekDay.MONDAY]: `((customers.created) >= CAST('2020-04-06 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-13 00:00:00+00:00' AS timestamp))`,
+    [WeekDay.SUNDAY]: `((customers.created) >= CAST('2020-04-05 00:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-12 00:00:00+00:00' AS timestamp))`,
 };
 
 export const InTheLast1DayFilter = {
@@ -323,9 +360,9 @@ export const InTheLast1HourFilter = {
     },
 };
 
-export const InTheLast1HourFilterSQL = `((customers.created) >= ('2020-04-04 05:12:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`;
+export const InTheLast1HourFilterSQL = `((customers.created) >= ('2020-04-04 05:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))`;
 
-export const TrinoInTheLast1HourFilterSQL = `((customers.created) >= CAST('2020-04-04 05:12:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30' AS timestamp))`;
+export const TrinoInTheLast1HourFilterSQL = `((customers.created) >= CAST('2020-04-04 05:12:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30+00:00' AS timestamp))`;
 
 export const InTheLast1CompletedHourFilter = {
     ...InTheLast1DayFilter,
@@ -335,9 +372,9 @@ export const InTheLast1CompletedHourFilter = {
     },
 };
 
-export const InTheLast1CompletedHourFilterSQL = `((customers.created) >= ('2020-04-04 05:00:00') AND (customers.created) < ('2020-04-04 06:00:00'))`;
+export const InTheLast1CompletedHourFilterSQL = `((customers.created) >= ('2020-04-04 05:00:00+00:00') AND (customers.created) < ('2020-04-04 06:00:00+00:00'))`;
 
-export const TrinoInTheLast1CompletedHourFilterSQL = `((customers.created) >= CAST('2020-04-04 05:00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:00:00' AS timestamp))`;
+export const TrinoInTheLast1CompletedHourFilterSQL = `((customers.created) >= CAST('2020-04-04 05:00:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:00:00+00:00' AS timestamp))`;
 
 export const InTheLast1MinuteFilter = {
     ...InTheLast1DayFilter,
@@ -347,9 +384,9 @@ export const InTheLast1MinuteFilter = {
     },
 };
 
-export const InTheLast1MinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:30') AND (customers.created) <= ('2020-04-04 06:12:30'))`;
+export const InTheLast1MinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))`;
 
-export const TrinoInTheLast1MinuteFilterSQL = `((customers.created) >= CAST('2020-04-04 06:11:30' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30' AS timestamp))`;
+export const TrinoInTheLast1MinuteFilterSQL = `((customers.created) >= CAST('2020-04-04 06:11:30+00:00' AS timestamp) AND (customers.created) <= CAST('2020-04-04 06:12:30+00:00' AS timestamp))`;
 
 export const InTheLast1CompletedMinuteFilter = {
     ...InTheLast1DayFilter,
@@ -359,9 +396,9 @@ export const InTheLast1CompletedMinuteFilter = {
     },
 };
 
-export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:00') AND (customers.created) < ('2020-04-04 06:12:00'))`;
+export const InTheLast1CompletedMinuteFilterSQL = `((customers.created) >= ('2020-04-04 06:11:00+00:00') AND (customers.created) < ('2020-04-04 06:12:00+00:00'))`;
 
-export const TrinoInTheLast1CompletedMinuteFilterSQL = `((customers.created) >= CAST('2020-04-04 06:11:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:12:00' AS timestamp))`;
+export const TrinoInTheLast1CompletedMinuteFilterSQL = `((customers.created) >= CAST('2020-04-04 06:11:00+00:00' AS timestamp) AND (customers.created) < CAST('2020-04-04 06:12:00+00:00' AS timestamp))`;
 
 export const InBetweenPastTwoYearsFilter = {
     id: 'id',
@@ -377,8 +414,8 @@ export const InBetweenPastTwoYearsFilter = {
 
 export const InBetweenPastTwoYearsFilterSQL = `((customers.created) >= ('2021-04-04') AND (customers.created) <= ('2023-04-04'))`;
 export const TrinoInBetweenPastTwoYearsFilterSQL = `((customers.created) >= CAST('2021-04-04' AS timestamp) AND (customers.created) <= CAST('2023-04-04' AS timestamp))`;
-export const InBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= ('2021-04-04 00:00:00') AND (customers.created) <= ('2023-04-04 00:00:00'))`;
-export const TrinoInBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= CAST('2021-04-04 00:00:00' AS timestamp) AND (customers.created) <= CAST('2023-04-04 00:00:00' AS timestamp))`;
+export const InBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= ('2021-04-04 00:00:00+00:00') AND (customers.created) <= ('2023-04-04 00:00:00+00:00'))`;
+export const TrinoInBetweenPastTwoYearsTimestampFilterSQL = `((customers.created) >= CAST('2021-04-04 00:00:00+00:00' AS timestamp) AND (customers.created) <= CAST('2023-04-04 00:00:00+00:00' AS timestamp))`;
 
 const stringSingleValueFilter = {
     id: '701b6520-1b19-4051-a553-7615aee0b03d',
@@ -585,21 +622,258 @@ export const disabledFilterMock: {
     timezone: 'UTC',
 };
 
-export const filterInTheCurrentDayTimezoneMocks = [
+// System time: 04 Apr 2020 06:12:30 GMT
+// IN_THE_PAST 1 completed day: .tz(tz).startOf('day') → subtract 1 day
+// UTC:            start of day = 2020-04-04 00:00 UTC → from 2020-04-03 00:00, until 2020-04-04 00:00
+// America/New_York (EDT, UTC-4): start of day = 2020-04-04 04:00 UTC → from 2020-04-03 04:00, until 2020-04-04 04:00
+export const filterInThePastCompletedDayTimezoneMocks = [
     [
         'UTC',
-        "((customers.created) >= ('2020-04-04 00:00:00') AND (customers.created) <= ('2020-04-04 23:59:59'))",
+        "((customers.created) >= ('2020-04-03 00:00:00+00:00') AND (customers.created) < ('2020-04-04 00:00:00+00:00'))",
     ],
     [
         'America/New_York',
-        "((customers.created) >= ('2020-04-04 04:00:00') AND (customers.created) <= ('2020-04-05 03:59:59'))",
+        "((customers.created) >= ('2020-04-03 04:00:00+00:00') AND (customers.created) < ('2020-04-04 04:00:00+00:00'))",
+    ],
+];
+
+// IN_THE_NEXT 1 completed day: .tz(tz).add(1, 'day').startOf('day') → add 1 day
+// UTC:            next day start = 2020-04-05 00:00 UTC → from 2020-04-05 00:00, until 2020-04-06 00:00
+// America/New_York (EDT, UTC-4): next day start = 2020-04-05 04:00 UTC → from 2020-04-05 04:00, until 2020-04-06 04:00
+export const filterInTheNextCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-05 00:00:00+00:00') AND (customers.created) < ('2020-04-06 00:00:00+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-05 04:00:00+00:00') AND (customers.created) < ('2020-04-06 04:00:00+00:00'))",
+    ],
+];
+
+// DST spring forward: March 8, 2020 at 2:00 AM EST → 3:00 AM EDT (America/New_York)
+// System time: 09 Mar 2020 05:00:00 GMT (= 01:00 EDT, post-DST)
+// IN_THE_PAST 1 completed day crossing DST:
+// UTC:            start of day = 2020-03-09 00:00 UTC → from 2020-03-08 00:00, until 2020-03-09 00:00 (24h)
+// America/New_York: start of day = 2020-03-09 00:00 EDT = 04:00 UTC → from 2020-03-08 00:00 EST = 05:00 UTC, until 04:00 UTC (23h — DST spring forward)
+export const filterInThePastCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 00:00:00+00:00') AND (customers.created) < ('2020-03-09 00:00:00+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 05:00:00+00:00') AND (customers.created) < ('2020-03-09 04:00:00+00:00'))",
+    ],
+];
+
+// System time: 07 Mar 2020 05:00:00 GMT (= 00:00 EST, pre-DST)
+// IN_THE_NEXT 1 completed day crossing DST:
+// UTC:            next day start = 2020-03-08 00:00 UTC → from 2020-03-08 00:00, until 2020-03-09 00:00 (24h)
+// America/New_York: next day start = 2020-03-08 00:00 EST = 05:00 UTC → from 05:00 UTC, until 2020-03-09 00:00 EDT = 04:00 UTC (23h — DST spring forward)
+export const filterInTheNextCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 00:00:00+00:00') AND (customers.created) < ('2020-03-09 00:00:00+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 05:00:00+00:00') AND (customers.created) < ('2020-03-09 04:00:00+00:00'))",
+    ],
+];
+
+// System time: 04 Apr 2020 06:12:30 GMT
+// IN_THE_PAST 1 day (non-completed): from = .tz(tz).subtract(1, 'day'), until = .tz(tz) (now)
+// Both timezones produce the same result here because no DST transition occurs in this range
+export const filterInThePastNonCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03 06:12:30+00:00') AND (customers.created) <= ('2020-04-04 06:12:30+00:00'))",
+    ],
+];
+
+// IN_THE_NEXT 1 day (non-completed): from = .tz(tz) (now), until = .tz(tz).add(1, 'day')
+// Both timezones produce the same result here because no DST transition occurs in this range
+export const filterInTheNextNonCompletedDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-05 06:12:30+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04 06:12:30+00:00') AND (customers.created) <= ('2020-04-05 06:12:30+00:00'))",
+    ],
+];
+
+// DST spring forward: March 8, 2020 at 2:00 AM EST → 3:00 AM EDT (America/New_York)
+// System time: 09 Mar 2020 05:00:00 GMT (= 01:00 EDT, post-DST)
+// IN_THE_PAST 1 day (non-completed) crossing DST:
+// UTC:            from = subtract 1 day = 2020-03-08 05:00:00, until = 2020-03-09 05:00:00 (24h)
+// America/New_York: now = 01:00 EDT (UTC-4); subtract 1 day = 08 Mar 01:00 EST (UTC-5) = 06:00 UTC
+//   from = 2020-03-08 06:00:00, until = 2020-03-09 05:00:00 (23h — DST spring forward)
+export const filterInThePastNonCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 05:00:00+00:00') AND (customers.created) <= ('2020-03-09 05:00:00+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 06:00:00+00:00') AND (customers.created) <= ('2020-03-09 05:00:00+00:00'))",
+    ],
+];
+
+// System time: 08 Mar 2020 06:00:00 GMT (= 01:00 EST, pre-DST)
+// IN_THE_NEXT 1 day (non-completed) crossing DST:
+// UTC:            from = 2020-03-08 06:00:00, until = add 1 day = 2020-03-09 06:00:00 (24h)
+// America/New_York: now = 01:00 EST (UTC-5); add 1 day = 09 Mar 01:00 EDT (UTC-4) = 05:00 UTC
+//   from = 2020-03-08 06:00:00, until = 2020-03-09 05:00:00 (23h — DST spring forward)
+export const filterInTheNextNonCompletedDayDstMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-03-08 06:00:00+00:00') AND (customers.created) <= ('2020-03-09 06:00:00+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-03-08 06:00:00+00:00') AND (customers.created) <= ('2020-03-09 05:00:00+00:00'))",
+    ],
+];
+
+export const filterInTheCurrentDayTimezoneMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04 00:00:00+00:00') AND (customers.created) <= ('2020-04-04 23:59:59+00:00'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04 04:00:00+00:00') AND (customers.created) <= ('2020-04-05 03:59:59+00:00'))",
     ],
     [
         'Asia/Bangkok',
-        "((customers.created) >= ('2020-04-03 17:00:00') AND (customers.created) <= ('2020-04-04 16:59:59'))",
+        "((customers.created) >= ('2020-04-03 17:00:00+00:00') AND (customers.created) <= ('2020-04-04 16:59:59+00:00'))",
     ],
     [
         'Pacific/Fiji',
-        "((customers.created) >= ('2020-04-03 12:00:00') AND (customers.created) <= ('2020-04-04 11:59:59'))",
+        "((customers.created) >= ('2020-04-03 12:00:00+00:00') AND (customers.created) <= ('2020-04-04 11:59:59+00:00'))",
+    ],
+];
+
+// ── Boundary formatter tests (YYYY-MM-DD) ────────────────────────────
+// createBoundaryDateFormatter converts UTC dates back to project TZ
+// before formatting, fixing the positive-offset date shift bug.
+// System time: 04 Apr 2020 06:12:30 GMT
+export const filterInThePastCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_CURRENT day: all TZs resolve to 2020-04-04
+export const filterInTheCurrentDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_PAST 1 day non-completed: (now-1d) to now, formatted as dates
+export const filterInThePastNonCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_NEXT 1 completed day: tomorrow's start-of-day per TZ
+// Asia/Tokyo: without fix, Apr5 JST = Apr4 UTC → wrong date
+export const filterInTheNextCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) < ('2020-04-06'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) < ('2020-04-06'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) < ('2020-04-06'))",
+    ],
+];
+
+// IN_THE_NEXT 1 day non-completed: now to now+1d, formatted as dates
+export const filterInTheNextNonCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-05'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-05'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-05'))",
+    ],
+];
+
+// ── Negative-offset edge case: 02:00 UTC = Apr 3 22:00 EDT ──────────
+// System time: 04 Apr 2020 02:00:00 GMT
+// Without fix: endOf(day) crosses midnight UTC → wrong date (Apr 4)
+// With fix: boundaryFormatter converts to EDT → correct date (Apr 3)
+export const filterNegativeOffsetEdgeCaseCurrentDayMocks = [
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-03'))",
+    ],
+];
+
+export const filterNegativeOffsetEdgeCasePastCompletedDayMocks = [
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-02') AND (customers.created) < ('2020-04-03'))",
+    ],
+];
+
+// ── Positive-offset edge case: 22:00 UTC Apr 4 = Apr 5 07:00 JST ────
+// System time: 04 Apr 2020 22:00:00 GMT
+// Tokyo is already on Apr 5 while UTC is still Apr 4.
+// Without fix: boundaries formatted from UTC dates yield Apr 3/Apr 4
+// With fix: boundaryFormatter converts to JST → correct Apr 4/Apr 5
+export const filterPositiveOffsetEdgeCaseCurrentDayMocks = [
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) <= ('2020-04-05'))",
+    ],
+];
+
+export const filterPositiveOffsetEdgeCasePastCompletedDayMocks = [
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) < ('2020-04-05'))",
     ],
 ];

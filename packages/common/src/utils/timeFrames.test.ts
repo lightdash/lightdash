@@ -76,6 +76,33 @@ describe('TimeFrames', () => {
             ).toEqual(
                 "DATE_TRUNC('WEEK', ${TABLE}.created)", // start of week is set in the session
             );
+            // ClickHouse: toStartOfWeek(date, 1) uses mode 1 (Monday base), matching Postgres DATE_TRUNC('week')
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.WEDNESDAY,
+                ),
+            ).toEqual(
+                'addDays(toStartOfWeek(addDays(${TABLE}.created, -2), 1), 2)',
+            );
+        });
+
+        test('should get sql where start of the week is Monday for ClickHouse', () => {
+            // Monday (startOfWeek=0): must pass mode 1 to toStartOfWeek() so it returns Monday not Sunday
+            expect(
+                timeFrameConfigs[TimeFrames.WEEK].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.WEEK,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(
+                'addDays(toStartOfWeek(addDays(${TABLE}.created, -0), 1), 0)',
+            );
         });
     });
 

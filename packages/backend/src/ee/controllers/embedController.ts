@@ -25,8 +25,10 @@ import {
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
     FieldValueSearchResult,
+    GetEmbedDashboardRequest,
     Item,
     MetricQueryResponse,
+    OrganizationColorPalette,
     ParametersValuesMap,
     SavedChart,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -61,8 +63,17 @@ export type ApiEmbedDashboardResponse = {
     results: Dashboard & {
         // declare type as TSOA doesn't understand zod type InteractivityOptions
         dashboardFiltersInteractivity?: CommonEmbedJwtContent['dashboardFiltersInteractivity'];
+        parameterInteractivity?: CommonEmbedJwtContent['parameterInteractivity'];
         canExportCsv?: boolean;
         canExportImages?: boolean;
+        canExportPagePdf?: boolean;
+        canDateZoom?: boolean;
+        canExplore?: boolean;
+        canViewUnderlyingData?: boolean;
+        selectedPalette?: Pick<
+            OrganizationColorPalette,
+            'colors' | 'darkColors'
+        > | null;
     };
 };
 
@@ -218,6 +229,7 @@ export class EmbedController extends BaseController {
     async getEmbedDashboard(
         @Request() req: express.Request,
         @Path() projectUuid: string,
+        @Body() body?: GetEmbedDashboardRequest,
     ): Promise<ApiEmbedDashboardResponse> {
         this.setStatus(200);
 
@@ -228,6 +240,7 @@ export class EmbedController extends BaseController {
             results: await this.getEmbedService().getDashboard(
                 projectUuid,
                 req.account,
+                { paletteUuid: body?.paletteUuid },
             ),
         };
     }

@@ -475,6 +475,7 @@ export const hasMatchingConditionalRules = (
                 case FilterOperator.IN_THE_NEXT:
                 case FilterOperator.IN_THE_CURRENT:
                 case FilterOperator.NOT_IN_THE_CURRENT:
+                case FilterOperator.IN_PERIOD_TO_DATE:
                     throw new NotImplementedError(
                         `Conditional formatting with ${rule.operator} is not implemented`,
                     );

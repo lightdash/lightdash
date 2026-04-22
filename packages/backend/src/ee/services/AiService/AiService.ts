@@ -7,8 +7,10 @@ import {
     ForbiddenError,
     GenerateChartMetadataRequest,
     GeneratedChartMetadata,
+    GeneratedFormulaTableCalculation,
     GeneratedTableCalculation,
     GeneratedTooltip,
+    GenerateFormulaTableCalculationRequest,
     GenerateTableCalculationRequest,
     GenerateTooltipRequest,
     getErrorMessage,
@@ -33,12 +35,17 @@ import {
     DashboardSummaryCreated,
     DashboardSummaryViewed,
     GenerateChartMetadataGenerated,
+    GenerateFormulaTableCalculationGenerated,
     GenerateTableCalculationGenerated,
     GenerateTooltipGenerated,
 } from '../../analytics';
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import {
+    generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
+    sanitizeCustomFormat as sanitizeFormulaCustomFormat,
+} from '../ai/agents/formulaTableCalculationGenerator';
 import {
     generateTableCalculation as generateTableCalculationFromContext,
     sanitizeCustomFormat,
@@ -510,6 +517,42 @@ export class AiService {
             displayName: result.displayName,
             type: result.type as TableCalculationType,
             format: sanitizeCustomFormat(result.format ?? undefined),
+        };
+    }
+
+    async generateFormulaTableCalculation(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateFormulaTableCalculationRequest,
+    ): Promise<GeneratedFormulaTableCalculation> {
+        const modelOptions = await this.getAmbientAiModel(user);
+
+        const result = await generateFormulaTableCalculationFromContext(
+            modelOptions,
+            {
+                prompt: payload.prompt,
+                tableName: payload.tableName,
+                fieldsContext: payload.fieldsContext,
+                existingTableCalculations: payload.existingTableCalculations,
+                currentFormula: payload.currentFormula,
+            },
+        );
+
+        this.analytics.track<GenerateFormulaTableCalculationGenerated>({
+            userId: user.userUuid,
+            event: 'ai.formula_table_calculation.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return {
+            formula: result.formula,
+            displayName: result.displayName,
+            type: result.type as TableCalculationType,
+            format: sanitizeFormulaCustomFormat(result.format ?? undefined),
         };
     }
 

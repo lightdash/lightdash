@@ -104,6 +104,7 @@ export const lightdashConfigMock: LightdashConfig = {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
         versionHistory: { daysLimit: 0 },
+        disableSentryTracking: false,
     },
     database: {
         connectionUri: undefined,
@@ -133,6 +134,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
+    enableImprovedExcelDates: false,
     posthog: undefined,
     s3: {
         endpoint: 'mock_endpoint',
@@ -220,6 +222,7 @@ export const lightdashConfigMock: LightdashConfig = {
         useSqlPivotResults: false,
         showExecutionTime: false,
         retryQueryOnTransientErrors: true,
+        enableTimezoneSupport: undefined,
     },
     ai: {
         copilot: {
@@ -305,6 +308,13 @@ export const lightdashConfigMock: LightdashConfig = {
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },
+    managedAgent: {
+        enabled: false,
+        anthropicApiKey: null,
+        schedule: '*/30 * * * *',
+        sessionTimeoutMs: 300000,
+        agentId: null,
+    },
     mcp: {
         enabled: true,
     },
@@ -327,9 +337,6 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     savedMetricsTree: {
-        enabled: undefined,
-    },
-    defaultUserSpaces: {
         enabled: undefined,
     },
     persistentDownloadUrls: {
@@ -377,4 +384,5 @@ export const lightdashConfigMock: LightdashConfig = {
         s3: null,
         e2bApiKey: null,
     },
+    enabledFeatureFlags: new Set<string>(),
 };

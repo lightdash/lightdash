@@ -200,6 +200,7 @@ export class PivotTableService extends BaseService {
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
+        timezone,
     }: {
         name?: string;
         projectUuid: string;
@@ -216,6 +217,7 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
+        timezone?: string;
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
@@ -228,7 +230,13 @@ export class PivotTableService extends BaseService {
 
         // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
         // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
-        const formattedRows = formatRows(rows, itemMap, pivotValuesColumnsMap);
+        const formattedRows = formatRows(
+            rows,
+            itemMap,
+            pivotValuesColumnsMap,
+            undefined,
+            timezone,
+        );
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,

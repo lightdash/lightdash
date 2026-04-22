@@ -9,7 +9,7 @@ import {
 } from '@lightdash/common';
 import crypto from 'crypto';
 import { Knex } from 'knex';
-import { nanoid } from 'nanoid';
+import { customAlphabet, nanoid } from 'nanoid';
 import {
     DbQueryHistory,
     DbQueryHistoryUpdate,
@@ -61,6 +61,11 @@ function convertDbQueryHistoryToQueryHistory(
 export class QueryHistoryModel {
     readonly database: Knex;
 
+    // Alphanumeric-only nanoid to avoid '--' sequences that break SQL comment stripping in DuckDB
+    private static readonly sqlSafeNanoid = customAlphabet(
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
+    );
+
     constructor({ database }: { database: Knex }) {
         this.database = database;
     }
@@ -91,8 +96,11 @@ export class QueryHistoryModel {
         return crypto.createHash('sha256').update(queryHashKey).digest('hex');
     }
 
-    static createUniqueResultsFileName(cacheKey: string) {
-        return `${cacheKey}-${nanoid()}`;
+    static createUniqueResultsFileName(
+        cacheKey: string,
+        options?: { sqlSafe: boolean },
+    ) {
+        return `${cacheKey}-${options?.sqlSafe ? QueryHistoryModel.sqlSafeNanoid() : nanoid()}`;
     }
 
     async create(

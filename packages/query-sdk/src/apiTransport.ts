@@ -77,6 +77,7 @@ export type FetchAdapter = <T>(
     method: string,
     path: string,
     body?: unknown,
+    metadata?: Record<string, unknown>,
 ) => Promise<T>;
 
 /**
@@ -200,14 +201,21 @@ export function createApiTransport(
                         descending: s.descending,
                     })),
                     limit: query.limit,
-                    tableCalculations: [],
+                    tableCalculations: query.tableCalculations,
                 },
             };
+
+            // Pass label as transport metadata (not in the API body)
+            // so the parent bridge can display it in the query inspector.
+            const metadata = query.label
+                ? { label: query.label }
+                : undefined;
 
             const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/query/metric-query`,
                 body,
+                metadata,
             );
 
             const { queryUuid, fields } = execResult;

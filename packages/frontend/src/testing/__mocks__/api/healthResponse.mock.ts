@@ -54,6 +54,7 @@ export default function mockHealthResponse(
             versionHistory: {
                 daysLimit: 3,
             },
+            disableSentryTracking: false,
         },
         pivotTable: {
             maxColumnLimit: 100,
@@ -100,6 +101,7 @@ export default function mockHealthResponse(
         hasGithub: false,
         hasGitlab: false,
         hasCacheAutocompleResults: false,
+        hasResultsCaching: false,
         hasMicrosoftTeams: false,
         appearance: {
             overrideColorPalette: undefined,
@@ -133,6 +135,9 @@ export default function mockHealthResponse(
             enabled: false,
         },
         dataApps: {
+            enabled: false,
+        },
+        managedAgent: {
             enabled: false,
         },
         ...overrides,

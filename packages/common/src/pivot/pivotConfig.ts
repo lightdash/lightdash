@@ -28,13 +28,16 @@ const getTablePivotConfig = (
 
 const getCartesianPivotConfig = (
     pivotConfig: CreateSavedChartVersion['pivotConfig'],
-): PivotConfig | undefined =>
-    pivotConfig && pivotConfig.columns.length > 0
-        ? {
-              pivotDimensions: pivotConfig.columns,
-              metricsAsRows: false,
-          }
-        : undefined;
+): PivotConfig | undefined => {
+    if (!pivotConfig || pivotConfig.columns.length === 0) {
+        return undefined;
+    }
+
+    return {
+        pivotDimensions: pivotConfig.columns,
+        metricsAsRows: false,
+    };
+};
 
 export const getPivotConfig = (
     savedChart: Pick<

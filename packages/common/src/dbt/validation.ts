@@ -87,6 +87,12 @@ export class ManifestValidator {
     isModelValid = (
         model: DbtRawModelNode,
     ): [true, undefined] | [false, string] => {
+        // Seeds are only used as join targets and don't need full model
+        // schema validation (which enforces resource_type: "model").
+        // They just need valid Lightdash metadata and columns.
+        if (model.resource_type === 'seed') {
+            return [true, undefined];
+        }
         const validator = ManifestValidator.getValidator<DbtModelNode>(
             `${this.lightdashSchemaId}#/definitions/LightdashCompiledModelNode`,
         );

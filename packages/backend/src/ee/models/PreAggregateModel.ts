@@ -600,8 +600,12 @@ export class PreAggregateModel {
                     preAggregateName: row.pre_aggregate_definition.name,
                     preAggExploreName: row.pre_agg_explore_name,
                     sourceExploreName: row.source_explore_name,
+                    materializationRole:
+                        row.pre_aggregate_definition.materializationRole ??
+                        null,
                     dimensions: row.pre_aggregate_definition.dimensions ?? [],
                     metrics: row.pre_aggregate_definition.metrics ?? [],
+                    filters: row.pre_aggregate_definition.filters ?? [],
                     timeDimension:
                         row.pre_aggregate_definition.timeDimension ?? null,
                     granularity:

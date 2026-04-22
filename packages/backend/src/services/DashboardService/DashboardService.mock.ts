@@ -56,6 +56,7 @@ export const space: SpaceTable['base'] = {
     parent_space_uuid: null,
     path: 'space-name',
     inherit_parent_permissions: false,
+    project_member_access_role: null,
     is_default_user_space: false,
     deleted_at: null,
     deleted_by_user_uuid: null,
@@ -64,6 +65,7 @@ export const space: SpaceTable['base'] = {
 export const publicSpace: Space = {
     inheritsFromOrgOrProject: true,
     inheritParentPermissions: true,
+    projectMemberAccessRole: null,
     organizationUuid: 'organizationUuid',
     uuid: 'spaceUuid',
     slug: 'public-space',

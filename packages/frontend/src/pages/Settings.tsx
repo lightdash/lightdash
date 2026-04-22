@@ -1,11 +1,8 @@
 import { subject } from '@casl/ability';
-import {
-    CommercialFeatureFlags,
-    FeatureFlags,
-    ProjectType,
-} from '@lightdash/common';
+import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconBolt,
     IconBrain,
     IconBrowser,
@@ -58,6 +55,7 @@ import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrgani
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
+import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
@@ -78,7 +76,6 @@ import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
-import { useContentVerificationEnabled } from '../hooks/useContentVerificationEnabled';
 import { useProject } from '../hooks/useProject';
 import {
     useClientFeatureFlag,
@@ -111,8 +108,6 @@ const Settings: FC = () => {
         CommercialFeatureFlags.ServiceAccounts,
     );
 
-    const isContentVerificationEnabled = useContentVerificationEnabled();
-
     const {
         health: {
             data: health,
@@ -136,8 +131,8 @@ const Settings: FC = () => {
         FeatureFlags.UserGroupsEnabled,
     );
 
-    const { data: defaultUserSpacesFlag } = useServerFeatureFlag(
-        FeatureFlags.DefaultUserSpaces,
+    const { data: dataAppsFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableDataApps,
     );
 
     const { track } = useTracking();
@@ -247,6 +242,19 @@ const Settings: FC = () => {
                             <Title order={4}>My scheduled deliveries</Title>
                         </SettingsGridCard>
                         <UserScheduledDeliveriesPanel />
+                    </Stack>
+                ),
+            });
+        }
+        if (dataAppsFlag?.enabled && user?.ability.can('manage', 'DataApp')) {
+            allowedRoutes.push({
+                path: '/myApps',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>My apps</Title>
+                        </SettingsGridCard>
+                        <MyAppsPanel />
                     </Stack>
                 ),
             });
@@ -466,12 +474,20 @@ const Settings: FC = () => {
         health?.hasSlack,
         health?.hasGithub,
         health?.hasGitlab,
+        dataAppsFlag?.enabled,
     ]);
     const routeElements = useRoutes(routes);
 
     const location = useLocation();
     const isFixedContent = useMemo(() => {
         return (
+            !matchPath(
+                {
+                    path: '/generalSettings/projectManagement',
+                    end: true,
+                },
+                location.pathname,
+            ) &&
             !matchPath(
                 {
                     path: '/generalSettings/projectManagement/:projectUuid/changesets',
@@ -487,6 +503,12 @@ const Settings: FC = () => {
             !matchPath(
                 {
                     path: '/generalSettings/userScheduledDeliveries',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
+                    path: '/generalSettings/myApps',
                 },
                 location.pathname,
             ) &&
@@ -629,6 +651,19 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+                                {dataAppsFlag?.enabled &&
+                                    user.ability.can('manage', 'DataApp') && (
+                                        <RouterNavLink
+                                            label="My apps"
+                                            exact
+                                            to="/generalSettings/myApps"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconAppWindow}
+                                                />
+                                            }
+                                        />
+                                    )}
                                 {user.ability.can(
                                     'manage',
                                     'PersonalAccessToken',
@@ -886,6 +921,9 @@ const Settings: FC = () => {
                                         }
                                     />
 
+                                    {/* TODO: Consider adding a setting to disable pre-aggregate materializations on preview projects,
+                                        or turn them off by default. Currently materializations still run on previews,
+                                        which can be resource-intensive. Admins/developers should be able to control this. */}
                                     {health.preAggregates.enabled && (
                                         <RouterNavLink
                                             label="Pre-aggregates"
@@ -893,10 +931,6 @@ const Settings: FC = () => {
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/preAggregates`}
                                             leftSection={
                                                 <MantineIcon icon={IconBolt} />
-                                            }
-                                            disabled={
-                                                project.type ===
-                                                ProjectType.PREVIEW
                                             }
                                             defaultOpened={location.pathname.includes(
                                                 `/projectManagement/${project.projectUuid}/preAggregates`,
@@ -970,18 +1004,16 @@ const Settings: FC = () => {
                                                 <MantineIcon icon={IconUsers} />
                                             }
                                         />
-                                        {defaultUserSpacesFlag?.enabled && (
-                                            <RouterNavLink
-                                                label="Default user spaces"
-                                                exact
-                                                to={`/generalSettings/projectManagement/${project.projectUuid}/defaultUserSpaces`}
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconFolders}
-                                                    />
-                                                }
-                                            />
-                                        )}
+                                        <RouterNavLink
+                                            label="Default user spaces"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/defaultUserSpaces`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconFolders}
+                                                />
+                                            }
+                                        />
                                     </Can>
 
                                     {user.ability.can(
@@ -1060,8 +1092,7 @@ const Settings: FC = () => {
                                         />
                                     ) : null}
 
-                                    {isContentVerificationEnabled &&
-                                    user.ability?.can(
+                                    {user.ability?.can(
                                         'manage',
                                         subject('ContentVerification', {
                                             organizationUuid:

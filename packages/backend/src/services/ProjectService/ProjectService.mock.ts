@@ -351,6 +351,7 @@ export const defaultProject: OrganizationProject = {
     name: 'name',
     type: ProjectType.DEFAULT,
     createdByUserUuid: sessionAccount.user.id,
+    createdByUserName: 'Test User',
     createdAt: new Date('2024-01-01T00:00:00Z'),
     upstreamProjectUuid: null,
     warehouseType: WarehouseTypes.POSTGRES,
@@ -364,6 +365,7 @@ export const spacesWithSavedCharts: Space[] = [
         parentSpaceUuid: null,
         path: 'space',
         inheritParentPermissions: true,
+        projectMemberAccessRole: null,
         inheritsFromOrgOrProject: true,
         uuid: 'uuid',
         pinnedListUuid: null,
@@ -410,6 +412,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         queries: [],
         projectUuid,
         inheritParentPermissions: true,
+        projectMemberAccessRole: null,
         inheritsFromOrgOrProject: true,
         dashboards: [],
         access: [],
@@ -479,6 +482,7 @@ export const lightdashConfigWithNoSMTP: Pick<
         useSqlPivotResults: false,
         showExecutionTime: false,
         retryQueryOnTransientErrors: false,
+        enableTimezoneSupport: undefined,
     },
 };
 

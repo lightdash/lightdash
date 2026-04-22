@@ -10,7 +10,6 @@ import {
     CompiledDimension,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
-    Dashboard,
     DashboardAvailableFilters,
     DashboardDAO,
     DashboardFilters,
@@ -19,6 +18,7 @@ import {
     DecodedEmbed,
     Embed,
     EmbedContent,
+    EmbedDashboard,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
     Explore,
@@ -33,6 +33,7 @@ import {
     getDimensions,
     getFilterInteractivityValue,
     getItemId,
+    getMetrics,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isChartContent,
@@ -50,6 +51,7 @@ import {
     NotSupportedError,
     ParameterError,
     QueryExecutionContext,
+    resolveQueryTimezone,
     RunQueryTags,
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
@@ -460,9 +462,14 @@ export class EmbedService extends BaseService {
     async getDashboard(
         projectUuid: string,
         account: AnonymousAccount,
-        // TODO: WHY IS THIS OPTIONAL??
-        checkPermissions: boolean = true,
-    ): Promise<Dashboard & InteractivityOptions> {
+        {
+            paletteUuid,
+            checkPermissions = true,
+        }: {
+            paletteUuid?: string;
+            checkPermissions?: boolean;
+        } = {},
+    ): Promise<EmbedDashboard> {
         const { data: decodedToken, source: embedToken } =
             account.authentication;
         const { dashboardUuids, allowAllDashboards, user } =
@@ -506,6 +513,12 @@ export class EmbedService extends BaseService {
             canExportPagePdf,
             canDateZoom,
         } = decodedToken.content;
+        const selectedPalette = paletteUuid
+            ? await this.organizationModel.findColorPalette(
+                  dashboard.organizationUuid,
+                  paletteUuid,
+              )
+            : null;
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',
@@ -547,6 +560,7 @@ export class EmbedService extends BaseService {
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom,
+            selectedPalette,
         };
     }
 
@@ -849,6 +863,12 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            });
+
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore: filteredExplore,
@@ -863,6 +883,8 @@ export class EmbedService extends BaseService {
                 : undefined,
             parameters: combinedParameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseClient.credentials.dataTimezone,
         });
 
         const results =
@@ -913,11 +935,18 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const tables = Object.keys(explore.tables);
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
 
         let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
             tileUuid,
-            tables,
+            availableFieldIds,
             dashboard.filters,
         );
         if (
@@ -926,7 +955,7 @@ export class EmbedService extends BaseService {
         ) {
             appliedDashboardFilters = getDashboardFiltersForTileAndTables(
                 tileUuid,
-                tables,
+                availableFieldIds,
                 dashboardFilters,
             );
         }
@@ -1153,8 +1182,19 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(
+            metricQueryWithDashboardOverrides,
+            projectTimezone,
+        );
+
+        const isTimezoneSupportEnabled =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid,
+            });
+        const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
@@ -1184,7 +1224,13 @@ export class EmbedService extends BaseService {
                 access: [],
             },
             explore,
-            rows: formatRows(rows, fields),
+            rows: formatRows(
+                rows,
+                fields,
+                undefined,
+                undefined,
+                displayTimezone,
+            ),
             cacheMetadata,
             metricQuery: metricQueryWithDashboardOverrides,
             fields,
@@ -1355,8 +1401,14 @@ export class EmbedService extends BaseService {
             explore,
         );
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            });
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1369,6 +1421,8 @@ export class EmbedService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     combinedParameters,
+                    useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const { rows } = await this._runEmbedQuery({
@@ -1500,8 +1554,9 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         // Run the query for each dimension group using embed query runner
         const subtotalsPromises = dimensionGroupsToSubtotal.map<
@@ -1610,8 +1665,17 @@ export class EmbedService extends BaseService {
             explore,
         );
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(
+            data.metricQuery,
+            projectTimezone,
+        );
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+            });
 
         try {
             const { totalQuery: totalMetricQuery } =
@@ -1624,6 +1688,8 @@ export class EmbedService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     combinedParameters,
+                    useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const { rows } = await this._runEmbedQuery({
@@ -1817,8 +1883,9 @@ export class EmbedService extends BaseService {
                 filters,
             });
 
-        const timezone =
+        const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,

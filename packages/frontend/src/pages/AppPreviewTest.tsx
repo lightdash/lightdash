@@ -1,13 +1,19 @@
 import { subject } from '@casl/ability';
-import { Group, Loader, Stack, Text } from '@mantine-8/core';
-import { Navigate, useParams } from 'react-router';
+import { FeatureFlags } from '@lightdash/common';
+import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
+import { IconDots, IconPencil } from '@tabler/icons-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
-import useHealth from '../hooks/health/useHealth';
+import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
+import classes from './AppPreviewTest.module.css';
 
 export default function AppPreviewTest() {
+    const navigate = useNavigate();
     const {
         projectUuid,
         appUuid,
@@ -18,18 +24,49 @@ export default function AppPreviewTest() {
         version: string;
     }>();
 
-    const version = versionParam ? Number(versionParam) : undefined;
-    const health = useHealth();
+    const explicitVersion = versionParam ? Number(versionParam) : undefined;
+
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
 
+    // Always fetch app to get creator info + latest ready version when needed
+    const appQuery = useGetApp(projectUuid, appUuid);
+
+    const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
+        (v) => v.status === 'ready',
+    )?.version;
+
+    const createdByUserUuid = appQuery.data?.pages[0]?.createdByUserUuid;
+    const isCreator =
+        !!user.data?.userUuid && user.data.userUuid === createdByUserUuid;
+
+    const version = explicitVersion ?? latestReadyVersion;
+
     const {
         data: token,
-        isLoading,
-        error,
+        isLoading: isTokenLoading,
+        error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    if (health.data && !health.data.dataApps.enabled) {
+    const [menuOpened, setMenuOpened] = useState(false);
+
+    // Close menu when the iframe receives focus (i.e. user clicked on it)
+    const handleBlur = useCallback(() => {
+        if (menuOpened) {
+            setMenuOpened(false);
+        }
+    }, [menuOpened]);
+
+    useEffect(() => {
+        window.addEventListener('blur', handleBlur);
+        return () => window.removeEventListener('blur', handleBlur);
+    }, [handleBlur]);
+
+    if (dataAppsFlag.isLoading) {
+        return null;
+    }
+    if (!dataAppsFlag.data?.enabled) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
@@ -45,8 +82,22 @@ export default function AppPreviewTest() {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
-    if (!projectUuid || !appUuid || !version) {
+    if (!projectUuid || !appUuid) {
         return <div>Missing route params</div>;
+    }
+
+    const isLoading =
+        appQuery.isLoading || (version !== undefined && isTokenLoading);
+    const error = appQuery.error ?? tokenError;
+
+    if (!explicitVersion && !appQuery.isLoading && !latestReadyVersion) {
+        return (
+            <Stack align="center" justify="center" h="calc(100vh - 50px)">
+                <Text c="red" size="sm">
+                    No ready version found for this app
+                </Text>
+            </Stack>
+        );
     }
 
     const baseUrl = window.location.origin;
@@ -79,8 +130,41 @@ export default function AppPreviewTest() {
     if (!previewUrl) return null;
 
     return (
-        <Group h="calc(100vh - 50px)" w="100%">
+        <Box className={classes.previewContainer}>
+            {isCreator && (
+                <Box className={classes.menuOverlay}>
+                    <Menu
+                        position="bottom-end"
+                        withinPortal
+                        opened={menuOpened}
+                        onChange={setMenuOpened}
+                    >
+                        <Menu.Target>
+                            <ActionIcon
+                                variant="filled"
+                                color="gray"
+                                size="lg"
+                                radius="xl"
+                            >
+                                <IconDots size={18} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Item
+                                leftSection={<IconPencil size={14} />}
+                                onClick={() =>
+                                    navigate(
+                                        `/projects/${projectUuid}/apps/${appUuid}`,
+                                    )
+                                }
+                            >
+                                Continue building
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                </Box>
+            )}
             <AppIframePreview src={previewUrl} />
-        </Group>
+        </Box>
     );
 }

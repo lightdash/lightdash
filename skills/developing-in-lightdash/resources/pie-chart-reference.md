@@ -36,23 +36,23 @@ Every pie chart requires:
 3. Chart type set to `pie`
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: pie
   config:
     groupFieldIds:
       - orders_product_category
     metricId: orders_total_revenue
+  type: pie
+contentType: chart
 metricQuery:
-  exploreName: orders
   dimensions:
     - orders_product_category
+  exploreName: orders
   limit: 10
   metrics:
     - orders_total_revenue
   sorts:
-    - fieldId: orders_total_revenue
-      descending: true
+    - descending: true
+      fieldId: orders_total_revenue
 name: "Revenue by Product Category"
 slug: revenue-by-category
 spaceSlug: sales
@@ -100,25 +100,23 @@ version: 1
 Donut chart with custom colors and labels:
 
 ```yaml
-contentType: chart
 chartConfig:
-  type: pie
   config:
     # Brand colors for regions
     groupColorOverrides:
-      "NA": "#3b82f6"
-      "EMEA": "#10b981"
       "APAC": "#f59e0b"
+      "EMEA": "#10b981"
       "LATAM": "#ef4444"
+      "NA": "#3b82f6"
       "Other": "#94a3b8"
     groupFieldIds:
       - orders_region
     # Custom labels for region codes
     groupLabelOverrides:
-      "NA": "North America"
-      "EMEA": "Europe, Middle East & Africa"
       "APAC": "Asia Pacific"
+      "EMEA": "Europe, Middle East & Africa"
       "LATAM": "Latin America"
+      "NA": "North America"
     # Custom sort order
     groupSortOverrides:
       - "NA"
@@ -140,16 +138,18 @@ chartConfig:
     showPercentage: true
     showValue: true
     valueLabel: inside
+  type: pie
+contentType: chart
 metricQuery:
-  exploreName: orders
   dimensions:
     - orders_region
+  exploreName: orders
   limit: 8
   metrics:
     - orders_total_revenue
   sorts:
-    - fieldId: orders_total_revenue
-      descending: true
+    - descending: true
+      fieldId: orders_total_revenue
 name: "Regional Sales Performance"
 slug: regional-sales
 spaceSlug: sales

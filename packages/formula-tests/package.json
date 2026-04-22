@@ -1,0 +1,25 @@
+{
+  "name": "@lightdash/formula-tests",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "test:fast": "tsx run.ts --tier fast",
+    "test:tier1": "tsx run.ts --tier tier1",
+    "test:tier2": "tsx run.ts --tier tier2",
+    "test:all": "tsx run.ts --tier all"
+  },
+  "dependencies": {
+    "@lightdash/formula": "workspace:*",
+    "@clickhouse/client": "1.11.1",
+    "@databricks/sql": "1.10.0",
+    "@google-cloud/bigquery": "7.9.2",
+    "duckdb": "1.4.2",
+    "pg": "8.13.1",
+    "tsx": "4.19.2"
+  },
+  "devDependencies": {
+    "@types/pg": "8.11.10",
+    "typescript": "6.0.0-beta"
+  }
+}

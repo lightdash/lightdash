@@ -86,7 +86,9 @@ type PieChartConfig = {
 };
 
 export type PieChartConfigFn = (
-    resultsData: InfiniteQueryResults | undefined,
+    resultsData:
+        | (InfiniteQueryResults & { resolvedTimezone?: string })
+        | undefined,
     pieChartConfig: PieChart | undefined,
     itemsMap: ItemsMap | undefined,
     dimensions: Record<string, CustomDimension | Dimension>,
@@ -303,6 +305,7 @@ const usePieChartConfig: PieChartConfigFn = (
                             value,
                             false,
                             parameters,
+                            resultsData?.resolvedTimezone,
                         ),
                         raw: value,
                     },

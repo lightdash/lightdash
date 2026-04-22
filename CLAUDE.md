@@ -6,6 +6,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Lightdash is an open-source business intelligence tool (Looker alternative) that connects to dbt projects to enable self-service analytics. It's a TypeScript monorepo built with modern web technologies.
 
+## Formula Package Development
+
+The `packages/formula/` package contains a Peggy-based parser that compiles Google Sheets-like formulas to SQL for each warehouse dialect (Postgres, BigQuery, Snowflake, DuckDB).
+
+**Never read files in `packages/formula-tests/`.** This package contains black-box integration tests. Use the following commands for feedback:
+
+```bash
+pnpm formula:test:fast     # DuckDB only — sub-second feedback loop
+pnpm formula:test:tier1    # DuckDB + Postgres
+pnpm formula:test:tier2    # BigQuery + Snowflake
+pnpm formula:test:all      # Everything
+```
+
+The development loop is:
+1. Edit code in `packages/formula/`
+2. `pnpm formula:build`
+3. `pnpm formula:test:fast` (or tier1/tier2) — read the feedback output
+4. Fix issues and repeat
+
+Unit tests in `packages/formula/tests/` CAN be read and edited (grammar and AST tests).
+
 ## Architecture
 
 ### Monorepo Structure (pnpm workspaces)
@@ -36,8 +57,17 @@ The backend, scheduler worker, and headless browser run as separate services tha
 | **Scheduler Worker** | Graphile Worker — processes background jobs (emails, Slack, exports) | `SchedulerWorker.ts`, `SchedulerTask.ts` |
 | **Headless Browser** | Separate Chromium container, takes screenshots/PDFs via CDP | `docker/Dockerfile.headless-browser`, `UnfurlService.ts` |
 | **PostgreSQL** | All application state + Graphile Worker job queue | Knex migrations in `src/database/migrations/` |
-| **S3 / MinIO** | Object storage for screenshots, PDFs, CSVs, result caching | `FileStorageClient.ts`, `S3Client.ts` |
+| **S3 / MinIO** | Object storage for screenshots, PDFs, CSVs, result caching, app images | `FileStorageClient.ts`, `S3Client.ts` |
 | **NATS** | Optional message queue for async query processing | `NatsClient.ts` |
+
+### S3 Endpoints: Internal vs Public
+
+The backend uses two S3 endpoint settings:
+
+-   `S3_ENDPOINT` — internal endpoint the backend uses for all server-side S3 operations (e.g. `http://minio:9000` inside Docker).
+-   `S3_PUBLIC_ENDPOINT` — browser-facing endpoint used when minting presigned URLs that the browser fetches directly (e.g. presigned PUT for app image uploads). In local dev, the Docker hostname `minio` is unreachable from the browser, so this must be set to `http://localhost:9000`. In production with real S3/GCS, omit this — the internal endpoint is already publicly resolvable.
+
+When the backend creates a presigned URL for browser-direct upload, it uses `S3_PUBLIC_ENDPOINT` (falling back to `S3_ENDPOINT`) as the signing endpoint. See `parseBaseS3Config()` in `packages/backend/src/config/parseConfig.ts`.
 
 ## Common Development Commands
 
@@ -222,6 +252,18 @@ The canonical source of truth for field types is `packages/common/src/types/fiel
     -   This provides compile-time safety when new union members are added
 
 ## Security Best Practices
+
+### Installing Dependencies — Always Use `sfw`
+
+Prefix every package-manager install with [Socket Firewall Free](https://github.com/SocketDev/sfw-free) (`sfw`) to block confirmed-malicious packages before they hit disk. Install once with `npm i -g sfw`, then use:
+
+```bash
+sfw pnpm install
+sfw pnpm add <package>
+sfw npm install -g @lightdash/cli
+```
+
+This applies to any install Claude runs in this repo — lockfile regeneration, Snyk fixes, debug snippets, global CLI installs. CI workflows already wrap installs via `socketdev/action@<SHA>`.
 
 ### Warehouse Credentials Protection
 

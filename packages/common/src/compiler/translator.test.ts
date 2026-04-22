@@ -1213,6 +1213,46 @@ describe('explore-scoped additional dimensions', () => {
         ).toBe('custom_date');
     });
 
+    it('should apply sql_filter from explore config', async () => {
+        const modelWithExploreSqlFilter: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            meta: {
+                explores: {
+                    completed_orders: {
+                        label: 'Completed Orders Only',
+                        sql_filter: "${TABLE}.status = 'completed'",
+                    },
+                },
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithExploreSqlFilter],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        const completedExplore = explores.find(
+            (e) => 'name' in e && e.name === 'completed_orders',
+        ) as Explore;
+
+        expect(completedExplore).toBeDefined();
+        expect(completedExplore.tables.test_model.sqlWhere).toBe(
+            '"test_model".status = \'completed\'',
+        );
+
+        // Base explore should NOT have the sql_filter
+        const baseExplore = explores.find(
+            (e) => 'name' in e && e.name === 'test_model',
+        ) as Explore;
+        expect(baseExplore.tables.test_model.sqlWhere).toBeUndefined();
+    });
+
     it('should apply default show underlying values to metrics', () => {
         const table = convertTable(
             SupportedDbtAdapter.POSTGRES,
@@ -1235,6 +1275,108 @@ describe('explore-scoped additional dimensions', () => {
         expect(table.metrics.average_revenue.showUnderlyingValues).toEqual([
             'custom_field',
         ]);
+    });
+});
+
+describe('required/default filters on hidden dimensions', () => {
+    const createOrdersModel = (
+        defaultFilters: Array<Record<string, unknown>>,
+    ): DbtModelNode => ({
+        ...model,
+        name: 'orders',
+        alias: 'orders',
+        relation_name: 'orders',
+        columns: {
+            status: {
+                name: 'status',
+                data_type: DimensionType.STRING,
+                meta: {
+                    dimension: {
+                        type: DimensionType.STRING,
+                    },
+                },
+            },
+            credit_card_amount: {
+                name: 'credit_card_amount',
+                data_type: DimensionType.NUMBER,
+                meta: {
+                    dimension: {
+                        type: DimensionType.NUMBER,
+                        hidden: true,
+                    },
+                    additional_dimensions: {
+                        has_credit_card_payment: {
+                            type: DimensionType.BOOLEAN,
+                            label: 'Has credit card payment',
+                            sql: '${TABLE}.credit_card_amount > 0',
+                        },
+                    },
+                },
+            },
+        },
+        meta: {
+            default_filters:
+                defaultFilters as DbtModelNode['meta']['default_filters'],
+        },
+    });
+
+    it('should fail only the explore with hidden-dimension default filters and keep base explore valid', async () => {
+        const modelWithExploreScopedFilters: DbtModelNode = {
+            ...createOrdersModel([]),
+            meta: {
+                explores: {
+                    orders_news_portal: {
+                        label: 'Orders News Portal',
+                        default_filters: [
+                            {
+                                credit_card_amount: '>= 0',
+                                required: true,
+                            },
+                            {
+                                has_credit_card_payment: 'true',
+                                required: true,
+                            },
+                        ] as DbtModelNode['meta']['default_filters'],
+                    },
+                },
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithExploreScopedFilters],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        const baseExplore = explores.find((e) => e.name === 'orders');
+        const exploreWithHiddenFilterError = explores.find(
+            (e) => e.name === 'orders_news_portal',
+        );
+
+        expect(baseExplore).toBeDefined();
+        expect(baseExplore && 'errors' in baseExplore).toBe(false);
+        expect(exploreWithHiddenFilterError).toBeDefined();
+        expect(
+            exploreWithHiddenFilterError &&
+                'errors' in exploreWithHiddenFilterError,
+        ).toBe(true);
+
+        if (
+            exploreWithHiddenFilterError &&
+            'errors' in exploreWithHiddenFilterError
+        ) {
+            expect(exploreWithHiddenFilterError.errors[0].message).toContain(
+                'credit_card_amount',
+            );
+            expect(exploreWithHiddenFilterError.errors[0].type).toBe(
+                InlineErrorType.METADATA_PARSE_ERROR,
+            );
+        }
     });
 });
 

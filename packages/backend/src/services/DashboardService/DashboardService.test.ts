@@ -1,12 +1,17 @@
 import { Ability } from '@casl/ability';
 import {
     ContentType,
+    DashboardTileTypes,
     defineUserAbility,
+    FilterOperator,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
+    type Dashboard,
+    type DashboardChartTile,
+    type DashboardFilterRule,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -21,7 +26,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -140,7 +144,6 @@ describe('DashboardService', () => {
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
-        featureFlagService: {} as FeatureFlagService,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -475,5 +478,178 @@ describe('DashboardService', () => {
             ContentType.DASHBOARD,
             dashboardUuid,
         );
+    });
+
+    describe('duplicate', () => {
+        const dashboardScopedTileUuid = 'dashboard-chart-tile-uuid';
+        const spaceTileUuid = 'space-chart-tile-uuid';
+
+        const dashboardWithScopedCharts: Dashboard = {
+            ...dashboard,
+            tiles: [
+                {
+                    uuid: dashboardScopedTileUuid,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        savedChartUuid: 'scoped-chart-uuid',
+                        belongsToDashboard: true,
+                        title: 'Dashboard Chart',
+                    },
+                    x: 0,
+                    y: 0,
+                    h: 2,
+                    w: 2,
+                    tabUuid: undefined,
+                },
+                {
+                    uuid: spaceTileUuid,
+                    type: DashboardTileTypes.SAVED_CHART,
+                    properties: {
+                        savedChartUuid: 'space-chart-uuid',
+                        title: 'Space Chart',
+                    },
+                    x: 2,
+                    y: 0,
+                    h: 2,
+                    w: 2,
+                    tabUuid: undefined,
+                },
+            ],
+            filters: {
+                dimensions: [
+                    {
+                        id: 'dim-filter',
+                        target: {
+                            fieldId: 'dim_field',
+                            tableName: 'table',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: ['a'],
+                        label: undefined,
+                        tileTargets: {
+                            [dashboardScopedTileUuid]: {
+                                fieldId: 'dim_field',
+                                tableName: 'table',
+                            },
+                            [spaceTileUuid]: {
+                                fieldId: 'dim_field',
+                                tableName: 'table',
+                            },
+                        },
+                    },
+                ],
+                metrics: [
+                    {
+                        id: 'metric-filter',
+                        target: {
+                            fieldId: 'metric_field',
+                            tableName: 'table',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: [1],
+                        label: undefined,
+                        tileTargets: {
+                            [dashboardScopedTileUuid]: false,
+                        },
+                    },
+                ],
+                tableCalculations: [],
+            },
+            tabs: [],
+        };
+
+        beforeEach(() => {
+            (dashboardModel.getByIdOrSlug as jest.Mock).mockResolvedValue(
+                dashboardWithScopedCharts,
+            );
+            (dashboardModel.create as jest.Mock).mockResolvedValue(
+                dashboardWithScopedCharts,
+            );
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                service as any,
+                'duplicateChartForDashboard',
+            ).mockResolvedValue('new-duplicated-chart-uuid');
+        });
+
+        test('should remap filter tileTargets when duplicating dashboard-scoped charts', async () => {
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Duplicated',
+                dashboardDesc: 'desc',
+            });
+
+            expect(dashboardModel.addVersion).toHaveBeenCalledTimes(1);
+            const versionData = (dashboardModel.addVersion as jest.Mock).mock
+                .calls[0][1];
+
+            const dashboardScopedTile = versionData.tiles.find(
+                (t: DashboardChartTile) =>
+                    t.properties.savedChartUuid === 'new-duplicated-chart-uuid',
+            );
+            const spaceTile = versionData.tiles.find(
+                (t: DashboardChartTile) =>
+                    t.properties.savedChartUuid === 'space-chart-uuid',
+            );
+
+            expect(dashboardScopedTile.uuid).not.toBe(dashboardScopedTileUuid);
+            expect(spaceTile.uuid).toBe(spaceTileUuid);
+
+            const newTileUuid = dashboardScopedTile.uuid;
+
+            const dimFilter: DashboardFilterRule =
+                versionData.filters.dimensions[0];
+            expect(dimFilter.tileTargets).toHaveProperty(newTileUuid);
+            expect(dimFilter.tileTargets).toHaveProperty(spaceTileUuid);
+            expect(dimFilter.tileTargets).not.toHaveProperty(
+                dashboardScopedTileUuid,
+            );
+
+            const metricFilter: DashboardFilterRule =
+                versionData.filters.metrics[0];
+            expect(metricFilter.tileTargets).toHaveProperty(newTileUuid);
+            expect(metricFilter.tileTargets![newTileUuid]).toBe(false);
+            expect(metricFilter.tileTargets).not.toHaveProperty(
+                dashboardScopedTileUuid,
+            );
+        });
+
+        test('should preserve undefined tileTargets on filters', async () => {
+            const dashboardWithUntargetedFilters: Dashboard = {
+                ...dashboardWithScopedCharts,
+                filters: {
+                    dimensions: [
+                        {
+                            id: 'untargeted',
+                            target: {
+                                fieldId: 'f',
+                                tableName: 't',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: [],
+                            label: undefined,
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            };
+            (dashboardModel.getByIdOrSlug as jest.Mock).mockResolvedValue(
+                dashboardWithUntargetedFilters,
+            );
+            (dashboardModel.create as jest.Mock).mockResolvedValue(
+                dashboardWithUntargetedFilters,
+            );
+
+            await service.duplicate(user, projectUuid, dashboard.uuid, {
+                dashboardName: 'Dup',
+                dashboardDesc: '',
+            });
+
+            const versionData = (dashboardModel.addVersion as jest.Mock).mock
+                .calls[0][1];
+            expect(
+                versionData.filters.dimensions[0].tileTargets,
+            ).toBeUndefined();
+        });
     });
 });

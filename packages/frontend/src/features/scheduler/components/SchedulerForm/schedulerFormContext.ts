@@ -203,6 +203,8 @@ export const transformFormValues = (
         options = {
             withPdf: values.options.withPdf,
         } satisfies SchedulerImageOptions;
+    } else if (values.format === SchedulerFormat.PDF) {
+        options = {};
     }
 
     const emailTargets = (values.emailTargets || []).map((email: string) => ({

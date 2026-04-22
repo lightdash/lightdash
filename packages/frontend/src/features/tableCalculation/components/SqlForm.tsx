@@ -31,6 +31,7 @@ type Props = {
     isFullScreen: boolean;
     focusOnRender?: boolean;
     onCmdEnter?: () => void;
+    onAiApplied?: () => void;
 };
 
 export const SqlEditor = styled(AceEditor)<
@@ -56,6 +57,7 @@ export const SqlForm: FC<Props> = ({
     isFullScreen,
     focusOnRender = false,
     onCmdEnter,
+    onAiApplied,
 }) => {
     const theme = useMantineTheme();
     const [isSoftWrapEnabled, setSoftWrapEnabled] = useLocalStorage({
@@ -76,8 +78,9 @@ export const SqlForm: FC<Props> = ({
             if (result.format) {
                 form.setFieldValue('format', result.format);
             }
+            onAiApplied?.();
         },
-        [form],
+        [form, onAiApplied],
     );
 
     const handleEditorLoad = useCallback(
@@ -109,11 +112,8 @@ export const SqlForm: FC<Props> = ({
     }, [isSoftWrapEnabled, setSoftWrapEnabled]);
 
     return (
-        <Flex direction="column" h={isFullScreen ? '100%' : 'auto'}>
-            <ScrollArea
-                style={{ flex: isFullScreen ? 1 : 'none' }}
-                h={isFullScreen ? undefined : '150px'}
-            >
+        <Flex direction="column" h="100%">
+            <ScrollArea style={{ flex: 1 }}>
                 <SqlEditor
                     mode="sql"
                     theme={

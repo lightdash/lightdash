@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     ContentType,
-    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     type PossibleAbilities,
@@ -11,7 +10,6 @@ import {
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { ContentVerificationService } from './ContentVerificationService';
-import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 
 const projectSummary = {
     organizationUuid: 'org-uuid',
@@ -66,10 +64,6 @@ const mockVerifiedItems: VerifiedContentListItem[] = [
     },
 ];
 
-const featureFlagService = {
-    get: jest.fn(),
-};
-
 const projectModel = {
     getSummary: jest.fn(async () => projectSummary),
 };
@@ -83,7 +77,6 @@ describe('ContentVerificationService', () => {
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         projectModel: projectModel as unknown as ProjectModel,
-        featureFlagService: featureFlagService as unknown as FeatureFlagService,
     });
 
     afterEach(() => {
@@ -91,31 +84,7 @@ describe('ContentVerificationService', () => {
     });
 
     describe('listVerifiedContent', () => {
-        it('should throw ForbiddenError when flag is disabled', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: false,
-            });
-
-            await expect(
-                service.listVerifiedContent(adminUser, 'project-uuid'),
-            ).rejects.toThrow(ForbiddenError);
-
-            await expect(
-                service.listVerifiedContent(adminUser, 'project-uuid'),
-            ).rejects.toThrow('Content verification is not enabled');
-
-            expect(
-                contentVerificationModel.getAllForProject,
-            ).not.toHaveBeenCalled();
-        });
-
         it('should throw ForbiddenError when user lacks manage:ContentVerification', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
             await expect(
                 service.listVerifiedContent(editorUser, 'project-uuid'),
             ).rejects.toThrow(ForbiddenError);
@@ -125,12 +94,7 @@ describe('ContentVerificationService', () => {
             ).not.toHaveBeenCalled();
         });
 
-        it('should return verified content when flag is on and user is admin', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
+        it('should return verified content when user is admin', async () => {
             const result = await service.listVerifiedContent(
                 adminUser,
                 'project-uuid',

@@ -78,8 +78,14 @@ const useEchartsGaugeConfig = ({
     lineSize,
     radius,
 }: Args) => {
-    const { visualizationConfig, itemsMap, resultsData, parameters } =
-        useVisualizationContext();
+    const {
+        visualizationConfig,
+        itemsMap,
+        resultsData,
+        parameters,
+        minimal,
+        resolvedTimezone,
+    } = useVisualizationContext();
     const theme = useMantineTheme();
 
     const chartConfig = useMemo(() => {
@@ -276,6 +282,7 @@ const useEchartsGaugeConfig = ({
                             value,
                             false,
                             parameters,
+                            resolvedTimezone,
                         );
                     }
                     return '';
@@ -302,6 +309,7 @@ const useEchartsGaugeConfig = ({
                         value,
                         false,
                         parameters,
+                        resolvedTimezone,
                     );
 
                     if (showPercentage) {
@@ -399,6 +407,7 @@ const useEchartsGaugeConfig = ({
         detailsFontSize,
         tileFontSize,
         parameters,
+        resolvedTimezone,
     ]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
@@ -411,9 +420,15 @@ const useEchartsGaugeConfig = ({
                 ),
             },
             series: gaugeSeries,
-            animation: !isInDashboard,
+            animation: !(isInDashboard || minimal),
         };
-    }, [chartConfig, gaugeSeries, isInDashboard, theme?.other?.chartFont]);
+    }, [
+        chartConfig,
+        gaugeSeries,
+        isInDashboard,
+        minimal,
+        theme?.other?.chartFont,
+    ]);
 
     if (!itemsMap) return;
     if (!eChartsOption) return;

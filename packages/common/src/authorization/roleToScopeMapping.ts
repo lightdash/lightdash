@@ -71,6 +71,7 @@ const BASE_ROLE_SCOPES = {
         'manage:PreAggregation',
         'manage:VirtualView',
         'manage:CustomSql',
+        'manage:CustomFields',
         'manage:SqlRunner',
         'manage:Validation',
         'manage:CompileProject',
@@ -89,11 +90,11 @@ const BASE_ROLE_SCOPES = {
         'manage:ContentAsCode',
         'manage:AiAgent',
         'manage:AiAgentThread@self', // User's own threads
-        'manage:DataApp',
     ],
 
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
+        'manage:DataApp',
         'delete:Project', // Any project
         'view:Analytics',
         'manage:Dashboard', // All dashboards

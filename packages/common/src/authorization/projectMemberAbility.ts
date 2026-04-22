@@ -194,6 +194,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'CustomSql', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'CustomFields', {
+            projectUuid: member.projectUuid,
+        });
         can('manage', 'SqlRunner', {
             projectUuid: member.projectUuid,
         });
@@ -252,12 +255,13 @@ export const projectMemberAbilities: Record<
         can('manage', 'AiAgent', {
             projectUuid: member.projectUuid,
         });
-        can('manage', 'DataApp', {
-            projectUuid: member.projectUuid,
-        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
+
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+        });
 
         can('manage', 'ContentVerification', {
             projectUuid: member.projectUuid,

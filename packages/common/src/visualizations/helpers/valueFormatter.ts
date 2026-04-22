@@ -11,10 +11,11 @@ export const getFormattedValue = (
     convertToUTC: boolean = true,
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
     parameters?: ParametersValuesMap,
+    timezone?: string,
 ): string => {
     const pivotValuesColumn = pivotValuesColumnsMap?.[key];
     const item = itemsMap[pivotValuesColumn?.referenceField ?? key];
-    return formatItemValue(item, value, convertToUTC, parameters);
+    return formatItemValue(item, value, convertToUTC, parameters, timezone);
 };
 
 export const valueFormatter =
@@ -23,6 +24,7 @@ export const valueFormatter =
         itemsMap: ItemsMap,
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
         parameters?: ParametersValuesMap,
+        timezone?: string,
     ) =>
     (rawValue: AnyType) =>
         getFormattedValue(
@@ -32,4 +34,5 @@ export const valueFormatter =
             undefined,
             pivotValuesColumnsMap,
             parameters,
+            timezone,
         );

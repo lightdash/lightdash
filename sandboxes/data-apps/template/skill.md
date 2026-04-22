@@ -81,6 +81,43 @@ Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK 
 
 When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.
 
+## Referenced metric queries
+
+The user may reference saved charts from their project by pasting chart UUIDs in their
+prompt. When they do, structured metric query files are available at
+`/tmp/metric-queries/*.json`.
+
+Each file contains:
+- `chartName` / `chartDescription` — what the chart shows and why
+- `exploreName` — which explore (dbt model) the query targets
+- `metricQuery.dimensions` — dimension field IDs used for grouping
+- `metricQuery.metrics` — metric field IDs used for aggregation
+- `metricQuery.filters` — filter rules applied to the query
+- `metricQuery.sorts` — sort order
+- `metricQuery.limit` — row limit
+- `metricQuery.tableCalculations` — computed columns (may be empty)
+
+**How to use these:**
+1. Read the JSON file(s) to understand what data the user wants in their app
+2. Cross-reference the field IDs against the dbt YAML catalog at
+   `/tmp/dbt-repo/models/schema.yml` for field descriptions, types, and relationships
+   between fields — this helps you understand how the referenced charts connect to the
+   user's overall prompt
+3. Map fields to SDK calls:
+   - `chartName` → `query(exploreName).label(chartName)` — **always set the label**
+   - `metricQuery.dimensions` → `.dimensions([...])`
+   - `metricQuery.metrics` → `.metrics([...])`
+   - `metricQuery.filters` → `.filters([...])`
+   - `metricQuery.sorts` → `.sorts([...])`
+   - `metricQuery.tableCalculations` → `.tableCalculations([...])` — pass through as-is if present
+4. These are starting points — adapt them based on the user's prompt. You may combine
+   multiple referenced queries, add/remove fields, or adjust filters as needed.
+
+**Important:** The field IDs in metric queries use qualified names (e.g.,
+`orders_total_revenue`), but the SDK uses short names (e.g., `total_revenue`). Strip the
+explore name prefix when mapping to SDK calls. Table calculation names do NOT need
+stripping — pass them through as-is.
+
 ## SDK Reference
 
 The client and provider are already set up in `main.jsx`. Import `query` and `useLightdash` — that's it.
@@ -88,8 +125,10 @@ The client and provider are already set up in `main.jsx`. Import `query` and `us
 ```tsx
 import { query, useLightdash } from '@lightdash/query-sdk';
 
-// Define queries at module scope — immutable, safe to hoist out of render
+// Define queries at module scope — immutable, safe to hoist out of render.
+// Always use .label() to describe what the query powers (shown in dev tools).
 const revenueQuery = query('orders')
+    .label('Revenue by Segment')
     .dimensions(['customer_segment'])
     .metrics(['total_revenue', 'order_count'])
     .filters([
@@ -127,14 +166,39 @@ The builder is immutable — you can derive variants from a base:
 
 ```ts
 const base = query('orders').metrics(['total_revenue']);
-const bySegment = base.dimensions(['customer_segment']);
-const byRegion = base.dimensions(['region']);
+const bySegment = base.label('Revenue by Segment').dimensions(['customer_segment']);
+const byRegion = base.label('Revenue by Region').dimensions(['region']);
 ```
 
 KPI cards — metrics without dimensions gives a single aggregated row:
 ```ts
-query('orders').metrics(['total_revenue', 'order_count']).limit(1);
+query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).limit(1);
 ```
+
+**Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
+
+### Table calculations
+
+Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+
+```ts
+query('orders')
+    .label('Revenue with Running Total')
+    .dimensions(['order_date'])
+    .metrics(['total_revenue'])
+    .tableCalculations([
+        {
+            name: 'running_total',
+            displayName: 'Running Total',
+            sql: 'SUM(${orders.total_revenue}) OVER (ORDER BY ${orders.order_date})',
+        },
+    ])
+```
+
+Each table calculation needs:
+- `name` — internal field ID (used in results, must be unique within the query)
+- `displayName` — human-readable label shown in the UI
+- `sql` — SQL expression; reference other fields with `${table.field}` syntax
 
 ### `useLightdash(query)` return value
 

@@ -17,6 +17,7 @@ import type {
     InternalFilterDefinition,
     QueryDefinition,
     Sort,
+    TableCalculation,
 } from './types';
 
 /**
@@ -38,7 +39,9 @@ export class QueryBuilder {
     private readonly _metrics: string[];
     private readonly _filters: InternalFilterDefinition[];
     private readonly _sorts: { fieldId: string; descending: boolean }[];
+    private readonly _tableCalculations: TableCalculation[];
     private readonly _limit: number;
+    private readonly _label: string | undefined;
 
     constructor(
         explore: string,
@@ -47,13 +50,31 @@ export class QueryBuilder {
         filters: InternalFilterDefinition[] = [],
         sorts: { fieldId: string; descending: boolean }[] = [],
         limit: number = 500,
+        label?: string,
+        tableCalculations: TableCalculation[] = [],
     ) {
         this._explore = explore;
         this._dimensions = dimensions;
         this._metrics = metrics;
         this._filters = filters;
         this._sorts = sorts;
+        this._tableCalculations = tableCalculations;
         this._limit = limit;
+        this._label = label;
+    }
+
+    /** Human-readable label for dev tools / query inspector */
+    label(name: string): QueryBuilder {
+        return new QueryBuilder(
+            this._explore,
+            this._dimensions,
+            this._metrics,
+            this._filters,
+            this._sorts,
+            this._limit,
+            name,
+            this._tableCalculations,
+        );
     }
 
     /** Set dimension fields (GROUP BY columns) */
@@ -65,6 +86,8 @@ export class QueryBuilder {
             this._filters,
             this._sorts,
             this._limit,
+            this._label,
+            this._tableCalculations,
         );
     }
 
@@ -77,6 +100,8 @@ export class QueryBuilder {
             this._filters,
             this._sorts,
             this._limit,
+            this._label,
+            this._tableCalculations,
         );
     }
 
@@ -107,6 +132,8 @@ export class QueryBuilder {
             [...this._filters, ...converted],
             this._sorts,
             this._limit,
+            this._label,
+            this._tableCalculations,
         );
     }
 
@@ -124,6 +151,22 @@ export class QueryBuilder {
             this._filters,
             [...this._sorts, ...converted],
             this._limit,
+            this._label,
+            this._tableCalculations,
+        );
+    }
+
+    /** Add table calculations (computed columns evaluated after the query) */
+    tableCalculations(calcs: TableCalculation[]): QueryBuilder {
+        return new QueryBuilder(
+            this._explore,
+            this._dimensions,
+            this._metrics,
+            this._filters,
+            this._sorts,
+            this._limit,
+            this._label,
+            [...this._tableCalculations, ...calcs],
         );
     }
 
@@ -136,6 +179,8 @@ export class QueryBuilder {
             this._filters,
             this._sorts,
             n,
+            this._label,
+            this._tableCalculations,
         );
     }
 
@@ -147,7 +192,9 @@ export class QueryBuilder {
             metrics: this._metrics,
             filters: this._filters,
             sorts: this._sorts,
+            tableCalculations: this._tableCalculations,
             limit: this._limit,
+            ...(this._label ? { label: this._label } : {}),
         };
     }
 }

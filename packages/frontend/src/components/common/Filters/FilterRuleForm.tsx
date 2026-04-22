@@ -1,5 +1,6 @@
 import {
     createFilterRuleFromField,
+    type FilterOperator,
     FilterType,
     getFilterRuleFromFieldWithDefaultValue,
     getFilterTypeFromItem,
@@ -15,6 +16,7 @@ import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterInputComponent from './FilterInputs';
+import { filterOperatorDescription } from './FilterInputs/constants';
 import { getFilterOperatorOptions } from './FilterInputs/utils';
 import useFiltersContext from './useFiltersContext';
 
@@ -50,8 +52,8 @@ const FilterRuleForm: FC<Props> = memo(
         }, [activeField]);
 
         const filterOperatorOptions = useMemo(() => {
-            return getFilterOperatorOptions(filterType);
-        }, [filterType]);
+            return getFilterOperatorOptions(filterType, activeField);
+        }, [filterType, activeField]);
 
         const onFieldChange = useCallback(
             (fieldId: string) => {
@@ -151,6 +153,26 @@ const FilterRuleForm: FC<Props> = memo(
                     disabled={!isEditMode}
                     value={filterRule.operator}
                     data={filterOperatorOptions}
+                    renderOption={({ option }) => {
+                        const description =
+                            filterOperatorDescription[
+                                option.value as FilterOperator
+                            ];
+                        if (description) {
+                            return (
+                                <Tooltip
+                                    label={description}
+                                    position="right"
+                                    multiline
+                                    maw={300}
+                                    withinPortal
+                                >
+                                    <span>{option.label}</span>
+                                </Tooltip>
+                            );
+                        }
+                        return <span>{option.label}</span>;
+                    }}
                     onChange={(value) => {
                         if (!value) return;
                         onChange(

@@ -11,6 +11,7 @@ import type {
     TreemapChart,
 } from '@lightdash/common';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import { useCalculateSubtotals } from './useCalculateSubtotals';
 import { type InfiniteQueryResults } from './useQueryResults';
 
@@ -68,6 +69,7 @@ export type TreemapChartConfigFn = (
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined,
     itemsMap: ItemsMap | undefined,
@@ -86,6 +88,8 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     tableCalculationsMetadata,
     parameters,
 ) => {
+    const { embedToken } = useEmbed();
+
     const [visibleMin, setVisibleMin] = useState(
         treemapConfig?.visibleMin ?? 100,
     );
@@ -218,6 +222,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
         columnOrder: groupFieldIds,
         pivotDimensions: undefined,
         parameters,
+        embedToken,
     });
 
     const data = useMemo(() => {

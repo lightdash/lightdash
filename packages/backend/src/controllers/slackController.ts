@@ -5,10 +5,12 @@ import {
     ApiSlackCustomSettingsResponse,
     ApiSlackGetInstallationResponse,
     ApiSuccessEmpty,
+    getErrorMessage,
     NotFoundError,
     OpenIdIdentityIssuerType,
     SlackAppCustomSettings,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import { ExpressReceiver } from '@slack/bolt';
 import {
     Body,
@@ -29,6 +31,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
+import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -199,6 +202,71 @@ export class SlackController extends BaseController {
         this.setHeader('Content-Disposition', `inline; filename="${filename}"`);
 
         return fs.createReadStream(normalizedPath);
+    }
+
+    /**
+     * Get a Slack unfurl preview image via redirect to a fresh signed URL.
+     * Falls back to a placeholder image if the preview is not found.
+     * @summary Get Slack preview
+     */
+    @SuccessResponse('302', 'Redirect')
+    @Get('/preview/{id}')
+    @OperationId('getSlackPreview')
+    async getPreview(
+        @Path() id: string,
+        @Request() req: express.Request,
+    ): Promise<void> {
+        const NANOID_REGEX = /^[\w-]{21}$/;
+
+        this.setHeader('Cache-Control', 'no-store');
+        this.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+        if (!NANOID_REGEX.test(id)) {
+            await SlackController.sendPlaceholder(req.res!);
+            return;
+        }
+
+        try {
+            const signedUrl = await this.services
+                .getUnfurlService()
+                .getPreviewSignedUrl(id);
+
+            this.setStatus(302);
+            this.setHeader('Location', signedUrl);
+        } catch (e) {
+            if (e instanceof NotFoundError) {
+                Logger.info(
+                    `Slack unfurl preview miss, serving placeholder: ${id}`,
+                );
+            } else {
+                Logger.error(
+                    `Slack unfurl preview failed, serving placeholder: ${id} ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+                Sentry.captureException(e, {
+                    tags: { feature: 'slack-unfurl-preview' },
+                    extra: { previewId: id },
+                });
+            }
+            await SlackController.sendPlaceholder(req.res!);
+        }
+    }
+
+    private static sendPlaceholder(res: express.Response): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const placeholderPath = path.resolve(
+                __dirname,
+                '../services/UnfurlService/assets/slack-unfurl-placeholder.png',
+            );
+            res.status(200);
+            res.setHeader('Content-Type', 'image/png');
+            res.setHeader('Cache-Control', 'public, max-age=300');
+            res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+            const stream = fs.createReadStream(placeholderPath);
+            stream.on('error', reject);
+            stream.pipe(res).on('finish', resolve);
+        });
     }
 
     /**

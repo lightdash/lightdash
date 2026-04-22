@@ -1,6 +1,7 @@
 services:
     minio:
         image: coollabsio/minio:latest
+        restart: always
         ports:
             - '9000:9000'
             - '9001:9001' # for minio console

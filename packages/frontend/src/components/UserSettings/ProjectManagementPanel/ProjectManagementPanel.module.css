@@ -1,0 +1,173 @@
+.filterButton {
+    border: 1px dashed var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-foreground);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.filterButton:hover {
+    border: 1px dashed var(--mantine-color-ldGray-4);
+    background: var(--mantine-color-ldGray-0);
+}
+
+.filterButtonSelected {
+    border: 1px solid var(--mantine-color-indigo-2);
+    background: var(--mantine-color-indigo-0);
+    box-shadow: var(--mantine-shadow-subtle);
+
+    @mixin dark {
+        background: var(--mantine-color-indigo-8);
+        border-color: var(--mantine-color-indigo-4);
+    }
+}
+
+.filterButtonSelected:hover {
+    border: 1px solid var(--mantine-color-indigo-3);
+    background: var(--mantine-color-indigo-1);
+
+    @mixin dark {
+        background: var(--mantine-color-indigo-9);
+    }
+}
+
+.buttonLabel {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.checkboxBody {
+    align-items: center;
+}
+
+.checkboxInput {
+    cursor: pointer;
+}
+
+.checkboxLabel {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--mantine-color-ldGray-8);
+}
+
+.segmentedControl {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-background-0);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+.segmentedIndicator {
+    background: var(--mantine-color-indigo-0);
+    border: 1px solid var(--mantine-color-indigo-2);
+
+    @mixin dark {
+        background: var(--mantine-color-indigo-8);
+        border-color: var(--mantine-color-indigo-4);
+    }
+}
+
+.segmentedLabel p {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-foreground);
+}
+
+.searchInput {
+    height: 32px;
+    width: 200px;
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 400;
+    color: var(--mantine-color-ldGray-5);
+    box-shadow: var(--mantine-shadow-subtle);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-background-0);
+    transition:
+        width 0.25s cubic-bezier(0.25, 1, 0.5, 1),
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldGray-4);
+    }
+}
+
+.searchInput:hover {
+    border: 1px solid var(--mantine-color-ldGray-4);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldGray-5);
+    }
+}
+
+.searchInput:focus {
+    width: 280px;
+    border: 1px solid var(--mantine-color-indigo-4);
+    box-shadow: 0 0 0 2px
+        color-mix(in oklch, var(--mantine-color-indigo-4) 20%, transparent);
+}
+
+.searchInputWithValue {
+    height: 32px;
+    width: 280px;
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 400;
+    color: var(--mantine-color-foreground);
+    box-shadow: var(--mantine-shadow-subtle);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-background-0);
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldGray-4);
+    }
+}
+
+.searchInputWithValue:hover {
+    border: 1px solid var(--mantine-color-ldGray-4);
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldGray-5);
+    }
+}
+
+.searchInputWithValue:focus {
+    border: 1px solid var(--mantine-color-indigo-4);
+    box-shadow: 0 0 0 2px
+        color-mix(in oklch, var(--mantine-color-indigo-4) 20%, transparent);
+}
+
+/* Empty state when no projects match filters */
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+}
+
+.emptyStateIcon {
+    opacity: 0.4;
+    transition: opacity 0.3s ease;
+}
+
+.emptyState:hover .emptyStateIcon {
+    opacity: 0.6;
+}
+
+/* Copy success flash */
+.copyFlash {
+    transition: background-color 0.3s ease;
+}
+
+.copyFlashActive {
+    background-color: color-mix(
+        in oklch,
+        var(--mantine-color-teal-4) 12%,
+        transparent
+    );
+}

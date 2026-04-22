@@ -11,15 +11,15 @@ import {
 // Test subjects
 const createDashboard = (uuid: string, attributes: AnyObject = {}) =>
     subject('Dashboard', {
-        uuid,
         organizationUuid: 'test-org-uuid',
+        metadata: { dashboardUuid: uuid },
         ...attributes,
     });
 
 const createSavedChart = (uuid: string, attributes: AnyObject = {}) =>
     subject('SavedChart', {
-        uuid,
         organizationUuid: 'test-org-uuid',
+        metadata: { savedChartUuid: uuid },
         ...attributes,
     });
 
@@ -130,7 +130,7 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.actor.uuid).toBe(mockUser.userUuid);
             expect(loggedEvent.action).toBe('update');
             expect(loggedEvent.resource.type).toBe('Dashboard');
-            expect(loggedEvent.resource.uuid).toBe('2');
+            expect(loggedEvent.resource.metadata?.dashboardUuid).toBe('2');
             expect(loggedEvent.status).toBe('allowed');
             expect(loggedEvent.context.ip).toBe('127.0.0.1');
             expect(loggedEvent.context.userAgent).toBe('test-agent');
@@ -154,7 +154,7 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.actor.uuid).toBe(mockUser.userUuid);
             expect(loggedEvent.action).toBe('read');
             expect(loggedEvent.resource.type).toBe('Dashboard');
-            expect(loggedEvent.resource.uuid).toBe('3');
+            expect(loggedEvent.resource.metadata?.dashboardUuid).toBe('3');
             expect(loggedEvent.status).toBe('denied');
         });
 
@@ -266,7 +266,7 @@ describe('CaslAuditWrapper', () => {
             expect(loggedEvent.actor.uuid).toBe(mockUser.userUuid);
             expect(loggedEvent.action).toBe('read');
             expect(loggedEvent.resource.type).toBe('Dashboard');
-            expect(loggedEvent.resource.uuid).toBe('3');
+            expect(loggedEvent.resource.metadata?.dashboardUuid).toBe('3');
             expect(loggedEvent.status).toBe('denied');
         });
 
@@ -332,6 +332,197 @@ describe('CaslAuditWrapper', () => {
             expect(() =>
                 wrapperWithoutLogger.can('update', userDashboard),
             ).not.toThrow();
+        });
+    });
+
+    describe('audit logging resilience', () => {
+        it('should return correct result when audit logger throws on can()', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            const dashboard = createDashboard('1');
+            expect(wrapper.can('read', dashboard)).toBe(true);
+            expect(throwingLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should return correct result when audit logger throws on cannot()', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            const dashboard = createDashboard('1');
+            expect(wrapper.cannot('read', dashboard)).toBe(false);
+            expect(throwingLogger).toHaveBeenCalledTimes(1);
+        });
+
+        it('should return denied result correctly when audit logger throws', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            const privateDashboard = createDashboard('3', {
+                inheritsFromOrgOrProject: false,
+            });
+            expect(wrapper.can('read', privateDashboard)).toBe(false);
+            expect(wrapper.cannot('read', privateDashboard)).toBe(true);
+        });
+    });
+
+    describe('capability checks (no resource uuid)', () => {
+        it('should handle subjects without uuid', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            const capabilitySubject = subject('Dashboard', {
+                organizationUuid: 'test-org-uuid',
+                projectUuid: 'test-project-uuid',
+            }) as ForcedSubject<CaslSubjectNames> & {
+                organizationUuid: string;
+            };
+
+            wrapper.can('read', capabilitySubject);
+
+            expect(mockLogger).toHaveBeenCalledTimes(1);
+            const loggedEvent = mockLogger.mock.calls[0][0];
+            expect(loggedEvent.resource.metadata).toBeUndefined();
+            expect(loggedEvent.resource.type).toBe('Dashboard');
+            expect(loggedEvent.resource.organizationUuid).toBe('test-org-uuid');
+        });
+    });
+
+    describe('createResourceFromSubject behavior', () => {
+        it('should forward metadata object directly', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            const s = subject('Dashboard', {
+                organizationUuid: 'test-org-uuid',
+                metadata: {
+                    dashboardUuid: 'meta-uuid',
+                    dashboardName: 'meta-name',
+                },
+            });
+
+            wrapper.can('read', s);
+
+            const { resource } = mockLogger.mock.calls[0][0];
+            expect(resource.metadata).toEqual({
+                dashboardUuid: 'meta-uuid',
+                dashboardName: 'meta-name',
+            });
+        });
+
+        it('should have undefined metadata when absent on the subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            const s = subject('Dashboard', {
+                organizationUuid: 'test-org-uuid',
+            });
+
+            wrapper.can('read', s);
+
+            const { resource } = mockLogger.mock.calls[0][0];
+            expect(resource.metadata).toBeUndefined();
+        });
+    });
+
+    describe('bare-string subjects', () => {
+        it('should return the same result as the raw ability for can() with bare-string subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+            const ability = createTestAbility();
+
+            expect(wrapper.can('read', 'Dashboard')).toBe(
+                ability.can('read', 'Dashboard'),
+            );
+        });
+
+        it('should return the same result as the raw ability for cannot() with bare-string subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+            const ability = createTestAbility();
+
+            expect(wrapper.cannot('read', 'Dashboard')).toBe(
+                ability.cannot('read', 'Dashboard'),
+            );
+        });
+
+        it('should log audit event with type from bare-string subject', () => {
+            const mockLogger = createMockLogger();
+            const wrapper = createWrapper(mockLogger);
+
+            wrapper.can('read', 'Dashboard');
+
+            expect(mockLogger).toHaveBeenCalledTimes(1);
+            const loggedEvent = mockLogger.mock.calls[0][0];
+            expect(loggedEvent.resource.type).toBe('Dashboard');
+            expect(loggedEvent.resource.organizationUuid).toBe('unknown');
+            expect(loggedEvent.resource.metadata).toBeUndefined();
+            expect(loggedEvent.resource.projectUuid).toBeUndefined();
+        });
+
+        it('should return true for bare-string when conditional rules exist (can-create-somewhere semantics)', () => {
+            const conditionalAbility = defineAbility((can) => {
+                can('create', 'SavedChart', {
+                    authorId: mockUser.userUuid,
+                    status: 'published',
+                });
+            });
+
+            const mockLogger = createMockLogger();
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                conditionalAbility as any,
+                mockUser,
+                { auditLogger: mockLogger as AuditLogger },
+            );
+
+            expect(wrapper.can('create', 'SavedChart')).toBe(true);
+            expect(wrapper.cannot('create', 'SavedChart')).toBe(false);
+
+            expect(mockLogger).toHaveBeenCalledTimes(2);
+            const loggedEvent = mockLogger.mock.calls[0][0];
+            expect(loggedEvent.status).toBe('allowed');
+            expect(loggedEvent.resource.type).toBe('SavedChart');
+        });
+
+        it('should not throw when audit logger fails on bare-string subject', () => {
+            const throwingLogger = jest.fn(() => {
+                throw new Error('Logging infrastructure down');
+            }) as unknown as jest.Mock<void, [AuditLogEvent]>;
+
+            const wrapper = new CaslAuditWrapper(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                createTestAbility() as any,
+                mockUser,
+                { auditLogger: throwingLogger as AuditLogger },
+            );
+
+            expect(wrapper.can('read', 'Dashboard')).toBe(true);
+            expect(throwingLogger).toHaveBeenCalledTimes(1);
         });
     });
 });

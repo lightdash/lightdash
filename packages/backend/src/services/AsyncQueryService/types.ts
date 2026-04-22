@@ -4,6 +4,7 @@ import {
     MetricQuery,
     PivotConfig,
     PivotConfiguration,
+    type AndFilterGroup,
     type CacheMetadata,
     type DashboardFilters,
     type DateZoom,
@@ -16,6 +17,7 @@ import {
     type ResultsPaginationArgs,
     type RunQueryTags,
     type SortField,
+    type UserAccessControls,
     type UserAttributeValueMap,
 } from '@lightdash/common';
 
@@ -59,10 +61,20 @@ export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
 > &
     Omit<DownloadAsyncQueryResultsPayload, 'userUuid' | 'organizationUuid'>;
 
+export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
+    table: string;
+    fieldId: string;
+    search: string;
+    limit?: number;
+    filters?: AndFilterGroup;
+    forceRefresh?: boolean;
+};
+
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
+    materializationRole?: UserAccessControls;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
@@ -174,6 +186,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 export type RunAsyncWarehouseQueryArgs = {
     projectUuid: string;
     userUuid: string;
+    organizationUuid: string;
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;

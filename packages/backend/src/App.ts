@@ -510,7 +510,10 @@ export default class App {
         // App runtime preview routes — stateless, no session/auth.
         // Registered before session middleware so preview requests
         // never touch the DB for session lookups.
-        if (this.lightdashConfig.appRuntime.enabled) {
+        // Always registered when S3 is configured so the preview router
+        // is available regardless of whether the feature is enabled via
+        // APPS_RUNTIME_ENABLED env var or the enable-data-apps feature flag.
+        if (this.lightdashConfig.appRuntime.s3) {
             expressApp.use(
                 '/api/apps',
                 createAppPreviewRouter(

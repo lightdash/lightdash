@@ -15,6 +15,7 @@ import {
     FieldType,
     FilterGroup,
     FilterGroupItem,
+    FilterOperator,
     FilterRule,
     getCustomMetricDimensionId,
     getDimensionMapFromTables,
@@ -25,6 +26,7 @@ import {
     getMetricsMapFromTables,
     getParsedReference,
     getPopComparisonConfigKey,
+    getSqlForTruncatedDate,
     hashPopComparisonConfigKeyToSuffix,
     hasPivotFunctions,
     hasRowFunctions,
@@ -33,6 +35,7 @@ import {
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
+    isDimension,
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
@@ -56,11 +59,13 @@ import {
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
     TimeFrames,
+    truncatableTimeFrames,
     UserAttributeValueMap,
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { compilePostCalculationMetric } from '../../queryCompiler';
@@ -126,6 +131,10 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
+    /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
+    useTimezoneAwareDateTrunc?: boolean;
+    /** Warehouse session timezone — used to skip wrapping when it matches queryTimezone. */
+    dataTimezone?: string;
 };
 
 /**
@@ -301,6 +310,29 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
+    /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise. */
+    private get timezoneForDateTrunc(): string | undefined {
+        if (!this.args.useTimezoneAwareDateTrunc) return undefined;
+        if (this.shouldSkipTimezoneConversion()) return undefined;
+        return this.args.timezone;
+    }
+
+    /**
+     * Skip timezone conversion when the effective input TZ matches the query TZ.
+     * Snowflake's effective input is always UTC (convertTimezone normalizes at
+     * compile time); all others use dataTimezone (defaulting to UTC).
+     */
+    private shouldSkipTimezoneConversion(): boolean {
+        const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
+
+        const effectiveInputTz =
+            adapterType === SupportedDbtAdapter.SNOWFLAKE
+                ? 'UTC'
+                : (this.args.dataTimezone ?? 'UTC');
+
+        return effectiveInputTz === this.args.timezone;
+    }
+
     // Contains the metrics from the Explore and the custom metrics from the metric query
     private readonly availableMetrics: Record<string, CompiledMetric> = {};
 
@@ -446,6 +478,7 @@ export class MetricQueryBuilder {
             dimensionsWithoutAccess: this.exploreDimensionsWithoutAccess,
             adapterType,
             startOfWeek,
+            timezone: this.timezoneForDateTrunc,
         });
         const popDimensionBaseId = `${popDimension.table}_${
             popDimension.timeIntervalBaseDimensionName ?? popDimension.name
@@ -548,6 +581,50 @@ export class MetricQueryBuilder {
         );
     }
 
+    /** Regenerates DATE_TRUNC with timezone conversion for truncatable timestamp dimensions. */
+    private getTimezoneAwareDimensionSql(
+        dimension: CompiledDimension,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+    ): string {
+        const { timezone, useTimezoneAwareDateTrunc } = this.args;
+
+        // Skip non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.)
+        // which use EXTRACT/DATE_PART, not DATE_TRUNC.
+        if (
+            !useTimezoneAwareDateTrunc ||
+            !dimension.timeInterval ||
+            !truncatableTimeFrames.has(dimension.timeInterval)
+        ) {
+            return dimension.compiledSql;
+        }
+
+        // Get base dimension's compiledSql (before DATE_TRUNC)
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+
+        const baseDimension = baseDimensionId
+            ? this.exploreDimensions[baseDimensionId]
+            : undefined;
+
+        if (
+            !baseDimension?.compiledSql ||
+            baseDimension.type !== DimensionType.TIMESTAMP
+        ) {
+            return dimension.compiledSql;
+        }
+
+        return getSqlForTruncatedDate(
+            adapterType,
+            dimension.timeInterval,
+            baseDimension.compiledSql,
+            baseDimension.type,
+            startOfWeek,
+            timezone,
+        );
+    }
+
     private buildDimensionsWhereClause(
         dimensionsFilterGroup?: FilterGroup,
     ): string | undefined {
@@ -631,6 +708,7 @@ export class MetricQueryBuilder {
                             this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
                     });
 
                     assertValidDimensionRequiredAttribute(
@@ -730,7 +808,12 @@ export class MetricQueryBuilder {
         dimensionsObjects.forEach((dimension) => {
             const id = getItemId(dimension);
             const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
-            selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
+            const sql = this.getTimezoneAwareDimensionSql(
+                dimension,
+                adapterType,
+                startOfWeek,
+            );
+            selects[id] = `  ${sql} AS ${quotedAlias}`;
         });
 
         if (customBinDimensionSql?.selects) {
@@ -883,6 +966,54 @@ export class MetricQueryBuilder {
         });
     }
 
+    /**
+     * Returns the set of non-aggregate metric IDs whose SQL templates
+     * reference at least one sum_distinct / average_distinct metric.
+     * These metrics must be excluded from the regular SELECT and instead
+     * handled in the dd CTE outer SELECT so their references can be
+     * rewritten to point at the deduplication CTE aliases.
+     */
+    private getNonAggregateMetricsReferencingDistinct(): Set<string> {
+        const allMetricIds = this.getSelectedAndReferencedMetricIds();
+        const ddMetricIds = new Set(
+            allMetricIds.filter((id) => {
+                try {
+                    const m = this.getMetricFromId(id);
+                    return (
+                        m.type === MetricType.SUM_DISTINCT ||
+                        m.type === MetricType.AVERAGE_DISTINCT
+                    );
+                } catch {
+                    return false;
+                }
+            }),
+        );
+        if (ddMetricIds.size === 0) return new Set();
+
+        const result = new Set<string>();
+        for (const metricId of allMetricIds) {
+            try {
+                const metric = this.getMetricFromId(metricId);
+                if (isNonAggregateMetric(metric)) {
+                    const refs = parseAllReferences(metric.sql, metric.table);
+                    for (const ref of refs) {
+                        const refId = getItemId({
+                            table: ref.refTable,
+                            name: ref.refName,
+                        });
+                        if (ddMetricIds.has(refId)) {
+                            result.add(metricId);
+                            break;
+                        }
+                    }
+                }
+            } catch {
+                // skip
+            }
+        }
+        return result;
+    }
+
     private getMetricsSQL(): {
         tables: string[];
         selects: string[];
@@ -917,6 +1048,7 @@ export class MetricQueryBuilder {
                         this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
+                    timezone: this.timezoneForDateTrunc,
                 });
 
                 assertValidDimensionRequiredAttribute(
@@ -933,21 +1065,25 @@ export class MetricQueryBuilder {
         const nestedAggOuterIds = new Set(
             nestedAggMetrics.map(({ outerMetricId }) => outerMetricId),
         );
-        // Also exclude raw (non-aggregate) inner deps from the regular SELECT.
-        // These are plain column references that can't appear in a SELECT with
-        // GROUP BY. They're accessed from the base table in CTE 3 instead.
-        const rawInnerDepIds = new Set<string>();
+        // Exclude ALL inner deps from the regular SELECT — both raw and
+        // aggregate. Raw deps can't appear in GROUP BY, and aggregate deps
+        // are pre-computed in CTE 1. Without this, aggregate inner deps
+        // would appear twice: once from the CTE and once from the regular
+        // SELECT, causing duplicate column errors.
+        const innerDepIds = new Set<string>();
         for (const { innerDeps } of nestedAggMetrics) {
             for (const dep of innerDeps) {
-                if (
-                    !nestedAggOuterIds.has(dep.fieldId) &&
-                    !isAggregateMetricType(dep.metric.type) &&
-                    !sqlContainsAggregation(dep.metric.compiledSql)
-                ) {
-                    rawInnerDepIds.add(dep.fieldId);
+                if (!nestedAggOuterIds.has(dep.fieldId)) {
+                    innerDepIds.add(dep.fieldId);
                 }
             }
         }
+        // Non-aggregate metrics that reference sum_distinct/average_distinct
+        // metrics are handled in the dd CTE outer SELECT so their references
+        // can be rewritten to point at the deduplication CTE aliases.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
+
         metrics.forEach((field) => {
             try {
                 const alias = field;
@@ -964,7 +1100,15 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Metrics with nested aggregate dependencies are handled via CTE
-                if (nestedAggOuterIds.has(field) || rawInnerDepIds.has(field)) {
+                if (nestedAggOuterIds.has(field) || innerDepIds.has(field)) {
+                    (metric.tablesReferences || [metric.table]).forEach(
+                        (table) => tables.add(table),
+                    );
+                    return;
+                }
+                // Non-aggregate metrics referencing distinct metrics are
+                // handled in the dd CTE outer SELECT
+                if (nonAggReferencingDd.has(field)) {
                     (metric.tablesReferences || [metric.table]).forEach(
                         (table) => tables.add(table),
                     );
@@ -1270,10 +1414,44 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
+        // Override filter dimension SQL to match the timezone-aware SELECT clause
+        const filterField = isDimension(field)
+            ? {
+                  ...field,
+                  compiledSql: this.getTimezoneAwareDimensionSql(
+                      field,
+                      adapterType,
+                      startOfWeek,
+                  ),
+              }
+            : field;
+
+        // For period-to-date filters on truncated dimensions, resolve the
+        // base (raw) dimension SQL so EXTRACT operates on the actual date
+        let baseDimensionSql: string | undefined;
+        if (
+            filterRuleWithParamReplacedValues.operator ===
+                FilterOperator.IN_PERIOD_TO_DATE &&
+            'timeIntervalBaseDimensionName' in field &&
+            field.timeIntervalBaseDimensionName
+        ) {
+            const baseDimension = getDimensions(filterExplore).find(
+                (d) =>
+                    getItemId(d) ===
+                    getItemId({
+                        table: (field as CompiledDimension).table,
+                        name: field.timeIntervalBaseDimensionName!,
+                    }),
+            );
+            if (baseDimension) {
+                baseDimensionSql = baseDimension.compiledSql;
+            }
+        }
+
         return renderWithErrorHandling(() =>
             renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
-                field,
+                filterField,
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeString,
@@ -1281,6 +1459,8 @@ export class MetricQueryBuilder {
                 adapterType,
                 timezone,
                 this.args.explore.caseSensitive ?? true,
+                baseDimensionSql,
+                this.args.useTimezoneAwareDateTrunc,
             ),
         );
     }
@@ -1717,6 +1897,14 @@ export class MetricQueryBuilder {
                 ({ outerMetricId }) => outerMetricId,
             ),
         );
+        // Non-aggregate metrics that reference a sum_distinct/average_distinct
+        // metric must be projected from the outer dd_base SELECT (where the
+        // dd_* CTE aliases exist), not inlined into this fanout flow's
+        // finalMetricSelects. Inlining would expand the ${sum_distinct} ref
+        // to its raw fallback SUM(...) referencing tables not in scope of
+        // the dd_base CTE. See SPK-333.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -1730,7 +1918,14 @@ export class MetricQueryBuilder {
                     isNonAggregateMetric(metricObject) &&
                     referencesAnotherTable
                 ) {
-                    metricsWithCteReferences.push(metricObject);
+                    // Defer dd-referencing metrics to the outer dd_base
+                    // SELECT (see nonAggReferencingDd above), but still
+                    // collect their transitively-referenced metrics so
+                    // non-dd dependencies (e.g. the count_distinct in the
+                    // denominator) still land in cte_unaffected/dd_base.
+                    if (!nonAggReferencingDd.has(getItemId(metricObject))) {
+                        metricsWithCteReferences.push(metricObject);
+                    }
                     const metricReferences = parseAllReferences(
                         metricObject.sql,
                         metricObject.table,
@@ -2006,6 +2201,7 @@ export class MetricQueryBuilder {
                                 this.exploreDimensionsWithoutAccess,
                             adapterType,
                             startOfWeek,
+                            timezone: this.timezoneForDateTrunc,
                         });
                         const popDimensionFilters =
                             this.getPopDimensionsFilterSQL(popFieldId);
@@ -2125,10 +2321,19 @@ export class MetricQueryBuilder {
                 const notSumDistinct =
                     metric.type !== MetricType.SUM_DISTINCT &&
                     metric.type !== MetricType.AVERAGE_DISTINCT;
+                // Non-aggregate metrics referencing distinct metrics are
+                // projected by the outer dd_base SELECT (SPK-333). Keep
+                // them out of cte_unaffected so their broken compiledSql
+                // (which still inlines the sum_distinct as raw SUM) isn't
+                // emitted here either.
+                const notNonAggReferencingDd = !nonAggReferencingDd.has(
+                    getItemId(metric),
+                );
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
                     notSumDistinct &&
+                    notNonAggReferencingDd &&
                     !nestedAggOuterIds.has(getItemId(metric))
                 );
             });
@@ -2211,6 +2416,7 @@ export class MetricQueryBuilder {
                             this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
                     });
                     const popDimensionFilters =
                         this.getPopDimensionsFilterSQL(popFieldId);
@@ -2606,6 +2812,7 @@ export class MetricQueryBuilder {
                     metric: CompiledMetric;
                 }> = [];
                 const aggregateRefNames: string[] = [];
+                const allMetricRefNames: string[] = [];
                 let hasAggregateRef = false;
                 for (const ref of refs) {
                     if (ref.refName !== 'TABLE') {
@@ -2619,14 +2826,15 @@ export class MetricQueryBuilder {
                                 fieldId: refMetricId,
                                 metric: refMetric,
                             });
+                            const refDisplayName =
+                                ref.refTable === metric.table
+                                    ? ref.refName
+                                    : `${ref.refTable}.${ref.refName}`;
+                            allMetricRefNames.push(refDisplayName);
                             if (isAggregateMetricType(refMetric.type)) {
                                 hasAggregateRef = true;
                                 // Track the raw reference name for position checking
-                                aggregateRefNames.push(
-                                    ref.refTable === metric.table
-                                        ? ref.refName
-                                        : `${ref.refTable}.${ref.refName}`,
-                                );
+                                aggregateRefNames.push(refDisplayName);
                             }
                         } catch {
                             // Not a metric reference (could be a dimension), skip
@@ -2649,10 +2857,29 @@ export class MetricQueryBuilder {
                     hasAggregateRef = false;
                 }
 
-                // Only treat as nested aggregate if at least one ref is an
-                // aggregate metric type (to avoid pulling in normal
-                // type:number → type:number chains)
-                const innerDeps = hasAggregateRef ? allMetricDeps : [];
+                // Also detect the case where SQL aggregation wraps
+                // non-aggregate metric refs (e.g. MAX_BY(${number_metric},
+                // ${number_metric})). These raw column refs can't appear
+                // standalone in GROUP BY and need CTE routing just like
+                // aggregate refs do.
+                let wrapsNonAggMetricRefs = false;
+                if (
+                    hasSqlAgg &&
+                    !hasAggregateRef &&
+                    allMetricDeps.length > 0 &&
+                    sqlAggregationWrapsReferences(metric.sql, allMetricRefNames)
+                ) {
+                    wrapsNonAggMetricRefs = true;
+                }
+
+                // Treat as nested aggregate if:
+                // 1. At least one ref is an aggregate metric type, OR
+                // 2. SQL aggregation wraps non-aggregate metric refs
+                //    (e.g. MAX_BY(${type_number}, ${type_number}))
+                const innerDeps =
+                    hasAggregateRef || wrapsNonAggMetricRefs
+                        ? allMetricDeps
+                        : [];
 
                 if (innerDeps.length > 0) {
                     acc.push({
@@ -3660,7 +3887,9 @@ export class MetricQueryBuilder {
         ].join(',\n')}`;
         const sqlFrom = this.getBaseTableFromSQL();
         const sqlLimit = this.getLimitSQL();
-        const { sqlOrderBy, requiresQueryInCTE } = this.getSortSQL();
+        const { sqlOrderBy, requiresQueryInCTE: initialRequiresQueryInCTE } =
+            this.getSortSQL();
+        let requiresQueryInCTE = initialRequiresQueryInCTE;
         const ctes = [...dimensionsSQL.ctes];
         let finalSelectParts: Array<string | undefined> = [
             sqlSelect,
@@ -3734,6 +3963,7 @@ export class MetricQueryBuilder {
                         this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
+                    timezone: this.timezoneForDateTrunc,
                 });
                 const popDimensionFilters =
                     this.getPopDimensionsFilterSQL(popFieldId);
@@ -3823,6 +4053,10 @@ export class MetricQueryBuilder {
                     `FROM ${baseCteName}`,
                     ...popJoins,
                 ];
+                // DuckDB resolves ORDER BY names against joined sources here, so
+                // sorting by a shared dimension alias becomes ambiguous unless we
+                // sort from an outer projection.
+                requiresQueryInCTE = true;
             }
         }
         warnings.push(...experimentalMetricsCteSQL.warnings);
@@ -3864,7 +4098,48 @@ export class MetricQueryBuilder {
             });
             ctes.push(...ddCtes);
 
-            if (hasNonDdSelects) {
+            // Build selects for non-aggregate metrics that reference dd metrics.
+            // Their SQL templates are recompiled so ${ref} expressions pointing
+            // at sum_distinct/average_distinct metrics resolve to the dd CTE
+            // aliases instead of the inlined fallback SUM/AVG SQL.
+            const nonAggDdMetricIds =
+                this.getNonAggregateMetricsReferencingDistinct();
+            const nonAggDdSelects: string[] = [];
+
+            // Build CTE map for replaceMetricReferencesWithCteReferences.
+            // dd_base must come first (its name is used for dimension resolution).
+            // Include all non-dd metrics that land in dd_base so that references
+            // like ${unique_customer_count} resolve to dd_base."metric_id"
+            // instead of being recompiled as raw SQL (which would reference
+            // tables not available in the outer SELECT).
+            const ddMetricIdSet = new Set(ddMetricIds);
+            const metricsInDdBase =
+                this.getSelectedAndReferencedMetricIds().filter(
+                    (id) =>
+                        !ddMetricIdSet.has(id) && !nonAggDdMetricIds.has(id),
+                );
+            const ddCteMap: Array<{ name: string; metrics: string[] }> = [
+                { name: ddBaseCteName, metrics: metricsInDdBase },
+                ...ddMetricIds.map((id) => ({
+                    name: `dd_${snakeCaseName(id)}`,
+                    metrics: [id],
+                })),
+            ];
+            const ddFieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+            for (const metricId of nonAggDdMetricIds) {
+                const metric = this.getMetricFromId(metricId);
+                const rewrittenSql =
+                    this.replaceMetricReferencesWithCteReferences(
+                        metric,
+                        ddCteMap,
+                    );
+                nonAggDdSelects.push(
+                    `  ${rewrittenSql} AS ${ddFieldQuoteChar}${metricId}${ddFieldQuoteChar}`,
+                );
+            }
+
+            if (hasNonDdSelects || nonAggDdSelects.length > 0) {
                 ctes.push(
                     MetricQueryBuilder.wrapAsCte(
                         ddBaseCteName,
@@ -3874,7 +4149,11 @@ export class MetricQueryBuilder {
 
                 finalSelectParts = [
                     `SELECT`,
-                    [`  ${ddBaseCteName}.*`, ...ddMetricSelects].join(',\n'),
+                    [
+                        `  ${ddBaseCteName}.*`,
+                        ...ddMetricSelects,
+                        ...nonAggDdSelects,
+                    ].join(',\n'),
                     `FROM ${ddBaseCteName}`,
                     ...ddJoins,
                 ];

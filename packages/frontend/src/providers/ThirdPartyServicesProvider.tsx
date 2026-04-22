@@ -121,7 +121,11 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
 }) => {
     const { health, user } = useApp();
 
-    useSentry(health?.data?.sentry, user.data);
+    useSentry(
+        health?.data?.sentry,
+        user.data,
+        health?.data?.dashboard?.disableSentryTracking,
+    );
     usePylon();
 
     return (

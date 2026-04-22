@@ -13,6 +13,7 @@ import {
     ExploreCompiler,
     getItemId,
     isCustomBinDimension,
+    isFormulaTableCalculation,
     isPeriodOverPeriodAdditionalMetric,
     isPostCalculationMetricType,
     isSqlTableCalculation,
@@ -24,7 +25,20 @@ import {
     TableCalculation,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
+import {
+    compile as compileFormula,
+    extractColumnRefs,
+    parse as parseFormula,
+} from '@lightdash/formula';
+import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
+
+const formatFormulaError = (displayName: string, error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error);
+    return displayName
+        ? `Error in formula "${displayName}": ${message}`
+        : `Formula error: ${message}`;
+};
 
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
@@ -68,7 +82,25 @@ const buildTableCalculationDependencyGraph = (
             };
         }
 
-        throw new CompileError(`Table calculation has no SQL or template`, {});
+        if (isFormulaTableCalculation(calc)) {
+            try {
+                const ast = parseFormula(calc.formula);
+                return {
+                    name: calc.name,
+                    dependencies: extractColumnRefs(ast),
+                };
+            } catch (e) {
+                throw new CompileError(
+                    formatFormulaError(calc.displayName, e),
+                    {},
+                );
+            }
+        }
+
+        throw new CompileError(
+            `Table calculation has no SQL, template, or formula`,
+            {},
+        );
     });
 
 const compileTableCalculation = (
@@ -101,31 +133,22 @@ const compileTableCalculation = (
         const compiledSql = tableCalculation.sql.replace(
             lightdashVariablePattern,
             (_, p1) => {
-                // Check if this is a reference to another table calculation
                 if (dependencyGraph.some((dep) => dep.name === p1)) {
-                    // For table calc references, we'll leave them as placeholders
-                    // MetricQueryBuilder will resolve these with proper CTE references
                     return `${quoteChar}${p1}${quoteChar}`;
                 }
-
-                // If the field is already valid, return it
                 if (validFieldIds.includes(p1)) {
                     return `${quoteChar}${p1}${quoteChar}`;
                 }
-
-                // Otherwise, try to convert it as a field reference (table.field format)
                 const fieldId = convertFieldRefToFieldId(p1);
                 if (validFieldIds.includes(fieldId)) {
                     return `${quoteChar}${fieldId}${quoteChar}`;
                 }
-
                 throw new CompileError(
                     `Table calculation contains a reference "${p1}" to a field or table calculation that isn't included in the query.`,
                     {},
                 );
             },
         );
-
         return {
             ...tableCalculation,
             compiledSql,
@@ -140,7 +163,6 @@ const compileTableCalculation = (
             sortFields,
             customBinDimensionIds,
         );
-
         return {
             ...tableCalculation,
             compiledSql,
@@ -148,7 +170,48 @@ const compileTableCalculation = (
         };
     }
 
-    throw new CompileError(`Table calculation has no SQL or template`, {});
+    if (isFormulaTableCalculation(tableCalculation)) {
+        try {
+            const dialect = mapAdapterToFormulaDialect(
+                warehouseSqlBuilder.getAdapterType(),
+            );
+            const columns: Record<string, string> = {};
+            for (const fieldId of validFieldIds) {
+                columns[fieldId] = fieldId;
+            }
+            for (const dep of dependencyGraph) {
+                if (dep.name !== tableCalculation.name) {
+                    columns[dep.name] = dep.name;
+                }
+            }
+            // Table calcs land in a post-aggregation SELECT alongside non-
+            // aggregate dimension columns, so bare SQL aggregates would be
+            // rejected by the warehouse. Wrapping as `AGG(x) OVER ()` turns
+            // them into window aggregates — legal in that context and
+            // preserving Sheets-like whole-result-set semantics.
+            const compiledSql = compileFormula(tableCalculation.formula, {
+                dialect,
+                columns,
+                renderAggregate: (inner) => `${inner} OVER ()`,
+            });
+            return {
+                ...tableCalculation,
+                compiledSql,
+                dependsOn: tableCalcDependencies,
+            };
+        } catch (e) {
+            if (e instanceof CompileError) throw e;
+            throw new CompileError(
+                formatFormulaError(tableCalculation.displayName, e),
+                {},
+            );
+        }
+    }
+
+    throw new CompileError(
+        `Table calculation has no SQL, template, or formula`,
+        {},
+    );
 };
 
 const compileTableCalculations = (

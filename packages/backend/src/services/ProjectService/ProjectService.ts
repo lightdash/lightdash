@@ -7,6 +7,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
+    ApiFormulaValidationResults,
     ApiQueryResults,
     ApiSqlQueryResults,
     assertEmbeddedAuth,
@@ -75,6 +76,7 @@ import {
     getItemId,
     getMetricOverridesWithPopInheritance,
     getMetrics,
+    getParameterReferences,
     getPreAggregateExploreName,
     getTimeDimensionsMap,
     getTimezoneLabel,
@@ -118,6 +120,9 @@ import {
     PivotChartData,
     PivotConfiguration,
     PivotValuesColumn,
+    PreAggregateCheckResult,
+    PreAggregateMatchMiss,
+    PreAggregateMissReason,
     preAggregateUtils,
     Project,
     ProjectCatalog,
@@ -133,6 +138,7 @@ import {
     replaceDimensionInExplore,
     RequestMethod,
     resolveBaseDimension,
+    resolveQueryTimezone,
     resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
@@ -186,7 +192,6 @@ import {
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import { uniq } from 'lodash';
@@ -209,6 +214,7 @@ import { normalizeDatabricksHostLenient } from '../../controllers/authentication
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
+import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
@@ -248,6 +254,7 @@ import {
     wrapSentryTransaction,
     wrapSentryTransactionSync,
 } from '../../utils';
+import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
@@ -266,6 +273,7 @@ import {
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
 import { UserService } from '../UserService';
+import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 
 export type ProjectServiceArguments = {
@@ -1199,6 +1207,12 @@ export class ProjectService extends BaseService {
                     secretAccessKey: '',
                 };
             }
+            case WarehouseTypes.DUCKDB: {
+                return {
+                    ...credentials,
+                    token: '',
+                };
+            }
 
             default:
                 return assertUnreachable(
@@ -1419,6 +1433,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
             case WarehouseTypes.ATHENA:
+            case WarehouseTypes.DUCKDB:
                 credentialsWithOverrides = warehouseSshCredentials;
                 break;
             default:
@@ -1564,6 +1579,26 @@ export class ProjectService extends BaseService {
                             trigger: 'compile',
                         }),
                     ),
+                );
+
+                const { schedulerTimezone } = await this.projectModel.get(
+                    args.projectUuid,
+                );
+
+                await this.schedulerClient.schedulePreAggregateCronJobs(
+                    materializableDefinitions
+                        .filter((definition) => definition.refreshCron !== null)
+                        .map((definition) => ({
+                            organizationUuid: args.organizationUuid,
+                            projectUuid: args.projectUuid,
+                            createdByUserUuid: args.userUuid,
+                            preAggregateDefinitionUuid:
+                                definition.preAggregateDefinitionUuid,
+                            refreshCron: definition.refreshCron!,
+                            schedulerTimezone,
+                            preAggExploreName: undefined,
+                        })),
+                    new Date(),
                 );
             }
         } catch (error) {
@@ -1822,6 +1857,7 @@ export class ProjectService extends BaseService {
                     case WarehouseTypes.TRINO:
                     case WarehouseTypes.CLICKHOUSE:
                     case WarehouseTypes.ATHENA:
+                    case WarehouseTypes.DUCKDB:
                         break;
                     default:
                         assertUnreachable(
@@ -2151,11 +2187,17 @@ export class ProjectService extends BaseService {
             );
         }
 
-        // TODO: Do not hardcode CLI information here
+        const exploresWithPreAggregates = enhanceExploresForPreAggregates({
+            explores,
+            enabled: this.lightdashConfig.preAggregates.enabled,
+        });
+
         await this.saveExploresToCacheAndIndexCatalog(
             user.userUuid,
             projectUuid,
-            explores,
+            exploresWithPreAggregates,
+
+            // TODO: Do not hardcode CLI information here
             'cli_deploy',
             null,
             'cli',
@@ -2952,6 +2994,8 @@ export class ProjectService extends BaseService {
         pivotConfiguration,
         pivotDimensions,
         continueOnError,
+        useTimezoneAwareDateTrunc,
+        dataTimezone,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -2965,6 +3009,8 @@ export class ProjectService extends BaseService {
         pivotConfiguration?: PivotConfiguration;
         pivotDimensions?: string[];
         continueOnError?: boolean;
+        useTimezoneAwareDateTrunc?: boolean;
+        dataTimezone?: string;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -2997,6 +3043,8 @@ export class ProjectService extends BaseService {
             pivotDimensions,
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
+            useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -3059,7 +3107,7 @@ export class ProjectService extends BaseService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3122,7 +3170,13 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -3136,6 +3190,8 @@ export class ProjectService extends BaseService {
             pivotConfiguration,
             pivotDimensions,
             continueOnError: true, // Return SQL even with compilation errors for debugging
+            useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         // Generate pivot query if pivot configuration is provided
@@ -3166,6 +3222,177 @@ export class ProjectService extends BaseService {
         };
     }
 
+    async validateFormula(args: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        formula: string;
+        metricQuery: MetricQuery;
+    }): Promise<ApiFormulaValidationResults> {
+        const { account, projectUuid, exploreName, formula, metricQuery } =
+            args;
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+        );
+
+        const warehouseCredentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const queryWithFormula: MetricQuery = {
+            ...metricQuery,
+            tableCalculations: [
+                ...metricQuery.tableCalculations,
+                {
+                    name: '__formula_validation__',
+                    displayName: '',
+                    formula,
+                },
+            ],
+        };
+
+        try {
+            const compiled = compileMetricQuery({
+                explore,
+                metricQuery: queryWithFormula,
+                warehouseSqlBuilder,
+                availableParameters: [],
+            });
+
+            const validationCalc = compiled.compiledTableCalculations.find(
+                (tc) => tc.name === '__formula_validation__',
+            );
+
+            return {
+                valid: true,
+                compiledSql: validationCalc?.compiledSql ?? '',
+            };
+        } catch (e) {
+            return {
+                valid: false,
+                error: e instanceof Error ? e.message : String(e),
+            };
+        }
+    }
+
+    async checkPreAggregateMatch(args: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        metricQuery: MetricQuery;
+        usePreAggregateCache: boolean;
+    }): Promise<PreAggregateCheckResult> {
+        if (!this.lightdashConfig.preAggregates.enabled) {
+            throw new ForbiddenError('Pre-aggregates are not enabled');
+        }
+
+        const { account, projectUuid, exploreName, metricQuery } = args;
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const sourceExplore = await this.getExplore(
+            account,
+            projectUuid,
+            exploreName,
+        );
+
+        const matchResult = preAggregateUtils.findMatch(
+            metricQuery,
+            sourceExplore,
+        );
+
+        const isUserBypass = args.usePreAggregateCache === false;
+        if (isUserBypass || !matchResult.hit) {
+            const miss =
+                isUserBypass && matchResult.hit
+                    ? ({
+                          reason: PreAggregateMissReason.USER_BYPASS,
+                          preAggregateName: matchResult.preAggregateName,
+                      } satisfies PreAggregateMatchMiss)
+                    : matchResult.miss;
+
+            if (!miss) {
+                throw new UnexpectedServerError(
+                    'Pre-aggregate miss metadata is missing',
+                );
+            }
+
+            return {
+                hit: false,
+                reason: miss,
+            };
+        }
+
+        const preAggExploreName = getPreAggregateExploreName(
+            sourceExplore.name,
+            matchResult.preAggregateName,
+        );
+        try {
+            await this.getExplore(account, projectUuid, preAggExploreName);
+            return {
+                hit: true,
+                preAggregateName: matchResult.preAggregateName,
+                preAggregateExploreName: preAggExploreName,
+            };
+        } catch (error) {
+            this.logger.error(
+                `Failed to resolve pre-aggregate explore "${preAggExploreName}", falling back to source explore`,
+                {
+                    projectUuid,
+                    sourceExploreName: sourceExplore.name,
+                    preAggregateName: matchResult.preAggregateName,
+                    preAggExploreName,
+                    error: getErrorMessage(error),
+                },
+            );
+            Sentry.captureException(error, {
+                tags: {
+                    projectUuid,
+                    sourceExploreName: sourceExplore.name,
+                    preAggregateName: matchResult.preAggregateName,
+                },
+                extra: { preAggExploreName },
+            });
+            return {
+                hit: false,
+                reason: {
+                    reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR,
+                },
+            };
+        }
+    }
+
     async runUnderlyingDataQuery(
         account: Account,
         metricQuery: MetricQuery,
@@ -3191,7 +3418,7 @@ export class ProjectService extends BaseService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3360,18 +3587,29 @@ export class ProjectService extends BaseService {
             account.user.id,
         );
 
-        const tables = Object.keys(explore.tables);
+        // Match dashboard filter rules by their actual field id against the
+        // explore's available fields, not by tableName. See comment on
+        // getDashboardFilterRulesForTables for the rationale. Aligned with the
+        // UI's getAvailableFiltersForSavedQueries (filterable, non-hidden).
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
         const appliedDashboardFilters = {
             dimensions: getDashboardFilterRulesForTables(
-                tables,
+                availableFieldIds,
                 dashboardFilters.dimensions,
             ),
             metrics: getDashboardFilterRulesForTables(
-                tables,
+                availableFieldIds,
                 dashboardFilters.metrics,
             ),
             tableCalculations: getDashboardFilterRulesForTables(
-                tables,
+                availableFieldIds,
                 dashboardFilters.tableCalculations,
             ),
         };
@@ -3488,7 +3726,7 @@ export class ProjectService extends BaseService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3584,6 +3822,20 @@ export class ProjectService extends BaseService {
                     span.setAttribute('warehouse', warehouseConnection?.type);
                 }
 
+                const projectTimezone =
+                    await this.getQueryTimezoneForProject(projectUuid);
+                const resolvedTimezone = resolveQueryTimezone(
+                    metricQuery,
+                    projectTimezone,
+                );
+                const isTimezoneEnabled = await this.isTimezoneSupportEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                });
+                const displayTimezone = isTimezoneEnabled
+                    ? resolvedTimezone
+                    : undefined;
+
                 // If there are more than 500 rows, we need to format them in a background job
                 const formattedRows = await wrapSentryTransaction<ResultRow[]>(
                     'ProjectService.runQueryAndFormatRows.formatRows',
@@ -3609,11 +3861,18 @@ export class ProjectService extends BaseService {
                                                   workerData: {
                                                       rows,
                                                       itemMap: fields,
+                                                      timezone: displayTimezone,
                                                   },
                                               },
                                           ),
                                       )
-                                    : formatRows(rows, fields);
+                                    : formatRows(
+                                          rows,
+                                          fields,
+                                          undefined,
+                                          undefined,
+                                          displayTimezone,
+                                      );
                             },
                             'formatRows',
                             this.logger,
@@ -3667,14 +3926,9 @@ export class ProjectService extends BaseService {
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
-                // TODO: put this hash function in a util somewhere
-                const queryHashKey = metricQuery.timezone
-                    ? `${projectUuid}.${userUuid}.${query}.${metricQuery.timezone}`
-                    : `${projectUuid}.${userUuid}.${query}`;
-                const queryHash = crypto
-                    .createHash('sha256')
-                    .update(queryHashKey)
-                    .digest('hex');
+                const hashParts = [projectUuid, userUuid, query];
+                if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+                const queryHash = buildCacheHash(hashParts);
 
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
@@ -3891,8 +4145,18 @@ export class ProjectService extends BaseService {
                     const availableParameterDefinitions =
                         await this.getAvailableParameters(projectUuid, explore);
 
-                    const timezone =
+                    const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
+                    const timezone = resolveQueryTimezone(
+                        metricQueryWithLimit,
+                        projectTimezone,
+                    );
+                    const useTimezoneAwareDateTrunc =
+                        await this.isTimezoneSupportEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
 
                     const fullQuery = await ProjectService._compileQuery({
                         metricQuery: metricQueryWithLimit,
@@ -3905,6 +4169,8 @@ export class ProjectService extends BaseService {
                         parameters,
                         availableParameterDefinitions,
                         pivotDimensions: metricQueryWithLimit.pivotDimensions,
+                        useTimezoneAwareDateTrunc,
+                        dataTimezone: warehouseClient.credentials.dataTimezone,
                     });
 
                     const { query } = fullQuery;
@@ -3974,10 +4240,10 @@ export class ProjectService extends BaseService {
                         'warehouse.type',
                         warehouseClient.credentials.type,
                     );
-                    const userUuid =
-                        warehouseCredentials.userWarehouseCredentialsUuid
-                            ? account.user.id
-                            : null;
+                    const userUuid = getCacheUserUuid(
+                        warehouseCredentials,
+                        account.user.id,
+                    );
                     const { rows, cacheMetadata } =
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
@@ -4373,94 +4639,16 @@ export class ProjectService extends BaseService {
         limit: number;
         filters: AndFilterGroup | undefined;
     }) {
-        if (limit > this.lightdashConfig.query.maxLimit) {
-            throw new ParameterError(
-                `Query limit can not exceed ${this.lightdashConfig.query.maxLimit}`,
-            );
-        }
-
-        let explore = await this.projectModel.findExploreByTableName(
+        return getFieldValuesMetricQuery({
             projectUuid,
             table,
-        );
-        let fieldId = initialFieldId;
-        if (!explore) {
-            // fallback: find explore by join alias and replace fieldId
-            explore = await this.projectModel.findJoinAliasExplore(
-                projectUuid,
-                table,
-            );
-            if (explore && !isExploreError(explore)) {
-                fieldId = initialFieldId.replace(table, explore.baseTable);
-            }
-        }
-
-        if (!explore) {
-            throw new NotFoundError(`Explore ${table} does not exist`);
-        } else if (isExploreError(explore)) {
-            throw new NotFoundError(`Explore ${table} has errors`);
-        }
-
-        const field = findFieldByIdInExplore(explore, fieldId);
-
-        if (!field) {
-            throw new NotFoundError(`Can't dimension with id: ${fieldId}`);
-        }
-
-        if (!isDimension(field)) {
-            throw new ParameterError(
-                `Searching by field is only available for dimensions, but ${fieldId} is a ${field.type}`,
-            );
-        }
-        const autocompleteDimensionFilters: FilterGroupItem[] = [
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.INCLUDE,
-                values: [search],
-            },
-            {
-                id: uuidv4(),
-                target: {
-                    fieldId,
-                },
-                operator: FilterOperator.NOT_NULL,
-                values: [],
-            },
-        ];
-        if (filters) {
-            const filtersCompatibleWithExplore = filters.and.filter(
-                (filter) =>
-                    isFilterRule(filter) &&
-                    findFieldByIdInExplore(
-                        explore as Explore,
-                        filter.target.fieldId,
-                    ),
-            );
-            autocompleteDimensionFilters.push(...filtersCompatibleWithExplore);
-        }
-        const metricQuery: MetricQuery = {
-            exploreName: explore.name,
-            dimensions: [getItemId(field)],
-            metrics: [],
-            filters: {
-                dimensions: {
-                    id: uuidv4(),
-                    and: autocompleteDimensionFilters,
-                },
-            },
-            tableCalculations: [],
-            sorts: [
-                {
-                    fieldId: getItemId(field),
-                    descending: false,
-                },
-            ],
+            initialFieldId,
+            search,
             limit,
-        };
-        return { metricQuery, explore, field };
+            maxLimit: this.lightdashConfig.query.maxLimit,
+            filters,
+            exploreResolver: this.projectModel,
+        });
     }
 
     async searchFieldUniqueValues(
@@ -4497,13 +4685,14 @@ export class ProjectService extends BaseService {
                 filters,
             });
 
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+        });
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: user.userUuid,
-                isRegisteredUser: true,
-            }),
+            warehouseCredentials,
             {
                 snowflakeVirtualWarehouse: explore.warehouse,
                 databricksCompute: explore.databricksCompute,
@@ -4531,7 +4720,11 @@ export class ProjectService extends BaseService {
             parameters,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc =
+            await this.isTimezoneSupportEnabled(user);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,
@@ -4542,37 +4735,35 @@ export class ProjectService extends BaseService {
             timezone,
             parameters: combinedParameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone: warehouseClient.credentials.dataTimezone,
         });
 
-        const cacheKey = metricQuery.timezone
-            ? `${projectUuid}.cache_autocomplete.${query}.${metricQuery.timezone}`
-            : `${projectUuid}.cache_autocomplete.${query}`;
-        const queryHash = crypto
-            .createHash('sha256')
-            .update(cacheKey)
-            .digest('hex');
+        const isUserCacheEnabled =
+            this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
 
-        const isCacheEnabled = this.lightdashConfig.results.autocompleteEnabled;
+        const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
-        if (!forceRefresh && isCacheEnabled) {
-            const isCached =
-                await this.s3CacheClient.getResultsMetadata(queryHash);
+        const hashParts = [projectUuid, userUuid, 'cache_autocomplete', query];
+        if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+        const queryHash = buildCacheHash(hashParts);
 
-            if (isCached !== undefined) {
-                const cacheEntry =
-                    await this.s3CacheClient.getResults(queryHash);
-                const stringResults =
-                    await cacheEntry.Body?.transformToString();
-                if (stringResults) {
-                    try {
-                        await sshTunnel.disconnect();
-                        return JSON.parse(stringResults);
-                    } catch (e) {
-                        this.logger.error(
-                            'Error parsing autocomplete cache results:',
-                            e,
-                        );
-                    }
+        if (!forceRefresh && isUserCacheEnabled) {
+            const stringResults = await this.s3CacheClient
+                .getIfFresh(
+                    queryHash,
+                    this.lightdashConfig.results.cacheStateTimeSeconds,
+                )
+                .catch(() => undefined);
+            if (stringResults) {
+                try {
+                    await sshTunnel.disconnect();
+                    return JSON.parse(stringResults);
+                } catch (e) {
+                    this.logger.error(
+                        'Error parsing autocomplete cache results:',
+                        e,
+                    );
                 }
             }
         }
@@ -4594,7 +4785,7 @@ export class ProjectService extends BaseService {
             }
         }
 
-        if (isCacheEnabled) {
+        if (isUserCacheEnabled) {
             const searchResults = {
                 search,
                 results: Array.from(allResults),
@@ -5508,6 +5699,8 @@ export class ProjectService extends BaseService {
                 return credentials.catalog;
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
+            case WarehouseTypes.DUCKDB:
+                return credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
@@ -6125,17 +6318,6 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         data: UpdateDefaultUserSpaces,
     ): Promise<void> {
-        const { enabled: defaultUserSpacesEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.DefaultUserSpaces,
-            });
-        if (!defaultUserSpacesEnabled) {
-            throw new ForbiddenError(
-                'Default user spaces feature is not enabled',
-            );
-        }
-
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         if (
@@ -6349,15 +6531,6 @@ export class ProjectService extends BaseService {
         projectUuid: string,
     ): Promise<(DashboardBasicDetails | SpaceQuery)[]> {
         if (!this.contentVerificationModel) {
-            return [];
-        }
-
-        const { enabled: contentVerificationEnabled } =
-            await this.featureFlagModel.get({
-                user,
-                featureFlagId: FeatureFlags.ContentVerification,
-            });
-        if (!contentVerificationEnabled) {
             return [];
         }
 
@@ -6627,6 +6800,8 @@ export class ProjectService extends BaseService {
         warehouseClient: WarehouseClient,
         availableParameterDefinitions: ParameterDefinitions,
         parameters?: ParametersValuesMap,
+        useTimezoneAwareDateTrunc?: boolean,
+        dataTimezone?: string,
     ) {
         const totalQuery: MetricQuery = {
             ...metricQuery,
@@ -6661,6 +6836,8 @@ export class ProjectService extends BaseService {
             timezone,
             parameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         return { query, totalQuery };
@@ -6696,7 +6873,13 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
 
         try {
             const { query } = await ProjectService._getCalculateTotalQuery(
@@ -6708,6 +6891,8 @@ export class ProjectService extends BaseService {
                 warehouseClient,
                 availableParameterDefinitions,
                 parameters,
+                useTimezoneAwareDateTrunc,
+                warehouseClient.credentials.dataTimezone,
             );
 
             const queryTags: RunQueryTags = {
@@ -6762,7 +6947,13 @@ export class ProjectService extends BaseService {
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
 
         try {
             const { query, totalQuery } =
@@ -6775,6 +6966,8 @@ export class ProjectService extends BaseService {
                     warehouseClient,
                     availableParameterDefinitions,
                     parameters,
+                    useTimezoneAwareDateTrunc,
+                    warehouseClient.credentials.dataTimezone,
                 );
 
             const queryTags: RunQueryTags = {
@@ -6785,9 +6978,10 @@ export class ProjectService extends BaseService {
                 query_context: QueryExecutionContext.CALCULATE_TOTAL,
             };
 
-            const userUuid = warehouseCredentials.userWarehouseCredentialsUuid
-                ? account.user.id
-                : null;
+            const userUuid = getCacheUserUuid(
+                warehouseCredentials,
+                account.user.id,
+            );
             const { rows, cacheMetadata } =
                 await this.getResultsFromCacheOrWarehouse({
                     projectUuid,
@@ -6831,20 +7025,27 @@ export class ProjectService extends BaseService {
             savedChart.tableName,
             organizationUuid,
         );
-        const tables = Object.keys(explore.tables);
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
 
         const appliedDashboardFilters = dashboardFilters
             ? {
                   dimensions: getDashboardFilterRulesForTables(
-                      tables,
+                      availableFieldIds,
                       dashboardFilters.dimensions,
                   ),
                   metrics: getDashboardFilterRulesForTables(
-                      tables,
+                      availableFieldIds,
                       dashboardFilters.metrics,
                   ),
                   tableCalculations: getDashboardFilterRulesForTables(
-                      tables,
+                      availableFieldIds,
                       dashboardFilters.tableCalculations,
                   ),
               }
@@ -6921,7 +7122,7 @@ export class ProjectService extends BaseService {
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -7071,7 +7272,7 @@ export class ProjectService extends BaseService {
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -7354,9 +7555,19 @@ export class ProjectService extends BaseService {
                 isRegisteredUser: true,
             }),
         );
+        const effectiveParameterValues =
+            await this.resolveVirtualViewParameters(
+                projectUuid,
+                payload.sql,
+                payload.parameterValues,
+            );
+
         const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
-            payload,
+            {
+                ...payload,
+                parameterValues: effectiveParameterValues,
+            },
             warehouseClient,
         );
 
@@ -7412,10 +7623,20 @@ export class ProjectService extends BaseService {
             }),
         );
 
+        const effectiveParameterValues =
+            await this.resolveVirtualViewParameters(
+                projectUuid,
+                payload.sql,
+                payload.parameterValues,
+            );
+
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
             exploreName,
-            payload,
+            {
+                ...payload,
+                parameterValues: effectiveParameterValues,
+            },
             warehouseClient,
         );
 
@@ -7522,6 +7743,18 @@ export class ProjectService extends BaseService {
                         : null,
             },
         });
+    }
+
+    async isTimezoneSupportEnabled(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            user,
+        });
+
+        return enabled;
     }
 
     async getQueryTimezoneForProject(projectUuid: string): Promise<string> {
@@ -7918,7 +8151,8 @@ export class ProjectService extends BaseService {
         Logger.info(`Manifest models ${nodes.length}`);
         // todo: does it error if they use a selector in the job? check logic in dbtBaseProjectAdapter.compileAllExplores
         const models = nodes.filter(
-            (node: AnyType) => node.resource_type === 'model' && node.meta, // check that node.meta exists
+            (node: AnyType) =>
+                ['model', 'seed'].includes(node.resource_type) && node.meta,
         ) as DbtRawModelNode[];
 
         const { warehouseClient } = await this._getWarehouseClient(
@@ -8142,13 +8376,40 @@ export class ProjectService extends BaseService {
                 .filter(([key, value]) => value !== undefined),
         );
 
-        // Combine in order of priority: defaults (project / explore) < saved parameters (chart/dashboard) < request
+        // Combine in order of priority: defaults (project / explore) < virtual view saved values < saved parameters (chart/dashboard) < request
         return {
             ...projectDefaultParameterValues,
             ...exploreDefaultParameterValues,
+            ...(explore?.savedParameterValues || {}),
             ...(savedParameters || {}),
             ...(requestParameters || {}),
         };
+    }
+
+    /**
+     * Resolves effective parameter values for a virtual view by merging
+     * project defaults with explicitly provided values, filtered to only
+     * parameters referenced in the SQL.
+     */
+    private async resolveVirtualViewParameters(
+        projectUuid: string,
+        sql: string,
+        parameterValues?: ParametersValuesMap,
+    ): Promise<ParametersValuesMap | undefined> {
+        const referencedParams = getParameterReferences(sql);
+        if (referencedParams.length === 0) return undefined;
+
+        const allValues = await this.combineParameters(
+            projectUuid,
+            undefined,
+            parameterValues,
+        );
+        const filtered = Object.fromEntries(
+            Object.entries(allValues).filter(([key]) =>
+                referencedParams.includes(key),
+            ),
+        );
+        return Object.keys(filtered).length > 0 ? filtered : undefined;
     }
 
     static isChartEmbed(account: Account) {

@@ -20,4 +20,12 @@ export const filterOperatorLabel: Record<FilterOperator, string> = {
     [FilterOperator.NOT_IN_THE_CURRENT]: 'not in the current',
     [FilterOperator.IN_BETWEEN]: 'is between',
     [FilterOperator.NOT_IN_BETWEEN]: 'is not between',
+    [FilterOperator.IN_PERIOD_TO_DATE]: 'is period to date',
+};
+
+export const filterOperatorDescription: Partial<
+    Record<FilterOperator, string>
+> = {
+    [FilterOperator.IN_PERIOD_TO_DATE]:
+        "Includes rows where the position within the selected period is on or before today's position. Useful for period-over-period comparisons (e.g., YTD, QTD, MTD, WTD).",
 };

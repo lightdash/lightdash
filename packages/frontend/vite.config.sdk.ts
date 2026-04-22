@@ -18,7 +18,11 @@ export default defineConfig({
         __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
         __SDK_VERSION__: JSON.stringify(sdkPackageJson.version),
     },
-    plugins: [svgrPlugin(), dts({ rollupTypes: true }), cssInjectedByJsPlugin()],
+    plugins: [
+        svgrPlugin(),
+        dts({ rollupTypes: true }),
+        cssInjectedByJsPlugin(),
+    ],
     build: {
         outDir: 'sdk/dist',
         emptyOutDir: true,
@@ -32,7 +36,7 @@ export default defineConfig({
             fileName: (ext) => `sdk.${ext}.js`,
             cssFileName: 'sdk',
         },
-        rollupOptions: {
+        rolldownOptions: {
             external: [
                 'react',
                 'react-dom',
@@ -44,6 +48,7 @@ export default defineConfig({
                     react: 'React',
                     'react-dom': 'ReactDOM',
                 },
+                codeSplitting: false,
             },
         },
     },

@@ -15,7 +15,6 @@ import {
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
-    FeatureFlags,
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
@@ -60,7 +59,6 @@ import { LightdashConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
-import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -95,8 +93,12 @@ type UserServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
 };
+
+function isSameMinute(a: Date | null, b: Date): boolean {
+    if (!a) return false;
+    return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
+}
 
 export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -133,8 +135,6 @@ export class UserService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -157,7 +157,6 @@ export class UserService extends BaseService {
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
-        featureFlagModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -178,7 +177,6 @@ export class UserService extends BaseService {
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
-        this.featureFlagModel = featureFlagModel;
     }
 
     private identifyUser(
@@ -1376,10 +1374,12 @@ export class UserService extends BaseService {
             }
             throw new AuthorizationError();
         }
-        // Update last used date
-        await this.personalAccessTokenModel.updateUsedDate(
-            personalAccessToken.uuid,
-        );
+        // Update last used date (throttled to once per minute)
+        if (!isSameMinute(personalAccessToken.lastUsedAt, now)) {
+            await this.personalAccessTokenModel.updateUsedDate(
+                personalAccessToken.uuid,
+            );
+        }
         return userWithOrganization;
     }
 
@@ -1602,11 +1602,6 @@ export class UserService extends BaseService {
     private async ensureDefaultUserSpaces(
         sessionUser: SessionUser,
     ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: sessionUser,
-            featureFlagId: FeatureFlags.DefaultUserSpaces,
-        });
-        if (!enabled) return;
         if (!sessionUser.organizationUuid) return;
 
         const projects =

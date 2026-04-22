@@ -14,7 +14,7 @@ import { generateObject } from 'ai';
 import { z } from 'zod';
 import { GeneratorModelOptions } from '../models/types';
 
-const CustomFormatSchema = z.object({
+export const CustomFormatSchema = z.object({
     type: z
         .enum([
             CustomFormatType.DEFAULT,

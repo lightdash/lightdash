@@ -232,6 +232,9 @@ const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'CustomSql', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'CustomFields', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });
@@ -297,12 +300,13 @@ const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             userUuid: member.userUuid,
         });
-        can('manage', 'DataApp', {
-            organizationUuid: member.organizationUuid,
-        });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
+
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+        });
 
         can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,

@@ -1,0 +1,28 @@
+{
+  "name": "@lightdash/formula",
+  "version": "0.0.1",
+  "private": true,
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build:grammar": "peggy --format es -o src/grammar/parser.js src/grammar/formula.pegjs",
+    "build:ts": "tsc --build",
+    "build": "pnpm run build:grammar && pnpm run build:ts",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "format": "oxfmt ./src --check",
+    "fix-format": "oxfmt ./src",
+    "formatter": "oxfmt",
+    "lint": "pnpm run linter ./src",
+    "fix-lint": "pnpm run linter ./src --fix",
+    "linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "oxlint": "1.57.0",
+    "oxlint-tsgolint": "0.18.1",
+    "peggy": "4.2.0",
+    "typescript": "6.0.0-beta",
+    "vitest": "3.1.1"
+  }
+}

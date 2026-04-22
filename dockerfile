@@ -9,7 +9,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
+RUN corepack prepare pnpm@10.33.0 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -104,6 +104,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-databricks~=1.8.0" \
     "dbt-trino~=1.8.0" \
     "dbt-clickhouse~=1.8.0" \
+    "dbt-duckdb~=1.8.0" \
     && ln -s /usr/local/dbt1.8/bin/dbt /usr/local/bin/dbt1.8 \
     && python3 -m venv /usr/local/dbt1.9 \
     && /usr/local/dbt1.9/bin/pip install \
@@ -116,6 +117,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.9.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.9.0" \
+    "dbt-duckdb~=1.9.0" \
     && ln -s /usr/local/dbt1.9/bin/dbt /usr/local/bin/dbt1.9 \
     && python3 -m venv /usr/local/dbt1.10 \
     && /usr/local/dbt1.10/bin/pip install \
@@ -128,6 +130,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
+    "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -140,6 +143,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-trino~=1.10.0" \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
+    "dbt-duckdb~=1.10.0" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11
 
 # -----------------------------
@@ -176,6 +180,7 @@ COPY tsconfig.json .
 COPY .eslintrc.js .
 COPY .pnpmfile.cjs .
 COPY packages/common/package.json ./packages/common/
+COPY packages/formula/package.json ./packages/formula/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
 COPY packages/frontend/package.json ./packages/frontend/
@@ -205,6 +210,14 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
     turbo build --filter=@lightdash/common
 
+# Build formula package
+FROM prod-builder AS build-formula
+COPY packages/formula/tsconfig.json ./packages/formula/
+COPY packages/formula/src/ ./packages/formula/src/
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
+    turbo build --filter=@lightdash/formula
+
 # Build warehouses package
 FROM prod-builder AS build-warehouses
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
@@ -217,6 +230,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # Build backend package
 FROM prod-builder AS build-backend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ ./packages/warehouses/
 COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
@@ -246,9 +260,10 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     turbo build --filter=backend; \
     fi
 
-# Build frontend package  
+# Build frontend package
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
 
 ARG SENTRY_AUTH_TOKEN=""
@@ -272,6 +287,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 
 FROM prod-builder AS build-final
 COPY --from=build-common /usr/app/packages/common/dist/ ./packages/common/dist/
+COPY --from=build-formula /usr/app/packages/formula/dist/ ./packages/formula/dist/
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist/ ./packages/warehouses/dist/
 COPY --from=build-backend /usr/app/packages/backend/dist/ ./packages/backend/dist/
 COPY --from=build-frontend /usr/app/packages/frontend/build/ ./packages/frontend/build/

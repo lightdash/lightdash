@@ -89,6 +89,7 @@ export const BaseResponse: HealthState = {
         versionHistory: {
             daysLimit: 0,
         },
+        disableSentryTracking: false,
     },
     rudder: {
         dataPlaneUrl: '',
@@ -104,6 +105,7 @@ export const BaseResponse: HealthState = {
         profilesSampleRate: 0,
     },
     hasCacheAutocompleResults: false,
+    hasResultsCaching: false,
     appearance: {
         overrideColorPalette: undefined,
         overrideColorPaletteName: undefined,
@@ -133,6 +135,9 @@ export const BaseResponse: HealthState = {
         enabled: false,
     },
     dataApps: {
+        enabled: false,
+    },
+    managedAgent: {
         enabled: false,
     },
 };

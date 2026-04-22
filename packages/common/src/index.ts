@@ -214,11 +214,13 @@ export * from './utils/searchParams';
 export * from './utils/slack';
 export * from './utils/sleep';
 export * from './utils/slugs';
+export * from './utils/sqlDialect';
 export * from './utils/subtotals';
 export * from './utils/dateZoom';
 export * from './utils/tableCalculationFunctions';
 export * from './utils/time';
 export * from './utils/timeFrames';
+export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
 export * from './visualizations/CartesianChartDataModel';
@@ -745,6 +747,7 @@ export function formatRow(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow {
     const resultRow: ResultRow = {};
     const columnNames = Object.keys(row || {});
@@ -757,7 +760,13 @@ export function formatRow(
         resultRow[columnName] = {
             value: {
                 raw: formatRawValue(item, value),
-                formatted: formatItemValue(item, value, false, parameters),
+                formatted: formatItemValue(
+                    item,
+                    value,
+                    false,
+                    parameters,
+                    timezone,
+                ),
             },
         };
     }
@@ -770,9 +779,10 @@ export function formatRows(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow[] {
     return rows.map((row) =>
-        formatRow(row, itemsMap, pivotValuesColumns, parameters),
+        formatRow(row, itemsMap, pivotValuesColumns, parameters, timezone),
     );
 }
 

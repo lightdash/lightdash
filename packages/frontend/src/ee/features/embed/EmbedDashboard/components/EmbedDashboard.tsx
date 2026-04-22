@@ -37,6 +37,8 @@ const EmbedDashboardGrid: FC<{
     layouts: { lg: Layout[]; md: Layout[]; sm: Layout[] };
     dashboard: any;
     projectUuid: string;
+    paletteColors?: string[];
+    paletteDarkColors?: string[] | null;
     hasRequiredDashboardFiltersToSet: boolean;
     isTabEmpty?: boolean;
     gridProps: ResponsiveGridLayoutProps;
@@ -45,6 +47,8 @@ const EmbedDashboardGrid: FC<{
     layouts,
     dashboard,
     projectUuid,
+    paletteColors,
+    paletteDarkColors,
     hasRequiredDashboardFiltersToSet,
     isTabEmpty,
     gridProps,
@@ -76,6 +80,8 @@ const EmbedDashboardGrid: FC<{
                             <EmbedDashboardChartTile
                                 projectUuid={projectUuid}
                                 dashboardSlug={dashboard.slug}
+                                paletteColors={paletteColors}
+                                paletteDarkColors={paletteDarkColors}
                                 key={tile.uuid}
                                 minimal
                                 tile={tile}
@@ -146,7 +152,7 @@ const EmbedDashboard: FC<{
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
 
-    const { embedToken, mode } = useEmbed();
+    const { embedToken, mode, paletteUuid } = useEmbed();
     const navigate = useNavigate();
     const { pathname, search } = useLocation();
 
@@ -154,8 +160,10 @@ const EmbedDashboard: FC<{
         throw new Error('Embed token is required');
     }
 
-    const { data: dashboard, error: dashboardError } =
-        useEmbedDashboard(projectUuid);
+    const { data: dashboard, error: dashboardError } = useEmbedDashboard(
+        projectUuid,
+        paletteUuid,
+    );
 
     useEffect(() => {
         if (dashboard) {
@@ -362,6 +370,10 @@ const EmbedDashboard: FC<{
                         layouts={layouts}
                         dashboard={dashboard}
                         projectUuid={projectUuid}
+                        paletteColors={dashboard.selectedPalette?.colors}
+                        paletteDarkColors={
+                            dashboard.selectedPalette?.darkColors
+                        }
                         hasRequiredDashboardFiltersToSet={
                             hasRequiredDashboardFiltersToSet
                         }
@@ -375,6 +387,8 @@ const EmbedDashboard: FC<{
                     layouts={layouts}
                     dashboard={dashboard}
                     projectUuid={projectUuid}
+                    paletteColors={dashboard.selectedPalette?.colors}
+                    paletteDarkColors={dashboard.selectedPalette?.darkColors}
                     hasRequiredDashboardFiltersToSet={
                         hasRequiredDashboardFiltersToSet
                     }

@@ -140,6 +140,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             onSeriesContextMenu,
             itemsMap,
             resultsData,
+            resolvedTimezone,
         } = useVisualizationContext();
 
         const isLargeChartPerformanceEnabled = useClientFeatureFlag(
@@ -198,17 +199,20 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         useEffect(() => {
             const eCharts = chartRef.current?.getEchartsInstance();
             const dom = eCharts?.getDom();
+            if (!eCharts || !dom) return;
 
-            const resizeChart = () => eCharts?.resize();
+            let rafId: number | null = null;
+            const resizeChart = () => {
+                if (rafId !== null) return;
+                rafId = requestAnimationFrame(() => {
+                    eCharts.resize();
+                    rafId = null;
+                });
+            };
 
             // Observe container size changes (e.g., collapsible card expand/collapse)
-            const observer = new ResizeObserver(() => {
-                resizeChart();
-            });
-
-            if (dom) {
-                observer.observe(dom);
-            }
+            const observer = new ResizeObserver(resizeChart);
+            observer.observe(dom);
 
             // Also listen for window resize events
             window.addEventListener('resize', resizeChart);
@@ -216,8 +220,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             return () => {
                 window.removeEventListener('resize', resizeChart);
                 observer.disconnect();
+                if (rafId !== null) cancelAnimationFrame(rafId);
             };
-        });
+        }, [chartRef, eChartsOptions]);
 
         const onChartContextMenu = useCallback(
             (e: EchartsClickEvent) => {
@@ -243,18 +248,28 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         );
 
         const opts = useMemo<Opts>(() => {
+            const baseOpts: Opts & { useCoarsePointer?: boolean } = {
+                renderer: 'svg',
+                // Reduce mouseover hit-testing overhead on dashboard tiles
+                ...(props.isInDashboard && { useCoarsePointer: true }),
+            };
+
             if (!isLargeChartPerformanceEnabled || !eChartsOptions) {
-                return { renderer: 'svg' };
+                return baseOpts;
             }
             const seriesCount = eChartsOptions.series?.length ?? 0;
             const datasetRows = eChartsOptions.dataset?.source?.length ?? 0;
             const totalDataPoints = seriesCount * datasetRows;
 
             if (totalDataPoints > CANVAS_RENDERER_THRESHOLD) {
-                return { renderer: 'canvas' };
+                return { ...baseOpts, renderer: 'canvas' };
             }
-            return { renderer: 'svg' };
-        }, [isLargeChartPerformanceEnabled, eChartsOptions]);
+            return baseOpts;
+        }, [
+            isLargeChartPerformanceEnabled,
+            eChartsOptions,
+            props.isInDashboard,
+        ]);
 
         // When using canvas renderer, resolve CSS variables to computed values
         // since canvas doesn't have DOM access to resolve var(--...) strings.
@@ -372,6 +387,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                                                           dim,
                                                           itemsMap,
                                                           true,
+                                                          undefined,
+                                                          undefined,
+                                                          resolvedTimezone,
                                                       )
                                                     : axisValue;
 
@@ -403,7 +421,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                     }, 100);
                 }
             },
-            [chartRef, eChartsOptions?.tooltip.formatter, itemsMap],
+            [chartRef, eChartsOptions?.tooltip, itemsMap, resolvedTimezone],
         );
 
         const handleOnMouseOut = useCallback(() => {
@@ -434,6 +452,26 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             resolvedEChartsOptions?.tooltip,
         ]);
 
+        // Memoize onEvents to prevent echarts-for-react from disposing and
+        // re-creating the entire ECharts instance on every render. The library
+        // deep-compares onEvents via fast-deep-equal, which always returns false
+        // for function values, triggering a full dispose+init cycle.
+        const onEvents = useMemo(
+            () => ({
+                contextmenu: onChartContextMenu,
+                click: onChartContextMenu,
+                mouseover: handleOnMouseOver,
+                mouseout: handleOnMouseOut,
+                legendselectchanged: onLegendChange,
+            }),
+            [
+                onChartContextMenu,
+                handleOnMouseOver,
+                handleOnMouseOut,
+                onLegendChange,
+            ],
+        );
+
         if (resultsData?.error) return <EmptyChart />;
         if (isLoading) return <LoadingChart />;
         if (!eChartsOptions) return <EmptyChart />;
@@ -457,14 +495,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 ref={chartRef}
                 option={resolvedEChartsOptions ?? eChartsOptions}
                 notMerge
+                lazyUpdate={props.isInDashboard}
                 opts={opts}
-                onEvents={{
-                    contextmenu: onChartContextMenu,
-                    click: onChartContextMenu,
-                    mouseover: handleOnMouseOver,
-                    mouseout: handleOnMouseOut,
-                    legendselectchanged: onLegendChange,
-                }}
+                onEvents={onEvents}
                 {...props}
             />
         );

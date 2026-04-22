@@ -605,7 +605,10 @@ const getMinAndMaxReferenceLines = (
         });
 
         if (values.length === 0) return [];
-        const min: string | number = values.sort()[0];
+        const min: string | number = values.sort((a, b) => {
+            if (typeof a === 'number' && typeof b === 'number') return a - b;
+            return String(a).localeCompare(String(b));
+        })[0];
         const max = values.reverse()[0];
         return [min, max];
     };
@@ -667,6 +670,7 @@ type GetPivotSeriesArg = {
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
+    resolvedTimezone?: string;
 };
 
 const seriesValueFormatter = (
@@ -875,6 +879,7 @@ const getPivotSeries = ({
     pivotValuesColumnsMap,
     parameters,
     isStack100,
+    resolvedTimezone,
 }: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -885,6 +890,7 @@ const getPivotSeries = ({
                 undefined,
                 pivotValuesColumnsMap,
                 parameters,
+                resolvedTimezone,
             );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
@@ -937,6 +943,7 @@ const getPivotSeries = ({
                 itemsMap,
                 pivotValuesColumnsMap,
                 parameters,
+                resolvedTimezone,
             ),
         },
         showSymbol: series.showSymbol ?? true,
@@ -1073,6 +1080,7 @@ type GetSimpleSeriesArg = {
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
     backgroundColor?: string;
+    resolvedTimezone?: string;
 };
 
 const getSimpleSeries = ({
@@ -1086,6 +1094,7 @@ const getSimpleSeries = ({
     parameters,
     isStack100,
     backgroundColor,
+    resolvedTimezone,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -1122,6 +1131,7 @@ const getSimpleSeries = ({
             itemsMap,
             pivotValuesColumnsMap,
             parameters,
+            resolvedTimezone,
         ),
     },
     ...getSimpleSeriesSymbolConfig(series),
@@ -1195,12 +1205,10 @@ const getEchartsSeriesFromPivotedData = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,
-    pivotValuesColumnsMap?:
-        | Record<string, PivotValuesColumn>
-        | null
-        | undefined,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
     parameters?: ParametersValuesMap,
     backgroundColor?: string,
+    resolvedTimezone?: string,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1266,6 +1274,7 @@ const getEchartsSeriesFromPivotedData = (
                     pivotValuesColumnsMap,
                     parameters,
                     isStack100,
+                    resolvedTimezone,
                 });
             }
 
@@ -1281,6 +1290,7 @@ const getEchartsSeriesFromPivotedData = (
                 parameters,
                 isStack100,
                 backgroundColor,
+                resolvedTimezone,
             });
         });
 
@@ -1292,6 +1302,7 @@ const getEchartsSeries = (
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
     parameters?: ParametersValuesMap,
+    resolvedTimezone?: string,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1313,6 +1324,7 @@ const getEchartsSeries = (
                     yFieldHash,
                     parameters,
                     isStack100,
+                    resolvedTimezone,
                 });
             }
 
@@ -1325,6 +1337,7 @@ const getEchartsSeries = (
                 xFieldHash,
                 parameters,
                 isStack100,
+                resolvedTimezone,
             });
         });
 };
@@ -1566,6 +1579,7 @@ const getEchartAxes = ({
     displayedRows,
     minsAndMaxes,
     parameters,
+    resolvedTimezone,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1574,6 +1588,7 @@ const getEchartAxes = ({
     displayedRows?: ResultRow[];
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
+    resolvedTimezone?: string;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1785,6 +1800,7 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1805,6 +1821,7 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1824,6 +1841,7 @@ const getEchartAxes = ({
         defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
         show: showLeftYAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1843,6 +1861,7 @@ const getEchartAxes = ({
         defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
         show: showRightYAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1873,7 +1892,7 @@ const getEchartAxes = ({
 
     // Get the min and max values for the bottom X axis
     const getMinAndMaxFromBottomAxisBounds = (
-        axisType: 'value' | 'category' | 'time' | string,
+        axisType: string,
         min?: number,
         max?: number,
     ) => {
@@ -2307,6 +2326,7 @@ const getStackTotalSeries = (
     selectedLegendNames: LegendValues,
     isStack100: boolean,
     connectNulls: boolean | undefined = true,
+    resolvedTimezone?: string,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2335,6 +2355,10 @@ const getStackTotalSeries = (
                                 stackTotal,
                                 fieldId,
                                 itemsMap,
+                                undefined,
+                                undefined,
+                                undefined,
+                                resolvedTimezone,
                             );
                         }
                         return '';
@@ -2375,6 +2399,7 @@ const useEchartsCartesianConfig = (
         parameters,
         isTouchDevice,
         colorPalette,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -2486,6 +2511,8 @@ const useEchartsCartesianConfig = (
                 rowKeyMap,
                 pivotValuesColumnsMap,
                 parameters,
+                undefined,
+                resolvedTimezone,
             );
         } else {
             // Legacy implementation
@@ -2494,6 +2521,7 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig,
                 pivotDimensions,
                 parameters,
+                resolvedTimezone,
             );
         }
 
@@ -2513,6 +2541,7 @@ const useEchartsCartesianConfig = (
         parameters,
         resultsAndMinsAndMaxes.results,
         isShowHideRowsEnabled,
+        resolvedTimezone,
     ]);
 
     const axes = useMemo(() => {
@@ -2535,6 +2564,7 @@ const useEchartsCartesianConfig = (
                     : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
+            resolvedTimezone,
         });
     }, [
         itemsMap,
@@ -2545,6 +2575,7 @@ const useEchartsCartesianConfig = (
         isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
+        resolvedTimezone,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -2738,6 +2769,7 @@ const useEchartsCartesianConfig = (
                 validCartesianConfigLegend,
                 isStack100,
                 validCartesianConfig?.layout.connectNulls,
+                resolvedTimezone,
             ),
         ];
     }, [
@@ -2756,6 +2788,7 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
         colorPalette,
         theme.colors.background,
+        resolvedTimezone,
     ]);
     const sortedResults = useMemo(() => {
         const results =
@@ -2875,6 +2908,16 @@ const useEchartsCartesianConfig = (
 
         const xFieldId = validCartesianConfig?.layout?.xField;
         const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+
+        // When xField is EMPTY_X_AXIS (no x-axis dimension, bars are pivoted series),
+        // row-based sorting is meaningless (single row) and produces undefined category values.
+        // Series-level sorting for this case is handled separately in sortedSeriesForChart.
+        if (xFieldId === EMPTY_X_AXIS) {
+            return {
+                xAxisSortedResults: sortedResults,
+                xAxisSortedCategoryValues: undefined,
+            };
+        }
 
         // Handle bar totals sorting
         if (
@@ -3157,6 +3200,10 @@ const useEchartsCartesianConfig = (
                         total,
                         fieldId,
                         itemsMap,
+                        undefined,
+                        undefined,
+                        undefined,
+                        resolvedTimezone,
                     );
                     maxCharCount = Math.max(maxCharCount, formatted.length);
                 });
@@ -3178,6 +3225,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfigLegend,
+        resolvedTimezone,
     ]);
 
     const currentGrid = useMemo(() => {
@@ -3375,6 +3423,77 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.flipAxes,
     ]);
 
+    // When xField is EMPTY_X_AXIS (pivoted bars with no x-axis dimension),
+    // sorting must reorder the series array since bars are series, not categories.
+    const sortedSeriesForChart = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments?.length) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        if (xFieldId !== EMPTY_X_AXIS) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+        const sortType = xAxisConfig?.sortType ?? XAxisSortType.DEFAULT;
+        const isInverse = xAxisConfig?.inverse ?? false;
+
+        if (sortType === XAxisSortType.DEFAULT && !isInverse) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const sorted = [...stackedSeriesWithColorAssignments];
+
+        if (sortType === XAxisSortType.CATEGORY) {
+            // Sort by series name (pivot value label) alphabetically
+            sorted.sort((a, b) => {
+                const nameA = String(a.name ?? '');
+                const nameB = String(b.name ?? '');
+                return nameA.localeCompare(nameB);
+            });
+        } else if (sortType === XAxisSortType.BAR_TOTALS) {
+            // Sort by metric value from the dataset row
+            const row = xAxisSortedResults[0];
+            if (row) {
+                sorted.sort((a, b) => {
+                    const yKeyA = a.encode?.y;
+                    const yKeyB = b.encode?.y;
+                    const rawA = yKeyA
+                        ? (row as Record<string, unknown>)[yKeyA]
+                        : undefined;
+                    const rawB = yKeyB
+                        ? (row as Record<string, unknown>)[yKeyB]
+                        : undefined;
+                    const valA = Number(
+                        typeof rawA === 'object' && rawA !== null
+                            ? (rawA as { value: unknown }).value
+                            : (rawA ?? 0),
+                    );
+                    const valB = Number(
+                        typeof rawB === 'object' && rawB !== null
+                            ? (rawB as { value: unknown }).value
+                            : (rawB ?? 0),
+                    );
+                    return valA - valB;
+                });
+            }
+        }
+
+        // For DEFAULT with inverse, or CATEGORY/BAR_TOTALS with inverse (descending),
+        // reverse the sorted order
+        if (isInverse) {
+            sorted.reverse();
+        }
+
+        return sorted;
+    }, [
+        stackedSeriesWithColorAssignments,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig.xAxis,
+        xAxisSortedResults,
+    ]);
+
     const eChartsOptions = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
@@ -3384,7 +3503,7 @@ const useEchartsCartesianConfig = (
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             useUTC: true,
-            series: stackedSeriesWithColorAssignments,
+            series: sortedSeriesForChart,
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
@@ -3425,7 +3544,7 @@ const useEchartsCartesianConfig = (
         };
     }, [
         sortedAxes,
-        stackedSeriesWithColorAssignments,
+        sortedSeriesForChart,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,

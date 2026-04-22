@@ -518,7 +518,7 @@ export class SqlRunnerController extends BaseController {
         @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
-        const { name, sql, columns } = body;
+        const { name, sql, columns, parameterValues } = body;
 
         const virtualViewName = await this.services
             .getProjectService()
@@ -526,6 +526,7 @@ export class SqlRunnerController extends BaseController {
                 name,
                 sql,
                 columns,
+                parameterValues,
             });
 
         return {

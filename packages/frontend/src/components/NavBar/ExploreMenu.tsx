@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import {
     IconAppWindow,
@@ -11,6 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -27,7 +29,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -116,21 +119,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                             icon={IconLayoutDashboard}
                             data-testid="ExploreMenu/NewDashboardButton"
                         />
-                        <Can
-                            I="create"
-                            this={subject('Space', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <LargeMenuItem
-                                title="Space"
-                                description="Organize your saved charts and dashboards."
-                                onClick={() => setIsCreateSpaceOpen(true)}
-                                icon={IconFolder}
-                            />
-                        </Can>
-                        {health.data?.dataApps.enabled && (
+
+                        {dataAppsFlag.data?.enabled && (
                             <Can
                                 I="manage"
                                 this={subject('DataApp', {
@@ -145,9 +135,25 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                     description="Build an interactive app powered by your data."
                                     to={`/projects/${projectUuid}/apps/generate`}
                                     icon={IconAppWindow}
+                                    isBeta
                                 />
                             </Can>
                         )}
+
+                        <Can
+                            I="create"
+                            this={subject('Space', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Space"
+                                description="Organize your saved charts and dashboards."
+                                onClick={() => setIsCreateSpaceOpen(true)}
+                                icon={IconFolder}
+                            />
+                        </Can>
                     </Menu.Dropdown>
                 </Menu>
             </Can>

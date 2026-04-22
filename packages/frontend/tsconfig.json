@@ -1,14 +1,13 @@
 {
     "extends": "./../../tsconfig.json",
     "compilerOptions": {
-        "composite": true,
+        "composite": false,
         "target": "ESNext",
         "lib": ["dom", "dom.iterable", "esnext"],
         "allowJs": true,
         "noFallthroughCasesInSwitch": true,
         "module": "ESNext",
-        "ignoreDeprecations": "6.0",
-        "moduleResolution": "node10",
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "isolatedModules": true,
         "importHelpers": true,
@@ -24,14 +23,13 @@
         "noUncheckedIndexedAccess": false, // TODO fix errors, then enable
         "tsBuildInfoFile": "dist/.tsbuildinfo"
     },
-    "include": [
-        "./src",
-        "./sdk/index.tsx",
-        "./vite-env.d.ts"
-    ],
+    "include": ["./src", "./sdk/index.tsx", "./vite-env.d.ts"],
     "references": [
         {
             "path": "../common"
+        },
+        {
+            "path": "../formula"
         },
         {
             "path": "./tsconfig.node.json"

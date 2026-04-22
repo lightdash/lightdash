@@ -18,6 +18,59 @@ permissions:
 
 jobs:
   # ============================================================================
+  # Stage 0: Fast checks (no install needed)
+  # ============================================================================
+  check-exact-deps:
+    name: Enforce Exact Dependency Versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Check for range specifiers in package.json files
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+
+          const files = require('child_process')
+            .execSync('find . -name package.json -not -path \"*/node_modules/*\"', { encoding: 'utf8' })
+            .trim().split('\n');
+
+          const issues = [];
+          for (const f of files) {
+            const pkg = JSON.parse(fs.readFileSync(f, 'utf8'));
+            for (const section of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+              if (!pkg[section]) continue;
+              for (const [name, ver] of Object.entries(pkg[section])) {
+                if (ver.startsWith('workspace:')) continue;
+                if (/^[\^~><=]/.test(ver) || ver.includes('||')) {
+                  issues.push(f + ' [' + section + '] ' + name + ': ' + ver);
+                }
+              }
+            }
+            if (pkg.pnpm && pkg.pnpm.overrides) {
+              for (const [key, ver] of Object.entries(pkg.pnpm.overrides)) {
+                if (/^[\^~><=]/.test(ver) || ver.includes('||')) {
+                  issues.push(f + ' [pnpm.overrides] ' + key + ': ' + ver);
+                }
+              }
+            }
+          }
+
+          if (issues.length > 0) {
+            console.error('ERROR: Found range specifiers in dependencies. All deps must use exact versions.');
+            console.error('See: https://github.com/lightdash/lightdash/pull/21553');
+            console.error('');
+            issues.forEach(i => console.error('  ' + i));
+            console.error('');
+            console.error('Fix: use exact versions (e.g. \"1.2.3\" not \"^1.2.3\"). The .npmrc save-exact=true');
+            console.error('setting ensures pnpm add uses exact versions by default.');
+            process.exit(1);
+          }
+
+          console.log('All ' + files.length + ' package.json files use exact dependency versions.');
+          "
+
+  # ============================================================================
   # Stage 1: Build, lint, typecheck, and test
   # ============================================================================
   build-and-test:
@@ -29,15 +82,19 @@ jobs:
       TURBO_API: https://cache.depot.dev
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: ".nvmrc"
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build
         run: pnpm build
       - name: Run quality checks in parallel
@@ -68,9 +125,9 @@ jobs:
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
       cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for files changes
-        uses: dorny/paths-filter@v4
+        uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
         id: changes
         with:
           token: ${{ github.token }}
@@ -82,7 +139,7 @@ jobs:
     needs: files-changed
     steps:
       - name: Post comment with test selection info
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const marker = '<!-- test-selection-comment -->';
@@ -178,14 +235,14 @@ jobs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
       - name: Context
-        uses: okteto/context@latest
+        uses: okteto/context@bff593401ac86e181bab973c61b35816bd52587a # latest
         with:
           url: ${{ secrets.OKTETO_CONTEXT }}
           token: ${{ secrets.OKTETO_TOKEN }}
 
       - name: Create GitHub deployment
         id: deployment
-        uses: chrnorm/deployment-action@v2
+        uses: chrnorm/deployment-action@500aa6a23c81ffa1acf71072aee3cfa2cc2e556a # v2
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           initial-status: pending
@@ -194,7 +251,7 @@ jobs:
 
       - name: Deploy preview environment
         id: deploy
-        uses: okteto/deploy-preview@latest
+        uses: okteto/deploy-preview@ec76bb82c13aa0f748fc687ee622c96282890150 # latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -207,7 +264,7 @@ jobs:
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"
 
       - name: Update deployment status
-        uses: chrnorm/deployment-status@v2
+        uses: chrnorm/deployment-status@6df8d036fd2fee9eb82936733953da1f8382b41e # v2
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           state: success
@@ -215,7 +272,7 @@ jobs:
           environment-url: https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
 
       - name: Comment PR with preview info
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
           script: |
             const marker = '<!-- preview-environment-comment -->';
@@ -265,16 +322,16 @@ jobs:
     name: Build E2E Image
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
       - name: GitHub Registry Login
-        uses: docker/login-action@v4
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v7
+      - uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           file: ./packages/e2e/dockerfile
           context: .
@@ -293,20 +350,24 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: ".nvmrc"
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build
       - name: Create BigQuery credentials file
         id: create-json
-        uses: jsdaniell/create-json@v1.2.3
+        uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
@@ -346,20 +407,20 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
         run: pnpm common-build
       - name: create-json
         id: create-json
-        uses: jsdaniell/create-json@v1.2.3
+        uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Run Cypress
-        uses: cypress-io/github-action@v7
+        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           browser: firefox
@@ -382,7 +443,7 @@ jobs:
           CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
           TZ: "UTC"
           CYPRESS_TZ: "UTC"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: failure()
         with:
           name: cypress-screenshots-and-videos-${{ strategy.job-index }}
@@ -408,20 +469,20 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
         run: pnpm common-build
       - name: create-json
         id: create-json
-        uses: jsdaniell/create-json@v1.2.3
+        uses: jsdaniell/create-json@b8e77fa01397ca39cc4a6198cc29a3be5481afef # v1.2.3
         with:
           name: "credentials.json"
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Run Cypress
-        uses: cypress-io/github-action@v7
+        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           browser: firefox
@@ -431,7 +492,7 @@ jobs:
         env:
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: failure()
         with:
           name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
@@ -451,7 +512,7 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
       - name: Build packages/common module
@@ -459,14 +520,14 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Run Cypress
-        uses: cypress-io/github-action@v7
+        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
@@ -484,10 +545,10 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
       - run: pip install dbt-core~=1.9.0 dbt-postgres~=1.9.0
@@ -518,14 +579,14 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Run Cypress
-        uses: cypress-io/github-action@v7
+        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e
@@ -551,10 +612,10 @@ jobs:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
         uses: ./.github/workflows/_setup_node_pnpm_cypress
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.10.x"
       - run: |
@@ -590,14 +651,14 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Run Cypress
-        uses: cypress-io/github-action@v7
+        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
         with:
           install: false
           working-directory: packages/e2e

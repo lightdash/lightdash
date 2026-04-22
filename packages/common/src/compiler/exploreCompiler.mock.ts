@@ -180,6 +180,46 @@ export const exploreOneEmptyTableCompiled: Explore = {
     },
 };
 
+export const createExploreWithRequiredFilters = (
+    requiredFilters: UncompiledExplore['tables'][string]['requiredFilters'],
+): UncompiledExplore => ({
+    ...exploreOneEmptyTable,
+    name: 'orders',
+    label: 'Orders',
+    baseTable: 'orders',
+    tables: {
+        orders: {
+            ...exploreOneEmptyTable.tables.a,
+            name: 'orders',
+            label: 'Orders',
+            dimensions: {
+                credit_card_amount: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.NUMBER,
+                    name: 'credit_card_amount',
+                    label: 'Credit card amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.credit_card_amount',
+                    hidden: true,
+                },
+                has_credit_card_payment: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.BOOLEAN,
+                    name: 'has_credit_card_payment',
+                    label: 'Has credit card payment',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.credit_card_amount > 0',
+                    hidden: false,
+                    isAdditionalDimension: true,
+                },
+            },
+            requiredFilters,
+        },
+    },
+});
+
 export const exploreMissingBaseTable: UncompiledExplore = {
     ...exploreBase,
     spotlightConfig: DEFAULT_SPOTLIGHT_CONFIG,

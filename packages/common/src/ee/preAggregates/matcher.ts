@@ -1,6 +1,21 @@
 import type { Explore } from '../../types/explore';
-import { MetricType, type FieldId } from '../../types/field';
-import { flattenFilterGroup } from '../../types/filter';
+import {
+    convertFieldRefToFieldId,
+    MetricType,
+    type FieldId,
+} from '../../types/field';
+import {
+    FilterOperator,
+    flattenFilterGroup,
+    isAndFilterGroup,
+    isFilterGroup,
+    UnitOfTime,
+    type DateFilterSettings,
+    type FilterGroup,
+    type FilterGroupItem,
+    type FilterRule,
+    type MetricFilterRule,
+} from '../../types/filter';
 import type { MetricQuery } from '../../types/metricQuery';
 import {
     PreAggregateMissReason,
@@ -85,6 +100,666 @@ const extractDimensionFilterFieldIds = (
                 typeof target.fieldId === 'string',
         )
         .map((target) => target.fieldId);
+};
+
+const getPreAggregateFilterTargetReferences = (
+    filter: MetricFilterRule,
+    baseTable: string,
+): Set<string> =>
+    new Set(
+        filter.target.fieldRef.includes('.')
+            ? [filter.target.fieldRef]
+            : [
+                  filter.target.fieldRef,
+                  `${baseTable}.${filter.target.fieldRef}`,
+              ],
+    );
+
+const matchesPreAggregateFilterTarget = ({
+    queryFilterRule,
+    preAggregateFilter,
+    explore,
+    dimensionsByFieldId,
+}: {
+    queryFilterRule: FilterRule;
+    preAggregateFilter: MetricFilterRule;
+    explore: Explore;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+}): boolean => {
+    const queryFieldId = queryFilterRule.target.fieldId;
+    const queryDimension = dimensionsByFieldId.get(queryFieldId);
+    if (!queryDimension) {
+        return false;
+    }
+
+    const preAggregateReferences = getPreAggregateFilterTargetReferences(
+        preAggregateFilter,
+        explore.baseTable,
+    );
+
+    return getDimensionReferences({
+        dimension: queryDimension,
+        baseTable: explore.baseTable,
+    }).some((reference) => preAggregateReferences.has(reference));
+};
+
+const isValueSubset = (
+    queryValues: unknown[] | undefined,
+    preAggregateValues: unknown[] | undefined,
+): boolean => {
+    if (!queryValues || queryValues.length === 0) {
+        return false;
+    }
+    if (!preAggregateValues || preAggregateValues.length === 0) {
+        return false;
+    }
+
+    return queryValues.every((queryValue) =>
+        preAggregateValues.some((preAggregateValue) =>
+            Object.is(queryValue, preAggregateValue),
+        ),
+    );
+};
+
+const hasFilterValues = (values: unknown[] | undefined): values is unknown[] =>
+    Array.isArray(values) && values.length > 0;
+
+type Range = {
+    lower?: { value: number; inclusive: boolean };
+    upper?: { value: number; inclusive: boolean };
+};
+
+const getRangeForFilter = (
+    filter: FilterRule<FilterOperator, unknown>,
+    toComparableValue: (value: unknown) => number | null,
+): Range | null => {
+    switch (filter.operator) {
+        case FilterOperator.GREATER_THAN: {
+            const value = toComparableValue(filter.values?.[0]);
+            return value === null
+                ? null
+                : { lower: { value, inclusive: false } };
+        }
+        case FilterOperator.GREATER_THAN_OR_EQUAL: {
+            const value = toComparableValue(filter.values?.[0]);
+            return value === null
+                ? null
+                : { lower: { value, inclusive: true } };
+        }
+        case FilterOperator.LESS_THAN: {
+            const value = toComparableValue(filter.values?.[0]);
+            return value === null
+                ? null
+                : { upper: { value, inclusive: false } };
+        }
+        case FilterOperator.LESS_THAN_OR_EQUAL: {
+            const value = toComparableValue(filter.values?.[0]);
+            return value === null
+                ? null
+                : { upper: { value, inclusive: true } };
+        }
+        case FilterOperator.IN_BETWEEN: {
+            const lower = toComparableValue(filter.values?.[0]);
+            const upper = toComparableValue(filter.values?.[1]);
+            return lower === null || upper === null
+                ? null
+                : {
+                      lower: { value: lower, inclusive: true },
+                      upper: { value: upper, inclusive: true },
+                  };
+        }
+        default:
+            return null;
+    }
+};
+
+const isLowerBoundNarrowerOrEqual = (
+    query: Range['lower'],
+    preAggregate: Range['lower'],
+): boolean => {
+    if (!preAggregate) {
+        return true;
+    }
+    if (!query) {
+        return false;
+    }
+
+    if (query.value > preAggregate.value) {
+        return true;
+    }
+    if (query.value < preAggregate.value) {
+        return false;
+    }
+
+    return preAggregate.inclusive || !query.inclusive;
+};
+
+const isUpperBoundNarrowerOrEqual = (
+    query: Range['upper'],
+    preAggregate: Range['upper'],
+): boolean => {
+    if (!preAggregate) {
+        return true;
+    }
+    if (!query) {
+        return false;
+    }
+
+    if (query.value < preAggregate.value) {
+        return true;
+    }
+    if (query.value > preAggregate.value) {
+        return false;
+    }
+
+    return preAggregate.inclusive || !query.inclusive;
+};
+
+const isRangeSubset = (
+    queryRange: Range | null,
+    preAggregateRange: Range | null,
+): boolean =>
+    !!queryRange &&
+    !!preAggregateRange &&
+    isLowerBoundNarrowerOrEqual(queryRange.lower, preAggregateRange.lower) &&
+    isUpperBoundNarrowerOrEqual(queryRange.upper, preAggregateRange.upper);
+
+const containsComparableValue = (range: Range, value: number): boolean => {
+    let satisfiesLower = true;
+    if (range.lower) {
+        satisfiesLower = range.lower.inclusive
+            ? value >= range.lower.value
+            : value > range.lower.value;
+    }
+
+    let satisfiesUpper = true;
+    if (range.upper) {
+        satisfiesUpper = range.upper.inclusive
+            ? value <= range.upper.value
+            : value < range.upper.value;
+    }
+
+    return satisfiesLower && satisfiesUpper;
+};
+
+const getUnitOrder = (unit: UnitOfTime): number =>
+    [
+        UnitOfTime.milliseconds,
+        UnitOfTime.seconds,
+        UnitOfTime.minutes,
+        UnitOfTime.hours,
+        UnitOfTime.days,
+        UnitOfTime.weeks,
+        UnitOfTime.months,
+        UnitOfTime.quarters,
+        UnitOfTime.years,
+    ].indexOf(unit);
+
+const getDateFilterSettings = (
+    filterRule: FilterRule | MetricFilterRule,
+): DateFilterSettings | undefined =>
+    filterRule.settings as DateFilterSettings | undefined;
+
+const getDateFilterUnitOfTime = (
+    filterRule: FilterRule | MetricFilterRule,
+): UnitOfTime =>
+    getDateFilterSettings(filterRule)?.unitOfTime || UnitOfTime.days;
+
+const isCompletedDateFilter = (
+    filterRule: FilterRule | MetricFilterRule,
+): boolean => !!getDateFilterSettings(filterRule)?.completed;
+
+const isRelativeDateFilterEquivalentOrNarrower = (
+    queryFilterRule: FilterRule,
+    preAggregateFilter: MetricFilterRule,
+): boolean => {
+    if (queryFilterRule.operator !== preAggregateFilter.operator) {
+        return false;
+    }
+
+    switch (preAggregateFilter.operator) {
+        case FilterOperator.IN_THE_PAST:
+        case FilterOperator.IN_THE_NEXT: {
+            const preAggregateUnit =
+                getDateFilterUnitOfTime(preAggregateFilter);
+            const queryUnit = getDateFilterUnitOfTime(queryFilterRule);
+            const preAggregateCompleted =
+                isCompletedDateFilter(preAggregateFilter);
+            const queryCompleted = isCompletedDateFilter(queryFilterRule);
+            const preAggregateValue = Number(preAggregateFilter.values?.[0]);
+            const queryValue = Number(queryFilterRule.values?.[0]);
+
+            return (
+                preAggregateUnit === queryUnit &&
+                preAggregateCompleted === queryCompleted &&
+                Number.isFinite(preAggregateValue) &&
+                Number.isFinite(queryValue) &&
+                queryValue <= preAggregateValue
+            );
+        }
+        case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT: {
+            const preAggregateUnit =
+                getDateFilterUnitOfTime(preAggregateFilter);
+            const queryUnit = getDateFilterUnitOfTime(queryFilterRule);
+            const preAggregateUnitOrder = getUnitOrder(preAggregateUnit);
+            const queryUnitOrder = getUnitOrder(queryUnit);
+
+            if (preAggregateUnitOrder === -1 || queryUnitOrder === -1) {
+                return false;
+            }
+
+            return preAggregateFilter.operator === FilterOperator.IN_THE_CURRENT
+                ? queryUnitOrder <= preAggregateUnitOrder
+                : queryUnitOrder >= preAggregateUnitOrder;
+        }
+        case FilterOperator.NOT_IN_THE_PAST:
+            return (
+                getDateFilterUnitOfTime(queryFilterRule) ===
+                    getDateFilterUnitOfTime(preAggregateFilter) &&
+                isCompletedDateFilter(queryFilterRule) ===
+                    isCompletedDateFilter(preAggregateFilter) &&
+                isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+            );
+        default:
+            return false;
+    }
+};
+
+const isStringFilterEquivalentOrNarrower = (
+    queryFilterRule: FilterRule,
+    preAggregateFilter: MetricFilterRule,
+): boolean => {
+    const preAggregateValue = String(preAggregateFilter.values?.[0] ?? '');
+
+    switch (preAggregateFilter.operator) {
+        case FilterOperator.EQUALS:
+            return (
+                queryFilterRule.operator === FilterOperator.EQUALS &&
+                isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+            );
+        case FilterOperator.INCLUDE:
+            switch (queryFilterRule.operator) {
+                case FilterOperator.EQUALS:
+                    return (
+                        hasFilterValues(queryFilterRule.values) &&
+                        queryFilterRule.values.every((value) =>
+                            String(value).includes(preAggregateValue),
+                        )
+                    );
+                case FilterOperator.INCLUDE:
+                case FilterOperator.STARTS_WITH:
+                case FilterOperator.ENDS_WITH:
+                    return String(queryFilterRule.values?.[0] ?? '').includes(
+                        preAggregateValue,
+                    );
+                default:
+                    return false;
+            }
+        case FilterOperator.STARTS_WITH:
+            switch (queryFilterRule.operator) {
+                case FilterOperator.EQUALS:
+                    return (
+                        hasFilterValues(queryFilterRule.values) &&
+                        queryFilterRule.values.every((value) =>
+                            String(value).startsWith(preAggregateValue),
+                        )
+                    );
+                case FilterOperator.STARTS_WITH:
+                    return String(queryFilterRule.values?.[0] ?? '').startsWith(
+                        preAggregateValue,
+                    );
+                default:
+                    return false;
+            }
+        case FilterOperator.ENDS_WITH:
+            switch (queryFilterRule.operator) {
+                case FilterOperator.EQUALS:
+                    return (
+                        hasFilterValues(queryFilterRule.values) &&
+                        queryFilterRule.values.every((value) =>
+                            String(value).endsWith(preAggregateValue),
+                        )
+                    );
+                case FilterOperator.ENDS_WITH:
+                    return String(queryFilterRule.values?.[0] ?? '').endsWith(
+                        preAggregateValue,
+                    );
+                default:
+                    return false;
+            }
+        case FilterOperator.NULL:
+        case FilterOperator.NOT_NULL:
+            return queryFilterRule.operator === preAggregateFilter.operator;
+        case FilterOperator.NOT_EQUALS:
+        case FilterOperator.NOT_INCLUDE:
+            return (
+                queryFilterRule.operator === preAggregateFilter.operator &&
+                isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+            );
+        default:
+            return false;
+    }
+};
+
+const isNumberFilterEquivalentOrNarrower = (
+    queryFilterRule: FilterRule,
+    preAggregateFilter: MetricFilterRule,
+): boolean => {
+    if (preAggregateFilter.operator === FilterOperator.EQUALS) {
+        return (
+            queryFilterRule.operator === FilterOperator.EQUALS &&
+            isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+        );
+    }
+
+    if (
+        preAggregateFilter.operator === FilterOperator.NULL ||
+        preAggregateFilter.operator === FilterOperator.NOT_NULL
+    ) {
+        return queryFilterRule.operator === preAggregateFilter.operator;
+    }
+
+    if (
+        preAggregateFilter.operator === FilterOperator.NOT_EQUALS ||
+        preAggregateFilter.operator === FilterOperator.NOT_IN_BETWEEN
+    ) {
+        return (
+            queryFilterRule.operator === preAggregateFilter.operator &&
+            isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+        );
+    }
+
+    const toComparableValue = (value: unknown): number | null => {
+        const comparableValue = Number(value);
+        return Number.isFinite(comparableValue) ? comparableValue : null;
+    };
+
+    const preAggregateRange = getRangeForFilter(
+        preAggregateFilter,
+        toComparableValue,
+    );
+    if (!preAggregateRange) {
+        return false;
+    }
+
+    if (queryFilterRule.operator === FilterOperator.EQUALS) {
+        return (
+            hasFilterValues(queryFilterRule.values) &&
+            queryFilterRule.values.every((value) => {
+                const comparableValue = toComparableValue(value);
+                return (
+                    comparableValue !== null &&
+                    containsComparableValue(preAggregateRange, comparableValue)
+                );
+            })
+        );
+    }
+
+    return isRangeSubset(
+        getRangeForFilter(queryFilterRule, toComparableValue),
+        preAggregateRange,
+    );
+};
+
+const isDateFilterEquivalentOrNarrower = (
+    queryFilterRule: FilterRule,
+    preAggregateFilter: MetricFilterRule,
+): boolean => {
+    if (
+        preAggregateFilter.operator === FilterOperator.IN_THE_PAST ||
+        preAggregateFilter.operator === FilterOperator.NOT_IN_THE_PAST ||
+        preAggregateFilter.operator === FilterOperator.IN_THE_NEXT ||
+        preAggregateFilter.operator === FilterOperator.IN_THE_CURRENT ||
+        preAggregateFilter.operator === FilterOperator.NOT_IN_THE_CURRENT
+    ) {
+        return isRelativeDateFilterEquivalentOrNarrower(
+            queryFilterRule,
+            preAggregateFilter,
+        );
+    }
+
+    if (preAggregateFilter.operator === FilterOperator.EQUALS) {
+        return (
+            queryFilterRule.operator === FilterOperator.EQUALS &&
+            isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+        );
+    }
+
+    if (
+        preAggregateFilter.operator === FilterOperator.NULL ||
+        preAggregateFilter.operator === FilterOperator.NOT_NULL
+    ) {
+        return queryFilterRule.operator === preAggregateFilter.operator;
+    }
+
+    if (
+        preAggregateFilter.operator === FilterOperator.NOT_EQUALS ||
+        preAggregateFilter.operator === FilterOperator.NOT_IN_BETWEEN
+    ) {
+        return (
+            queryFilterRule.operator === preAggregateFilter.operator &&
+            isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+        );
+    }
+
+    const toComparableValue = (value: unknown): number | null => {
+        if (value === undefined || value === null) {
+            return null;
+        }
+        const comparableValue = new Date(String(value)).getTime();
+        return Number.isFinite(comparableValue) ? comparableValue : null;
+    };
+
+    const preAggregateRange = getRangeForFilter(
+        preAggregateFilter,
+        toComparableValue,
+    );
+    if (!preAggregateRange) {
+        return false;
+    }
+
+    if (queryFilterRule.operator === FilterOperator.EQUALS) {
+        return (
+            hasFilterValues(queryFilterRule.values) &&
+            queryFilterRule.values.every((value) => {
+                const comparableValue = toComparableValue(value);
+                return (
+                    comparableValue !== null &&
+                    containsComparableValue(preAggregateRange, comparableValue)
+                );
+            })
+        );
+    }
+
+    return isRangeSubset(
+        getRangeForFilter(queryFilterRule, toComparableValue),
+        preAggregateRange,
+    );
+};
+
+const isBooleanFilterEquivalentOrNarrower = (
+    queryFilterRule: FilterRule,
+    preAggregateFilter: MetricFilterRule,
+): boolean => {
+    if (
+        preAggregateFilter.operator === FilterOperator.NULL ||
+        preAggregateFilter.operator === FilterOperator.NOT_NULL
+    ) {
+        return queryFilterRule.operator === preAggregateFilter.operator;
+    }
+
+    return (
+        queryFilterRule.operator === preAggregateFilter.operator &&
+        isValueSubset(queryFilterRule.values, preAggregateFilter.values)
+    );
+};
+
+const isFilterRuleEquivalentOrNarrower = ({
+    queryFilterRule,
+    preAggregateFilter,
+    explore,
+    dimensionsByFieldId,
+}: {
+    queryFilterRule: FilterRule;
+    preAggregateFilter: MetricFilterRule;
+    explore: Explore;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+}): boolean => {
+    if (queryFilterRule.disabled) {
+        return false;
+    }
+    if (
+        !matchesPreAggregateFilterTarget({
+            queryFilterRule,
+            preAggregateFilter,
+            explore,
+            dimensionsByFieldId,
+        })
+    ) {
+        return false;
+    }
+
+    const queryDimension = dimensionsByFieldId.get(
+        queryFilterRule.target.fieldId,
+    );
+    if (!queryDimension) {
+        return false;
+    }
+
+    switch (queryDimension.type) {
+        case 'string':
+            return isStringFilterEquivalentOrNarrower(
+                queryFilterRule,
+                preAggregateFilter,
+            );
+        case 'number':
+            return isNumberFilterEquivalentOrNarrower(
+                queryFilterRule,
+                preAggregateFilter,
+            );
+        case 'date':
+        case 'timestamp':
+            return isDateFilterEquivalentOrNarrower(
+                queryFilterRule,
+                preAggregateFilter,
+            );
+        case 'boolean':
+            return isBooleanFilterEquivalentOrNarrower(
+                queryFilterRule,
+                preAggregateFilter,
+            );
+        default:
+            return false;
+    }
+};
+
+const filterGroupImpliesPreAggregateFilter = ({
+    filterGroup,
+    preAggregateFilter,
+    explore,
+    dimensionsByFieldId,
+}: {
+    filterGroup: FilterGroup | undefined;
+    preAggregateFilter: MetricFilterRule;
+    explore: Explore;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+}): boolean => {
+    if (!filterGroup) {
+        return false;
+    }
+
+    const groupItems: FilterGroupItem[] = isAndFilterGroup(filterGroup)
+        ? filterGroup.and
+        : filterGroup.or;
+
+    if (groupItems.length === 0) {
+        return false;
+    }
+
+    if (isAndFilterGroup(filterGroup)) {
+        return groupItems.some((item) =>
+            isFilterGroup(item)
+                ? filterGroupImpliesPreAggregateFilter({
+                      filterGroup: item,
+                      preAggregateFilter,
+                      explore,
+                      dimensionsByFieldId,
+                  })
+                : isFilterRuleEquivalentOrNarrower({
+                      queryFilterRule: item,
+                      preAggregateFilter,
+                      explore,
+                      dimensionsByFieldId,
+                  }),
+        );
+    }
+
+    return groupItems.every((item) =>
+        isFilterGroup(item)
+            ? filterGroupImpliesPreAggregateFilter({
+                  filterGroup: item,
+                  preAggregateFilter,
+                  explore,
+                  dimensionsByFieldId,
+              })
+            : isFilterRuleEquivalentOrNarrower({
+                  queryFilterRule: item,
+                  preAggregateFilter,
+                  explore,
+                  dimensionsByFieldId,
+              }),
+    );
+};
+
+const getUnsatisfiedPreAggregateFilterMiss = ({
+    metricQuery,
+    explore,
+    preAggregateDef,
+    dimensionsByFieldId,
+}: {
+    metricQuery: MetricQuery;
+    explore: Explore;
+    preAggregateDef: PreAggregateDef;
+    dimensionsByFieldId: Map<
+        FieldId,
+        Explore['tables'][string]['dimensions'][string]
+    >;
+}): Extract<
+    PreAggregateMatchMiss,
+    { reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED }
+> | null => {
+    const preAggregateFilters = preAggregateDef.filters || [];
+    const unsatisfiedFilter = preAggregateFilters.find(
+        (preAggregateFilter) =>
+            !filterGroupImpliesPreAggregateFilter({
+                filterGroup: metricQuery.filters.dimensions,
+                preAggregateFilter,
+                explore,
+                dimensionsByFieldId,
+            }),
+    );
+
+    if (!unsatisfiedFilter) {
+        return null;
+    }
+
+    return {
+        reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+        fieldId: convertFieldRefToFieldId(
+            unsatisfiedFilter.target.fieldRef,
+            explore.baseTable,
+        ),
+    };
 };
 
 const getGranularityMissForDef = (
@@ -223,6 +898,17 @@ const getMissForDef = ({
             reason: PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE,
             fieldId: missingFilterDimensionFieldId,
         };
+    }
+
+    const unsatisfiedPreAggregateFilterMiss =
+        getUnsatisfiedPreAggregateFilterMiss({
+            metricQuery,
+            explore,
+            preAggregateDef,
+            dimensionsByFieldId,
+        });
+    if (unsatisfiedPreAggregateFilterMiss) {
+        return unsatisfiedPreAggregateFilterMiss;
     }
 
     const granularityMiss = getGranularityMissForDef(

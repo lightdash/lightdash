@@ -57,11 +57,14 @@ const timeFrameToDatePartMap: Record<TimeFrames, string | null> = {
 };
 
 type WarehouseConfig = {
+    // `timezone` is only used by BigQuery (native TIMESTAMP_TRUNC support);
+    // other warehouses convert via dateTruncTimezoneConversions instead.
     getSqlForTruncatedDate: (
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
         startOfWeek?: WeekDay | null,
+        timezone?: string,
     ) => string;
     getSqlForDatePart: (
         timeFrame: TimeFrames,
@@ -76,6 +79,54 @@ type WarehouseConfig = {
     ) => string;
 };
 
+/** Per-warehouse SQL to convert timestamps to the project timezone before DATE_TRUNC.
+ *  BigQuery is a no-op — TIMESTAMP_TRUNC accepts timezone natively. */
+type DateTruncTimezoneConversion = {
+    toProjectTz: (sql: string, tz: string) => string;
+};
+
+const dateTruncTimezoneConversions: Record<
+    SupportedDbtAdapter,
+    DateTruncTimezoneConversion
+> = {
+    // BigQuery: no-op — TIMESTAMP_TRUNC accepts timezone natively
+    [SupportedDbtAdapter.BIGQUERY]: {
+        toProjectTz: (sql) => sql,
+    },
+    // Snowflake: CONVERT_TIMEZONE from UTC to project TZ
+    [SupportedDbtAdapter.SNOWFLAKE]: {
+        toProjectTz: (sql, tz) => `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
+    },
+    // Postgres: cast to timestamptz (session TZ), then AT TIME ZONE to project TZ
+    [SupportedDbtAdapter.POSTGRES]: {
+        toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+    },
+    [SupportedDbtAdapter.REDSHIFT]: {
+        toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+    },
+    [SupportedDbtAdapter.DUCKDB]: {
+        toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+    },
+    // Databricks: normalize to UTC via session TZ, then to project TZ
+    [SupportedDbtAdapter.DATABRICKS]: {
+        toProjectTz: (sql, tz) =>
+            `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+    },
+    // Trino/Athena: cast to timestamptz, AT TIME ZONE, then cast back to NTZ
+    [SupportedDbtAdapter.TRINO]: {
+        toProjectTz: (sql, tz) =>
+            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+    },
+    [SupportedDbtAdapter.ATHENA]: {
+        toProjectTz: (sql, tz) =>
+            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+    },
+    // ClickHouse: toTimeZone changes the display timezone
+    [SupportedDbtAdapter.CLICKHOUSE]: {
+        toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
+    },
+};
+
 const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
     [WeekDay.MONDAY]: 'MONDAY',
     [WeekDay.TUESDAY]: 'TUESDAY',
@@ -87,12 +138,23 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
 };
 
 const bigqueryConfig: WarehouseConfig = {
-    getSqlForTruncatedDate: (timeFrame, originalSql, type, startOfWeek) => {
+    // BigQuery: timezone passed natively to TIMESTAMP_TRUNC (no input wrapping needed)
+    getSqlForTruncatedDate: (
+        timeFrame,
+        originalSql,
+        type,
+        startOfWeek,
+        timezone,
+    ) => {
         const datePart =
             timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)
                 ? `${timeFrame}(${bigqueryStartOfWeekMap[startOfWeek]})`
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
+            if (timezone) {
+                // Wrap with DATETIME to convert UTC result to local time
+                return `DATETIME(TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}'), '${timezone}')`;
+            }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
         return `DATE_TRUNC(${originalSql}, ${datePart})`;
@@ -360,7 +422,9 @@ const clickhouseConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = startOfWeek;
-            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff})), ${intervalDiff})`;
+            // Mode 1 makes toStartOfWeek() return Monday (matching Postgres DATE_TRUNC('week')),
+            // so the shift arithmetic is correct for all startOfWeek values.
+            return `addDays(toStartOfWeek(addDays(${originalSql}, -${intervalDiff}), 1), ${intervalDiff})`;
         }
 
         switch (timeFrame) {
@@ -452,19 +516,39 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,
 };
 
-export const getSqlForTruncatedDate: TimeFrameConfig['getSql'] = (
-    adapterType,
-    timeFrame,
-    originalSql,
-    type,
-    startOfWeek,
-) =>
-    warehouseConfigs[adapterType].getSqlForTruncatedDate(
+/**
+ * Generates DATE_TRUNC SQL, optionally with timezone conversion.
+ * When timezone is provided: convert to project TZ, then DATE_TRUNC.
+ * Result stays in project TZ (NTZ) — no back-conversion to UTC.
+ */
+export const getSqlForTruncatedDate = (
+    adapterType: SupportedDbtAdapter,
+    timeFrame: TimeFrames,
+    originalSql: string,
+    type: DimensionType,
+    startOfWeek?: WeekDay | null,
+    timezone?: string,
+): string => {
+    if (!timezone) {
+        return warehouseConfigs[adapterType].getSqlForTruncatedDate(
+            timeFrame,
+            originalSql,
+            type,
+            startOfWeek,
+        );
+    }
+
+    const { toProjectTz } = dateTruncTimezoneConversions[adapterType];
+    const input = toProjectTz(originalSql, timezone);
+    return warehouseConfigs[adapterType].getSqlForTruncatedDate(
         timeFrame,
-        originalSql,
+        input,
         type,
         startOfWeek,
+        timezone,
     );
+};
+
 const getSqlForDatePart: TimeFrameConfig['getSql'] = (
     adapterType,
     timeFrame,
@@ -683,6 +767,19 @@ export const getDefaultTimeFrames = (type: DimensionType) =>
               TimeFrames.QUARTER,
               TimeFrames.YEAR,
           ];
+
+/** Time frames that use DATE_TRUNC (not EXTRACT/DATE_PART). */
+export const truncatableTimeFrames: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+    TimeFrames.DAY,
+    TimeFrames.WEEK,
+    TimeFrames.MONTH,
+    TimeFrames.QUARTER,
+    TimeFrames.YEAR,
+]);
 
 export const isTimeInterval = (value: string): value is TimeFrames =>
     Object.keys(timeFrameConfigs).includes(value);

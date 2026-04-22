@@ -6,6 +6,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     embedToken: undefined,
     filters: undefined,
     projectUuid: undefined,
+    paletteUuid: undefined,
     languageMap: undefined,
     t: (_input: string) => undefined,
     onExplore: (_options: { chart: SavedChart }) => {},

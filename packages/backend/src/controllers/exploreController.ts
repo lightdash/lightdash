@@ -6,6 +6,8 @@ import {
     ApiExploresResults,
     ApiSuccessEmpty,
     MetricQuery,
+    type ApiFormulaValidationResults,
+    type ApiPreAggregateCheckResponse,
     type ParametersValuesMap,
     type PivotConfiguration,
 } from '@lightdash/common';
@@ -156,6 +158,82 @@ export class ExploreController extends BaseController {
                 parameterReferences,
                 ...(pivotQuery && { pivotQuery }),
             },
+        };
+    }
+
+    /**
+     * Check pre-aggregate availability for a metric query
+     * @summary Check pre-aggregate
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{exploreId}/preAggregateCheck')
+    @OperationId('CheckPreAggregate')
+    async CheckPreAggregate(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: MetricQuery & {
+            usePreAggregateCache?: boolean;
+        },
+    ): Promise<ApiPreAggregateCheckResponse> {
+        this.setStatus(200);
+
+        const { usePreAggregateCache, ...metricQuery } = body;
+
+        const result = await this.services
+            .getProjectService()
+            .checkPreAggregateMatch({
+                account: req.account!,
+                projectUuid,
+                exploreName: exploreId,
+                metricQuery,
+                usePreAggregateCache: usePreAggregateCache ?? true,
+            });
+
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Validate a spreadsheet formula against the explore's fields
+     * @summary Validate formula
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{exploreId}/validateFormula')
+    @OperationId('ValidateFormula')
+    async ValidateFormula(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            formula: string;
+            metricQuery: MetricQuery;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: ApiFormulaValidationResults;
+    }> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getProjectService()
+            .validateFormula({
+                account: req.account!,
+                projectUuid,
+                exploreName: exploreId,
+                formula: body.formula,
+                metricQuery: body.metricQuery,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 }

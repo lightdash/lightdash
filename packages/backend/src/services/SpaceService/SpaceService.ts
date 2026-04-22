@@ -112,6 +112,7 @@ export class SpaceService
                 user.userUuid,
                 space.uuid,
             );
+        // eslint-disable-next-line no-direct-ability-check -- test-only method exercises raw CASL abilities
         return user.ability.can(action, subject(contentType, spaceCtx));
     }
 
@@ -121,7 +122,7 @@ export class SpaceService
      */
     private async assembleFullSpace(
         spaceUuid: string,
-        user: Pick<SessionUser, 'ability' | 'userUuid'>,
+        user: SessionUser,
     ): Promise<Space> {
         const space = await this.spaceModel.get(spaceUuid);
         const [ctx, groupsAccess, rawBreadcrumbs] = await Promise.all([
@@ -194,10 +195,15 @@ export class SpaceService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('Space', { organizationUuid, projectUuid }),
+                subject('Space', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { spaceName: space.name },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -478,6 +484,12 @@ export class SpaceService
             ) {
                 throw new ForbiddenError();
             }
+        } else {
+            this.logBypassEvent(user, 'delete', {
+                type: 'Space',
+                metadata: { spaceUuid },
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
@@ -520,6 +532,12 @@ export class SpaceService
             ) {
                 throw new ForbiddenError();
             }
+        } else {
+            this.logBypassEvent(user, 'delete', {
+                type: 'Space',
+                metadata: { spaceUuid },
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
         }
 
         // Get all content UUIDs BEFORE soft-deleting
@@ -608,19 +626,37 @@ export class SpaceService
             deleted: true,
         });
 
-        if (!options?.bypassPermissions) {
-            const isAdmin = user.ability.can(
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                metadata: { spaceUuid, spaceName: space.name },
+                organizationUuid: space.organizationUuid,
+                projectUuid: space.projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
+            const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
+                    metadata: { spaceUuid, spaceName: space.name },
                 }),
             );
 
-            if (!isAdmin && space.deletedBy?.userUuid !== user.userUuid) {
-                throw new ForbiddenError(
-                    'You can only restore content you deleted',
-                );
+            if (!isAdmin) {
+                if (space.deletedBy?.userUuid === user.userUuid) {
+                    this.logBypassEvent(user, 'manage', {
+                        type: 'DeletedContent',
+                        metadata: { spaceUuid, spaceName: space.name },
+                        organizationUuid: space.organizationUuid,
+                        projectUuid: space.projectUuid,
+                    });
+                } else {
+                    throw new ForbiddenError(
+                        'You can only restore content you deleted',
+                    );
+                }
             }
         }
 
@@ -681,16 +717,24 @@ export class SpaceService
         spaceUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                metadata: { spaceUuid },
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
             });
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
+                        metadata: { spaceUuid, spaceName: space.name },
                     }),
                 )
             ) {
@@ -774,10 +818,15 @@ export class SpaceService
         const existingSpace = await this.spaceModel.get(spaceUuid);
         const { projectUuid, organizationUuid, pinnedListUuid } = existingSpace;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('PinnedItems', { projectUuid, organizationUuid }),
+                subject('PinnedItems', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { spaceUuid, spaceName: existingSpace.name },
+                }),
             )
         ) {
             throw new ForbiddenError();

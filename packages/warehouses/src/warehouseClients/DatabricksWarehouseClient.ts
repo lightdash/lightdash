@@ -336,7 +336,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
         try {
             connection = await client.connect(this.connectionOptions);
-        } catch (e: AnyType) {
+        } catch (e: unknown) {
             throw new WarehouseConnectionError(getErrorMessage(e));
         }
 
@@ -345,10 +345,10 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 initialCatalog: this.catalog,
                 initialSchema: this.schema,
             });
-        } catch (e: AnyType) {
+        } catch (e: unknown) {
             try {
                 await connection.close();
-            } catch (closeError: AnyType) {
+            } catch (closeError: unknown) {
                 console.error(
                     'Error closing connection after session failure',
                     closeError,
@@ -390,16 +390,17 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 console.debug(
                     `Setting databricks timezone to ${options?.timezone}`,
                 );
-                await session.executeStatement(
-                    `SET TIME ZONE '${options?.timezone}'`,
-                    {
-                        runAsync: false,
-                    },
+                const setTimezoneOp = await session.executeStatement(
+                    `SET TIME ZONE '${options.timezone}'`,
                 );
+                try {
+                    await setTimezoneOp.finished(); // ensures SET is applied before main query
+                } finally {
+                    await setTimezoneOp.close();
+                }
             }
 
             query = await session.executeStatement(alteredQuery, {
-                runAsync: true,
                 ...(this.enableTimeouts && {
                     queryTimeout: DATABRICKS_QUERY_TIMEOUT_SECONDS,
                 }),
@@ -425,17 +426,18 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             do {
                 // eslint-disable-next-line no-await-in-loop
                 const chunk = await query.fetchChunk();
+                console.log(chunk.length, ' - ♻️ rows fetched');
                 // eslint-disable-next-line no-await-in-loop
                 await streamCallback({ fields, rows: chunk });
                 // eslint-disable-next-line no-await-in-loop
             } while (await query.hasMoreRows());
-        } catch (e: AnyType) {
+        } catch (e: unknown) {
             throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             try {
                 if (query) await query.close();
                 await close();
-            } catch (e: AnyType) {
+            } catch (e: unknown) {
                 // Only console error. Don't allow close errors to override the original error
                 console.error(
                     'Error closing Databricks session on streamQuery',
@@ -468,12 +470,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                             tableName: request.table,
                         });
                         return (await query.fetchAll()) as SchemaResult[];
-                    } catch (e: AnyType) {
+                    } catch (e: unknown) {
                         throw new WarehouseQueryError(getErrorMessage(e));
                     } finally {
                         try {
                             if (query) await query.close();
-                        } catch (e: AnyType) {
+                        } catch (e: unknown) {
                             // Only console error. Don't allow close errors to override the original error
                             console.error(
                                 'Error closing Databricks query on getCatalog',
@@ -483,12 +485,12 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                     }
                 },
             );
-        } catch (e: AnyType) {
+        } catch (e: unknown) {
             throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
             try {
                 await close();
-            } catch (e: AnyType) {
+            } catch (e: unknown) {
                 // Only console error. Don't allow close errors to override the original error
                 console.error(
                     'Error closing Databricks session on getCatalog',
@@ -521,7 +523,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
-            WHERE table_type = 'MANAGED' 
+            WHERE table_type = 'MANAGED'
             ORDER BY 1,2,3
         `;
         const { rows } = await this.runQuery(query, {}, undefined, undefined);
@@ -540,7 +542,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
         const query = `
             SELECT table_catalog, table_schema, table_name
             FROM information_schema.tables
-            WHERE table_type = 'BASE TABLE' 
+            WHERE table_type = 'BASE TABLE'
             ${schemaFilter}
             ORDER BY 1,2,3
         `;
@@ -563,7 +565,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             SELECT table_catalog,
                    table_schema,
                    table_name,
-                   column_name, 
+                   column_name,
                    data_type
             FROM information_schema.columns
             WHERE table_name = ?

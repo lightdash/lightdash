@@ -16,8 +16,10 @@ import {
     applyDefaultFormat,
     convertCustomFormatToFormatExpression,
     currencies,
+    formatDate,
     formatItemValue,
     formatNumberValue,
+    formatTimestamp,
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
@@ -1731,6 +1733,134 @@ describe('Formatting', () => {
                         symbol: '£',
                     }),
                 ).toBe('£1,000.50');
+            });
+        });
+    });
+
+    describe('timezone-aware formatting', () => {
+        const utcTimestamp = '2020-04-04T02:00:00.000Z';
+
+        describe('formatDate', () => {
+            test('existing behavior unchanged when no timezone', () => {
+                const withTrue = formatDate(utcTimestamp, TimeFrames.DAY, true);
+                const withFalse = formatDate(
+                    utcTimestamp,
+                    TimeFrames.DAY,
+                    false,
+                );
+                const withDefault = formatDate(utcTimestamp, TimeFrames.DAY);
+                expect(withTrue).toBe('2020-04-04');
+                expect(withFalse).toBe(withDefault);
+            });
+        });
+
+        describe('formatTimestamp', () => {
+            test('formats timestamp in project timezone', () => {
+                const result = formatTimestamp(
+                    utcTimestamp,
+                    TimeFrames.SECOND,
+                    false,
+                    'America/New_York',
+                );
+                expect(result).toBe('2020-04-03, 22:00:00 (-04:00)');
+            });
+
+            test('formats timestamp with correct offset in MILLISECOND interval', () => {
+                const result = formatTimestamp(
+                    utcTimestamp,
+                    TimeFrames.MILLISECOND,
+                    false,
+                    'America/New_York',
+                );
+                expect(result).toContain('2020-04-03, 22:00:00:000');
+                expect(result).toContain('-04:00');
+            });
+
+            test('existing behavior unchanged when no timezone', () => {
+                const withTrue = formatTimestamp(
+                    utcTimestamp,
+                    TimeFrames.MILLISECOND,
+                    true,
+                );
+                expect(withTrue).toBe('2020-04-04, 02:00:00:000 (+00:00)');
+            });
+        });
+
+        describe('formatItemValue TIMESTAMP double-shift prevention', () => {
+            // Truncated TIMESTAMP values arrive from SQL's DATE_TRUNC(..., AT
+            // TIME ZONE tz) already wall-clock-shifted into the project TZ
+            // (stamped UTC by the pg driver). Re-applying .tz() at format time
+            // double-shifts. formatItemValue should suppress that second shift
+            // for truncated intervals only, leaving raw/undefined intervals
+            // alone so genuine timestamptz columns still display in the
+            // project TZ.
+            const truncatedBase = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+            };
+
+            test('truncated HOUR does not double-shift when timezone supplied', () => {
+                const value = new Date('2024-01-14T15:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        { ...truncatedBase, timeInterval: TimeFrames.HOUR },
+                        value,
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toBe('2024-01-14, 15 (+00:00)');
+            });
+
+            test.each([
+                TimeFrames.MILLISECOND,
+                TimeFrames.SECOND,
+                TimeFrames.MINUTE,
+                TimeFrames.HOUR,
+            ])(
+                '%s-truncated TIMESTAMP formats as UTC when timezone supplied',
+                (ti) => {
+                    const value = new Date('2024-01-14T15:00:00.000Z');
+                    const result = formatItemValue(
+                        { ...truncatedBase, timeInterval: ti },
+                        value,
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago',
+                    );
+                    expect(result).toContain('2024-01-14');
+                    expect(result).toContain('(+00:00)');
+                },
+            );
+
+            test('RAW TIMESTAMP still applies project timezone shift', () => {
+                const value = new Date('2024-01-14T15:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        { ...truncatedBase, timeInterval: TimeFrames.RAW },
+                        value,
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toContain('(-11:00)');
+            });
+
+            test('flag-off (no timezone) is byte-identical for truncated TIMESTAMP', () => {
+                const value = new Date('2024-01-14T15:00:00.000Z');
+                const hourItem = {
+                    ...truncatedBase,
+                    timeInterval: TimeFrames.HOUR,
+                };
+                expect(formatItemValue(hourItem, value)).toBe(
+                    formatItemValue(
+                        hourItem,
+                        value,
+                        undefined,
+                        undefined,
+                        undefined,
+                    ),
+                );
             });
         });
     });

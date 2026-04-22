@@ -33,7 +33,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import { getFilterTileRelation } from './utils';
 
@@ -94,7 +94,7 @@ const TileFilterConfiguration: FC<Props> = ({
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
-    const sqlChartTilesMetadata = useDashboardContext(
+    const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
     const sortTilesByFieldMatch = useCallback(

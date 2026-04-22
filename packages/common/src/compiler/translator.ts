@@ -7,6 +7,7 @@ import {
     convertToAiHints,
     convertToGroups,
     isV9MetricRef,
+    patchPathParts,
     SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
@@ -1006,6 +1007,12 @@ export const convertTable = (
                   },
               }
             : {}),
+        ...(meta.default_show_underlying_values
+            ? {
+                  defaultShowUnderlyingValues:
+                      meta.default_show_underlying_values,
+              }
+            : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
@@ -1154,7 +1161,11 @@ export const convertExplores = async (
         {},
     );
     const validModels = models.filter(
-        (model) => tableLookup[model.name] !== undefined,
+        (model) =>
+            tableLookup[model.name] !== undefined &&
+            // Seeds are compiled as tables (for join resolution) but should
+            // not generate standalone explores — they're join targets only.
+            model.resource_type !== 'seed',
     );
 
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {
@@ -1237,6 +1248,10 @@ export const convertExplores = async (
                                   // Override the base table with required filters and explore-scoped dimensions
                                   [model.name]: {
                                       ...baseTable,
+                                      sqlWhere:
+                                          exploreConfig.sql_filter ||
+                                          exploreConfig.sql_where ||
+                                          baseTable.sqlWhere,
                                       requiredFilters:
                                           parseModelRequiredFilters({
                                               requiredFilters:
@@ -1285,7 +1300,9 @@ export const convertExplores = async (
                     targetDatabase: adapterType,
                     warehouse: model.config?.snowflake_warehouse,
                     databricksCompute: model.config?.databricks_compute,
-                    ymlPath: model.patch_path?.split('://')?.[1],
+                    ymlPath: model.patch_path
+                        ? patchPathParts(model.patch_path).path
+                        : undefined,
                     sqlPath: model.path,
                     spotlightConfig: lightdashProjectConfig.spotlight,
                     ...(meta.ai_hint

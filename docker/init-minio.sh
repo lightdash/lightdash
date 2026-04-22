@@ -29,4 +29,26 @@ for bucket in $MINIO_DEFAULT_BUCKETS; do
   fi
 done
 
+# Enable CORS so the browser can PUT directly to MinIO (presigned uploads)
+echo "Configuring CORS for presigned uploads..."
+cat > /tmp/cors.xml << 'CORS'
+<CORSConfiguration>
+  <CORSRule>
+    <AllowedOrigin>*</AllowedOrigin>
+    <AllowedMethod>GET</AllowedMethod>
+    <AllowedMethod>PUT</AllowedMethod>
+    <AllowedMethod>HEAD</AllowedMethod>
+    <AllowedHeader>*</AllowedHeader>
+    <ExposeHeader>ETag</ExposeHeader>
+  </CORSRule>
+</CORSConfiguration>
+CORS
+
+for bucket in $MINIO_DEFAULT_BUCKETS; do
+  if [ -n "$bucket" ]; then
+    mc cors set local/"$bucket" /tmp/cors.xml 2>/dev/null || \
+      echo "Could not set CORS for bucket '$bucket'"
+  fi
+done
+
 wait

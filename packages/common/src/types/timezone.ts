@@ -22,6 +22,7 @@ export enum TimeZone {
     'Asia/Bangkok' = 'Asia/Bangkok',
     'Asia/Shanghai' = 'Asia/Shanghai',
     'Asia/Tokyo' = 'Asia/Tokyo',
+    'Australia/Brisbane' = 'Australia/Brisbane',
     'Australia/Sydney' = 'Australia/Sydney',
     'Pacific/Noumea' = 'Pacific/Noumea',
     'Pacific/Auckland' = 'Pacific/Auckland',

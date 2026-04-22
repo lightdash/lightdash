@@ -596,4 +596,194 @@ describe('resolveSpaceAccess', () => {
             expect(user2?.inheritedFrom).toBe('parent_space');
         });
     });
+
+    describe('project member access (via GROUP_ACCESS on space column)', () => {
+        // These tests simulate what happens when a space has
+        // project_member_access_role set and the DB UNION expands
+        // project members as GROUP_ACCESS entries.
+
+        it('grants access to project member on private space', () => {
+            const result = resolveSpaceAccess(
+                makeChainInput({
+                    inheritsFromOrgOrProject: false,
+                    chainDirectAccess: [
+                        {
+                            spaceUuid: 'child-space',
+                            directAccess: [
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'child-space',
+                                    role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].role).toBe(SpaceMemberRole.VIEWER);
+            expect(result[0].hasDirectAccess).toBe(true);
+        });
+
+        it('project member access coexists with explicit user access — highest wins', () => {
+            const result = resolveSpaceAccess(
+                makeChainInput({
+                    inheritsFromOrgOrProject: false,
+                    chainDirectAccess: [
+                        {
+                            spaceUuid: 'child-space',
+                            directAccess: [
+                                // Explicit user access as EDITOR
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'child-space',
+                                    role: SpaceMemberRole.EDITOR,
+                                    groupUuid: null,
+                                    from: DirectSpaceAccessOrigin.USER_ACCESS,
+                                },
+                                // Project member access as VIEWER
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'child-space',
+                                    role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(1);
+            // USER_ACCESS takes priority over GROUP_ACCESS
+            expect(result[0].role).toBe(SpaceMemberRole.EDITOR);
+            expect(result[0].hasDirectAccess).toBe(true);
+        });
+
+        it('without project member access, user has no access to private space', () => {
+            const result = resolveSpaceAccess(
+                makeChainInput({
+                    inheritsFromOrgOrProject: false,
+                    chainDirectAccess: [
+                        {
+                            spaceUuid: 'child-space',
+                            directAccess: [],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            // Non-admin user without direct access on private space = no access
+            expect(result).toHaveLength(0);
+        });
+
+        it('multiple project members all get access on private space', () => {
+            const result = resolveSpaceAccess(
+                makeChainInput({
+                    inheritsFromOrgOrProject: false,
+                    chainDirectAccess: [
+                        {
+                            spaceUuid: 'child-space',
+                            directAccess: [
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'child-space',
+                                    role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                                {
+                                    userUuid: 'user-2',
+                                    spaceUuid: 'child-space',
+                                    role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                        {
+                            userUuid: 'user-2',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.EDITOR,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(2);
+            expect(result.find((r) => r.userUuid === 'user-1')?.role).toBe(
+                SpaceMemberRole.VIEWER,
+            );
+            expect(result.find((r) => r.userUuid === 'user-2')?.role).toBe(
+                SpaceMemberRole.VIEWER,
+            );
+        });
+
+        it('child inheriting from restricted parent with project member access', () => {
+            // parent = restricted with project_member_access_role
+            // child = inherits from parent
+            // The UNION returns access on the parent, which the child inherits
+            const result = resolveSpaceAccess(
+                makeChainInput({
+                    inheritsFromOrgOrProject: false,
+                    chainDirectAccess: [
+                        {
+                            spaceUuid: 'child-space',
+                            directAccess: [],
+                        },
+                        {
+                            spaceUuid: 'parent-space',
+                            directAccess: [
+                                {
+                                    userUuid: 'user-1',
+                                    spaceUuid: 'parent-space',
+                                    role: SpaceMemberRole.VIEWER,
+                                    groupUuid: null,
+                                    from: DirectSpaceAccessOrigin.GROUP_ACCESS,
+                                },
+                            ],
+                        },
+                    ],
+                    organizationAccess: [
+                        {
+                            userUuid: 'user-1',
+                            spaceUuid: 'child-space',
+                            role: OrganizationMemberRole.VIEWER,
+                        },
+                    ],
+                }),
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].role).toBe(SpaceMemberRole.VIEWER);
+            expect(result[0].inheritedFrom).toBe('parent_space');
+        });
+    });
 });

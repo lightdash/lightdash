@@ -8,6 +8,7 @@ export * as preAggregateUtils from './preAggregates/utils';
 export * from './scim/errors';
 export * from './scim/types';
 export * from './serviceAccounts/types';
+export * from './types/managedAgent';
 
 export enum ScimSchemaType {
     ERROR = 'urn:ietf:params:scim:api:messages:2.0:Error',

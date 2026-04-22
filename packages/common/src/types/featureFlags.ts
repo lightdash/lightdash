@@ -11,6 +11,10 @@ export enum FeatureFlags {
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 
+    /* Gate new timezone features: warehouse session timezone, timezone-aware
+       DATE_TRUNC, result formatting, etc. Temporary — remove once stable. */
+    EnableTimezoneSupport = 'enable-timezone-support',
+
     /**
      * Enable dashboard comments
      */
@@ -69,11 +73,6 @@ export enum FeatureFlags {
     SavedMetricsTree = 'saved-metrics-tree',
 
     /**
-     * Enable default personal spaces for project members
-     */
-    DefaultUserSpaces = 'default-user-spaces',
-
-    /**
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
@@ -102,11 +101,6 @@ export enum FeatureFlags {
     LargeChartPerformance = 'large-chart-performance',
 
     /**
-     * Enable content verification (verified seal for charts and dashboards)
-     */
-    ContentVerification = 'content-verification',
-
-    /**
      * Enable show/hide N rows from start/end of chart data
      */
     ShowHideRows = 'show-hide-rows',
@@ -129,6 +123,13 @@ export enum FeatureFlags {
      * Enable user-configurable column limit for pivoted queries
      */
     ShowHideColumns = 'show-hide-columns',
+
+    /**
+     * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED
+     * env var — data apps are enabled if either this flag or the env var
+     * is true. Disabled by default.
+     */
+    EnableDataApps = 'enable-data-apps',
 }
 
 export type FeatureFlag = {

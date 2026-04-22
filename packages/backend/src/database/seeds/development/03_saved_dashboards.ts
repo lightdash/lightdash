@@ -46,10 +46,11 @@ async function createDashboardWithAllTileTypes(knex: Knex): Promise<void> {
         lightdashConfig,
     });
 
-    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
-        SEED_PROJECT.project_uuid,
-    );
-    const spaceUuid = rootSpaces[0];
+    const [seedSpace] = await spaceModel.find({
+        projectUuid: SEED_PROJECT.project_uuid,
+        slug: 'jaffle-shop',
+    });
+    const spaceUuid = seedSpace?.uuid;
     if (!spaceUuid) throw new Error('No space found for seeding');
 
     const savedCharts = await chartModel.find({
@@ -263,10 +264,11 @@ async function createDashboardWithDashboardCharts(knex: Knex): Promise<void> {
         database: knex,
     });
 
-    const rootSpaces = await spaceModel.getRootSpaceUuidsForProject(
-        SEED_PROJECT.project_uuid,
-    );
-    const spaceUuid = rootSpaces[0];
+    const [seedSpace] = await spaceModel.find({
+        projectUuid: SEED_PROJECT.project_uuid,
+        slug: 'jaffle-shop',
+    });
+    const spaceUuid = seedSpace?.uuid;
     if (!spaceUuid) throw new Error('No space found for seeding');
 
     // Create dashboard with charts saved in space

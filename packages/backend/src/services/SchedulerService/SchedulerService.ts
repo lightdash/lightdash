@@ -11,6 +11,8 @@ import {
     GoogleSheetsTransientError,
     InvalidUser,
     isChartScheduler,
+    isCreateSchedulerGoogleChatTarget,
+    isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
     isDashboardScheduler,
     isSchedulerGsheetsOptions,
@@ -55,8 +57,6 @@ import {
     getSchedulerTargetType,
     SchedulerLogDb,
 } from '../../database/entities/scheduler';
-import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
-import { logAuditEvent } from '../../logging/winston';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -204,7 +204,8 @@ export class SchedulerService extends BaseService {
         // If sendNow is true, we need to check if the user has permissions to `create` instead of `manage`
         // This allows editors to send schedulers they didn't create themselves
         const action = sendNow ? 'create' : 'manage';
-        const canManageDeliveries = user.ability.can(
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageDeliveries = auditedAbility.can(
             action,
             subject('ScheduledDeliveries', {
                 organizationUuid,
@@ -217,7 +218,7 @@ export class SchedulerService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const canManageGoogleSheets = user.ability.can(
+        const canManageGoogleSheets = auditedAbility.can(
             action,
             subject('GoogleSheets', {
                 organizationUuid,
@@ -239,6 +240,7 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         scheduler: CreateSchedulerAndTargets,
     ) {
+        const auditedAbility = this.createAuditedAbility(user);
         if (scheduler.savedChartUuid) {
             const { organizationUuid, spaceUuid, projectUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
@@ -249,7 +251,7 @@ export class SchedulerService extends BaseService {
                     spaceUuid,
                 );
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('SavedChart', {
                         organizationUuid,
@@ -272,7 +274,7 @@ export class SchedulerService extends BaseService {
                 );
 
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('Dashboard', {
                         organizationUuid,
@@ -298,7 +300,7 @@ export class SchedulerService extends BaseService {
                     spaceUuid,
                 );
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
                     subject('SavedChart', {
                         organizationUuid,
@@ -340,8 +342,9 @@ export class SchedulerService extends BaseService {
         }
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         // Only allow editors to view all schedulers
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
@@ -354,6 +357,7 @@ export class SchedulerService extends BaseService {
 
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
             paginateArgs,
             searchQuery,
             sort,
@@ -421,11 +425,13 @@ export class SchedulerService extends BaseService {
         // A user might not be able to create scheduled permissions on the org level but on a specific project
         // level. The check here makes sure that the user has the ability to create a scheduled delivery at least somewhere.
         // Since the service returns specifically the user's scheduled deliveries, this is completely intended behavior.
-        if (user.ability.cannot('create', 'ScheduledDeliveries')) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('create', 'ScheduledDeliveries')) {
             throw new ForbiddenError();
         }
 
         const schedulers = await this.schedulerModel.getSchedulers({
+            organizationUuid: user.organizationUuid,
             paginateArgs,
             searchQuery,
             sort,
@@ -541,6 +547,20 @@ export class SchedulerService extends BaseService {
                 }
                 throw new MissingConfigError(
                     'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
+
+        // Validate PDF format is not used with webhook destinations
+        if (updatedScheduler.format === SchedulerFormat.PDF) {
+            const hasWebhookTargets = updatedScheduler.targets.some(
+                (target) =>
+                    isCreateSchedulerMsTeamsTarget(target) ||
+                    isCreateSchedulerGoogleChatTarget(target),
+            );
+            if (hasWebhookTargets) {
+                throw new ParameterError(
+                    'PDF format is not supported with MS Teams or Google Chat destinations',
                 );
             }
         }
@@ -696,9 +716,10 @@ export class SchedulerService extends BaseService {
 
         // Check user has manage:ScheduledDeliveries permission for each scheduler
         // Admins can manage all schedulers, editors can only manage their own
+        const auditedAbility = this.createAuditedAbility(user);
         for (const scheduler of schedulers) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid,
@@ -737,6 +758,7 @@ export class SchedulerService extends BaseService {
         }
 
         if (
+            // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
             newOwner.ability.cannot(
                 'create',
                 subject('ScheduledDeliveries', {
@@ -834,9 +856,17 @@ export class SchedulerService extends BaseService {
         context: { projectUuid: string; organizationUuid: string },
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'ScheduledDeliveries',
+                metadata: { savedChartUuid: chartUuid },
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
@@ -882,9 +912,17 @@ export class SchedulerService extends BaseService {
         context: { projectUuid: string; organizationUuid: string },
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'ScheduledDeliveries',
+                metadata: { dashboardUuid },
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
@@ -929,9 +967,17 @@ export class SchedulerService extends BaseService {
         context: { projectUuid: string; organizationUuid: string },
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'ScheduledDeliveries',
+                metadata: { savedChartUuid: chartUuid },
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
@@ -972,9 +1018,17 @@ export class SchedulerService extends BaseService {
         context: { projectUuid: string; organizationUuid: string },
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'ScheduledDeliveries',
+                metadata: { dashboardUuid },
+                organizationUuid: context.organizationUuid,
+                projectUuid: context.projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
@@ -1022,8 +1076,9 @@ export class SchedulerService extends BaseService {
             jobId,
             user.userUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('JobStatus', {
                     projectUuid: job.details?.projectUuid,
@@ -1055,8 +1110,9 @@ export class SchedulerService extends BaseService {
     ): Promise<KnexPaginatedData<SchedulerWithLogs>> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
         // Only allow editors to view scheduler logs
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
@@ -1092,8 +1148,9 @@ export class SchedulerService extends BaseService {
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
         assertIsAccountWithOrg(account);
         const job = await this.schedulerModel.getJobStatus(jobId);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('JobStatus', {
                     organizationUuid: job.details?.organizationUuid,
@@ -1136,6 +1193,20 @@ export class SchedulerService extends BaseService {
         }
         if (!isValidTimezone(scheduler.timezone)) {
             throw new ParameterError('Timezone string is not valid');
+        }
+
+        // Validate PDF format is not used with webhook destinations
+        if (scheduler.format === SchedulerFormat.PDF) {
+            const hasWebhookTargets = scheduler.targets.some(
+                (target) =>
+                    isCreateSchedulerMsTeamsTarget(target) ||
+                    isCreateSchedulerGoogleChatTarget(target),
+            );
+            if (hasWebhookTargets) {
+                throw new ParameterError(
+                    'PDF format is not supported with MS Teams or Google Chat destinations',
+                );
+            }
         }
 
         await this.checkViewResource(user, scheduler);
@@ -1261,9 +1332,7 @@ export class SchedulerService extends BaseService {
     ): Promise<KnexPaginatedData<SchedulerRun[]>> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         // Only allow editors to view scheduler runs
         if (
@@ -1272,7 +1341,7 @@ export class SchedulerService extends BaseService {
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1355,9 +1424,7 @@ export class SchedulerService extends BaseService {
 
         const projectSummary = await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         // Only allow editors to view run logs
         if (
@@ -1366,7 +1433,7 @@ export class SchedulerService extends BaseService {
                 subject('Project', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1424,9 +1491,10 @@ export class SchedulerService extends BaseService {
             );
 
         // Check user can manage scheduled deliveries in all projects
+        const auditedAbility = this.createAuditedAbility(user);
         const projectsWithoutPermission = summary.byProject
             .filter((project) =>
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid,
@@ -1486,10 +1554,11 @@ export class SchedulerService extends BaseService {
         }
 
         // Check calling user has manage:ScheduledDeliveries permission on ALL projects
+        const auditedAbility = this.createAuditedAbility(user);
         const projectsUserCannotManage: string[] = [];
         for (const project of summary.byProject) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('ScheduledDeliveries', {
                         organizationUuid,
@@ -1536,6 +1605,7 @@ export class SchedulerService extends BaseService {
         const projectsWithoutPermission: string[] = [];
         for (const project of summary.byProject) {
             if (
+                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
                 newOwner.ability.cannot(
                     'create',
                     subject('ScheduledDeliveries', {

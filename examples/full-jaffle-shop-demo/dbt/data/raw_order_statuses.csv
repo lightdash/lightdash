@@ -1,0 +1,6 @@
+status,status_label,status_priority,is_active
+placed,Order Placed,1,true
+shipped,Shipped,2,true
+completed,Completed,3,false
+return_pending,Return Pending,4,true
+returned,Returned,5,false

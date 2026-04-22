@@ -151,6 +151,40 @@ pnpm release            # Publish to npm (with --no-git-checks)
 - Package name: `@lightdash/cli`
 - Global install: `npm i -g @lightdash/cli`
 
+## Supply Chain Security
+
+The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so transitive dependency vulnerabilities directly affect users. Unlike the monorepo (protected by `pnpm-lock.yaml`), fresh CLI installs resolve transitive deps at install time with no lockfile protection.
+
+**Investigating a compromised transitive dependency:**
+
+1. Trace the dependency chain through published packages on npm:
+   ```bash
+   npm view @lightdash/cli dependencies          # direct deps
+   npm view @lightdash/warehouses dependencies    # next level
+   npm view snowflake-sdk dependencies.axios      # find the version range
+   ```
+2. Check what versions are published and their timestamps:
+   ```bash
+   npm view axios versions --json
+   npm view axios time --json
+   ```
+3. A caret range like `^1.13.4` will resolve to the latest matching version at install time — including a malicious one. If the compromised version falls within a transitive dep's semver range, **all published @lightdash/cli versions using that transitive dep are affected** for any user who does a fresh install during the compromise window.
+4. Verify what a fresh install resolves to right now (wrapped with `sfw` to block known-malicious packages — requires `npm i -g sfw` once):
+   ```bash
+   tmp=$(mktemp -d) && cd "$tmp" && npm init -y --silent && sfw npm install @lightdash/cli --package-lock-only && cat package-lock.json | python3 -c "import sys,json; [print(f'{k}: {v[\"version\"]}') for k,v in json.load(sys.stdin).get('packages',{}).items() if k.endswith('/<suspect-package>')]" && rm -rf "$tmp"
+   ```
+5. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
+
+**Limitation of pnpm overrides:** Overrides in the root `package.json` only affect the monorepo lockfile. They do **not** change what end users get when they `npm install -g @lightdash/cli` — published packages only carry their `package.json` dependency ranges, not pnpm overrides. The override protects our own builds and deployments, but CLI users depend on the upstream package (e.g., `snowflake-sdk`) fixing or the compromised version being unpublished from npm.
+
+**Example — axios compromise (2026-03-31):**
+- Malicious `axios@1.14.1` was published to npm for a few hours
+- `@lightdash/cli` → `@lightdash/warehouses` → `snowflake-sdk` → `axios@^1.13.4` would have resolved to `1.14.1`
+- Monorepo was protected by the lockfile (pinned to `1.12.2`)
+- CLI end users doing fresh installs during the window were exposed
+- Compromised version was unpublished by npm, resolving the issue for new installs
+- Pinned `"axios": "1.12.2"` (exact) in root pnpm overrides to protect our own builds going forward
+
 ## Common Issues
 
 **dbt Version Compatibility:**

@@ -64,6 +64,81 @@
                     "type": "string",
                     "description": "Alias for sql_filter"
                 },
+                "pre_aggregates": {
+                    "type": "array",
+                    "description": "Pre-aggregate rollups to materialize for this model",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "dimensions": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "metrics": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "filters": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/Filter"
+                                },
+                                "description": "Static filters applied when materializing the pre-aggregate"
+                            },
+                            "time_dimension": {
+                                "type": "string"
+                            },
+                            "granularity": {
+                                "type": "string"
+                            },
+                            "max_rows": {
+                                "type": "integer"
+                            },
+                            "refresh": {
+                                "type": "object",
+                                "properties": {
+                                    "cron": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "materialization_role": {
+                                "type": "object",
+                                "properties": {
+                                    "email": {
+                                        "type": "string"
+                                    },
+                                    "attributes": {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "oneOf": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "type": "array",
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                },
+                                "required": ["email", "attributes"],
+                                "additionalProperties": false
+                            }
+                        },
+                        "required": ["name", "dimensions", "metrics"]
+                    }
+                },
                 "required_attributes": {
                     "type": "object",
                     "additionalProperties": {

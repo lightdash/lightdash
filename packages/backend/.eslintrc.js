@@ -88,6 +88,38 @@ module.exports = {
             },
         },
         {
+            // Warn on direct ability checks in services - use createAuditedAbility() instead
+            files: [
+                'src/services/**/*.ts',
+                'src/ee/services/**/*.ts',
+            ],
+            rules: {
+                'no-direct-ability-check': 'warn',
+            },
+        },
+        {
+            // Error on direct ability checks in fully migrated services
+            files: [
+                'src/services/CatalogService/**/*.ts',
+                'src/services/ContentService/**/*.ts',
+                'src/services/CsvService/**/*.ts',
+                'src/services/DashboardService/**/*.ts',
+                'src/services/DeployService.ts',
+                'src/services/FunnelService/**/*.ts',
+                'src/services/GitlabAppService/**/*.ts',
+                'src/services/ProjectParametersService.ts',
+                'src/services/SavedChartsService/**/*.ts',
+                'src/services/SavedSqlService/**/*.ts',
+                'src/services/SchedulerService/**/*.ts',
+                'src/services/ShareService/**/*.ts',
+                'src/services/SlackIntegrationService/**/*.ts',
+                'src/services/SpaceService/**/*.ts',
+            ],
+            rules: {
+                'no-direct-ability-check': 'error',
+            },
+        },
+        {
             // Require @summary tag in JSDoc comments for controller API endpoints
             // This ensures API documentation has human-readable names
             // Only applies to methods with decorators (API endpoints have @Get, @Post, etc.)

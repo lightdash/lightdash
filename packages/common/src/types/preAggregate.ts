@@ -1,9 +1,11 @@
 import { type FieldId, type MetricType } from './field';
+import { type MetricFilterRule } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery } from './metricQuery';
 import { type ResultColumns } from './results';
 import { type PreAggregateMaterializationTrigger } from './scheduler';
 import { type TimeFrames } from './timeFrames';
+import { type UserAttributeValueMap } from './userAttributes';
 
 export type MaterializationMetricComponent = {
     componentFieldId: string;
@@ -33,10 +35,16 @@ export type ActiveMaterializationDetails = {
     totalBytes: number | null;
 };
 
+export type PreAggregateMaterializationRole = {
+    email: string;
+    attributes: UserAttributeValueMap;
+};
+
 export type PreAggregateDef = {
     name: string;
     dimensions: string[];
     metrics: string[];
+    filters?: MetricFilterRule[];
     // Parser validation enforces that timeDimension and granularity are provided together
     timeDimension?: string;
     granularity?: TimeFrames;
@@ -44,6 +52,7 @@ export type PreAggregateDef = {
     refresh?: {
         cron?: string;
     };
+    materializationRole?: PreAggregateMaterializationRole;
 };
 
 export enum PreAggregateMissReason {
@@ -53,11 +62,13 @@ export enum PreAggregateMissReason {
     NON_ADDITIVE_METRIC = 'non_additive_metric',
     CUSTOM_SQL_METRIC = 'custom_sql_metric',
     FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE = 'filter_dimension_not_in_pre_aggregate',
+    PRE_AGGREGATE_FILTER_NOT_SATISFIED = 'pre_aggregate_filter_not_satisfied',
     GRANULARITY_TOO_FINE = 'granularity_too_fine',
     CUSTOM_DIMENSION_PRESENT = 'custom_dimension_present',
     CUSTOM_METRIC_PRESENT = 'custom_metric_present',
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
     USER_BYPASS = 'user_bypass',
+    EXPLORE_RESOLUTION_ERROR = 'explore_resolution_error',
 }
 
 export type PreAggregateMatchMiss =
@@ -85,6 +96,10 @@ export type PreAggregateMatchMiss =
           fieldId: FieldId;
       }
     | {
+          reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED;
+          fieldId: FieldId;
+      }
+    | {
           reason: PreAggregateMissReason.GRANULARITY_TOO_FINE;
           fieldId: FieldId;
           queryGranularity: TimeFrames;
@@ -103,6 +118,20 @@ export type PreAggregateMatchMiss =
     | {
           reason: PreAggregateMissReason.USER_BYPASS;
           preAggregateName: string;
+      }
+    | {
+          reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR;
+      };
+
+export type PreAggregateCheckResult =
+    | {
+          hit: true;
+          preAggregateName: string;
+          preAggregateExploreName: string;
+      }
+    | {
+          hit: false;
+          reason: PreAggregateMatchMiss;
       };
 
 export type PreAggregateDefinition = {
@@ -152,6 +181,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.CUSTOM_SQL_METRIC]: 'Custom SQL metric',
     [PreAggregateMissReason.FILTER_DIMENSION_NOT_IN_PRE_AGGREGATE]:
         'Filter dimension not in pre-aggregate',
+    [PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED]:
+        'Pre-aggregate filter not satisfied',
     [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 'Granularity too fine',
     [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]:
         'Custom dimension present',
@@ -159,6 +190,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]:
         'Table calculation present',
     [PreAggregateMissReason.USER_BYPASS]: 'Bypassed by user',
+    [PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR]:
+        'Materialized explore not found',
 };
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;
@@ -221,8 +254,10 @@ export type PreAggregateMaterializationSummary = {
     preAggregateName: string;
     preAggExploreName: string;
     sourceExploreName: string;
+    materializationRole: PreAggregateMaterializationRole | null;
     dimensions: string[];
     metrics: string[];
+    filters: MetricFilterRule[];
     timeDimension: string | null;
     granularity: TimeFrames | null;
     refreshCron: string | null;
@@ -283,4 +318,9 @@ export type ApiPreAggregateStatsResults = {
 export type ApiGetPreAggregateStatsResponse = {
     status: 'ok';
     results: KnexPaginatedData<ApiPreAggregateStatsResults>;
+};
+
+export type ApiPreAggregateCheckResponse = {
+    status: 'ok';
+    results: PreAggregateCheckResult;
 };

@@ -26,6 +26,7 @@ import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFilter
 import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -84,14 +85,14 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             projectUuid,
         }),
     );
-    const updateSqlChartTilesMetadata = useDashboardContext(
+    const updateSqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.updateSqlChartTilesMetadata,
     );
     const parameters = useDashboardContext((c) => c.parameterValues);
-    const markTileScreenshotReady = useDashboardContext(
+    const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
     );
-    const markTileScreenshotErrored = useDashboardContext(
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
     const dashboardFilters = useDashboardFiltersForTile(tile.uuid);
@@ -243,7 +244,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         title={tile.properties.chartName}
                         description={
                             chartResultsError?.error?.message ||
-                            'No data available'
+                            'Error running query'
                         }
                     />
                 )}

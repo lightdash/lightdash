@@ -18,7 +18,6 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -27,6 +26,7 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
     isUserWithOrg,
@@ -67,8 +67,6 @@ import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
-import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
-import { logAuditEvent } from '../../logging/winston';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
@@ -81,7 +79,6 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -110,7 +107,6 @@ type SavedChartServiceArguments = {
     userService: UserService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    featureFlagService: FeatureFlagService;
 };
 
 export class SavedChartService
@@ -153,8 +149,6 @@ export class SavedChartService
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -175,19 +169,6 @@ export class SavedChartService
         this.userService = args.userService;
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
-        this.featureFlagService = args.featureFlagService;
-    }
-
-    private async assertContentVerificationEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<void> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ContentVerification,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Content verification is not enabled');
-        }
     }
 
     private async checkUpdateAccess(
@@ -201,14 +182,19 @@ export class SavedChartService
                 user.userUuid,
                 savedChart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -225,12 +211,17 @@ export class SavedChartService
     ): Promise<ChartSummary> {
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -430,6 +421,36 @@ export class SavedChartService
         return eventProperties;
     }
 
+    static getFormulaTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              formulaCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const formulaCount = tableCalculations.filter(
+            isFormulaTableCalculation,
+        ).length;
+        if (formulaCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            formulaCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
@@ -471,14 +492,16 @@ export class SavedChartService
                 spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { savedChartUuid },
                 }),
             )
         ) {
@@ -487,9 +510,13 @@ export class SavedChartService
 
         if (
             data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -514,6 +541,19 @@ export class SavedChartService
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
+
+        const formulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (formulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: formulaProperties,
+            });
+        }
 
         SavedChartService.getConditionalFormattingEventProperties(
             savedChart,
@@ -575,14 +615,16 @@ export class SavedChartService
                 spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { savedChartUuid, savedChartName: name },
                 }),
             )
         ) {
@@ -646,10 +688,15 @@ export class SavedChartService
         const { organizationUuid, projectUuid, pinnedListUuid, spaceUuid } =
             await this.savedChartModel.getSummary(savedChartUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('PinnedItems', { organizationUuid, projectUuid }),
+                subject('PinnedItems', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -700,19 +747,21 @@ export class SavedChartService
         projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChart[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         const spaceAccessPromises = data.map(async (chart) => {
             const { inheritsFromOrgOrProject, access, organizationUuid } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     chart.spaceUuid,
                 );
-            return user.ability.can(
+            return auditedAbility.can(
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: { savedChartUuid: chart.uuid },
                 }),
             );
         });
@@ -764,20 +813,29 @@ export class SavedChartService
             projectUuid: options?.projectUuid,
         });
 
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'SavedChart',
+                metadata: { savedChartUuid: resolvedUuid },
+                organizationUuid,
+                projectUuid,
+            });
+        } else {
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     spaceUuid,
                 );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: { savedChartUuid: resolvedUuid },
                     }),
                 )
             ) {
@@ -834,21 +892,32 @@ export class SavedChartService
         savedChartUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'SavedChart',
+                metadata: { savedChartUuid },
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const chart = await this.savedChartModel.get(savedChartUuid);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
                     chart.spaceUuid,
                 );
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('SavedChart', {
                         organizationUuid: chart.organizationUuid,
                         projectUuid: chart.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            savedChartUuid,
+                            savedChartName: chart.name,
+                        },
                     }),
                 )
             ) {
@@ -883,13 +952,18 @@ export class SavedChartService
                 user.userUuid,
                 savedChart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...savedChart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -933,13 +1007,18 @@ export class SavedChartService
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...savedChart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -998,13 +1077,10 @@ export class SavedChartService
         user: SessionUser,
         chartUuid: string,
     ): Promise<ContentVerificationInfo> {
-        await this.assertContentVerificationEnabled(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -1012,7 +1088,7 @@ export class SavedChartService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1039,6 +1115,7 @@ export class SavedChartService
             event: 'content_verification.created',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.CHART,
                 contentId: chartUuid,
@@ -1049,13 +1126,10 @@ export class SavedChartService
     }
 
     async unverifyChart(user: SessionUser, chartUuid: string): Promise<void> {
-        await this.assertContentVerificationEnabled(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
-        const auditedAbility = new CaslAuditWrapper(user.ability, user, {
-            auditLogger: logAuditEvent,
-        });
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
             auditedAbility.cannot(
@@ -1063,7 +1137,7 @@ export class SavedChartService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1081,6 +1155,7 @@ export class SavedChartService
             event: 'content_verification.deleted',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.CHART,
                 contentId: chartUuid,
@@ -1132,8 +1207,9 @@ export class SavedChartService
             access = dashboardSpaceAccessContext.access;
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('SavedChart', {
                     organizationUuid,
@@ -1189,6 +1265,19 @@ export class SavedChartService
             },
         });
 
+        const createFormulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createFormulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createFormulaProperties,
+            });
+        }
+
         SavedChartService.getConditionalFormattingEventProperties(
             newSavedChart,
         )?.forEach((properties) => {
@@ -1236,13 +1325,18 @@ export class SavedChartService
                 user.userUuid,
                 chart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('SavedChart', {
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1312,6 +1406,19 @@ export class SavedChartService
             },
         });
 
+        const duplicateFormulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateFormulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateFormulaProperties,
+            });
+        }
+
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
@@ -1352,6 +1459,7 @@ export class SavedChartService
         );
         return this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
+            organizationUuid: chart.organizationUuid,
             paginateArgs,
             searchQuery,
             filters: {
@@ -1482,13 +1590,18 @@ export class SavedChartService
                 chart.spaceUuid,
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1523,13 +1636,18 @@ export class SavedChartService
                 user.userUuid,
                 chart.spaceUuid,
             );
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SavedChart', {
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1673,7 +1791,8 @@ export class SavedChartService
             spaceUuid,
         );
 
-        const hasPermission = actor.user.ability.can(
+        const auditedAbility = this.createAuditedAbility(actor.user);
+        const hasPermission = auditedAbility.can(
             action,
             subject('SavedChart', {
                 organizationUuid,
@@ -1699,7 +1818,7 @@ export class SavedChartService
                 resource.spaceUuid,
             );
 
-            const hasPermissionInNewSpace = actor.user.ability.can(
+            const hasPermissionInNewSpace = auditedAbility.can(
                 action,
                 subject('SavedChart', {
                     organizationUuid: newSpaceOrganizationUuid,
@@ -1785,20 +1904,30 @@ export class SavedChartService
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
+
         // Check if user can view the project
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
         }
 
         // Check if user is admin (can manage all deleted content)
-        const isAdmin = user.ability.can(
+        const isAdmin = auditedAbility.can(
             'manage',
-            subject('DeletedContent', { organizationUuid, projectUuid }),
+            subject('DeletedContent', {
+                organizationUuid,
+                projectUuid,
+                metadata: { projectUuid },
+            }),
         );
 
         // Non-admins can only see their own deleted items
@@ -1828,19 +1957,35 @@ export class SavedChartService
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                metadata: { savedChartUuid: chartUuid },
+                organizationUuid,
+                projectUuid,
+            });
+        } else {
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { projectUuid },
+                    }),
                 )
             ) {
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
-                subject('DeletedContent', { organizationUuid, projectUuid }),
+                subject('DeletedContent', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid: chartUuid },
+                }),
             );
 
             if (
@@ -1884,7 +2029,13 @@ export class SavedChartService
         chartUuid: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
-        if (!options?.bypassPermissions) {
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DeletedContent',
+                metadata: { savedChartUuid: chartUuid },
+                organizationUuid: user.organizationUuid ?? 'unknown',
+            });
+        } else {
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
@@ -1892,18 +2043,27 @@ export class SavedChartService
             );
             const { organizationUuid, projectUuid } = deletedChart;
 
+            const auditedAbility = this.createAuditedAbility(user);
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'view',
-                    subject('Project', { organizationUuid, projectUuid }),
+                    subject('Project', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { projectUuid },
+                    }),
                 )
             ) {
                 throw new ForbiddenError();
             }
 
-            const isAdmin = user.ability.can(
+            const isAdmin = auditedAbility.can(
                 'manage',
-                subject('DeletedContent', { organizationUuid, projectUuid }),
+                subject('DeletedContent', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid: chartUuid },
+                }),
             );
 
             if (

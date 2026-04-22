@@ -88,6 +88,15 @@ export type GenerateTableCalculationGenerated = BaseTrack & {
     };
 };
 
+export type GenerateFormulaTableCalculationGenerated = BaseTrack & {
+    event: 'ai.formula_table_calculation.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 export type GenerateTooltipGenerated = BaseTrack & {
     event: 'ai.tooltip.generated';
     properties: {

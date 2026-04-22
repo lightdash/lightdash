@@ -33,7 +33,8 @@ function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
     metricQuery: MetricQuery,
 ): NonNullable<PivotConfiguration['sortBy']> | undefined {
-    const { groupByColumns, indexColumn, valuesColumns } = partialPivot;
+    const { groupByColumns, indexColumn, valuesColumns, sortOnlyColumns } =
+        partialPivot;
 
     const sortBy = metricQuery.sorts
         .map<NonNullable<PivotConfiguration['sortBy']>[number] | undefined>(
@@ -50,8 +51,17 @@ function getSortByForPivotConfiguration(
                     (col) => col.reference === sort.fieldId,
                 );
 
+                const isSortOnlyColumn = sortOnlyColumns?.some(
+                    (col) => col.reference === sort.fieldId,
+                );
+
                 // Include sort if the field is present in any part of the pivot configuration
-                if (isGroupByColumn || isIndexColumn || isValueColumn) {
+                if (
+                    isGroupByColumn ||
+                    isIndexColumn ||
+                    isValueColumn ||
+                    isSortOnlyColumn
+                ) {
                     return {
                         reference: sort.fieldId,
                         direction: sort.descending
@@ -267,10 +277,30 @@ function getCartesianPivotConfiguration(
                     ),
             );
 
+        // Include metrics/table calculations that are used in sorts but not
+        // displayed in the chart. Without these in valuesColumns, the sort
+        // is silently dropped and PivotQueryBuilder can't generate anchor CTEs.
+        const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
+        const sortOnlyMetrics = metricQuery.sorts
+            .filter(
+                (sort) =>
+                    !valuesRefs.has(sort.fieldId) &&
+                    (metricQuery.metrics.includes(sort.fieldId) ||
+                        (metricQuery.tableCalculations || []).some(
+                            (tc) => tc.name === sort.fieldId,
+                        )),
+            )
+            .map((sort) => ({
+                reference: sort.fieldId,
+                aggregation: VizAggregationOptions.ANY,
+            }));
         // Find columns that are not groupBy or value columns (these become index columns)
+        // Include sortOnlyMetrics in the valuesColumns passed to getIndexColumn
+        // so they aren't incorrectly classified as index columns.
+        const allValuesColumns = [...valuesColumns, ...sortOnlyMetrics];
         const indexColumn = getIndexColumn(
             groupByColumns,
-            valuesColumns,
+            allValuesColumns,
             fields,
             metricQuery,
             xField,
@@ -280,6 +310,9 @@ function getCartesianPivotConfiguration(
             indexColumn,
             valuesColumns,
             groupByColumns,
+            ...(sortOnlyMetrics.length > 0 && {
+                sortOnlyColumns: sortOnlyMetrics,
+            }),
         };
 
         const pivotConfiguration: PivotConfiguration = {

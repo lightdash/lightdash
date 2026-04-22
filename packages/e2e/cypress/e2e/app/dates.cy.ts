@@ -190,7 +190,7 @@ describe('Date tests', () => {
         }
 
         cy.findByTestId('SQL-card-expand').click();
-        cy.contains(`("events".timestamp_tz) = ('2020-08-11 22:58:00')`); // SQL
+        cy.contains(`("events".timestamp_tz) = ('2020-08-11 22:58:00+00:00')`); // SQL
 
         // TODO tooltip in charts
         // cy.get('svg g').trigger('mouseover')

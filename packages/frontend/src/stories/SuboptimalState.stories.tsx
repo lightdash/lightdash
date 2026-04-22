@@ -1,6 +1,6 @@
 import { Box, Button, Paper, SimpleGrid, Stack, Text } from '@mantine-8/core';
 import type { StackProps } from '@mantine/core';
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
     IconAlertCircle,
     IconCheck,
@@ -22,7 +22,7 @@ interface SuboptimalStateProps extends StackProps {
 }
 
 const meta: Meta<SuboptimalStateProps> = {
-    component: SuboptimalState,
+    component: SuboptimalState as any,
     decorators: [
         (Story: any) => (
             <Box bg="background" h={400} w="100%">

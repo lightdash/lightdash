@@ -23,6 +23,7 @@ import {
     ExpiredQueryError,
     Explore,
     ExploreCompiler,
+    ExploreType,
     FieldType,
     ForbiddenError,
     formatItemValue,
@@ -37,6 +38,7 @@ import {
     getItemId,
     getItemMap,
     getMetricOverridesWithPopInheritance,
+    getMetrics,
     getMetricsWithValidParameters,
     isCartesianChartConfig,
     isCustomBinDimension,
@@ -45,8 +47,10 @@ import {
     isDateItem,
     isExploreError,
     isField,
+    isFilterableDimension,
     isJwtUser,
     isMetric,
+    isValidTimezone,
     isVizTableConfig,
     ItemsMap,
     KnexPaginateArgs,
@@ -54,11 +58,13 @@ import {
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
+    ParameterError,
     ParseError,
     PivotConfig,
     PivotConfiguration,
     QueryExecutionContext,
     QueryHistoryStatus,
+    resolveQueryTimezone,
     ResultRow,
     ResultsExpiredError,
     S3Error,
@@ -70,6 +76,7 @@ import {
     type ApiDownloadAsyncQueryResults,
     type ApiDownloadAsyncQueryResultsAsCsv,
     type ApiDownloadAsyncQueryResultsAsXlsx,
+    type ApiExecuteAsyncFieldValueSearchResults,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
@@ -77,6 +84,7 @@ import {
     type CompiledMetric,
     type CustomDimension,
     type ExecuteAsyncDashboardChartRequestParams,
+    type ExecuteAsyncFieldValueSearchRequestParams,
     type ExecuteAsyncMetricQueryRequestParams,
     type ExecuteAsyncQueryRequestParams,
     type ExecuteAsyncSavedChartRequestParams,
@@ -137,6 +145,7 @@ import { ExcelService } from '../ExcelService/ExcelService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
+import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
 import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
@@ -146,6 +155,10 @@ import {
     getNextAndPreviousPage,
     validatePagination,
 } from '../ProjectService/resultsPagination';
+import {
+    exploreHasFilteredAttribute,
+    getFilteredExplore,
+} from '../UserAttributesService/UserAttributeUtils';
 import { getPivotedColumns } from './getPivotedColumns';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
@@ -161,6 +174,7 @@ import {
     type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
+    type ExecuteAsyncFieldValueSearchArgs,
     type ExecuteAsyncMetricQueryArgs,
     type ExecuteAsyncQueryReturn,
     type ExecuteAsyncSavedChartQueryArgs,
@@ -340,6 +354,82 @@ export class AsyncQueryService extends ProjectService {
                 ? this.preAggregateStrategy.getResultsStorageClient()
                 : undefined;
         return strategyClient ?? this.resultsStorageClient;
+    }
+
+    private async getExploreForMetricQueryExecution({
+        account,
+        projectUuid,
+        exploreName,
+        organizationUuid,
+        materializationRole,
+    }: {
+        account: Account;
+        projectUuid: string;
+        exploreName: string;
+        organizationUuid: string;
+        materializationRole?: UserAccessControls;
+    }): Promise<Explore> {
+        if (materializationRole === undefined) {
+            return this.getExplore(
+                account,
+                projectUuid,
+                exploreName,
+                organizationUuid,
+            );
+        }
+
+        const ability = this.createAuditedAbility(account);
+        const isForbidden =
+            ability.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            ) &&
+            ability.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [exploreName],
+                    metadata: { projectUuid, exploreName },
+                }),
+            );
+
+        if (isForbidden) {
+            throw new ForbiddenError();
+        }
+
+        const explore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            exploreName,
+        );
+
+        if (isExploreError(explore)) {
+            throw new NotFoundError(`Explore "${exploreName}" has an error.`);
+        }
+
+        if (
+            explore.type === ExploreType.PRE_AGGREGATE &&
+            ability.cannot(
+                'manage',
+                subject('PreAggregation', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new NotFoundError(`Explore "${exploreName}" does not exist.`);
+        }
+
+        if (!exploreHasFilteredAttribute(explore)) {
+            return explore;
+        }
+
+        return getFilteredExplore(explore, materializationRole.userAttributes);
     }
 
     public getCacheExpiresAt(baseDate: Date) {
@@ -645,6 +735,21 @@ export class AsyncQueryService extends ProjectService {
             throw new ResultsExpiredError();
         }
 
+        const projectTimezone = queryHistory.projectUuid
+            ? await this.getQueryTimezoneForProject(queryHistory.projectUuid)
+            : 'UTC';
+        const resolvedTimezone = resolveQueryTimezone(
+            queryHistory.metricQuery,
+            projectTimezone,
+        );
+        const isTimezoneSupportEnabled = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const displayTimezone = isTimezoneSupportEnabled
+            ? resolvedTimezone
+            : undefined;
+
         const defaultedPageSize =
             pageSize ??
             queryHistory.defaultPageSize ??
@@ -662,6 +767,8 @@ export class AsyncQueryService extends ProjectService {
                 row,
                 queryHistory.fields,
                 queryHistory.pivotValuesColumns,
+                undefined,
+                displayTimezone,
             );
 
         const {
@@ -765,9 +872,21 @@ export class AsyncQueryService extends ProjectService {
             page,
             nextPage,
             previousPage,
-            initialQueryExecutionMs:
-                queryHistory.warehouseExecutionTimeMs ?? roundedDurationMs,
-            resultsPageExecutionMs: roundedDurationMs,
+            metadata: {
+                performance: {
+                    initialQueryExecutionMs:
+                        queryHistory.warehouseExecutionTimeMs ?? null,
+                    resultsPageExecutionMs: roundedDurationMs,
+                    queueTimeMs:
+                        this.lightdashConfig.natsWorker.enabled &&
+                        queryHistory.processingStartedAt
+                            ? Math.round(
+                                  queryHistory.processingStartedAt.getTime() -
+                                      queryHistory.createdAt.getTime(),
+                              )
+                            : null,
+                },
+            },
             status,
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
@@ -1325,6 +1444,7 @@ export class AsyncQueryService extends ProjectService {
         write,
         pivotConfiguration,
         itemsMap,
+        dataTimezone,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1332,6 +1452,7 @@ export class AsyncQueryService extends ProjectService {
         write?: (rows: Record<string, unknown>[]) => void | Promise<void>;
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
+        dataTimezone?: string;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1493,6 +1614,10 @@ export class AsyncQueryService extends ProjectService {
                   await write?.(rows);
               };
 
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError(`Invalid data timezone: ${dataTimezone}`);
+        }
+
         const warehouseResults = await Sentry.startSpan(
             {
                 op: 'db.query',
@@ -1503,6 +1628,7 @@ export class AsyncQueryService extends ProjectService {
                     {
                         sql: query,
                         tags: queryTags,
+                        timezone: dataTimezone,
                     },
                     write ? writeAndTransformRowsIfPivot : undefined,
                 ),
@@ -1550,6 +1676,7 @@ export class AsyncQueryService extends ProjectService {
         userAccessControls,
         availableParameterDefinitions,
         queryUuid,
+        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         warehouseQuery: string;
@@ -1565,6 +1692,7 @@ export class AsyncQueryService extends ProjectService {
         userAccessControls?: UserAccessControls;
         availableParameterDefinitions?: ParameterDefinitions;
         queryUuid: string;
+        useTimezoneAwareDateTrunc?: boolean;
     }): Promise<AsyncQueryExecutionPlan> {
         if (routingTarget === 'materialization') {
             return { target: 'materialization', warehouseQuery };
@@ -1589,6 +1717,7 @@ export class AsyncQueryService extends ProjectService {
                 startOfWeek,
                 userAccessControls,
                 availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
             },
         });
 
@@ -1626,6 +1755,7 @@ export class AsyncQueryService extends ProjectService {
 
     public async runAsyncPreAggregateQuery({
         userUuid,
+        organizationUuid,
         isRegisteredUser,
         isServiceAccount,
         projectUuid,
@@ -1646,6 +1776,7 @@ export class AsyncQueryService extends ProjectService {
 
             await this.runAsyncWarehouseQuery({
                 userUuid,
+                organizationUuid,
                 isRegisteredUser,
                 isServiceAccount,
                 projectUuid,
@@ -1681,6 +1812,7 @@ export class AsyncQueryService extends ProjectService {
             );
             await this.runAsyncWarehouseQuery({
                 userUuid,
+                organizationUuid,
                 isRegisteredUser,
                 isServiceAccount,
                 projectUuid,
@@ -1799,6 +1931,7 @@ export class AsyncQueryService extends ProjectService {
      */
     public async runAsyncWarehouseQuery({
         userUuid,
+        organizationUuid,
         isRegisteredUser,
         isServiceAccount,
         projectUuid,
@@ -1882,16 +2015,19 @@ export class AsyncQueryService extends ProjectService {
                 sshTunnel = warehouseConnection.sshTunnel;
             }
 
+            const isTimezoneSupportEnabled =
+                await this.isTimezoneSupportEnabled({
+                    userUuid,
+                    organizationUuid,
+                });
+            const resolvedDataTimezone = isTimezoneSupportEnabled
+                ? warehouseClient.credentials.dataTimezone
+                : undefined;
+
             const t0 = Date.now();
 
             this.logger.info(
                 `Running query ${queryUuid} source=${executionSource}`,
-            );
-
-            const fileName =
-                QueryHistoryModel.createUniqueResultsFileName(cacheKey);
-            const resultsStorageClient = this.getResultsStorageClientForContext(
-                queryTags.query_context,
             );
 
             // Create upload stream for storing results
@@ -1899,6 +2035,16 @@ export class AsyncQueryService extends ProjectService {
                 this.lightdashConfig.preAggregates.parquetEnabled &&
                 queryTags.query_context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+
+            const fileName = QueryHistoryModel.createUniqueResultsFileName(
+                cacheKey,
+                {
+                    sqlSafe: isParquetMaterialization,
+                },
+            );
+            const resultsStorageClient = this.getResultsStorageClientForContext(
+                queryTags.query_context,
+            );
 
             if (isParquetMaterialization) {
                 const s3Config = getDuckdbRuntimeConfig(
@@ -1978,6 +2124,7 @@ export class AsyncQueryService extends ProjectService {
                         write: stream?.write,
                         pivotConfiguration,
                         itemsMap: fieldsMap,
+                        dataTimezone: resolvedDataTimezone,
                     }),
             );
 
@@ -2120,7 +2267,26 @@ export class AsyncQueryService extends ProjectService {
         } catch (e) {
             this.logger.error(
                 `Query ${queryUuid} execution error: ${getErrorMessage(e)}`,
+                {
+                    queryUuid,
+                    projectUuid,
+                    organizationUuid,
+                    userUuid: isRegisteredUser ? userUuid : undefined,
+                    isEmbed: !isRegisteredUser,
+                    warehouseType: warehouseCredentialsType,
+                    errorName: e instanceof Error ? e.name : undefined,
+                    errorCode: (e as { code?: string })?.code,
+                    queryContext: queryTags.query_context,
+                },
             );
+
+            // Override clients are used for fallback attempts such as DuckDB
+            // pre-aggregate execution. Keep the query history row non-terminal
+            // so polling clients can receive the warehouse retry result.
+            if (warehouseClientOverride) {
+                throw e;
+            }
+
             this.analytics.track({
                 ...analyticsIdentity,
                 event: 'query.error',
@@ -2151,12 +2317,6 @@ export class AsyncQueryService extends ProjectService {
                 queryCreatedAt,
                 queryTags.query_context || 'unknown',
             );
-
-            // Re-throw when using an override client (e.g. DuckDB pre-agg)
-            // so the caller can fall back to the warehouse path
-            if (warehouseClientOverride) {
-                throw e;
-            }
         }
 
         try {
@@ -2188,6 +2348,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             projectUuid: query.projectUuid ?? '',
             userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
@@ -2221,6 +2382,7 @@ export class AsyncQueryService extends ProjectService {
         return {
             projectUuid: query.projectUuid ?? '',
             userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
@@ -2507,6 +2669,8 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         pivotConfiguration,
         userAttributeOverrides,
+        materializationRole,
+        dataTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2515,25 +2679,40 @@ export class AsyncQueryService extends ProjectService {
         | 'parameters'
         | 'projectUuid'
         | 'userAttributeOverrides'
+        | 'materializationRole'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        dataTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
-        const { userAttributes: dbUserAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ account });
-        const userAttributes = userAttributeOverrides
-            ? { ...dbUserAttributes, ...userAttributeOverrides }
-            : dbUserAttributes;
+        const resolvedUserAccessControls =
+            materializationRole ?? (await this.getUserAttributes({ account }));
+        const { userAttributes: baseUserAttributes, intrinsicUserAttributes } =
+            resolvedUserAccessControls;
+        const userAttributes =
+            materializationRole === undefined && userAttributeOverrides
+                ? { ...baseUserAttributes, ...userAttributeOverrides }
+                : baseUserAttributes;
 
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
         );
 
-        const timezone = await this.getQueryTimezoneForProject(projectUuid);
+        const projectTimezone =
+            await this.getQueryTimezoneForProject(projectUuid);
+        const resolvedTimezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+        );
+
+        const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
 
         const fullQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -2541,13 +2720,15 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             intrinsicUserAttributes,
             userAttributes,
-            timezone,
+            timezone: resolvedTimezone,
             dateZoom,
             // ! TODO: Should validate the parameters to make sure they are valid from the options
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
             pivotDimensions: metricQuery.pivotDimensions,
+            useTimezoneAwareDateTrunc,
+            dataTimezone,
         });
 
         const resolvedMetricOverrides =
@@ -2595,7 +2776,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
-            timezone,
+            resolvedTimezone,
         };
     }
 
@@ -2634,7 +2815,7 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     pivotConfiguration,
                     parameters,
-                    timezone: resolvedTimezone,
+                    timezone,
                     routingTarget,
                     preAggregationRoute,
                     userAccessControls,
@@ -2749,11 +2930,15 @@ export class AsyncQueryService extends ProjectService {
 
                     // Generate cache key from project and query identifiers
                     // Include user UUID to prevent cache sharing between users when user-specific credentials are in use
+                    // Use the resolved timezone (not metricQuery.timezone) because the
+                    // resolved value includes project and config fallbacks. Two queries with
+                    // the same SQL but different resolved timezones produce different results
+                    // (e.g., timezone-aware DATE_TRUNC, filter boundaries) and must not share a cache entry.
                     const cacheKey = QueryHistoryModel.getCacheKey(
                         projectUuid,
                         {
                             sql: query,
-                            timezone: metricQuery.timezone,
+                            timezone,
                             userUuid:
                                 warehouseCredentials.userWarehouseCredentialsUuid
                                     ? account.user.id
@@ -2904,13 +3089,20 @@ export class AsyncQueryService extends ProjectService {
                         } satisfies ExecuteAsyncQueryReturn;
                     }
 
+                    const useTimezoneAwareDateTrunc =
+                        await this.isTimezoneSupportEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
+
                     const resolveStart = Date.now();
                     const executionPlan =
                         await this.resolveAsyncQueryExecutionPlan({
                             projectUuid,
                             warehouseQuery: query,
                             metricQuery,
-                            timezone: resolvedTimezone ?? 'UTC',
+                            timezone: timezone ?? 'UTC',
                             dateZoom,
                             parameters,
                             routingTarget: routingTarget ?? 'warehouse',
@@ -2921,6 +3113,7 @@ export class AsyncQueryService extends ProjectService {
                             userAccessControls,
                             availableParameterDefinitions,
                             queryUuid: queryHistoryUuid,
+                            useTimezoneAwareDateTrunc,
                         });
                     const resolveMs = Date.now() - resolveStart;
 
@@ -2978,6 +3171,7 @@ export class AsyncQueryService extends ProjectService {
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
+                        organizationUuid,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
                         projectUuid,
@@ -3163,8 +3357,18 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotConfiguration,
         userAttributeOverrides,
+        materializationRole,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
+
+        if (
+            materializationRole !== undefined &&
+            context !== QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+        ) {
+            throw new ForbiddenError(
+                'materializationRole is only supported for pre-aggregate materialization',
+            );
+        }
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -3189,7 +3393,7 @@ export class AsyncQueryService extends ProjectService {
             metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             account.user.ability.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('CustomFields', { organizationUuid, projectUuid }),
             )
         ) {
             throw new CustomSqlQueryForbiddenError();
@@ -3205,12 +3409,16 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQueryStart = Date.now();
 
-        const explore = await this.getExplore(
+        const explore = await this.getExploreForMetricQueryExecution({
             account,
             projectUuid,
-            metricQuery.exploreName,
+            exploreName: metricQuery.exploreName,
             organizationUuid,
-        );
+            materializationRole:
+                context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
+                    ? materializationRole
+                    : undefined,
+        });
         const getExploreMs = Date.now() - metricQueryStart;
 
         const whCredStart = Date.now();
@@ -3245,7 +3453,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
-            timezone,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3256,6 +3464,8 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
             userAttributeOverrides,
+            materializationRole,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -3298,7 +3508,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
-                timezone,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3321,6 +3531,135 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
+        };
+    }
+
+    async executeAsyncFieldValueSearch({
+        account,
+        projectUuid,
+        table,
+        fieldId: initialFieldId,
+        search,
+        limit = 50,
+        filters,
+        forceRefresh,
+        invalidateCache,
+        parameters,
+        userAttributeOverrides,
+    }: ExecuteAsyncFieldValueSearchArgs): Promise<ApiExecuteAsyncFieldValueSearchResults> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        if (
+            account.user.ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
+
+        const { metricQuery, explore, fieldId } =
+            await getFieldValuesMetricQuery({
+                projectUuid,
+                table,
+                initialFieldId,
+                search,
+                limit,
+                maxLimit: this.lightdashConfig.query.maxLimit,
+                filters,
+                exploreResolver: this.projectModel,
+            });
+
+        const queryTags: RunQueryTags = {
+            ...this.getUserQueryTags(account),
+            organization_uuid: organizationUuid,
+            project_uuid: projectUuid,
+            explore_name: explore.name,
+            query_context: context,
+        };
+
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
+
+        const warehouseSqlBuilder = warehouseSqlBuilderFromType(
+            warehouseCredentials.type,
+            warehouseCredentials.startOfWeek,
+        );
+
+        const combinedParameters = await this.combineParameters(
+            projectUuid,
+            explore,
+            parameters,
+        );
+
+        const { sql, fields, missingParameterReferences, resolvedTimezone } =
+            await this.prepareMetricQueryAsyncQueryArgs({
+                account,
+                metricQuery,
+                explore,
+                warehouseSqlBuilder,
+                parameters: combinedParameters,
+                projectUuid,
+                userAttributeOverrides,
+                dataTimezone: warehouseCredentials.dataTimezone,
+            });
+
+        const requestParameters: ExecuteAsyncFieldValueSearchRequestParams = {
+            context,
+            table,
+            fieldId: initialFieldId,
+            search,
+            limit,
+            filters,
+            forceRefresh,
+            parameters: combinedParameters,
+        };
+
+        const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
+            {
+                account,
+                metricQuery,
+                projectUuid,
+                explore,
+                context,
+                queryTags,
+                invalidateCache: invalidateCache || forceRefresh,
+                parameters: combinedParameters,
+                fields,
+                sql,
+                originalColumns: undefined,
+                missingParameterReferences,
+                timezone: resolvedTimezone,
+                routingTarget: 'warehouse',
+            },
+            requestParameters,
+        );
+
+        this.analytics.track({
+            event: 'field_value.search',
+            userId: account.user.id,
+            properties: {
+                projectId: projectUuid,
+                fieldId,
+                searchCharCount: search.length,
+                resultsCount: 0, // not known at execute time — tracked via query.executed
+                searchLimit: limit,
+            },
+        });
+
+        return {
+            queryUuid,
+            cacheMetadata,
         };
     }
 
@@ -3491,6 +3830,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3499,6 +3839,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3539,6 +3880,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3561,6 +3903,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -3660,11 +4003,25 @@ export class AsyncQueryService extends ProjectService {
             account.isRegisteredUser() ? account.user.id : null,
         );
 
-        const tables = Object.keys(explore.tables);
+        // Use the explore's actual field ids (dimensions + metrics) as the
+        // source of truth for which dashboard filter rules apply to this tile.
+        // Matching on field id avoids the divergence between the UI and the
+        // server when a filter rule's `target.tableName` is stale (see comment
+        // on getDashboardFilterRulesForTables in @lightdash/common filters).
+        // The set is intentionally aligned with the UI's
+        // getAvailableFiltersForSavedQueries (filterable, non-hidden).
+        const availableFieldIds = [
+            ...getDimensions(explore)
+                .filter((f) => isFilterableDimension(f) && !f.hidden)
+                .map(getItemId),
+            ...getMetrics(explore)
+                .filter((f) => !f.hidden)
+                .map(getItemId),
+        ];
         const appliedDashboardFilters: DashboardFilters =
             getDashboardFiltersForTileAndTables(
                 tileUuid,
-                tables,
+                availableFieldIds,
                 dashboardFilters,
             );
 
@@ -3788,6 +4145,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             userAccessControls,
             availableParameterDefinitions,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3797,6 +4155,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3838,6 +4197,7 @@ export class AsyncQueryService extends ProjectService {
                 sql,
                 originalColumns: undefined,
                 missingParameterReferences,
+                timezone: resolvedTimezone,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3861,6 +4221,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             dateZoomApplied,
+            resolvedTimezone,
         };
     }
 
@@ -3946,9 +4307,21 @@ export class AsyncQueryService extends ProjectService {
                 ? underlyingDataItem.showUnderlyingValues
                 : undefined;
 
-        const itemShowUnderlyingTable = isField(underlyingDataItem)
-            ? underlyingDataItem.table
-            : undefined;
+        const baseTableDefault =
+            explore.tables[explore.baseTable]?.defaultShowUnderlyingValues;
+
+        const effectiveShowUnderlyingValues =
+            itemShowUnderlyingValues ?? baseTableDefault;
+
+        // When using the base table default, scope unqualified names to the base table
+        let effectiveShowUnderlyingTable: string | undefined;
+        if (itemShowUnderlyingValues !== undefined) {
+            effectiveShowUnderlyingTable = isField(underlyingDataItem)
+                ? underlyingDataItem.table
+                : undefined;
+        } else if (baseTableDefault !== undefined) {
+            effectiveShowUnderlyingTable = explore.baseTable;
+        }
 
         const hasMissingParameters = (
             field:
@@ -4005,12 +4378,12 @@ export class AsyncQueryService extends ProjectService {
                 (isValidNonCustomDimension(dimension) ||
                     isCustomDimension(dimension));
             const hasExplicitColumnList =
-                itemShowUnderlyingValues !== undefined;
+                effectiveShowUnderlyingValues !== undefined;
             const isInExplicitColumnList =
                 hasExplicitColumnList &&
-                ((itemShowUnderlyingValues.includes(dimension.name) &&
-                    itemShowUnderlyingTable === dimension.table) ||
-                    itemShowUnderlyingValues.includes(
+                ((effectiveShowUnderlyingValues.includes(dimension.name) &&
+                    effectiveShowUnderlyingTable === dimension.table) ||
+                    effectiveShowUnderlyingValues.includes(
                         `${dimension.table}.${dimension.name}`,
                     ));
 
@@ -4032,12 +4405,12 @@ export class AsyncQueryService extends ProjectService {
         ).filter((metric) => {
             const isValid = availableTables.has(metric.table) && !metric.hidden;
             const hasExplicitColumnList =
-                itemShowUnderlyingValues !== undefined;
+                effectiveShowUnderlyingValues !== undefined;
             const isInExplicitColumnList =
                 hasExplicitColumnList &&
-                ((itemShowUnderlyingValues?.includes(metric.name) &&
-                    itemShowUnderlyingTable === metric.table) ||
-                    itemShowUnderlyingValues?.includes(
+                ((effectiveShowUnderlyingValues?.includes(metric.name) &&
+                    effectiveShowUnderlyingTable === metric.table) ||
+                    effectiveShowUnderlyingValues?.includes(
                         `${metric.table}.${metric.name}`,
                     ));
             if (isValid) {
@@ -4090,6 +4463,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            resolvedTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -4098,6 +4472,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
+            dataTimezone: warehouseCredentials.dataTimezone,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
@@ -4115,6 +4490,7 @@ export class AsyncQueryService extends ProjectService {
                     sql,
                     originalColumns: undefined,
                     missingParameterReferences,
+                    timezone: resolvedTimezone,
                 },
                 requestParameters,
             );
@@ -4127,6 +4503,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone,
         };
     }
 
@@ -4209,6 +4586,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
@@ -4556,6 +4934,7 @@ export class AsyncQueryService extends ProjectService {
             cacheMetadata,
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 
@@ -4657,6 +5036,7 @@ export class AsyncQueryService extends ProjectService {
             },
             parameterReferences,
             usedParametersValues: usedParameters,
+            resolvedTimezone: null,
         };
     }
 

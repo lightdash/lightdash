@@ -99,6 +99,7 @@ const EmbedPreviewDashboardForm: FC<{
             email: user?.email,
             dashboardFiltersInteractivity: {
                 enabled: FilterInteractivityValues.none,
+                hidden: false,
             },
             parameterInteractivity: {
                 enabled: false,
@@ -130,6 +131,9 @@ const EmbedPreviewDashboardForm: FC<{
                     dashboardUuid: values.dashboardUuid!,
                     dashboardFiltersInteractivity: {
                         enabled: values.dashboardFiltersInteractivity?.enabled,
+                        hidden:
+                            values.dashboardFiltersInteractivity?.hidden ??
+                            false,
                         ...(values.dashboardFiltersInteractivity?.enabled ===
                         FilterInteractivityValues.some
                             ? {

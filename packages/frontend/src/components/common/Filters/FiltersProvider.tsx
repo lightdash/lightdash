@@ -1,6 +1,4 @@
 import {
-    getItemId,
-    isField,
     type DashboardFilterableField,
     type DashboardFilters,
     type DashboardTile,
@@ -11,9 +9,8 @@ import {
 } from '@lightdash/common';
 import { type PopoverProps } from '@mantine/core';
 import { useCallback, type ReactNode } from 'react';
-import { v4 as uuid4 } from 'uuid';
-import { doesFilterApplyToTile } from '../../../features/dashboardFilters/FilterConfiguration/utils';
 import Context, { type DefaultFieldsMap } from './context';
+import { getAutocompleteFilterGroup } from './utils/getAutocompleteFilterGroup';
 
 type Props<T extends DefaultFieldsMap> = {
     projectUuid?: string;
@@ -25,6 +22,7 @@ type Props<T extends DefaultFieldsMap> = {
     filterableFieldsByTileUuid?: Record<string, DashboardFilterableField[]>;
     popoverProps?: Omit<PopoverProps, 'children'>;
     parameterValues?: ParametersValuesMap;
+    activeTabUuid?: string;
     children?: ReactNode;
 };
 
@@ -38,6 +36,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     filterableFieldsByTileUuid,
     popoverProps,
     parameterValues,
+    activeTabUuid,
     children,
 }: Props<T>) => {
     const getField = useCallback(
@@ -49,94 +48,24 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
         [itemsMap],
     );
 
-    const getAutocompleteFilterGroup = useCallback(
-        (filterId: string, item: FilterableItem) => {
-            if (!dashboardFilters || !isField(item)) {
-                return undefined;
-            }
-
-            const currentFieldId = getItemId(item);
-
-            // Find the current filter to get its tileTargets
-            const currentFilter = dashboardFilters.dimensions.find(
-                (f) => f.id === filterId,
-            );
-
-            // Get tiles that the current filter applies to
-            const currentFilterTileUuids =
-                dashboardTiles && filterableFieldsByTileUuid
-                    ? new Set(
-                          dashboardTiles
-                              .filter((tile) => {
-                                  // For new filters (not yet in dashboardFilters),
-                                  // check if tile has the field
-                                  if (!currentFilter) {
-                                      const tileFields =
-                                          filterableFieldsByTileUuid[tile.uuid];
-                                      return tileFields?.some(
-                                          (f) =>
-                                              getItemId(f) === currentFieldId,
-                                      );
-                                  }
-                                  // For existing filters, use doesFilterApplyToTile
-                                  return doesFilterApplyToTile(
-                                      currentFilter,
-                                      tile,
-                                      filterableFieldsByTileUuid,
-                                  );
-                              })
-                              .map((tile) => tile.uuid),
-                      )
-                    : null;
-
-            return {
-                id: uuid4(),
-                and: dashboardFilters.dimensions.filter(
-                    (dimensionFilterRule) => {
-                        // Exclude the current filter itself
-                        if (dimensionFilterRule.id === filterId) {
-                            return false;
-                        }
-
-                        // Exclude same-field filters - otherwise the autocomplete
-                        // would be over-restricted (e.g., if Status=completed is set,
-                        // another Status filter would only see "completed").
-                        if (
-                            dimensionFilterRule.target.fieldId ===
-                            currentFieldId
-                        ) {
-                            return false;
-                        }
-
-                        // For different-field filters, exclude if no tile overlap.
-                        // Filters on different tabs shouldn't affect each other's
-                        // autocomplete queries.
-                        if (
-                            currentFilterTileUuids &&
-                            dashboardTiles &&
-                            filterableFieldsByTileUuid
-                        ) {
-                            const hasOverlap = dashboardTiles.some(
-                                (tile) =>
-                                    currentFilterTileUuids.has(tile.uuid) &&
-                                    doesFilterApplyToTile(
-                                        dimensionFilterRule,
-                                        tile,
-                                        filterableFieldsByTileUuid,
-                                    ),
-                            );
-                            if (!hasOverlap) {
-                                return false;
-                            }
-                        }
-
-                        return true;
-                    },
-                ),
-            };
-        },
-        [dashboardFilters, dashboardTiles, filterableFieldsByTileUuid],
+    const getAutocompleteFilterGroupCallback = useCallback(
+        (filterId: string, item: FilterableItem) =>
+            getAutocompleteFilterGroup({
+                filterId,
+                item,
+                dashboardFilters,
+                dashboardTiles,
+                filterableFieldsByTileUuid,
+                activeTabUuid,
+            }),
+        [
+            dashboardFilters,
+            dashboardTiles,
+            filterableFieldsByTileUuid,
+            activeTabUuid,
+        ],
     );
+
     return (
         <Context.Provider
             value={{
@@ -145,7 +74,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 startOfWeek,
                 baseTable,
                 getField,
-                getAutocompleteFilterGroup,
+                getAutocompleteFilterGroup: getAutocompleteFilterGroupCallback,
                 popoverProps,
                 parameterValues,
             }}

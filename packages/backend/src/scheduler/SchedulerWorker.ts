@@ -12,6 +12,7 @@ import {
     parseCronItems,
     run as runGraphileWorker,
     Runner,
+    type CronItem,
 } from 'graphile-worker';
 import moment from 'moment';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
@@ -72,50 +73,7 @@ export class SchedulerWorker extends SchedulerTask {
             noHandleSignals: true,
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
-            parsedCronItems: parseCronItems([
-                {
-                    task: 'generateDailyJobs',
-                    pattern: '0 0 * * *',
-                    options: {
-                        backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
-                    pattern:
-                        this.lightdashConfig.scheduler.queryHistory.cleanup
-                            .schedule,
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS,
-                    pattern: '0 6 * * *', // 6am UTC daily
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
-                    pattern: '*/30 * * * *', // Every 30 minutes
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS,
-                    pattern: '0 * * * *', // Every hour
-                    options: {
-                        backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-            ]),
+            parsedCronItems: parseCronItems(this.getCronItems()),
             taskList: traceTasks(this.getTaskList()),
             events: schedulerWorkerEventEmitter,
         });
@@ -125,6 +83,55 @@ export class SchedulerWorker extends SchedulerTask {
         void this.runner.promise.finally(() => {
             this.isRunning = false;
         });
+    }
+
+    protected getCronItems(): CronItem[] {
+        return [
+            {
+                task: 'generateDailyJobs',
+                pattern: '0 0 * * *',
+                options: {
+                    backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
+                pattern:
+                    this.lightdashConfig.scheduler.queryHistory.cleanup
+                        .schedule,
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS,
+                pattern: '0 6 * * *', // 6am UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
+                pattern: '*/30 * * * *', // Every 30 minutes
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            // Managed agent heartbeat is self-scheduling (not a static cron).
+            // See SchedulerClient.scheduleManagedAgentHeartbeat().
+        ];
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
@@ -1126,6 +1133,9 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
+            },
+            [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
+                // EE-only: implemented in CommercialSchedulerWorker
             },
         };
     }

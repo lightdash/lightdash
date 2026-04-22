@@ -40,6 +40,7 @@ import useFiltersContext from '../../../../components/common/Filters/useFiltersC
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useProject } from '../../../../hooks/useProject';
 import useDashboardContext from '../../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../../providers/Dashboard/useDashboardTileStatusContext';
 import { hasSavedFilterValueChanged } from '../../../dashboardFilters/FilterConfiguration/utils';
 
 const isValidFilterOperator = (value: unknown): value is FilterOperator =>
@@ -105,8 +106,8 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     );
 
     const filterOperatorOptions = useMemo(() => {
-        return getFilterOperatorOptions(filterType);
-    }, [filterType]);
+        return getFilterOperatorOptions(filterType, field);
+    }, [filterType, field]);
 
     if (!field) {
         // show invalid dashboard filter
@@ -351,7 +352,7 @@ export const SchedulerFormFiltersTab: FC<SchedulerFiltersProps> = ({
         (c) => c.allFilterableFieldsMap,
     );
 
-    const tileNamesById = useDashboardContext((c) => c.tileNamesById);
+    const tileNamesById = useDashboardTileStatusContext((c) => c.tileNamesById);
 
     const { savedFiltersInDashboard, savedFiltersNotInDashboard } =
         useMemo(() => {

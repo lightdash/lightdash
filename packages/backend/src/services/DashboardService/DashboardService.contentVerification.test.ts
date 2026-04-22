@@ -1,7 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
     ContentType,
-    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
@@ -19,7 +18,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -73,10 +71,6 @@ const editorUser = {
     ]),
 };
 
-const featureFlagService = {
-    get: jest.fn(),
-};
-
 const dashboardModel = {
     getByIdOrSlug: jest.fn(async () => dashboardData),
 };
@@ -108,50 +102,14 @@ describe('DashboardService - Content Verification', () => {
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
-        featureFlagService: featureFlagService as unknown as FeatureFlagService,
     });
 
     afterEach(() => {
         jest.clearAllMocks();
     });
 
-    describe('Feature flag gating', () => {
-        it('should throw ForbiddenError on verifyDashboard when flag is disabled', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: false,
-            });
-
-            await expect(
-                service.verifyDashboard(adminUser, 'dashboard-uuid'),
-            ).rejects.toThrow(ForbiddenError);
-
-            await expect(
-                service.verifyDashboard(adminUser, 'dashboard-uuid'),
-            ).rejects.toThrow('Content verification is not enabled');
-
-            expect(contentVerificationModel.verify).not.toHaveBeenCalled();
-        });
-
-        it('should throw ForbiddenError on unverifyDashboard when flag is disabled', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: false,
-            });
-
-            await expect(
-                service.unverifyDashboard(adminUser, 'dashboard-uuid'),
-            ).rejects.toThrow(ForbiddenError);
-
-            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
-        });
-
-        it('should allow verifyDashboard when flag is enabled and user is admin', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
+    describe('CASL authorization', () => {
+        it('should allow verifyDashboard when user is admin', async () => {
             const result = await service.verifyDashboard(
                 adminUser,
                 'dashboard-uuid',
@@ -165,15 +123,8 @@ describe('DashboardService - Content Verification', () => {
                 'user-uuid',
             );
         });
-    });
 
-    describe('CASL authorization', () => {
         it('should throw ForbiddenError when user lacks manage:ContentVerification', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
             await expect(
                 service.verifyDashboard(editorUser, 'dashboard-uuid'),
             ).rejects.toThrow(ForbiddenError);

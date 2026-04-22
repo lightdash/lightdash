@@ -8,6 +8,7 @@ import {
     ParameterError,
     SessionUser,
     WarehouseTypes,
+    type Explore,
     type PossibleAbilities,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
@@ -81,6 +82,41 @@ import {
     virtualExplore,
 } from './ProjectService.mock';
 
+// Mock worker_threads so the >500 rows test doesn't need a compiled
+// dist/services/ProjectService/formatRows.js artifact. In production,
+// formatRows runs in a Worker thread for large result sets, but the Worker
+// constructor requires the built JS file which only exists after `pnpm build`.
+// This mock runs formatRows synchronously in the main thread instead.
+jest.mock('worker_threads', () => {
+    const { formatRows } = jest.requireActual('@lightdash/common');
+    return {
+        Worker: jest.fn().mockImplementation(
+            (
+                _path: string,
+                options: {
+                    workerData: { rows: unknown[]; itemMap: unknown };
+                },
+            ) => {
+                const { rows, itemMap } = options.workerData;
+                const result = formatRows(rows, itemMap);
+                return {
+                    on: jest.fn(
+                        (
+                            event: string,
+                            callback: (...args: unknown[]) => void,
+                        ) => {
+                            if (event === 'message') {
+                                setTimeout(() => callback(result), 0);
+                            }
+                        },
+                    ),
+                    terminate: jest.fn(),
+                };
+            },
+        ),
+    };
+});
+
 jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => ({
         connect: jest.fn(() => warehouseClientMock.credentials),
@@ -137,7 +173,11 @@ const userAttributesModel = {
 };
 
 const schedulerClient = {
+    deleteScheduledPreAggregateCronJobsForProject: jest.fn(
+        async () => undefined,
+    ),
     materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
+    schedulePreAggregateCronJobs: jest.fn(async () => []),
 };
 
 const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
@@ -180,7 +220,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         featureFlagModel: {
             get: jest.fn(async () => ({
                 id: '',
-                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
+                enabled: false,
             })),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
@@ -958,6 +998,19 @@ describe('ProjectService', () => {
         const replaceWhitespace = (str: string) =>
             str.replace(/\s+/g, ' ').trim();
 
+        const buildS3CacheMock = (
+            lookups: string[],
+            store: Map<string, string>,
+        ) => ({
+            getIfFresh: jest.fn(async (key: string) => {
+                lookups.push(key);
+                return store.get(key);
+            }),
+            uploadResults: jest.fn(async (key: string, buffer: Buffer) => {
+                store.set(key, buffer.toString());
+            }),
+        });
+
         beforeEach(() => {
             // Clear the warehouse clients cache
             service.warehouseClients = {};
@@ -1053,30 +1106,174 @@ describe('ProjectService', () => {
                                         LIMIT 10`),
             );
         });
+
+        test('should use different cache keys for users with per-user warehouse credentials', async () => {
+            const userA: SessionUser = {
+                ...user,
+                userUuid: 'user-aaaa-1111',
+            };
+
+            const userB: SessionUser = {
+                ...user,
+                userUuid: 'user-bbbb-2222',
+            };
+
+            // Enable autocomplete caching
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
+                },
+            });
+            serviceWithCache.warehouseClients = {};
+
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            // Mock getWarehouseCredentials to simulate per-user credentials
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serviceWithCache as any,
+                'getWarehouseCredentials',
+            ).mockImplementation(async (...args: unknown[]) => {
+                const { userId } = args[0] as { userId: string };
+                return {
+                    ...warehouseClientMock.credentials,
+                    userWarehouseCredentialsUuid: `cred-${userId}`,
+                };
+            });
+
+            // Mock S3 cache: track all cache key lookups
+            const cacheKeyLookups: string[] = [];
+            const cachedResults = new Map<string, string>();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (serviceWithCache as any).s3CacheClient = buildS3CacheMock(
+                cacheKeyLookups,
+                cachedResults,
+            );
+
+            // User A queries — populates the cache
+            await serviceWithCache.searchFieldUniqueValues(
+                userA,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // User B queries the same field
+            await serviceWithCache.searchFieldUniqueValues(
+                userB,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // Cache keys must differ when users have per-user warehouse credentials
+            expect(cacheKeyLookups[0]).not.toEqual(cacheKeyLookups[1]);
+
+            // Each user should query the warehouse independently
+            expect(runQueryMock).toHaveBeenCalledTimes(2);
+        });
+
+        test('should share cache key when users have shared warehouse credentials', async () => {
+            const userA: SessionUser = {
+                ...user,
+                userUuid: 'user-aaaa-1111',
+            };
+
+            const userB: SessionUser = {
+                ...user,
+                userUuid: 'user-bbbb-2222',
+            };
+
+            const serviceWithCache = getMockedProjectService({
+                ...lightdashConfigMock,
+                results: {
+                    ...lightdashConfigMock.results,
+                    autocompleteEnabled: true,
+                    cacheStateTimeSeconds: 86400,
+                },
+            });
+            serviceWithCache.warehouseClients = {};
+
+            const runQueryMock = jest.fn(
+                async (_sql: string) => resultsWith1Row,
+            );
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation(() => ({
+                ...warehouseClientMock,
+                runQuery: runQueryMock,
+            }));
+
+            // No userWarehouseCredentialsUuid — shared project credentials
+            jest.spyOn(
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                serviceWithCache as any,
+                'getWarehouseCredentials',
+            ).mockImplementation(async () => ({
+                ...warehouseClientMock.credentials,
+            }));
+
+            const cacheKeyLookups: string[] = [];
+            const cachedResults = new Map<string, string>();
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (serviceWithCache as any).s3CacheClient = buildS3CacheMock(
+                cacheKeyLookups,
+                cachedResults,
+            );
+
+            await serviceWithCache.searchFieldUniqueValues(
+                userA,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            await serviceWithCache.searchFieldUniqueValues(
+                userB,
+                projectUuid,
+                'a',
+                'a_dim1',
+                'test',
+                10,
+                undefined,
+                false,
+            );
+
+            // Cache keys must be the same — shared credentials, no per-user scoping
+            expect(cacheKeyLookups[0]).toEqual(cacheKeyLookups[1]);
+
+            // Warehouse should only be queried once — second call hits the cache
+            expect(runQueryMock).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('updateDefaultUserSpaces', () => {
-        test('should throw ForbiddenError when feature flag is disabled', async () => {
-            const serviceWithFeatureOff = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: false },
-            });
-
-            await expect(
-                serviceWithFeatureOff.updateDefaultUserSpaces(
-                    user,
-                    projectUuid,
-                    { hasDefaultUserSpaces: true },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-        });
-
         test('should throw ForbiddenError when user cannot manage the project', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const viewerUser: SessionUser = {
                 ...user,
                 userUuid: 'viewer-uuid',
@@ -1092,20 +1289,13 @@ describe('ProjectService', () => {
             };
 
             await expect(
-                serviceWithFeatureOn.updateDefaultUserSpaces(
-                    viewerUser,
-                    projectUuid,
-                    { hasDefaultUserSpaces: true },
-                ),
+                service.updateDefaultUserSpaces(viewerUser, projectUuid, {
+                    hasDefaultUserSpaces: true,
+                }),
             ).rejects.toThrowError(ForbiddenError);
         });
 
         test('should delegate to projectModel when admin enables the feature', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const adminUser: SessionUser = {
                 ...user,
                 role: OrganizationMemberRole.ADMIN,
@@ -1119,11 +1309,9 @@ describe('ProjectService', () => {
                 ),
             };
 
-            await serviceWithFeatureOn.updateDefaultUserSpaces(
-                adminUser,
-                projectUuid,
-                { hasDefaultUserSpaces: true },
-            );
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: true,
+            });
 
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
                 1,
@@ -1135,11 +1323,6 @@ describe('ProjectService', () => {
         });
 
         test('should delegate to projectModel when admin disables the feature', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const adminUser: SessionUser = {
                 ...user,
                 role: OrganizationMemberRole.ADMIN,
@@ -1153,11 +1336,9 @@ describe('ProjectService', () => {
                 ),
             };
 
-            await serviceWithFeatureOn.updateDefaultUserSpaces(
-                adminUser,
-                projectUuid,
-                { hasDefaultUserSpaces: false },
-            );
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: false,
+            });
 
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
                 1,
@@ -1278,6 +1459,59 @@ describe('ProjectService', () => {
             ).rejects.toThrowError(
                 'Pre-aggregate definition "invalid" cannot be materialized: Unknown metric "orders.count"',
             );
+        });
+    });
+
+    describe('combineParameters', () => {
+        test('should include savedParameterValues from explore', async () => {
+            const explore = {
+                name: 'my_virtual_view',
+                baseTable: 'my_virtual_view',
+                tables: {},
+                savedParameterValues: {
+                    order_status: 'completed',
+                },
+            } as Pick<
+                Explore,
+                'name' | 'baseTable' | 'tables' | 'savedParameterValues'
+            >;
+
+            const result = await service.combineParameters(
+                projectUuid,
+                explore as Explore,
+            );
+
+            expect(result).toEqual(
+                expect.objectContaining({
+                    order_status: 'completed',
+                }),
+            );
+        });
+
+        test('savedParameterValues should be overridden by request parameters', async () => {
+            const explore = {
+                name: 'my_virtual_view',
+                baseTable: 'my_virtual_view',
+                tables: {},
+                savedParameterValues: {
+                    order_status: 'completed',
+                    region: 'US',
+                },
+            } as Pick<
+                Explore,
+                'name' | 'baseTable' | 'tables' | 'savedParameterValues'
+            >;
+
+            const result = await service.combineParameters(
+                projectUuid,
+                explore as Explore,
+                { order_status: 'pending' }, // request parameters override
+            );
+
+            // Request param overrides saved value
+            expect(result.order_status).toBe('pending');
+            // Saved param without request override is still included
+            expect(result.region).toBe('US');
         });
     });
 });

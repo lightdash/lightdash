@@ -287,7 +287,7 @@ export const useDeleteSavedMetricsTree = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['metrics-trees', variables.projectUuid],
             });
-            void queryClient.removeQueries({
+            queryClient.removeQueries({
                 queryKey: [
                     'metrics-tree-details',
                     variables.projectUuid,

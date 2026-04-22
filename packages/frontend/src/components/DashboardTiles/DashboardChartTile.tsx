@@ -50,7 +50,6 @@ import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
     IconAlertCircle,
     IconAlertTriangle,
-    IconClock,
     IconCopy,
     IconFilter,
     IconFolders,
@@ -60,6 +59,7 @@ import {
     IconVariable,
 } from '@tabler/icons-react';
 import React, {
+    memo,
     useCallback,
     useEffect,
     useMemo,
@@ -71,6 +71,7 @@ import React, {
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { type EChartsReact } from '../EChartsReactWrapper';
+import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
 
 type ClientSideError = {
     error: {
@@ -79,7 +80,16 @@ type ClientSideError = {
     };
 };
 
-type DashboardTileError = ApiError | ClientSideError;
+type DashboardTileError = ApiError | ClientSideError | Error;
+
+const getDashboardTileErrorMessage = (
+    error: DashboardTileError,
+): string | undefined => {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    return error.error?.message;
+};
 
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
@@ -116,6 +126,7 @@ import { Can } from '../../providers/Ability';
 import { useAbilityContext } from '../../providers/Ability/useAbilityContext';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import { CHART_TYPES_WITHOUT_IMAGE_EXPORT } from '../common/ChartDownload/chartDownloadUtils';
@@ -137,6 +148,7 @@ import EditChartMenuItem from './EditChartMenuItem';
 import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
+import TileExecutionInfo from './TileExecutionInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
 interface ExportGoogleSheetProps {
@@ -241,152 +253,170 @@ const ValidDashboardChartTile: FC<{
     resultsData: InfiniteQueryResults;
     isTitleHidden?: boolean;
     project: string;
+    colorPaletteOverride?: string[];
+    darkColorPaletteOverride?: string[] | null;
     onSeriesContextMenu?: (
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
     ) => void;
     setEchartsRef?: (ref: RefObject<EChartsReact | null> | undefined) => void;
-}> = ({
-    tileUuid,
-    isTitleHidden = false,
-    dashboardChartReadyQuery,
-    resultsData,
-    onSeriesContextMenu,
-    setEchartsRef,
-}) => {
-    const addResultsCacheTime = useDashboardContext(
-        (c) => c.addResultsCacheTime,
-    );
-    const addPreAggregateStatus = useDashboardContext(
-        (c) => c.addPreAggregateStatus,
-    );
-    const markTileScreenshotReady = useDashboardContext(
-        (c) => c.markTileScreenshotReady,
-    );
+}> = memo(
+    ({
+        tileUuid,
+        isTitleHidden = false,
+        dashboardChartReadyQuery,
+        resultsData,
+        colorPaletteOverride,
+        darkColorPaletteOverride,
+        onSeriesContextMenu,
+        setEchartsRef,
+    }) => {
+        const addResultsCacheTime = useDashboardTileStatusContext(
+            (c) => c.addResultsCacheTime,
+        );
+        const addPreAggregateStatus = useDashboardTileStatusContext(
+            (c) => c.addPreAggregateStatus,
+        );
+        const markTileScreenshotReady = useDashboardTileStatusContext(
+            (c) => c.markTileScreenshotReady,
+        );
 
-    const dashboardFilters = useDashboardFiltersForTile(tileUuid);
-    const invalidateCache = useDashboardContext((c) => c.invalidateCache);
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
+        const dashboardFilters = useDashboardFiltersForTile(tileUuid);
+        const invalidateCache = useDashboardTileStatusContext(
+            (c) => c.invalidateCache,
+        );
+        const dateZoomGranularity = useDashboardContext(
+            (c) => c.dateZoomGranularity,
+        );
 
-    const { health } = useApp();
-    const { data: org } = useOrganization();
-    const { colorScheme } = useMantineColorScheme();
+        const { health } = useApp();
+        const { data: org } = useOrganization();
+        const { colorScheme } = useMantineColorScheme();
 
-    const {
-        ref: measureRef,
-        width: containerWidth,
-        height: containerHeight,
-    } = useElementSize();
+        const {
+            ref: measureRef,
+            width: containerWidth,
+            height: containerHeight,
+        } = useElementSize();
 
-    const {
-        executeQueryResponse: { cacheMetadata, metricQuery, fields },
-        chart,
-    } = dashboardChartReadyQuery;
+        const {
+            executeQueryResponse: { cacheMetadata, metricQuery, fields },
+            chart,
+        } = dashboardChartReadyQuery;
 
-    useEffect(() => {
-        addResultsCacheTime(cacheMetadata);
-    }, [cacheMetadata, addResultsCacheTime]);
+        useEffect(() => {
+            addResultsCacheTime(cacheMetadata);
+        }, [cacheMetadata, addResultsCacheTime]);
 
-    useEffect(() => {
-        addPreAggregateStatus(tileUuid, cacheMetadata);
-    }, [tileUuid, cacheMetadata, addPreAggregateStatus]);
+        useEffect(() => {
+            addPreAggregateStatus(tileUuid, cacheMetadata);
+        }, [tileUuid, cacheMetadata, addPreAggregateStatus]);
 
-    const { validPivotDimensions } = usePivotDimensions(
-        chart.pivotConfig?.columns,
-        metricQuery,
-    );
+        const { validPivotDimensions } = usePivotDimensions(
+            chart.pivotConfig?.columns,
+            metricQuery,
+        );
 
-    const { data: showHideColumnsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideColumns,
-    );
-    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
+        const { data: showHideColumnsFlag } = useServerFeatureFlag(
+            FeatureFlags.ShowHideColumns,
+        );
+        const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
 
-    const computedSeries: Series[] = useMemo(() => {
-        return computeDashboardChartSeries(
+        const computedSeries: Series[] = useMemo(() => {
+            return computeDashboardChartSeries(
+                chart,
+                validPivotDimensions,
+                resultsData,
+                fields,
+                isShowHideColumnsEnabled,
+            );
+        }, [
+            resultsData,
             chart,
             validPivotDimensions,
-            resultsData,
             fields,
             isShowHideColumnsEnabled,
-        );
-    }, [
-        resultsData,
-        chart,
-        validPivotDimensions,
-        fields,
-        isShowHideColumnsEnabled,
-    ]);
+        ]);
 
-    const resultsDataWithQueryData = useMemo(
-        () => ({
-            ...resultsData,
-            metricQuery:
+        const resultsDataWithQueryData = useMemo(
+            () => ({
+                ...resultsData,
+                metricQuery:
+                    dashboardChartReadyQuery.executeQueryResponse.metricQuery,
+                fields: dashboardChartReadyQuery.executeQueryResponse.fields,
+                resolvedTimezone:
+                    dashboardChartReadyQuery.executeQueryResponse
+                        .resolvedTimezone ?? undefined,
+            }),
+            [
+                resultsData,
                 dashboardChartReadyQuery.executeQueryResponse.metricQuery,
-            fields: dashboardChartReadyQuery.executeQueryResponse.fields,
-        }),
-        [
-            resultsData,
-            dashboardChartReadyQuery.executeQueryResponse.metricQuery,
-            dashboardChartReadyQuery.executeQueryResponse.fields,
-        ],
-    );
+                dashboardChartReadyQuery.executeQueryResponse.fields,
+                dashboardChartReadyQuery.executeQueryResponse.resolvedTimezone,
+            ],
+        );
 
-    const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && org?.chartDarkColors) {
-            return org.chartDarkColors;
+        const colorPalette = useMemo(() => {
+            return getDashboardChartColorPalette({
+                colorScheme,
+                chartColorPalette: chart.colorPalette,
+                selectedPaletteColors: colorPaletteOverride,
+                selectedPaletteDarkColors: darkColorPaletteOverride,
+                orgColorPalette: org?.chartColors,
+                orgDarkColorPalette: org?.chartDarkColors,
+            });
+        }, [
+            colorScheme,
+            colorPaletteOverride,
+            darkColorPaletteOverride,
+            org?.chartColors,
+            org?.chartDarkColors,
+            chart.colorPalette,
+        ]);
+
+        const handleScreenshotReady = useCallback(() => {
+            markTileScreenshotReady(tileUuid);
+        }, [markTileScreenshotReady, tileUuid]);
+
+        if (health.isInitialLoading || !health.data) {
+            return null;
         }
-        return org?.chartColors ?? chart.colorPalette;
-    }, [
-        colorScheme,
-        org?.chartColors,
-        org?.chartDarkColors,
-        chart.colorPalette,
-    ]);
 
-    const handleScreenshotReady = useCallback(() => {
-        markTileScreenshotReady(tileUuid);
-    }, [markTileScreenshotReady, tileUuid]);
-
-    if (health.isInitialLoading || !health.data) {
-        return null;
-    }
-
-    return (
-        <VisualizationProvider
-            chartConfig={chart.chartConfig}
-            initialPivotDimensions={chart.pivotConfig?.columns}
-            resultsData={resultsDataWithQueryData}
-            isLoading={resultsData.isFetchingRows}
-            onSeriesContextMenu={onSeriesContextMenu}
-            columnOrder={chart.tableConfig.columnOrder}
-            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-            savedChartUuid={chart.uuid}
-            dashboardFilters={dashboardFilters}
-            invalidateCache={invalidateCache}
-            colorPalette={colorPalette}
-            setEchartsRef={setEchartsRef}
-            computedSeries={computedSeries}
-            parameters={
-                dashboardChartReadyQuery.executeQueryResponse
-                    .usedParametersValues
-            }
-            containerWidth={containerWidth}
-            containerHeight={containerHeight}
-            isDashboard
-            dateZoom={{ granularity: dateZoomGranularity }}
-        >
-            <LightdashVisualization
-                ref={measureRef}
+        return (
+            <VisualizationProvider
+                chartConfig={chart.chartConfig}
+                initialPivotDimensions={chart.pivotConfig?.columns}
+                resultsData={resultsDataWithQueryData}
+                isLoading={resultsData.isFetchingRows}
+                onSeriesContextMenu={onSeriesContextMenu}
+                columnOrder={chart.tableConfig.columnOrder}
+                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
+                savedChartUuid={chart.uuid}
+                dashboardFilters={dashboardFilters}
+                invalidateCache={invalidateCache}
+                colorPalette={colorPalette}
+                setEchartsRef={setEchartsRef}
+                computedSeries={computedSeries}
+                parameters={
+                    dashboardChartReadyQuery.executeQueryResponse
+                        .usedParametersValues
+                }
+                containerWidth={containerWidth}
+                containerHeight={containerHeight}
                 isDashboard
-                tileUuid={tileUuid}
-                isTitleHidden={isTitleHidden}
-                onScreenshotReady={handleScreenshotReady}
-            />
-        </VisualizationProvider>
-    );
-};
+                dateZoom={{ granularity: dateZoomGranularity }}
+            >
+                <LightdashVisualization
+                    ref={measureRef}
+                    isDashboard
+                    tileUuid={tileUuid}
+                    isTitleHidden={isTitleHidden}
+                    onScreenshotReady={handleScreenshotReady}
+                />
+            </VisualizationProvider>
+        );
+    },
+);
 
 const ValidDashboardChartTileMinimal: FC<{
     tileUuid: string;
@@ -394,6 +424,8 @@ const ValidDashboardChartTileMinimal: FC<{
     title: string;
     chart: SavedChart;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
+    colorPaletteOverride?: string[];
+    darkColorPaletteOverride?: string[] | null;
     onSeriesContextMenu?: (
         e: EchartsSeriesClickEvent,
         series: EChartsSeries[],
@@ -405,6 +437,8 @@ const ValidDashboardChartTileMinimal: FC<{
     chart,
     dashboardChartReadyQuery,
     resultsData,
+    colorPaletteOverride,
+    darkColorPaletteOverride,
     isTitleHidden = false,
     onSeriesContextMenu,
     setEchartsRef,
@@ -417,7 +451,7 @@ const ValidDashboardChartTileMinimal: FC<{
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
-    const markTileScreenshotReady = useDashboardContext(
+    const markTileScreenshotReady = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotReady,
     );
 
@@ -459,21 +493,31 @@ const ValidDashboardChartTileMinimal: FC<{
             metricQuery:
                 dashboardChartReadyQuery.executeQueryResponse.metricQuery,
             fields: dashboardChartReadyQuery.executeQueryResponse.fields,
+            resolvedTimezone:
+                dashboardChartReadyQuery.executeQueryResponse
+                    .resolvedTimezone ?? undefined,
         }),
         [
             resultsData,
             dashboardChartReadyQuery.executeQueryResponse.metricQuery,
             dashboardChartReadyQuery.executeQueryResponse.fields,
+            dashboardChartReadyQuery.executeQueryResponse.resolvedTimezone,
         ],
     );
 
     const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && org?.chartDarkColors) {
-            return org.chartDarkColors;
-        }
-        return org?.chartColors ?? chart.colorPalette;
+        return getDashboardChartColorPalette({
+            colorScheme,
+            chartColorPalette: chart.colorPalette,
+            selectedPaletteColors: colorPaletteOverride,
+            selectedPaletteDarkColors: darkColorPaletteOverride,
+            orgColorPalette: org?.chartColors,
+            orgDarkColorPalette: org?.chartDarkColors,
+        });
     }, [
         colorScheme,
+        colorPaletteOverride,
+        darkColorPaletteOverride,
         org?.chartColors,
         org?.chartDarkColors,
         chart.colorPalette,
@@ -535,624 +579,525 @@ interface DashboardChartTileMainProps extends Pick<
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
     onExplore?: (options: { chart: SavedChart }) => void;
+    colorPaletteOverride?: string[];
+    darkColorPaletteOverride?: string[] | null;
 }
 
-const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
-    const { showToastSuccess } = useToaster();
-    const clipboard = useClipboard({ timeout: 200 });
-    const { track } = useTracking();
-    const ability = useAbilityContext();
-    const { data: account } = useAccount();
-    const { organizationUuid } = account?.organization || {};
+const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
+    (props) => {
+        const { showToastSuccess } = useToaster();
+        const clipboard = useClipboard({ timeout: 200 });
+        const { track } = useTracking();
+        const ability = useAbilityContext();
+        const { data: account } = useAccount();
+        const { organizationUuid } = account?.organization || {};
 
-    const { data: showExecutionTimeFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowExecutionTime,
-    );
-    const showExecutionTime = showExecutionTimeFlag?.enabled;
-
-    const {
-        tile: {
-            uuid: tileUuid,
-            properties: {
-                savedChartUuid,
-                hideTitle,
-                title,
-                belongsToDashboard,
+        const {
+            tile: {
+                uuid: tileUuid,
+                properties: {
+                    savedChartUuid,
+                    hideTitle,
+                    title,
+                    belongsToDashboard,
+                },
             },
-        },
-        dashboardChartReadyQuery,
-        resultsData,
-        isEditMode,
-    } = props;
+            dashboardChartReadyQuery,
+            resultsData,
+            isEditMode,
+        } = props;
+        const {
+            colorPaletteOverride: _colorPaletteOverride,
+            darkColorPaletteOverride: _darkColorPaletteOverride,
+            ...tileBaseProps
+        } = props;
 
-    const {
-        executeQueryResponse: {
-            appliedDashboardFilters,
-            metricQuery,
-            usedParametersValues,
-        },
-        chart,
-        explore,
-    } = dashboardChartReadyQuery;
+        const {
+            executeQueryResponse: {
+                appliedDashboardFilters,
+                cacheMetadata,
+                metricQuery,
+                usedParametersValues,
+            },
+            chart,
+            explore,
+        } = dashboardChartReadyQuery;
 
-    const { totalResults, initialQueryExecutionMs } = resultsData;
+        const { totalResults, metadata } = resultsData;
+        const performance = metadata?.performance;
 
-    const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
-    const projectUuid = useProjectUuid();
-    const { canViewExplore, canViewUnderlyingData, canDrillInto } =
-        useContextMenuPermissions({ minimal: false });
+        const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
+        const projectUuid = useProjectUuid();
+        const { canViewExplore, canViewUnderlyingData, canDrillInto } =
+            useContextMenuPermissions({ minimal: false });
 
-    const chartKind = useMemo(
-        () => getChartKind(chart.chartConfig.type, chart.chartConfig.config),
-        [chart.chartConfig.type, chart.chartConfig.config],
-    );
+        const chartKind = useMemo(
+            () =>
+                getChartKind(chart.chartConfig.type, chart.chartConfig.config),
+            [chart.chartConfig.type, chart.chartConfig.config],
+        );
 
-    const addDimensionDashboardFilter = useDashboardContext(
-        (c) => c.addDimensionDashboardFilter,
-    );
-    const [echartRef, setEchartRef] = useState<
-        RefObject<EChartsReact | null> | undefined
-    >();
-    const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
+        const addDimensionDashboardFilter = useDashboardContext(
+            (c) => c.addDimensionDashboardFilter,
+        );
+        const [echartRef, setEchartRef] = useState<
+            RefObject<EChartsReact | null> | undefined
+        >();
+        const setDashboardTiles = useDashboardContext(
+            (c) => c.setDashboardTiles,
+        );
 
-    const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
-    const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
-        left: number;
-        top: number;
-    }>();
-    const [isMovingChart, setIsMovingChart] = useState(false);
+        const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
+        const [contextMenuTargetOffset, setContextMenuTargetOffset] = useState<{
+            left: number;
+            top: number;
+        }>();
+        const [isMovingChart, setIsMovingChart] = useState(false);
 
-    // State used to only track event on initial load. Excluding lazy load updates for table charts.
-    const hasTrackedLoadEvent = useRef(false);
-    useEffect(() => {
-        if (dashboardChartReadyQuery.executeQueryResponse?.queryUuid) {
-            // Reset the tracking flag when queryUuid changes
-            hasTrackedLoadEvent.current = false;
-        }
-    }, [dashboardChartReadyQuery.executeQueryResponse?.queryUuid]);
-    // Track chart loading time
-    useEffect(() => {
-        if (
-            !hasTrackedLoadEvent.current &&
-            !resultsData.isInitialLoading &&
-            dashboardChartReadyQuery &&
-            account?.user &&
-            dashboardUuid
-        ) {
-            track({
-                name: EventName.DASHBOARD_CHART_LOADED,
-                properties: {
-                    userId: account.user.id,
-                    organizationId: chart.organizationUuid,
-                    projectId: chart.projectUuid,
-                    dashboardId: dashboardUuid,
-                    chartId: chart.uuid,
-                    queryId:
-                        dashboardChartReadyQuery.executeQueryResponse.queryUuid,
-                    warehouseExecutionTimeMs:
-                        resultsData.initialQueryExecutionMs,
-                    totalTimeMs: resultsData.totalClientFetchTimeMs,
-                    totalResults: resultsData.totalResults || 0,
-                    loadedRows: resultsData.rows.length,
-                },
-            });
-            // track only once
-            hasTrackedLoadEvent.current = true;
-        }
-    }, [
-        hasTrackedLoadEvent,
-        dashboardUuid,
-        dashboardChartReadyQuery,
-        resultsData,
-        track,
-        account?.user,
-        chart.organizationUuid,
-        chart.projectUuid,
-        chart.uuid,
-    ]);
-
-    const userCanManageChart = ability.can(
-        'manage',
-        subject('SavedChart', { ...chart }),
-    );
-    const userCanRefreshPreAggregates =
-        ability.can(
-            'create',
-            subject('Job', { organizationUuid, projectUuid }),
-        ) && ability.can('manage', 'CompileProject');
-    const userCanViewExplore = canViewExplore;
-    const userCanExportData = ability.can(
-        'manage',
-        subject('ExportCsv', {
-            organizationUuid: chart.organizationUuid,
-            projectUuid: chart.projectUuid,
-        }),
-    );
-    const userCanRunCustomSql = ability.can(
-        'manage',
-        subject('CustomSql', {
-            organizationUuid: chart.organizationUuid,
-            projectUuid: chart.projectUuid,
-        }),
-    );
-
-    const dateZoomGranularity = useDashboardContext(
-        (c) => c.dateZoomGranularity,
-    );
-    const chartsWithDateZoomApplied = useDashboardContext(
-        (c) => c.chartsWithDateZoomApplied,
-    );
-
-    const parameterDefinitions = useDashboardContext(
-        (c) => c.parameterDefinitions,
-    );
-
-    const preAggregateStatuses = useDashboardContext(
-        (c) => c.preAggregateStatuses,
-    );
-    const tilePreAggStatus = preAggregateStatuses[tileUuid];
-    const tilePreAggregateName =
-        tilePreAggStatus?.hit && tilePreAggStatus.preAggregateName
-            ? tilePreAggStatus.preAggregateName
-            : null;
-
-    const { mutate: refreshPreAggregate, isLoading: isRefreshingPreAgg } =
-        useRefreshPreAggregateByDefinitionName(projectUuid ?? '');
-
-    const { openUnderlyingDataModal } = useMetricQueryDataContext();
-
-    const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] = useState<{
-        item: ItemsMap[string] | undefined;
-        value: ResultValue;
-        fieldValues: Record<string, ResultValue>;
-        dimensions: string[];
-        pivotReference?: PivotReference;
-    }>();
-    const { mutateAsync: createShareUrl } = useCreateShareMutation();
-
-    const handleViewUnderlyingData = useCallback(() => {
-        if (!viewUnderlyingDataOptions) return;
-
-        const applyDateZoom =
-            metricQuery?.metadata?.hasADateDimension &&
-            savedChartUuid &&
-            dateZoomGranularity &&
-            chartsWithDateZoomApplied?.has(savedChartUuid);
-
-        openUnderlyingDataModal({
-            ...viewUnderlyingDataOptions,
-            ...(applyDateZoom && {
-                dateZoom: {
-                    granularity: dateZoomGranularity,
-                    xAxisFieldId: `${metricQuery?.metadata?.hasADateDimension.table}_${metricQuery?.metadata?.hasADateDimension.name}`,
-                },
-            }),
-        });
-    }, [
-        viewUnderlyingDataOptions,
-        dateZoomGranularity,
-        openUnderlyingDataModal,
-        metricQuery?.metadata?.hasADateDimension,
-        savedChartUuid,
-        chartsWithDateZoomApplied,
-    ]);
-
-    const handleCopyToClipboard = useCallback(() => {
-        if (!viewUnderlyingDataOptions) return;
-        const value = viewUnderlyingDataOptions.value.formatted;
-
-        clipboard.copy(value);
-        showToastSuccess({ title: 'Copied to clipboard!' });
-    }, [viewUnderlyingDataOptions, clipboard, showToastSuccess]);
-
-    const {
-        data: duplicatedChart,
-        mutateAsync: duplicateChart,
-        reset: resetDuplicatedChart,
-    } = useDuplicateChartMutation({
-        showRedirectButton: false,
-        autoRedirect: false,
-        successMessage: `Chart duplicated and added at the bottom of this dashboard`,
-    });
-
-    useEffect(() => {
-        if (duplicatedChart && props.onAddTiles) {
-            // We duplicated a chart, we add it to the dashboard
-            props.onAddTiles([
-                {
-                    uuid: uuid4(),
-                    properties: {
-                        savedChartUuid: duplicatedChart.uuid,
-                        chartName: duplicatedChart.name ?? '',
-                    },
-                    type: DashboardTileTypes.SAVED_CHART,
-                    x: 0,
-                    y: 0,
-                    h: props.tile.h,
-                    w: props.tile.w,
-                    tabUuid: props.tile.tabUuid,
-                },
-            ]);
-            resetDuplicatedChart(); // Reset duplicated chart to avoid adding it multiple times
-        }
-    }, [props, duplicatedChart, resetDuplicatedChart]);
-    const handleAddFilter = useCallback(
-        (filter: DashboardFilterRule) => {
-            track({
-                name: EventName.ADD_FILTER_CLICKED,
-                properties: {
-                    mode: isEditMode ? 'edit' : 'viewer',
-                },
-            });
-
-            const fields = explore ? getFields(explore) : [];
-            const field = fields.find(
-                (f) => getItemId(f) === filter.target.fieldId,
-            );
-
-            if (projectUuid && dashboardUuid) {
+        // State used to only track event on initial load. Excluding lazy load updates for table charts.
+        const hasTrackedLoadEvent = useRef(false);
+        useEffect(() => {
+            if (dashboardChartReadyQuery.executeQueryResponse?.queryUuid) {
+                // Reset the tracking flag when queryUuid changes
+                hasTrackedLoadEvent.current = false;
+            }
+        }, [dashboardChartReadyQuery.executeQueryResponse?.queryUuid]);
+        // Track chart loading time
+        useEffect(() => {
+            if (
+                !hasTrackedLoadEvent.current &&
+                !resultsData.isInitialLoading &&
+                dashboardChartReadyQuery &&
+                account?.user &&
+                dashboardUuid
+            ) {
                 track({
-                    name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                    name: EventName.DASHBOARD_CHART_LOADED,
                     properties: {
-                        fieldType: field?.type,
-                        projectId: projectUuid,
+                        userId: account.user.id,
+                        organizationId: chart.organizationUuid,
+                        projectId: chart.projectUuid,
                         dashboardId: dashboardUuid,
+                        chartId: chart.uuid,
+                        queryId:
+                            dashboardChartReadyQuery.executeQueryResponse
+                                .queryUuid,
+                        warehouseExecutionTimeMs:
+                            performance?.initialQueryExecutionMs ?? undefined,
+                        totalTimeMs: resultsData.totalClientFetchTimeMs,
+                        totalResults: resultsData.totalResults || 0,
+                        loadedRows: resultsData.rows.length,
                     },
                 });
+                // track only once
+                hasTrackedLoadEvent.current = true;
             }
-
-            addDimensionDashboardFilter(filter, !isEditMode);
-        },
-        [
-            track,
-            isEditMode,
-            addDimensionDashboardFilter,
-            explore,
-            projectUuid,
+        }, [
+            hasTrackedLoadEvent,
             dashboardUuid,
-        ],
-    );
+            dashboardChartReadyQuery,
+            resultsData,
+            performance,
+            track,
+            account?.user,
+            chart.organizationUuid,
+            chart.projectUuid,
+            chart.uuid,
+        ]);
 
-    const handleCancelContextMenu = useCallback(
-        (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
-        [],
-    );
-
-    const handleCreateShareUrl = useCallback(
-        async (chartPathname: string, chartSearch: string) => {
-            const shareUrl = await createShareUrl({
-                path: chartPathname,
-                params: `?` + chartSearch + `&fromDashboard=${dashboardUuid}`,
-            });
-
-            window.open(`/share/${shareUrl.nanoid}`, '_blank');
-        },
-        [createShareUrl, dashboardUuid],
-    );
-
-    const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
-        useState<FilterDashboardToRule[]>([]);
-
-    const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
-    const [isImageExportModalOpen, setIsImageExportModalOpen] = useState(false);
-
-    const onSeriesContextMenu = useCallback(
-        (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
-            if (explore === undefined) {
-                return;
-            }
-
-            const allDimensions = getDimensions(explore);
-            const allItemsMap = getItemMap(
-                explore,
-                chart.metricQuery.additionalMetrics,
-                chart.metricQuery.tableCalculations,
-                chart.metricQuery.customDimensions,
-            );
-
-            // Filter dimensions from explore that match dimensionNames
-            // Only dimensions should be available for dashboard filtering - metrics are not supported
-            const exploreDimensions = allDimensions.filter((dimension) =>
-                e.dimensionNames.includes(getItemId(dimension)),
-            );
-
-            // Helper to extract value from click event data
-            // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
-            // For other charts: e.data is an object with field names as keys
-            const getValueFromClickData = (fieldId: string) => {
-                if (Array.isArray(e.value) && e.dimensionNames) {
-                    const index = e.dimensionNames.indexOf(fieldId);
-                    return index >= 0 ? e.value[index] : undefined;
-                }
-                return (e.data as Record<string, unknown>)[fieldId];
-            };
-
-            const dimensionOptions = exploreDimensions.map((field) =>
-                createDashboardFilterRuleFromField({
-                    field,
-                    availableTileFilters: {},
-                    isTemporary: true,
-                    value: getValueFromClickData(getItemId(field)),
-                }),
-            );
-            const serie = series[e.seriesIndex];
-            const fields = getFields(explore);
-            const pivot = chart.pivotConfig?.columns?.[0];
-            const pivotField = fields.find(
-                (field) => `${field.table}_${field.name}` === pivot,
-            );
-            const seriesName = serie.encode?.seriesName;
-
-            // Try to get pivot value from seriesName (old format: field.pivotField.value)
-            // This is only for non-SQL pivoting
-            let pivotValue =
-                pivot && seriesName?.includes(`.${pivot}.`)
-                    ? seriesName?.split(`.${pivot}.`)[1]
-                    : undefined;
-
-            // If no pivot value from seriesName, try to get it from pivotReference
-            // This is only for SQL pivoting
-            if (!pivotValue && serie.pivotReference?.pivotValues) {
-                const pivotRefValue = serie.pivotReference.pivotValues.find(
-                    (pv) => pv.field === pivot,
-                );
-                if (pivotRefValue) {
-                    pivotValue = pivotRefValue.value as string;
-                }
-            }
-
-            const pivotOptions =
-                pivot && pivotField && pivotValue
-                    ? [
-                          createDashboardFilterRuleFromField({
-                              field: pivotField,
-                              availableTileFilters: {},
-                              isTemporary: true,
-                              value: pivotValue,
-                          }),
-                      ]
-                    : [];
-
-            setDashboardTileFilterOptions([
-                ...dimensionOptions,
-                ...pivotOptions,
-            ]);
-            setContextMenuIsOpen(true);
-            setContextMenuTargetOffset({
-                left: e.event.event.pageX,
-                top: e.event.event.pageY,
-            });
-
-            const underlyingData = getDataFromChartClick(
-                e,
-                allItemsMap,
-                series,
-            );
-            const queryDimensions = chart.metricQuery.dimensions || [];
-            setViewUnderlyingDataOptions({
-                ...underlyingData,
-                dimensions: queryDimensions,
-            });
-        },
-        [explore, chart],
-    );
-    const appliedFilterRules = appliedDashboardFilters
-        ? [
-              ...appliedDashboardFilters.dimensions,
-              ...appliedDashboardFilters.metrics,
-          ]
-        : [];
-
-    const chartWithDashboardFilters = useMemo(
-        () => ({
-            ...chart,
-            metricQuery: metricQuery ?? chart.metricQuery,
-        }),
-        [chart, metricQuery],
-    );
-    const cannotUseCustomDimensions =
-        !userCanRunCustomSql &&
-        chartWithDashboardFilters.metricQuery?.customDimensions;
-
-    const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
-        return getExplorerUrlFromCreateSavedChartVersion(
-            chartWithDashboardFilters.projectUuid,
-            chartWithDashboardFilters,
-            true,
-        );
-    }, [chartWithDashboardFilters]);
-
-    const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
-    const showComments = useDashboardContext(
-        (c) => c.dashboardCommentsCheck?.canViewDashboardComments,
-    );
-    const tileHasComments = useDashboardContext((c) =>
-        c.hasTileComments(tileUuid),
-    );
-    const dashboardComments = useMemo(
-        () =>
-            !!showComments && (
-                <DashboardTileComments
-                    opened={isCommentsMenuOpen}
-                    onOpen={() => setIsCommentsMenuOpen(true)}
-                    onClose={() => setIsCommentsMenuOpen(false)}
-                    dashboardTileUuid={tileUuid}
-                />
-            ),
-        [showComments, isCommentsMenuOpen, tileUuid],
-    );
-
-    const editButtonTooltipLabel = useMemo(() => {
-        const canManageChartSpace = ability?.can(
+        const userCanManageChart = ability.can(
             'manage',
-            subject('Space', {
+            subject('SavedChart', { ...chart }),
+        );
+        const userCanRefreshPreAggregates =
+            ability.can(
+                'create',
+                subject('Job', { organizationUuid, projectUuid }),
+            ) && ability.can('manage', 'CompileProject');
+        const userCanViewExplore = canViewExplore;
+        const userCanExportData = ability.can(
+            'manage',
+            subject('ExportCsv', {
                 organizationUuid: chart.organizationUuid,
                 projectUuid: chart.projectUuid,
-                spaceUuid: chart.spaceUuid,
+            }),
+        );
+        const userCanUseCustomFields = ability.can(
+            'manage',
+            subject('CustomFields', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
             }),
         );
 
-        if (!canManageChartSpace) {
-            return (
-                <Text>
-                    Cannot edit chart belonging to space:{' '}
-                    <Text span fw={500}>
-                        {chart.spaceName}
-                    </Text>
-                </Text>
-            );
-        }
+        const dateZoomGranularity = useDashboardContext(
+            (c) => c.dateZoomGranularity,
+        );
+        const chartsWithDateZoomApplied = useDashboardContext(
+            (c) => c.chartsWithDateZoomApplied,
+        );
 
-        return <Text>You do not have permission to edit this chart</Text>;
-    }, [
-        chart.organizationUuid,
-        chart.projectUuid,
-        chart.spaceName,
-        chart.spaceUuid,
-        ability,
-    ]);
+        const parameterDefinitions = useDashboardContext(
+            (c) => c.parameterDefinitions,
+        );
 
-    // Use the custom hook for dashboard chart downloads
-    const { getDownloadQueryUuid } = useDashboardChartDownload(
-        tileUuid,
-        chart.uuid,
-        projectUuid,
-        dashboardUuid,
-        dashboardChartReadyQuery.executeQueryResponse.queryUuid,
-    );
+        const preAggregateStatuses = useDashboardTileStatusContext(
+            (c) => c.preAggregateStatuses,
+        );
+        const tilePreAggStatus = preAggregateStatuses[tileUuid];
+        const tilePreAggregateName =
+            tilePreAggStatus?.hit && tilePreAggStatus.preAggregateName
+                ? tilePreAggStatus.preAggregateName
+                : null;
 
-    const closeDataExportModal = useCallback(
-        () => setIsDataExportModalOpen(false),
-        [],
-    );
+        const { mutate: refreshPreAggregate, isLoading: isRefreshingPreAgg } =
+            useRefreshPreAggregateByDefinitionName(projectUuid ?? '');
 
-    return (
-        <>
-            <TileBase
-                lockHeaderVisibility={isCommentsMenuOpen}
-                chartKind={chartKind}
-                visibleHeaderElement={
-                    // Dashboard comments button is always visible if they exist
-                    tileHasComments ? dashboardComments : undefined
+        const { openUnderlyingDataModal } = useMetricQueryDataContext();
+
+        const [viewUnderlyingDataOptions, setViewUnderlyingDataOptions] =
+            useState<{
+                item: ItemsMap[string] | undefined;
+                value: ResultValue;
+                fieldValues: Record<string, ResultValue>;
+                dimensions: string[];
+                pivotReference?: PivotReference;
+            }>();
+        const { mutateAsync: createShareUrl } = useCreateShareMutation();
+
+        const handleViewUnderlyingData = useCallback(() => {
+            if (!viewUnderlyingDataOptions) return;
+
+            const applyDateZoom =
+                metricQuery?.metadata?.hasADateDimension &&
+                savedChartUuid &&
+                dateZoomGranularity &&
+                chartsWithDateZoomApplied?.has(savedChartUuid);
+
+            openUnderlyingDataModal({
+                ...viewUnderlyingDataOptions,
+                ...(applyDateZoom && {
+                    dateZoom: {
+                        granularity: dateZoomGranularity,
+                        xAxisFieldId: `${metricQuery?.metadata?.hasADateDimension.table}_${metricQuery?.metadata?.hasADateDimension.name}`,
+                    },
+                }),
+            });
+        }, [
+            viewUnderlyingDataOptions,
+            dateZoomGranularity,
+            openUnderlyingDataModal,
+            metricQuery?.metadata?.hasADateDimension,
+            savedChartUuid,
+            chartsWithDateZoomApplied,
+        ]);
+
+        const handleCopyToClipboard = useCallback(() => {
+            if (!viewUnderlyingDataOptions) return;
+            const value = viewUnderlyingDataOptions.value.formatted;
+
+            clipboard.copy(value);
+            showToastSuccess({ title: 'Copied to clipboard!' });
+        }, [viewUnderlyingDataOptions, clipboard, showToastSuccess]);
+
+        const {
+            data: duplicatedChart,
+            mutateAsync: duplicateChart,
+            reset: resetDuplicatedChart,
+        } = useDuplicateChartMutation({
+            showRedirectButton: false,
+            autoRedirect: false,
+            successMessage: `Chart duplicated and added at the bottom of this dashboard`,
+        });
+
+        useEffect(() => {
+            if (duplicatedChart && props.onAddTiles) {
+                // We duplicated a chart, we add it to the dashboard
+                props.onAddTiles([
+                    {
+                        uuid: uuid4(),
+                        properties: {
+                            savedChartUuid: duplicatedChart.uuid,
+                            chartName: duplicatedChart.name ?? '',
+                        },
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: props.tile.h,
+                        w: props.tile.w,
+                        tabUuid: props.tile.tabUuid,
+                    },
+                ]);
+                resetDuplicatedChart(); // Reset duplicated chart to avoid adding it multiple times
+            }
+        }, [props, duplicatedChart, resetDuplicatedChart]);
+        const handleAddFilter = useCallback(
+            (filter: DashboardFilterRule) => {
+                track({
+                    name: EventName.ADD_FILTER_CLICKED,
+                    properties: {
+                        mode: isEditMode ? 'edit' : 'viewer',
+                    },
+                });
+
+                const fields = explore ? getFields(explore) : [];
+                const field = fields.find(
+                    (f) => getItemId(f) === filter.target.fieldId,
+                );
+
+                if (projectUuid && dashboardUuid) {
+                    track({
+                        name: EventName.CROSS_FILTER_DASHBOARD_APPLIED,
+                        properties: {
+                            fieldType: field?.type,
+                            projectId: projectUuid,
+                            dashboardId: dashboardUuid,
+                        },
+                    });
                 }
-                extraHeaderElement={
-                    <>
-                        {/* Dashboard comments button only appears on hover if there are no comments yet */}
-                        {tileHasComments ? undefined : dashboardComments}
-                        {appliedFilterRules.length > 0 && (
-                            <HoverCard
-                                withArrow
-                                withinPortal
-                                shadow="md"
-                                position="bottom-end"
-                                offset={4}
-                                arrowOffset={10}
-                            >
-                                <HoverCard.Dropdown>
-                                    <Stack spacing="xs" align="flex-start">
-                                        <Text color="ldGray.7" fw={500}>
-                                            Dashboard filter
-                                            {appliedFilterRules.length > 1
-                                                ? 's'
-                                                : ''}{' '}
-                                            applied:
-                                        </Text>
 
-                                        {appliedFilterRules.map(
-                                            (filterRule) => {
-                                                const fields: Field[] = explore
-                                                    ? getVisibleFields(explore)
-                                                    : [];
+                addDimensionDashboardFilter(filter, !isEditMode);
+            },
+            [
+                track,
+                isEditMode,
+                addDimensionDashboardFilter,
+                explore,
+                projectUuid,
+                dashboardUuid,
+            ],
+        );
 
-                                                const field = fields.find(
-                                                    (f) => {
-                                                        return (
-                                                            getItemId(f) ===
-                                                            filterRule.target
-                                                                .fieldId
-                                                        );
-                                                    },
-                                                );
-                                                if (
-                                                    !field ||
-                                                    !isFilterableField(field)
-                                                )
-                                                    return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+        const handleCancelContextMenu = useCallback(
+            (e: React.SyntheticEvent<HTMLDivElement>) => e.preventDefault(),
+            [],
+        );
 
-                                                const filterRuleLabels =
-                                                    getConditionalRuleLabelFromItem(
-                                                        filterRule,
-                                                        field,
-                                                    );
-                                                return (
-                                                    <Badge
-                                                        key={filterRule.id}
-                                                        variant="outline"
-                                                        color="ldGray.4"
-                                                        radius="sm"
-                                                        size="lg"
-                                                        fz="xs"
-                                                        fw="normal"
-                                                        style={{
-                                                            textTransform:
-                                                                'none',
-                                                            color: 'black',
-                                                        }}
-                                                    >
-                                                        <Text
-                                                            fw={600}
-                                                            span
-                                                            color="foreground"
-                                                        >
-                                                            {
-                                                                filterRuleLabels.field
-                                                            }
-                                                            :
-                                                        </Text>{' '}
-                                                        {filterRule.disabled ? (
-                                                            <Text
-                                                                color="foreground"
-                                                                span
-                                                            >
-                                                                is any value
-                                                            </Text>
-                                                        ) : (
-                                                            <>
-                                                                <Text
-                                                                    span
-                                                                    color="foreground"
-                                                                >
-                                                                    {
-                                                                        filterRuleLabels.operator
-                                                                    }
-                                                                </Text>{' '}
-                                                                <Text
-                                                                    fw={600}
-                                                                    span
-                                                                    color="foreground"
-                                                                >
-                                                                    {
-                                                                        filterRuleLabels.value
-                                                                    }
-                                                                </Text>
-                                                            </>
-                                                        )}
-                                                    </Badge>
-                                                );
-                                            },
-                                        )}
-                                    </Stack>
-                                </HoverCard.Dropdown>
+        const handleCreateShareUrl = useCallback(
+            async (chartPathname: string, chartSearch: string) => {
+                const shareUrl = await createShareUrl({
+                    path: chartPathname,
+                    params:
+                        `?` + chartSearch + `&fromDashboard=${dashboardUuid}`,
+                });
 
-                                <HoverCard.Target>
-                                    <ActionIcon size="sm">
-                                        <MantineIcon icon={IconFilter} />
-                                    </ActionIcon>
-                                </HoverCard.Target>
-                            </HoverCard>
-                        )}
-                        {usedParametersValues &&
-                            Object.keys(usedParametersValues).length > 0 && (
+                window.open(`/share/${shareUrl.nanoid}`, '_blank');
+            },
+            [createShareUrl, dashboardUuid],
+        );
+
+        const [dashboardTileFilterOptions, setDashboardTileFilterOptions] =
+            useState<FilterDashboardToRule[]>([]);
+
+        const [isDataExportModalOpen, setIsDataExportModalOpen] =
+            useState(false);
+        const [isImageExportModalOpen, setIsImageExportModalOpen] =
+            useState(false);
+
+        const onSeriesContextMenu = useCallback(
+            (e: EchartsSeriesClickEvent, series: EChartsSeries[]) => {
+                if (explore === undefined) {
+                    return;
+                }
+
+                const allDimensions = getDimensions(explore);
+                const allItemsMap = getItemMap(
+                    explore,
+                    chart.metricQuery.additionalMetrics,
+                    chart.metricQuery.tableCalculations,
+                    chart.metricQuery.customDimensions,
+                );
+
+                // Filter dimensions from explore that match dimensionNames
+                // Only dimensions should be available for dashboard filtering - metrics are not supported
+                const exploreDimensions = allDimensions.filter((dimension) =>
+                    e.dimensionNames.includes(getItemId(dimension)),
+                );
+
+                // Helper to extract value from click event data
+                // For stacked bars: e.value is an array, e.dimensionNames maps indices to field names
+                // For other charts: e.data is an object with field names as keys
+                const getValueFromClickData = (fieldId: string) => {
+                    if (Array.isArray(e.value) && e.dimensionNames) {
+                        const index = e.dimensionNames.indexOf(fieldId);
+                        return index >= 0 ? e.value[index] : undefined;
+                    }
+                    return (e.data as Record<string, unknown>)[fieldId];
+                };
+
+                const dimensionOptions = exploreDimensions.map((field) =>
+                    createDashboardFilterRuleFromField({
+                        field,
+                        availableTileFilters: {},
+                        isTemporary: true,
+                        value: getValueFromClickData(getItemId(field)),
+                    }),
+                );
+                const serie = series[e.seriesIndex];
+                const fields = getFields(explore);
+                const pivot = chart.pivotConfig?.columns?.[0];
+                const pivotField = fields.find(
+                    (field) => `${field.table}_${field.name}` === pivot,
+                );
+                const seriesName = serie.encode?.seriesName;
+
+                // Try to get pivot value from seriesName (old format: field.pivotField.value)
+                // This is only for non-SQL pivoting
+                let pivotValue =
+                    pivot && seriesName?.includes(`.${pivot}.`)
+                        ? seriesName?.split(`.${pivot}.`)[1]
+                        : undefined;
+
+                // If no pivot value from seriesName, try to get it from pivotReference
+                // This is only for SQL pivoting
+                if (!pivotValue && serie.pivotReference?.pivotValues) {
+                    const pivotRefValue = serie.pivotReference.pivotValues.find(
+                        (pv) => pv.field === pivot,
+                    );
+                    if (pivotRefValue) {
+                        pivotValue = pivotRefValue.value as string;
+                    }
+                }
+
+                const pivotOptions =
+                    pivot && pivotField && pivotValue
+                        ? [
+                              createDashboardFilterRuleFromField({
+                                  field: pivotField,
+                                  availableTileFilters: {},
+                                  isTemporary: true,
+                                  value: pivotValue,
+                              }),
+                          ]
+                        : [];
+
+                setDashboardTileFilterOptions([
+                    ...dimensionOptions,
+                    ...pivotOptions,
+                ]);
+                setContextMenuIsOpen(true);
+                setContextMenuTargetOffset({
+                    left: e.event.event.pageX,
+                    top: e.event.event.pageY,
+                });
+
+                const underlyingData = getDataFromChartClick(
+                    e,
+                    allItemsMap,
+                    series,
+                );
+                const queryDimensions = chart.metricQuery.dimensions || [];
+                setViewUnderlyingDataOptions({
+                    ...underlyingData,
+                    dimensions: queryDimensions,
+                });
+            },
+            [explore, chart],
+        );
+        const appliedFilterRules = appliedDashboardFilters
+            ? [
+                  ...appliedDashboardFilters.dimensions,
+                  ...appliedDashboardFilters.metrics,
+              ]
+            : [];
+
+        const chartWithDashboardFilters = useMemo(
+            () => ({
+                ...chart,
+                metricQuery: metricQuery ?? chart.metricQuery,
+            }),
+            [chart, metricQuery],
+        );
+        const cannotUseCustomDimensions =
+            !userCanUseCustomFields &&
+            chartWithDashboardFilters.metricQuery?.customDimensions;
+
+        const { pathname: chartPathname, search: chartSearch } = useMemo(() => {
+            return getExplorerUrlFromCreateSavedChartVersion(
+                chartWithDashboardFilters.projectUuid,
+                chartWithDashboardFilters,
+                true,
+            );
+        }, [chartWithDashboardFilters]);
+
+        const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
+        const showComments = useDashboardContext(
+            (c) => c.dashboardCommentsCheck?.canViewDashboardComments,
+        );
+        const tileHasComments = useDashboardContext((c) =>
+            c.hasTileComments(tileUuid),
+        );
+        const dashboardComments = useMemo(
+            () =>
+                !!showComments && (
+                    <DashboardTileComments
+                        opened={isCommentsMenuOpen}
+                        onOpen={() => setIsCommentsMenuOpen(true)}
+                        onClose={() => setIsCommentsMenuOpen(false)}
+                        dashboardTileUuid={tileUuid}
+                    />
+                ),
+            [showComments, isCommentsMenuOpen, tileUuid],
+        );
+
+        const editButtonTooltipLabel = useMemo(() => {
+            const canManageChartSpace = ability?.can(
+                'manage',
+                subject('Space', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    spaceUuid: chart.spaceUuid,
+                }),
+            );
+
+            if (!canManageChartSpace) {
+                return (
+                    <Text>
+                        Cannot edit chart belonging to space:{' '}
+                        <Text span fw={500}>
+                            {chart.spaceName}
+                        </Text>
+                    </Text>
+                );
+            }
+
+            return <Text>You do not have permission to edit this chart</Text>;
+        }, [
+            chart.organizationUuid,
+            chart.projectUuid,
+            chart.spaceName,
+            chart.spaceUuid,
+            ability,
+        ]);
+
+        // Use the custom hook for dashboard chart downloads
+        const { getDownloadQueryUuid } = useDashboardChartDownload(
+            tileUuid,
+            chart.uuid,
+            projectUuid,
+            dashboardUuid,
+            dashboardChartReadyQuery.executeQueryResponse.queryUuid,
+        );
+
+        const closeDataExportModal = useCallback(
+            () => setIsDataExportModalOpen(false),
+            [],
+        );
+
+        return (
+            <>
+                <TileBase
+                    lockHeaderVisibility={isCommentsMenuOpen}
+                    chartKind={chartKind}
+                    visibleHeaderElement={
+                        // Dashboard comments button is always visible if they exist
+                        tileHasComments ? dashboardComments : undefined
+                    }
+                    extraHeaderElement={
+                        <>
+                            {/* Dashboard comments button only appears on hover if there are no comments yet */}
+                            {tileHasComments ? undefined : dashboardComments}
+                            {appliedFilterRules.length > 0 && (
                                 <HoverCard
                                     withArrow
                                     withinPortal
@@ -1162,420 +1107,527 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = (props) => {
                                     arrowOffset={10}
                                 >
                                     <HoverCard.Dropdown>
-                                        <Text color="ldGray.7" fw={500} mb="xs">
-                                            Parameters
-                                        </Text>
-                                        <Stack
-                                            spacing="xs"
-                                            align="flex-start"
-                                            ml="xs"
-                                        >
-                                            {Object.entries(
-                                                usedParametersValues,
-                                            ).map(([key, value]) => (
-                                                <Text
-                                                    key={key}
-                                                    size="xs"
-                                                    color="ldGray.6"
-                                                >
-                                                    <Text span fw={600}>
-                                                        {parameterDefinitions[
-                                                            key
-                                                        ]?.label || key}
-                                                        :
-                                                    </Text>{' '}
-                                                    {Array.isArray(value)
-                                                        ? value.join(', ')
-                                                        : value}
-                                                </Text>
-                                            ))}
+                                        <Stack spacing="xs" align="flex-start">
+                                            <Text color="ldGray.7" fw={500}>
+                                                Dashboard filter
+                                                {appliedFilterRules.length > 1
+                                                    ? 's'
+                                                    : ''}{' '}
+                                                applied:
+                                            </Text>
+
+                                            {appliedFilterRules.map(
+                                                (filterRule) => {
+                                                    const fields: Field[] =
+                                                        explore
+                                                            ? getVisibleFields(
+                                                                  explore,
+                                                              )
+                                                            : [];
+
+                                                    const field = fields.find(
+                                                        (f) => {
+                                                            return (
+                                                                getItemId(f) ===
+                                                                filterRule
+                                                                    .target
+                                                                    .fieldId
+                                                            );
+                                                        },
+                                                    );
+                                                    if (
+                                                        !field ||
+                                                        !isFilterableField(
+                                                            field,
+                                                        )
+                                                    )
+                                                        return `Tried to reference field with unknown id: ${filterRule.target.fieldId}`;
+
+                                                    const filterRuleLabels =
+                                                        getConditionalRuleLabelFromItem(
+                                                            filterRule,
+                                                            field,
+                                                        );
+                                                    return (
+                                                        <Badge
+                                                            key={filterRule.id}
+                                                            variant="outline"
+                                                            color="ldGray.4"
+                                                            radius="sm"
+                                                            size="lg"
+                                                            fz="xs"
+                                                            fw="normal"
+                                                            style={{
+                                                                textTransform:
+                                                                    'none',
+                                                                color: 'black',
+                                                            }}
+                                                        >
+                                                            <Text
+                                                                fw={600}
+                                                                span
+                                                                color="foreground"
+                                                            >
+                                                                {
+                                                                    filterRuleLabels.field
+                                                                }
+                                                                :
+                                                            </Text>{' '}
+                                                            {filterRule.disabled ? (
+                                                                <Text
+                                                                    color="foreground"
+                                                                    span
+                                                                >
+                                                                    is any value
+                                                                </Text>
+                                                            ) : (
+                                                                <>
+                                                                    <Text
+                                                                        span
+                                                                        color="foreground"
+                                                                    >
+                                                                        {
+                                                                            filterRuleLabels.operator
+                                                                        }
+                                                                    </Text>{' '}
+                                                                    <Text
+                                                                        fw={600}
+                                                                        span
+                                                                        color="foreground"
+                                                                    >
+                                                                        {
+                                                                            filterRuleLabels.value
+                                                                        }
+                                                                    </Text>
+                                                                </>
+                                                            )}
+                                                        </Badge>
+                                                    );
+                                                },
+                                            )}
                                         </Stack>
                                     </HoverCard.Dropdown>
 
                                     <HoverCard.Target>
                                         <ActionIcon size="sm">
-                                            <MantineIcon icon={IconVariable} />
+                                            <MantineIcon icon={IconFilter} />
                                         </ActionIcon>
                                     </HoverCard.Target>
                                 </HoverCard>
                             )}
-                        {showExecutionTime &&
-                            initialQueryExecutionMs !== undefined &&
-                            resultsData.totalClientFetchTimeMs !==
-                                undefined && (
-                                <HoverCard
-                                    withArrow
-                                    withinPortal
-                                    shadow="md"
-                                    position="bottom-end"
-                                    offset={4}
-                                    arrowOffset={10}
-                                >
-                                    <HoverCard.Dropdown>
-                                        <Text
-                                            size="xs"
-                                            color="ldGray.6"
-                                            fw={600}
-                                        >
-                                            Warehouse execution time:{' '}
-                                            {initialQueryExecutionMs}
-                                            ms
-                                        </Text>
-                                        <Text
-                                            size="xs"
-                                            color="ldGray.6"
-                                            fw={600}
-                                        >
-                                            Total time:{' '}
-                                            {resultsData.totalClientFetchTimeMs}
-                                            ms
-                                        </Text>
-                                    </HoverCard.Dropdown>
-                                    <HoverCard.Target>
-                                        <ActionIcon size="sm">
-                                            <MantineIcon icon={IconClock} />
-                                        </ActionIcon>
-                                    </HoverCard.Target>
-                                </HoverCard>
-                            )}
-                    </>
-                }
-                titleLeftIcon={
-                    metricQuery?.metadata?.hasADateDimension &&
-                    savedChartUuid &&
-                    dateZoomGranularity &&
-                    chartsWithDateZoomApplied?.has(savedChartUuid) ? (
-                        <DateZoomInfoOnTile
-                            dateDimension={
-                                metricQuery.metadata.hasADateDimension
-                            }
-                            dateZoomGranularity={dateZoomGranularity}
-                        />
-                    ) : null
-                }
-                title={title || chart.name || ''}
-                chartName={chart.name}
-                verification={chart.verification ?? null}
-                titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
-                description={chart.description}
-                belongsToDashboard={belongsToDashboard}
-                extraMenuItems={
-                    savedChartUuid !== null &&
-                    (userCanViewExplore ||
-                        userCanManageChart ||
-                        userCanExportData) && (
-                        <>
-                            <Tooltip
-                                disabled={!isEditMode}
-                                label="Finish editing dashboard to use these actions"
-                                variant="xs"
-                            >
-                                <Box>
-                                    <Tooltip
-                                        disabled={
-                                            userCanManageChart || isEditMode
-                                        }
-                                        label={editButtonTooltipLabel}
-                                        position="top-start"
-                                        variant="xs"
+                            {usedParametersValues &&
+                                Object.keys(usedParametersValues).length >
+                                    0 && (
+                                    <HoverCard
+                                        withArrow
+                                        withinPortal
+                                        shadow="md"
+                                        position="bottom-end"
+                                        offset={4}
+                                        arrowOffset={10}
                                     >
-                                        <Box>
-                                            <EditChartMenuItem
-                                                tile={props.tile}
-                                                disabled={
-                                                    isEditMode ||
-                                                    !userCanManageChart
-                                                }
-                                            />
-                                        </Box>
-                                    </Tooltip>
+                                        <HoverCard.Dropdown>
+                                            <Text
+                                                color="ldGray.7"
+                                                fw={500}
+                                                mb="xs"
+                                            >
+                                                Parameters
+                                            </Text>
+                                            <Stack
+                                                spacing="xs"
+                                                align="flex-start"
+                                                ml="xs"
+                                            >
+                                                {Object.entries(
+                                                    usedParametersValues,
+                                                ).map(([key, value]) => (
+                                                    <Text
+                                                        key={key}
+                                                        size="xs"
+                                                        color="ldGray.6"
+                                                    >
+                                                        <Text span fw={600}>
+                                                            {parameterDefinitions[
+                                                                key
+                                                            ]?.label || key}
+                                                            :
+                                                        </Text>{' '}
+                                                        {Array.isArray(value)
+                                                            ? value.join(', ')
+                                                            : value}
+                                                    </Text>
+                                                ))}
+                                            </Stack>
+                                        </HoverCard.Dropdown>
 
-                                    {userCanViewExplore && chartPathname && (
+                                        <HoverCard.Target>
+                                            <ActionIcon size="sm">
+                                                <MantineIcon
+                                                    icon={IconVariable}
+                                                />
+                                            </ActionIcon>
+                                        </HoverCard.Target>
+                                    </HoverCard>
+                                )}
+                            <TileExecutionInfo
+                                cacheMetadata={cacheMetadata}
+                                performance={performance}
+                                totalClientFetchTimeMs={
+                                    resultsData.totalClientFetchTimeMs
+                                }
+                                totalResults={totalResults}
+                            />
+                        </>
+                    }
+                    titleLeftIcon={
+                        metricQuery?.metadata?.hasADateDimension &&
+                        savedChartUuid &&
+                        dateZoomGranularity &&
+                        chartsWithDateZoomApplied?.has(savedChartUuid) ? (
+                            <DateZoomInfoOnTile
+                                dateDimension={
+                                    metricQuery.metadata.hasADateDimension
+                                }
+                                dateZoomGranularity={dateZoomGranularity}
+                            />
+                        ) : null
+                    }
+                    title={title || chart.name || ''}
+                    chartName={chart.name}
+                    verification={chart.verification ?? null}
+                    titleHref={`/projects/${projectUuid}/saved/${savedChartUuid}/`}
+                    description={chart.description}
+                    belongsToDashboard={belongsToDashboard}
+                    extraMenuItems={
+                        savedChartUuid !== null &&
+                        (userCanViewExplore ||
+                            userCanManageChart ||
+                            userCanExportData) && (
+                            <>
+                                <Tooltip
+                                    disabled={!isEditMode}
+                                    label="Finish editing dashboard to use these actions"
+                                    variant="xs"
+                                >
+                                    <Box>
                                         <Tooltip
-                                            label={
-                                                'This chart contains custom dimensions, you will not be able to run custom SQL on explore.'
+                                            disabled={
+                                                userCanManageChart || isEditMode
                                             }
+                                            label={editButtonTooltipLabel}
                                             position="top-start"
                                             variant="xs"
-                                            disabled={
-                                                !cannotUseCustomDimensions
-                                            }
                                         >
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTelescope}
-                                                    />
-                                                }
-                                                disabled={isEditMode}
-                                                onClick={() =>
-                                                    handleCreateShareUrl(
-                                                        chartPathname,
-                                                        chartSearch,
-                                                    )
-                                                }
-                                            >
-                                                <Group>
-                                                    Explore from here
-                                                    {cannotUseCustomDimensions && (
+                                            <Box>
+                                                <EditChartMenuItem
+                                                    tile={props.tile}
+                                                    disabled={
+                                                        isEditMode ||
+                                                        !userCanManageChart
+                                                    }
+                                                />
+                                            </Box>
+                                        </Tooltip>
+
+                                        {userCanViewExplore &&
+                                            chartPathname && (
+                                                <Tooltip
+                                                    label={
+                                                        'This chart contains custom dimensions, you will not be able to run custom SQL on explore.'
+                                                    }
+                                                    position="top-start"
+                                                    variant="xs"
+                                                    disabled={
+                                                        !cannotUseCustomDimensions
+                                                    }
+                                                >
+                                                    <Menu.Item
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconTelescope
+                                                                }
+                                                            />
+                                                        }
+                                                        disabled={isEditMode}
+                                                        onClick={() =>
+                                                            handleCreateShareUrl(
+                                                                chartPathname,
+                                                                chartSearch,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Group>
+                                                            Explore from here
+                                                            {cannotUseCustomDimensions && (
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconAlertTriangle
+                                                                    }
+                                                                    color="yellow.9"
+                                                                />
+                                                            )}
+                                                        </Group>
+                                                    </Menu.Item>
+                                                </Tooltip>
+                                            )}
+
+                                        {userCanExportData && (
+                                            <>
+                                                <Menu.Item
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={
-                                                                IconAlertTriangle
+                                                                IconTableExport
                                                             }
-                                                            color="yellow.9"
                                                         />
-                                                    )}
-                                                </Group>
-                                            </Menu.Item>
-                                        </Tooltip>
-                                    )}
-
-                                    {userCanExportData && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTableExport}
-                                                    />
-                                                }
-                                                disabled={isEditMode}
-                                                onClick={() =>
-                                                    setIsDataExportModalOpen(
-                                                        true,
-                                                    )
-                                                }
-                                            >
-                                                Download data
-                                            </Menu.Item>
-                                        </>
-                                    )}
-                                    {!CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
-                                        chart.chartConfig.type,
-                                    ) &&
-                                        userCanExportData && (
-                                            <DashboardExportImage
-                                                onClick={() =>
-                                                    setIsImageExportModalOpen(
-                                                        true,
-                                                    )
-                                                }
-                                                isMinimal={false}
-                                            />
+                                                    }
+                                                    disabled={isEditMode}
+                                                    onClick={() =>
+                                                        setIsDataExportModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    Download data
+                                                </Menu.Item>
+                                            </>
                                         )}
+                                        {!CHART_TYPES_WITHOUT_IMAGE_EXPORT.includes(
+                                            chart.chartConfig.type,
+                                        ) &&
+                                            userCanExportData && (
+                                                <DashboardExportImage
+                                                    onClick={() =>
+                                                        setIsImageExportModalOpen(
+                                                            true,
+                                                        )
+                                                    }
+                                                    isMinimal={false}
+                                                />
+                                            )}
 
-                                    {chart.chartConfig.type ===
-                                        ChartType.TABLE &&
-                                        userCanExportData && (
-                                            <ExportGoogleSheet
-                                                savedChart={
-                                                    chartWithDashboardFilters
-                                                }
-                                                disabled={isEditMode}
-                                            />
-                                        )}
+                                        {chart.chartConfig.type ===
+                                            ChartType.TABLE &&
+                                            userCanExportData && (
+                                                <ExportGoogleSheet
+                                                    savedChart={
+                                                        chartWithDashboardFilters
+                                                    }
+                                                    disabled={isEditMode}
+                                                />
+                                            )}
 
-                                    {chart.dashboardUuid &&
-                                        userCanManageChart && (
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconFolders}
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    setIsMovingChart(true)
-                                                }
-                                                disabled={isEditMode}
-                                            >
-                                                Move to space
-                                            </Menu.Item>
-                                        )}
+                                        {chart.dashboardUuid &&
+                                            userCanManageChart && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconFolders}
+                                                        />
+                                                    }
+                                                    onClick={() =>
+                                                        setIsMovingChart(true)
+                                                    }
+                                                    disabled={isEditMode}
+                                                >
+                                                    Move to space
+                                                </Menu.Item>
+                                            )}
 
-                                    {tilePreAggregateName &&
-                                        userCanRefreshPreAggregates && (
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconRefreshDot}
-                                                    />
-                                                }
-                                                disabled={
-                                                    isEditMode ||
-                                                    isRefreshingPreAgg
-                                                }
-                                                onClick={() =>
-                                                    refreshPreAggregate(
-                                                        tilePreAggregateName,
-                                                    )
-                                                }
-                                            >
-                                                Rebuild pre-aggregate
-                                            </Menu.Item>
-                                        )}
-                                </Box>
-                            </Tooltip>
-                            {userCanManageChart && isEditMode && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconCopy} />
-                                    }
-                                    onClick={() =>
-                                        duplicateChart({
-                                            uuid: savedChartUuid,
-                                            name: `Copy of ${chart.name}`,
-                                            description: chart.description,
-                                        })
-                                    }
-                                    disabled={!isEditMode}
-                                >
-                                    Duplicate chart
-                                </Menu.Item>
-                            )}
-                        </>
-                    )
-                }
-                fullWidth={
-                    chart.chartConfig.type === ChartType.TABLE ||
-                    chart.chartConfig.type === ChartType.MAP
-                }
-                {...props}
-            >
-                <>
-                    <Menu
-                        opened={contextMenuIsOpen}
-                        onClose={() => setContextMenuIsOpen(false)}
-                        withinPortal
-                        closeOnItemClick
-                        closeOnEscape
-                        shadow="md"
-                        radius={0}
-                        position="bottom-start"
-                        offset={{
-                            crossAxis: 0,
-                            mainAxis: 0,
+                                        {tilePreAggregateName &&
+                                            userCanRefreshPreAggregates && (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconRefreshDot
+                                                            }
+                                                        />
+                                                    }
+                                                    disabled={
+                                                        isEditMode ||
+                                                        isRefreshingPreAgg
+                                                    }
+                                                    onClick={() =>
+                                                        refreshPreAggregate(
+                                                            tilePreAggregateName,
+                                                        )
+                                                    }
+                                                >
+                                                    Rebuild pre-aggregate
+                                                </Menu.Item>
+                                            )}
+                                    </Box>
+                                </Tooltip>
+                                {userCanManageChart && isEditMode && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconCopy} />
+                                        }
+                                        onClick={() =>
+                                            duplicateChart({
+                                                uuid: savedChartUuid,
+                                                name: `Copy of ${chart.name}`,
+                                                description: chart.description,
+                                            })
+                                        }
+                                        disabled={!isEditMode}
+                                    >
+                                        Duplicate chart
+                                    </Menu.Item>
+                                )}
+                            </>
+                        )
+                    }
+                    fullWidth={
+                        chart.chartConfig.type === ChartType.TABLE ||
+                        chart.chartConfig.type === ChartType.MAP
+                    }
+                    {...tileBaseProps}
+                >
+                    <>
+                        <Menu
+                            opened={contextMenuIsOpen}
+                            onClose={() => setContextMenuIsOpen(false)}
+                            withinPortal
+                            closeOnItemClick
+                            closeOnEscape
+                            shadow="md"
+                            radius={0}
+                            position="bottom-start"
+                            offset={{
+                                crossAxis: 0,
+                                mainAxis: 0,
+                            }}
+                        >
+                            <Portal>
+                                <Menu.Target>
+                                    <div
+                                        onContextMenu={handleCancelContextMenu}
+                                        style={{
+                                            position: 'absolute',
+                                            ...contextMenuTargetOffset,
+                                        }}
+                                    />
+                                </Menu.Target>
+                            </Portal>
+
+                            <Menu.Dropdown>
+                                {viewUnderlyingDataOptions?.value && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconCopy} />
+                                        }
+                                        onClick={handleCopyToClipboard}
+                                    >
+                                        Copy value
+                                    </Menu.Item>
+                                )}
+                                {metricQuery && canViewUnderlyingData && (
+                                    <UnderlyingDataMenuItem
+                                        metricQuery={metricQuery}
+                                        onViewUnderlyingData={
+                                            handleViewUnderlyingData
+                                        }
+                                    />
+                                )}
+
+                                {canDrillInto && (
+                                    <DrillDownMenuItem
+                                        {...viewUnderlyingDataOptions}
+                                        trackingData={{
+                                            organizationId: organizationUuid,
+                                            userId: account?.user?.id,
+                                            projectId: projectUuid,
+                                        }}
+                                    />
+                                )}
+
+                                {dashboardTileFilterOptions.length > 0 && (
+                                    <FilterDashboardTo
+                                        filters={dashboardTileFilterOptions}
+                                        onAddFilter={handleAddFilter}
+                                    />
+                                )}
+                            </Menu.Dropdown>
+                        </Menu>
+
+                        <ValidDashboardChartTile
+                            tileUuid={tileUuid}
+                            dashboardChartReadyQuery={dashboardChartReadyQuery}
+                            resultsData={resultsData}
+                            project={chart.projectUuid}
+                            isTitleHidden={hideTitle}
+                            colorPaletteOverride={props.colorPaletteOverride}
+                            darkColorPaletteOverride={
+                                props.darkColorPaletteOverride
+                            }
+                            onSeriesContextMenu={onSeriesContextMenu}
+                            setEchartsRef={setEchartRef}
+                        />
+                    </>
+                </TileBase>
+
+                {chart.spaceUuid && (
+                    <MoveChartThatBelongsToDashboardModal
+                        className={'non-draggable'}
+                        projectUuid={projectUuid}
+                        uuid={chart.uuid}
+                        name={chart.name}
+                        spaceUuid={chart.spaceUuid}
+                        spaceName={chart.spaceName}
+                        opened={isMovingChart}
+                        onClose={() => setIsMovingChart(false)}
+                        onConfirm={() => {
+                            setDashboardTiles(
+                                (currentDashboardTiles) =>
+                                    currentDashboardTiles?.map((tile) =>
+                                        tile.uuid === tileUuid &&
+                                        isDashboardChartTileType(tile)
+                                            ? {
+                                                  ...tile,
+                                                  properties: {
+                                                      ...tile.properties,
+                                                      belongsToDashboard: false,
+                                                  },
+                                              }
+                                            : tile,
+                                    ) ?? [],
+                            );
                         }}
-                    >
-                        <Portal>
-                            <Menu.Target>
-                                <div
-                                    onContextMenu={handleCancelContextMenu}
-                                    style={{
-                                        position: 'absolute',
-                                        ...contextMenuTargetOffset,
-                                    }}
-                                />
-                            </Menu.Target>
-                        </Portal>
-
-                        <Menu.Dropdown>
-                            {viewUnderlyingDataOptions?.value && (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconCopy} />
-                                    }
-                                    onClick={handleCopyToClipboard}
-                                >
-                                    Copy value
-                                </Menu.Item>
-                            )}
-                            {metricQuery && canViewUnderlyingData && (
-                                <UnderlyingDataMenuItem
-                                    metricQuery={metricQuery}
-                                    onViewUnderlyingData={
-                                        handleViewUnderlyingData
-                                    }
-                                />
-                            )}
-
-                            {canDrillInto && (
-                                <DrillDownMenuItem
-                                    {...viewUnderlyingDataOptions}
-                                    trackingData={{
-                                        organizationId: organizationUuid,
-                                        userId: account?.user?.id,
-                                        projectId: projectUuid,
-                                    }}
-                                />
-                            )}
-
-                            {dashboardTileFilterOptions.length > 0 && (
-                                <FilterDashboardTo
-                                    filters={dashboardTileFilterOptions}
-                                    onAddFilter={handleAddFilter}
-                                />
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
-
-                    <ValidDashboardChartTile
-                        tileUuid={tileUuid}
-                        dashboardChartReadyQuery={dashboardChartReadyQuery}
-                        resultsData={resultsData}
-                        project={chart.projectUuid}
-                        isTitleHidden={hideTitle}
-                        onSeriesContextMenu={onSeriesContextMenu}
-                        setEchartsRef={setEchartRef}
                     />
-                </>
-            </TileBase>
-
-            {chart.spaceUuid && (
-                <MoveChartThatBelongsToDashboardModal
-                    className={'non-draggable'}
-                    projectUuid={projectUuid}
-                    uuid={chart.uuid}
-                    name={chart.name}
-                    spaceUuid={chart.spaceUuid}
-                    spaceName={chart.spaceName}
-                    opened={isMovingChart}
-                    onClose={() => setIsMovingChart(false)}
-                    onConfirm={() => {
-                        setDashboardTiles(
-                            (currentDashboardTiles) =>
-                                currentDashboardTiles?.map((tile) =>
-                                    tile.uuid === tileUuid &&
-                                    isDashboardChartTileType(tile)
-                                        ? {
-                                              ...tile,
-                                              properties: {
-                                                  ...tile.properties,
-                                                  belongsToDashboard: false,
-                                              },
-                                          }
-                                        : tile,
-                                ) ?? [],
-                        );
-                    }}
-                />
-            )}
-            <ExportDataModal
-                isOpen={isDataExportModalOpen}
-                onClose={closeDataExportModal}
-                projectUuid={projectUuid!}
-                totalResults={totalResults}
-                getDownloadQueryUuid={getDownloadQueryUuid}
-                showTableNames={
-                    isTableChartConfig(chart.chartConfig.config)
-                        ? (chart.chartConfig.config.showTableNames ?? false)
-                        : true
-                }
-                chartName={title || chart.name}
-                columnOrder={chart.tableConfig.columnOrder}
-                customLabels={getCustomLabelsFromTableConfig(
-                    chart.chartConfig.config,
                 )}
-                hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                pivotConfig={getPivotConfig(chart)}
-            />
-            <ExportImageModal
-                echartRef={echartRef}
-                chartName={chart.name}
-                isOpen={isImageExportModalOpen}
-                onClose={() => setIsImageExportModalOpen(false)}
-            />
-        </>
-    );
-};
+                <ExportDataModal
+                    isOpen={isDataExportModalOpen}
+                    onClose={closeDataExportModal}
+                    projectUuid={projectUuid!}
+                    totalResults={totalResults}
+                    getDownloadQueryUuid={getDownloadQueryUuid}
+                    showTableNames={
+                        isTableChartConfig(chart.chartConfig.config)
+                            ? (chart.chartConfig.config.showTableNames ?? false)
+                            : true
+                    }
+                    chartName={title || chart.name}
+                    columnOrder={chart.tableConfig.columnOrder}
+                    customLabels={getCustomLabelsFromTableConfig(
+                        chart.chartConfig.config,
+                    )}
+                    hiddenFields={getHiddenTableFields(chart.chartConfig)}
+                    pivotConfig={getPivotConfig(chart)}
+                />
+                <ExportImageModal
+                    echartRef={echartRef}
+                    chartName={chart.name}
+                    isOpen={isImageExportModalOpen}
+                    onClose={() => setIsImageExportModalOpen(false)}
+                />
+            </>
+        );
+    },
+);
 
 const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
     const [contextMenuIsOpen, setContextMenuIsOpen] = useState(false);
@@ -1596,6 +1648,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         canExportCsv,
         canExportImages,
         onExplore,
+        colorPaletteOverride,
+        darkColorPaletteOverride,
+    } = props;
+    const {
+        colorPaletteOverride: _colorPaletteOverride,
+        darkColorPaletteOverride: _darkColorPaletteOverride,
+        ...tileBaseProps
     } = props;
 
     const {
@@ -1775,7 +1834,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     chart.chartConfig.type === ChartType.TABLE ||
                     chart.chartConfig.type === ChartType.MAP
                 }
-                {...props}
+                {...tileBaseProps}
             >
                 <>
                     <Menu
@@ -1825,6 +1884,8 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         isTitleHidden={hideTitle}
                         chart={chart}
                         dashboardChartReadyQuery={dashboardChartReadyQuery}
+                        colorPaletteOverride={colorPaletteOverride}
+                        darkColorPaletteOverride={darkColorPaletteOverride}
                         onSeriesContextMenu={onSeriesContextMenu}
                         resultsData={resultsData}
                         title={title || chart.name}
@@ -1896,6 +1957,8 @@ export const GenericDashboardChartTile: FC<
     canExportCsv = false,
     canExportImages = false,
     onExplore,
+    colorPaletteOverride,
+    darkColorPaletteOverride,
     ...rest
 }) => {
     const { projectUuid } = useParams<{
@@ -1904,7 +1967,7 @@ export const GenericDashboardChartTile: FC<
     }>();
     const { user } = useApp();
 
-    const markTileScreenshotErrored = useDashboardContext(
+    const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
     useEffect(() => {
@@ -1955,7 +2018,10 @@ export const GenericDashboardChartTile: FC<
                     adaptive
                     icon={IconAlertCircle}
                     title={tileTitle}
-                    description={error?.error?.message || 'No data available'}
+                    description={
+                        getDashboardTileErrorMessage(error) ||
+                        'Error running query'
+                    }
                 />
             </TileBase>
         );
@@ -2009,6 +2075,8 @@ export const GenericDashboardChartTile: FC<
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
                     onExplore={onExplore}
+                    colorPaletteOverride={colorPaletteOverride}
+                    darkColorPaletteOverride={darkColorPaletteOverride}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -2018,6 +2086,8 @@ export const GenericDashboardChartTile: FC<
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     onExplore={onExplore}
+                    colorPaletteOverride={colorPaletteOverride}
+                    darkColorPaletteOverride={darkColorPaletteOverride}
                 />
             )}
             <UnderlyingDataModal />

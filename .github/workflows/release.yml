@@ -14,15 +14,19 @@ jobs:
       TURBO_API: https://cache.depot.dev
       NODE_OPTIONS: '--max-old-space-size=8192'
     steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build all packages
         run: pnpm build
 
@@ -34,29 +38,34 @@ jobs:
       contents: read
       id-token: write  # Required for OIDC authentication with npm
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v5
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
 
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version-file: '.nvmrc'
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
       - name: Upgrade npm for OIDC support
-        run: npm install -g npm@latest
+        run: sfw npm install -g npm@latest
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --prefer-offline --prod=false
+        run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false
 
       - name: Semantic Release
         # Config is on release.config.js
         id: semantic
-        uses: cycjimmy/semantic-release-action@v4
+        uses: cycjimmy/semantic-release-action@16ca923e6ccbb50770c415a0ccd43709a8c5f7a4 # v4
         env:
           HUSKY: 0
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}

@@ -98,7 +98,7 @@ export class GdriveService extends BaseService {
             ) &&
             user.ability.cannot(
                 'manage',
-                subject('CustomSql', {
+                subject('CustomFields', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
                 }),

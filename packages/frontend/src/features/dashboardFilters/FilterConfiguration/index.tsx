@@ -37,7 +37,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
@@ -157,7 +157,7 @@ const FilterConfiguration: FC<Props> = ({
         },
         [setDraftFilterRule, isEditMode],
     );
-    const sqlChartTilesMetadata = useDashboardContext(
+    const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
     const columnsOptions = useMemo(() => {

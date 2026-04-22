@@ -64,8 +64,13 @@ function makeReadyPage(
         rows: Array.from({ length: rowCount }, (_, i) => ({
             [`col`]: { value: { raw: `row-${page}-${i}`, formatted: '' } },
         })),
-        initialQueryExecutionMs: 100,
-        resultsPageExecutionMs: 50,
+        metadata: {
+            performance: {
+                initialQueryExecutionMs: 100,
+                resultsPageExecutionMs: 50,
+                queueTimeMs: null,
+            },
+        },
         pivotDetails: null,
         totalResults: opts?.totalResults ?? rowCount,
     };
@@ -129,6 +134,30 @@ describe('useInfiniteQueryResults', () => {
         await waitFor(() => {
             expect(result.current.rows.length).toBe(10);
         });
+    });
+
+    it('falls back to a non-empty message when the backend error is empty (PROD-7011)', async () => {
+        const errorResponse: ApiGetAsyncQueryResults = {
+            queryUuid: 'q1',
+            status: QueryHistoryStatus.ERROR,
+            error: '',
+            erroredAt: new Date(),
+        };
+        mockGetResultsPage.mockResolvedValue(errorResponse);
+
+        const { result } = renderHook(
+            () => useInfiniteQueryResults('p1', 'q1'),
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => {
+            expect(result.current.error).not.toBeNull();
+        });
+
+        // Empty backend error must not surface as an empty message — the tile
+        // UI renders 'Error running query' when the message is empty, masking
+        // the real failure. See PROD-7011.
+        expect(result.current.error?.error?.message).toBeTruthy();
     });
 
     it('resets pages when queryUuid changes', async () => {

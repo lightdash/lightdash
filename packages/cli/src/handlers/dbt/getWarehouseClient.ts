@@ -41,7 +41,10 @@ import { lightdashApi } from './apiClient';
  */
 const warehouseClientCache = new Map<
     string,
-    ReturnType<typeof warehouseClientFromCredentials>
+    {
+        warehouseClient: ReturnType<typeof warehouseClientFromCredentials>;
+        credentials: CreateWarehouseCredentials;
+    }
 >();
 
 /**
@@ -134,9 +137,12 @@ function getMockCredentials(
                 schema: '',
             };
         case SupportedDbtAdapter.DUCKDB:
-            throw new ParseError(
-                `Unsupported dbt adaptor type ${dbtAdaptorType}`,
-            );
+            return {
+                type: WarehouseTypes.DUCKDB,
+                database: ':memory:',
+                schema: 'main',
+                token: '',
+            };
         case SupportedDbtAdapter.REDSHIFT:
             return {
                 type: WarehouseTypes.REDSHIFT,
@@ -352,7 +358,9 @@ export default async function getWarehouseClient(
             GlobalState.debug(
                 `> Reusing cached warehouse client (${credentials.type})`,
             );
-            warehouseClient = warehouseClientCache.get(cacheKey)!;
+            const cached = warehouseClientCache.get(cacheKey)!;
+            warehouseClient = cached.warehouseClient;
+            credentials = cached.credentials;
         } else {
             // Exchange Databricks OAuth M2M credentials for access token if needed
             if (
@@ -422,7 +430,10 @@ export default async function getWarehouseClient(
                     : undefined,
             });
 
-            warehouseClientCache.set(cacheKey, warehouseClient);
+            warehouseClientCache.set(cacheKey, {
+                warehouseClient,
+                credentials,
+            });
         }
     }
     return {

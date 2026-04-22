@@ -8,6 +8,7 @@ import {
     preAggregateUtils,
     SupportedDbtAdapter,
     TimeFrames,
+    UnitOfTime,
     type CompiledDimension,
     type CompiledMetric,
     type Explore,
@@ -95,6 +96,10 @@ const baseExplore = (): Explore => ({
                     type: DimensionType.DATE,
                     timeInterval: TimeFrames.MONTH,
                     timeIntervalBaseDimensionName: 'order_date',
+                }),
+                amount: makeDimension({
+                    name: 'amount',
+                    type: DimensionType.NUMBER,
                 }),
             },
             metrics: {
@@ -231,6 +236,620 @@ describe('findMatch', () => {
             hit: true,
             preAggregateName: 'orders_daily',
             miss: null,
+        });
+    });
+
+    it('matches when the query filter is equivalent to the pre-aggregate filter', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['status', 'order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [3],
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status', 'orders_order_date_month'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_PAST,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [3],
+                                settings: {
+                                    unitOfTime: UnitOfTime.days,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_daily',
+            miss: null,
+        });
+    });
+
+    it('matches when the query filter is a narrower subset of the pre-aggregate filter', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_status_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'status',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['completed', 'shipped'],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-status-filter',
+                                operator: FilterOperator.EQUALS,
+                                target: { fieldId: 'orders_status' },
+                                values: ['completed'],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_status_rollup',
+            miss: null,
+        });
+    });
+
+    it('does not match when a string query equals filter has no values', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_status_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'status',
+                            },
+                            operator: FilterOperator.STARTS_WITH,
+                            values: ['complete'],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-status-filter',
+                                operator: FilterOperator.EQUALS,
+                                target: { fieldId: 'orders_status' },
+                                values: [],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_status',
+        });
+    });
+
+    it('does not match when a number query equals filter has no values', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_amount_rollup',
+                    dimensions: ['amount'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'amount',
+                            },
+                            operator: FilterOperator.GREATER_THAN,
+                            values: [5],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_amount'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-amount-filter',
+                                operator: FilterOperator.EQUALS,
+                                target: { fieldId: 'orders_amount' },
+                                values: [],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_amount',
+        });
+    });
+
+    it('does not match when a date query equals filter has no values', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_date_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_BETWEEN,
+                            values: ['2024-01-01', '2024-01-31'],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.EQUALS,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_order_date',
+        });
+    });
+
+    it('matches when the query relative date filter is narrower on a sibling time dimension', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_recent_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-date-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [7],
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_PAST,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [3],
+                                settings: {
+                                    unitOfTime: UnitOfTime.days,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_recent_rollup',
+            miss: null,
+        });
+    });
+
+    it('does not match when NOT_IN_THE_CURRENT query is broader than the pre-aggregate filter', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_recent_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-date-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.NOT_IN_THE_CURRENT,
+                            values: [],
+                            settings: {
+                                unitOfTime: UnitOfTime.months,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [],
+                                settings: {
+                                    unitOfTime: UnitOfTime.days,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_order_date',
+        });
+    });
+
+    it('matches when NULL filtered rollups have identical query filters', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_null_status_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-null-filter',
+                            target: {
+                                fieldRef: 'status',
+                            },
+                            operator: FilterOperator.NULL,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-null-filter',
+                                operator: FilterOperator.NULL,
+                                target: { fieldId: 'orders_status' },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_null_status_rollup',
+            miss: null,
+        });
+    });
+
+    it('matches when NOT_NULL filtered rollups have identical query filters', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_not_null_status_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-not-null-filter',
+                            target: {
+                                fieldRef: 'status',
+                            },
+                            operator: FilterOperator.NOT_NULL,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-not-null-filter',
+                                operator: FilterOperator.NOT_NULL,
+                                target: { fieldId: 'orders_status' },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_not_null_status_rollup',
+            miss: null,
+        });
+    });
+
+    it('does not match when the query is missing a required pre-aggregate filter', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_completed_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'status',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['completed'],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_status',
+        });
+    });
+
+    it('does not match when the query filter is broader than the pre-aggregate filter', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_recent_rollup',
+                    dimensions: ['order_date'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-date-filter',
+                            target: {
+                                fieldRef: 'order_date',
+                            },
+                            operator: FilterOperator.IN_THE_PAST,
+                            values: [3],
+                            settings: {
+                                unitOfTime: UnitOfTime.days,
+                            },
+                        },
+                    ],
+                    timeDimension: 'order_date',
+                    granularity: TimeFrames.DAY,
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_order_date_day'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        and: [
+                            {
+                                id: 'query-date-filter',
+                                operator: FilterOperator.IN_THE_PAST,
+                                target: { fieldId: 'orders_order_date_day' },
+                                values: [7],
+                                settings: {
+                                    unitOfTime: UnitOfTime.days,
+                                },
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_order_date',
+        });
+    });
+
+    it('does not match when an OR filter group broadens beyond the pre-aggregate filter', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_completed_rollup',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                    filters: [
+                        {
+                            id: 'rollup-filter',
+                            target: {
+                                fieldRef: 'status',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['completed'],
+                        },
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                filters: {
+                    dimensions: {
+                        id: 'query-filters',
+                        or: [
+                            {
+                                id: 'status-completed',
+                                operator: FilterOperator.EQUALS,
+                                target: { fieldId: 'orders_status' },
+                                values: ['completed'],
+                            },
+                            {
+                                id: 'status-shipped',
+                                operator: FilterOperator.EQUALS,
+                                target: { fieldId: 'orders_status' },
+                                values: ['shipped'],
+                            },
+                        ],
+                    },
+                },
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.PRE_AGGREGATE_FILTER_NOT_SATISFIED,
+            fieldId: 'orders_status',
         });
     });
 

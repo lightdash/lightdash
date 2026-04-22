@@ -130,6 +130,7 @@ interface ServiceManifest {
     cacheService: unknown;
     serviceAccountService: unknown;
     instanceConfigurationService: unknown;
+    managedAgentService: unknown;
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
@@ -366,7 +367,6 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -738,7 +738,6 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -856,6 +855,8 @@ export class ServiceRepository
                     fileStorageClient: this.clients.getFileStorageClient(),
                     projectModel: this.models.getProjectModel(),
                     downloadFileModel: this.models.getDownloadFileModel(),
+                    slackUnfurlImageModel:
+                        this.models.getSlackUnfurlImageModel(),
                     slackClient: this.clients.getSlackClient(),
                     analytics: this.context.lightdashAnalytics,
                     slackAuthenticationModel:
@@ -904,7 +905,6 @@ export class ServiceRepository
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -1069,7 +1069,6 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectModel: this.models.getProjectModel(),
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -1169,6 +1168,12 @@ export class ServiceRepository
 
     public getSupportService<SupportServiceImptT>(): SupportServiceImptT {
         return this.getService('supportService');
+    }
+
+    public getManagedAgentService<
+        ManagedAgentServiceImplT,
+    >(): ManagedAgentServiceImplT {
+        return this.getService('managedAgentService');
     }
 
     public getMcpService<McpServiceImplT>(): McpServiceImplT {

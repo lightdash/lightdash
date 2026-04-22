@@ -4,6 +4,7 @@ import { PreAggregateDailyStatsModel } from '../ee/models/PreAggregateDailyStats
 import { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
+import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
 import { ChangesetModel } from './ChangesetModel';
 import { CommentModel } from './CommentModel/CommentModel';
@@ -48,6 +49,7 @@ import { SessionModel } from './SessionModel';
 import { ShareModel } from './ShareModel';
 import { SlackAuthenticationModel } from './SlackAuthenticationModel';
 import { SlackChannelCacheModel } from './SlackChannelCacheModel';
+import { SlackUnfurlImageModel } from './SlackUnfurlImageModel';
 import { SpaceModel } from './SpaceModel';
 import { SpacePermissionModel } from './SpacePermissionModel';
 import { SpotlightTableConfigModel } from './SpotlightTableConfigModel';
@@ -66,6 +68,7 @@ import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/W
 
 export type ModelManifest = {
     analyticsModel: AnalyticsModel;
+    appModel: AppModel;
     commentModel: CommentModel;
     dashboardModel: DashboardModel;
     deploySessionModel: DeploySessionModel;
@@ -102,6 +105,7 @@ export type ModelManifest = {
     shareModel: ShareModel;
     slackAuthenticationModel: SlackAuthenticationModel;
     slackChannelCacheModel: SlackChannelCacheModel;
+    slackUnfurlImageModel: SlackUnfurlImageModel;
     spaceModel: SpaceModel;
     spacePermissionModel: SpacePermissionModel;
     sshKeyPairModel: SshKeyPairModel;
@@ -125,6 +129,7 @@ export type ModelManifest = {
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
@@ -229,6 +234,13 @@ export class ModelRepository
         return this.getModel(
             'analyticsModel',
             () => new AnalyticsModel({ database: this.database }),
+        );
+    }
+
+    public getAppModel(): AppModel {
+        return this.getModel(
+            'appModel',
+            () => new AppModel({ database: this.database }),
         );
     }
 
@@ -533,6 +545,13 @@ export class ModelRepository
         );
     }
 
+    public getSlackUnfurlImageModel(): SlackUnfurlImageModel {
+        return this.getModel(
+            'slackUnfurlImageModel',
+            () => new SlackUnfurlImageModel({ database: this.database }),
+        );
+    }
+
     public getSpaceModel(): SpaceModel {
         return this.getModel(
             'spaceModel',
@@ -679,6 +698,10 @@ export class ModelRepository
             'tagsModel',
             () => new TagsModel({ database: this.database }),
         );
+    }
+
+    public getManagedAgentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('managedAgentModel');
     }
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {

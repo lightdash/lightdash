@@ -31,4 +31,7 @@ fi
 echo "Creating '$BRANCH_NAME' from template '$TEMPLATE_DB'..."
 $PSQL -c "CREATE DATABASE \"$BRANCH_NAME\" TEMPLATE $TEMPLATE_DB"
 
+echo "Re-encrypting warehouse credentials for current environment..."
+PGDATABASE="$BRANCH_NAME" pnpm -F backend reseed-encrypted-credentials
+
 echo "Done — branch database '$BRANCH_NAME' is ready."

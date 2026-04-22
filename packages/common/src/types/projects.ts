@@ -27,6 +27,7 @@ export enum WarehouseTypes {
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
+    DUCKDB = 'duckdb',
 }
 
 export type SshTunnelConfiguration = {
@@ -57,6 +58,7 @@ export type CreateBigqueryCredentials = {
     location: string | undefined;
     maximumBytesBilled: number | undefined;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     executionProject?: string;
 };
 export const sensitiveCredentialsFieldNames = [
@@ -110,6 +112,7 @@ export type CreateDatabricksCredentials = {
     oauthClientSecret?: string; // OAuth M2M client secret (Service Principal)
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     compute?: Array<{
         name: string;
         httpPath: string;
@@ -145,6 +148,7 @@ export type CreatePostgresCredentials = SshTunnelConfiguration &
         searchPath?: string;
         role?: string;
         startOfWeek?: WeekDay | null;
+        dataTimezone?: string;
         timeoutSeconds?: number;
     };
 export type PostgresCredentials = Omit<
@@ -163,6 +167,7 @@ export type CreateTrinoCredentials = {
     http_scheme: string;
     source?: string;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
 };
 export type TrinoCredentials = Omit<
     CreateTrinoCredentials,
@@ -178,6 +183,7 @@ export type CreateClickhouseCredentials = {
     schema: string;
     secure?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     timeoutSeconds?: number;
 };
 export type ClickhouseCredentials = Omit<
@@ -202,10 +208,26 @@ export type CreateAthenaCredentials = {
     numRetries?: number;
     requireUserCredentials?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
 };
 
 export type AthenaCredentials = Omit<
     CreateAthenaCredentials,
+    SensitiveCredentialsFieldNames
+>;
+
+export type CreateDuckdbCredentials = {
+    type: WarehouseTypes.DUCKDB;
+    database: string;
+    schema: string;
+    token: string;
+    threads?: number;
+    requireUserCredentials?: boolean;
+    startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
+};
+export type DuckdbCredentials = Omit<
+    CreateDuckdbCredentials,
     SensitiveCredentialsFieldNames
 >;
 
@@ -223,6 +245,7 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sslmode?: string;
     ra3Node?: boolean;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     timeoutSeconds?: number;
 };
 export type RedshiftCredentials = Omit<
@@ -259,6 +282,7 @@ export type CreateSnowflakeCredentials = {
     queryTag?: string;
     accessUrl?: string;
     startOfWeek?: WeekDay | null;
+    dataTimezone?: string;
     quotedIdentifiersIgnoreCase?: boolean;
     disableTimestampConversion?: boolean; // Disable timestamp conversion to UTC - only disable if all timestamp values are already in UTC
     timeoutSeconds?: number;
@@ -277,7 +301,8 @@ export type CreateWarehouseCredentials =
     | CreateDatabricksCredentials
     | CreateTrinoCredentials
     | CreateClickhouseCredentials
-    | CreateAthenaCredentials;
+    | CreateAthenaCredentials
+    | CreateDuckdbCredentials;
 export type WarehouseCredentials =
     | SnowflakeCredentials
     | RedshiftCredentials
@@ -286,7 +311,8 @@ export type WarehouseCredentials =
     | DatabricksCredentials
     | TrinoCredentials
     | ClickhouseCredentials
-    | AthenaCredentials;
+    | AthenaCredentials
+    | DuckdbCredentials;
 
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials

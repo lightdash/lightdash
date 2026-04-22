@@ -628,6 +628,13 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
     const region = process.env.S3_REGION;
     const accessKey = process.env.S3_ACCESS_KEY;
     const secretKey = process.env.S3_SECRET_KEY;
+    // Browser-facing S3 endpoint used when minting presigned URLs that the
+    // browser will fetch directly (e.g. PUT uploads for app images). In local
+    // dev the internal Docker hostname (http://minio:9000) is unreachable from
+    // the browser, so set this to http://localhost:9000. In production with
+    // real S3 this is typically unnecessary — omit it and the internal endpoint
+    // is used for signing, which already resolves publicly.
+    const publicEndpoint = process.env.S3_PUBLIC_ENDPOINT || undefined;
     const forcePathStyle = process.env.S3_FORCE_PATH_STYLE === 'true';
     const expirationTime = parseInt(
         process.env.S3_EXPIRATION_TIME || '259200', // 3 days in seconds
@@ -646,6 +653,7 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
 
     return {
         endpoint,
+        publicEndpoint,
         bucket,
         region,
         accessKey,
@@ -824,6 +832,8 @@ const getBedrockConfig = () => {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
             region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -838,6 +848,8 @@ const getBedrockConfig = () => {
             secretAccessKey: process.env.BEDROCK_SECRET_ACCESS_KEY,
             sessionToken: process.env.BEDROCK_SESSION_TOKEN,
             region: process.env.BEDROCK_REGION,
+            inferenceProfilePrefix:
+                process.env.BEDROCK_INFERENCE_PROFILE_PREFIX,
             modelName:
                 process.env.BEDROCK_MODEL_NAME || DEFAULT_BEDROCK_MODEL_NAME,
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
@@ -1024,10 +1036,12 @@ export type LightdashConfig = {
         useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
+        enableTimezoneSupport: boolean | undefined;
     };
     pivotTable: {
         maxColumnLimit: number;
     };
+    enableImprovedExcelDates: boolean;
     chart: {
         versionHistory: {
             daysLimit: number;
@@ -1039,6 +1053,7 @@ export type LightdashConfig = {
         versionHistory: {
             daysLimit: number;
         };
+        disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
     // TODO: allow override for dark theme
@@ -1150,6 +1165,13 @@ export type LightdashConfig = {
     googleCloudPlatform: {
         projectId?: string;
     };
+    managedAgent: {
+        enabled: boolean;
+        anthropicApiKey: string | null;
+        schedule: string;
+        sessionTimeoutMs: number;
+        agentId: string | null;
+    };
 
     initialSetup?: {
         organization: {
@@ -1234,9 +1256,6 @@ export type LightdashConfig = {
     savedMetricsTree: {
         enabled: boolean | undefined;
     };
-    defaultUserSpaces: {
-        enabled: boolean | undefined;
-    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
@@ -1265,6 +1284,7 @@ export type LightdashConfig = {
         enabled: boolean | undefined;
     };
     appRuntime: AppRuntimeConfig;
+    enabledFeatureFlags: Set<string>;
 };
 
 export type SlackConfig = {
@@ -1295,6 +1315,14 @@ export type HeadlessBrowserConfig = {
 export type S3Config = {
     region: string;
     endpoint: string;
+    /**
+     * Browser-facing S3 endpoint for presigned URLs that the browser fetches
+     * directly (e.g. image uploads via PUT). In local dev with MinIO, the
+     * internal endpoint (http://minio:9000) isn't reachable from the browser,
+     * so this can be set to http://localhost:9000. In production with real
+     * S3/GCS, this is unnecessary since the endpoint is already public.
+     */
+    publicEndpoint?: string;
     bucket: string;
     expirationTime?: number;
     accessKey?: string;
@@ -1487,6 +1515,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
     if (baseS3Config) {
         const {
             endpoint: baseEndpoint,
+            publicEndpoint: basePublicEndpoint,
             bucket: baseBucket,
             region: baseRegion,
             accessKey: baseAccessKey,
@@ -1502,6 +1531,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
 
         s3 = {
             endpoint: baseEndpoint,
+            publicEndpoint: basePublicEndpoint,
             forcePathStyle: baseForcePathStyle,
             bucket,
             region,
@@ -1926,6 +1956,9 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
                   'true'
                 : false,
+            enableTimezoneSupport: process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT
+                ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
+                : undefined,
         },
         chart: {
             versionHistory: {
@@ -1950,6 +1983,9 @@ export const parseConfig = (): LightdashConfig => {
                         'LIGHTDASH_DASHBOARD_VERSION_HISTORY_DAYS_LIMIT',
                     ) || 3,
             },
+            disableSentryTracking:
+                process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
+                'true',
         },
         pivotTable: {
             maxColumnLimit:
@@ -1957,6 +1993,8 @@ export const parseConfig = (): LightdashConfig => {
                     'LIGHTDASH_PIVOT_TABLE_MAX_COLUMN_LIMIT',
                 ) || 200,
         },
+        enableImprovedExcelDates:
+            process.env.LIGHTDASH_ENABLE_IMPROVED_EXCEL_DATES === 'true',
         headlessBrowser: {
             port: process.env.HEADLESS_BROWSER_PORT,
             host: process.env.HEADLESS_BROWSER_HOST,
@@ -2189,6 +2227,17 @@ export const parseConfig = (): LightdashConfig => {
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
+        managedAgent: {
+            enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
+            anthropicApiKey:
+                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY || null,
+            schedule: process.env.MANAGED_AGENT_SCHEDULE || '*/30 * * * *',
+            sessionTimeoutMs: parseInt(
+                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
+                10,
+            ), // 5 minutes default
+            agentId: process.env.MANAGED_AGENT_AGENT_ID || null,
+        },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
         mcp: {
@@ -2218,12 +2267,6 @@ export const parseConfig = (): LightdashConfig => {
         savedMetricsTree: {
             enabled:
                 process.env.SAVED_METRICS_TREE_ENABLED === 'true'
-                    ? true
-                    : undefined,
-        },
-        defaultUserSpaces: {
-            enabled:
-                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true'
                     ? true
                     : undefined,
         },
@@ -2272,5 +2315,11 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
+        enabledFeatureFlags: new Set(
+            (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+        ),
     };
 };

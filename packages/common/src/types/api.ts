@@ -18,13 +18,17 @@ import type {
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAppendInstructionResponse,
+    ApiAppImageUploadResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
+    ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiMyAppsResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
@@ -148,6 +152,7 @@ import { type PivotConfiguration } from './pivot';
 import type {
     ApiGetPreAggregateMaterializationsResponse,
     ApiGetPreAggregateStatsResponse,
+    ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
 import {
@@ -166,7 +171,7 @@ import {
 } from './projects';
 import { type ApiPromotionChangesResponse } from './promotion';
 import { type QueryHistoryStatus } from './queryHistory';
-import { type ApiRenameFieldsResponse } from './rename';
+import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import {
@@ -251,6 +256,10 @@ export type UpdateMetadata = {
 export type UpdateDefaultUserSpaces = {
     hasDefaultUserSpaces: boolean;
 };
+export type ApiFormulaValidationResults =
+    | { valid: true; compiledSql: string }
+    | { valid: false; error: string };
+
 export type ApiCompiledQueryResults = {
     query: string;
     pivotQuery?: string;
@@ -442,6 +451,7 @@ export type HealthState = {
         versionHistory: {
             daysLimit: number;
         };
+        disableSentryTracking: boolean;
     };
     pivotTable: {
         maxColumnLimit: number;
@@ -452,6 +462,7 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
+    hasResultsCaching: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
@@ -490,6 +501,9 @@ export type HealthState = {
         enabled: boolean;
     };
     dataApps: {
+        enabled: boolean;
+    };
+    managedAgent: {
         enabled: boolean;
     };
 };
@@ -633,6 +647,7 @@ type ApiExecuteAsyncQueryResultsCommon = {
     cacheMetadata: CacheMetadata;
     parameterReferences: string[]; // params needed for query to run
     usedParametersValues: ParametersValuesMap; // params values used
+    resolvedTimezone: string | null; // resolved display timezone, null for SQL queries
 };
 
 export type ApiExecuteAsyncMetricQueryResults =
@@ -660,12 +675,26 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
         appliedDashboardFilters: DashboardFilters;
     };
 
+export type ApiExecuteAsyncFieldValueSearchResults = {
+    queryUuid: string;
+    cacheMetadata: CacheMetadata;
+};
+
+export type QueryResultsPerformance = {
+    initialQueryExecutionMs: number | null;
+    resultsPageExecutionMs: number;
+    queueTimeMs: number | null;
+};
+
+export type QueryResultsMetadata = {
+    performance: QueryResultsPerformance;
+};
+
 export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
     queryUuid: string;
     columns: ResultColumns;
     rows: ResultRow[];
-    initialQueryExecutionMs: number;
-    resultsPageExecutionMs: number;
+    metadata: QueryResultsMetadata;
     status: QueryHistoryStatus.READY;
     pivotDetails: {
         // Unlimited total column count, this is used to display a warning to the user in the frontend when the number of columns is over maxColumnLimit
@@ -807,6 +836,7 @@ type ApiResults =
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
+    | ApiFormulaValidationResults
     | ApiExploresResults
     | ApiExploreResults
     | ApiStatusResults
@@ -897,6 +927,7 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
+    | ApiAiGenerateFormulaTableCalculationResponse['results']
     | ApiAiGenerateTableCalculationResponse['results']
     | ApiCatalogMetadataResults
     | ApiCatalogAnalyticsResults
@@ -928,6 +959,7 @@ type ApiResults =
     | ApiMetricsExplorerTotalResults['results']
     | ApiGetSpotlightTableConfig['results']
     | ApiCalculateSubtotalsResponse['results']
+    | ApiExecuteAsyncFieldValueSearchResults
     | ApiExecuteAsyncSqlQueryResults
     | ApiExecuteAsyncDashboardSqlChartQueryResults
     | ApiExecuteAsyncMetricQueryResults
@@ -938,6 +970,7 @@ type ApiResults =
     | ApiReassignUserSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']
+    | ApiRenameResponse['results']
     | ApiDownloadAsyncQueryResults
     | ApiDownloadAsyncQueryResultsAsXlsx
     | ApiAiAgentThreadResponse['results']
@@ -975,6 +1008,7 @@ type ApiResults =
     | ApiSpaceDeleteImpactResponse['results']
     | ApiGetPreAggregateStatsResponse['results']
     | ApiGetPreAggregateMaterializationsResponse['results']
+    | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
@@ -983,7 +1017,10 @@ type ApiResults =
     | OAuthClientSummary
     | CreateOAuthClientResponse
     | ApiGenerateAppResponse['results']
-    | ApiPreviewTokenResponse['results'];
+    | ApiGetAppResponse['results']
+    | ApiMyAppsResponse['results']
+    | ApiPreviewTokenResponse['results']
+    | ApiAppImageUploadResponse['results'];
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

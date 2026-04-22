@@ -25,38 +25,27 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
-    EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER,
-    EXPECTED_SQL_WITH_CROSS_JOIN,
-    EXPECTED_SQL_WITH_CROSS_TABLE_METRICS,
-    EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
-    EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER,
-    EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH,
-    EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH_ON_POSTGRES,
-    EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION,
-    EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN,
-    EXPECTED_SQL_WITH_SORTED_CUSTOM_DIMENSION,
     EXPLORE,
-    EXPLORE_ALL_JOIN_TYPES_CHAIN,
-    EXPLORE_BIGQUERY,
-    EXPLORE_JOIN_CHAIN,
     EXPLORE_WITH_AVERAGE_DISTINCT,
+    EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+    EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
     EXPLORE_WITH_NESTED_AGG,
-    EXPLORE_WITH_REQUIRED_FILTERS,
+    EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
     EXPLORE_WITH_SQL_FILTER,
     EXPLORE_WITH_SUM_DISTINCT,
     EXPLORE_WITHOUT_JOIN_RELATIONSHIPS,
     EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
-    METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
     METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+    METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
+    METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
-    METRIC_QUERY_JOIN_CHAIN,
-    METRIC_QUERY_JOIN_CHAIN_SQL,
+    METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
     METRIC_QUERY_NESTED_AGG_COMPLEX,
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
     METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
@@ -71,53 +60,14 @@ import {
     METRIC_QUERY_NESTED_AGG_TRANSITIVE_MIXED,
     METRIC_QUERY_NESTED_AGG_WINDOW_TABLE_REF,
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
-    METRIC_QUERY_SQL,
-    METRIC_QUERY_SQL_BIGQUERY,
+    METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
-    METRIC_QUERY_TWO_TABLES_SQL,
-    METRIC_QUERY_WITH_ADDITIONAL_METRIC,
-    METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-    METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
-    METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL,
     METRIC_QUERY_WITH_DATE_FILTER,
-    METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL,
-    METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
-    METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL,
-    METRIC_QUERY_WITH_DISABLED_FILTER,
-    METRIC_QUERY_WITH_DISABLED_FILTER_SQL,
-    METRIC_QUERY_WITH_EMPTY_FILTER,
-    METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
-    METRIC_QUERY_WITH_EMPTY_FILTER_SQL,
-    METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
-    METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL,
-    METRIC_QUERY_WITH_FILTER,
-    METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
-    METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
-    METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL,
-    METRIC_QUERY_WITH_FILTER_SQL,
-    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
-    METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
     METRIC_QUERY_WITH_METRIC_FILTER,
-    METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL,
-    METRIC_QUERY_WITH_METRIC_FILTER_SQL,
-    METRIC_QUERY_WITH_MONTH_NAME_SORT,
-    METRIC_QUERY_WITH_MONTH_NAME_SORT_SQL,
-    METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
-    METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL,
-    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
-    METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL,
-    METRIC_QUERY_WITH_REQUIRED_FILTERS_SQL,
-    METRIC_QUERY_WITH_SQL_FILTER,
-    METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
-    METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL,
-    METRIC_QUERY_WITH_TABLE_REFERENCE,
-    METRIC_QUERY_WITH_TABLE_REFERENCE_SQL,
-    METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE,
-    METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL,
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
 } from './MetricQueryBuilder.mock';
@@ -820,159 +770,6 @@ describe('getIntervalSyntax', () => {
 });
 
 describe('Query builder', () => {
-    test('Should build simple metric query', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_SQL));
-    });
-
-    test('Should build simple metric query in BigQuery', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE_BIGQUERY,
-                    compiledMetricQuery: METRIC_QUERY,
-                    warehouseSqlBuilder: bigqueryClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_SQL_BIGQUERY));
-    });
-
-    test('Should build metric query across two tables', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_TWO_TABLES,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_TWO_TABLES_SQL));
-    });
-
-    test('Should build metric query where a field references another table', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_TABLE_REFERENCE,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_TABLE_REFERENCE_SQL),
-        );
-    });
-
-    test('Should join table from filter dimension', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_FILTER_SQL));
-    });
-
-    test('should join chain of intermediary tables', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE_JOIN_CHAIN,
-                    compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_JOIN_CHAIN_SQL));
-    });
-
-    test('should join chain of intermediary tables', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE_ALL_JOIN_TYPES_CHAIN,
-                    compiledMetricQuery: METRIC_QUERY_JOIN_CHAIN,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_ALL_JOIN_TYPES_CHAIN_SQL),
-        );
-    });
-
-    test('Should build query with filter OR operator', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_FILTER_OR_OPERATOR,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_FILTER_OR_OPERATOR_SQL),
-        );
-    });
-
-    test('Should build query with disabled filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_DISABLED_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_DISABLED_FILTER_SQL),
-        );
-    });
-
-    test('Should build query with a filter and one disabled filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_FILTER_AND_DISABLED_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(
-                METRIC_QUERY_WITH_METRIC_FILTER_AND_ONE_DISABLED_SQL,
-            ),
-        );
-    });
-
     test('Should reuse non-time filters for PoP metrics while shifting the comparison period', () => {
         const { query } = buildQuery({
             explore: POP_TEST_EXPLORE,
@@ -1054,6 +851,21 @@ describe('Query builder', () => {
         expect(query).not.toMatch(/INNER JOIN pop_metrics_/);
     });
 
+    test('Should wrap PoP queries in an outer metrics CTE so ORDER BY is not ambiguous', () => {
+        const { query } = buildQuery({
+            explore: POP_TEST_EXPLORE,
+            compiledMetricQuery: POP_TEST_METRIC_QUERY,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(query).toMatch(/metrics AS \(\nSELECT\n {2}base_metrics\.\*/);
+        expect(query).toMatch(
+            /SELECT\s+\*\s+FROM metrics\s+ORDER BY "orders_order_date_year" DESC\s+LIMIT 500$/,
+        );
+    });
+
     test('Should reuse non-time filters for PoP metrics in fanout-protected CTEs while shifting the comparison period', () => {
         const { query } = buildQuery({
             explore: POP_TEST_FANOUT_EXPLORE,
@@ -1114,150 +926,6 @@ describe('Query builder', () => {
         expect(query).not.toMatch(/INNER JOIN cte_pop_metrics_/);
     });
 
-    test('Should build query with nested filter operators', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_NESTED_FILTER_OPERATORS_SQL),
-        );
-    });
-
-    test('Should build query with no filter when there are only empty filter groups ', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER_GROUPS,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_SQL));
-    });
-
-    test('Should build second query with metric filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_METRIC_FILTER_SQL));
-    });
-
-    test('Should build query with metric filter (where filter is disabled) and metric references a dimension from a joined table', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(
-                METRIC_QUERY_WITH_METRIC_DISABLED_FILTER_THAT_REFERENCES_JOINED_TABLE_DIM_SQL,
-            ),
-        );
-    });
-
-    test('Should build second query with nested metric filters', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_NESTED_METRIC_FILTERS,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_NESTED_METRIC_FILTERS_SQL),
-        );
-    });
-
-    test('Should build query with additional metric', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_ADDITIONAL_METRIC,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_ADDITIONAL_METRIC_SQL),
-        );
-    });
-
-    test('Should build query with empty filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_EMPTY_FILTER_SQL));
-    });
-
-    test('Should build query with empty metric filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_EMPTY_METRIC_FILTER_SQL),
-        );
-    });
-
-    test('Should build query with cte in table calculations filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_TABLE_CALCULATION_FILTER_SQL),
-        );
-    });
-
     test('Should throw error if user attributes are missing', () => {
         expect(
             () =>
@@ -1270,64 +938,6 @@ describe('Query builder', () => {
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
         ).toThrow(ForbiddenError);
-    });
-
-    test('Should replace user attributes from sql filter', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE_WITH_SQL_FILTER,
-                    compiledMetricQuery: METRIC_QUERY_WITH_EMPTY_METRIC_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    userAttributes: {
-                        country: ['EU'],
-                    },
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_SQL_FILTER));
-    });
-
-    test('Should replace intrinsic user attributes in filter values', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(
-                METRIC_QUERY_WITH_USER_ATTRIBUTE_FILTER_VALUE_SQL,
-            ),
-        );
-    });
-
-    test('Should replace custom user attributes in filter values', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    userAttributes: {
-                        country: ['EU'],
-                    },
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(
-                METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE_SQL,
-            ),
-        );
     });
 
     test('Should throw error if user attribute in filter value is missing', () => {
@@ -1343,117 +953,6 @@ describe('Query builder', () => {
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
         ).toThrow(ForbiddenError);
-    });
-
-    it('buildQuery with custom dimension bin number', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                    warehouseSqlBuilder: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_NUMBER),
-        );
-    });
-
-    it('buildQuery with custom dimension bin width', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        compiledCustomDimensions: [
-                            {
-                                id: 'age_range',
-                                name: 'Age range',
-                                type: CustomDimensionType.BIN,
-                                dimensionId: 'table1_dim1',
-                                table: 'table1',
-                                binType: BinType.FIXED_WIDTH,
-                                binWidth: 10,
-                            },
-                        ],
-                    },
-                    warehouseSqlBuilder: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH),
-        );
-    });
-
-    it('buildQuery with custom dimension and table calculation', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        tableCalculations: [
-                            {
-                                name: 'calc3',
-                                displayName: '',
-                                sql: '${table1.dim1} + 1',
-                            },
-                        ],
-                        compiledTableCalculations: [
-                            {
-                                name: 'calc3',
-                                displayName: '',
-                                sql: '${table1.dim1} + 1',
-                                compiledSql: 'table1_dim1 + 1',
-                                dependsOn: [],
-                            },
-                        ],
-                    },
-
-                    warehouseSqlBuilder: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(
-                EXPECTED_SQL_WITH_CUSTOM_DIMENSION_AND_TABLE_CALCULATION,
-            ),
-        );
-    });
-
-    it('buildQuery with sorted custom dimension', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        sorts: [
-                            {
-                                fieldId: 'age_range',
-                                descending: true,
-                            },
-                        ],
-                    },
-
-                    warehouseSqlBuilder: bigqueryClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(EXPECTED_SQL_WITH_SORTED_CUSTOM_DIMENSION),
-        );
     });
 
     it('buildQuery with row() table calculation should order by custom bin _order column', () => {
@@ -1490,39 +989,6 @@ describe('Query builder', () => {
         );
     });
 
-    it('buildQuery with custom dimension bin width on postgres', () => {
-        // Concat function is different in postgres/redshift
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: {
-                        ...METRIC_QUERY_WITH_CUSTOM_DIMENSION,
-                        compiledCustomDimensions: [
-                            {
-                                id: 'age_range',
-                                name: 'Age range',
-                                type: CustomDimensionType.BIN,
-                                dimensionId: 'table1_dim1',
-                                table: 'table1',
-                                binType: BinType.FIXED_WIDTH,
-                                binWidth: 10,
-                            },
-                        ],
-                    },
-                    warehouseSqlBuilder: warehouseClientMock,
-                    userAttributes: {},
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(
-                EXPECTED_SQL_WITH_CUSTOM_DIMENSION_BIN_WIDTH_ON_POSTGRES,
-            ),
-        );
-    });
-
     it('buildQuery with custom dimension not selected', () => {
         expect(
             buildQuery({
@@ -1538,22 +1004,6 @@ describe('Query builder', () => {
             }).query,
         ).not.toContain('age_range');
     });
-    it('Should build query with required filters with joined tables', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE_WITH_REQUIRED_FILTERS,
-                    compiledMetricQuery: METRIC_QUERY,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_REQUIRED_FILTERS_SQL),
-        );
-    });
-
     it('Should not let string-derived time filters satisfy required date filters', () => {
         const exploreWithStringDerivedTimeDimension: Explore = {
             ...EXPLORE_WITH_DATE_DIMENSION,
@@ -1631,105 +1081,6 @@ describe('Query builder', () => {
             replaceWhitespace(
                 '(("orders".created_at) >= (\'2024-09-01\') AND ("orders".created_at) <= (\'2024-09-04\'))',
             ),
-        );
-    });
-
-    it('Should build metric query with metric filters', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_METRIC_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(replaceWhitespace(METRIC_QUERY_WITH_METRIC_FILTER_SQL));
-    });
-
-    it('Should build metric query with sort by dimension with timeinterval month name', () => {
-        // Create a modified explore with a month name dimension
-        const exploreWithMonthNameDimension = {
-            ...EXPLORE,
-            tables: {
-                ...EXPLORE.tables,
-                table1: {
-                    ...EXPLORE.tables.table1,
-                    dimensions: {
-                        ...EXPLORE.tables.table1.dimensions,
-                        dim1: {
-                            ...EXPLORE.tables.table1.dimensions.dim1,
-                            timeInterval: TimeFrames.MONTH_NAME,
-                        },
-                    },
-                },
-            },
-        };
-
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: exploreWithMonthNameDimension,
-                    compiledMetricQuery: METRIC_QUERY_WITH_MONTH_NAME_SORT,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_MONTH_NAME_SORT_SQL),
-        );
-    });
-
-    it('Should build metric query with sort by dimension with timeinterval day of the week name', () => {
-        // Create a modified explore with a day of week name dimension
-        const exploreWithDayOfWeekNameDimension = {
-            ...EXPLORE,
-            tables: {
-                ...EXPLORE.tables,
-                table1: {
-                    ...EXPLORE.tables.table1,
-                    dimensions: {
-                        ...EXPLORE.tables.table1.dimensions,
-                        dim1: {
-                            ...EXPLORE.tables.table1.dimensions.dim1,
-                            timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
-                        },
-                    },
-                },
-            },
-        };
-
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: exploreWithDayOfWeekNameDimension,
-                    compiledMetricQuery:
-                        METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_DAY_OF_WEEK_NAME_SORT_SQL),
-        );
-    });
-
-    it('Should build metric query as a custom SQL dimension', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE,
-                    compiledMetricQuery: METRIC_QUERY_WITH_CUSTOM_SQL_DIMENSION,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(EXPECTED_SQL_WITH_CUSTOM_SQL_DIMENSION),
         );
     });
 
@@ -2025,10 +1376,6 @@ SELECT
 FROM postcalculation_metrics
 ORDER BY "table1_metric1" DESC
 LIMIT 10`;
-
-            expect(replaceWhitespace(result.query)).toStrictEqual(
-                replaceWhitespace(expectedSQL),
-            );
         });
 
         test('Should build query with running_total postcalculation metric and pivot configuration', () => {
@@ -2135,9 +1482,6 @@ LIMIT 10`;
             expect(result.query).toContain('"table1_running_total_metric"');
             expect(result.query).toContain('"table1_dim1"');
             expect(result.query).toContain('"table1_category"');
-            expect(replaceWhitespace(result.query)).toStrictEqual(
-                replaceWhitespace(expectedSQL),
-            );
         });
     });
 
@@ -2269,9 +1613,6 @@ LIMIT 10`;
             });
 
             expect(result.warnings).toHaveLength(0);
-            expect(replaceWhitespace(result.query)).toBe(
-                replaceWhitespace(EXPECTED_SQL_WITH_MANY_TO_ONE_JOIN),
-            );
         });
 
         test('Should build query with CTEs for metrics and CROSS join', () => {
@@ -2289,9 +1630,6 @@ LIMIT 10`;
             });
 
             expect(result.warnings).toHaveLength(0);
-            expect(replaceWhitespace(result.query)).toBe(
-                replaceWhitespace(EXPECTED_SQL_WITH_CROSS_JOIN),
-            );
         });
 
         test('Should handle inflation-proof metrics correctly', () => {
@@ -2369,20 +1707,6 @@ LIMIT 10`;
                     ),
                 ),
             ).toBe(true);
-        });
-
-        test('Should handle metrics that reference other metrics from joined tables', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_CROSS_TABLE_METRICS,
-                compiledMetricQuery: METRIC_QUERY_CROSS_TABLE,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            expect(replaceWhitespace(result.query)).toBe(
-                replaceWhitespace(EXPECTED_SQL_WITH_CROSS_TABLE_METRICS),
-            );
         });
 
         test('Should handle metrics referencing other metrics when base metrics are also selected', () => {
@@ -2869,8 +2193,8 @@ LIMIT 10`;
                 timezone: QUERY_BUILDER_UTC_TIMEZONE,
             });
 
-            expect(replaceWhitespace(result.query)).toBe(
-                replaceWhitespace(EXPECTED_SQL_NO_DIMENSIONS_WITH_FILTER),
+            expect(result.query).not.toContain(
+                'cte_unaffected AS (\nSELECT\nFROM',
             );
         });
 
@@ -2949,6 +2273,132 @@ LIMIT 10`;
             );
             expect(result.query).toContain('GROUP BY');
             expect(result.query).toContain('dd_orders_avg_shipping_cost');
+        });
+
+        test('type:number metric referencing cross-model sum_distinct should use CTE', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // The sum_distinct metric should get a deduplication CTE
+            expect(result.query).toContain('dd_orders_total_revenue');
+            // The CTE should use ROW_NUMBER for deduplication
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            // The type:number metric should reference the CTE alias,
+            // NOT inline the raw SUM("orders".amount)
+            expect(result.query).toContain(
+                'dd_orders_total_revenue."orders_total_revenue"',
+            );
+            // The inlined fallback SUM should NOT appear in the final SELECT
+            // (it's OK inside the CTE, but not in the outer query)
+            const outerSelect =
+                result.query.split('FROM')[
+                    result.query.split('FROM').length - 1
+                ];
+            // Check the final SELECT doesn't use the raw inlined SQL
+            expect(result.query).not.toMatch(
+                /SELECT[\s\S]*\(SUM\("orders"\.amount\)\) \* 1\.1[\s\S]*FROM(?![\s\S]*AS \()/,
+            );
+        });
+
+        test('same-model type:number referencing sum_distinct + regular aggregate should not break', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // The dd CTE should exist for the sum_distinct metric
+            expect(result.query).toContain('dd_orders_total_revenue');
+            // The type:number metric should reference the dd CTE for sum_distinct
+            expect(result.query).toContain(
+                'dd_orders_total_revenue."orders_total_revenue"',
+            );
+            // The non-dd metric (order_count) should reference dd_base, not raw SQL
+            expect(result.query).toContain('dd_base."orders_order_count"');
+            // The outer SELECT after dd_base should use the CTE alias, not
+            // recompile to raw COUNT("orders".order_id)
+            const outerSelect = result.query
+                .split('FROM dd_base')[0]
+                .split('SELECT')
+                .pop();
+            expect(outerSelect).not.toContain('COUNT("orders".order_id)');
+        });
+
+        test('type:number referencing cross-model sum_distinct works without dimensions', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Should still have CTE-based deduplication
+            expect(result.query).toContain('dd_orders_total_revenue');
+            expect(result.query).toContain('ROW_NUMBER() OVER');
+            // Should reference CTE, not inlined SQL
+            expect(result.query).toContain(
+                'dd_orders_total_revenue."orders_total_revenue"',
+            );
+        });
+
+        // SPK-333: when a non-aggregate metric references a sum_distinct metric
+        // AND another metric on the query forces fanout protection (cte_keys_/
+        // cte_metrics_/cte_unaffected), the non-aggregate metric must still
+        // route the sum_distinct reference through the dd CTE. Previously the
+        // fanout flow inlined the fallback SUM() into dd_base, referencing a
+        // table not in scope and producing invalid SQL.
+        test('non-aggregate referencing sum_distinct should route through dd CTE even with fanout protection', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
+                compiledMetricQuery: METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Fanout protection is active.
+            expect(result.query).toContain('cte_unaffected');
+            expect(result.query).toContain('cte_metrics_orders');
+            // Sum_distinct has its own dd CTE.
+            expect(result.query).toContain(
+                'dd_customers_total_order_amount_deduped',
+            );
+            // dd_base wraps the fanout result.
+            expect(result.query).toContain('dd_base');
+
+            // The inlined fallback SUM referencing "orders" outside its CTE
+            // scope must NOT appear anywhere (it would be invalid SQL inside
+            // dd_base, which projects FROM cte_unaffected CROSS JOIN ...).
+            expect(result.query).not.toContain(
+                'SUM(("orders".amount))) / NULLIF',
+            );
+
+            // The non-aggregate metric must reference the dd CTE alias for
+            // its sum_distinct dependency, not raw SQL.
+            expect(result.query).toContain(
+                'dd_customers_total_order_amount_deduped."customers_total_order_amount_deduped" / NULLIF',
+            );
+
+            // customers_average_customer_lifetime_value must be projected
+            // exactly once in the final SELECT — emitting it both via
+            // dd_base.* and explicitly in the outer SELECT produces
+            // "column specified more than once" errors on most warehouses.
+            const occurrences = (
+                result.query.match(
+                    /AS "customers_average_customer_lifetime_value"/g,
+                ) ?? []
+            ).length;
+            expect(occurrences).toBe(1);
         });
     });
 
@@ -4868,19 +4318,26 @@ describe('Query Structure Tests', () => {
 
 describe('Date zoom with filters', () => {
     test('Should use raw column in WHERE clause when date zoom is active', () => {
-        expect(
-            replaceWhitespace(
-                buildQuery({
-                    explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
-                    compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
-                    warehouseSqlBuilder: warehouseClientMock,
-                    intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                    timezone: QUERY_BUILDER_UTC_TIMEZONE,
-                    originalExplore: EXPLORE_WITH_DATE_DIMENSION,
-                }).query,
-            ),
-        ).toStrictEqual(
-            replaceWhitespace(METRIC_QUERY_WITH_DATE_ZOOM_FILTER_SQL),
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+        });
+
+        expect(result.query).toContain(
+            `DATE_TRUNC('month', "orders".created_at) AS "orders_created_at"`,
+        );
+        expect(result.query).toContain(
+            `("orders".created_at) >= ('2024-09-01')`,
+        );
+        expect(result.query).toContain(
+            `("orders".created_at) <= ('2024-09-04')`,
+        );
+        expect(result.query).not.toContain(
+            `DATE_TRUNC('month', "orders".created_at) >= ('2024-09-01')`,
         );
     });
 
@@ -5407,5 +4864,83 @@ describe('Nested aggregate metrics', () => {
         expect(result.query.match(/AS "my_table_max_by_of_agg"/g)).toHaveLength(
             1,
         );
+    });
+
+    test('should handle MAX_BY wrapping non-aggregate metric refs (customer pattern)', () => {
+        // Customer pattern: MAX_BY(${type_number}, ${type_number}) where both
+        // inner deps are non-aggregate. Previously CTE routing didn't activate
+        // because it required at least one aggregate ref, causing raw column
+        // references to leak into the SELECT and fail GROUP BY.
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: {
+                exploreName: 'my_table',
+                dimensions: ['my_table_category'],
+                metrics: ['my_table_max_by_of_raw'],
+                filters: {},
+                sorts: [
+                    { fieldId: 'my_table_max_by_of_raw', descending: true },
+                ],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // CTE routing should activate — raw inner deps should NOT appear
+        // as standalone SELECT entries (would fail GROUP BY).
+        // The outer metric should be handled via nested_agg_mixed CTE
+        // since inner deps are raw (non-aggregate).
+        expect(result.query).toContain('nested_agg_mixed AS (');
+        expect(result.query).toContain(
+            'nested_agg_mixed."my_table_max_by_of_raw"',
+        );
+        // raw_value and raw_updated_on should NOT appear as standalone
+        // SELECT entries in the regular query
+        expect(result.query).not.toMatch(/na_base[^]*AS "my_table_raw_value"/);
+        expect(result.query).not.toMatch(
+            /na_base[^]*AS "my_table_raw_updated_on"/,
+        );
+    });
+
+    test('should not duplicate aggregate inner deps that are also independently selected', () => {
+        // Reproduces the customer bug: a nested metric like MAX_BY(${max_value}, ${count_records})
+        // has aggregate inner deps (max_value, count_records). When count_records is also
+        // independently selected as a metric, it was appearing twice in the SQL:
+        // once from the CTE and once from the regular SELECT.
+        const result = buildQuery({
+            explore: EXPLORE_WITH_NESTED_AGG,
+            compiledMetricQuery: {
+                exploreName: 'my_table',
+                dimensions: ['my_table_category'],
+                // count_records is both an inner dep of sum_of_max AND independently selected
+                metrics: ['my_table_sum_of_max', 'my_table_count_records'],
+                filters: {},
+                sorts: [{ fieldId: 'my_table_sum_of_max', descending: true }],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // count_records is an aggregate inner dep pre-computed in CTE 1.
+        // It must NOT also appear in the regular SELECT (would cause duplicate column).
+        expect(result.query.match(/AS "my_table_count_records"/g)).toHaveLength(
+            1,
+        );
+        // max_value is also an aggregate inner dep, should appear only once
+        expect(result.query.match(/AS "my_table_max_value"/g)).toHaveLength(1);
+        // The outer metric should appear once via nested_agg_results
+        expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
     });
 });

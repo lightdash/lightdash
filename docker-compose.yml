@@ -83,6 +83,7 @@ services:
             - BEDROCK_SECRET_ACCESS_KEY=${BEDROCK_SECRET_ACCESS_KEY}
             - BEDROCK_SESSION_TOKEN=${BEDROCK_SESSION_TOKEN}
             - BEDROCK_MODEL_NAME=${BEDROCK_MODEL_NAME}
+            - BEDROCK_INFERENCE_PROFILE_PREFIX=${BEDROCK_INFERENCE_PROFILE_PREFIX}
             - BEDROCK_EMBEDDING_MODEL=${BEDROCK_EMBEDDING_MODEL}
             - BEDROCK_TEMPERATURE=${BEDROCK_TEMPERATURE}
             - BEDROCK_AVAILABLE_MODELS=${BEDROCK_AVAILABLE_MODELS}
@@ -114,13 +115,13 @@ services:
             - SIGNUP_URL=${SIGNUP_URL}
             - HELP_MENU_URL=${HELP_MENU_URL}
             - ATHENA_WAREHOUSE_IAM_ROLE_AUTH=${ATHENA_WAREHOUSE_IAM_ROLE_AUTH}
-        volumes:
-            - '${DBT_PROJECT_DIR}:/usr/app/dbt'
+        # volumes:
+        #     - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:
             - ${PORT:-8080}:${PORT:-8080}
 
     db:
-        image: postgres:15.4
+        image: pgvector/pgvector:pg15
         restart: always
         environment:
             POSTGRES_PASSWORD: ${PGPASSWORD}

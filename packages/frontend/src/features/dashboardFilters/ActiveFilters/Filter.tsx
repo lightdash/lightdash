@@ -28,6 +28,7 @@ import {
 } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './Filter.module.css';
@@ -67,7 +68,7 @@ const Filter: FC<Props> = ({
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
-    const sqlChartTilesMetadata = useDashboardContext(
+    const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
     const disabled = useMemo(() => {

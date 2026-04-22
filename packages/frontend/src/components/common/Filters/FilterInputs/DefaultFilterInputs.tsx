@@ -193,6 +193,8 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                     }}
                 />
             );
+        case FilterOperator.IN_PERIOD_TO_DATE:
+            return null;
         default:
             return assertUnreachable(
                 rule.operator,

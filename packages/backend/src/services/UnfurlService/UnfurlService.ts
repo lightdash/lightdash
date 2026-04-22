@@ -14,6 +14,7 @@ import {
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
+    NotFoundError,
     ParameterError,
     QueryHistoryStatus,
     RequestMethod,
@@ -57,6 +58,7 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
+import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
 import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -274,6 +276,7 @@ type UnfurlServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     downloadFileModel: DownloadFileModel;
+    slackUnfurlImageModel: SlackUnfurlImageModel;
     analytics: LightdashAnalytics;
     slackAuthenticationModel: SlackAuthenticationModel;
     spacePermissionService: SpacePermissionService;
@@ -296,6 +299,8 @@ export class UnfurlService extends BaseService {
 
     downloadFileModel: DownloadFileModel;
 
+    slackUnfurlImageModel: SlackUnfurlImageModel;
+
     analytics: LightdashAnalytics;
 
     slackAuthenticationModel: SlackAuthenticationModel;
@@ -310,6 +315,7 @@ export class UnfurlService extends BaseService {
         fileStorageClient,
         projectModel,
         downloadFileModel,
+        slackUnfurlImageModel,
         slackClient,
         analytics,
         slackAuthenticationModel,
@@ -324,9 +330,33 @@ export class UnfurlService extends BaseService {
         this.slackClient = slackClient;
         this.projectModel = projectModel;
         this.downloadFileModel = downloadFileModel;
+        this.slackUnfurlImageModel = slackUnfurlImageModel;
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
+    }
+
+    async getPreviewSignedUrl(previewId: string): Promise<string> {
+        const record = await this.slackUnfurlImageModel.get(previewId);
+
+        const exists = await this.fileStorageClient.objectExists(record.s3_key);
+        if (!exists) {
+            this.logger.info(
+                `Slack unfurl preview object missing from storage: ${previewId}`,
+            );
+            await this.slackUnfurlImageModel
+                .delete(previewId)
+                .catch((deleteError) => {
+                    this.logger.warn(
+                        `Failed to delete orphan slack_unfurl_images row ${previewId}: ${getErrorMessage(
+                            deleteError,
+                        )}`,
+                    );
+                });
+            throw new NotFoundError('Slack unfurl image object missing');
+        }
+
+        return this.fileStorageClient.getFileUrl(record.s3_key, 300);
     }
 
     async getTitleAndDescription(
@@ -482,6 +512,7 @@ export class UnfurlService extends BaseService {
         authUserUuid,
         gridWidth,
         withPdf = false,
+        outputFormat = 'image',
         selector = undefined,
         context,
         contextId,
@@ -495,6 +526,7 @@ export class UnfurlService extends BaseService {
         authUserUuid: string;
         gridWidth?: number | undefined;
         withPdf?: boolean;
+        outputFormat?: 'image' | 'pdf';
         selector?: string;
         context: ScreenshotContext;
         contextId?: unknown;
@@ -532,7 +564,8 @@ export class UnfurlService extends BaseService {
 
         const result = await this.saveScreenshot({
             ...screenshotParams,
-            withPdf,
+            outputFormat,
+            withPdf: outputFormat === 'pdf' ? false : withPdf,
         });
 
         if (result === undefined) {
@@ -548,6 +581,19 @@ export class UnfurlService extends BaseService {
                     imageBuffer,
                     imageId,
                 );
+
+                if (details?.organizationUuid) {
+                    const previewId = useNanoid();
+                    await this.slackUnfurlImageModel.create({
+                        nanoid: previewId,
+                        s3Key: `${imageId}.png`,
+                        organizationUuid: details.organizationUuid,
+                    });
+                    imageUrl = new URL(
+                        `/api/v1/slack/preview/${previewId}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href;
+                }
             } else {
                 const filePath = `/tmp/${imageId}.png`;
                 const downloadFileId = useNanoid();
@@ -1212,6 +1258,46 @@ export class UnfurlService extends BaseService {
                         'Screenshot ready indicator found - page is ready',
                     );
 
+                    // Auto-detect CJK language from page content and set
+                    // <html lang="..."> so CSS :lang() rules select the
+                    // correct Noto Sans CJK font variant for screenshots.
+                    const detectedLang = await page.evaluate(() => {
+                        const text = document.body.innerText;
+                        if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text))
+                            return 'ja';
+                        if (/[\uAC00-\uD7AF\u1100-\u11FF]/.test(text))
+                            return 'ko';
+                        if (/[\u4E00-\u9FFF]/.test(text)) {
+                            // Distinguish Simplified vs Traditional Chinese
+                            // by checking for script-specific character variants
+                            const simplified = (
+                                text.match(
+                                    /[\u4EEC\u56FD\u5B66\u5BF9\u8FD9\u8BA9\u8BF4\u4E1C\u7ECF\u5F00]/g,
+                                ) ?? []
+                            ).length;
+                            const traditional = (
+                                text.match(
+                                    /[\u5011\u570B\u5B78\u5C0D\u9019\u8B93\u8AAA\u6771\u7D93\u958B]/g,
+                                ) ?? []
+                            ).length;
+                            return traditional > simplified ? 'zh-TW' : 'zh-CN';
+                        }
+                        return null;
+                    });
+                    if (detectedLang) {
+                        await page.evaluate(
+                            (lang) =>
+                                document.documentElement.setAttribute(
+                                    'lang',
+                                    lang,
+                                ),
+                            detectedLang,
+                        );
+                        this.logger.info(
+                            `Auto-detected CJK language: ${detectedLang}`,
+                        );
+                    }
+
                     const path = `/tmp/${imageId}.png`;
 
                     let finalSelector = selector;
@@ -1295,7 +1381,25 @@ export class UnfurlService extends BaseService {
                     };
 
                     // PDF-only output
+                    // Take a screenshot first to force the browser to fully
+                    // paint all canvas elements (e.g. ECharts).  page.pdf()
+                    // alone unreliably captures canvas content.  This matches
+                    // the IMAGE+withPdf path where screenshot precedes PDF.
                     if (outputFormat === 'pdf') {
+                        if (
+                            lightdashPage === LightdashPage.DASHBOARD ||
+                            lightdashPage === LightdashPage.EXPLORE
+                        ) {
+                            await page.locator(finalSelector).screenshot({
+                                animations: 'disabled',
+                                timeout: RESPONSE_TIMEOUT_MS,
+                            });
+                        } else {
+                            await page.screenshot({
+                                fullPage: true,
+                                animations: 'disabled',
+                            });
+                        }
                         const pdfBuffer = await generatePdf();
                         return { pdfBuffer };
                     }

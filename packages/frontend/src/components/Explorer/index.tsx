@@ -173,6 +173,25 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             );
         }, [parameterDefinitions, dispatch]);
 
+        // Seed parameter values from virtual view's savedParameterValues
+        // when no parameter values have been set yet
+        const hasSeededParams = useRef(false);
+        useEffect(() => {
+            if (
+                !hasSeededParams.current &&
+                explore?.savedParameterValues &&
+                Object.keys(explore.savedParameterValues).length > 0 &&
+                Object.keys(parameters).length === 0
+            ) {
+                hasSeededParams.current = true;
+                Object.entries(explore.savedParameterValues).forEach(
+                    ([key, value]) => {
+                        dispatch(explorerActions.setParameter({ key, value }));
+                    },
+                );
+            }
+        }, [explore, parameters, dispatch]);
+
         const { data: org } = useOrganization();
 
         return (

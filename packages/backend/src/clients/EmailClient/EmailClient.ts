@@ -608,7 +608,7 @@ export default class EmailClient {
         message: string | undefined,
         date: string,
         frequency: string,
-        imageUrl: string,
+        imageUrl: string | undefined,
         url: string,
         schedulerUrl: string,
         includeLinks: boolean,

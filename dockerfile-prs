@@ -15,7 +15,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
+RUN corepack prepare pnpm@10.33.0 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -177,6 +177,7 @@ COPY .pnpmfile.cjs .
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
 COPY packages/common/package.json packages/common/
+COPY packages/formula/package.json packages/formula/
 COPY packages/warehouses/package.json packages/warehouses/
 COPY packages/backend/package.json packages/backend/
 COPY packages/frontend/package.json packages/frontend/
@@ -201,6 +202,17 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 # output: /usr/app/packages/common/dist
 
 ############################
+# Build: formula
+############################
+FROM prod-builder AS build-formula
+COPY packages/formula/tsconfig.json packages/formula/
+COPY packages/formula/src/ packages/formula/src/
+RUN --mount=type=secret,id=TURBO_TOKEN \
+    export TURBO_TOKEN=$(cat /run/secrets/TURBO_TOKEN 2>/dev/null || echo "") && \
+    turbo build --filter=@lightdash/formula
+# output: /usr/app/packages/formula/dist
+
+############################
 # Build: warehouses
 ############################
 FROM prod-builder AS build-warehouses
@@ -219,6 +231,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 ############################
 FROM prod-builder AS build-backend
 COPY --from=build-common /usr/app/packages/common/ packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 COPY --from=build-warehouses /usr/app/packages/warehouses/ packages/warehouses/
 
 COPY packages/backend/tsconfig*.json packages/backend/
@@ -249,6 +262,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 ############################
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 
 COPY packages/frontend/ packages/frontend/
 
@@ -286,6 +300,7 @@ ARG SENTRY_ENVIRONMENT=""
 COPY --from=build-backend  /usr/app/packages/backend/dist  packages/backend/dist
 COPY --from=build-frontend /usr/app/packages/frontend/build packages/frontend/build
 COPY --from=build-common   /usr/app/packages/common/dist   packages/common/dist
+COPY --from=build-formula  /usr/app/packages/formula/dist  packages/formula/dist
 COPY --from=build-warehouses /usr/app/packages/warehouses/dist packages/warehouses/dist
 
 # Process and upload sourcemaps to Sentry if environment variables are set
