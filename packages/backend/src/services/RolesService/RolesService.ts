@@ -102,7 +102,6 @@ export class RolesService extends BaseService {
                 'manage',
                 subject('Organization', {
                     organizationUuid,
-                    metadata: { organizationUuid },
                 }),
             )
         ) {
@@ -154,7 +153,6 @@ export class RolesService extends BaseService {
                 'manage',
                 subject('Organization', {
                     organizationUuid,
-                    metadata: { organizationUuid },
                 }),
             )
         ) {
@@ -183,7 +181,6 @@ export class RolesService extends BaseService {
                 subject('Organization', {
                     organizationUuid: role.organizationUuid,
                     metadata: {
-                        organizationUuid: role.organizationUuid,
                         roleUuid: role.roleUuid,
                         roleName: role.name,
                     },
