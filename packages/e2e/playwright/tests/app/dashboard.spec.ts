@@ -180,12 +180,16 @@ test.describe('Dashboard', () => {
             .fill('Title');
         await page.getByLabel('Dashboard description').fill('Description');
         await page.getByText('Next').click();
-        // Step 2 is a space picker. Click the Jaffle shop treeitem so the
-        // Create button becomes enabled (form.values.spaceUuid is required).
-        await page
+        // Step 2 is a space picker. Jaffle shop is sometimes pre-selected;
+        // only click it if it isn't already (clicking a selected row
+        // toggles it off and disables Create).
+        const jaffleRow = page
             .getByRole('dialog')
-            .getByRole('treeitem', { name: /^Jaffle shop$/ })
-            .click();
+            .getByRole('treeitem', { name: /^Jaffle shop$/ });
+        if ((await jaffleRow.getAttribute('aria-selected')) !== 'true') {
+            await jaffleRow.click();
+            await expect(jaffleRow).toHaveAttribute('aria-selected', 'true');
+        }
         const createDashButton = page.getByText('Create', { exact: true });
         await expect(createDashButton).toBeEnabled();
         await createDashButton.click({ timeout: 10000 });

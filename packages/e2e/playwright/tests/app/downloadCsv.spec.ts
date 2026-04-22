@@ -79,9 +79,9 @@ test.describe('Download CSV on Explore', () => {
         // during click() -> scrollIntoView. dispatchEvent skips scrolling
         // and the stability check so the click lands on the resolved node.
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
 
         // run query
         await page.getByRole('button', { name: 'Run query' }).first().click();
@@ -155,9 +155,9 @@ test.describe('Download CSV on Explore', () => {
         // during click() -> scrollIntoView. dispatchEvent skips scrolling
         // and the stability check so the click lands on the resolved node.
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
 
         // run query
         await page.getByRole('button', { name: 'Run query' }).first().click();

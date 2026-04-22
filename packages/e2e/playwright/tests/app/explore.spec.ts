@@ -21,9 +21,9 @@ test.describe('Explore', () => {
         // ! This means that right after clicking a field the default sort is applied
         // ! Since we check attempt to set the order to "First name" we need to click on a different field first, otherwise the sort for first name is applied and the test fails
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
 
         // open column menu
         await page
@@ -59,9 +59,9 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
 
         await page.getByTestId('Chart-card-expand').click();
 
@@ -119,9 +119,9 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
 
         // check that selected fields are in the table headers
         await expect(
@@ -194,9 +194,9 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
 
         // add table calculation
         await page.getByRole('button', { name: 'Table calculation' }).click();
@@ -284,9 +284,9 @@ test.describe('Explore', () => {
         await scrollTreeToItem(page, 'Order Customer');
         await page.getByText('Order Customer').click();
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
         await scrollTreeToItem(page, 'Unique order count');
-        await page.getByText('Unique order count').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-Unique order count').click();
 
         // run query
         await page.getByRole('button', { name: 'Run query' }).first().click();
@@ -321,9 +321,9 @@ test.describe('Explore', () => {
             await scrollTreeToItem(page, 'Order Customer');
             await page.getByText('Order Customer').click();
             await scrollTreeToItem(page, 'First name');
-            await page.getByText('First name').dispatchEvent('click');
+            await page.getByTestId('tree-single-node-First name').click();
             await scrollTreeToItem(page, 'Unique order count');
-            await page.getByText('Unique order count').dispatchEvent('click');
+            await page.getByTestId('tree-single-node-Unique order count').click();
 
             // run query
             await page
@@ -414,11 +414,11 @@ test.describe('Explore', () => {
                     await scrollTreeToItem(page, 'Order Customer');
                     await page.getByText('Order Customer').click();
                     await scrollTreeToItem(page, 'First name');
-                    await page.getByText('First name').dispatchEvent('click');
+                    await page.getByTestId('tree-single-node-First name').click();
                     await scrollTreeToItem(page, 'Unique order count');
                     await page
-                        .getByText('Unique order count')
-                        .dispatchEvent('click');
+                        .getByTestId('tree-single-node-Unique order count')
+                        .click();
 
                     // run query
                     await page
@@ -473,11 +473,11 @@ test.describe('Explore', () => {
                     await scrollTreeToItem(page, 'Order Customer');
                     await page.getByText('Order Customer').click();
                     await scrollTreeToItem(page, 'First name');
-                    await page.getByText('First name').dispatchEvent('click');
+                    await page.getByTestId('tree-single-node-First name').click();
                     await scrollTreeToItem(page, 'Unique order count');
                     await page
-                        .getByText('Unique order count')
-                        .dispatchEvent('click');
+                        .getByTestId('tree-single-node-Unique order count')
+                        .click();
 
                     // run query
                     await page
@@ -595,7 +595,7 @@ test.describe('Explore', () => {
 
         // Select some fields to query
         await scrollTreeToItem(page, 'First name');
-        await page.getByText('First name').dispatchEvent('click');
+        await page.getByTestId('tree-single-node-First name').click();
 
         // Run the query
         await page.getByRole('button', { name: 'Run query' }).first().click();
