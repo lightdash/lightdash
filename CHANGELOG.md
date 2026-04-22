@@ -1,3 +1,10 @@
+## [0.2783.2](https://github.com/lightdash/lightdash/compare/0.2783.1...0.2783.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* period-over-period previous period metric not inheriting format ([#21588](https://github.com/lightdash/lightdash/issues/21588)) ([d149e78](https://github.com/lightdash/lightdash/commit/d149e78855cf4dacdb3ab9bfa8a4e3b1748649c7)), closes [#21207](https://github.com/lightdash/lightdash/issues/21207)
+
 ## [0.2783.1](https://github.com/lightdash/lightdash/compare/0.2783.0...0.2783.1) (2026-04-22)
 
 
