@@ -266,9 +266,6 @@ const TableCalculationModal: FC<Props> = ({
 
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
     const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
-    // Tiptap reads `initialContent` once at mount — when the AI replaces the
-    // formula we bump this key to force a remount so the new content renders.
-    const [formulaKey, setFormulaKey] = useState(0);
 
     useEffect(() => {
         if (opened) {
@@ -293,7 +290,6 @@ const TableCalculationModal: FC<Props> = ({
             if (result.format) {
                 form.setFieldValue('format', result.format);
             }
-            setFormulaKey((k) => k + 1);
             setFormulaGeneratedByAi(true);
         },
         [form],
@@ -542,6 +538,7 @@ const TableCalculationModal: FC<Props> = ({
             cancelLabel="Cancel"
             modalRootProps={{
                 closeOnClickOutside: false,
+                centered: false,
                 styles: isExpanded
                     ? {
                           content: {
@@ -624,7 +621,6 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
-                                key={formulaKey}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
