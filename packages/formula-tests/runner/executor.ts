@@ -77,6 +77,7 @@ export async function runTestCase(
         sql = compile(testCase.formula, {
             dialect: warehouse.dialect,
             columns: testCase.columns,
+            defaultOrderBy: testCase.defaultOrderBy,
         });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);

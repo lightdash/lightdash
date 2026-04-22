@@ -451,4 +451,151 @@ describe('codegen', () => {
             expect(calls).toEqual([]);
         });
     });
+
+    describe('defaultOrderBy', () => {
+        // defaultOrderBy backfills the OVER clause ORDER BY when the formula
+        // has none. Callers pass their containing query's visual sort order so
+        // `LAG(x)` picks the row rendered immediately above the current one —
+        // and so BigQuery/Snowflake accept analytic functions that reject a
+        // bare `OVER ()`.
+
+        it('injects ORDER BY into LAG when formula has no explicit ordering', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('LAG(`revenue`) OVER (ORDER BY `order_date` DESC)');
+        });
+
+        it('respects user ORDER BY when formula has one, ignoring defaultOrderBy', () => {
+            expect(
+                compile('=LAG(revenue, ORDER BY region)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('LAG("revenue") OVER (ORDER BY "region")');
+        });
+
+        it('combines user PARTITION BY with default ORDER BY', () => {
+            expect(
+                compile('=LAG(revenue, PARTITION BY region)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'ASC' }],
+                }),
+            ).toBe(
+                'LAG("revenue") OVER (PARTITION BY "region" ORDER BY "order_date" ASC)',
+            );
+        });
+
+        it('emits multiple default sort columns in order, each with its direction', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [
+                        { column: 'order_date', direction: 'DESC' },
+                        { column: 'region', direction: 'ASC' },
+                    ],
+                }),
+            ).toBe(
+                'LAG("revenue") OVER (ORDER BY "order_date" DESC, "region" ASC)',
+            );
+        });
+
+        it('omits direction when not set', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date' }],
+                }),
+            ).toBe('LAG("revenue") OVER (ORDER BY "order_date")');
+        });
+
+        it('is a no-op when defaultOrderBy is empty', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [],
+                }),
+            ).toBe('LAG("revenue") OVER ()');
+        });
+
+        it('applies to other window functions that need an order (ROW_NUMBER, FIRST, RUNNING_TOTAL)', () => {
+            expect(
+                compile('=ROW_NUMBER()', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('ROW_NUMBER() OVER (ORDER BY `order_date` DESC)');
+
+            expect(
+                compile('=FIRST(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe(
+                'FIRST_VALUE(`revenue`) OVER (ORDER BY `order_date` DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+
+            expect(
+                compile('=RUNNING_TOTAL(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'ASC' }],
+                }),
+            ).toBe(
+                'SUM(`revenue`) OVER (ORDER BY `order_date` ASC ROWS UNBOUNDED PRECEDING)',
+            );
+        });
+
+        it('does not touch `OVER ()` emitted by renderAggregate (aggregate whole-result wrapping is intentionally unordered)', () => {
+            expect(
+                compile('=SUM(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    renderAggregate: (inner) => `${inner} OVER ()`,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('SUM(`revenue`) OVER ()');
+        });
+
+        it('quotes default sort columns using the dialect — BigQuery backticks', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [
+                        {
+                            column: 'organizations_daily_date_day',
+                            direction: 'DESC',
+                        },
+                    ],
+                }),
+            ).toBe(
+                'LAG(`revenue`) OVER (ORDER BY `organizations_daily_date_day` DESC)',
+            );
+        });
+
+        it('flows through dialect LAG hooks — Redshift 3-arg COALESCE wrapper still gets the default order', () => {
+            // Redshift's generateLagLead rewrites to COALESCE(LAG(a, b), default);
+            // the inner LAG should still pick up the default ORDER BY.
+            expect(
+                compile('=LAG(revenue, 1, 0)', {
+                    dialect: 'redshift',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe(
+                'COALESCE(LAG("revenue", 1) OVER (ORDER BY "order_date" DESC), 0)',
+            );
+        });
+    });
 });
