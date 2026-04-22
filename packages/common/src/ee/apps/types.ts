@@ -60,6 +60,7 @@ export type ApiGetAppResponse = ApiSuccess<{
     name: string;
     description: string;
     createdByUserUuid: string;
+    spaceUuid: string | null;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
 }>;

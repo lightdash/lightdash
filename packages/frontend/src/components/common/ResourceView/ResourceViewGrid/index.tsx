@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
     assertUnreachable,
     ResourceViewItemType,
+    type PinnedItems,
     type ResourceViewItem,
 } from '@lightdash/common';
 import { Box, SimpleGrid, Stack, Text } from '@mantine-8/core';
@@ -88,30 +89,41 @@ const ResourceCard: FC<ResourceCardProps> = ({
     onAction,
     dragIcon,
 }) => {
-    return item.type === ResourceViewItemType.SPACE ? (
-        <ResourceViewGridSpaceItem
-            item={item}
-            allowDelete={allowDelete}
-            onAction={onAction}
-            dragIcon={dragIcon}
-        />
-    ) : item.type === ResourceViewItemType.DASHBOARD ? (
-        <ResourceViewGridDashboardItem
-            item={item}
-            allowDelete={allowDelete}
-            onAction={onAction}
-            dragIcon={dragIcon}
-        />
-    ) : item.type === ResourceViewItemType.CHART ? (
-        <ResourceViewGridChartItem
-            item={item}
-            allowDelete={allowDelete}
-            onAction={onAction}
-            dragIcon={dragIcon}
-        />
-    ) : (
-        assertUnreachable(item, `Resource type not supported`)
-    );
+    switch (item.type) {
+        case ResourceViewItemType.SPACE:
+            return (
+                <ResourceViewGridSpaceItem
+                    item={item}
+                    allowDelete={allowDelete}
+                    onAction={onAction}
+                    dragIcon={dragIcon}
+                />
+            );
+        case ResourceViewItemType.DASHBOARD:
+            return (
+                <ResourceViewGridDashboardItem
+                    item={item}
+                    allowDelete={allowDelete}
+                    onAction={onAction}
+                    dragIcon={dragIcon}
+                />
+            );
+        case ResourceViewItemType.CHART:
+            return (
+                <ResourceViewGridChartItem
+                    item={item}
+                    allowDelete={allowDelete}
+                    onAction={onAction}
+                    dragIcon={dragIcon}
+                />
+            );
+        case ResourceViewItemType.DATA_APP:
+            // Data apps don't appear in grid views yet — they only surface
+            // via the list table in the Space page.
+            return null;
+        default:
+            return assertUnreachable(item, `Resource type not supported`);
+    }
 };
 
 const DraggableItem: FC<DraggableItemProps> = ({
@@ -295,13 +307,17 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
 
     // this method converts groupedItems to the format required by the API
     const pinnedItemsOrder = useCallback(
-        (data: ResourceViewGridGroup[]) =>
+        (data: ResourceViewGridGroup[]): PinnedItems =>
             data.flatMap((group) =>
-                group.items.map((item, index) => {
-                    return {
-                        type: item.type,
-                        data: { ...item.data, pinnedListOrder: index },
-                    } as ResourceViewItem;
+                group.items.flatMap((item, index) => {
+                    // Data apps don't participate in pinning
+                    if (item.type === ResourceViewItemType.DATA_APP) return [];
+                    return [
+                        {
+                            type: item.type,
+                            data: { ...item.data, pinnedListOrder: index },
+                        } as PinnedItems[number],
+                    ];
                 }),
             ),
         [],

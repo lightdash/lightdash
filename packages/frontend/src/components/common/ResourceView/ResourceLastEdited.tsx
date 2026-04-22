@@ -1,6 +1,7 @@
 import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
+    type ResourceViewDataAppItem,
 } from '@lightdash/common';
 import { Text, Tooltip } from '@mantine-8/core';
 import dayjs from 'dayjs';
@@ -8,7 +9,10 @@ import type { FC } from 'react';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 
 interface ResourceLastEditedProps {
-    item: ResourceViewChartItem | ResourceViewDashboardItem;
+    item:
+        | ResourceViewChartItem
+        | ResourceViewDashboardItem
+        | ResourceViewDataAppItem;
 }
 
 const ResourceLastEdited: FC<ResourceLastEditedProps> = ({

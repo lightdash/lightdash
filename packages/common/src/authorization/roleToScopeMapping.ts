@@ -29,6 +29,7 @@ const BASE_ROLE_SCOPES = {
         'view:MetricsTree',
         'view:SpotlightTableConfig',
         'view:AiAgentThread@self',
+        'view:DataApp',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
@@ -170,6 +171,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgent',
         'manage:AiAgentThread',
         'manage:ContentAsCode',
+        'view:DataApp',
         'manage:DataApp',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',

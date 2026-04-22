@@ -81,7 +81,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { data: project } = useProject(projectUuid);
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
-    const isPinned = !!item.data.pinnedListUuid;
+    const isPinned =
+        item.type !== ResourceViewItemType.DATA_APP &&
+        !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
     const isChartOrDashboard =
@@ -201,6 +203,13 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         access: userAccess ? [userAccess] : [],
                     }),
                 ) === true;
+            break;
+        }
+        case ResourceViewItemType.DATA_APP: {
+            // Write-path space permissions for data apps land in a later PR.
+            // For now this menu only shows manage-gated actions (move, delete,
+            // verify) which aren't supported for data apps yet, so hide them.
+            userCanManage = false;
             break;
         }
         default:
@@ -459,19 +468,23 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 display={isSqlChart ? 'none' : 'block'}
                             />
 
-                            <Menu.Item
-                                component="button"
-                                role="menuitem"
-                                leftSection={<IconFolderSymlink size={18} />}
-                                onClick={() => {
-                                    onAction({
-                                        type: ResourceViewItemAction.TRANSFER_TO_SPACE,
-                                        item,
-                                    });
-                                }}
-                            >
-                                Move
-                            </Menu.Item>
+                            {item.type !== ResourceViewItemType.DATA_APP && (
+                                <Menu.Item
+                                    component="button"
+                                    role="menuitem"
+                                    leftSection={
+                                        <IconFolderSymlink size={18} />
+                                    }
+                                    onClick={() => {
+                                        onAction({
+                                            type: ResourceViewItemAction.TRANSFER_TO_SPACE,
+                                            item,
+                                        });
+                                    }}
+                                >
+                                    Move
+                                </Menu.Item>
+                            )}
 
                             {item.type === ResourceViewItemType.SPACE && (
                                 <Menu.Item
