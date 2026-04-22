@@ -155,9 +155,9 @@ const TableCalculationModal: FC<Props> = ({
     const hasFormula = tableCalculation
         ? isFormulaTableCalculation(tableCalculation)
         : false;
-    // Editing an existing calc: lock to its own mode (can't map SQL back to
-    // formula, and switching would throw away the user's work). New calc:
-    // Formula when the warehouse supports it, SQL otherwise.
+    const hasSql = tableCalculation
+        ? isSqlTableCalculation(tableCalculation)
+        : false;
     const defaultMode = tableCalculation
         ? hasFormula
             ? EditMode.FORMULA
@@ -168,6 +168,9 @@ const TableCalculationModal: FC<Props> = ({
           ? EditMode.FORMULA
           : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
+    // Switching an existing SQL calc to Formula preserves its fieldId; Formula → SQL is not offered.
+    const canSwitchInputMode =
+        isFormulaSupported && (isNewCalculation || hasSql);
 
     useEffect(() => {
         if (isNewCalculation && isFormulaSupported) {
@@ -585,7 +588,7 @@ const TableCalculationModal: FC<Props> = ({
                         <Text fz="sm" fw={600}>
                             Input mode
                         </Text>
-                        {isNewCalculation && isFormulaSupported && (
+                        {canSwitchInputMode && (
                             <SegmentedControl
                                 classNames={{
                                     root: classes.inputModeControl,
