@@ -10,7 +10,7 @@ import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect, useMemo, type FC } from 'react';
+import { useEffect, useMemo, useRef, type FC } from 'react';
 import {
     generateFieldSuggestion,
     type FieldSuggestionItem,
@@ -52,6 +52,11 @@ export const AiPromptEditor: FC<Props> = ({
     onCleared,
     disabled,
 }) => {
+    // Refs so handleKeyDown (configured once at editor mount) always reaches the live values.
+    const onSubmitRef = useRef(onSubmit);
+    onSubmitRef.current = onSubmit;
+    const editorRef = useRef<Editor | null>(null);
+
     // Build field suggestions from itemsMap
     const fieldSuggestions: FieldSuggestionItem[] = useMemo(() => {
         if (!explore) return [];
@@ -116,12 +121,12 @@ export const AiPromptEditor: FC<Props> = ({
         },
         editorProps: {
             handleKeyDown: (_, event) => {
-                // Submit on Enter (without shift)
                 if (event.key === 'Enter' && !event.shiftKey) {
-                    const text = editor?.getText() ?? '';
-                    if (text.trim() && onSubmit) {
+                    const text = editorRef.current?.getText() ?? '';
+                    const submit = onSubmitRef.current;
+                    if (text.trim() && submit) {
                         event.preventDefault();
-                        onSubmit(text);
+                        submit(text);
                         return true;
                     }
                 }
@@ -129,6 +134,8 @@ export const AiPromptEditor: FC<Props> = ({
             },
         },
     });
+
+    editorRef.current = editor;
 
     // Clear editor when shouldClear changes to true
     useEffect(() => {
