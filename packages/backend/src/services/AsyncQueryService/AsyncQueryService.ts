@@ -2859,6 +2859,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         };
     }
 
@@ -2873,6 +2874,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: string[];
             timezone?: string;
             displayTimezone: string | null;
+            useTimezoneAwareDateTrunc: boolean;
             routingTarget?: PreAggregationRoutingDecision['target'];
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
@@ -2901,6 +2903,7 @@ export class AsyncQueryService extends ProjectService {
                     parameters,
                     timezone,
                     displayTimezone,
+                    useTimezoneAwareDateTrunc,
                     routingTarget,
                     preAggregationRoute,
                     userAccessControls,
@@ -3150,8 +3153,6 @@ export class AsyncQueryService extends ProjectService {
                             },
                         } satisfies ExecuteAsyncQueryReturn;
                     }
-
-                    const useTimezoneAwareDateTrunc = displayTimezone !== null;
 
                     const resolveStart = Date.now();
                     const executionPlan =
@@ -3414,6 +3415,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences: string[];
             timezone?: string;
             displayTimezone: string | null;
+            useTimezoneAwareDateTrunc: boolean;
             routingTarget?: PreAggregationRoutingDecision['target'];
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
@@ -3578,6 +3580,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3634,6 +3637,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 timezone: resolvedTimezone,
                 displayTimezone,
+                useTimezoneAwareDateTrunc,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -3738,6 +3742,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3776,6 +3781,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 timezone: resolvedTimezone,
                 displayTimezone,
+                useTimezoneAwareDateTrunc,
                 routingTarget: 'warehouse',
             },
             requestParameters,
@@ -3978,6 +3984,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -4029,6 +4036,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 timezone: resolvedTimezone,
                 displayTimezone,
+                useTimezoneAwareDateTrunc,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -4301,6 +4309,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -4354,6 +4363,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 timezone: resolvedTimezone,
                 displayTimezone,
+                useTimezoneAwareDateTrunc,
                 pivotConfiguration,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -4625,6 +4635,7 @@ export class AsyncQueryService extends ProjectService {
             responseMetricQuery,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -4653,6 +4664,7 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     timezone: resolvedTimezone,
                     displayTimezone,
+                    useTimezoneAwareDateTrunc,
                 },
                 requestParameters,
             );
@@ -4738,6 +4750,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 pivotConfiguration,
                 displayTimezone: null,
+                useTimezoneAwareDateTrunc: false,
             },
             {
                 query: metricQuery,
@@ -5087,6 +5100,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 pivotConfiguration,
                 displayTimezone: null,
+                useTimezoneAwareDateTrunc: false,
             },
             {
                 query: metricQuery,
@@ -5185,6 +5199,7 @@ export class AsyncQueryService extends ProjectService {
                 missingParameterReferences,
                 pivotConfiguration,
                 displayTimezone: null,
+                useTimezoneAwareDateTrunc: false,
             },
             {
                 query: metricQuery,
@@ -5399,6 +5414,7 @@ export class AsyncQueryService extends ProjectService {
             availableParameterDefinitions,
             resolvedTimezone,
             displayTimezone,
+            useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -5443,6 +5459,7 @@ export class AsyncQueryService extends ProjectService {
                     missingParameterReferences,
                     timezone: resolvedTimezone,
                     displayTimezone,
+                    useTimezoneAwareDateTrunc,
                     routingTarget: routingDecision.target,
                     ...(routingDecision.target === 'pre_aggregate' && {
                         preAggregationRoute: routingDecision.route,

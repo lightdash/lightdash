@@ -362,6 +362,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -454,6 +455,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -555,6 +557,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -651,6 +654,7 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -743,6 +747,7 @@ describe('AsyncQueryService', () => {
                         'another_missing_param',
                     ],
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -821,6 +826,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -891,6 +897,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 {
                     query: {
@@ -971,6 +978,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 {
                     query: {
@@ -1052,6 +1060,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -1695,6 +1704,7 @@ describe('AsyncQueryService', () => {
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
                     displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
