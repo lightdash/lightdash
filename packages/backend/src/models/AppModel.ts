@@ -130,6 +130,16 @@ export class AppModel {
         return row;
     }
 
+    async getVersion(
+        appId: string,
+        version: number,
+    ): Promise<DbAppVersion | null> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .first();
+        return row ?? null;
+    }
+
     async getLatestVersion(appId: string): Promise<DbAppVersion | null> {
         const row = await this.database(AppVersionsTableName)
             .where({ app_id: appId })

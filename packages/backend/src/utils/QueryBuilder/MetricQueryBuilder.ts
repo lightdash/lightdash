@@ -1897,6 +1897,14 @@ export class MetricQueryBuilder {
                 ({ outerMetricId }) => outerMetricId,
             ),
         );
+        // Non-aggregate metrics that reference a sum_distinct/average_distinct
+        // metric must be projected from the outer dd_base SELECT (where the
+        // dd_* CTE aliases exist), not inlined into this fanout flow's
+        // finalMetricSelects. Inlining would expand the ${sum_distinct} ref
+        // to its raw fallback SUM(...) referencing tables not in scope of
+        // the dd_base CTE. See SPK-333.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -1910,7 +1918,14 @@ export class MetricQueryBuilder {
                     isNonAggregateMetric(metricObject) &&
                     referencesAnotherTable
                 ) {
-                    metricsWithCteReferences.push(metricObject);
+                    // Defer dd-referencing metrics to the outer dd_base
+                    // SELECT (see nonAggReferencingDd above), but still
+                    // collect their transitively-referenced metrics so
+                    // non-dd dependencies (e.g. the count_distinct in the
+                    // denominator) still land in cte_unaffected/dd_base.
+                    if (!nonAggReferencingDd.has(getItemId(metricObject))) {
+                        metricsWithCteReferences.push(metricObject);
+                    }
                     const metricReferences = parseAllReferences(
                         metricObject.sql,
                         metricObject.table,
@@ -2306,10 +2321,19 @@ export class MetricQueryBuilder {
                 const notSumDistinct =
                     metric.type !== MetricType.SUM_DISTINCT &&
                     metric.type !== MetricType.AVERAGE_DISTINCT;
+                // Non-aggregate metrics referencing distinct metrics are
+                // projected by the outer dd_base SELECT (SPK-333). Keep
+                // them out of cte_unaffected so their broken compiledSql
+                // (which still inlines the sum_distinct as raw SUM) isn't
+                // emitted here either.
+                const notNonAggReferencingDd = !nonAggReferencingDd.has(
+                    getItemId(metric),
+                );
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
                     notSumDistinct &&
+                    notNonAggReferencingDd &&
                     !nestedAggOuterIds.has(getItemId(metric))
                 );
             });

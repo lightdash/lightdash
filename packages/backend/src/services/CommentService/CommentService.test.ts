@@ -189,7 +189,7 @@ describe('CommentService', () => {
                     type: 'DashboardComments',
                     organizationUuid: 'org-uuid',
                     projectUuid: 'project-uuid',
-                    name: 'Test Dashboard',
+                    metadata: { dashboardName: 'Test Dashboard' },
                 },
             );
         });

@@ -69,7 +69,19 @@ export class FavoritesService extends BaseService {
         contentUuid: string,
     ): Promise<ToggleFavoriteResponse> {
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    ...project,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -152,7 +164,19 @@ export class FavoritesService extends BaseService {
         projectUuid: string,
     ): Promise<FavoriteItems> {
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    ...project,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 

@@ -1771,8 +1771,10 @@ export class McpService extends BaseService {
 
         // Validate header attributes if present (admin + narrowing check)
         if (headerUserAttributes) {
+            const auditedAbility = this.createAuditedAbility(user);
             validateUserAttributeOverrides(
                 user,
+                auditedAbility,
                 headerUserAttributes,
                 dbAttributes,
             );
@@ -1801,8 +1803,10 @@ export class McpService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+        const auditedAbility = this.createAuditedAbility(user);
         validateUserAttributeOverrides(
             user,
+            auditedAbility,
             headerUserAttributes,
             dbAttributes,
         );

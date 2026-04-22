@@ -103,49 +103,43 @@ describe('formatAuditActor', () => {
 });
 
 describe('formatAuditResource', () => {
-    it('shows type with name when name is available', () => {
+    it('renders all metadata entries as key: value pairs', () => {
         expect(
             formatAuditResource({
                 type: 'Dashboard',
-                uuid: 'dash-uuid',
-                name: 'Sales Overview',
+                metadata: {
+                    dashboardUuid: 'dash-uuid',
+                    dashboardName: 'Sales Overview',
+                },
                 organizationUuid: 'org-uuid',
             }),
-        ).toBe('Dashboard "Sales Overview"');
+        ).toBe(
+            'Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview',
+        );
     });
 
-    it('shows type with uuid when name is missing', () => {
+    it('renders a single metadata entry', () => {
         expect(
             formatAuditResource({
                 type: 'Dashboard',
-                uuid: 'dash-uuid',
+                metadata: { dashboardUuid: 'dash-uuid' },
                 organizationUuid: 'org-uuid',
             }),
-        ).toBe('Dashboard dash-uuid');
+        ).toBe('Dashboard -> dashboardUuid: dash-uuid');
     });
 
-    it('shows Project uuid even when uuid equals projectUuid', () => {
+    it('renders Project metadata even when it duplicates projectUuid', () => {
         expect(
             formatAuditResource({
                 type: 'Project',
-                uuid: 'proj-uuid',
+                metadata: { projectUuid: 'proj-uuid' },
                 organizationUuid: 'org-uuid',
                 projectUuid: 'proj-uuid',
             }),
-        ).toBe('Project proj-uuid');
+        ).toBe('Project -> projectUuid: proj-uuid');
     });
 
-    it('shows Project with uuid when projectUuid is not set', () => {
-        expect(
-            formatAuditResource({
-                type: 'Project',
-                uuid: 'proj-uuid',
-                organizationUuid: 'org-uuid',
-            }),
-        ).toBe('Project proj-uuid');
-    });
-
-    it('shows type with project context for permission-type subjects', () => {
+    it('falls back to project context when metadata is absent', () => {
         expect(
             formatAuditResource({
                 type: 'Explore',
@@ -155,7 +149,7 @@ describe('formatAuditResource', () => {
         ).toBe('Explore in project proj-uuid');
     });
 
-    it('shows type with org context when only org uuid is available', () => {
+    it('falls back to org context when only org uuid is available', () => {
         expect(
             formatAuditResource({
                 type: 'CustomSql',
@@ -164,7 +158,7 @@ describe('formatAuditResource', () => {
         ).toBe('CustomSql in organization org-uuid');
     });
 
-    it('shows just type when no uuid, name, project, or org', () => {
+    it('shows just type when no metadata, project, or org is available', () => {
         expect(
             formatAuditResource({
                 type: 'CustomSql',
@@ -190,8 +184,10 @@ describe('formatAuditMessage', () => {
         action: 'update',
         resource: {
             type: 'Dashboard',
-            uuid: 'dash-uuid',
-            name: 'Sales Overview',
+            metadata: {
+                dashboardUuid: 'dash-uuid',
+                dashboardName: 'Sales Overview',
+            },
             organizationUuid: 'org-uuid',
             projectUuid: 'proj-uuid',
         },
@@ -201,7 +197,7 @@ describe('formatAuditMessage', () => {
 
     it('formats a full allowed event', () => {
         expect(formatAuditMessage(baseEvent)).toBe(
-            'john@company.com updated Dashboard "Sales Overview" (allowed)',
+            'john@company.com updated Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview (allowed)',
         );
     });
 
@@ -213,7 +209,7 @@ describe('formatAuditMessage', () => {
                 reason: 'Insufficient permissions',
             }),
         ).toBe(
-            'john@company.com updated Dashboard "Sales Overview" (denied) - Insufficient permissions',
+            'john@company.com updated Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview (denied) - Insufficient permissions',
         );
     });
 
@@ -247,13 +243,15 @@ describe('formatAuditMessage', () => {
                 action: 'manage',
                 resource: {
                     type: 'Group',
-                    uuid: 'group-uuid',
-                    name: 'Engineering',
+                    metadata: {
+                        groupUuid: 'group-uuid',
+                        groupName: 'Engineering',
+                    },
                     organizationUuid: 'org-uuid',
                 },
             }),
         ).toBe(
-            'service-account "ci@company.com" managed Group "Engineering" (allowed)',
+            'service-account "ci@company.com" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed)',
         );
     });
 
@@ -268,6 +266,8 @@ describe('formatAuditMessage', () => {
                 },
                 action: 'view',
             }),
-        ).toBe('anonymous user viewed Dashboard "Sales Overview" (allowed)');
+        ).toBe(
+            'anonymous user viewed Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview (allowed)',
+        );
     });
 });

@@ -226,7 +226,9 @@ export const checkLightdashVersion = async (): Promise<void> => {
             body: undefined,
         });
 
-        if (health.version !== CLI_VERSION) {
+        const cliMajor = CLI_VERSION.split('.')[0];
+        const serverMajor = health.version.split('.')[0];
+        if (cliMajor !== serverMajor) {
             const config = await getConfig();
             console.error(
                 `${styles.title(

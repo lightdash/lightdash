@@ -27,6 +27,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
         parameters,
         isTouchDevice,
         minimal,
+        resolvedTimezone,
     } = useVisualizationContext();
     const theme = useMantineTheme();
 
@@ -51,6 +52,7 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
                 value,
                 false,
                 parameters,
+                resolvedTimezone,
             );
         };
 
@@ -191,7 +193,14 @@ const useEchartsTreemapConfig = (isInDashboard: boolean) => {
             ],
             data: data || [],
         };
-    }, [chartConfig, theme, itemsMap, colorPalette, parameters]);
+    }, [
+        chartConfig,
+        theme,
+        itemsMap,
+        colorPalette,
+        parameters,
+        resolvedTimezone,
+    ]);
 
     const eChartsOption: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !treemapSeriesOption) return;

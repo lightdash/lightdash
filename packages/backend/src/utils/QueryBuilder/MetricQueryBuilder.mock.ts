@@ -3272,3 +3272,213 @@ export const METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery 
         compiledAdditionalMetrics: [],
         compiledCustomDimensions: [],
     };
+
+// Repro for SPK-333: a type:number metric referencing a sum_distinct metric
+// is selected alongside a simple sum metric on a joined (one-to-many) table
+// that triggers fanout protection. The non-aggregate metric's ${sum_distinct}
+// reference must resolve to the dd CTE alias; inlining the fallback SUM breaks
+// because the raw table is not in scope of the dd_base outer SELECT.
+export const EXPLORE_WITH_FANOUT_AND_DD_REFERENCE: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'customers',
+    label: 'customers',
+    baseTable: 'customers',
+    tags: [],
+    tables: {
+        customers: {
+            name: 'customers',
+            label: 'customers',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'customers',
+            primaryKey: ['customer_id'],
+            lineageGraph: {},
+            dimensions: {
+                customer_id: {
+                    type: DimensionType.STRING,
+                    name: 'customer_id',
+                    label: 'Customer ID',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: '"customers".customer_id',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                unique_customer_count: {
+                    type: MetricType.COUNT_DISTINCT,
+                    name: 'unique_customer_count',
+                    label: 'Unique Customer Count',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: 'COUNT(DISTINCT "customers".customer_id)',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+                total_order_amount_deduped: {
+                    type: MetricType.SUM_DISTINCT,
+                    name: 'total_order_amount_deduped',
+                    label: 'Total Order Amount (Deduped)',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${orders.amount}',
+                    distinctKeys: ['orders.order_id'],
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '("orders".amount)',
+                    compiledDistinctKeys: ['("orders".order_id)'],
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
+                average_customer_lifetime_value: {
+                    type: MetricType.NUMBER,
+                    name: 'average_customer_lifetime_value',
+                    label: 'Average Customer Lifetime Value',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${total_order_amount_deduped} / NULLIF(${unique_customer_count}, 0)',
+                    // compileMetricSql inlines the fallback SUM for the
+                    // sum_distinct ref; the query builder must rewrite this
+                    // to point at the dd CTE instead of emitting it raw.
+                    compiledSql:
+                        '(SUM("orders".amount)) / NULLIF(COUNT(DISTINCT "customers".customer_id), 0)',
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
+            },
+        },
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'orders',
+            primaryKey: ['order_id'],
+            lineageGraph: {},
+            dimensions: {
+                order_id: {
+                    type: DimensionType.STRING,
+                    name: 'order_id',
+                    label: 'Order ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                amount: {
+                    type: DimensionType.NUMBER,
+                    name: 'amount',
+                    label: 'Amount',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.amount',
+                    compiledSql: '"orders".amount',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_order_amount: {
+                    type: MetricType.SUM,
+                    name: 'total_order_amount',
+                    label: 'Total Order Amount',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+        },
+        payments: {
+            name: 'payments',
+            label: 'payments',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'payments',
+            primaryKey: ['payment_id'],
+            lineageGraph: {},
+            dimensions: {
+                payment_id: {
+                    type: DimensionType.STRING,
+                    name: 'payment_id',
+                    label: 'Payment ID',
+                    table: 'payments',
+                    tableLabel: 'payments',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.payment_id',
+                    compiledSql: '"payments".payment_id',
+                    tablesReferences: ['payments'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                payment_count: {
+                    type: MetricType.COUNT,
+                    name: 'payment_count',
+                    label: 'Payment Count',
+                    table: 'payments',
+                    tableLabel: 'payments',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.payment_id',
+                    compiledSql: 'COUNT("payments".payment_id)',
+                    tablesReferences: ['payments'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+    joinedTables: [
+        {
+            table: 'orders',
+            sqlOn: '${customers.customer_id} = ${orders.customer_id}',
+            compiledSqlOn: '("customers".customer_id) = ("orders".customer_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['customers', 'orders'],
+        },
+        {
+            table: 'payments',
+            sqlOn: '${orders.order_id} = ${payments.order_id}',
+            compiledSqlOn: '("orders".order_id) = ("payments".order_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['orders', 'payments'],
+        },
+    ],
+};
+
+export const METRIC_QUERY_FANOUT_AND_DD_REFERENCE: CompiledMetricQuery = {
+    exploreName: 'customers',
+    dimensions: [],
+    metrics: [
+        'customers_average_customer_lifetime_value',
+        'customers_total_order_amount_deduped',
+        'orders_total_order_amount',
+        'payments_payment_count',
+    ],
+    filters: {},
+    sorts: [
+        {
+            fieldId: 'customers_average_customer_lifetime_value',
+            descending: true,
+        },
+    ],
+    limit: 500,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};

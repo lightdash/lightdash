@@ -53,6 +53,7 @@ type Args = {
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined;
     setPivotDimensions: React.Dispatch<

@@ -301,7 +301,7 @@ export class SavedChartController extends BaseController {
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         const totalResult = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .calculateTotalFromSavedChart(
                 req.account!,
                 chartUuid,

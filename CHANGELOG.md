@@ -1,3 +1,158 @@
+# [0.2777.0](https://github.com/lightdash/lightdash/compare/0.2776.0...0.2777.0) (2026-04-22)
+
+
+### Features
+
+* auto-name data apps ([#22210](https://github.com/lightdash/lightdash/issues/22210)) ([c69020b](https://github.com/lightdash/lightdash/commit/c69020b170ff4851b8013563bc589b8a0523a286))
+
+# [0.2776.0](https://github.com/lightdash/lightdash/compare/0.2775.3...0.2776.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* enable attching images in the browser ([#22212](https://github.com/lightdash/lightdash/issues/22212)) ([b7d75e4](https://github.com/lightdash/lightdash/commit/b7d75e459054d798d2e6b502fb7dad90d6cbf059))
+* **formula:** default window function ORDER BY to query sort fields ([#22218](https://github.com/lightdash/lightdash/issues/22218)) ([6c64b29](https://github.com/lightdash/lightdash/commit/6c64b29147e0a4628edef6e4767dcf9b880f7530))
+
+
+### Features
+
+* **cli:** retry batched deploy on transient failures ([#22213](https://github.com/lightdash/lightdash/issues/22213)) ([a3dffd1](https://github.com/lightdash/lightdash/commit/a3dffd112aeedfeb9a987d44865709db3ce17126))
+
+## [0.2775.3](https://github.com/lightdash/lightdash/compare/0.2775.2...0.2775.3) (2026-04-22)
+
+
+### Bug Fixes
+
+* move total and subtotal calculations to AsyncQueryService ([#22152](https://github.com/lightdash/lightdash/issues/22152)) ([4cc3d7d](https://github.com/lightdash/lightdash/commit/4cc3d7d91f72728d6a26d31bfb033a6a71708749))
+
+## [0.2775.2](https://github.com/lightdash/lightdash/compare/0.2775.1...0.2775.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* don't jump to top on chart select in Add saved charts ([#22206](https://github.com/lightdash/lightdash/issues/22206)) ([e0e565f](https://github.com/lightdash/lightdash/commit/e0e565f81fbab92746b3a78a5b6bb136b3c7d563))
+
+## [0.2775.1](https://github.com/lightdash/lightdash/compare/0.2775.0...0.2775.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* stage uploaded images in for data apps ([#22203](https://github.com/lightdash/lightdash/issues/22203)) ([d1395c7](https://github.com/lightdash/lightdash/commit/d1395c7e1d8dd1b5c4905ba636677c6b312e56c9))
+
+# [0.2775.0](https://github.com/lightdash/lightdash/compare/0.2774.2...0.2775.0) (2026-04-22)
+
+
+### Features
+
+* include query list in prompt display ([#22192](https://github.com/lightdash/lightdash/issues/22192)) ([54ce451](https://github.com/lightdash/lightdash/commit/54ce45177f9ebe57758254b1111712c3f20ada17))
+
+## [0.2774.2](https://github.com/lightdash/lightdash/compare/0.2774.1...0.2774.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* guard against undefined tableCalculations in createSavedChartVersion ([#22202](https://github.com/lightdash/lightdash/issues/22202)) ([7249b64](https://github.com/lightdash/lightdash/commit/7249b646dc06a733ed5e592af0530e72c22ac0f0))
+
+## [0.2774.1](https://github.com/lightdash/lightdash/compare/0.2774.0...0.2774.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* update query-sdk to support table calculations ([#22187](https://github.com/lightdash/lightdash/issues/22187)) ([7f1fa9b](https://github.com/lightdash/lightdash/commit/7f1fa9b0d0149bbb8dfc5319b277b3323224532a))
+
+# [0.2774.0](https://github.com/lightdash/lightdash/compare/0.2773.0...0.2774.0) (2026-04-21)
+
+
+### Features
+
+* add UI to pick resources for app generation ([#22168](https://github.com/lightdash/lightdash/issues/22168)) ([4a3ec80](https://github.com/lightdash/lightdash/commit/4a3ec80f9e6ae178740110bc26788ee1cd8c24e8))
+* **logging:** add structured metadata to async query execution errors ([#22158](https://github.com/lightdash/lightdash/issues/22158)) ([4431ebb](https://github.com/lightdash/lightdash/commit/4431ebb17a7cd69fbbd1d2694f98169d6fd96f4f))
+
+# [0.2773.0](https://github.com/lightdash/lightdash/compare/0.2772.5...0.2773.0) (2026-04-21)
+
+
+### Bug Fixes
+
+* only warn on CLI version mismatch when major version differs ([#22173](https://github.com/lightdash/lightdash/issues/22173)) ([582158b](https://github.com/lightdash/lightdash/commit/582158b85712367f1126fc527c00faaedc6a1076))
+* wait for data to build cross-explore tileTargets ([#22166](https://github.com/lightdash/lightdash/issues/22166)) ([1169420](https://github.com/lightdash/lightdash/commit/1169420bcdd8bb6adb219b66e71d207923ed2b20))
+
+
+### Features
+
+* thread resolved timezone through frontend chart formatting ([#22110](https://github.com/lightdash/lightdash/issues/22110)) ([74880e5](https://github.com/lightdash/lightdash/commit/74880e5eb4c36bfc18a2801e33cef4e2fb49acd6))
+
+## [0.2772.5](https://github.com/lightdash/lightdash/compare/0.2772.4...0.2772.5) (2026-04-21)
+
+
+### Bug Fixes
+
+* **tooltip:** don't re-format already-formatted header in tuple mode ([#22174](https://github.com/lightdash/lightdash/issues/22174)) ([4ba1a19](https://github.com/lightdash/lightdash/commit/4ba1a195991efd06f0126a3fba8f036a3c0bfb55)), closes [#19335](https://github.com/lightdash/lightdash/issues/19335)
+
+## [0.2772.4](https://github.com/lightdash/lightdash/compare/0.2772.3...0.2772.4) (2026-04-21)
+
+
+### Bug Fixes
+
+* **formula:** cast ROUND value to numeric on Postgres-family dialects ([#22160](https://github.com/lightdash/lightdash/issues/22160)) ([4abe9d2](https://github.com/lightdash/lightdash/commit/4abe9d2eb77f7934fb1145043d82547da9054fe4))
+* sanitize presigned S3 URL in CSV export error logs ([#22165](https://github.com/lightdash/lightdash/issues/22165)) ([fc25885](https://github.com/lightdash/lightdash/commit/fc258855ea8c61cbe0dde45c51f6500de0efc327))
+
+## [0.2772.3](https://github.com/lightdash/lightdash/compare/0.2772.2...0.2772.3) (2026-04-21)
+
+
+### Bug Fixes
+
+* **explorer:** inherit fz/lh on the Filter-by item label ([#22161](https://github.com/lightdash/lightdash/issues/22161)) ([453bc05](https://github.com/lightdash/lightdash/commit/453bc05113c719c2a98162942a126df245fee4e7))
+* improve error logging for dashboard CSV export fetch failures ([#22163](https://github.com/lightdash/lightdash/issues/22163)) ([a76282c](https://github.com/lightdash/lightdash/commit/a76282c54615b2781891257ba3647eae49bc3f6a))
+
+## [0.2772.2](https://github.com/lightdash/lightdash/compare/0.2772.1...0.2772.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* route sum_distinct refs through dd CTE when fanout protection is active (SPK-333) ([#22150](https://github.com/lightdash/lightdash/issues/22150)) ([1493c10](https://github.com/lightdash/lightdash/commit/1493c10ea1f52c7c5c63deba3aee8a50d4f43649))
+
+## [0.2772.1](https://github.com/lightdash/lightdash/compare/0.2772.0...0.2772.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **data-apps:** hide "Load earlier messages" button when all versions are loaded ([#22155](https://github.com/lightdash/lightdash/issues/22155)) ([c0d722e](https://github.com/lightdash/lightdash/commit/c0d722ed96fde42e7c9ee12313961d66a6e8470c))
+
+# [0.2772.0](https://github.com/lightdash/lightdash/compare/0.2771.0...0.2772.0) (2026-04-21)
+
+
+### Features
+
+* **formula:** GA formula table calculations by warehouse support ([#22147](https://github.com/lightdash/lightdash/issues/22147)) ([59e598c](https://github.com/lightdash/lightdash/commit/59e598c596665769fa1012fed9a458337e09b6c5))
+
+# [0.2771.0](https://github.com/lightdash/lightdash/compare/0.2770.1...0.2771.0) (2026-04-21)
+
+
+### Features
+
+* thread resolved timezone through backend formatting paths ([#22109](https://github.com/lightdash/lightdash/issues/22109)) ([2693cbf](https://github.com/lightdash/lightdash/commit/2693cbf88ab3b13ad190ee2788c9ad4e0aed1cd0))
+
+## [0.2770.1](https://github.com/lightdash/lightdash/compare/0.2770.0...0.2770.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **formatting:** don't apply timezone shift to truncated TIMESTAMP dimensions ([#22145](https://github.com/lightdash/lightdash/issues/22145)) ([56b855f](https://github.com/lightdash/lightdash/commit/56b855f57c18a6a962254ddf906ac19651713339))
+
+# [0.2770.0](https://github.com/lightdash/lightdash/compare/0.2769.1...0.2770.0) (2026-04-21)
+
+
+### Features
+
+* **analytics:** add event tracking to data apps pipeline ([#22146](https://github.com/lightdash/lightdash/issues/22146)) ([9f0085a](https://github.com/lightdash/lightdash/commit/9f0085a5f1c1e766e810362d4b9a1ca0b3e634b8))
+
+## [0.2769.1](https://github.com/lightdash/lightdash/compare/0.2769.0...0.2769.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* **formatting:** remove timezone param from formatDate ([#22142](https://github.com/lightdash/lightdash/issues/22142)) ([73997ad](https://github.com/lightdash/lightdash/commit/73997ad7f6999cd465b1d78f1850ac675a7b4116)), closes [#22108](https://github.com/lightdash/lightdash/issues/22108)
+
 # [0.2769.0](https://github.com/lightdash/lightdash/compare/0.2768.0...0.2769.0) (2026-04-20)
 
 

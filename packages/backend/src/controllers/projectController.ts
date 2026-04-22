@@ -398,7 +398,7 @@ export class ProjectController extends BaseController {
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         const totalResult = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .calculateTotalFromQuery(req.account!, projectUuid, body);
         return {
             status: 'ok',
@@ -421,7 +421,7 @@ export class ProjectController extends BaseController {
     ): Promise<ApiCalculateSubtotalsResponse> {
         this.setStatus(200);
         const subtotalsResult = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .calculateSubtotalsFromQuery(req.account!, projectUuid, body);
         return {
             status: 'ok',

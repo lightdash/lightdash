@@ -1317,25 +1317,28 @@ export const buildCartesianTooltipFormatter =
                 ? field.format !== undefined
                 : false;
             if (hasFormat || isTimeBasedDimension(field)) {
-                // Use raw value from data object for the specific dimensionId
-                // Don't use axisValue directly as it may be from a different axis
-                // (e.g., in flipped charts, axisValue might be "Phillip" but dimensionId is the date field)
+                // Only re-format when we have a raw value; otherwise trust
+                // `header` — re-parsing the already-formatted string breaks
+                // tuple-mode time axes (returns "NaT").
                 const firstParam = params[0];
-                const rawHeaderValue =
-                    (firstParam?.data as Record<string, unknown> | undefined)?.[
-                        dimensionId
-                    ] ??
-                    firstParam?.axisValue ??
-                    header;
+                const data = firstParam?.data;
+                const valueByDim =
+                    data && typeof data === 'object' && !Array.isArray(data)
+                        ? (data as Record<string, unknown>)[dimensionId]
+                        : undefined;
+                const rawHeaderValue = valueByDim ?? firstParam?.axisValue;
 
-                const headerText = getFormattedValue(
-                    rawHeaderValue,
-                    dimensionId,
-                    itemsMap,
-                    undefined,
-                    pivotValuesColumnsMap,
-                    parameters,
-                );
+                const headerText =
+                    rawHeaderValue !== undefined
+                        ? getFormattedValue(
+                              rawHeaderValue,
+                              dimensionId,
+                              itemsMap,
+                              undefined,
+                              pivotValuesColumnsMap,
+                              parameters,
+                          )
+                        : header;
                 return `${formatTooltipHeader(
                     headerText,
                 )}${divider}${tooltipHtml}${rowsHtml}`;

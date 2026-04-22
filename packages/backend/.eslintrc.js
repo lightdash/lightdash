@@ -100,12 +100,23 @@ module.exports = {
         {
             // Error on direct ability checks in fully migrated services
             files: [
+                'src/services/CatalogService/**/*.ts',
                 'src/services/ContentService/**/*.ts',
+                'src/services/CsvService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
+                'src/services/FavoritesService/**/*.ts',
+                'src/services/PinningService/**/*.ts',
+                'src/services/DeployService.ts',
+                'src/services/FunnelService/**/*.ts',
+                'src/services/GitlabAppService/**/*.ts',
+                'src/services/ProjectParametersService.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
                 'src/services/SchedulerService/**/*.ts',
+                'src/services/ShareService/**/*.ts',
+                'src/services/SlackIntegrationService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
+                'src/services/UnfurlService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',

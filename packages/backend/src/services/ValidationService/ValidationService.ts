@@ -942,7 +942,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1059,7 +1059,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1132,7 +1132,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1194,7 +1194,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1307,7 +1307,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1387,7 +1387,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {

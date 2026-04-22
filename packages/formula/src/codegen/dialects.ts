@@ -25,6 +25,9 @@ export interface DialectConfig {
     // ClickHouse, whose production clients also defer to the base
     // `getDefaultMetricSql` that returns plain `AVG(arg)`.
     generateAvg?: (arg: string) => string;
+    // ROUND emission. Set by Postgres-family configs to cast the value
+    // to numeric in the 2-arg form. Unset elsewhere.
+    generateRound?: (value: string, digits?: string) => string;
 }
 
 // Everything a dialect needs to emit `LAG(...) OVER (...)` or
@@ -110,12 +113,24 @@ const postgresStyleAvg = (arg: string): string =>
 // should COALESCE the inputs at the call site.
 const postgresStyleConcat = (args: string[]): string =>
     `(${args.join(' || ')})`;
+// ROUND: cast value to numeric for the 2-arg form. Postgres and Redshift
+// only define `round(numeric, int)`; `round(double precision, int)` does
+// not exist. Any 2-arg ROUND over a Lightdash AVG metric (which
+// PostgresWarehouseClient casts to DOUBLE PRECISION) would otherwise
+// fail with "function round(double precision, integer) does not exist".
+// The 1-arg form accepts either numeric or double precision natively, so
+// we leave it alone to avoid an unnecessary cast.
+const postgresStyleRound = (value: string, digits?: string): string =>
+    digits !== undefined
+        ? `ROUND((${value})::numeric, ${digits})`
+        : `ROUND(${value})`;
 
 const POSTGRES_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateModulo: infixPercentModulo,
     generateAvg: postgresStyleAvg,
     generateConcat: postgresStyleConcat,
+    generateRound: postgresStyleRound,
 };
 
 // Redshift is Postgres-wire-compatible and inherits every Postgres-family

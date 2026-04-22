@@ -184,6 +184,21 @@ const compileTableCalculation = (
                     columns[dep.name] = dep.name;
                 }
             }
+            // Filter out sorts on table calculations: a formula table calc
+            // and its siblings are projected in the same SELECT, so ordering
+            // by a sibling alias inside its OVER clause self-references
+            // within that SELECT and every warehouse rejects it.
+            const validFieldIdsForSort = new Set(validFieldIds);
+            const defaultOrderBy = sortFields
+                .filter((s) => validFieldIdsForSort.has(s.fieldId))
+                .map((s) => ({
+                    column: customBinDimensionIds.has(s.fieldId)
+                        ? `${s.fieldId}_order`
+                        : s.fieldId,
+                    direction: (s.descending ? 'DESC' : 'ASC') as
+                        | 'ASC'
+                        | 'DESC',
+                }));
             // Table calcs land in a post-aggregation SELECT alongside non-
             // aggregate dimension columns, so bare SQL aggregates would be
             // rejected by the warehouse. Wrapping as `AGG(x) OVER ()` turns
@@ -193,6 +208,7 @@ const compileTableCalculation = (
                 dialect,
                 columns,
                 renderAggregate: (inner) => `${inner} OVER ()`,
+                defaultOrderBy,
             });
             return {
                 ...tableCalculation,

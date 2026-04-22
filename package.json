@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.2769.0",
+    "version": "0.2777.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -9,6 +9,24 @@
         "packages/frontend/sdk"
     ],
     "pnpm": {
+        "onlyBuiltDependencies": [
+            "@sentry-internal/node-cpu-profiler",
+            "@sentry/cli",
+            "@swc/core",
+            "bcrypt",
+            "canvas",
+            "core-js",
+            "core-js-pure",
+            "cpu-features",
+            "cypress",
+            "duckdb",
+            "esbuild",
+            "lz4",
+            "msgpackr-extract",
+            "protobufjs",
+            "sharp",
+            "ssh2"
+        ],
         "overrides": {
             "react-is": "19.2.0",
             "@types/react": "19.2.2",
@@ -211,5 +229,5 @@
             "pnpm -F formula run formatter"
         ]
     },
-    "packageManager": "pnpm@9.15.5+sha512.845196026aab1cc3f098a0474b64dfbab2afe7a1b4e91dd86895d8e4aa32a7a6d03049e2d0ad770bbe4de023a7122fb68c1a1d6e0d033c7076085f9d5d4800d4"
+    "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319"
 }

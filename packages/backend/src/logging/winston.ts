@@ -190,14 +190,11 @@ export const formatAuditActor = (actor: AuditActor): string => {
 export const formatAuditResource = (resource: AuditResource): string => {
     const typePart = resource.type;
 
-    if (resource.name) {
-        return `${typePart} "${resource.name}"`;
-    }
-    if (
-        resource.uuid &&
-        (resource.uuid !== resource.projectUuid || resource.type === 'Project')
-    ) {
-        return `${typePart} ${resource.uuid}`;
+    if (resource.metadata) {
+        const parts = Object.entries(resource.metadata)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+        return `${typePart} -> ${parts}`;
     }
     // Permission-type subjects (CustomSql, UnderlyingData, Explore, Project, etc.)
     // with no meaningful unique identifier — fall back to project/org context

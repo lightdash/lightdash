@@ -16,17 +16,21 @@ export { createPostMessageTransport } from './postMessageTransport';
 
 // Types
 export type {
+    AdditionalMetric,
     Column,
+    CustomDimension,
     Filter,
     FilterOperator,
     FilterValue,
     FormatFunction,
     LightdashClientConfig,
     LightdashUser,
+    MetricType,
     QueryDefinition,
     QueryResult,
     Row,
     Sort,
+    TableCalculation,
     Transport,
     UnitOfTime,
 } from './types';

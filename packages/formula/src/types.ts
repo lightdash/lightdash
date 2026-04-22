@@ -28,6 +28,18 @@ export interface CompileOptions {
     // Callers that compose their own GROUP BY around the output leave this
     // unset. The formula package has no opinion on embedding context.
     renderAggregate?: (innerSql: string) => string;
+    // Fallback ORDER BY for window functions (LAG/LEAD, ROW_NUMBER, FIRST/LAST,
+    // RUNNING_TOTAL, MOVING_*, NTILE, RANK/DENSE_RANK) whose formula has no
+    // explicit ORDER BY in its OVER clause. Lets the caller inject the
+    // containing query's visual sort order so `LAG(x)` picks the row the user
+    // sees immediately above the current one in the rendered table — and so
+    // BigQuery/Snowflake don't reject `OVER ()` where they require an
+    // analytic ORDER BY. Columns are raw SQL identifiers and the compiler
+    // quotes them with the dialect's quoting rules.
+    defaultOrderBy?: ReadonlyArray<{
+        column: string;
+        direction?: 'ASC' | 'DESC';
+    }>;
 }
 
 // AST Node Types

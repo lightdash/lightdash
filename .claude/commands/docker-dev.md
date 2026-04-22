@@ -102,7 +102,7 @@ if test -d node_modules \
   && test -f packages/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt; then
   echo "OK: Dependencies installed"
 else
-  echo "NEED: Run pnpm install and build"
+  echo "NEED: Run sfw pnpm install and build"
 fi
 
 # Check 5: Python/dbt environment ready
@@ -391,12 +391,15 @@ fi
 
 ### Install Dependencies
 
+Ensure [Socket Firewall Free](https://github.com/SocketDev/sfw-free) is available on the machine, then run the install through `sfw` so known-malicious packages are blocked at download time:
+
 ```bash
-pnpm install
+command -v sfw >/dev/null 2>&1 || npm i -g sfw
+sfw pnpm install
 pnpm -F common build && pnpm -F warehouses build && pnpm -F @lightdash/formula build
 ```
 
-If `pnpm install` fails with canvas errors: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
+If `sfw pnpm install` fails with canvas errors: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
 
 ### Set Up Python/dbt
 

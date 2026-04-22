@@ -406,6 +406,126 @@ export const windowCases: TestCase[] = [
         tags: ['window'],
     },
 
+    // ── defaultOrderBy fallback ───────────────────────────────────
+    // These exercise the compile-time `defaultOrderBy` option, which
+    // queryCompiler.ts passes from the containing query's sort fields.
+    // BigQuery and Snowflake reject analytic functions with no ORDER BY
+    // ("Window ORDER BY is required for analytic function lag"), so these
+    // cases regress-guard the fallback that keeps `=LAG(A)` working when
+    // the user hasn't written an explicit ORDER BY in the formula.
+
+    {
+        id: 'window/lag-default-order',
+        formula: '=LAG(A)',
+        description:
+            'LAG with no formula-level ORDER BY picks up defaultOrderBy (mirrors window/lag)',
+        columns: { A: 'amount' },
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        defaultOrderBy: [{ column: 'id', direction: 'ASC' }],
+        expectedRows: [
+            { result: null },
+            { result: 100.00 },
+            { result: 200.00 },
+            { result: 150.00 },
+            { result: 300.00 },
+            { result: 250.00 },
+            { result: 50.00 },
+            { result: 75.00 },
+            { result: 60.00 },
+            { result: 90.00 },
+            { result: 80.00 },
+            { result: 500.00 },
+            { result: 400.00 },
+            { result: 450.00 },
+            { result: 350.00 },
+            { result: 550.00 },
+            { result: 10.00 },
+            { result: 20.00 },
+            { result: 15.00 },
+            { result: 25.00 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+    {
+        id: 'window/lag-user-partition-default-order',
+        formula: '=LAG(A, PARTITION BY B)',
+        description:
+            'User PARTITION BY combines with defaultOrderBy (mirrors window/lag-partitioned)',
+        columns: { A: 'amount', B: 'category' },
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        defaultOrderBy: [{ column: 'id', direction: 'ASC' }],
+        expectedRows: [
+            { result: null }, { result: 100.00 }, { result: 200.00 }, { result: 150.00 }, { result: 300.00 },
+            { result: null }, { result: 50.00 }, { result: 75.00 }, { result: 60.00 }, { result: 90.00 },
+            { result: null }, { result: 500.00 }, { result: 400.00 }, { result: 450.00 }, { result: 350.00 },
+            { result: null }, { result: 10.00 }, { result: 20.00 }, { result: 15.00 }, { result: 25.00 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+    {
+        id: 'window/lag-user-order-wins-over-default',
+        formula: '=LAG(A, ORDER BY B)',
+        description:
+            'Explicit ORDER BY in the formula always wins over defaultOrderBy',
+        columns: { A: 'amount', B: 'id' },
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        // defaultOrderBy below would sort by amount DESC if honoured; the
+        // expected rows match window/lag (ORDER BY id), proving the user's
+        // explicit clause wins.
+        defaultOrderBy: [{ column: 'amount', direction: 'DESC' }],
+        expectedRows: [
+            { result: null },
+            { result: 100.00 },
+            { result: 200.00 },
+            { result: 150.00 },
+            { result: 300.00 },
+            { result: 250.00 },
+            { result: 50.00 },
+            { result: 75.00 },
+            { result: 60.00 },
+            { result: 90.00 },
+            { result: 80.00 },
+            { result: 500.00 },
+            { result: 400.00 },
+            { result: 450.00 },
+            { result: 350.00 },
+            { result: 550.00 },
+            { result: 10.00 },
+            { result: 20.00 },
+            { result: 15.00 },
+            { result: 25.00 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+    {
+        id: 'window/row-number-default-order',
+        formula: '=ROW_NUMBER()',
+        description:
+            'ROW_NUMBER with no formula-level window clause picks up defaultOrderBy (BigQuery/Snowflake reject OVER () otherwise)',
+        columns: {},
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        defaultOrderBy: [{ column: 'id', direction: 'ASC' }],
+        expectedRows: [
+            { result: 1 }, { result: 2 }, { result: 3 }, { result: 4 }, { result: 5 },
+            { result: 6 }, { result: 7 }, { result: 8 }, { result: 9 }, { result: 10 },
+            { result: 11 }, { result: 12 }, { result: 13 }, { result: 14 }, { result: 15 },
+            { result: 16 }, { result: 17 }, { result: 18 }, { result: 19 }, { result: 20 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+
     // ── LEAD ──────────────────────────────────────────────────────
 
     {

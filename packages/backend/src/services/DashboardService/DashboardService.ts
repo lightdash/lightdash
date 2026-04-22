@@ -190,7 +190,7 @@ export class DashboardService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -243,7 +243,7 @@ export class DashboardService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -433,7 +433,10 @@ export class DashboardService
             if (!spaceContext) return false;
             const hasAbility = auditedAbility.can(
                 'view',
-                subject('Dashboard', { ...spaceContext, uuid: dashboard.uuid }),
+                subject('Dashboard', {
+                    ...spaceContext,
+                    metadata: { dashboardUuid: dashboard.uuid },
+                }),
             );
             return includePrivate
                 ? hasAbility
@@ -466,7 +469,18 @@ export class DashboardService
 
         const auditedAbility = this.createAuditedAbility(user);
 
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -608,7 +622,18 @@ export class DashboardService
         };
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('create', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -772,7 +797,7 @@ export class DashboardService
             'update',
             subject('Dashboard', {
                 ...currentSpace,
-                uuid: existingDashboardDao.uuid,
+                metadata: { dashboardUuid: existingDashboardDao.uuid },
             }),
         );
 
@@ -793,7 +818,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...newSpace,
-                        uuid: existingDashboardDao.uuid,
+                        metadata: { dashboardUuid: existingDashboardDao.uuid },
                     }),
                 );
                 if (!canUpdateDashboardInNewSpace) {
@@ -998,7 +1023,7 @@ export class DashboardService
                 subject('PinnedItems', {
                     projectUuid,
                     organizationUuid,
-                    uuid: existingDashboard.uuid,
+                    metadata: { dashboardUuid: existingDashboard.uuid },
                 }),
             )
         ) {
@@ -1008,7 +1033,13 @@ export class DashboardService
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Dashboard', existingDashboard),
+                subject('Dashboard', {
+                    ...existingDashboard,
+                    metadata: {
+                        dashboardUuid: existingDashboard.uuid,
+                        dashboardName: existingDashboard.name,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -1074,7 +1105,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...currentSpaceContext,
-                        uuid: dashboard.uuid,
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 );
                 const newSpaceContext =
@@ -1086,7 +1117,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...newSpaceContext,
-                        uuid: dashboardToUpdate.uuid,
+                        metadata: { dashboardUuid: dashboardToUpdate.uuid },
                     }),
                 );
                 return (
@@ -1164,7 +1195,7 @@ export class DashboardService
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1253,7 +1284,7 @@ export class DashboardService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'Dashboard',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -1273,7 +1304,7 @@ export class DashboardService
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1312,7 +1343,7 @@ export class DashboardService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
             });
@@ -1324,7 +1355,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1362,7 +1393,7 @@ export class DashboardService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -1377,7 +1408,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1521,7 +1552,18 @@ export class DashboardService
         ) {
             throw new ForbiddenError();
         }
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -1560,7 +1602,7 @@ export class DashboardService
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access,
-                uuid: dashboard.uuid,
+                metadata: { dashboardUuid: dashboard.uuid },
             }),
         );
 
@@ -1584,7 +1626,7 @@ export class DashboardService
                     projectUuid: actor.projectUuid,
                     inheritsFromOrgOrProject: newSpace.inheritsFromOrgOrProject,
                     access: newSpace.access,
-                    uuid: dashboard.uuid,
+                    metadata: { dashboardUuid: dashboard.uuid },
                 }),
             );
 
@@ -1615,6 +1657,10 @@ export class DashboardService
                     ...dashboardDao,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
+                    },
                 }),
             )
         ) {
@@ -1659,6 +1705,10 @@ export class DashboardService
                     ...dashboardDao,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
+                    },
                 }),
             )
         ) {
@@ -1801,6 +1851,10 @@ export class DashboardService
                     ...dashboardDao,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
+                    },
                 }),
             )
         ) {

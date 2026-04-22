@@ -45,7 +45,7 @@ export class ContentVerificationService extends BaseService {
                 subject('ContentVerification', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {

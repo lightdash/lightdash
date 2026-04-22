@@ -1,6 +1,5 @@
 import {
     CustomFormatType,
-    FeatureFlags,
     getErrorMessage,
     getItemId,
     isFormulaTableCalculation,
@@ -13,6 +12,7 @@ import {
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
+import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
     ActionIcon,
     Badge,
@@ -26,12 +26,18 @@ import {
     Text,
     TextInput,
     Tooltip,
+    type ComboboxItem,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    Icon123,
+    IconAbc,
+    IconCalendar,
     IconCalculator,
+    IconClockHour4,
     IconMaximize,
     IconMinimize,
+    IconToggleLeft,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -42,6 +48,7 @@ import {
     useState,
     type FC,
 } from 'react';
+import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -56,7 +63,7 @@ import {
 } from '../../../features/explorer/store';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useExplore } from '../../../hooks/useExplore';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useProject } from '../../../hooks/useProject';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
@@ -95,6 +102,32 @@ enum EditMode {
     FORMULA = 'formula',
 }
 
+const tableCalculationTypeMeta = {
+    [TableCalculationType.NUMBER]: {
+        label: 'Number',
+        icon: Icon123,
+    },
+    [TableCalculationType.STRING]: {
+        label: 'String',
+        icon: IconAbc,
+    },
+    [TableCalculationType.DATE]: {
+        label: 'Date',
+        icon: IconCalendar,
+    },
+    [TableCalculationType.TIMESTAMP]: {
+        label: 'Timestamp',
+        icon: IconClockHour4,
+    },
+    [TableCalculationType.BOOLEAN]: {
+        label: 'Boolean',
+        icon: IconToggleLeft,
+    },
+} as const satisfies Record<
+    TableCalculationType,
+    { label: string; icon: typeof Icon123 }
+>;
+
 const TableCalculationModal: FC<Props> = ({
     opened,
     tableCalculation,
@@ -103,24 +136,46 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isExpanded, toggleExpanded] = useToggle(false);
 
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(projectUuid);
+
+    // Formula support is pinned to what the formula package can compile for
+    // this warehouse. The backend mapper throws for unsupported adapters, so
+    // we must not offer the input mode here either.
+    const isFormulaSupported =
+        !!project?.warehouseConnection &&
+        (SUPPORTED_DIALECTS as readonly string[]).includes(
+            project.warehouseConnection.type as Dialect,
+        );
+
+    const isNewCalculation = !tableCalculation;
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
     const hasFormula = tableCalculation
         ? isFormulaTableCalculation(tableCalculation)
         : false;
-    const defaultMode = hasFormula
-        ? EditMode.FORMULA
-        : hasTemplate
-          ? EditMode.TEMPLATE
+    // Editing an existing calc: lock to its own mode (can't map SQL back to
+    // formula, and switching would throw away the user's work). New calc:
+    // Formula when the warehouse supports it, SQL otherwise.
+    const defaultMode = tableCalculation
+        ? hasFormula
+            ? EditMode.FORMULA
+            : hasTemplate
+              ? EditMode.TEMPLATE
+              : EditMode.SQL
+        : isFormulaSupported
+          ? EditMode.FORMULA
           : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
 
-    const { addToastError } = useToaster();
+    useEffect(() => {
+        if (isNewCalculation && isFormulaSupported) {
+            setEditMode(EditMode.FORMULA);
+        }
+    }, [isNewCalculation, isFormulaSupported]);
 
-    const isFormulaEnabled = useClientFeatureFlag(
-        FeatureFlags.FormulaTableCalculations,
-    );
+    const { addToastError } = useToaster();
 
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -209,21 +264,38 @@ const TableCalculationModal: FC<Props> = ({
         null,
     );
 
-    const [formulaKey, setFormulaKey] = useState(0);
-
-    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
+    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
+    // Tiptap reads `initialContent` once at mount — when the AI replaces the
+    // formula we bump this key to force a remount so the new content renders.
+    const [formulaKey, setFormulaKey] = useState(0);
 
     useEffect(() => {
         if (opened) {
-            setFormulaGeneratedByAi(false);
             setSqlGeneratedByAi(false);
+            setFormulaGeneratedByAi(false);
         }
     }, [opened]);
 
     const handleSqlAiApplied = useCallback(() => {
         setSqlGeneratedByAi(true);
     }, []);
+
+    const handleFormulaAiApply = useCallback(
+        (result: GeneratedFormulaTableCalculation) => {
+            form.setFieldValue('formula', result.formula);
+            form.setFieldValue('name', result.displayName);
+            if (result.type) {
+                form.setFieldValue('type', result.type);
+            }
+            if (result.format) {
+                form.setFieldValue('format', result.format);
+            }
+            setFormulaKey((k) => k + 1);
+            setFormulaGeneratedByAi(true);
+        },
+        [form],
+    );
 
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
@@ -316,8 +388,8 @@ const TableCalculationModal: FC<Props> = ({
         tableCalculation,
         tableCalculations,
         editedTemplate,
-        formulaGeneratedByAi,
         sqlGeneratedByAi,
+        formulaGeneratedByAi,
         onSave,
         addToastError,
     ]);
@@ -343,24 +415,41 @@ const TableCalculationModal: FC<Props> = ({
         [],
     );
 
-    const handleFormulaAiApply = useCallback(
-        (result: GeneratedFormulaTableCalculation) => {
-            form.setFieldValue('formula', result.formula);
-            form.setFieldValue('name', result.displayName);
-            if (result.type) {
-                form.setFieldValue('type', result.type);
-            }
-            if (result.format) {
-                form.setFieldValue('format', result.format);
-            }
-            setFormulaKey((k) => k + 1);
-            setFormulaGeneratedByAi(true);
-        },
-        [form],
+    const tableCalculationTypeValues = useMemo(
+        () => Object.values(TableCalculationType),
+        [],
     );
 
     const tableCalculationTypeOptions = useMemo(
-        () => Object.values(TableCalculationType),
+        () =>
+            tableCalculationTypeValues.map((value) => ({
+                value,
+                label: tableCalculationTypeMeta[value].label,
+            })),
+        [tableCalculationTypeValues],
+    );
+
+    const selectedTableCalculationType =
+        form.values.type ?? TableCalculationType.NUMBER;
+    const selectedTypeMeta =
+        tableCalculationTypeMeta[selectedTableCalculationType];
+
+    const renderTypeOption = useCallback(
+        ({ option }: { option: ComboboxItem }) => {
+            const meta =
+                tableCalculationTypeMeta[option.value as TableCalculationType];
+
+            return (
+                <Group gap="xs" wrap="nowrap">
+                    <Box className={classes.typeOptionIcon}>
+                        <MantineIcon icon={meta.icon} size="sm" />
+                    </Box>
+                    <Text size="sm" fw={500}>
+                        {meta.label}
+                    </Text>
+                </Group>
+            );
+        },
         [],
     );
 
@@ -368,41 +457,52 @@ const TableCalculationModal: FC<Props> = ({
         (value: string | null) => {
             if (
                 value &&
-                tableCalculationTypeOptions.includes(
+                tableCalculationTypeValues.includes(
                     value as TableCalculationType,
                 )
             ) {
                 form.setFieldValue('type', value as TableCalculationType);
             }
         },
-        [form, tableCalculationTypeOptions],
+        [form, tableCalculationTypeValues],
     );
 
     const editModeOptions = useMemo(
         () => [
-            { value: EditMode.SQL, label: 'SQL' },
             {
                 value: EditMode.FORMULA,
-                label: isFormulaEnabled ? (
-                    'Formula'
-                ) : (
-                    <Group gap={6} wrap="nowrap" justify="center">
-                        <Text span>Formula</Text>
-                        <Badge
-                            size="xs"
-                            variant="filled"
-                            color="indigo"
-                            radius="sm"
-                        >
-                            Coming soon
-                        </Badge>
+                label: (
+                    <Group
+                        gap={4}
+                        wrap="nowrap"
+                        justify="center"
+                        className={classes.inputModeFormulaLabel}
+                    >
+                        <Text span inherit>
+                            Formula
+                        </Text>
+                        <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
+                            <Badge
+                                color="indigo"
+                                radius="sm"
+                                className={classes.inputModeBadge}
+                            >
+                                Beta
+                            </Badge>
+                        </Tooltip>
                     </Group>
                 ),
-                disabled: !isFormulaEnabled,
             },
+            { value: EditMode.SQL, label: 'SQL' },
         ],
-        [isFormulaEnabled],
+        [],
     );
+
+    const saveButtonLabel = tableCalculation
+        ? 'Save changes'
+        : editMode === EditMode.FORMULA
+          ? 'Create formula'
+          : 'Create SQL calculation';
 
     return (
         <MantineModal
@@ -434,7 +534,7 @@ const TableCalculationModal: FC<Props> = ({
                         isFormulaInvalid
                     }
                 >
-                    {tableCalculation ? 'Save changes' : 'Create'}
+                    {saveButtonLabel}
                 </Button>
             }
             cancelLabel="Cancel"
@@ -467,22 +567,42 @@ const TableCalculationModal: FC<Props> = ({
                         {...form.getInputProps('type')}
                         onChange={handleTypeChange}
                         data={tableCalculationTypeOptions}
+                        allowDeselect={false}
+                        leftSection={
+                            <MantineIcon
+                                icon={selectedTypeMeta.icon}
+                                size="sm"
+                                className={classes.typeInputIcon}
+                            />
+                        }
+                        renderOption={renderTypeOption}
+                        checkIconPosition="right"
                     />
                 </Group>
 
                 <Stack gap="xs">
-                    <Text fz="sm" fw={600}>
-                        Input
-                    </Text>
-
-                    {!hasTemplate && (
-                        <SegmentedControl
-                            value={editMode}
-                            onChange={(value) => setEditMode(value as EditMode)}
-                            data={editModeOptions}
-                            size="xs"
-                        />
-                    )}
+                    <Group className={classes.inputModeHeader}>
+                        <Text fz="sm" fw={600}>
+                            Input mode
+                        </Text>
+                        {isNewCalculation && isFormulaSupported && (
+                            <SegmentedControl
+                                classNames={{
+                                    root: classes.inputModeControl,
+                                    indicator:
+                                        classes.inputModeControlIndicator,
+                                    control: classes.inputModeControlItem,
+                                    label: classes.inputModeControlLabel,
+                                }}
+                                value={editMode}
+                                onChange={(value) =>
+                                    setEditMode(value as EditMode)
+                                }
+                                data={editModeOptions}
+                                size="xs"
+                            />
+                        )}
+                    </Group>
 
                     <Box
                         key={editMode}
@@ -512,8 +632,8 @@ const TableCalculationModal: FC<Props> = ({
                                 onChange={(text) =>
                                     form.setFieldValue('formula', text)
                                 }
-                                onValidationChange={setFormulaParseError}
                                 onAiApply={handleFormulaAiApply}
+                                onValidationChange={setFormulaParseError}
                                 isFullScreen={isExpanded}
                             />
                         ) : (

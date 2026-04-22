@@ -31,6 +31,7 @@ import {
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+    EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
     EXPLORE_WITH_NESTED_AGG,
     EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
     EXPLORE_WITH_SQL_FILTER,
@@ -44,6 +45,7 @@ import {
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
+    METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
     METRIC_QUERY_NESTED_AGG_COMPLEX,
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
     METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
@@ -2347,6 +2349,56 @@ LIMIT 10`;
             expect(result.query).toContain(
                 'dd_orders_total_revenue."orders_total_revenue"',
             );
+        });
+
+        // SPK-333: when a non-aggregate metric references a sum_distinct metric
+        // AND another metric on the query forces fanout protection (cte_keys_/
+        // cte_metrics_/cte_unaffected), the non-aggregate metric must still
+        // route the sum_distinct reference through the dd CTE. Previously the
+        // fanout flow inlined the fallback SUM() into dd_base, referencing a
+        // table not in scope and producing invalid SQL.
+        test('non-aggregate referencing sum_distinct should route through dd CTE even with fanout protection', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
+                compiledMetricQuery: METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Fanout protection is active.
+            expect(result.query).toContain('cte_unaffected');
+            expect(result.query).toContain('cte_metrics_orders');
+            // Sum_distinct has its own dd CTE.
+            expect(result.query).toContain(
+                'dd_customers_total_order_amount_deduped',
+            );
+            // dd_base wraps the fanout result.
+            expect(result.query).toContain('dd_base');
+
+            // The inlined fallback SUM referencing "orders" outside its CTE
+            // scope must NOT appear anywhere (it would be invalid SQL inside
+            // dd_base, which projects FROM cte_unaffected CROSS JOIN ...).
+            expect(result.query).not.toContain(
+                'SUM(("orders".amount))) / NULLIF',
+            );
+
+            // The non-aggregate metric must reference the dd CTE alias for
+            // its sum_distinct dependency, not raw SQL.
+            expect(result.query).toContain(
+                'dd_customers_total_order_amount_deduped."customers_total_order_amount_deduped" / NULLIF',
+            );
+
+            // customers_average_customer_lifetime_value must be projected
+            // exactly once in the final SELECT — emitting it both via
+            // dd_base.* and explicitly in the outer SELECT produces
+            // "column specified more than once" errors on most warehouses.
+            const occurrences = (
+                result.query.match(
+                    /AS "customers_average_customer_lifetime_value"/g,
+                ) ?? []
+            ).length;
+            expect(occurrences).toBe(1);
         });
     });
 

@@ -253,6 +253,18 @@ The canonical source of truth for field types is `packages/common/src/types/fiel
 
 ## Security Best Practices
 
+### Installing Dependencies — Always Use `sfw`
+
+Prefix every package-manager install with [Socket Firewall Free](https://github.com/SocketDev/sfw-free) (`sfw`) to block confirmed-malicious packages before they hit disk. Install once with `npm i -g sfw`, then use:
+
+```bash
+sfw pnpm install
+sfw pnpm add <package>
+sfw npm install -g @lightdash/cli
+```
+
+This applies to any install Claude runs in this repo — lockfile regeneration, Snyk fixes, debug snippets, global CLI installs. CI workflows already wrap installs via `socketdev/action@<SHA>`.
+
 ### Warehouse Credentials Protection
 
 **CRITICAL**: When adding new credential fields to warehouse configurations, always check if they contain sensitive data that should NOT be exposed via API responses.

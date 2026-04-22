@@ -195,6 +195,59 @@ Each preview response includes a strict CSP header:
 
 ---
 
+## Image Uploads
+
+Users can attach images (screenshots, mockups, diagrams) to their prompts. These images are uploaded to S3 and passed
+to Claude as context during code generation.
+
+### Upload Flow
+
+```mermaid
+flowchart LR
+    A["1. User attaches\nimage in chat UI"] --> B["2. POST raw bytes\nto backend"]
+    B --> C["3. Backend streams\nto S3 staging path"]
+    C --> D["4. Return imageId\n(opaque UUID)"]
+    D --> E["5. Include imageId in\ngenerate/iterate request"]
+    E --> F["6. Pipeline copies to\nversion assets folder"]
+    F --> G["7. Write to sandbox\nfor Claude"]
+```
+
+1. **User attaches image** — The chat UI lets users add an image file. A local preview is shown immediately.
+
+2. **Upload to backend** — The frontend sends the raw file bytes directly to the backend via
+   `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/upload-image` with the image's MIME type as the
+   `Content-Type` header. This is a plain `fetch` call (not `lightdashApi`) because the body is raw binary, not JSON.
+
+3. **Stream to S3 staging** — The backend streams the request body directly to S3 via `PutObjectCommand` without
+   buffering the entire file in memory. The image is stored at a deterministic staging path:
+   `apps/{appUuid}/uploads/{imageId}` (no file extension — MIME type is stored as the S3 object's `ContentType`).
+
+4. **Return imageId** — The backend returns `{ imageId }` — an opaque UUID. The frontend never sees the S3 key.
+
+5. **Attach to prompt** — When the user submits their prompt, the `imageId` is included in the generate or iterate
+   request body. The backend reconstructs the S3 staging key from the deterministic convention.
+
+6. **Copy to version assets** — During the pipeline, the image is copied from the staging path to the version assets
+   folder: `apps/{appUuid}/versions/{version}/assets/images/{imageId}.{ext}`.
+
+7. **Write to sandbox** — The image bytes are written to the E2B sandbox at `/tmp/images/reference.{ext}` for Claude
+   to read as a design reference.
+
+### Security
+
+The frontend only ever sees an opaque `imageId` (UUID). It has no knowledge of S3 keys, bucket names, or storage
+paths. The backend reconstructs all storage paths from a deterministic convention using values it controls
+(`appUuid` + `imageId`). This eliminates Insecure Direct Object Reference (IDOR) risks where a modified client
+could read arbitrary S3 objects.
+
+### Constraints
+
+- **Allowed MIME types**: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
+- **Max size**: 10 MB (validated via `Content-Length` header before streaming)
+- **Permission**: Requires `manage:DataApp` scope (same as all app operations)
+
+---
+
 ## Frontend Architecture
 
 ### Pages

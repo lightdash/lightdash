@@ -1,5 +1,6 @@
 import { type ApiSuccess, type ApiSuccessEmpty } from '../../types/api/success';
 import { type KnexPaginateArgs } from '../../types/knex-paginate';
+import { type MetricQuery } from '../../types/metricQuery';
 
 /**
  * Ordered pipeline stages. Index position determines progression — used to
@@ -32,24 +33,14 @@ export type ApiGenerateAppResponse = ApiSuccess<{
 }>;
 
 export type ApiAppImageUploadResponse = ApiSuccess<{
-    s3Key: string;
+    imageId: string;
 }>;
-
-/**
- * Image attached to a data app generation request.
- * The image is uploaded to S3 via the backend proxy; the s3Key
- * references the uploaded object.
- */
-export type AppImageAttachment = {
-    s3Key: string; // S3 object key (e.g. 'apps/images/{uuid}.png')
-    mimeType: string; // e.g. 'image/png', 'image/jpeg'
-    filename: string; // original filename
-};
 
 export type GenerateAppRequestBody = {
     prompt: string;
-    image?: AppImageAttachment;
+    imageId?: string;
     appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
+    chartUuids?: string[]; // saved chart UUIDs to resolve and pass as structured metric queries
 };
 
 export type ApiPreviewTokenResponse = ApiSuccess<{
@@ -95,6 +86,13 @@ export type ApiAppSummary = {
     createdAt: Date;
     lastVersionNumber: number | null;
     lastVersionStatus: AppVersionStatus | null;
+};
+
+export type ChartReference = {
+    chartName: string;
+    chartDescription: string;
+    exploreName: string;
+    metricQuery: MetricQuery;
 };
 
 export type ApiMyAppsResponse = ApiSuccess<{

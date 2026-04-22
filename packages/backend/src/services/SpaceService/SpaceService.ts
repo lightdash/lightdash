@@ -200,10 +200,9 @@ export class SpaceService
             auditedAbility.cannot(
                 'create',
                 subject('Space', {
-                    uuid: '' /* resource doesn't exist yet */,
-                    name: space.name,
                     organizationUuid,
                     projectUuid,
+                    metadata: { spaceName: space.name },
                 }),
             )
         ) {
@@ -488,7 +487,7 @@ export class SpaceService
         } else {
             this.logBypassEvent(user, 'delete', {
                 type: 'Space',
-                uuid: spaceUuid,
+                metadata: { spaceUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         }
@@ -536,7 +535,7 @@ export class SpaceService
         } else {
             this.logBypassEvent(user, 'delete', {
                 type: 'Space',
-                uuid: spaceUuid,
+                metadata: { spaceUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         }
@@ -630,8 +629,7 @@ export class SpaceService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: spaceUuid,
-                name: space.name,
+                metadata: { spaceUuid, spaceName: space.name },
                 organizationUuid: space.organizationUuid,
                 projectUuid: space.projectUuid,
             });
@@ -640,10 +638,9 @@ export class SpaceService
             const isAdmin = auditedAbility.can(
                 'manage',
                 subject('DeletedContent', {
-                    uuid: spaceUuid,
-                    name: space.name,
                     organizationUuid: space.organizationUuid,
                     projectUuid: space.projectUuid,
+                    metadata: { spaceUuid, spaceName: space.name },
                 }),
             );
 
@@ -651,8 +648,7 @@ export class SpaceService
                 if (space.deletedBy?.userUuid === user.userUuid) {
                     this.logBypassEvent(user, 'manage', {
                         type: 'DeletedContent',
-                        uuid: spaceUuid,
-                        name: space.name,
+                        metadata: { spaceUuid, spaceName: space.name },
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
                     });
@@ -724,7 +720,7 @@ export class SpaceService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: spaceUuid,
+                metadata: { spaceUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -736,10 +732,9 @@ export class SpaceService
                 auditedAbility.cannot(
                     'manage',
                     subject('DeletedContent', {
-                        uuid: spaceUuid,
-                        name: space.name,
                         organizationUuid: space.organizationUuid,
                         projectUuid: space.projectUuid,
+                        metadata: { spaceUuid, spaceName: space.name },
                     }),
                 )
             ) {
@@ -828,10 +823,9 @@ export class SpaceService
             auditedAbility.cannot(
                 'manage',
                 subject('PinnedItems', {
-                    uuid: spaceUuid,
-                    name: existingSpace.name,
                     projectUuid,
                     organizationUuid,
+                    metadata: { spaceUuid, spaceName: existingSpace.name },
                 }),
             )
         ) {

@@ -230,6 +230,76 @@ describe('codegen', () => {
         });
     });
 
+    describe('ROUND', () => {
+        it('emits bare ROUND on dialects that accept floatish inputs', () => {
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'bigquery',
+                    columns,
+                }),
+            ).toBe('ROUND(`revenue`, 2)');
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'snowflake',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue", 2)');
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'duckdb',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue", 2)');
+        });
+
+        it('casts value to numeric on Postgres for the 2-arg form', () => {
+            // Postgres has no `round(double precision, int)` overload,
+            // only `round(numeric, int)`. Any 2-arg ROUND over a
+            // Lightdash AVG metric (which PostgresWarehouseClient casts
+            // to DOUBLE PRECISION) would otherwise fail with
+            // "function round(double precision, integer) does not exist".
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('ROUND(("revenue")::numeric, 2)');
+        });
+
+        it('casts value to numeric on Redshift for the 2-arg form', () => {
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'redshift',
+                    columns,
+                }),
+            ).toBe('ROUND(("revenue")::numeric, 2)');
+        });
+
+        it('leaves the 1-arg form uncast on Postgres', () => {
+            // `round(double precision)` and `round(numeric)` both exist
+            // on Postgres, so no cast is needed for the single-arg form.
+            expect(
+                compile('=ROUND(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue")');
+        });
+
+        it('casts the AVG result on Postgres, preserving both fixes', () => {
+            // The common failure path from production: ROUND(AVG(x), n).
+            // AVG widens to DOUBLE PRECISION (existing Postgres behavior),
+            // and the 2-arg ROUND casts its value back to numeric so the
+            // outer call resolves to round(numeric, int).
+            expect(
+                compile('=ROUND(AVG(revenue), 2)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('ROUND((AVG("revenue"::DOUBLE PRECISION))::numeric, 2)');
+        });
+    });
+
     describe('Redshift dialect', () => {
         it('emits bare aggregates by default (Postgres-equivalent output)', () => {
             expect(
@@ -379,6 +449,153 @@ describe('codegen', () => {
                 renderAggregate: track(calls),
             });
             expect(calls).toEqual([]);
+        });
+    });
+
+    describe('defaultOrderBy', () => {
+        // defaultOrderBy backfills the OVER clause ORDER BY when the formula
+        // has none. Callers pass their containing query's visual sort order so
+        // `LAG(x)` picks the row rendered immediately above the current one —
+        // and so BigQuery/Snowflake accept analytic functions that reject a
+        // bare `OVER ()`.
+
+        it('injects ORDER BY into LAG when formula has no explicit ordering', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('LAG(`revenue`) OVER (ORDER BY `order_date` DESC)');
+        });
+
+        it('respects user ORDER BY when formula has one, ignoring defaultOrderBy', () => {
+            expect(
+                compile('=LAG(revenue, ORDER BY region)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('LAG("revenue") OVER (ORDER BY "region")');
+        });
+
+        it('combines user PARTITION BY with default ORDER BY', () => {
+            expect(
+                compile('=LAG(revenue, PARTITION BY region)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'ASC' }],
+                }),
+            ).toBe(
+                'LAG("revenue") OVER (PARTITION BY "region" ORDER BY "order_date" ASC)',
+            );
+        });
+
+        it('emits multiple default sort columns in order, each with its direction', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [
+                        { column: 'order_date', direction: 'DESC' },
+                        { column: 'region', direction: 'ASC' },
+                    ],
+                }),
+            ).toBe(
+                'LAG("revenue") OVER (ORDER BY "order_date" DESC, "region" ASC)',
+            );
+        });
+
+        it('omits direction when not set', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date' }],
+                }),
+            ).toBe('LAG("revenue") OVER (ORDER BY "order_date")');
+        });
+
+        it('is a no-op when defaultOrderBy is empty', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [],
+                }),
+            ).toBe('LAG("revenue") OVER ()');
+        });
+
+        it('applies to other window functions that need an order (ROW_NUMBER, FIRST, RUNNING_TOTAL)', () => {
+            expect(
+                compile('=ROW_NUMBER()', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('ROW_NUMBER() OVER (ORDER BY `order_date` DESC)');
+
+            expect(
+                compile('=FIRST(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe(
+                'FIRST_VALUE(`revenue`) OVER (ORDER BY `order_date` DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+
+            expect(
+                compile('=RUNNING_TOTAL(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'ASC' }],
+                }),
+            ).toBe(
+                'SUM(`revenue`) OVER (ORDER BY `order_date` ASC ROWS UNBOUNDED PRECEDING)',
+            );
+        });
+
+        it('does not touch `OVER ()` emitted by renderAggregate (aggregate whole-result wrapping is intentionally unordered)', () => {
+            expect(
+                compile('=SUM(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    renderAggregate: (inner) => `${inner} OVER ()`,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe('SUM(`revenue`) OVER ()');
+        });
+
+        it('quotes default sort columns using the dialect — BigQuery backticks', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [
+                        {
+                            column: 'organizations_daily_date_day',
+                            direction: 'DESC',
+                        },
+                    ],
+                }),
+            ).toBe(
+                'LAG(`revenue`) OVER (ORDER BY `organizations_daily_date_day` DESC)',
+            );
+        });
+
+        it('flows through dialect LAG hooks — Redshift 3-arg COALESCE wrapper still gets the default order', () => {
+            // Redshift's generateLagLead rewrites to COALESCE(LAG(a, b), default);
+            // the inner LAG should still pick up the default ORDER BY.
+            expect(
+                compile('=LAG(revenue, 1, 0)', {
+                    dialect: 'redshift',
+                    columns,
+                    defaultOrderBy: [{ column: 'order_date', direction: 'DESC' }],
+                }),
+            ).toBe(
+                'COALESCE(LAG("revenue", 1) OVER (ORDER BY "order_date" DESC), 0)',
+            );
         });
     });
 });

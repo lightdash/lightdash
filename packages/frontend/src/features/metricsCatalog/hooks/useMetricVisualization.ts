@@ -385,8 +385,14 @@ export function useMetricVisualization({
             ...queryResults,
             metricQuery: executedMetricQuery,
             fields,
+            resolvedTimezone: createQuery.data?.resolvedTimezone ?? undefined,
         };
-    }, [queryResults, executedMetricQuery, createQuery.data?.fields]);
+    }, [
+        queryResults,
+        executedMetricQuery,
+        createQuery.data?.fields,
+        createQuery.data?.resolvedTimezone,
+    ]);
 
     const columnOrder = useMemo(() => {
         if (!executedMetricQuery) return [];

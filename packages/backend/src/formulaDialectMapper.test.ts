@@ -1,18 +1,19 @@
 import { SupportedDbtAdapter } from '@lightdash/common';
+import { SUPPORTED_DIALECTS } from '@lightdash/formula';
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 
 describe('mapAdapterToFormulaDialect', () => {
-    test.each([
-        [SupportedDbtAdapter.POSTGRES, 'postgres'],
-        [SupportedDbtAdapter.REDSHIFT, 'redshift'],
-        [SupportedDbtAdapter.BIGQUERY, 'bigquery'],
-        [SupportedDbtAdapter.SNOWFLAKE, 'snowflake'],
-        [SupportedDbtAdapter.DUCKDB, 'duckdb'],
-        [SupportedDbtAdapter.DATABRICKS, 'databricks'],
-        [SupportedDbtAdapter.CLICKHOUSE, 'clickhouse'],
-    ] as const)('maps %s adapter to %s dialect', (adapter, expected) => {
-        expect(mapAdapterToFormulaDialect(adapter)).toBe(expected);
-    });
+    // Derived from SUPPORTED_DIALECTS so the test and the runtime source of
+    // truth cannot drift. A new dialect added to the formula package picks
+    // up a passing case here automatically.
+    test.each(SUPPORTED_DIALECTS)(
+        'returns %s for the matching adapter',
+        (dialect) => {
+            expect(
+                mapAdapterToFormulaDialect(dialect as SupportedDbtAdapter),
+            ).toBe(dialect);
+        },
+    );
 
     test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
         'throws for unsupported adapter %s',

@@ -8227,29 +8227,19 @@
             "ApiGenerateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
-            "AppImageAttachment": {
-                "properties": {
-                    "filename": {
-                        "type": "string"
-                    },
-                    "mimeType": {
-                        "type": "string"
-                    },
-                    "s3Key": {
-                        "type": "string"
-                    }
-                },
-                "required": ["filename", "mimeType", "s3Key"],
-                "type": "object",
-                "description": "Image attached to a data app generation request.\nThe image is uploaded to S3 via the backend proxy; the s3Key\nreferences the uploaded object."
-            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "chartUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
                     "appUuid": {
                         "type": "string"
                     },
-                    "image": {
-                        "$ref": "#/components/schemas/AppImageAttachment"
+                    "imageId": {
+                        "type": "string"
                     },
                     "prompt": {
                         "type": "string"
@@ -8258,15 +8248,15 @@
                 "required": ["prompt"],
                 "type": "object"
             },
-            "ApiSuccess__s3Key-string__": {
+            "ApiSuccess__imageId-string__": {
                 "properties": {
                     "results": {
                         "properties": {
-                            "s3Key": {
+                            "imageId": {
                                 "type": "string"
                             }
                         },
-                        "required": ["s3Key"],
+                        "required": ["imageId"],
                         "type": "object"
                     },
                     "status": {
@@ -8279,7 +8269,7 @@
                 "type": "object"
             },
             "ApiAppImageUploadResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__s3Key-string__"
+                "$ref": "#/components/schemas/ApiSuccess__imageId-string__"
             },
             "AppVersionStatus": {
                 "type": "string",
@@ -10101,33 +10091,23 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "fieldType": {
+                                                                            "type": "string"
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -10135,17 +10115,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
-                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10194,8 +10171,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -10239,15 +10216,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -10255,17 +10235,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
-                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10293,8 +10270,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -21858,11 +21835,7 @@
                                     }
                                 ],
                                 "nullable": true,
-                                "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                            },
-                            "verified": {
-                                "type": "boolean",
-                                "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
+                                "description": "Verification status of this chart. Read-only; ignored on upload."
                             },
                             "downloadedAt": {
                                 "type": "string",
@@ -22232,11 +22205,7 @@
                                     }
                                 ],
                                 "nullable": true,
-                                "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                            },
-                            "verified": {
-                                "type": "boolean",
-                                "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                                "description": "Verification status of this dashboard. Read-only; ignored on upload."
                             },
                             "filters": {
                                 "properties": {
@@ -22410,7 +22379,7 @@
                             }
                         ],
                         "nullable": true,
-                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                        "description": "Verification status of this chart. Read-only; ignored on upload."
                     },
                     "tableName": {
                         "type": "string",
@@ -22474,10 +22443,6 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when this chart was downloaded from Lightdash"
-                    },
-                    "verified": {
-                        "type": "boolean",
-                        "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
                     }
                 },
                 "required": [
@@ -22742,7 +22707,7 @@
                             }
                         ],
                         "nullable": true,
-                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                        "description": "Verification status of this dashboard. Read-only; ignored on upload."
                     },
                     "filters": {
                         "properties": {
@@ -22785,10 +22750,6 @@
                     "downloadedAt": {
                         "type": "string",
                         "format": "date-time"
-                    },
-                    "verified": {
-                        "type": "boolean",
-                        "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                     }
                 },
                 "required": ["name", "version", "slug", "tabs", "spaceSlug"],
@@ -30297,7 +30258,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2769.0",
+        "version": "0.2775.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

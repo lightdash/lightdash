@@ -40,7 +40,6 @@ import {
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
-import { BetaBadge } from '../../common/BetaBadge';
 import { ComingSoonBadge } from '../../common/ComingSoonBadge';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
@@ -337,9 +336,7 @@ const SlackSettingsPanel: FC = () => {
                                                     />
                                                 </Tooltip>
                                             )}
-                                            {isSlackMultiAgentChannelEnabled ? (
-                                                <BetaBadge />
-                                            ) : (
+                                            {!isSlackMultiAgentChannelEnabled && (
                                                 <ComingSoonBadge />
                                             )}
                                         </Group>
