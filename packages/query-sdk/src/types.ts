@@ -52,6 +52,50 @@ export type TableCalculation = {
     sql: string;
 };
 
+// --- Additional metric types ---
+
+export type MetricType =
+    | 'average'
+    | 'count'
+    | 'count_distinct'
+    | 'sum'
+    | 'sum_distinct'
+    | 'min'
+    | 'max'
+    | 'number'
+    | 'median'
+    | 'percentile';
+
+export type AdditionalMetric = {
+    /** Internal name of the metric (used as the field ID in results) */
+    name: string;
+    /** Display label */
+    label?: string;
+    /** Table the metric belongs to */
+    table: string;
+    /** Aggregation type */
+    type: MetricType;
+    /** SQL expression (e.g., ${TABLE}.column_name) */
+    sql: string;
+    /** Description of what the metric measures */
+    description?: string;
+};
+
+// --- Custom dimension types ---
+
+export type CustomDimension = {
+    /** Unique ID for the custom dimension */
+    id: string;
+    /** Internal name */
+    name: string;
+    /** Table the dimension belongs to */
+    table: string;
+    /** SQL expression */
+    sql: string;
+    /** The dimension type */
+    dimensionId: string;
+};
+
 // --- Internal types (used by transport) ---
 
 export type InternalFilterDefinition = {
@@ -68,6 +112,8 @@ export type QueryDefinition = {
     filters: InternalFilterDefinition[];
     sorts: { fieldId: string; descending: boolean }[];
     tableCalculations: TableCalculation[];
+    additionalMetrics: AdditionalMetric[];
+    customDimensions: CustomDimension[];
     limit: number;
     /** Human-readable label for dev tools / query inspector (not sent to the API) */
     label?: string;
