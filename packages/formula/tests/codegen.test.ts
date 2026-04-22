@@ -451,4 +451,58 @@ describe('codegen', () => {
             expect(calls).toEqual([]);
         });
     });
+
+    describe('defaultOrderBy for LAG/LEAD', () => {
+        it('uses defaultOrderBy when LAG has no explicit ORDER BY', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'region', direction: 'ASC' }],
+                }),
+            ).toBe('LAG(`revenue`) OVER (ORDER BY `region` ASC)');
+        });
+
+        it('uses defaultOrderBy with multiple columns', () => {
+            expect(
+                compile('=LAG(revenue, 1)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [
+                        { column: 'region', direction: 'DESC' },
+                        { column: 'revenue' },
+                    ],
+                }),
+            ).toBe('LAG("revenue", 1) OVER (ORDER BY "region" DESC, "revenue")');
+        });
+
+        it('applies to LEAD as well', () => {
+            expect(
+                compile('=LEAD(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [{ column: 'region' }],
+                }),
+            ).toBe('LEAD(`revenue`) OVER (ORDER BY `region`)');
+        });
+
+        it('emits empty OVER () when no defaultOrderBy and no explicit ORDER BY', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe('LAG("revenue") OVER ()');
+        });
+
+        it('does not affect other window functions', () => {
+            expect(
+                compile('=RUNNING_TOTAL(revenue)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [{ column: 'region' }],
+                }),
+            ).toBe('SUM("revenue") OVER ( ROWS UNBOUNDED PRECEDING)');
+        });
+    });
 });

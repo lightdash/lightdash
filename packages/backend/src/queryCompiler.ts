@@ -189,10 +189,21 @@ const compileTableCalculation = (
             // rejected by the warehouse. Wrapping as `AGG(x) OVER ()` turns
             // them into window aggregates — legal in that context and
             // preserving Sheets-like whole-result-set semantics.
+            //
+            // `defaultOrderBy` provides the query's sort fields as the default
+            // ordering for window functions like LAG/LEAD that require ORDER BY.
+            const defaultOrderBy = sortFields?.map((s) => ({
+                column: s.fieldId,
+                direction: s.descending ? 'DESC' : 'ASC',
+            })) as
+                | Array<{ column: string; direction?: 'ASC' | 'DESC' }>
+                | undefined;
+
             const compiledSql = compileFormula(tableCalculation.formula, {
                 dialect,
                 columns,
                 renderAggregate: (inner) => `${inner} OVER ()`,
+                defaultOrderBy,
             });
             return {
                 ...tableCalculation,

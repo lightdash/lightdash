@@ -28,6 +28,11 @@ export interface CompileOptions {
     // Callers that compose their own GROUP BY around the output leave this
     // unset. The formula package has no opinion on embedding context.
     renderAggregate?: (innerSql: string) => string;
+    // Default ORDER BY for window functions that require ordering (LAG, LEAD).
+    // When no explicit ORDER BY is specified in the formula's window clause,
+    // these columns are used. Each entry maps to a column name (key in
+    // `columns`) and optional sort direction.
+    defaultOrderBy?: Array<{ column: string; direction?: 'ASC' | 'DESC' }>;
 }
 
 // AST Node Types

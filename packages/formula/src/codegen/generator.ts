@@ -400,6 +400,10 @@ export class SqlGenerator {
     // with default frame, variadic args). The dialect callback receives
     // an `emitWindow` bound to this node's window clause so dialects don't
     // have to own PARTITION BY / ORDER BY plumbing.
+    //
+    // LAG/LEAD require ORDER BY to be semantically defined (what is "previous"
+    // without ordering?). When no explicit ORDER BY is in the formula, we fall
+    // back to `options.defaultOrderBy` — typically the query's sort fields.
     protected dispatchLagLead(
         sqlFunc: 'LAG' | 'LEAD',
         args: string[],
@@ -409,7 +413,7 @@ export class SqlGenerator {
             fn: string,
             funcArgs: string[],
             frameClause?: string,
-        ) => this.generateWindowFunction(fn, funcArgs, node, frameClause);
+        ) => this.generateWindowFunction(fn, funcArgs, node, frameClause, true);
 
         if (this.dialect.generateLagLead) {
             return this.dialect.generateLagLead({
@@ -458,10 +462,15 @@ export class SqlGenerator {
     // callers that need per-function argument transforms (e.g. AVG's
     // precision-preserving cast on Redshift) build the call via their own
     // emitter and still share the PARTITION BY / ORDER BY / frame plumbing.
+    //
+    // `useDefaultOrderBy` — when true and no explicit ORDER BY is in the
+    // window clause, falls back to `options.defaultOrderBy`. Used by LAG/LEAD
+    // which require ordering to be semantically defined.
     protected appendOverClause(
         funcCall: string,
         node: { windowClause?: WindowClauseNode | null },
         frameClause?: string,
+        useDefaultOrderBy?: boolean,
     ): string {
         const overParts: string[] = [];
 
@@ -474,6 +483,13 @@ export class SqlGenerator {
             overParts.push(
                 `ORDER BY ${this.generate(wc.orderBy.column)}${dir}`,
             );
+        } else if (useDefaultOrderBy && this.options.defaultOrderBy?.length) {
+            const orderExprs = this.options.defaultOrderBy.map((o) => {
+                const col = this.quoteIdentifier(o.column);
+                const dir = o.direction ? ` ${o.direction}` : '';
+                return `${col}${dir}`;
+            });
+            overParts.push(`ORDER BY ${orderExprs.join(', ')}`);
         }
 
         const framePart = frameClause ? ` ${frameClause}` : '';
@@ -485,11 +501,17 @@ export class SqlGenerator {
         funcArgs: string[],
         node: { windowClause?: WindowClauseNode | null },
         frameClause?: string,
+        useDefaultOrderBy?: boolean,
     ): string {
         const funcCall =
             funcArgs.length > 0
                 ? `${sqlFunc}(${funcArgs.join(', ')})`
                 : `${sqlFunc}()`;
-        return this.appendOverClause(funcCall, node, frameClause);
+        return this.appendOverClause(
+            funcCall,
+            node,
+            frameClause,
+            useDefaultOrderBy,
+        );
     }
 }
