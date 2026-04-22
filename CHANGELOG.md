@@ -1,3 +1,11 @@
+# [0.2779.0](https://github.com/lightdash/lightdash/compare/0.2778.0...0.2779.0) (2026-04-22)
+
+
+### Features
+
+* add Databricks OAuth M2M (service principal) authentication support ([#22214](https://github.com/lightdash/lightdash/issues/22214)) ([0e2094d](https://github.com/lightdash/lightdash/commit/0e2094d886d39a76666d9c6e3b2aaa6dd91327b8))
+* include raw metric query in query tracker ([#22223](https://github.com/lightdash/lightdash/issues/22223)) ([ad30a95](https://github.com/lightdash/lightdash/commit/ad30a95924aeb63458e201e6fe185eb08137ddac))
+
 # [0.2778.0](https://github.com/lightdash/lightdash/compare/0.2777.0...0.2778.0) (2026-04-22)
 
 
