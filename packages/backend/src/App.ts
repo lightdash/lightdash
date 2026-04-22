@@ -426,7 +426,7 @@ export default class App {
                         "'self'",
                         ...contentSecurityPolicyAllowedDomains,
                     ],
-                    'img-src': ["'self'", 'data:', 'https://*'],
+                    'img-src': ["'self'", 'data:', 'blob:', 'https://*'],
                     'frame-src': ["'self'", 'https://*'],
                     'frame-ancestors': [
                         "'self'",
