@@ -21,6 +21,7 @@ import uniqBy from 'lodash/uniqBy';
 import React, {
     forwardRef,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
     useState,
@@ -95,7 +96,6 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
-    const selectScrollRef = useRef<HTMLDivElement>(null);
     const {
         data: chartPages,
         isInitialLoading,
@@ -111,11 +111,6 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         },
         { keepPreviousData: true },
     );
-    useEffect(() => {
-        selectScrollRef.current?.scrollTo({
-            top: selectScrollRef.current?.scrollHeight,
-        });
-    }, [chartPages]);
     // Aggregates all fetched charts across pages and search queries into a unified list.
     // This ensures that previously fetched chart are preserved even when the search query changes.
     // Uses 'uuid' to remove duplicates and maintain a consistent set of unique charts.
@@ -136,6 +131,67 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             savedChartsUuids: [],
         },
     });
+
+    // Stable refs so DropdownComponent can read latest values without needing
+    // to be memo-invalidated (which would remount the dropdown and reset scroll).
+    const selectScrollRef = useRef<HTMLDivElement>(null);
+    const paginationRef = useRef({ hasNextPage, isFetching, fetchNextPage });
+    paginationRef.current = { hasNextPage, isFetching, fetchNextPage };
+    const pendingScrollToEndRef = useRef(false);
+
+    // When user clicks "Load more", scroll to the bottom of the dropdown after
+    // the new page has rendered so the new Load more button stays visible.
+    useLayoutEffect(() => {
+        if (pendingScrollToEndRef.current && selectScrollRef.current) {
+            selectScrollRef.current.scrollTo({
+                top: selectScrollRef.current.scrollHeight,
+            });
+            pendingScrollToEndRef.current = false;
+        }
+    }, [savedQueries]);
+
+    // DropdownComponent is defined once (empty deps) so React never swaps its
+    // component type — this prevents the dropdown from unmounting/remounting on
+    // every modal re-render (e.g. when selecting an item), which would reset
+    // scrollTop to 0. Latest pagination state is read through paginationRef.
+    const DropdownComponent = useMemo(
+        () =>
+            forwardRef<HTMLDivElement, ScrollAreaProps>(
+                ({ children, ...rest }, _ref) => {
+                    const {
+                        hasNextPage: canLoadMore,
+                        isFetching: fetching,
+                        fetchNextPage: loadMore,
+                    } = paginationRef.current;
+                    return (
+                        <ScrollArea {...rest} viewportRef={selectScrollRef}>
+                            <>
+                                {children}
+                                {canLoadMore && (
+                                    <Button
+                                        size="xs"
+                                        variant="subtle"
+                                        fullWidth
+                                        onClick={async () => {
+                                            // Keep the new Load more button visible
+                                            // after appending the next page; the
+                                            // useLayoutEffect consumes this flag
+                                            // after the new items have rendered.
+                                            pendingScrollToEndRef.current = true;
+                                            await loadMore();
+                                        }}
+                                        disabled={fetching}
+                                    >
+                                        Load more
+                                    </Button>
+                                )}
+                            </>
+                        </ScrollArea>
+                    );
+                },
+            ),
+        [],
+    );
 
     const allSavedCharts = useMemo(() => {
         const reorderedCharts = savedQueries?.sort((chartA, chartB) => {
@@ -295,29 +351,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     rightSection={
                         isFetching && <Loader size="xs" color="gray" />
                     }
-                    dropdownComponent={({
-                        children,
-                        ...rest
-                    }: ScrollAreaProps) => (
-                        <ScrollArea {...rest} viewportRef={selectScrollRef}>
-                            <>
-                                {children}
-                                {hasNextPage && (
-                                    <Button
-                                        size="xs"
-                                        variant="subtle"
-                                        fullWidth
-                                        onClick={async () => {
-                                            await fetchNextPage();
-                                        }}
-                                        disabled={isFetching}
-                                    >
-                                        Load more
-                                    </Button>
-                                )}
-                            </>
-                        </ScrollArea>
-                    )}
+                    dropdownComponent={DropdownComponent}
                     filter={(searchString, selected, item) => {
                         return Boolean(
                             selected ||
