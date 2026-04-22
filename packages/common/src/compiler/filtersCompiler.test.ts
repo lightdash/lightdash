@@ -2471,3 +2471,61 @@ describe('DATE dimension filters are server-timezone-independent', () => {
         },
     );
 });
+
+describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () => {
+    const equalsFilter: FilterRule<FilterOperator, unknown> = {
+        id: 'id',
+        target: { fieldId: 'fieldId' },
+        operator: FilterOperator.EQUALS,
+        values: ['2024-01-15'],
+    };
+
+    test('DATE filter wraps literal in project TZ when parameter is true', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+        );
+        expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+        expect(sql).toContain("'2024-01-15'::timestamp");
+    });
+
+    test('DATE filter leaves literal bare when parameter is omitted', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+        );
+        expect(sql).not.toContain('AT TIME ZONE');
+    });
+
+    test('TIMESTAMP filter does not wrap literal even when parameter is true', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.TIMESTAMP,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+        );
+        expect(sql).not.toContain("AT TIME ZONE 'Asia/Tokyo'");
+    });
+});
