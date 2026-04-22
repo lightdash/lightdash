@@ -127,8 +127,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         },
                     });
                 case ResourceViewItemType.DATA_APP:
-                    // Moving data apps between spaces is not supported yet
-                    return Promise.resolve();
+                    return contentAction({
+                        action: {
+                            type: 'move',
+                            targetSpaceUuid: spaceUuid,
+                        },
+                        item: {
+                            uuid: item.data.uuid,
+                            contentType: ContentType.DATA_APP,
+                        },
+                    });
                 default:
                     return assertUnreachable(
                         item,
