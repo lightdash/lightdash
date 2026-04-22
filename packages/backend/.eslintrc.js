@@ -104,6 +104,8 @@ module.exports = {
                 'src/services/ContentService/**/*.ts',
                 'src/services/CsvService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
+                'src/services/FavoritesService/**/*.ts',
+                'src/services/PinningService/**/*.ts',
                 'src/services/DeployService.ts',
                 'src/services/FunnelService/**/*.ts',
                 'src/services/GitlabAppService/**/*.ts',
@@ -114,6 +116,7 @@ module.exports = {
                 'src/services/ShareService/**/*.ts',
                 'src/services/SlackIntegrationService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
+                'src/services/UnfurlService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',
