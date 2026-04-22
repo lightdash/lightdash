@@ -421,6 +421,9 @@ export class UserService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         // We assume users can only have one org
         const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
 
         if (
             auditedAbility.cannot(
@@ -431,10 +434,6 @@ export class UserService extends BaseService {
             throw new ForbiddenError();
         }
         const { expiresAt, email, role } = createInviteLink;
-        const inviteCode = nanoid(30);
-        if (organizationUuid === undefined) {
-            throw new NotFoundError('Organization not found');
-        }
 
         const existingUserWithEmail =
             await this.userModel.findUserByEmail(email);
@@ -1356,7 +1355,14 @@ export class UserService extends BaseService {
             throw new DeactivatedAccountError();
         }
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('PersonalAccessToken', {}))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('PersonalAccessToken', {
+                    organizationUuid: user.organizationUuid ?? '',
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 'You do not have permission to login with personal access tokens',
             );
@@ -1625,7 +1631,7 @@ export class UserService extends BaseService {
                         'manage',
                         subject('SavedChart', {
                             projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid,
+                            organizationUuid: sessionUser.organizationUuid!,
                             access: [
                                 {
                                     userUuid: sessionUser.userUuid,
@@ -1640,7 +1646,7 @@ export class UserService extends BaseService {
                         'manage',
                         subject('Explore', {
                             projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid,
+                            organizationUuid: sessionUser.organizationUuid!,
                         }),
                     )
                 )
@@ -1706,6 +1712,7 @@ export class UserService extends BaseService {
         const auditedAbility = this.createAuditedAbility(requestUser);
         if (
             !requestUser.isActive ||
+            !requestUser.organizationUuid ||
             auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
@@ -2362,6 +2369,7 @@ export class UserService extends BaseService {
         // Check permissions using CASL (includes org match and isActive)
         const auditedAbility = this.createAuditedAbility(adminUser);
         if (
+            !targetUser.organizationUuid ||
             auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
