@@ -109,6 +109,7 @@ module.exports = {
                 'src/services/DashboardService/**/*.ts',
                 'src/services/GdriveService/**/*.ts',
                 'src/services/GithubAppService/**/*.ts',
+                'src/services/GroupService.ts',
                 'src/services/ProjectCompileLogService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
