@@ -153,6 +153,8 @@ const AppGenerate: FC = () => {
                                   rowCount: event.rowCount ?? q.rowCount,
                                   durationMs: event.durationMs ?? q.durationMs,
                                   error: event.error ?? q.error,
+                                  rawMetricQuery:
+                                      event.rawMetricQuery ?? q.rawMetricQuery,
                               }
                             : q,
                     );
@@ -164,7 +166,15 @@ const AppGenerate: FC = () => {
                 (q) => q.id === event.id && q.status === 'pending',
             );
             if (pendingIdx >= 0) {
-                return prev.map((q, i) => (i === pendingIdx ? event : q));
+                return prev.map((q, i) =>
+                    i === pendingIdx
+                        ? {
+                              ...event,
+                              rawMetricQuery:
+                                  event.rawMetricQuery ?? q.rawMetricQuery,
+                          }
+                        : q,
+                );
             }
             return [...prev, event];
         });

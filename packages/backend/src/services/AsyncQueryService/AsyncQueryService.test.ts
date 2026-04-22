@@ -361,6 +361,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -452,6 +454,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -552,6 +556,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -647,6 +653,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -738,6 +746,8 @@ describe('AsyncQueryService', () => {
                         'missing_param',
                         'another_missing_param',
                     ],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -815,6 +825,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -884,6 +896,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 {
                     query: {
@@ -963,6 +977,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 {
                     query: {
@@ -1043,6 +1059,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -1685,6 +1703,8 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -1779,6 +1799,7 @@ describe('AsyncQueryService', () => {
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
                     queryCreatedAt: new Date(),
+                    displayTimezone: null,
                 };
 
                 // WHEN: runAsyncWarehouseQuery is called
@@ -1875,6 +1896,7 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration: undefined,
                 originalColumns: undefined,
                 queryCreatedAt: new Date(),
+                displayTimezone: null,
             };
 
             // WHEN: runAsyncWarehouseQuery is called

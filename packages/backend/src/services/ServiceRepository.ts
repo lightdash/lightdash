@@ -1,4 +1,5 @@
-import { MissingConfigError } from '@lightdash/common';
+import { BulkActionable, MissingConfigError } from '@lightdash/common';
+import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
@@ -1057,6 +1058,11 @@ export class ServiceRepository
                     savedChartService: this.getSavedChartService(),
                     savedSqlService: this.getSavedSqlService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    // Only wired when EE license is active. Core builds get
+                    // undefined and fail DATA_APP moves with a clear error.
+                    appMoveService: this.providers.appGenerateService
+                        ? this.getAppGenerateService<BulkActionable<Knex>>()
+                        : undefined,
                 }),
         );
     }

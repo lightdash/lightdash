@@ -81,7 +81,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const { data: project } = useProject(projectUuid);
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
-    const isPinned = !!item.data.pinnedListUuid;
+    const isPinned =
+        item.type !== ResourceViewItemType.DATA_APP &&
+        !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
     const isChartOrDashboard =
@@ -199,6 +201,19 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         projectUuid,
                         organizationUuid,
                         access: userAccess ? [userAccess] : [],
+                    }),
+                ) === true;
+            break;
+        }
+        case ResourceViewItemType.DATA_APP: {
+            // Data apps are admin-only for now (manage:DataApp). Space-aware
+            // write permissions will land in a later PR.
+            userCanManage =
+                user.data?.ability?.can(
+                    'manage',
+                    subject('DataApp', {
+                        organizationUuid,
+                        projectUuid,
                     }),
                 ) === true;
             break;

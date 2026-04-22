@@ -126,6 +126,17 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             contentType: ContentType.SPACE,
                         },
                     });
+                case ResourceViewItemType.DATA_APP:
+                    return contentAction({
+                        action: {
+                            type: 'move',
+                            targetSpaceUuid: spaceUuid,
+                        },
+                        item: {
+                            uuid: item.data.uuid,
+                            contentType: ContentType.DATA_APP,
+                        },
+                    });
                 default:
                     return assertUnreachable(
                         item,
@@ -156,6 +167,9 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                 return pinDashboard({ uuid: action.item.data.uuid });
             case ResourceViewItemType.SPACE:
                 return pinSpace(action.item.data.uuid);
+            case ResourceViewItemType.DATA_APP:
+                // Pinning data apps is not supported yet
+                return undefined;
             default:
                 return assertUnreachable(
                     action.item,
@@ -210,6 +224,9 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             parentSpaceUuid={action.item.data.parentSpaceUuid}
                         />
                     );
+                case ResourceViewItemType.DATA_APP:
+                    // Update via this modal isn't supported for data apps yet
+                    return null;
                 default:
                     return assertUnreachable(
                         action.item,
@@ -263,7 +280,9 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                             parentSpaceUuid={null}
                         />
                     );
-
+                case ResourceViewItemType.DATA_APP:
+                    // Delete from this menu isn't supported for data apps yet
+                    return null;
                 default:
                     return assertUnreachable(
                         action.item,

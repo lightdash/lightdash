@@ -1,7 +1,6 @@
 import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
-    type ResourceViewItem,
     type ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from './resourceViewItem';
@@ -66,7 +65,12 @@ export type CreatePinnedItem =
 
 export type UpdatePinnedItemOrder = {
     type: ResourceViewItemType;
-    data: Pick<ResourceViewItem['data'], 'uuid' | 'pinnedListOrder'>;
+    data: Pick<
+        | ResourceViewChartItem['data']
+        | ResourceViewDashboardItem['data']
+        | ResourceViewSpaceItem['data'],
+        'uuid' | 'pinnedListOrder'
+    >;
 };
 
 export const isCreateChartPinnedItem = (

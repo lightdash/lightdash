@@ -41,6 +41,32 @@ export async function updateDataTimezone(
     expect(resp.status).toBe(200);
 }
 
+// Scope queries to "interior rows" (ids 1-10) — boundary rows 11-18 are
+// reserved for DST / year / month boundary tests. See the row breakdown in
+// examples/full-jaffle-shop-demo/dbt/models/timezone_test.yml.
+const INTERIOR_ROWS_FILTER = {
+    id: 'tz-interior-rows',
+    target: { fieldId: 'timezone_test_event_id' },
+    operator: 'lessThan',
+    values: [11],
+};
+
+function withInteriorRowsScope(
+    filters: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+    const existing =
+        (filters?.dimensions as { id?: string; and?: unknown[] } | undefined) ??
+        undefined;
+    const extraAnd = existing?.and ?? (existing ? [existing] : []);
+    return {
+        ...filters,
+        dimensions: {
+            id: 'tz-scope',
+            and: [INTERIOR_ROWS_FILTER, ...extraAnd],
+        },
+    };
+}
+
 export async function runTimezoneTestQuery(
     client: ApiClient,
     options: {
@@ -62,7 +88,7 @@ export async function runTimezoneTestQuery(
                     exploreName: 'timezone_test',
                     dimensions: options.dimensions,
                     metrics: options.metrics,
-                    filters: options.filters ?? {},
+                    filters: withInteriorRowsScope(options.filters),
                     sorts: options.sorts ?? [
                         {
                             fieldId: options.dimensions[0],

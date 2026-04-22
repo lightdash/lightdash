@@ -26,7 +26,7 @@ import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
 import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
-import { WeekDay } from '../utils/timeFrames';
+import { dateTruncTimezoneConversions, WeekDay } from '../utils/timeFrames';
 
 /**
  * Formats computed Date boundaries for relative date operators (IN_THE_PAST, etc.)
@@ -284,6 +284,7 @@ const renderDateOrTimestampFilterSql = (
     boundaryFormatter: (date: Date) => string,
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
+    useTimezoneAwareDateTrunc?: boolean,
 ): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
@@ -291,6 +292,30 @@ const renderDateOrTimestampFilterSql = (
         startOfWeek ?? getDefaultStartOfWeek(adapterType);
 
     const castValue = (value: string): string => {
+        if (useTimezoneAwareDateTrunc) {
+            // Column is a timestamptz (round-trip through project TZ). Tag
+            // the literal in project TZ so coercion aligns with the column.
+            const { toUTC } = dateTruncTimezoneConversions[adapterType];
+            const naive = (() => {
+                switch (adapterType) {
+                    case SupportedDbtAdapter.TRINO:
+                    case SupportedDbtAdapter.ATHENA:
+                        return `CAST('${value}' AS timestamp)`;
+                    case SupportedDbtAdapter.SNOWFLAKE:
+                        return `'${value}'::timestamp_ntz`;
+                    case SupportedDbtAdapter.DATABRICKS:
+                        return `'${value}'`;
+                    case SupportedDbtAdapter.BIGQUERY:
+                        // No `::` cast; TIMESTAMP(s, tz) yields the UTC instant.
+                        return `TIMESTAMP('${value}', '${timezone}')`;
+                    case SupportedDbtAdapter.CLICKHOUSE:
+                        return `toDateTime('${value}', '${timezone}')`;
+                    default:
+                        return `'${value}'::timestamp`;
+                }
+            })();
+            return toUTC(naive, timezone);
+        }
         switch (adapterType) {
             case SupportedDbtAdapter.TRINO:
             case SupportedDbtAdapter.ATHENA: {
@@ -574,6 +599,7 @@ export const renderDateFilterSql = (
     boundaryDateFormatter?: (date: Date) => string,
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
+    useTimezoneAwareDateTrunc?: boolean,
 ): string => {
     const effectiveTimezone = boundaryDateFormatter ? timezone : 'UTC';
     const effectiveFormatter =
@@ -588,6 +614,7 @@ export const renderDateFilterSql = (
         effectiveFormatter,
         startOfWeek,
         baseDimensionSql,
+        useTimezoneAwareDateTrunc,
     );
 };
 
@@ -600,6 +627,7 @@ export const renderTimestampFilterSql = (
     timestampFormatter: (date: Date) => string,
     startOfWeek: WeekDay | null | undefined = undefined,
     baseDimensionSql?: string,
+    useTimezoneAwareDateTrunc?: boolean,
 ): string =>
     renderDateOrTimestampFilterSql(
         dimensionSql,
@@ -610,6 +638,7 @@ export const renderTimestampFilterSql = (
         timestampFormatter,
         startOfWeek,
         baseDimensionSql,
+        useTimezoneAwareDateTrunc,
     );
 
 export const renderBooleanFilterSql = (
@@ -769,6 +798,7 @@ export const renderFilterRuleSql = (
                     : undefined,
                 startOfWeek,
                 baseDimensionSql,
+                useTimezoneAwareDateTrunc,
             );
         }
         case DimensionType.TIMESTAMP:

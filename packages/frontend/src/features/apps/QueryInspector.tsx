@@ -4,7 +4,9 @@ import {
     Anchor,
     Badge,
     Box,
+    Code,
     Collapse,
+    CopyButton,
     Group,
     ScrollArea,
     Text,
@@ -12,11 +14,13 @@ import {
 import {
     IconChevronDown,
     IconChevronRight,
+    IconCopy,
     IconDatabase,
     IconExternalLink,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import MantineIcon from '../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import type { QueryEvent } from './hooks/useAppSdkBridge';
 import classes from './QueryInspector.module.css';
@@ -86,6 +90,7 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
     projectUuid,
 }) => {
     const [expanded, setExpanded] = useState(false);
+    const [jsonExpanded, setJsonExpanded] = useState(false);
 
     return (
         <Box className={classes.queryRow}>
@@ -97,9 +102,9 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
             >
                 <ActionIcon variant="subtle" size="xs" color="gray">
                     {expanded ? (
-                        <IconChevronDown size={12} />
+                        <MantineIcon icon={IconChevronDown} size={12} />
                     ) : (
-                        <IconChevronRight size={12} />
+                        <MantineIcon icon={IconChevronRight} size={12} />
                     )}
                 </ActionIcon>
                 <Text size="xs" fw={500} truncate="end">
@@ -127,81 +132,167 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
                 )}
             </Group>
             <Collapse in={expanded}>
-                <Box className={classes.queryDetails}>
-                    {query.dimensions.length > 0 && (
+                <Group
+                    gap={0}
+                    wrap="nowrap"
+                    align="stretch"
+                    className={classes.queryDetailsRow}
+                >
+                    <Box className={classes.queryDetails}>
+                        {query.dimensions.length > 0 && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Dimensions
+                                </Text>
+                                <Text size="xs">
+                                    {query.dimensions.join(', ')}
+                                </Text>
+                            </Box>
+                        )}
+                        {query.metrics.length > 0 && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Metrics
+                                </Text>
+                                <Text size="xs">
+                                    {query.metrics.join(', ')}
+                                </Text>
+                            </Box>
+                        )}
+                        {query.tableCalculations.length > 0 && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Table Calculations
+                                </Text>
+                                <Text size="xs">
+                                    {query.tableCalculations
+                                        .map((tc) => tc.displayName)
+                                        .join(', ')}
+                                </Text>
+                            </Box>
+                        )}
+                        {query.error && (
+                            <Box>
+                                <Text size="xs" fw={600} c="red">
+                                    Error
+                                </Text>
+                                <Text size="xs" c="red">
+                                    {query.error}
+                                </Text>
+                            </Box>
+                        )}
                         <Box>
                             <Text size="xs" fw={600} c="dimmed">
-                                Dimensions
+                                Limit
                             </Text>
-                            <Text size="xs">{query.dimensions.join(', ')}</Text>
+                            <Text size="xs">{query.limit}</Text>
                         </Box>
-                    )}
-                    {query.metrics.length > 0 && (
-                        <Box>
-                            <Text size="xs" fw={600} c="dimmed">
-                                Metrics
-                            </Text>
-                            <Text size="xs">{query.metrics.join(', ')}</Text>
-                        </Box>
-                    )}
-                    {query.tableCalculations.length > 0 && (
-                        <Box>
-                            <Text size="xs" fw={600} c="dimmed">
-                                Table Calculations
-                            </Text>
-                            <Text size="xs">
-                                {query.tableCalculations
-                                    .map((tc) => tc.displayName)
-                                    .join(', ')}
-                            </Text>
-                        </Box>
-                    )}
-                    {query.error && (
-                        <Box>
-                            <Text size="xs" fw={600} c="red">
-                                Error
-                            </Text>
-                            <Text size="xs" c="red">
-                                {query.error}
-                            </Text>
-                        </Box>
-                    )}
-                    <Box>
-                        <Text size="xs" fw={600} c="dimmed">
-                            Limit
-                        </Text>
-                        <Text size="xs">{query.limit}</Text>
+                        {query.queryUuid && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Query UUID
+                                </Text>
+                                <Text size="xs" ff="monospace">
+                                    {query.queryUuid}
+                                </Text>
+                            </Box>
+                        )}
+                        {query.durationMs !== null && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Warehouse execution time
+                                </Text>
+                                <Text size="xs">{query.durationMs}ms</Text>
+                            </Box>
+                        )}
+                        {(() => {
+                            const exploreUrl = buildExploreUrl(
+                                projectUuid,
+                                query,
+                            );
+                            return exploreUrl ? (
+                                <Anchor
+                                    href={exploreUrl}
+                                    target="_blank"
+                                    size="xs"
+                                >
+                                    <Group gap={4}>
+                                        <MantineIcon
+                                            icon={IconExternalLink}
+                                            size={12}
+                                        />
+                                        Open in Explore
+                                    </Group>
+                                </Anchor>
+                            ) : null;
+                        })()}
                     </Box>
-                    {query.queryUuid && (
-                        <Box>
-                            <Text size="xs" fw={600} c="dimmed">
-                                Query UUID
-                            </Text>
-                            <Text size="xs" ff="monospace">
-                                {query.queryUuid}
-                            </Text>
+                    {query.rawMetricQuery && (
+                        <Box className={classes.rawJsonPanel}>
+                            <Group
+                                gap={4}
+                                onClick={() => setJsonExpanded((v) => !v)}
+                                style={{ cursor: 'pointer' }}
+                            >
+                                <ActionIcon
+                                    variant="subtle"
+                                    size="xs"
+                                    color="gray"
+                                >
+                                    {jsonExpanded ? (
+                                        <MantineIcon
+                                            icon={IconChevronDown}
+                                            size={10}
+                                        />
+                                    ) : (
+                                        <MantineIcon
+                                            icon={IconChevronRight}
+                                            size={10}
+                                        />
+                                    )}
+                                </ActionIcon>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Raw JSON
+                                </Text>
+                                <CopyButton
+                                    value={JSON.stringify(
+                                        query.rawMetricQuery,
+                                        null,
+                                        2,
+                                    )}
+                                >
+                                    {({ copied, copy }) => (
+                                        <ActionIcon
+                                            variant="subtle"
+                                            size="xs"
+                                            color={copied ? 'green' : 'gray'}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                copy();
+                                            }}
+                                        >
+                                            <MantineIcon
+                                                icon={IconCopy}
+                                                size={10}
+                                            />
+                                        </ActionIcon>
+                                    )}
+                                </CopyButton>
+                            </Group>
+                            <Collapse in={jsonExpanded}>
+                                <ScrollArea.Autosize mah={200}>
+                                    <Code block fz={10}>
+                                        {JSON.stringify(
+                                            query.rawMetricQuery,
+                                            null,
+                                            2,
+                                        )}
+                                    </Code>
+                                </ScrollArea.Autosize>
+                            </Collapse>
                         </Box>
                     )}
-                    {query.durationMs !== null && (
-                        <Box>
-                            <Text size="xs" fw={600} c="dimmed">
-                                Warehouse execution time
-                            </Text>
-                            <Text size="xs">{query.durationMs}ms</Text>
-                        </Box>
-                    )}
-                    {(() => {
-                        const exploreUrl = buildExploreUrl(projectUuid, query);
-                        return exploreUrl ? (
-                            <Anchor href={exploreUrl} target="_blank" size="xs">
-                                <Group gap={4}>
-                                    <IconExternalLink size={12} />
-                                    Open in Explore
-                                </Group>
-                            </Anchor>
-                        ) : null;
-                    })()}
-                </Box>
+                </Group>
             </Collapse>
         </Box>
     );
@@ -233,7 +324,7 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                     radius="xl"
                     onClick={() => setDismissed(false)}
                 >
-                    <IconDatabase size={14} />
+                    <MantineIcon icon={IconDatabase} size={14} />
                 </ActionIcon>
             </Box>
         );
@@ -247,7 +338,7 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                 className={classes.titleBar}
                 onClick={toggle}
             >
-                <IconDatabase size={14} />
+                <MantineIcon icon={IconDatabase} size={14} />
                 <Text size="xs" fw={600}>
                     Queries ({queries.length})
                 </Text>
@@ -259,14 +350,14 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                         color="gray"
                         onClick={handleDismiss}
                     >
-                        <IconX size={12} />
+                        <MantineIcon icon={IconX} size={12} />
                     </ActionIcon>
                 )}
                 <ActionIcon variant="subtle" size="xs" color="gray">
                     {collapsed ? (
-                        <IconChevronRight size={12} />
+                        <MantineIcon icon={IconChevronRight} size={12} />
                     ) : (
-                        <IconChevronDown size={12} />
+                        <MantineIcon icon={IconChevronDown} size={12} />
                     )}
                 </ActionIcon>
             </Group>

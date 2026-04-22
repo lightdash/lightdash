@@ -70,6 +70,16 @@ const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
         });

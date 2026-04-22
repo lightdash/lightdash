@@ -3,6 +3,7 @@ import {
     ApiContentActionBody,
     ApiContentBulkActionBody,
     assertUnreachable,
+    BulkActionable,
     ChartSourceType,
     ContentActionMove,
     ContentType,
@@ -13,10 +14,12 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    ParameterError,
     SessionUser,
     SpaceContentBase,
     SummaryContent,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
@@ -44,6 +47,7 @@ type ContentServiceArguments = {
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
     spacePermissionService: SpacePermissionService;
+    appMoveService: BulkActionable<Knex> | undefined;
 };
 
 export class ContentService extends BaseService {
@@ -65,6 +69,8 @@ export class ContentService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    appMoveService: BulkActionable<Knex> | undefined;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -78,6 +84,14 @@ export class ContentService extends BaseService {
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
         this.spacePermissionService = args.spacePermissionService;
+        this.appMoveService = args.appMoveService;
+    }
+
+    private getAppMoveService(): BulkActionable<Knex> {
+        if (!this.appMoveService) {
+            throw new ParameterError('Data apps are not available');
+        }
+        return this.appMoveService;
     }
 
     async find(
@@ -272,6 +286,12 @@ export class ContentService extends BaseService {
                             moveToSpaceArgs,
                             moveToSpaceOptions,
                         );
+                    case ContentType.DATA_APP:
+                        return this.getAppMoveService().moveToSpace(
+                            user,
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }
@@ -358,6 +378,12 @@ export class ContentService extends BaseService {
                 );
             case ContentType.SPACE:
                 return this.spaceService.moveToSpace(
+                    user,
+                    moveToSpaceArgs,
+                    moveToSpaceOptions,
+                );
+            case ContentType.DATA_APP:
+                return this.getAppMoveService().moveToSpace(
                     user,
                     moveToSpaceArgs,
                     moveToSpaceOptions,

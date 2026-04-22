@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccessEmpty,
+    DatabricksAuthenticationType,
     NotFoundError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -44,6 +45,20 @@ export class DatabricksSSOController extends BaseController {
                 ? req.query.serverHostName
                 : undefined;
         if (projectUuid) {
+            const authInfo = await this.services
+                .getProjectService()
+                .getProjectWarehouseAuthInfo(req.user!, projectUuid);
+            // M2M auth uses project-level credentials, so no per-user SSO is expected.
+            if (
+                authInfo.type === WarehouseTypes.DATABRICKS &&
+                authInfo.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_M2M
+            ) {
+                return {
+                    status: 'ok',
+                    results: undefined,
+                };
+            }
             const credentials = await this.services
                 .getProjectService()
                 .getProjectCredentialsPreference(req.user!, projectUuid);

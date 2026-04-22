@@ -1,3 +1,4 @@
+import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -546,10 +547,19 @@ export type ApiAddDeployBatchResponse = {
     };
 };
 
+export type ApiDeployExploresResults = {
+    exploreCount: number;
+    warnings: ExploreWarningReport;
+};
+
+export type ApiSetExploresResponse = {
+    status: 'ok';
+    results: ApiDeployExploresResults;
+};
+
 export type ApiFinalizeDeployResponse = {
     status: 'ok';
-    results: {
-        exploreCount: number;
+    results: ApiDeployExploresResults & {
         status: DeploySessionStatus;
     };
 };
@@ -924,6 +934,7 @@ type ApiResults =
     | ApiDeleteComment
     | ApiSuccessEmpty
     | ApiCreateProjectResults
+    | ApiDeployExploresResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']

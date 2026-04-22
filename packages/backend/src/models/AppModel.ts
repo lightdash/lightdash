@@ -13,7 +13,9 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../database/entities/apps';
+import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
+import { SpaceTableName } from '../database/entities/spaces';
 import KnexPaginate from '../database/pagination';
 
 type AppModelArguments = {
@@ -119,10 +121,28 @@ export class AppModel {
         return row.status;
     }
 
-    async getApp(appId: string, projectUuid: string): Promise<DbApp> {
+    async getApp(
+        appId: string,
+        projectUuid: string,
+    ): Promise<DbApp & { organization_uuid: string }> {
         const row = await this.database(AppsTableName)
-            .where({ app_id: appId, project_uuid: projectUuid })
-            .whereNull('deleted_at')
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<(DbApp & { organization_uuid: string })[]>(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
             .first();
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
@@ -181,11 +201,23 @@ export class AppModel {
         name: string;
         description: string;
         createdByUserUuid: string;
+        organizationUuid: string;
+        spaceUuid: string | null;
         versions: DbAppVersion[];
         hasMore: boolean;
     }> {
         const limit = opts.limit ?? 20;
         const query = this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .leftJoin(
                 AppVersionsTableName,
                 `${AppsTableName}.app_id`,
@@ -199,6 +231,8 @@ export class AppModel {
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 `${AppsTableName}.created_by_user_uuid`,
+                `${AppsTableName}.space_uuid`,
+                `${OrganizationTableName}.organization_uuid`,
             )
             .orderBy(`${AppVersionsTableName}.version`, 'desc')
             .limit(limit + 1);
@@ -215,6 +249,8 @@ export class AppModel {
             name: string;
             description: string;
             created_by_user_uuid: string;
+            space_uuid: string | null;
+            organization_uuid: string;
         })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
@@ -227,18 +263,29 @@ export class AppModel {
             name,
             description,
             created_by_user_uuid: createdByUserUuid,
+            space_uuid: spaceUuid,
+            organization_uuid: organizationUuid,
         } = rows[0];
 
         // If app exists but no versions match, we get one row with all nulls
         const versions = rows.filter(
-            (r): r is DbAppVersion & { name: string; description: string } =>
-                r.version !== null,
+            (
+                r,
+            ): r is DbAppVersion & {
+                name: string;
+                description: string;
+                created_by_user_uuid: string;
+                space_uuid: string | null;
+                organization_uuid: string;
+            } => r.version !== null,
         );
         const hasMore = versions.length > limit;
         return {
             name,
             description,
             createdByUserUuid,
+            organizationUuid,
+            spaceUuid,
             versions: versions.slice(0, limit),
             hasMore,
         };
@@ -258,6 +305,42 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    async moveToSpace(
+        {
+            appId,
+            projectUuid,
+            targetSpaceUuid,
+        }: {
+            appId: string;
+            projectUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const space = await tx(SpaceTableName)
+            .select(`${SpaceTableName}.space_uuid`)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, targetSpaceUuid)
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first();
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const updated = await tx(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({ space_uuid: targetSpaceUuid });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
     }
 
     async listMyApps(

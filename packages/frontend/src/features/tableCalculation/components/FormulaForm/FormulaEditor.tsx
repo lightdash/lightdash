@@ -209,6 +209,15 @@ export const FormulaEditor: FC<Props> = ({
         }
     }, [editor, editorRef]);
 
+    // Sync new `initialContent` into the existing editor; equality guard breaks the typing loop.
+    useEffect(() => {
+        if (!editor || initialContent === undefined) return;
+        if (editor.getText() === initialContent) return;
+        editor.commands.setContent(
+            buildInitialContent(initialContent, fieldSuggestions),
+        );
+    }, [editor, initialContent, fieldSuggestions]);
+
     // Update field suggestions when fields change
     useEffect(() => {
         if (editor && fieldSuggestions.length > 0) {
