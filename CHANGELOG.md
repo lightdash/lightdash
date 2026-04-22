@@ -1,3 +1,10 @@
+# [0.2777.0](https://github.com/lightdash/lightdash/compare/0.2776.0...0.2777.0) (2026-04-22)
+
+
+### Features
+
+* auto-name data apps ([#22210](https://github.com/lightdash/lightdash/issues/22210)) ([c69020b](https://github.com/lightdash/lightdash/commit/c69020b170ff4851b8013563bc589b8a0523a286))
+
 # [0.2776.0](https://github.com/lightdash/lightdash/compare/0.2775.3...0.2776.0) (2026-04-22)
 
 
