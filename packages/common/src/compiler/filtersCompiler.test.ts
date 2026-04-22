@@ -2528,4 +2528,78 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         );
         expect(sql).not.toContain("AT TIME ZONE 'Asia/Tokyo'");
     });
+
+    describe('relative filters', () => {
+        beforeEach(() => {
+            jest.setSystemTime(new Date('2026-04-22 00:00:00 GMT').getTime());
+        });
+
+        const renderWithParam = (
+            filter: FilterRule<FilterOperator, unknown>,
+            useTimezoneAwareDateTrunc: boolean,
+        ) =>
+            renderFilterRuleSql(
+                filter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                'Asia/Tokyo',
+                true,
+                undefined,
+                useTimezoneAwareDateTrunc,
+            );
+
+        test('inThePast completed day wraps boundaries in project TZ', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
+            };
+            const sql = renderWithParam(filter, true);
+            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+            expect(sql).toContain("'2026-04-21'::timestamp");
+        });
+
+        test('inTheCurrent day wraps boundaries in project TZ', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days },
+            };
+            const sql = renderWithParam(filter, true);
+            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+            expect(sql).toContain("'2026-04-22'::timestamp");
+        });
+
+        test('inTheNext day wraps boundaries in project TZ', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_NEXT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days, completed: false },
+            };
+            const sql = renderWithParam(filter, true);
+            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+        });
+
+        test('inThePast completed day leaves boundaries bare when parameter is omitted', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
+            };
+            const sql = renderWithParam(filter, false);
+            expect(sql).not.toContain('AT TIME ZONE');
+        });
+    });
 });
