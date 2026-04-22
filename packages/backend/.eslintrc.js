@@ -101,6 +101,7 @@ module.exports = {
             // Error on direct ability checks in fully migrated services
             files: [
                 'src/ee/services/AiAgentService/**/*.ts',
+                'src/ee/services/ScimService/**/*.ts',
                 'src/services/AnalyticsService/**/*.ts',
                 'src/services/AsyncQueryService/**/*.ts',
                 'src/services/CatalogService/**/*.ts',
