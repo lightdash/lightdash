@@ -128,6 +128,28 @@
     gap: var(--mantine-spacing-sm);
 }
 
+.formatAccordionItem {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    background-color: transparent;
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.formatAccordionControl {
+    padding-block: var(--mantine-spacing-xs);
+    padding-inline: var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-md);
+}
+
+.formatAccordionContent {
+    padding-block-start: var(--mantine-spacing-md);
+    padding-inline: var(--mantine-spacing-md);
+    padding-block-end: var(--mantine-spacing-md);
+}
+
 @media (max-width: 48em) {
     .inputModeHeader {
         align-items: flex-start;
