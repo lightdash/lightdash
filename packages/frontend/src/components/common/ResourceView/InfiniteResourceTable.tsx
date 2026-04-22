@@ -835,10 +835,12 @@ const InfiniteResourceTable = ({
                                     },
                                 ];
                             case ContentType.DATA_APP:
-                                // Moving data apps between spaces is not
-                                // supported yet; skip them in bulk-move
-                                // payloads.
-                                return [];
+                                return [
+                                    {
+                                        uuid: item.data.uuid,
+                                        contentType: ContentType.DATA_APP,
+                                    },
+                                ];
                             default:
                                 return assertUnreachable(
                                     item,

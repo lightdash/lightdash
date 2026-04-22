@@ -16,6 +16,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { ALL_TRAFFIC, Sandbox } from 'e2b';
+import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
@@ -2339,6 +2340,81 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
         };
+    }
+
+    /**
+     * Move a data app from one space to another.
+     *
+     * Implements the shared `BulkActionable` interface so `ContentService`
+     * can dispatch move requests uniformly alongside dashboards and charts.
+     * Only space → space moves are supported for now: personal apps (no
+     * source space) and moves to `null` (unassigning) are rejected.
+     */
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: appUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        } = {},
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+
+        if (targetSpaceUuid === null) {
+            throw new ParameterError(
+                'You cannot move a data app outside of a space',
+            );
+        }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+
+        if (app.space_uuid === null) {
+            throw new ParameterError(
+                'You cannot move a personal data app between spaces',
+            );
+        }
+
+        if (checkForAccess) {
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                app.organization_uuid,
+                projectUuid,
+                'Insufficient permissions to move data apps',
+            );
+        }
+
+        await this.appModel.moveToSpace(
+            { appId: appUuid, projectUuid, targetSpaceUuid },
+            { tx },
+        );
+
+        if (trackEvent) {
+            this.analytics.track({
+                event: 'data_app.moved',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: app.organization_uuid,
+                    projectId: projectUuid,
+                    appUuid,
+                    sourceSpaceUuid: app.space_uuid,
+                    targetSpaceUuid,
+                },
+            });
+        }
     }
 
     private static async extractAndUploadToS3(

@@ -154,6 +154,10 @@ type ItemPayload =
     | {
           uuid: string;
           contentType: ContentType.SPACE;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.DATA_APP;
       };
 
 export type ContentAction = ContentActionMove | ContentActionDelete;
