@@ -1,4 +1,5 @@
 import {
+    ApiDeployExploresResults,
     AuthorizationError,
     DeploySessionStatus,
     Explore,
@@ -58,6 +59,35 @@ type DeployHandlerOptions = DbtCompileOptions & {
 
 type DeployArgs = DeployHandlerOptions & {
     projectUuid: string;
+};
+
+export const logDeployWarnings = (
+    warningResults: ApiDeployExploresResults['warnings'] | undefined,
+) => {
+    if (
+        !warningResults ||
+        warningResults.warningCount === 0 ||
+        !warningResults.exploresWithWarnings?.length
+    ) {
+        return;
+    }
+
+    console.error(
+        styles.warning(
+            `\nCompilation warnings (${warningResults.warningCount})`,
+        ),
+    );
+
+    warningResults.exploresWithWarnings.forEach((explore) => {
+        explore.warnings.forEach((warning) => {
+            console.error(
+                `- ${styles.warning(explore.name)}: ${styles.warning(
+                    warning.message,
+                )}`,
+            );
+        });
+    });
+    console.error('');
 };
 
 const replaceProjectYamlTags = async (
@@ -261,18 +291,20 @@ const deployBatched = async (
 
     // Finalize deploy
     GlobalState.log(`Finalizing deploy...`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const finalizeResponse = (await lightdashApi<any>({
+    const finalizeResponse = await lightdashApi<
+        ApiDeployExploresResults & { status: DeploySessionStatus }
+    >({
         method: 'POST',
         url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/finalize`,
         body: JSON.stringify({}),
-    })) as { exploreCount: number; status: DeploySessionStatus };
+    });
 
     GlobalState.log(
         styles.success(
             `Deploy completed! ${finalizeResponse.exploreCount} explores deployed.`,
         ),
     );
+    logDeployWarnings(finalizeResponse.warnings);
 
     await LightdashAnalytics.track({
         event: 'deploy.triggered',
@@ -362,11 +394,16 @@ export const deploy = async (
         const deployStartTime = Date.now();
         const deployPayload = JSON.stringify(explores);
         try {
-            await lightdashApi<null>({
-                method: 'PUT',
-                url: `/api/v1/projects/${options.projectUuid}/explores`,
-                body: deployPayload,
-            });
+            const deployResponse = await lightdashApi<ApiDeployExploresResults>(
+                {
+                    method: 'PUT',
+                    url: `/api/v1/projects/${options.projectUuid}/explores`,
+                    body: deployPayload,
+                },
+            );
+            if (deployResponse) {
+                logDeployWarnings(deployResponse.warnings);
+            }
             await LightdashAnalytics.track({
                 event: 'deploy.triggered',
                 properties: {
