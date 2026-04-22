@@ -8204,15 +8204,17 @@ export class ProjectService extends BaseService {
             project.createdByUserUuid,
         );
 
-        const response = await fetch(
-            `https://cloud.getdbt.com/api/v2/accounts/${accountId}/runs/${runId}/artifacts/manifest.json`,
-            {
-                headers: {
-                    Authorization: `Bearer ${project.dbtConnection.api_key}`,
-                },
-            },
-        );
-        const manifest = await response.json();
+        // Use stored account_id with fallback to webhook-provided value
+        const resolvedAccountId = project.dbtConnection.account_id || accountId;
+        const client = new DbtCloudRestClient({
+            serviceToken: project.dbtConnection.api_key,
+            accountId: resolvedAccountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+        const manifest = (await client.getArtifact(
+            Number(runId),
+            'manifest.json',
+        )) as AnyType;
 
         const prId = manifest.metadata.env.DBT_CLOUD_PR_ID;
         const jobId = manifest.metadata.env.DBT_CLOUD_JOB_ID;
