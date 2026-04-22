@@ -1,3 +1,10 @@
+# [0.2780.0](https://github.com/lightdash/lightdash/compare/0.2779.0...0.2780.0) (2026-04-22)
+
+
+### Features
+
+* **scim:** promote ScimService debug logs to info ([#22232](https://github.com/lightdash/lightdash/issues/22232)) ([f6b6dbf](https://github.com/lightdash/lightdash/commit/f6b6dbfc26dd797ff7c79177b044245404595421)), closes [#12246](https://github.com/lightdash/lightdash/issues/12246)
+
 # [0.2779.0](https://github.com/lightdash/lightdash/compare/0.2778.0...0.2779.0) (2026-04-22)
 
 
