@@ -2512,6 +2512,42 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         expect(sql).not.toContain('AT TIME ZONE');
     });
 
+    test('BigQuery DATE filter emits TIMESTAMP(literal, tz) instead of ::timestamp', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.BIGQUERY,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+        );
+        expect(sql).toContain("TIMESTAMP('2024-01-15', 'Asia/Tokyo')");
+        expect(sql).not.toContain('::timestamp');
+    });
+
+    test('ClickHouse DATE filter anchors literal with toDateTime(literal, tz)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.CLICKHOUSE,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+        );
+        expect(sql).toContain("toDateTime('2024-01-15', 'Asia/Tokyo')");
+        expect(sql).not.toContain('::timestamp');
+    });
+
     test('TIMESTAMP filter does not wrap literal even when parameter is true', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,

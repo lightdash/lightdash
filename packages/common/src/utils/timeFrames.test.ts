@@ -444,11 +444,11 @@ describe('TimeFrames', () => {
             );
         });
 
-        test('ClickHouse toUTC relabels to UTC so the wire value is the real instant', () => {
+        test('ClickHouse toUTC lifts Date-returning truncs into DateTime before relabeling', () => {
             const { toUTC } =
                 dateTruncTimezoneConversions[SupportedDbtAdapter.CLICKHOUSE];
             expect(toUTC('truncated', 'Asia/Tokyo')).toEqual(
-                `toTimeZone(truncated, 'UTC')`,
+                `toTimeZone(toDateTime(truncated, 'Asia/Tokyo'), 'UTC')`,
             );
         });
     });

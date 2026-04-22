@@ -135,12 +135,11 @@ export const dateTruncTimezoneConversions: Record<
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
     },
-    // Relabel the display zone to UTC so the wire value is the real UTC
-    // instant — session_timezone would otherwise serialize it as project-zone
-    // wall clock and read back as naive UTC.
+    // Relabel to UTC so the wire value is the real instant. toDateTime lifts
+    // Date truncs (month/year/etc.) into DateTime; no-op for DateTime inputs.
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
-        toUTC: (sql) => `toTimeZone(${sql}, 'UTC')`,
+        toUTC: (sql, tz) => `toTimeZone(toDateTime(${sql}, '${tz}'), 'UTC')`,
     },
 };
 

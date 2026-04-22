@@ -305,6 +305,11 @@ const renderDateOrTimestampFilterSql = (
                         return `'${value}'::timestamp_ntz`;
                     case SupportedDbtAdapter.DATABRICKS:
                         return `'${value}'`;
+                    case SupportedDbtAdapter.BIGQUERY:
+                        // No `::` cast; TIMESTAMP(s, tz) yields the UTC instant.
+                        return `TIMESTAMP('${value}', '${timezone}')`;
+                    case SupportedDbtAdapter.CLICKHOUSE:
+                        return `toDateTime('${value}', '${timezone}')`;
                     default:
                         return `'${value}'::timestamp`;
                 }
