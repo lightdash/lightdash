@@ -359,6 +359,22 @@ export default class App {
             sidfieldname: 'sid',
         });
 
+        const SESSION_TOUCH_THROTTLE_MS = 60_000;
+        const lastTouchBySid = new Map<string, number>();
+        const originalTouch = store.touch?.bind(store);
+        if (originalTouch) {
+            store.touch = function throttledTouch(sid, sess, fn) {
+                const now = Date.now();
+                const last = lastTouchBySid.get(sid) ?? 0;
+                if (now - last < SESSION_TOUCH_THROTTLE_MS) {
+                    if (fn) fn();
+                    return;
+                }
+                lastTouchBySid.set(sid, now);
+                originalTouch(sid, sess, fn);
+            };
+        }
+
         // Use custom middlewares if provided
         this.customExpressMiddlewares.forEach((middleware) =>
             middleware(expressApp),

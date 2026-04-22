@@ -126,14 +126,16 @@ export type ProjectModelArguments = {
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
 
-// Initialize cache for warehouse credentials with 30 seconds TTL
+// useClones:false — callers treat the decrypted credentials as read-only.
+// Set EXPERIMENTAL_CACHE=false to opt out.
 const warehouseCredentialsCache =
-    process.env.EXPERIMENTAL_CACHE === 'true'
-        ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
-              checkperiod: 60, // cleanup interval in seconds
-          })
-        : undefined;
+    process.env.EXPERIMENTAL_CACHE === 'false'
+        ? undefined
+        : new NodeCache({
+              stdTTL: 30,
+              checkperiod: 60,
+              useClones: false,
+          });
 
 const INSERT_BATCH_SIZE = 1000;
 

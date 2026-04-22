@@ -125,13 +125,16 @@ type UserModelArguments = {
     lightdashConfig: LightdashConfig;
 };
 
+// useClones:false — SessionUser.ability is an immutable CASL Ability; cloning it per hit blocks the event loop.
+// Set EXPERIMENTAL_CACHE=false to opt out.
 const sessionUserCache =
-    process.env.EXPERIMENTAL_CACHE === 'true'
-        ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
-              checkperiod: 60, // cleanup interval in seconds
-          })
-        : undefined;
+    process.env.EXPERIMENTAL_CACHE === 'false'
+        ? undefined
+        : new NodeCache({
+              stdTTL: 30,
+              checkperiod: 60,
+              useClones: false,
+          });
 
 export class UserModel {
     private readonly lightdashConfig: LightdashConfig;
