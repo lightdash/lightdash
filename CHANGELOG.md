@@ -1,3 +1,10 @@
+## [0.2775.2](https://github.com/lightdash/lightdash/compare/0.2775.1...0.2775.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* don't jump to top on chart select in Add saved charts ([#22206](https://github.com/lightdash/lightdash/issues/22206)) ([e0e565f](https://github.com/lightdash/lightdash/commit/e0e565f81fbab92746b3a78a5b6bb136b3c7d563))
+
 ## [0.2775.1](https://github.com/lightdash/lightdash/compare/0.2775.0...0.2775.1) (2026-04-22)
 
 
