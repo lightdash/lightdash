@@ -279,6 +279,14 @@ export class ScimService extends BaseService {
             return this.convertLightdashUserToScimUser(user, userRoles);
         } catch (error) {
             if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    'SCIM: user lookup failed — possible IdP cache drift',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        operation: 'getUser',
+                    },
+                );
                 throw new ScimError({
                     detail: `User with UUID ${userUuid} not found`,
                     status: 404,
@@ -767,6 +775,14 @@ export class ScimService extends BaseService {
                 });
             }
             if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    'SCIM: user lookup failed — possible IdP cache drift',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        operation: 'updateUser',
+                    },
+                );
                 throw new ScimError({
                     detail: `User with UUID ${userUuid} not found`,
                     status: 404,
@@ -899,6 +915,14 @@ export class ScimService extends BaseService {
                             scimType: 'invalidValue',
                         });
                     case NotFoundError:
+                        this.logger.warn(
+                            'SCIM: user lookup failed — possible IdP cache drift',
+                            {
+                                userUuid,
+                                organizationUuid,
+                                operation: 'patchUser',
+                            },
+                        );
                         throw new ScimError({
                             detail: `User with UUID ${userUuid} not found`,
                             status: 404,
@@ -997,6 +1021,14 @@ export class ScimService extends BaseService {
                 });
             }
             if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    'SCIM: user lookup failed — possible IdP cache drift',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        operation: 'deleteUser',
+                    },
+                );
                 throw new ScimError({
                     detail: `User with UUID ${userUuid} not found`,
                     status: 404,

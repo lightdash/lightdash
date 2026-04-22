@@ -285,6 +285,13 @@ export class ServiceAccountService extends BaseService {
                     return null;
                 }
 
+                this.logger.info('SCIM: access token authenticated', {
+                    serviceAccountUuid: dbToken.uuid,
+                    organizationUuid: dbToken.organizationUuid,
+                    description: dbToken.description,
+                    requestMethod: request.method,
+                    requestRoutePath: request.routePath,
+                });
                 this.analytics.track<ScimAccessTokenAuthenticationEvent>({
                     event: 'scim_access_token.authenticated',
                     anonymousId: LightdashAnalytics.anonymousId,
