@@ -49,16 +49,16 @@
     "google-auth-library": "9.15.1",
     "inquirer": "8.2.4",
     "js-yaml": "4.1.1",
-    "lodash": "4.17.23",
+    "lodash": "4.18.1",
     "node-fetch": "2.7.0",
-    "nunjucks": "3.2.3",
+    "nunjucks": "3.2.4",
     "openid-client": "5.6.4",
     "ora": "5.4.1",
     "p-limit": "3.1.0",
     "parse-node-version": "2.0.0",
     "unique-names-generator": "4.7.1",
     "uuid": "11.0.3",
-    "yaml": "2.7.0"
+    "yaml": "2.8.3"
   },
   "devDependencies": {
     "@types/inquirer": "8.2.4",
