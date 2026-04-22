@@ -118,23 +118,29 @@ export const dateTruncTimezoneConversions: Record<
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
     },
+    // Trino returns `timestamp with time zone` values as strings like
+    // "2024-01-14 00:00:00.000 America/New_York", which dayjs/moment can't
+    // parse — so `toUTC` casts the UTC-shifted result back to a naive
+    // `timestamp`. `with_timezone` attaches the project zone explicitly
+    // (independent of session zone) before shifting to UTC.
     [SupportedDbtAdapter.TRINO]: {
         toProjectTz: (sql, tz) =>
-            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
         toUTC: (sql, tz) =>
-            `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
+            `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
-            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
         toUTC: (sql, tz) =>
-            `CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}'`,
+            `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
     },
-    // ClickHouse's DateTime is always UTC-backed; toTimeZone is display-only,
-    // so the round-trip preserves the underlying value.
+    // Relabel the display zone to UTC so the wire value is the real UTC
+    // instant — session_timezone would otherwise serialize it as project-zone
+    // wall clock and read back as naive UTC.
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
-        toUTC: (sql) => sql,
+        toUTC: (sql) => `toTimeZone(${sql}, 'UTC')`,
     },
 };
 
@@ -149,7 +155,10 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
 };
 
 const bigqueryConfig: WarehouseConfig = {
-    // BigQuery: timezone passed natively to TIMESTAMP_TRUNC (no input wrapping needed)
+    // BigQuery: TIMESTAMP_TRUNC(ts, part, tz) truncates in the given zone and
+    // returns a TIMESTAMP (real UTC instant). We intentionally do NOT wrap
+    // with DATETIME(..., tz) — that would strip the zone back to a naive
+    // wall-clock and mis-label it as UTC downstream.
     getSqlForTruncatedDate: (
         timeFrame,
         originalSql,
@@ -163,8 +172,7 @@ const bigqueryConfig: WarehouseConfig = {
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
-                // Wrap with DATETIME to convert UTC result to local time
-                return `DATETIME(TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}'), '${timezone}')`;
+                return `TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}')`;
             }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
