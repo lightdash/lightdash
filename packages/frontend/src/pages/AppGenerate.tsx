@@ -3,7 +3,6 @@ import {
     FeatureFlags,
     isAppVersionInProgress,
     type ApiAppVersionSummary,
-    type AppImageAttachment,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -20,7 +19,6 @@ import {
     IconAppWindow,
     IconArrowUp,
     IconExternalLink,
-    IconPhoto,
     IconPlayerStop,
     IconSparkles,
 } from '@tabler/icons-react';
@@ -39,6 +37,10 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import AppResourcePicker, {
+    SelectedChartPills,
+    type SelectedChart,
+} from '../features/apps/AppResourcePicker';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
@@ -55,10 +57,16 @@ import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
 
+type ChatChart = {
+    name: string;
+    uuid: string;
+};
+
 type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     imagePreviewUrl: string | null;
+    charts: ChatChart[];
     appUuid: string | null;
     version: number | null;
 };
@@ -126,6 +134,7 @@ const AppGenerate: FC = () => {
         previewUrl: string;
     } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
     const handleQueryEvent = useCallback((event: QueryEvent) => {
         setTrackedQueries((prev) => {
@@ -165,6 +174,8 @@ const AppGenerate: FC = () => {
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
     const sentImagesByPrompt = useRef(new Map<string, string>());
+    // Maps prompt text → chart names so they survive the local→server transition
+    const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
     // Track appUuid in local state so polling starts immediately after creation
     // (before the URL param updates via replaceState)
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
@@ -290,6 +301,7 @@ const AppGenerate: FC = () => {
                     content: v.prompt,
                     imagePreviewUrl:
                         sentImagesByPrompt.current.get(v.prompt) ?? null,
+                    charts: sentChartsByPrompt.current.get(v.prompt) ?? [],
                     appUuid: null,
                     version: null,
                 },
@@ -303,6 +315,7 @@ const AppGenerate: FC = () => {
                             ? 'Your app is ready!'
                             : `Version ${v.version} is ready!`),
                     imagePreviewUrl: null,
+                    charts: [],
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
@@ -313,6 +326,7 @@ const AppGenerate: FC = () => {
                         v.statusMessage ??
                         'Generation failed. Please try again.',
                     imagePreviewUrl: null,
+                    charts: [],
                     appUuid: null,
                     version: null,
                 });
@@ -463,25 +477,27 @@ const AppGenerate: FC = () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
+        // Collect chart UUIDs to send as structured data (resolved server-side)
+        const chartUuids =
+            selectedCharts.length > 0
+                ? selectedCharts.map((c) => c.uuid)
+                : undefined;
+
         // For new apps, pre-generate the UUID so the image upload and
         // the generate request both use the same app-scoped S3 path.
         const newAppUuid = activeAppUuid ? undefined : uuid4();
         const targetAppUuid = activeAppUuid ?? newAppUuid;
 
-        // Upload image via backend proxy, then reference by S3 key
-        let image: AppImageAttachment | undefined;
+        // Upload image via backend proxy, then reference by opaque imageId
+        let imageId: string | undefined;
         if (imageAttachment) {
             try {
-                const { s3Key } = await uploadImage({
+                const result = await uploadImage({
                     projectUuid: projectUuid!,
                     file: imageAttachment.file,
-                    appUuid: targetAppUuid,
+                    appUuid: targetAppUuid!,
                 });
-                image = {
-                    s3Key,
-                    mimeType: imageAttachment.file.type,
-                    filename: imageAttachment.file.name,
-                };
+                imageId = result.imageId;
             } catch {
                 // If upload fails, proceed without the image
                 // rather than blocking the entire submission
@@ -494,6 +510,13 @@ const AppGenerate: FC = () => {
         if (sentImageUrl) {
             sentImagesByPrompt.current.set(trimmed, sentImageUrl);
         }
+        const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
+            name: c.name,
+            uuid: c.uuid,
+        }));
+        if (sentCharts.length > 0) {
+            sentChartsByPrompt.current.set(trimmed, sentCharts);
+        }
 
         setLocalMessages((prev) => [
             ...prev,
@@ -501,6 +524,7 @@ const AppGenerate: FC = () => {
                 role: 'user',
                 content: trimmed,
                 imagePreviewUrl: sentImageUrl,
+                charts: sentCharts,
                 appUuid: null,
                 version: null,
             },
@@ -508,6 +532,7 @@ const AppGenerate: FC = () => {
         setPrompt('');
         // Don't revoke the object URL since it's now referenced by the message
         setImageAttachment(null);
+        setSelectedCharts([]);
         resetGenerate();
         resetIterate();
 
@@ -534,6 +559,7 @@ const AppGenerate: FC = () => {
                                 ? err.message
                                 : 'Failed to generate app',
                         imagePreviewUrl: null,
+                        charts: [],
                         appUuid: null,
                         version: null,
                     },
@@ -547,7 +573,8 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     appUuid: activeAppUuid,
                     prompt: trimmed,
-                    image,
+                    imageId,
+                    chartUuids,
                 },
                 callbacks,
             );
@@ -556,8 +583,9 @@ const AppGenerate: FC = () => {
                 {
                     projectUuid,
                     prompt: trimmed,
-                    image,
+                    imageId,
                     appUuid: newAppUuid,
+                    chartUuids,
                 },
                 callbacks,
             );
@@ -657,6 +685,46 @@ const AppGenerate: FC = () => {
                                                     }
                                                 >
                                                     {msg.content}
+                                                    {msg.charts.length > 0 && (
+                                                        <Box mt="xs">
+                                                            <Text
+                                                                size="sm"
+                                                                fw={700}
+                                                            >
+                                                                Included queries
+                                                            </Text>
+                                                            <ul
+                                                                style={{
+                                                                    margin: 0,
+                                                                    paddingLeft: 20,
+                                                                }}
+                                                            >
+                                                                {msg.charts.map(
+                                                                    (chart) => (
+                                                                        <li
+                                                                            key={
+                                                                                chart.uuid
+                                                                            }
+                                                                        >
+                                                                            <Text
+                                                                                size="sm"
+                                                                                component="span"
+                                                                            >
+                                                                                {
+                                                                                    chart.name
+                                                                                }{' '}
+                                                                                (id:{' '}
+                                                                                {
+                                                                                    chart.uuid
+                                                                                }
+                                                                                )
+                                                                            </Text>
+                                                                        </li>
+                                                                    ),
+                                                                )}
+                                                            </ul>
+                                                        </Box>
+                                                    )}
                                                     {msg.imagePreviewUrl && (
                                                         <Image
                                                             src={
@@ -772,21 +840,6 @@ const AppGenerate: FC = () => {
                                             wrapper: classes.textareaWrapper,
                                         }}
                                     />
-                                    {imageAttachment && (
-                                        <Box className={classes.imagePreview}>
-                                            <Image
-                                                src={imageAttachment.previewUrl}
-                                                className={
-                                                    classes.imagePreviewThumbnail
-                                                }
-                                                alt="Attached image"
-                                            />
-                                            <CloseButton
-                                                size="xs"
-                                                onClick={clearImage}
-                                            />
-                                        </Box>
-                                    )}
                                 </Box>
                                 {isBuilding ? (
                                     <ActionIcon
@@ -802,22 +855,17 @@ const AppGenerate: FC = () => {
                                     </ActionIcon>
                                 ) : (
                                     <Group gap={4} wrap="nowrap">
-                                        <ActionIcon
-                                            size="sm"
-                                            variant="subtle"
-                                            color="gray"
-                                            onClick={() =>
+                                        <AppResourcePicker
+                                            onImageClick={() =>
                                                 fileInputRef.current?.click()
                                             }
-                                            disabled={
+                                            imageDisabled={
                                                 isLoading || !!imageAttachment
                                             }
-                                            className={
-                                                classes.imagePickerButton
-                                            }
-                                        >
-                                            <IconPhoto size={16} />
-                                        </ActionIcon>
+                                            selectedCharts={selectedCharts}
+                                            onChartsChange={setSelectedCharts}
+                                            disabled={isLoading}
+                                        />
                                         <ActionIcon
                                             size="sm"
                                             radius="xl"
@@ -837,6 +885,40 @@ const AppGenerate: FC = () => {
                                     </Group>
                                 )}
                             </Box>
+                            {(imageAttachment || selectedCharts.length > 0) && (
+                                <Group
+                                    gap="xs"
+                                    wrap="wrap"
+                                    align="center"
+                                    pt={4}
+                                >
+                                    {imageAttachment && (
+                                        <Box className={classes.imagePreview}>
+                                            <Image
+                                                src={imageAttachment.previewUrl}
+                                                className={
+                                                    classes.imagePreviewThumbnail
+                                                }
+                                                alt="Attached image"
+                                            />
+                                            <CloseButton
+                                                size="xs"
+                                                onClick={clearImage}
+                                            />
+                                        </Box>
+                                    )}
+                                    <SelectedChartPills
+                                        charts={selectedCharts}
+                                        onRemove={(uuid) =>
+                                            setSelectedCharts((prev) =>
+                                                prev.filter(
+                                                    (c) => c.uuid !== uuid,
+                                                ),
+                                            )
+                                        }
+                                    />
+                                </Group>
+                            )}
                         </Box>
                     </Box>
                 </Panel>

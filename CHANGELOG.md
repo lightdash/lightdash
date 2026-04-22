@@ -1,3 +1,52 @@
+## [0.2775.1](https://github.com/lightdash/lightdash/compare/0.2775.0...0.2775.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* stage uploaded images in for data apps ([#22203](https://github.com/lightdash/lightdash/issues/22203)) ([d1395c7](https://github.com/lightdash/lightdash/commit/d1395c7e1d8dd1b5c4905ba636677c6b312e56c9))
+
+# [0.2775.0](https://github.com/lightdash/lightdash/compare/0.2774.2...0.2775.0) (2026-04-22)
+
+
+### Features
+
+* include query list in prompt display ([#22192](https://github.com/lightdash/lightdash/issues/22192)) ([54ce451](https://github.com/lightdash/lightdash/commit/54ce45177f9ebe57758254b1111712c3f20ada17))
+
+## [0.2774.2](https://github.com/lightdash/lightdash/compare/0.2774.1...0.2774.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* guard against undefined tableCalculations in createSavedChartVersion ([#22202](https://github.com/lightdash/lightdash/issues/22202)) ([7249b64](https://github.com/lightdash/lightdash/commit/7249b646dc06a733ed5e592af0530e72c22ac0f0))
+
+## [0.2774.1](https://github.com/lightdash/lightdash/compare/0.2774.0...0.2774.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* update query-sdk to support table calculations ([#22187](https://github.com/lightdash/lightdash/issues/22187)) ([7f1fa9b](https://github.com/lightdash/lightdash/commit/7f1fa9b0d0149bbb8dfc5319b277b3323224532a))
+
+# [0.2774.0](https://github.com/lightdash/lightdash/compare/0.2773.0...0.2774.0) (2026-04-21)
+
+
+### Features
+
+* add UI to pick resources for app generation ([#22168](https://github.com/lightdash/lightdash/issues/22168)) ([4a3ec80](https://github.com/lightdash/lightdash/commit/4a3ec80f9e6ae178740110bc26788ee1cd8c24e8))
+* **logging:** add structured metadata to async query execution errors ([#22158](https://github.com/lightdash/lightdash/issues/22158)) ([4431ebb](https://github.com/lightdash/lightdash/commit/4431ebb17a7cd69fbbd1d2694f98169d6fd96f4f))
+
+# [0.2773.0](https://github.com/lightdash/lightdash/compare/0.2772.5...0.2773.0) (2026-04-21)
+
+
+### Bug Fixes
+
+* only warn on CLI version mismatch when major version differs ([#22173](https://github.com/lightdash/lightdash/issues/22173)) ([582158b](https://github.com/lightdash/lightdash/commit/582158b85712367f1126fc527c00faaedc6a1076))
+* wait for data to build cross-explore tileTargets ([#22166](https://github.com/lightdash/lightdash/issues/22166)) ([1169420](https://github.com/lightdash/lightdash/commit/1169420bcdd8bb6adb219b66e71d207923ed2b20))
+
+
+### Features
+
+* thread resolved timezone through frontend chart formatting ([#22110](https://github.com/lightdash/lightdash/issues/22110)) ([74880e5](https://github.com/lightdash/lightdash/commit/74880e5eb4c36bfc18a2801e33cef4e2fb49acd6))
+
 ## [0.2772.5](https://github.com/lightdash/lightdash/compare/0.2772.4...0.2772.5) (2026-04-21)
 
 

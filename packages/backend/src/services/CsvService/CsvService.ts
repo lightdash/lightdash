@@ -608,12 +608,17 @@ export class CsvService extends BaseService {
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
                 }),
             )
         ) {

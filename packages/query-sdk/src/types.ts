@@ -41,6 +41,17 @@ export type Sort = {
     direction: 'asc' | 'desc';
 };
 
+// --- Table calculation types ---
+
+export type TableCalculation = {
+    /** Internal name of the table calculation (used as the field ID in results) */
+    name: string;
+    /** Display name shown in the UI */
+    displayName: string;
+    /** SQL expression for the calculation */
+    sql: string;
+};
+
 // --- Internal types (used by transport) ---
 
 export type InternalFilterDefinition = {
@@ -56,6 +67,7 @@ export type QueryDefinition = {
     metrics: string[];
     filters: InternalFilterDefinition[];
     sorts: { fieldId: string; descending: boolean }[];
+    tableCalculations: TableCalculation[];
     limit: number;
     /** Human-readable label for dev tools / query inspector (not sent to the API) */
     label?: string;

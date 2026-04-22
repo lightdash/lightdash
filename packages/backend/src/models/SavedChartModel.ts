@@ -274,7 +274,7 @@ const createSavedChartVersion = async (
         );
         await createSavedChartVersionTableCalculations(
             trx,
-            tableCalculations.map((tableCalculation) => ({
+            (tableCalculations || []).map((tableCalculation) => ({
                 name: tableCalculation.name,
                 display_name: tableCalculation.displayName,
                 calculation_raw_sql: isSqlTableCalculation(tableCalculation)

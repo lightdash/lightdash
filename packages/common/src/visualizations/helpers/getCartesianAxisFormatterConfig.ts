@@ -27,6 +27,7 @@ export const getCartesianAxisFormatterConfig = ({
     defaultNameGap,
     show,
     parameters,
+    timezone,
 }: {
     axisItem: ItemsMap[string] | undefined;
     longestLabelWidth?: number;
@@ -34,6 +35,7 @@ export const getCartesianAxisFormatterConfig = ({
     defaultNameGap?: number;
     show?: boolean;
     parameters?: Record<string, unknown>;
+    timezone?: string;
 }) => {
     // Remove axis labels, lines, and ticks if the axis is not shown
     // This is done to prevent the grid from disappearing when the axis is not shown
@@ -72,7 +74,7 @@ export const getCartesianAxisFormatterConfig = ({
     if (axisItem && (hasFormattingConfig || axisMinInterval)) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, true, parameters),
+                formatItemValue(axisItem, value, true, parameters, timezone),
         };
         axisConfig.axisPointer = {
             label: {
@@ -86,6 +88,7 @@ export const getCartesianAxisFormatterConfig = ({
                               value.value,
                               true,
                               parameters,
+                              timezone,
                           )
                         : undefined,
             },
@@ -111,6 +114,7 @@ export const getCartesianAxisFormatterConfig = ({
                               value.value,
                               true,
                               parameters,
+                              timezone,
                           )
                         : undefined,
             },
@@ -122,7 +126,7 @@ export const getCartesianAxisFormatterConfig = ({
     ) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, false, parameters),
+                formatItemValue(axisItem, value, false, parameters, timezone),
         };
         axisConfig.axisPointer = {
             label: {
@@ -136,6 +140,7 @@ export const getCartesianAxisFormatterConfig = ({
                               value.value,
                               false,
                               parameters,
+                              timezone,
                           )
                         : undefined,
             },
@@ -153,7 +158,13 @@ export const getCartesianAxisFormatterConfig = ({
             case TimeFrames.WEEK:
                 axisConfig.axisLabel = {
                     formatter: (value: AnyType) =>
-                        formatItemValue(axisItem, value, true, parameters),
+                        formatItemValue(
+                            axisItem,
+                            value,
+                            true,
+                            parameters,
+                            timezone,
+                        ),
                 };
 
                 axisConfig.axisPointer = {
