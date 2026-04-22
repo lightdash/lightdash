@@ -43,9 +43,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         this.userModel = userModel;
     }
 
-    async getAll(
-        account: Account,
-    ): Promise<OrganizationWarehouseCredentials[]> {
+    private canManage(account: Account) {
         const auditedAbility = this.createAuditedAbility(account);
         const { organizationUuid } = account.organization;
         if (!organizationUuid) {
@@ -63,6 +61,13 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
                 'You do not have permission to manage organization warehouse credentials',
             );
         }
+    }
+
+    async getAll(
+        account: Account,
+    ): Promise<OrganizationWarehouseCredentials[]> {
+        this.canManage(account);
+        const organizationUuid = account.organization.organizationUuid!;
         return this.organizationWarehouseCredentialsModel.getAllByOrganizationUuid(
             organizationUuid,
         );
@@ -114,23 +119,8 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         account: Account,
         credentialsUuid: string,
     ): Promise<OrganizationWarehouseCredentials> {
-        const auditedAbility = this.createAuditedAbility(account);
-        const { organizationUuid } = account.organization;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User must be in an organization');
-        }
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage organization warehouse credentials',
-            );
-        }
+        this.canManage(account);
+        const organizationUuid = account.organization.organizationUuid!;
 
         const credentials =
             await this.organizationWarehouseCredentialsModel.getByUuid(
@@ -185,23 +175,8 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         account: Account,
         data: CreateOrganizationWarehouseCredentials,
     ): Promise<OrganizationWarehouseCredentials> {
-        const auditedAbility = this.createAuditedAbility(account);
-        const { organizationUuid } = account.organization;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User must be in an organization');
-        }
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage organization warehouse credentials',
-            );
-        }
+        this.canManage(account);
+        const organizationUuid = account.organization.organizationUuid!;
         const userUuid = account.user.id;
         const credentialsWithTokens = await this.updateCredentialTokens(
             userUuid,
@@ -233,23 +208,8 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         credentialsUuid: string,
         data: UpdateOrganizationWarehouseCredentials,
     ): Promise<OrganizationWarehouseCredentials> {
-        const auditedAbility = this.createAuditedAbility(account);
-        const { organizationUuid } = account.organization;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User must be in an organization');
-        }
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage organization warehouse credentials',
-            );
-        }
+        this.canManage(account);
+        const organizationUuid = account.organization.organizationUuid!;
         const userUuid = account.user.id;
 
         // Verify ownership before update
@@ -290,23 +250,8 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     }
 
     async delete(account: Account, credentialsUuid: string): Promise<void> {
-        const auditedAbility = this.createAuditedAbility(account);
-        const { organizationUuid } = account.organization;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User must be in an organization');
-        }
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('OrganizationWarehouseCredentials', {
-                    organizationUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage organization warehouse credentials',
-            );
-        }
+        this.canManage(account);
+        const organizationUuid = account.organization.organizationUuid!;
         const userUuid = account.user.id;
 
         // Verify ownership before delete
