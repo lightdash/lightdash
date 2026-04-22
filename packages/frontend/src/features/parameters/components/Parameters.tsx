@@ -3,8 +3,6 @@ import {
     DragOverlay,
     MouseSensor,
     TouchSensor,
-    useDraggable,
-    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -15,63 +13,14 @@ import {
     type ParametersValuesMap,
     type ParameterValue,
 } from '@lightdash/common';
-import { Group, Skeleton, useMantineTheme } from '@mantine-8/core';
+import { Group, Skeleton } from '@mantine-8/core';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
+import {
+    DraggableItem,
+    DroppableArea,
+} from '../../../components/common/DndHelpers';
 import Parameter from './Parameter';
-
-const DraggableItem: FC<{
-    id: string;
-    children: ReactNode;
-    disabled?: boolean;
-}> = ({ id, children, disabled }) => {
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
-        id,
-        disabled,
-    });
-
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
-    return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-            {children}
-        </div>
-    );
-};
-
-const DroppableArea: FC<{
-    id: string;
-    children: ReactNode;
-    orderedKeys: string[];
-}> = ({ id, children, orderedKeys }) => {
-    const { active, isOver, over, setNodeRef } = useDroppable({ id });
-    const { colors } = useMantineTheme();
-
-    const placeholderStyle = useMemo(() => {
-        if (isOver && active && over && active.id !== over.id) {
-            const oldIndex = orderedKeys.indexOf(String(active.id));
-            const newIndex = orderedKeys.indexOf(String(over.id));
-            if (newIndex < oldIndex) {
-                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
-            } else if (newIndex > oldIndex) {
-                return { boxShadow: `8px 0px ${colors.blue[4]}` };
-            }
-        }
-    }, [isOver, active, over, orderedKeys, colors]);
-
-    return (
-        <div ref={setNodeRef} style={placeholderStyle}>
-            {children}
-        </div>
-    );
-};
 
 type Props = {
     isEditMode: boolean;

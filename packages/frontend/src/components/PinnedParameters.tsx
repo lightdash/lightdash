@@ -3,8 +3,6 @@ import {
     DragOverlay,
     MouseSensor,
     TouchSensor,
-    useDraggable,
-    useDroppable,
     useSensor,
     useSensors,
     type DragEndEvent,
@@ -21,66 +19,13 @@ import {
     Group,
     Popover,
     Text,
-    useMantineTheme,
 } from '@mantine-8/core';
 import { IconGripVertical } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC, type ReactNode } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
+import { DraggableItem, DroppableArea } from './common/DndHelpers';
 import MantineIcon from './common/MantineIcon';
-
-const DraggableItem: FC<{
-    id: string;
-    children: ReactNode;
-    disabled?: boolean;
-}> = ({ id, children, disabled }) => {
-    const { attributes, listeners, setNodeRef, transform } = useDraggable({
-        id,
-        disabled,
-    });
-
-    const style = transform
-        ? ({
-              position: 'relative',
-              zIndex: 1,
-              transform: `translate(${transform.x}px, ${transform.y}px)`,
-              opacity: 0.8,
-          } as const)
-        : undefined;
-
-    return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes}>
-            {children}
-        </div>
-    );
-};
-
-const DroppableArea: FC<{
-    id: string;
-    children: ReactNode;
-    pinnedKeys: string[];
-}> = ({ id, children, pinnedKeys }) => {
-    const { active, isOver, over, setNodeRef } = useDroppable({ id });
-    const { colors } = useMantineTheme();
-
-    const placeholderStyle = useMemo(() => {
-        if (isOver && active && over && active.id !== over.id) {
-            const oldIndex = pinnedKeys.indexOf(String(active.id));
-            const newIndex = pinnedKeys.indexOf(String(over.id));
-            if (newIndex < oldIndex) {
-                return { boxShadow: `-8px 0px ${colors.blue[4]}` };
-            } else if (newIndex > oldIndex) {
-                return { boxShadow: `8px 0px ${colors.blue[4]}` };
-            }
-        }
-    }, [isOver, active, over, pinnedKeys, colors]);
-
-    return (
-        <div ref={setNodeRef} style={placeholderStyle}>
-            {children}
-        </div>
-    );
-};
 
 interface PinnedParameterProps {
     parameterKey: string;
@@ -280,7 +225,7 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
                     <DroppableArea
                         key={key}
                         id={key}
-                        pinnedKeys={pinnedParameterKeys}
+                        orderedKeys={pinnedParameterKeys}
                     >
                         <DraggableItem id={key} disabled={!isEditMode}>
                             <PinnedParameter
