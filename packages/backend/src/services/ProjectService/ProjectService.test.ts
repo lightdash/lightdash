@@ -3,9 +3,12 @@ import {
     defineUserAbility,
     FilterOperator,
     ForbiddenError,
+    MetricType,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    PreAggregateMissReason,
+    ProjectType,
     SessionUser,
     WarehouseTypes,
     type Explore,
@@ -145,12 +148,15 @@ const projectModel = {
         runQuery: jest.fn(async () => resultsWith1Row),
     })),
     findExploreByTableName: jest.fn(async () => validExplore),
+    getAllExploresFromCache: jest.fn(async () => ({})),
+    saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
     getPreAggregateDefinitionsForProject: jest.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
+    getActiveMaterialization: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -176,8 +182,20 @@ const schedulerClient = {
     deleteScheduledPreAggregateCronJobsForProject: jest.fn(
         async () => undefined,
     ),
+    indexCatalog: jest.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
     schedulePreAggregateCronJobs: jest.fn(async () => []),
+};
+
+const catalogModel = {
+    getCatalogItemsWithTags: jest.fn(async () => []),
+    getCatalogItemsWithIcons: jest.fn(async () => []),
+    getAllMetricsTreeEdges: jest.fn(async () => []),
+    getAllMetricsTreeNodes: jest.fn(async () => []),
+};
+
+const projectCompileLogModel = {
+    insert: jest.fn(async () => undefined),
 };
 
 const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
@@ -213,7 +231,7 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
-        catalogModel: {} as CatalogModel,
+        catalogModel: catalogModel as unknown as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
@@ -228,7 +246,8 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
-        projectCompileLogModel: {} as ProjectCompileLogModel,
+        projectCompileLogModel:
+            projectCompileLogModel as unknown as ProjectCompileLogModel,
         adminNotificationService: {
             notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
@@ -1363,6 +1382,121 @@ describe('ProjectService', () => {
                 [],
             ),
         };
+
+        test('saveExploresToCacheAndIndexCatalog skips preview project materialization jobs', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+
+            (projectModel.get as jest.Mock).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                type: ProjectType.PREVIEW,
+            });
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                user.userUuid,
+                projectUuid,
+                [validExplore],
+                'cli_deploy',
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                preAggregateModel.getPreAggregateDefinitionsForProject,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.schedulePreAggregateCronJobs,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('checkPreAggregateMatch returns a miss when the pre-aggregate is not materialized', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const sourceExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        metrics: {
+                            ...validExplore.tables.a.metrics,
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                type: MetricType.COUNT,
+                            },
+                        },
+                    },
+                },
+                preAggregates: [
+                    {
+                        name: 'rollup',
+                        dimensions: ['dim1'],
+                        metrics: ['met1'],
+                    },
+                ],
+            } as Explore;
+
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementation(
+                async (
+                    _projectUuid: string,
+                    _field: string,
+                    exploreNames: string[],
+                ) =>
+                    Object.fromEntries(
+                        exploreNames
+                            .map((exploreName) => [
+                                exploreName,
+                                {
+                                    [sourceExplore.name]: sourceExplore,
+                                    [preAggregateExplore.name]:
+                                        preAggregateExplore,
+                                }[exploreName],
+                            ])
+                            .filter(([, explore]) => explore !== undefined),
+                    ),
+            );
+            (
+                preAggregateModel.getActiveMaterialization as jest.Mock
+            ).mockResolvedValueOnce(undefined);
+
+            const result =
+                await serviceWithPreAggregatesEnabled.checkPreAggregateMatch({
+                    account: developerAccount,
+                    projectUuid,
+                    exploreName: sourceExplore.name,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        tableCalculations: [],
+                    },
+                    usePreAggregateCache: true,
+                });
+
+            expect(result).toEqual({
+                hit: false,
+                reason: {
+                    reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                },
+            });
+            expect(
+                preAggregateModel.getActiveMaterialization,
+            ).toHaveBeenCalledWith(projectUuid, preAggregateExplore.name);
+        });
 
         test('refreshPreAggregates schedules only materializable definitions', async () => {
             (
