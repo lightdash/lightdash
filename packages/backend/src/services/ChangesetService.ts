@@ -40,8 +40,7 @@ export class ChangesetService extends BaseService {
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid ?? '',
-                    metadata: { projectUuid },
+                    organizationUuid: user.organizationUuid!,
                 }),
             )
         ) {
@@ -66,8 +65,8 @@ export class ChangesetService extends BaseService {
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid ?? '',
-                    metadata: { projectUuid, changeUuid },
+                    organizationUuid: user.organizationUuid!,
+                    metadata: { changeUuid },
                 }),
             )
         ) {
@@ -90,8 +89,8 @@ export class ChangesetService extends BaseService {
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid ?? '',
-                    metadata: { projectUuid, changeUuid },
+                    organizationUuid: user.organizationUuid!,
+                    metadata: { changeUuid },
                 }),
             )
         ) {
@@ -142,8 +141,7 @@ export class ChangesetService extends BaseService {
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid ?? '',
-                    metadata: { projectUuid },
+                    organizationUuid: user.organizationUuid!,
                 }),
             )
         ) {

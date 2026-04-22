@@ -58,7 +58,6 @@ export class UserAttributesService extends BaseService {
                 'manage',
                 subject('Organization', {
                     organizationUuid,
-                    metadata: { organizationUuid },
                 }),
             )
         ) {
@@ -95,7 +94,6 @@ export class UserAttributesService extends BaseService {
                 subject('Organization', {
                     organizationUuid,
                     metadata: {
-                        organizationUuid,
                         userAttributeName: orgAttribute.name,
                     },
                 }),
@@ -135,7 +133,6 @@ export class UserAttributesService extends BaseService {
                 subject('Organization', {
                     organizationUuid: savedAttribute.organizationUuid,
                     metadata: {
-                        organizationUuid: savedAttribute.organizationUuid,
                         userAttributeUuid: orgAttributeUuid,
                         userAttributeName: savedAttribute.name,
                     },
@@ -172,7 +169,6 @@ export class UserAttributesService extends BaseService {
                 subject('Organization', {
                     organizationUuid: orgAttribute.organizationUuid,
                     metadata: {
-                        organizationUuid: orgAttribute.organizationUuid,
                         userAttributeUuid: orgAttributeUuid,
                         userAttributeName: orgAttribute.name,
                     },

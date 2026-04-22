@@ -65,7 +65,7 @@ export class PersonalAccessTokenService extends BaseService {
             auditedAbility.cannot(
                 'create',
                 subject('PersonalAccessToken', {
-                    organizationUuid: user.organizationUuid ?? '',
+                    organizationUuid: user.organizationUuid!,
                     metadata: { userUuid: user.userUuid },
                 }),
             )
@@ -100,7 +100,7 @@ export class PersonalAccessTokenService extends BaseService {
             auditedAbility.cannot(
                 'delete',
                 subject('PersonalAccessToken', {
-                    organizationUuid: user.organizationUuid ?? '',
+                    organizationUuid: user.organizationUuid!,
                     metadata: {
                         userUuid: user.userUuid,
                         personalAccessTokenUuid,
@@ -128,7 +128,7 @@ export class PersonalAccessTokenService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('PersonalAccessToken', {
-                    organizationUuid: user.organizationUuid ?? '',
+                    organizationUuid: user.organizationUuid!,
                     metadata: { userUuid: user.userUuid },
                 }),
             )
@@ -150,7 +150,7 @@ export class PersonalAccessTokenService extends BaseService {
             auditedAbility.cannot(
                 'update',
                 subject('PersonalAccessToken', {
-                    organizationUuid: user.organizationUuid ?? '',
+                    organizationUuid: user.organizationUuid!,
                     metadata: {
                         userUuid: user.userUuid,
                         personalAccessTokenUuid,
