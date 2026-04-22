@@ -7485,6 +7485,10 @@
                 "enum": ["explore_resolution_error"],
                 "type": "string"
             },
+            "PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION": {
+                "enum": ["no_active_materialization"],
+                "type": "string"
+            },
             "PreAggregateMatchMiss": {
                 "anyOf": [
                     {
@@ -7638,6 +7642,15 @@
                         "properties": {
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR"
+                            }
+                        },
+                        "required": ["reason"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION"
                             }
                         },
                         "required": ["reason"],
@@ -28081,9 +28094,6 @@
                             "status": {
                                 "$ref": "#/components/schemas/QueryHistoryStatus.READY"
                             },
-                            "resolvedTimezone": {
-                                "type": "string"
-                            },
                             "metadata": {
                                 "$ref": "#/components/schemas/QueryResultsMetadata"
                             },
@@ -28103,7 +28113,6 @@
                         "required": [
                             "pivotDetails",
                             "status",
-                            "resolvedTimezone",
                             "metadata",
                             "rows",
                             "columns",
@@ -30370,7 +30379,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2775.1",
+        "version": "0.2775.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

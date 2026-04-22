@@ -1543,9 +1543,17 @@ export class ProjectService extends BaseService {
         projectUuid: string;
         organizationUuid: string;
         userUuid: string;
+        skipMaterialization: boolean;
     }): Promise<void> {
         try {
             await this.syncPreAggregateDefinitionsRegistry(args.projectUuid);
+
+            if (args.skipMaterialization) {
+                this.logger.info(
+                    `Skipping pre-aggregate materialization enqueue for preview project ${args.projectUuid}`,
+                );
+                return;
+            }
 
             const preAggregateDefinitions =
                 await this.preAggregateModel.getPreAggregateDefinitionsForProject(
@@ -1666,6 +1674,7 @@ export class ProjectService extends BaseService {
                 projectUuid,
                 organizationUuid,
                 userUuid,
+                skipMaterialization: project.type === ProjectType.PREVIEW,
             });
         }
 
@@ -3355,6 +3364,22 @@ export class ProjectService extends BaseService {
         );
         try {
             await this.getExplore(account, projectUuid, preAggExploreName);
+
+            const activeMaterialization =
+                await this.preAggregateModel.getActiveMaterialization(
+                    projectUuid,
+                    preAggExploreName,
+                );
+
+            if (!activeMaterialization) {
+                return {
+                    hit: false,
+                    reason: {
+                        reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                    },
+                };
+            }
+
             return {
                 hit: true,
                 preAggregateName: matchResult.preAggregateName,

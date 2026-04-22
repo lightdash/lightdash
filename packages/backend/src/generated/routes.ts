@@ -6240,6 +6240,11 @@ const models: TsoaRoute.Models = {
         enums: ['explore_resolution_error'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION': {
+        dataType: 'refEnum',
+        enums: ['no_active_materialization'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PreAggregateMatchMiss: {
         dataType: 'refAlias',
         type: {
@@ -6378,6 +6383,15 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {
                         reason: {
                             ref: 'PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR',
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        reason: {
+                            ref: 'PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION',
                             required: true,
                         },
                     },
@@ -26908,10 +26922,6 @@ const models: TsoaRoute.Models = {
                         },
                         status: {
                             ref: 'QueryHistoryStatus.READY',
-                            required: true,
-                        },
-                        resolvedTimezone: {
-                            dataType: 'string',
                             required: true,
                         },
                         metadata: {
