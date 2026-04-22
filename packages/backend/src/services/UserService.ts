@@ -434,6 +434,7 @@ export class UserService extends BaseService {
             throw new ForbiddenError();
         }
         const { expiresAt, email, role } = createInviteLink;
+        const inviteCode = nanoid(30);
 
         const existingUserWithEmail =
             await this.userModel.findUserByEmail(email);
@@ -519,6 +520,9 @@ export class UserService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         // We assume users can only have one org
         const { organizationUuid } = user;
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
 
         if (
             auditedAbility.cannot(
@@ -527,9 +531,6 @@ export class UserService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
-        }
-        if (organizationUuid === undefined) {
-            throw new NotFoundError('Organization not found');
         }
         await this.inviteLinkModel.deleteByOrganization(organizationUuid);
         this.analytics.track({
