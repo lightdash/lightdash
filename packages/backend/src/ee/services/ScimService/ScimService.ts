@@ -256,14 +256,14 @@ export class ScimService extends BaseService {
         userUuid: string;
         organizationUuid: string;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Getting user', { userUuid, organizationUuid });
+        this.logger.info('SCIM: Getting user', { userUuid, organizationUuid });
         try {
             const user =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
                     organizationUuid,
                     userUuid,
                 );
-            this.logger.debug('SCIM: Successfully retrieved user', {
+            this.logger.info('SCIM: Successfully retrieved user', {
                 userUuid,
                 organizationUuid,
                 userEmail: user.email,
@@ -309,7 +309,7 @@ export class ScimService extends BaseService {
         itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimUser>> {
-        this.logger.debug('SCIM: Listing users', {
+        this.logger.info('SCIM: Listing users', {
             organizationUuid,
             startIndex,
             itemsPerPage,
@@ -317,7 +317,7 @@ export class ScimService extends BaseService {
         });
         try {
             const parsedFilter = filter ? parse(filter) : null;
-            this.logger.debug('SCIM: Parsed filter', { parsedFilter });
+            this.logger.info('SCIM: Parsed filter', { parsedFilter });
 
             // these columns map from the potential scim filter to the actual user columns
             const userColumnMapping = {
@@ -371,7 +371,7 @@ export class ScimService extends BaseService {
                 }),
             );
 
-            this.logger.debug('SCIM: Successfully listed users', {
+            this.logger.info('SCIM: Successfully listed users', {
                 organizationUuid,
                 totalResults: pagination?.totalResults ?? 0,
                 returnedCount: scimUsers.length,
@@ -414,7 +414,7 @@ export class ScimService extends BaseService {
                     userUuid,
                 );
             if (deletedIdentitiesByUserUuid > 0) {
-                this.logger.debug(
+                this.logger.info(
                     `SCIM: deleted ${deletedIdentitiesByUserUuid} openid identities for user ${userUuid}`,
                 );
             }
@@ -423,7 +423,7 @@ export class ScimService extends BaseService {
         const deletedIdentitiesByEmail =
             await this.openIdIdentityModel.deleteIdentitiesByEmail(email);
         if (deletedIdentitiesByEmail > 0) {
-            this.logger.debug(
+            this.logger.info(
                 `SCIM: deleted ${deletedIdentitiesByEmail} openid identities for email ${email}`,
             );
         }
@@ -437,7 +437,7 @@ export class ScimService extends BaseService {
         user: ScimUpsertUser;
         organizationUuid: string;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Creating user', {
+        this.logger.info('SCIM: Creating user', {
             organizationUuid,
             userName: user.userName,
             firstName: user.name?.givenName,
@@ -509,7 +509,7 @@ export class ScimService extends BaseService {
                 dbUser.userUuid,
                 email,
             );
-            this.logger.debug('SCIM: Successfully created user', {
+            this.logger.info('SCIM: Successfully created user', {
                 organizationUuid,
                 userUuid: dbUser.userUuid,
                 email,
@@ -569,7 +569,7 @@ export class ScimService extends BaseService {
         userUuid: string;
         organizationUuid: string;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Updating user', {
+        this.logger.info('SCIM: Updating user', {
             userUuid,
             organizationUuid,
             userName: user.userName,
@@ -645,7 +645,7 @@ export class ScimService extends BaseService {
             // We delete all openid identities for the user's email and user uuid
             // to prevent login conflicts
             if (user.active && user.active !== dbUser.isActive) {
-                this.logger.debug(
+                this.logger.info(
                     `SCIM: Updating active user ${emailToUpdate} to ${user.active}`,
                 );
                 await this.deleteOpenIdIdentitiesForUser({
@@ -665,7 +665,7 @@ export class ScimService extends BaseService {
                                 role: OrganizationMemberRole.MEMBER,
                             },
                         );
-                        this.logger.debug(
+                        this.logger.info(
                             'SCIM: Updated user organisation role to MEMBER',
                             {
                                 userUuid,
@@ -686,7 +686,7 @@ export class ScimService extends BaseService {
                         await this.rolesModel.removeUserAccessFromAllProjects(
                             dbUser.userUuid,
                         );
-                    this.logger.debug(
+                    this.logger.info(
                         'SCIM: Removed user roles from all projects',
                         {
                             userUuid,
@@ -709,7 +709,7 @@ export class ScimService extends BaseService {
                             organizationUuid,
                             userUuid,
                         });
-                    this.logger.debug('SCIM: Removed user from all groups', {
+                    this.logger.info('SCIM: Removed user from all groups', {
                         userUuid,
                         organizationUuid,
                         groupsCount,
@@ -728,7 +728,7 @@ export class ScimService extends BaseService {
                 updatedUser.userUuid,
             );
 
-            this.logger.debug('SCIM: Successfully updated user', {
+            this.logger.info('SCIM: Successfully updated user', {
                 userUuid,
                 organizationUuid,
                 emailToUpdate,
@@ -845,7 +845,7 @@ export class ScimService extends BaseService {
         organizationUuid: string;
         patchOp: ScimPatch;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Patching user', {
+        this.logger.info('SCIM: Patching user', {
             userUuid,
             organizationUuid,
             operationsCount: patchOp.Operations.length,
@@ -876,7 +876,7 @@ export class ScimService extends BaseService {
                 scimDbUser as PatchLibScimResource,
                 patchOp.Operations,
             );
-            this.logger.debug('SCIM: Applied patch operations to user', {
+            this.logger.info('SCIM: Applied patch operations to user', {
                 userUuid,
                 organizationUuid,
                 patchedFields: Object.keys(patchedDbUserObj),
@@ -935,7 +935,7 @@ export class ScimService extends BaseService {
         userUuid: string;
         organizationUuid: string;
     }): Promise<void> {
-        this.logger.debug('SCIM: Deleting user', {
+        this.logger.info('SCIM: Deleting user', {
             userUuid,
             organizationUuid,
         });
@@ -953,7 +953,7 @@ export class ScimService extends BaseService {
                     organizationUuid,
                 );
             if (remainingAdmins.length === 0 && admin.userUuid === userUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Cannot delete user - last admin in organization',
                     {
                         userUuid,
@@ -968,7 +968,7 @@ export class ScimService extends BaseService {
 
             await this.userModel.delete(dbUser.userUuid);
 
-            this.logger.debug('SCIM: Successfully deleted user', {
+            this.logger.info('SCIM: Successfully deleted user', {
                 userUuid,
                 organizationUuid,
                 email: dbUser.email,
@@ -1019,14 +1019,14 @@ export class ScimService extends BaseService {
         organizationUuid: string,
         groupUuid: string,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Getting group', {
+        this.logger.info('SCIM: Getting group', {
             groupUuid,
             organizationUuid,
         });
         try {
             const group = await this.groupsModel.getGroupWithMembers(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
-                this.logger.debug('SCIM: Group not found in organization', {
+                this.logger.info('SCIM: Group not found in organization', {
                     groupUuid,
                     organizationUuid,
                     groupOrgUuid: group.organizationUuid,
@@ -1037,7 +1037,7 @@ export class ScimService extends BaseService {
                     scimType: 'noTarget',
                 });
             }
-            this.logger.debug('SCIM: Successfully retrieved group', {
+            this.logger.info('SCIM: Successfully retrieved group', {
                 groupUuid,
                 organizationUuid,
                 groupName: group.name,
@@ -1078,7 +1078,7 @@ export class ScimService extends BaseService {
         itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimGroup>> {
-        this.logger.debug('SCIM: Listing groups', {
+        this.logger.info('SCIM: Listing groups', {
             organizationUuid,
             startIndex,
             itemsPerPage,
@@ -1086,7 +1086,7 @@ export class ScimService extends BaseService {
         });
         try {
             const parsedFilter = filter ? parse(filter) : null;
-            this.logger.debug('SCIM: Parsed group filter', { parsedFilter });
+            this.logger.info('SCIM: Parsed group filter', { parsedFilter });
 
             const exactMatchFilterName =
                 parsedFilter?.op === 'eq' &&
@@ -1127,7 +1127,7 @@ export class ScimService extends BaseService {
                 }),
             );
 
-            this.logger.debug('SCIM: Successfully listed groups', {
+            this.logger.info('SCIM: Successfully listed groups', {
                 organizationUuid,
                 totalResults: pagination?.totalResults ?? 0,
                 returnedCount: scimGroups.length,
@@ -1159,7 +1159,7 @@ export class ScimService extends BaseService {
         organizationUuid: string,
         groupToCreate: ScimUpsertGroup,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Creating group', {
+        this.logger.info('SCIM: Creating group', {
             organizationUuid,
             displayName: groupToCreate.displayName,
             memberCount: groupToCreate.members?.length || 0,
@@ -1179,7 +1179,7 @@ export class ScimService extends BaseService {
             });
 
             if (matchesByName.length > 0) {
-                this.logger.debug('SCIM: Group name already exists', {
+                this.logger.info('SCIM: Group name already exists', {
                     organizationUuid,
                     displayName: groupToCreate.displayName,
                     existingGroups: matchesByName.map((g) => ({
@@ -1209,7 +1209,7 @@ export class ScimService extends BaseService {
                 },
             });
 
-            this.logger.debug('SCIM: Successfully created group', {
+            this.logger.info('SCIM: Successfully created group', {
                 organizationUuid,
                 groupUuid: group.uuid,
                 groupName: group.name,
@@ -1250,7 +1250,7 @@ export class ScimService extends BaseService {
         groupUuid: string,
         groupToUpdate: ScimUpsertGroup,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Replacing group', {
+        this.logger.info('SCIM: Replacing group', {
             organizationUuid,
             groupUuid,
             displayName: groupToUpdate.displayName,
@@ -1268,7 +1268,7 @@ export class ScimService extends BaseService {
 
             const group = await this.groupsModel.getGroupWithMembers(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Group not found in organization for replace',
                     {
                         groupUuid,
@@ -1293,7 +1293,7 @@ export class ScimService extends BaseService {
                 (match) => match.uuid !== groupUuid,
             );
             if (conflictingGroups.length > 0) {
-                this.logger.debug('SCIM: Group name conflict on replace', {
+                this.logger.info('SCIM: Group name conflict on replace', {
                     organizationUuid,
                     groupUuid,
                     displayName: groupToUpdate.displayName,
@@ -1324,7 +1324,7 @@ export class ScimService extends BaseService {
                 },
             });
 
-            this.logger.debug('SCIM: Successfully replaced group', {
+            this.logger.info('SCIM: Successfully replaced group', {
                 organizationUuid,
                 groupUuid,
                 oldName: group.name,
@@ -1374,7 +1374,7 @@ export class ScimService extends BaseService {
         groupUuid: string,
         patchOp: ScimPatch,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Updating group with patch', {
+        this.logger.info('SCIM: Updating group with patch', {
             organizationUuid,
             groupUuid,
             operationsCount: patchOp.Operations.length,
@@ -1388,7 +1388,7 @@ export class ScimService extends BaseService {
             const existingGroup =
                 await this.groupsModel.getGroupWithMembers(groupUuid);
             if (existingGroup.organizationUuid !== organizationUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Group not found in organization for patch',
                     {
                         groupUuid,
@@ -1409,7 +1409,7 @@ export class ScimService extends BaseService {
                 existingScimGroup,
                 patchOp.Operations,
             ) as ScimGroup;
-            this.logger.debug('SCIM: Applied patch operations to group', {
+            this.logger.info('SCIM: Applied patch operations to group', {
                 organizationUuid,
                 groupUuid,
                 oldName: existingGroup.name,
@@ -1441,7 +1441,7 @@ export class ScimService extends BaseService {
                 },
             });
 
-            this.logger.debug('SCIM: Successfully updated group', {
+            this.logger.info('SCIM: Successfully updated group', {
                 organizationUuid,
                 groupUuid,
                 finalName: updatedGroup.name,
@@ -1504,14 +1504,14 @@ export class ScimService extends BaseService {
         organizationUuid: string,
         groupUuid: string,
     ): Promise<void> {
-        this.logger.debug('SCIM: Deleting group', {
+        this.logger.info('SCIM: Deleting group', {
             organizationUuid,
             groupUuid,
         });
         try {
             const group = await this.groupsModel.getGroup(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Group not found in organization for delete',
                     {
                         groupUuid,
@@ -1527,7 +1527,7 @@ export class ScimService extends BaseService {
             }
 
             await this.groupsModel.deleteGroup(groupUuid);
-            this.logger.debug('SCIM: Successfully deleted group', {
+            this.logger.info('SCIM: Successfully deleted group', {
                 organizationUuid,
                 groupUuid,
                 groupName: group.name,
@@ -1812,7 +1812,7 @@ export class ScimService extends BaseService {
         itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimRole>> {
-        this.logger.debug('SCIM: Listing roles', {
+        this.logger.info('SCIM: Listing roles', {
             organizationUuid,
             startIndex,
             itemsPerPage,
@@ -1820,7 +1820,7 @@ export class ScimService extends BaseService {
         });
         try {
             const parsedFilter = filter ? parse(filter) : null;
-            this.logger.debug('SCIM: Parsed role filter', { parsedFilter });
+            this.logger.info('SCIM: Parsed role filter', { parsedFilter });
 
             const {
                 allScimRoles,
@@ -1855,7 +1855,7 @@ export class ScimService extends BaseService {
             const offset = (page - 1) * pageSize;
             const pagedRoles = filteredRoles.slice(offset, offset + pageSize);
 
-            this.logger.debug('SCIM: Successfully listed roles', {
+            this.logger.info('SCIM: Successfully listed roles', {
                 organizationUuid,
                 totalResults: filteredRoles.length,
                 returnedCount: pagedRoles.length,
@@ -1888,7 +1888,7 @@ export class ScimService extends BaseService {
 
     async getRole(organizationUuid: string, roleId: string): Promise<ScimRole> {
         try {
-            this.logger.debug('SCIM: Getting role', {
+            this.logger.info('SCIM: Getting role', {
                 roleId,
                 organizationUuid,
             });
@@ -1901,7 +1901,7 @@ export class ScimService extends BaseService {
                     scimType: 'noTarget',
                 });
             }
-            this.logger.debug('SCIM: Successfully retrieved role', {
+            this.logger.info('SCIM: Successfully retrieved role', {
                 organizationUuid,
                 roleId,
                 roleName: role.display,
