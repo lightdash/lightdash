@@ -1,12 +1,10 @@
-import {
-    QueryExecutionContext,
-    QueryHistoryStatus,
-    type Account,
-} from '@lightdash/common';
+import { QueryExecutionContext, QueryHistoryStatus } from '@lightdash/common';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
 import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
 import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import { sessionAccount } from '../../../services/ProjectService/ProjectService.mock';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import { PreAggregateMaterializationService } from './PreAggregateMaterializationService';
 
@@ -47,6 +45,7 @@ describe('PreAggregateMaterializationService', () => {
         asyncQueryService: asyncQueryService as unknown as AsyncQueryService,
         preAggregateResultsStorageClient:
             preAggregateResultsStorageClient as unknown as S3ResultsFileStorageClient,
+        analytics: analyticsMock,
     });
 
     beforeEach(() => {
@@ -65,7 +64,7 @@ describe('PreAggregateMaterializationService', () => {
         });
 
         const result = await service.materializePreAggregate({
-            account: {} as Account,
+            account: sessionAccount,
             projectUuid: 'project-1',
             preAggregateDefinitionUuid: 'def-1',
             trigger: 'manual',
@@ -126,7 +125,7 @@ describe('PreAggregateMaterializationService', () => {
         });
 
         const result = await service.materializePreAggregate({
-            account: {} as Account,
+            account: sessionAccount,
             projectUuid: 'project-1',
             preAggregateDefinitionUuid: 'def-1',
             trigger: 'manual',
@@ -204,7 +203,7 @@ describe('PreAggregateMaterializationService', () => {
         });
 
         await service.materializePreAggregate({
-            account: {} as Account,
+            account: sessionAccount,
             projectUuid: 'project-1',
             preAggregateDefinitionUuid: 'def-1',
             trigger: 'manual',
@@ -254,7 +253,7 @@ describe('PreAggregateMaterializationService', () => {
         });
 
         const result = await service.materializePreAggregate({
-            account: {} as Account,
+            account: sessionAccount,
             projectUuid: 'project-1',
             preAggregateDefinitionUuid: 'def-1',
             trigger: 'manual',
@@ -319,7 +318,7 @@ describe('PreAggregateMaterializationService', () => {
         });
 
         await service.materializePreAggregate({
-            account: {} as Account,
+            account: sessionAccount,
             projectUuid: 'project-1',
             preAggregateDefinitionUuid: 'def-1',
             trigger: 'manual',

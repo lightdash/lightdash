@@ -5128,16 +5128,28 @@ export class ProjectService extends BaseService {
         }
 
         const jobs = await Promise.all(
-            materializableDefinitions.map((definition) =>
-                this.schedulerClient.materializePreAggregate({
+            materializableDefinitions.map(async (definition) => {
+                this.analytics.track({
+                    userId: user.userUuid,
+                    event: 'pre_aggregate.refresh_requested',
+                    properties: {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        preAggregateName:
+                            definition.preAggregateDefinition.name,
+                        trigger: 'manual',
+                    },
+                });
+
+                return this.schedulerClient.materializePreAggregate({
                     organizationUuid,
                     projectUuid,
                     userUuid: user.userUuid,
                     preAggregateDefinitionUuid:
                         definition.preAggregateDefinitionUuid,
                     trigger: 'manual',
-                }),
-            ),
+                });
+            }),
         );
 
         return {
@@ -5177,6 +5189,18 @@ export class ProjectService extends BaseService {
                 }`,
             );
         }
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'pre_aggregate.refresh_requested',
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                preAggregateName:
+                    preAggregateDefinition.preAggregateDefinition.name,
+                trigger: 'manual',
+            },
+        });
 
         const { jobId } = await this.schedulerClient.materializePreAggregate({
             organizationUuid,

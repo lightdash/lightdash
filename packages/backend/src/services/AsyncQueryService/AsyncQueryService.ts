@@ -200,6 +200,11 @@ const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
+type ExecuteAsyncQueryAnalyticsMetadata = {
+    preAggregateMetadata?: CacheMetadata['preAggregate'];
+    preAggregateMode?: PreAggregationRoute['mode'];
+};
+
 type AsyncQueryExecutionPlan =
     | {
           target: 'warehouse';
@@ -1761,6 +1766,31 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    private static getPreAggregateAnalyticsProperties({
+        preAggregateMetadata,
+        preAggregateMode,
+    }: {
+        preAggregateMetadata?: CacheMetadata['preAggregate'];
+        preAggregateMode?: PreAggregationRoute['mode'];
+    }) {
+        const isEligible =
+            preAggregateMetadata !== undefined ||
+            preAggregateMode !== undefined;
+
+        return {
+            ...(isEligible ? { preAggregateEligible: true } : undefined),
+            ...(preAggregateMetadata
+                ? {
+                      preAggregateHit: preAggregateMetadata.hit,
+                      preAggregateName: preAggregateMetadata.name,
+                      preAggregateMissReason:
+                          preAggregateMetadata.reason?.reason,
+                  }
+                : undefined),
+            ...(preAggregateMode ? { preAggregateMode } : undefined),
+        };
+    }
+
     public async runAsyncPreAggregateQuery({
         userUuid,
         organizationUuid,
@@ -2826,6 +2856,9 @@ export class AsyncQueryService extends ProjectService {
                     userAccessControls,
                     availableParameterDefinitions,
                 } = args;
+                const { preAggregateMetadata, preAggregateMode } =
+                    requestParameters as ExecuteAsyncQueryRequestParams &
+                        ExecuteAsyncQueryAnalyticsMetadata;
 
                 try {
                     assertIsAccountWithOrg(account);
@@ -2976,6 +3009,12 @@ export class AsyncQueryService extends ProjectService {
                                             : undefined,
                                     explore,
                                     parameters: requestParameters.parameters,
+                                },
+                            ),
+                            ...AsyncQueryService.getPreAggregateAnalyticsProperties(
+                                {
+                                    preAggregateMetadata,
+                                    preAggregateMode,
                                 },
                             ),
                             cacheMetadata: {
@@ -3501,18 +3540,24 @@ export class AsyncQueryService extends ProjectService {
         });
         const prepareMs = Date.now() - prepareStart;
 
-        const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
-            context,
-            query: metricQuery,
-            parameters: combinedParameters,
-        };
-
         const routingDecision = this.getPreAggregationRoutingDecision({
             metricQuery,
             explore,
             context,
             forceWarehouse: usePreAggregateCache === false,
         });
+
+        const requestParameters: ExecuteAsyncMetricQueryRequestParams &
+            ExecuteAsyncQueryAnalyticsMetadata = {
+            context,
+            query: metricQuery,
+            parameters: combinedParameters,
+            preAggregateMetadata: routingDecision.preAggregateMetadata,
+            preAggregateMode:
+                routingDecision.target === 'pre_aggregate'
+                    ? routingDecision.route.mode
+                    : undefined,
+        };
 
         this.logger.info(
             `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
@@ -3524,6 +3569,15 @@ export class AsyncQueryService extends ProjectService {
                 routingDecision.preAggregateMetadata.reason?.reason,
             );
         }
+
+        this.recordPreAggregateStats({
+            projectUuid,
+            exploreName: explore.name,
+            routingDecision,
+            chartUuid: null,
+            dashboardUuid: null,
+            queryContext: context,
+        });
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -3787,7 +3841,8 @@ export class AsyncQueryService extends ProjectService {
             account.isRegisteredUser() ? account.user.id : null,
         );
 
-        const requestParameters: ExecuteAsyncSavedChartRequestParams = {
+        const requestParameters: ExecuteAsyncSavedChartRequestParams &
+            ExecuteAsyncQueryAnalyticsMetadata = {
             context,
             chartUuid,
             versionUuid,
@@ -3897,6 +3952,13 @@ export class AsyncQueryService extends ProjectService {
             dashboardUuid: null,
             queryContext: context,
         });
+
+        requestParameters.preAggregateMetadata =
+            routingDecision.preAggregateMetadata;
+        requestParameters.preAggregateMode =
+            routingDecision.target === 'pre_aggregate'
+                ? routingDecision.route.mode
+                : undefined;
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
@@ -4110,7 +4172,8 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
+        const requestParameters: ExecuteAsyncDashboardChartRequestParams &
+            ExecuteAsyncQueryAnalyticsMetadata = {
             tileUuid,
             chartUuid,
             context,
@@ -4216,6 +4279,13 @@ export class AsyncQueryService extends ProjectService {
             dashboardUuid,
             queryContext: context,
         });
+
+        requestParameters.preAggregateMetadata =
+            routingDecision.preAggregateMetadata;
+        requestParameters.preAggregateMode =
+            routingDecision.target === 'pre_aggregate'
+                ? routingDecision.route.mode
+                : undefined;
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {

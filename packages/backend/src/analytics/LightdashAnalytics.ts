@@ -244,6 +244,14 @@ type SqlExecutionProperties = {
     usingStreaming: boolean;
 };
 
+type PreAggregateAnalyticsProperties = {
+    preAggregateEligible?: boolean;
+    preAggregateHit?: boolean;
+    preAggregateName?: string;
+    preAggregateMissReason?: string;
+    preAggregateMode?: 'required' | 'opportunistic';
+};
+
 type QueryExecutionEvent = BaseTrack & {
     event: 'query.executed';
     properties: {
@@ -251,11 +259,12 @@ type QueryExecutionEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         cacheMetadata?: CacheMetadata;
-    } & (
-        | PaginatedMetricQueryExecutionProperties
-        | MetricQueryExecutionProperties
-        | SqlExecutionProperties
-    );
+    } & PreAggregateAnalyticsProperties &
+        (
+            | PaginatedMetricQueryExecutionProperties
+            | MetricQueryExecutionProperties
+            | SqlExecutionProperties
+        );
 };
 
 type QueryReadyEvent = BaseTrack & {
@@ -276,6 +285,38 @@ type QueryErrorEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes | undefined;
+    };
+};
+
+type PreAggregateMaterializationEvent = BaseTrack & {
+    event:
+        | 'pre_aggregate.materialization_completed'
+        | 'pre_aggregate.materialization_failed';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        preAggregateName: string;
+        trigger: string;
+        status: 'active' | 'superseded' | 'failed';
+        format: 'jsonl' | 'parquet';
+        rowCount: number | null;
+        columnCount: number | null;
+        totalBytes: number | null;
+        warehouseExecutionTimeMs: number | null;
+        totalDurationMs: number;
+        warningRowCountExceeded: boolean;
+        warningMaxRowsApplied: boolean;
+        errorMessage?: string;
+    };
+};
+
+type PreAggregateRefreshRequestedEvent = BaseTrack & {
+    event: 'pre_aggregate.refresh_requested';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        preAggregateName: string;
+        trigger: 'manual';
     };
 };
 
@@ -1857,7 +1898,9 @@ type TypedEvent =
     | AiAgentArtifactsRetrievedEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
-    | ImpersonationEvent;
+    | ImpersonationEvent
+    | PreAggregateMaterializationEvent
+    | PreAggregateRefreshRequestedEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

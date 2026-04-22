@@ -557,6 +557,7 @@ export class ServiceRepository
                     asyncQueryService: this.getAsyncQueryService(),
                     preAggregateResultsStorageClient:
                         this.clients.getPreAggregateResultsFileStorageClient(),
+                    analytics: this.context.lightdashAnalytics,
                     prometheusMetrics: this.prometheusMetrics,
                 }),
         );
