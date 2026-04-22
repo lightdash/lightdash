@@ -1,3 +1,11 @@
+# [0.2778.0](https://github.com/lightdash/lightdash/compare/0.2777.0...0.2778.0) (2026-04-22)
+
+
+### Features
+
+* return explore warning report from deploy endpoints ([#22180](https://github.com/lightdash/lightdash/issues/22180)) ([95a68ea](https://github.com/lightdash/lightdash/commit/95a68ea996efe7b8a28d12a3a8a151e599b403e7))
+* skip materialization for preview projects and add no active materialization miss reason ([#22209](https://github.com/lightdash/lightdash/issues/22209)) ([6c4816d](https://github.com/lightdash/lightdash/commit/6c4816d753fe2860073edeccb6e4fea941a15883))
+
 # [0.2777.0](https://github.com/lightdash/lightdash/compare/0.2776.0...0.2777.0) (2026-04-22)
 
 
