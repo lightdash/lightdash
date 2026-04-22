@@ -127,14 +127,28 @@ const FilterConfiguration: FC<Props> = ({
         if (!originalFilterRule) return;
 
         setDraftFilterRule((oldDraftFilterRule) => {
-            return oldDraftFilterRule
-                ? {
-                      ...oldDraftFilterRule,
-                      ...getFilterRuleRevertableObject(originalFilterRule),
-                  }
-                : undefined;
+            if (!oldDraftFilterRule) return undefined;
+
+            const revertedRule = {
+                ...oldDraftFilterRule,
+                ...getFilterRuleRevertableObject(originalFilterRule),
+            };
+
+            // Mirror handleChangeFilterRule's disable logic: without this, reverting to
+            // a saved state of { disabled: false, values: [] } leaves Apply stuck disabled.
+            const isRevertedFilterDisabled =
+                revertedRule.disabled && !hasFilterValueSet(revertedRule);
+            const shouldDisableInViewMode =
+                !isEditMode &&
+                !revertedRule.required &&
+                !hasFilterValueSet(revertedRule);
+
+            return {
+                ...revertedRule,
+                disabled: isRevertedFilterDisabled || shouldDisableInViewMode,
+            };
         });
-    }, [originalFilterRule, setDraftFilterRule]);
+    }, [originalFilterRule, setDraftFilterRule, isEditMode]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
