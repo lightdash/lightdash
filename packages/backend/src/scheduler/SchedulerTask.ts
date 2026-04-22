@@ -90,6 +90,7 @@ import {
     WarehouseConnectionError,
     type Account as AccountType,
     type BatchDeliveryResult,
+    type DbtCloudBranchPreviewPayload,
     type DeliveryResult,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
@@ -1916,6 +1917,58 @@ export default class SchedulerTask {
         Logger.info(
             `Scheduled ${totalScheduledJobs} pre-aggregate cron materialization job(s)`,
         );
+    }
+
+    protected async handleDbtCloudBranchPreview(
+        jobId: string,
+        scheduledTime: Date,
+        payload: DbtCloudBranchPreviewPayload,
+    ) {
+        const baseLog = {
+            task: SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW,
+            jobId,
+            scheduledTime,
+        };
+
+        await this.schedulerService.logSchedulerJob({
+            ...baseLog,
+            status: SchedulerJobStatus.STARTED,
+            details: {
+                projectUuid: payload.projectUuid,
+                runId: payload.runId,
+                gitBranch: payload.gitBranch,
+            },
+        });
+
+        try {
+            await this.projectService.pollAndCreateBranchPreview(
+                payload.projectUuid,
+                payload.runId,
+                payload.gitBranch,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.COMPLETED,
+                details: {
+                    projectUuid: payload.projectUuid,
+                    runId: payload.runId,
+                    gitBranch: payload.gitBranch,
+                },
+            });
+        } catch (e) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                status: SchedulerJobStatus.ERROR,
+                details: {
+                    projectUuid: payload.projectUuid,
+                    runId: payload.runId,
+                    gitBranch: payload.gitBranch,
+                    error: getErrorMessage(e),
+                },
+            });
+            throw e;
+        }
     }
 
     protected async validateProject(

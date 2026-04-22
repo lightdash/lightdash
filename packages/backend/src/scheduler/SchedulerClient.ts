@@ -47,6 +47,7 @@ import {
     TraceTaskBase,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
+    type DbtCloudBranchPreviewPayload,
     type DownloadAsyncQueryResultsPayload,
     type PreAggregateSchedulerDetails,
     type SchedulerCreateProjectWithCompilePayload,
@@ -1156,6 +1157,32 @@ export class SchedulerClient {
                 organizationUuid: payload.organizationUuid,
                 context: payload.context,
                 onlyValidateExploresInArgs: payload.onlyValidateExploresInArgs,
+            },
+        });
+
+        return jobId;
+    }
+
+    async dbtCloudBranchPreview(payload: DbtCloudBranchPreviewPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW,
+            payload,
+            now,
+            JobPriority.HIGH,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                projectUuid: payload.projectUuid,
+                runId: payload.runId,
+                gitBranch: payload.gitBranch,
             },
         });
 

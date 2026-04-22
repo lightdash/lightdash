@@ -12,6 +12,7 @@ import { type UploadMetricGsheetPayload } from './gdrive';
 import { type RenameResourcesPayload } from './rename';
 import {
     type CompileProjectPayload,
+    type DbtCloudBranchPreviewPayload,
     type DownloadAsyncQueryResultsPayload,
     type EmailBatchNotificationPayload,
     type EmailNotificationPayload,
@@ -87,6 +88,7 @@ export const SCHEDULER_TASKS = {
     CHECK_FOR_STUCK_JOBS: 'checkForStuckJobs',
     CLEAN_DEPLOY_SESSIONS: 'cleanDeploySessions',
     MANAGED_AGENT_HEARTBEAT: 'managedAgentHeartbeat',
+    DBT_CLOUD_BRANCH_PREVIEW: 'dbtCloudBranchPreview',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -133,6 +135,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW]: DbtCloudBranchPreviewPayload;
 }
 
 export interface EETaskPayloadMap {

@@ -39,6 +39,8 @@ import {
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
+    type ApiDbtCloudBranchPreviewResults,
+    type ApiDbtCloudJobValidationResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiRefreshResults,
@@ -1256,6 +1258,59 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
+        };
+    }
+
+    /**
+     * Validate the configured dbt Cloud preview job for branch previews
+     * @summary Validate dbt Cloud preview job
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/dbt-cloud/validate-preview-job')
+    @OperationId('validateDbtCloudPreviewJob')
+    async validateDbtCloudPreviewJob(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiDbtCloudJobValidationResults>> {
+        this.setStatus(200);
+        const result = await this.services
+            .getProjectService()
+            .validateDbtCloudPreviewJob(req.user!, projectUuid);
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Trigger a dbt Cloud branch preview by running dbt parse on a feature branch
+     * @summary Trigger dbt Cloud branch preview
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/dbt-cloud/branch-preview')
+    @OperationId('triggerDbtCloudBranchPreview')
+    async triggerDbtCloudBranchPreview(
+        @Path() projectUuid: string,
+        @Body() body: { branch: string },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiDbtCloudBranchPreviewResults>> {
+        this.setStatus(200);
+        const result = await this.services
+            .getProjectService()
+            .triggerBranchPreview(req.user!, projectUuid, body.branch);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

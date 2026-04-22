@@ -69,6 +69,9 @@ const dbtCloudIdeDefaultValues: DbtCloudIDEProjectConfig = {
     environment_id: '',
     discovery_api_endpoint: '',
     tags: [],
+    account_id: '',
+    base_url: '',
+    preview_job_id: '',
 } as const;
 
 // Local

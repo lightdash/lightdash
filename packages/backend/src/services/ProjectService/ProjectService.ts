@@ -43,6 +43,7 @@ import {
     DatabricksAuthenticationType,
     DatabricksTokenError,
     DateZoom,
+    DbtCloudRunStatus,
     DbtExposure,
     DbtExposureType,
     DbtManifestVersion,
@@ -175,6 +176,8 @@ import {
     type ApiCreateProjectResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
+    type DbtCloudJobResponse,
+    type DbtCloudJobValidationResult,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -205,6 +208,7 @@ import {
     ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import { DbtCloudRestClient } from '../../clients/DbtCloud/DbtCloudRestClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
@@ -8095,6 +8099,172 @@ export class ProjectService extends BaseService {
         return updatedCharts;
     }
 
+    async validateDbtCloudPreviewJob(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<DbtCloudJobValidationResult> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const {
+            api_key: apiKey,
+            account_id: accountId,
+            preview_job_id: previewJobId,
+        } = project.dbtConnection;
+
+        if (!accountId || !previewJobId) {
+            throw new ParameterError(
+                'Account ID and Preview Job ID must be configured to validate the preview job',
+            );
+        }
+
+        const client = new DbtCloudRestClient({
+            serviceToken: apiKey,
+            accountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+
+        const errors: string[] = [];
+        let job: DbtCloudJobResponse | null = null;
+        try {
+            job = await client.getJob(previewJobId);
+        } catch (e) {
+            return {
+                isValid: false,
+                errors: [
+                    `Could not fetch job ${previewJobId}: ${getErrorMessage(e)}`,
+                ],
+                job: null,
+            };
+        }
+
+        if (job.jobType !== 'ci') {
+            errors.push(
+                `Job "${job.name}" is not a CI job (type: ${job.jobType}). Change job_type to "ci" in dbt Cloud.`,
+            );
+        }
+
+        if (!job.deferringEnvironmentId) {
+            errors.push(
+                `Job "${job.name}" does not defer to a production environment. Set a deferring environment in dbt Cloud.`,
+            );
+        }
+
+        const hasDbtParse = job.executeSteps.some((step) =>
+            step.includes('dbt parse'),
+        );
+        if (!hasDbtParse) {
+            errors.push(
+                `Job "${job.name}" does not include a "dbt parse" step. Add "dbt parse" to the execute steps.`,
+            );
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            job,
+        };
+    }
+
+    async triggerBranchPreview(
+        user: SessionUser,
+        projectUuid: string,
+        gitBranch: string,
+    ): Promise<{ runId: number }> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const {
+            api_key: apiKey,
+            account_id: accountId,
+            preview_job_id: previewJobId,
+        } = project.dbtConnection;
+
+        if (!accountId || !previewJobId) {
+            throw new ParameterError(
+                'Account ID and Preview Job ID must be configured to trigger branch previews',
+            );
+        }
+
+        const client = new DbtCloudRestClient({
+            serviceToken: apiKey,
+            accountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+
+        const { runId } = await client.triggerRun({
+            jobId: previewJobId,
+            gitBranch,
+            stepsOverride: ['dbt parse'],
+        });
+
+        await this.schedulerClient.dbtCloudBranchPreview({
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            userUuid: user.userUuid,
+            runId,
+            gitBranch,
+        });
+
+        return { runId };
+    }
+
+    async pollAndCreateBranchPreview(
+        projectUuid: string,
+        runId: number,
+        gitBranch: string,
+    ): Promise<string> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const { api_key: apiKey, account_id: accountId } =
+            project.dbtConnection;
+
+        if (!accountId) {
+            throw new ParameterError(
+                'Account ID must be configured for branch previews',
+            );
+        }
+
+        const client = new DbtCloudRestClient({
+            serviceToken: apiKey,
+            accountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+
+        const finalStatus = await client.pollRunUntilComplete(runId);
+
+        if (finalStatus.status !== DbtCloudRunStatus.SUCCESS) {
+            throw new ParameterError(
+                `dbt Cloud run ${runId} ended with status: ${finalStatus.statusHumanized}`,
+            );
+        }
+
+        return this.createPreviewWithExplores(
+            projectUuid,
+            accountId,
+            String(runId),
+        );
+    }
+
     async createPreviewWithExplores(
         projectUuid: string,
         accountId: string,
@@ -8128,15 +8298,17 @@ export class ProjectService extends BaseService {
             project.createdByUserUuid,
         );
 
-        const response = await fetch(
-            `https://cloud.getdbt.com/api/v2/accounts/${accountId}/runs/${runId}/artifacts/manifest.json`,
-            {
-                headers: {
-                    Authorization: `Bearer ${project.dbtConnection.api_key}`,
-                },
-            },
-        );
-        const manifest = await response.json();
+        // Use stored account_id with fallback to webhook-provided value
+        const resolvedAccountId = project.dbtConnection.account_id || accountId;
+        const client = new DbtCloudRestClient({
+            serviceToken: project.dbtConnection.api_key,
+            accountId: resolvedAccountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+        const manifest = (await client.getArtifact(
+            Number(runId),
+            'manifest.json',
+        )) as AnyType;
 
         const prId = manifest.metadata.env.DBT_CLOUD_PR_ID;
         const jobId = manifest.metadata.env.DBT_CLOUD_JOB_ID;

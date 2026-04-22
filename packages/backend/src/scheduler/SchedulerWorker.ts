@@ -747,6 +747,24 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW]: async (
+                payload,
+                helpers,
+            ) => {
+                await SchedulerClient.processJob(
+                    SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.handleDbtCloudBranchPreview(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
+                    },
+                );
+            },
             [SCHEDULER_TASKS.SQL_RUNNER]: async (payload, helpers) => {
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(

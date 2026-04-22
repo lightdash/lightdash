@@ -89,6 +89,33 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 />
             )}
             <TextInput
+                name="dbt.account_id"
+                {...form.getInputProps('dbt.account_id')}
+                label="Account ID"
+                description={
+                    <p>
+                        Your dbt Cloud account ID. You can find this in the URL
+                        when logged in to dbt Cloud (e.g.
+                        cloud.getdbt.com/deploy/<b>12345</b>/...).
+                    </p>
+                }
+                disabled={disabled}
+            />
+            <TextInput
+                name="dbt.base_url"
+                {...form.getInputProps('dbt.base_url')}
+                label="Base URL"
+                description={
+                    <p>
+                        The base URL for your dbt Cloud instance. Only change
+                        this if you are on a non-US region or single-tenant
+                        deployment.
+                    </p>
+                }
+                placeholder="https://cloud.getdbt.com"
+                disabled={disabled}
+            />
+            <TextInput
                 name="dbt.discovery_api_endpoint"
                 {...form.getInputProps('dbt.discovery_api_endpoint')}
                 label="Discovery API endpoint"
@@ -106,6 +133,20 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </p>
                 }
                 placeholder="https://metadata.cloud.getdbt.com/graphql"
+                disabled={disabled}
+            />
+            <TextInput
+                name="dbt.preview_job_id"
+                {...form.getInputProps('dbt.preview_job_id')}
+                label="Preview Job ID"
+                description={
+                    <p>
+                        The ID of a CI job in dbt Cloud to use for branch
+                        previews. The job should run <b>dbt parse</b> and defer
+                        to your production environment.
+                        <DocumentationHelpButton href="https://docs.getdbt.com/docs/deploy/ci-jobs" />
+                    </p>
+                }
                 disabled={disabled}
             />
             <MultiSelect
