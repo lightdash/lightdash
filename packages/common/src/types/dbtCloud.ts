@@ -50,4 +50,6 @@ export type DbtCloudJobValidationResult = {
     job: DbtCloudJobResponse | null;
 };
 
+export type ApiDbtCloudJobValidationResults = DbtCloudJobValidationResult;
+
 export const DEFAULT_DBT_CLOUD_BASE_URL = 'https://cloud.getdbt.com';

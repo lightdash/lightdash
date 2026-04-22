@@ -175,6 +175,8 @@ import {
     type ApiCreateProjectResults,
     type CalculateSubtotalsFromQuery,
     type CreateDatabricksCredentials,
+    type DbtCloudJobResponse,
+    type DbtCloudJobValidationResult,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -205,6 +207,7 @@ import {
     ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
+import { DbtCloudRestClient } from '../../clients/DbtCloud/DbtCloudRestClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
@@ -8093,6 +8096,79 @@ export class ProjectService extends BaseService {
             },
         });
         return updatedCharts;
+    }
+
+    async validateDbtCloudPreviewJob(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<DbtCloudJobValidationResult> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const {
+            api_key: apiKey,
+            account_id: accountId,
+            preview_job_id: previewJobId,
+        } = project.dbtConnection;
+
+        if (!accountId || !previewJobId) {
+            throw new ParameterError(
+                'Account ID and Preview Job ID must be configured to validate the preview job',
+            );
+        }
+
+        const client = new DbtCloudRestClient({
+            serviceToken: apiKey,
+            accountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+
+        const errors: string[] = [];
+        let job: DbtCloudJobResponse | null = null;
+        try {
+            job = await client.getJob(previewJobId);
+        } catch (e) {
+            return {
+                isValid: false,
+                errors: [
+                    `Could not fetch job ${previewJobId}: ${getErrorMessage(e)}`,
+                ],
+                job: null,
+            };
+        }
+
+        if (job.jobType !== 'ci') {
+            errors.push(
+                `Job "${job.name}" is not a CI job (type: ${job.jobType}). Change job_type to "ci" in dbt Cloud.`,
+            );
+        }
+
+        if (!job.deferringEnvironmentId) {
+            errors.push(
+                `Job "${job.name}" does not defer to a production environment. Set a deferring environment in dbt Cloud.`,
+            );
+        }
+
+        const hasDbtParse = job.executeSteps.some((step) =>
+            step.includes('dbt parse'),
+        );
+        if (!hasDbtParse) {
+            errors.push(
+                `Job "${job.name}" does not include a "dbt parse" step. Add "dbt parse" to the execute steps.`,
+            );
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            job,
+        };
     }
 
     async createPreviewWithExplores(

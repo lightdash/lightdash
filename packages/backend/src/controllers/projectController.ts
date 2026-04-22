@@ -39,6 +39,7 @@ import {
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
     type ApiCreatePreviewResults,
+    type ApiDbtCloudJobValidationResults,
     type ApiGetDashboardsResponse,
     type ApiGetTagsResponse,
     type ApiRefreshResults,
@@ -1256,6 +1257,32 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
+        };
+    }
+
+    /**
+     * Validate the configured dbt Cloud preview job for branch previews
+     * @summary Validate dbt Cloud preview job
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/dbt-cloud/validate-preview-job')
+    @OperationId('validateDbtCloudPreviewJob')
+    async validateDbtCloudPreviewJob(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiDbtCloudJobValidationResults>> {
+        this.setStatus(200);
+        const result = await this.services
+            .getProjectService()
+            .validateDbtCloudPreviewJob(req.user!, projectUuid);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 
