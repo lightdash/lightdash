@@ -1156,6 +1156,34 @@ export class ProjectService extends BaseService {
         return args;
     }
 
+    // The project-update form sends masked oauthClientId / oauthClientSecret
+    // (placeholder values), so merge them in from the saved project before
+    // _resolveWarehouseClientCredentials runs the M2M token exchange. No-op for
+    // anything that isn't Databricks M2M.
+    // eslint-disable-next-line class-methods-use-this
+    private mergeMissingDatabricksM2MSecrets<
+        T extends { warehouseConnection: CreateWarehouseCredentials },
+    >(
+        data: T,
+        savedProject: { warehouseConnection?: CreateWarehouseCredentials },
+    ): T {
+        if (
+            data.warehouseConnection.type === WarehouseTypes.DATABRICKS &&
+            data.warehouseConnection.authenticationType ===
+                DatabricksAuthenticationType.OAUTH_M2M &&
+            savedProject.warehouseConnection
+        ) {
+            return {
+                ...data,
+                warehouseConnection: ProjectModel.mergeMissingWarehouseSecrets(
+                    data.warehouseConnection,
+                    savedProject.warehouseConnection,
+                ),
+            };
+        }
+        return data;
+    }
+
     // Extra security measure, we remove the "secrets" from the project/org credentials
     // and let the user override that token/password later on
     // eslint-disable-next-line class-methods-use-this
@@ -2316,7 +2344,7 @@ export class ProjectService extends BaseService {
             ],
         };
         const createProject = await this._resolveWarehouseClientCredentials(
-            data,
+            this.mergeMissingDatabricksM2MSecrets(data, savedProject),
             account.user.id,
             savedProject.organizationUuid,
         );
@@ -2418,7 +2446,10 @@ export class ProjectService extends BaseService {
         };
 
         const resolvedData = await this._resolveWarehouseClientCredentials(
-            updatedProjectData,
+            this.mergeMissingDatabricksM2MSecrets(
+                updatedProjectData,
+                savedProject,
+            ),
             account.user.id,
             savedProject.organizationUuid,
         );
@@ -6940,6 +6971,30 @@ export class ProjectService extends BaseService {
             user.userUuid,
             credentials.type,
         );
+    }
+
+    async getProjectWarehouseAuthInfo(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        type: WarehouseTypes;
+        authenticationType?: string;
+    }> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        if (user.ability.cannot('view', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+        const credentials =
+            await this.projectModel.getWarehouseCredentialsForProject(
+                projectUuid,
+            );
+        return {
+            type: credentials.type,
+            authenticationType:
+                'authenticationType' in credentials
+                    ? credentials.authenticationType
+                    : undefined,
+        };
     }
 
     async getProjectUserWarehouseCredentials(
