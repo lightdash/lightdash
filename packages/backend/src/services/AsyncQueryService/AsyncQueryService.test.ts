@@ -1,7 +1,9 @@
+import { Ability } from '@casl/ability';
 import {
     AnyType,
     DimensionType,
     ExploreType,
+    FilterOperator,
     ForbiddenError,
     NotFoundError,
     QueryExecutionContext,
@@ -11,6 +13,7 @@ import {
     WarehouseTypes,
     type CreateWarehouseCredentials,
     type ExecuteAsyncQueryRequestParams,
+    type PossibleAbilities,
     type QueryHistory,
     type ResultColumns,
     type WarehouseClient,
@@ -63,6 +66,7 @@ import { PersistentDownloadFileService } from '../PersistentDownloadFileService/
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
+    buildAccount,
     expectedColumns,
     expectedFormattedRow,
     job,
@@ -268,6 +272,9 @@ const getMockedAsyncQueryService = (
         spacePermissionService: {} as SpacePermissionService,
         ...overrides,
     });
+
+const getJsonlStream = (rows: Record<string, unknown>[]) =>
+    Readable.from(rows.map((row) => `${JSON.stringify(row)}\n`).join(''));
 
 describe('AsyncQueryService', () => {
     describe('executeAsyncQuery', () => {
@@ -2169,6 +2176,268 @@ describe('AsyncQueryService', () => {
                         invalidateCache: false,
                     }),
                 ).rejects.toThrow();
+            });
+        });
+
+        describe('legacy total and subtotal flows', () => {
+            beforeEach(() => {
+                jest.clearAllMocks();
+            });
+
+            it('routes raw calculate total through async query history instead of runQuery', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(),
+                    executeAsyncQuery: jest.fn(
+                        warehouseClientMock.executeAsyncQuery,
+                    ),
+                };
+
+                (
+                    projectModel.getWarehouseClientFromCredentials as jest.Mock
+                ).mockReturnValue(warehouseClient);
+                service.pollForQueryCompletion = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                    context: QueryExecutionContext.CALCULATE_TOTAL,
+                    resultsFileName: 'results.jsonl',
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    originalColumns: null,
+                } satisfies Partial<QueryHistory>);
+                (
+                    service.resultsStorageClient.getDownloadStream as jest.Mock
+                ).mockReturnValue(getJsonlStream([{ a_met1: '123' }]));
+
+                const result = await service.calculateTotalFromQuery(
+                    sessionAccount,
+                    projectUuid,
+                    {
+                        explore: validExplore.name,
+                        metricQuery: metricQueryMock,
+                    },
+                );
+
+                expect(result).toEqual({ a_met1: '123' });
+                expect(service.queryHistoryModel.create).toHaveBeenCalled();
+                expect(warehouseClient.executeAsyncQuery).toHaveBeenCalled();
+                expect(warehouseClient.runQuery).not.toHaveBeenCalled();
+            });
+
+            it('falls back to warehouse async results when totals have no results file', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(),
+                    getAsyncQueryResults: jest.fn(async () => ({
+                        queryId: null,
+                        fields: { a_met1: { type: DimensionType.STRING } },
+                        pageCount: 1,
+                        totalRows: 1,
+                        rows: [{ a_met1: '789' }],
+                    })),
+                    executeAsyncQuery: jest.fn(
+                        warehouseClientMock.executeAsyncQuery,
+                    ),
+                };
+
+                (
+                    projectModel.getWarehouseClientFromCredentials as jest.Mock
+                ).mockReturnValue(warehouseClient);
+                service.pollForQueryCompletion = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                    queryUuid: 'queryUuid',
+                    projectUuid,
+                    context: QueryExecutionContext.CALCULATE_TOTAL,
+                    resultsFileName: null,
+                    totalRowCount: 1,
+                    compiledSql: 'SELECT 1',
+                    warehouseQueryId: null,
+                    warehouseQueryMetadata: null,
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    originalColumns: null,
+                } satisfies Partial<QueryHistory>);
+
+                const result = await service.calculateTotalFromQuery(
+                    sessionAccount,
+                    projectUuid,
+                    {
+                        explore: validExplore.name,
+                        metricQuery: metricQueryMock,
+                    },
+                );
+
+                expect(result).toEqual({ a_met1: '789' });
+                expect(service.queryHistoryModel.create).toHaveBeenCalled();
+                expect(warehouseClient.executeAsyncQuery).toHaveBeenCalled();
+                expect(warehouseClient.getAsyncQueryResults).toHaveBeenCalled();
+                expect(warehouseClient.runQuery).not.toHaveBeenCalled();
+            });
+
+            it('preserves dashboard filters and parameter precedence for saved chart totals', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'Explore', action: ['manage'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]);
+
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(),
+                    executeAsyncQuery: jest.fn(
+                        warehouseClientMock.executeAsyncQuery,
+                    ),
+                };
+
+                (
+                    projectModel.getWarehouseClientFromCredentials as jest.Mock
+                ).mockReturnValue(warehouseClient);
+                (service as AnyType).savedChartModel = {
+                    get: jest.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        spaceUuid: 'space-1',
+                        tableName: validExplore.name,
+                        metricQuery: metricQueryMock,
+                        parameters: {
+                            saved_only: 'saved',
+                            clash: 'saved',
+                        },
+                    }),
+                };
+                (service as AnyType).spacePermissionService = {
+                    getSpaceAccessContext: jest.fn().mockResolvedValue({
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                    }),
+                };
+                service.pollForQueryCompletion = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                    context: QueryExecutionContext.CALCULATE_TOTAL,
+                    resultsFileName: 'results.jsonl',
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    originalColumns: null,
+                } satisfies Partial<QueryHistory>);
+                (
+                    service.resultsStorageClient.getDownloadStream as jest.Mock
+                ).mockReturnValue(getJsonlStream([{ a_met1: '456' }]));
+
+                await service.calculateTotalFromSavedChart(
+                    account,
+                    'chart-1',
+                    {
+                        dimensions: [
+                            {
+                                id: 'filter-1',
+                                target: {
+                                    fieldId: 'a_dim1',
+                                    tableName: 'a',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['foo'],
+                                settings: {},
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    } as AnyType,
+                    false,
+                    {
+                        clash: 'request',
+                    },
+                );
+
+                const createCall = (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mock.calls[0][1];
+
+                expect(createCall.metricQuery.filters.dimensions).toEqual(
+                    expect.objectContaining({
+                        and: [
+                            expect.objectContaining({
+                                target: expect.objectContaining({
+                                    fieldId: 'a_dim1',
+                                }),
+                            }),
+                        ],
+                    }),
+                );
+                expect(createCall.requestParameters.parameters).toEqual(
+                    expect.objectContaining({
+                        saved_only: 'saved',
+                        clash: 'request',
+                    }),
+                );
+            });
+
+            it('returns subtotals in the legacy formatted shape through async execution', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(),
+                    executeAsyncQuery: jest.fn(
+                        warehouseClientMock.executeAsyncQuery,
+                    ),
+                };
+
+                (
+                    projectModel.getWarehouseClientFromCredentials as jest.Mock
+                ).mockReturnValue(warehouseClient);
+                service.pollForQueryCompletion = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                    context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                    resultsFileName: 'results.jsonl',
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    originalColumns: null,
+                } satisfies Partial<QueryHistory>);
+                (
+                    service.resultsStorageClient.getDownloadStream as jest.Mock
+                ).mockReturnValue(
+                    getJsonlStream([{ a_dim1: 'group-1', a_met1: '123' }]),
+                );
+
+                const result = await service.calculateSubtotalsFromQuery(
+                    sessionAccount,
+                    projectUuid,
+                    {
+                        explore: validExplore.name,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            dimensions: ['a_dim1', 'b_dim1'],
+                            tableCalculations: [],
+                        },
+                        columnOrder: ['a_dim1', 'b_dim1', 'a_met1'],
+                    },
+                );
+
+                expect(result).toEqual({
+                    a_dim1: [{ a_dim1: 'group-1', a_met1: '123' }],
+                });
+                expect(service.queryHistoryModel.create).toHaveBeenCalledTimes(
+                    1,
+                );
+                expect(warehouseClient.executeAsyncQuery).toHaveBeenCalled();
+                expect(warehouseClient.runQuery).not.toHaveBeenCalled();
             });
         });
     });
