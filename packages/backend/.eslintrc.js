@@ -116,6 +116,7 @@ module.exports = {
                 'src/services/SpotlightService/**/*.ts',
                 'src/services/FavoritesService/**/*.ts',
                 'src/services/PinningService/**/*.ts',
+                'src/services/RolesService/**/*.ts',
                 'src/services/DeployService.ts',
                 'src/services/FunnelService/**/*.ts',
                 'src/services/GitlabAppService/**/*.ts',
