@@ -1,3 +1,10 @@
+## [0.2783.1](https://github.com/lightdash/lightdash/compare/0.2783.0...0.2783.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* dashboard filter "Reset to original value" leaves Apply disabled ([#22243](https://github.com/lightdash/lightdash/issues/22243)) ([e5bc3c0](https://github.com/lightdash/lightdash/commit/e5bc3c01cad280ab22223972341d2b7064ecd93b)), closes [#22236](https://github.com/lightdash/lightdash/issues/22236)
+
 # [0.2783.0](https://github.com/lightdash/lightdash/compare/0.2782.0...0.2783.0) (2026-04-22)
 
 
