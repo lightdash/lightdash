@@ -75,16 +75,11 @@ import {
 import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
-import timezonePlugin from 'dayjs/plugin/timezone';
-import utcPlugin from 'dayjs/plugin/utc';
 import {
     type DefaultLabelFormatterCallbackParams,
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
 } from 'echarts';
-
-dayjs.extend(utcPlugin);
-dayjs.extend(timezonePlugin);
 import groupBy from 'lodash/groupBy';
 import maxBy from 'lodash/maxBy';
 import toNumber from 'lodash/toNumber';
@@ -107,6 +102,12 @@ import {
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
+import {
+    applyTimezoneShiftToRows,
+    detectTimezoneShiftedField,
+    TIME_INTERVALS_FOR_CATEGORY_AXIS,
+    type TimezoneShiftedField,
+} from './timezoneShift';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -194,13 +195,6 @@ export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
 
 // Time intervals that benefit from category axis in bar charts.
 // These must match intervals handled by getCategoryDateAxisConfig.
-const TIME_INTERVALS_FOR_CATEGORY_AXIS: TimeFrames[] = [
-    TimeFrames.WEEK,
-    TimeFrames.MONTH,
-    TimeFrames.QUARTER,
-    TimeFrames.YEAR,
-];
-
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -2424,35 +2418,15 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
-    const timezoneShiftedField = useMemo<
-        { fieldId: string; timezone: string } | undefined
-    >(() => {
-        if (
-            !resolvedTimezone ||
-            resolvedTimezone === 'UTC' ||
-            !validCartesianConfig ||
-            !itemsMap
-        ) {
-            return undefined;
-        }
-        const flipAxes = !!validCartesianConfig.layout?.flipAxes;
-        const timeFieldId = flipAxes
-            ? validCartesianConfig.layout?.yField?.[0]
-            : validCartesianConfig.layout?.xField;
-        if (!timeFieldId) return undefined;
-        const field = itemsMap[timeFieldId];
-        if (!field || !isDimension(field) || !field.timeInterval) {
-            return undefined;
-        }
-        if (
-            TIME_INTERVALS_FOR_CATEGORY_AXIS.includes(
-                field.timeInterval as TimeFrames,
-            )
-        ) {
-            return undefined;
-        }
-        return { fieldId: timeFieldId, timezone: resolvedTimezone };
-    }, [resolvedTimezone, validCartesianConfig, itemsMap]);
+    const timezoneShiftedField = useMemo<TimezoneShiftedField | undefined>(
+        () =>
+            detectTimezoneShiftedField({
+                validCartesianConfig,
+                itemsMap,
+                resolvedTimezone,
+            }),
+        [resolvedTimezone, validCartesianConfig, itemsMap],
+    );
 
     const chartTimezone = timezoneShiftedField ? undefined : resolvedTimezone;
     const displayTimezone = timezoneShiftedField ? resolvedTimezone : undefined;
@@ -2521,27 +2495,11 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.rowLimit,
         );
         if (!timezoneShiftedField) return sliced;
-        const { fieldId, timezone } = timezoneShiftedField;
-        const tzOffsetMs = (ms: number): number =>
-            dayjs(ms).tz(timezone).utcOffset() * 60_000;
-        return sliced.map((row) => {
-            const cell = row[fieldId];
-            const raw = cell?.value?.raw;
-            if (raw === null || raw === undefined) return row;
-            const ms =
-                typeof raw === 'number' ? raw : new Date(String(raw)).getTime();
-            if (!Number.isFinite(ms)) return row;
-            return {
-                ...row,
-                [fieldId]: {
-                    ...cell,
-                    value: {
-                        ...cell.value,
-                        raw: ms + tzOffsetMs(ms),
-                    },
-                },
-            };
-        });
+        return applyTimezoneShiftToRows(
+            sliced,
+            timezoneShiftedField.fieldId,
+            timezoneShiftedField.timezone,
+        );
     }, [
         allRows,
         isShowHideRowsEnabled,
