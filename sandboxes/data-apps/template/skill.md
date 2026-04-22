@@ -95,6 +95,7 @@ Each file contains:
 - `metricQuery.filters` — filter rules applied to the query
 - `metricQuery.sorts` — sort order
 - `metricQuery.limit` — row limit
+- `metricQuery.tableCalculations` — computed columns (may be empty)
 
 **How to use these:**
 1. Read the JSON file(s) to understand what data the user wants in their app
@@ -103,16 +104,19 @@ Each file contains:
    between fields — this helps you understand how the referenced charts connect to the
    user's overall prompt
 3. Map fields to SDK calls:
-   - `metricQuery.dimensions` → `query(exploreName).dimensions([...])`
-   - `metricQuery.metrics` → `query(exploreName).metrics([...])`
-   - `metricQuery.filters` → `query(exploreName).filters([...])`
-   - `metricQuery.sorts` → `query(exploreName).sorts([...])`
+   - `chartName` → `query(exploreName).label(chartName)` — **always set the label**
+   - `metricQuery.dimensions` → `.dimensions([...])`
+   - `metricQuery.metrics` → `.metrics([...])`
+   - `metricQuery.filters` → `.filters([...])`
+   - `metricQuery.sorts` → `.sorts([...])`
+   - `metricQuery.tableCalculations` → `.tableCalculations([...])` — pass through as-is if present
 4. These are starting points — adapt them based on the user's prompt. You may combine
    multiple referenced queries, add/remove fields, or adjust filters as needed.
 
 **Important:** The field IDs in metric queries use qualified names (e.g.,
 `orders_total_revenue`), but the SDK uses short names (e.g., `total_revenue`). Strip the
-explore name prefix when mapping to SDK calls.
+explore name prefix when mapping to SDK calls. Table calculation names do NOT need
+stripping — pass them through as-is.
 
 ## SDK Reference
 
@@ -172,6 +176,29 @@ query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).l
 ```
 
 **Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
+
+### Table calculations
+
+Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
+
+```ts
+query('orders')
+    .label('Revenue with Running Total')
+    .dimensions(['order_date'])
+    .metrics(['total_revenue'])
+    .tableCalculations([
+        {
+            name: 'running_total',
+            displayName: 'Running Total',
+            sql: 'SUM(${orders.total_revenue}) OVER (ORDER BY ${orders.order_date})',
+        },
+    ])
+```
+
+Each table calculation needs:
+- `name` — internal field ID (used in results, must be unique within the query)
+- `displayName` — human-readable label shown in the UI
+- `sql` — SQL expression; reference other fields with `${table.field}` syntax
 
 ### `useLightdash(query)` return value
 

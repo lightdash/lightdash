@@ -40,6 +40,7 @@ const useTableConfig = (
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined,
     itemsMap: ItemsMap | undefined,

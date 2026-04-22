@@ -78,7 +78,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
         return organization?.chartColors ?? ECHARTS_DEFAULT_COLORS;
     }, [colorScheme, organization?.chartColors, organization?.chartDarkColors]);
 
-    const { metricQuery, fields } = queryExecutionHandle.data.query;
+    const { metricQuery, fields, resolvedTimezone } =
+        queryExecutionHandle.data.query;
     const tableName = metricQuery?.exploreName;
     const { data: explore } = useExplore(tableName);
     const [echartsClickEvent, setEchartsClickEvent] =
@@ -99,8 +100,9 @@ export const AiVisualizationRenderer: FC<Props> = ({
             ...results,
             metricQuery,
             fields,
+            resolvedTimezone: resolvedTimezone ?? undefined,
         }),
-        [results, metricQuery, fields],
+        [results, metricQuery, fields, resolvedTimezone],
     );
 
     const chartConfigFromAiAgentVizConfig = useMemo(

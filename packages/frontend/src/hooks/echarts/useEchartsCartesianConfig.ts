@@ -670,6 +670,7 @@ type GetPivotSeriesArg = {
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
+    resolvedTimezone?: string;
 };
 
 const seriesValueFormatter = (
@@ -878,6 +879,7 @@ const getPivotSeries = ({
     pivotValuesColumnsMap,
     parameters,
     isStack100,
+    resolvedTimezone,
 }: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -888,6 +890,7 @@ const getPivotSeries = ({
                 undefined,
                 pivotValuesColumnsMap,
                 parameters,
+                resolvedTimezone,
             );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
@@ -940,6 +943,7 @@ const getPivotSeries = ({
                 itemsMap,
                 pivotValuesColumnsMap,
                 parameters,
+                resolvedTimezone,
             ),
         },
         showSymbol: series.showSymbol ?? true,
@@ -1076,6 +1080,7 @@ type GetSimpleSeriesArg = {
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
     backgroundColor?: string;
+    resolvedTimezone?: string;
 };
 
 const getSimpleSeries = ({
@@ -1089,6 +1094,7 @@ const getSimpleSeries = ({
     parameters,
     isStack100,
     backgroundColor,
+    resolvedTimezone,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -1125,6 +1131,7 @@ const getSimpleSeries = ({
             itemsMap,
             pivotValuesColumnsMap,
             parameters,
+            resolvedTimezone,
         ),
     },
     ...getSimpleSeriesSymbolConfig(series),
@@ -1201,6 +1208,7 @@ const getEchartsSeriesFromPivotedData = (
     pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
     parameters?: ParametersValuesMap,
     backgroundColor?: string,
+    resolvedTimezone?: string,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1266,6 +1274,7 @@ const getEchartsSeriesFromPivotedData = (
                     pivotValuesColumnsMap,
                     parameters,
                     isStack100,
+                    resolvedTimezone,
                 });
             }
 
@@ -1281,6 +1290,7 @@ const getEchartsSeriesFromPivotedData = (
                 parameters,
                 isStack100,
                 backgroundColor,
+                resolvedTimezone,
             });
         });
 
@@ -1292,6 +1302,7 @@ const getEchartsSeries = (
     cartesianChart: CartesianChart,
     pivotKeys: string[] | undefined,
     parameters?: ParametersValuesMap,
+    resolvedTimezone?: string,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1313,6 +1324,7 @@ const getEchartsSeries = (
                     yFieldHash,
                     parameters,
                     isStack100,
+                    resolvedTimezone,
                 });
             }
 
@@ -1325,6 +1337,7 @@ const getEchartsSeries = (
                 xFieldHash,
                 parameters,
                 isStack100,
+                resolvedTimezone,
             });
         });
 };
@@ -1566,6 +1579,7 @@ const getEchartAxes = ({
     displayedRows,
     minsAndMaxes,
     parameters,
+    resolvedTimezone,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1574,6 +1588,7 @@ const getEchartAxes = ({
     displayedRows?: ResultRow[];
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
+    resolvedTimezone?: string;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1785,6 +1800,7 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1805,6 +1821,7 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1824,6 +1841,7 @@ const getEchartAxes = ({
         defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
         show: showLeftYAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1843,6 +1861,7 @@ const getEchartAxes = ({
         defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
         show: showRightYAxis,
         parameters,
+        timezone: resolvedTimezone,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2307,6 +2326,7 @@ const getStackTotalSeries = (
     selectedLegendNames: LegendValues,
     isStack100: boolean,
     connectNulls: boolean | undefined = true,
+    resolvedTimezone?: string,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2335,6 +2355,10 @@ const getStackTotalSeries = (
                                 stackTotal,
                                 fieldId,
                                 itemsMap,
+                                undefined,
+                                undefined,
+                                undefined,
+                                resolvedTimezone,
                             );
                         }
                         return '';
@@ -2375,6 +2399,7 @@ const useEchartsCartesianConfig = (
         parameters,
         isTouchDevice,
         colorPalette,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -2486,6 +2511,8 @@ const useEchartsCartesianConfig = (
                 rowKeyMap,
                 pivotValuesColumnsMap,
                 parameters,
+                undefined,
+                resolvedTimezone,
             );
         } else {
             // Legacy implementation
@@ -2494,6 +2521,7 @@ const useEchartsCartesianConfig = (
                 validCartesianConfig,
                 pivotDimensions,
                 parameters,
+                resolvedTimezone,
             );
         }
 
@@ -2513,6 +2541,7 @@ const useEchartsCartesianConfig = (
         parameters,
         resultsAndMinsAndMaxes.results,
         isShowHideRowsEnabled,
+        resolvedTimezone,
     ]);
 
     const axes = useMemo(() => {
@@ -2535,6 +2564,7 @@ const useEchartsCartesianConfig = (
                     : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
+            resolvedTimezone,
         });
     }, [
         itemsMap,
@@ -2545,6 +2575,7 @@ const useEchartsCartesianConfig = (
         isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
+        resolvedTimezone,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -2738,6 +2769,7 @@ const useEchartsCartesianConfig = (
                 validCartesianConfigLegend,
                 isStack100,
                 validCartesianConfig?.layout.connectNulls,
+                resolvedTimezone,
             ),
         ];
     }, [
@@ -2756,6 +2788,7 @@ const useEchartsCartesianConfig = (
         getSeriesColor,
         colorPalette,
         theme.colors.background,
+        resolvedTimezone,
     ]);
     const sortedResults = useMemo(() => {
         const results =
@@ -3167,6 +3200,10 @@ const useEchartsCartesianConfig = (
                         total,
                         fieldId,
                         itemsMap,
+                        undefined,
+                        undefined,
+                        undefined,
+                        resolvedTimezone,
                     );
                     maxCharCount = Math.max(maxCharCount, formatted.length);
                 });
@@ -3188,6 +3225,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfigLegend,
+        resolvedTimezone,
     ]);
 
     const currentGrid = useMemo(() => {
