@@ -1,3 +1,16 @@
+# [0.2776.0](https://github.com/lightdash/lightdash/compare/0.2775.3...0.2776.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* enable attching images in the browser ([#22212](https://github.com/lightdash/lightdash/issues/22212)) ([b7d75e4](https://github.com/lightdash/lightdash/commit/b7d75e459054d798d2e6b502fb7dad90d6cbf059))
+* **formula:** default window function ORDER BY to query sort fields ([#22218](https://github.com/lightdash/lightdash/issues/22218)) ([6c64b29](https://github.com/lightdash/lightdash/commit/6c64b29147e0a4628edef6e4767dcf9b880f7530))
+
+
+### Features
+
+* **cli:** retry batched deploy on transient failures ([#22213](https://github.com/lightdash/lightdash/issues/22213)) ([a3dffd1](https://github.com/lightdash/lightdash/commit/a3dffd112aeedfeb9a987d44865709db3ce17126))
+
 ## [0.2775.3](https://github.com/lightdash/lightdash/compare/0.2775.2...0.2775.3) (2026-04-22)
 
 
