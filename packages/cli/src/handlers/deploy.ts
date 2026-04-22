@@ -6,6 +6,7 @@ import {
     friendlyName,
     getErrorMessage,
     isExploreError,
+    LightdashError,
     ParseError,
     Project,
     ProjectType,
@@ -104,6 +105,53 @@ const replaceProjectDefaults = async (
     }
 };
 
+const BATCH_UPLOAD_MAX_ATTEMPTS = 4;
+const BATCH_UPLOAD_INITIAL_BACKOFF_MS = 500;
+const BATCH_UPLOAD_MAX_BACKOFF_MS = 4000;
+
+const sleep = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+
+const isRetriableBatchError = (err: unknown): boolean => {
+    if (err instanceof LightdashError) {
+        return err.statusCode >= 500 || err.statusCode === 429;
+    }
+    // Non-LightdashError thrown by lightdashApi (network failures or non-JSON
+    // server responses) — treat as transient.
+    return true;
+};
+
+const retryBatchUpload = async <T>(
+    task: () => Promise<T>,
+    batchNumber: number,
+): Promise<T> => {
+    let backoffMs = BATCH_UPLOAD_INITIAL_BACKOFF_MS;
+    for (let attempt = 1; attempt <= BATCH_UPLOAD_MAX_ATTEMPTS; attempt += 1) {
+        try {
+            // eslint-disable-next-line no-await-in-loop
+            return await task();
+        } catch (err) {
+            const isLastAttempt = attempt === BATCH_UPLOAD_MAX_ATTEMPTS;
+            if (isLastAttempt || !isRetriableBatchError(err)) {
+                throw err;
+            }
+            GlobalState.log(
+                styles.warning(
+                    `  ⚠ Batch ${batchNumber} failed (attempt ${attempt}/${BATCH_UPLOAD_MAX_ATTEMPTS}), retrying in ${backoffMs}ms: ${getErrorMessage(
+                        err,
+                    )}`,
+                ),
+            );
+            // eslint-disable-next-line no-await-in-loop
+            await sleep(backoffMs);
+            backoffMs = Math.min(backoffMs * 2, BATCH_UPLOAD_MAX_BACKOFF_MS);
+        }
+    }
+    throw new Error(`Batch ${batchNumber} upload failed unexpectedly`);
+};
+
 const deployBatched = async (
     explores: (Explore | ExploreError)[],
     options: DeployArgs,
@@ -162,15 +210,19 @@ const deployBatched = async (
             `  Uploading batch ${batchIndex + 1}/${batches.length} (${batch.length} explores)...`,
         );
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response = (await lightdashApi<any>({
-            method: 'POST',
-            url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/batch`,
-            body: JSON.stringify({
-                explores: batch,
-                batchNumber: batchIndex,
-            }),
-        })) as { batchNumber: number; exploreCount: number };
+        const response = await retryBatchUpload(
+            () =>
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                lightdashApi<any>({
+                    method: 'POST',
+                    url: `/api/v2/projects/${options.projectUuid}/deploy/${sessionUuid}/batch`,
+                    body: JSON.stringify({
+                        explores: batch,
+                        batchNumber: batchIndex,
+                    }),
+                }) as Promise<{ batchNumber: number; exploreCount: number }>,
+            batchIndex + 1,
+        );
 
         GlobalState.log(
             styles.success(
