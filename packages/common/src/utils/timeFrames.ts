@@ -79,51 +79,67 @@ type WarehouseConfig = {
     ) => string;
 };
 
-/** Per-warehouse SQL to convert timestamps to the project timezone before DATE_TRUNC.
- *  BigQuery is a no-op — TIMESTAMP_TRUNC accepts timezone natively. */
+/** Per-warehouse SQL for the DATE_TRUNC timezone round-trip. `toProjectTz`
+ *  shifts into project-local wall-clock before truncation; `toUTC` converts
+ *  the truncated value back into a proper UTC instant. */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string) => string;
+    toUTC: (sql: string, tz: string) => string;
 };
 
-const dateTruncTimezoneConversions: Record<
+export const dateTruncTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateTruncTimezoneConversion
 > = {
-    // BigQuery: no-op — TIMESTAMP_TRUNC accepts timezone natively
+    // BigQuery: TIMESTAMP_TRUNC accepts timezone natively and preserves the
+    // UTC instant — round-trip is a no-op.
     [SupportedDbtAdapter.BIGQUERY]: {
         toProjectTz: (sql) => sql,
+        toUTC: (sql) => sql,
     },
-    // Snowflake: CONVERT_TIMEZONE from UTC to project TZ
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz) => `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
+        toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
     },
-    // Postgres: cast to timestamptz (session TZ), then AT TIME ZONE to project TZ
     [SupportedDbtAdapter.POSTGRES]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.DUCKDB]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+        toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
     },
-    // Databricks: normalize to UTC via session TZ, then to project TZ
     [SupportedDbtAdapter.DATABRICKS]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
     },
-    // Trino/Athena: cast to timestamptz, AT TIME ZONE, then cast back to NTZ
+    // Trino returns `timestamp with time zone` values as strings like
+    // "2024-01-14 00:00:00.000 America/New_York", which dayjs/moment can't
+    // parse — so `toUTC` casts the UTC-shifted result back to a naive
+    // `timestamp`. `with_timezone` attaches the project zone explicitly
+    // (independent of session zone) before shifting to UTC.
     [SupportedDbtAdapter.TRINO]: {
         toProjectTz: (sql, tz) =>
-            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+        toUTC: (sql, tz) =>
+            `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
-            `CAST(CAST(${sql} AS timestamp with time zone) AT TIME ZONE '${tz}' AS timestamp)`,
+            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+        toUTC: (sql, tz) =>
+            `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
     },
-    // ClickHouse: toTimeZone changes the display timezone
+    // Relabel to UTC so the wire value is the real instant. toDateTime lifts
+    // Date truncs (month/year/etc.) into DateTime; no-op for DateTime inputs.
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
+        toUTC: (sql, tz) => `toTimeZone(toDateTime(${sql}, '${tz}'), 'UTC')`,
     },
 };
 
@@ -138,7 +154,10 @@ const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
 };
 
 const bigqueryConfig: WarehouseConfig = {
-    // BigQuery: timezone passed natively to TIMESTAMP_TRUNC (no input wrapping needed)
+    // BigQuery: TIMESTAMP_TRUNC(ts, part, tz) truncates in the given zone and
+    // returns a TIMESTAMP (real UTC instant). We intentionally do NOT wrap
+    // with DATETIME(..., tz) — that would strip the zone back to a naive
+    // wall-clock and mis-label it as UTC downstream.
     getSqlForTruncatedDate: (
         timeFrame,
         originalSql,
@@ -152,8 +171,7 @@ const bigqueryConfig: WarehouseConfig = {
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
-                // Wrap with DATETIME to convert UTC result to local time
-                return `DATETIME(TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}'), '${timezone}')`;
+                return `TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}')`;
             }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
@@ -517,9 +535,9 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
 };
 
 /**
- * Generates DATE_TRUNC SQL, optionally with timezone conversion.
- * When timezone is provided: convert to project TZ, then DATE_TRUNC.
- * Result stays in project TZ (NTZ) — no back-conversion to UTC.
+ * Generates DATE_TRUNC SQL. When a timezone is provided, the truncation is
+ * performed in the project TZ and the result is converted back to a proper
+ * UTC instant so downstream consumers apply .tz(project_tz) uniformly.
  */
 export const getSqlForTruncatedDate = (
     adapterType: SupportedDbtAdapter,
@@ -538,15 +556,16 @@ export const getSqlForTruncatedDate = (
         );
     }
 
-    const { toProjectTz } = dateTruncTimezoneConversions[adapterType];
+    const { toProjectTz, toUTC } = dateTruncTimezoneConversions[adapterType];
     const input = toProjectTz(originalSql, timezone);
-    return warehouseConfigs[adapterType].getSqlForTruncatedDate(
+    const truncated = warehouseConfigs[adapterType].getSqlForTruncatedDate(
         timeFrame,
         input,
         type,
         startOfWeek,
         timezone,
     );
+    return toUTC(truncated, timezone);
 };
 
 const getSqlForDatePart: TimeFrameConfig['getSql'] = (

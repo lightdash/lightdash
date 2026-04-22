@@ -1477,6 +1477,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         itemsMap,
         dataTimezone,
+        displayTimezone,
     }: {
         warehouseClient: WarehouseClient;
         query: string;
@@ -1485,6 +1486,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration?: PivotConfiguration;
         itemsMap: ItemsMap;
         dataTimezone?: string;
+        displayTimezone?: string;
     }): Promise<{
         columns: ResultColumns;
         warehouseResults: WarehouseExecuteAsyncQuery;
@@ -1590,6 +1592,8 @@ export class AsyncQueryService extends ProjectService {
                                         field,
                                         row[c.reference],
                                         false,
+                                        undefined,
+                                        displayTimezone,
                                     )
                                   : String(rawValue);
                               return {
@@ -1801,6 +1805,7 @@ export class AsyncQueryService extends ProjectService {
         preAggregateQuery,
         warehouseQuery,
         queryCreatedAt,
+        displayTimezone,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
             const duckDbWarehouseClient =
@@ -1821,6 +1826,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 originalColumns,
                 queryCreatedAt,
+                displayTimezone,
                 warehouseClientOverride: duckDbWarehouseClient,
                 warehouseCredentialsTypeOverride:
                     duckDbWarehouseClient.credentials.type,
@@ -1857,6 +1863,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 originalColumns,
                 queryCreatedAt,
+                displayTimezone,
             });
         }
     }
@@ -1976,6 +1983,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         originalColumns,
         queryCreatedAt,
+        displayTimezone,
         warehouseClientOverride,
         warehouseCredentialsTypeOverride,
     }: RunAsyncWarehouseQueryArgs & {
@@ -2157,6 +2165,7 @@ export class AsyncQueryService extends ProjectService {
                         pivotConfiguration,
                         itemsMap: fieldsMap,
                         dataTimezone: resolvedDataTimezone,
+                        displayTimezone,
                     }),
             );
 
@@ -2368,6 +2377,22 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    private async resolveDisplayTimezoneFromHistory(
+        query: QueryHistory,
+        actor: { userUuid: string },
+    ): Promise<string | undefined> {
+        if (!query.projectUuid || !query.organizationUuid) return undefined;
+        const enabled = await this.isTimezoneSupportEnabled({
+            userUuid: actor.userUuid,
+            organizationUuid: query.organizationUuid,
+        });
+        if (!enabled) return undefined;
+        const projectTimezone = await this.getQueryTimezoneForProject(
+            query.projectUuid,
+        );
+        return resolveQueryTimezone(query.metricQuery, projectTimezone);
+    }
+
     private async buildWarehouseQueryArgs(
         queryUuid: string,
     ): Promise<RunAsyncWarehouseQueryArgs> {
@@ -2376,6 +2401,10 @@ export class AsyncQueryService extends ProjectService {
         const queryTags = AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
+        const displayTimezone = await this.resolveDisplayTimezoneFromHistory(
+            query,
+            actor,
+        );
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -2392,6 +2421,7 @@ export class AsyncQueryService extends ProjectService {
             originalColumns: query.originalColumns ?? undefined,
             queryCreatedAt: query.createdAt,
             query: query.compiledSql,
+            displayTimezone,
         };
     }
 
@@ -2410,6 +2440,10 @@ export class AsyncQueryService extends ProjectService {
         const queryTags = AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
+        const displayTimezone = await this.resolveDisplayTimezoneFromHistory(
+            query,
+            actor,
+        );
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -2427,6 +2461,7 @@ export class AsyncQueryService extends ProjectService {
             queryCreatedAt: query.createdAt,
             preAggregateQuery: query.preAggregateCompiledSql,
             warehouseQuery: query.compiledSql,
+            displayTimezone,
         };
     }
 
@@ -2792,6 +2827,13 @@ export class AsyncQueryService extends ProjectService {
 
         const responseMetricQuery = metricQuery;
 
+        // displayTimezone is the flag-gated value returned to API consumers;
+        // resolvedTimezone stays internal so SQL generation always has the real
+        // TZ available for tz-aware DATE_TRUNC roundtripping.
+        const displayTimezone = useTimezoneAwareDateTrunc
+            ? resolvedTimezone
+            : null;
+
         return {
             sql: fullQuery.query,
             fields: fieldsWithOverrides,
@@ -2805,6 +2847,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
             resolvedTimezone,
+            displayTimezone,
         };
     }
 
@@ -3190,6 +3233,9 @@ export class AsyncQueryService extends ProjectService {
                         cacheKey,
                         originalColumns,
                         queryCreatedAt,
+                        displayTimezone: useTimezoneAwareDateTrunc
+                            ? timezone
+                            : undefined,
                     };
 
                     if (executionPlan.target === 'pre_aggregate') {
@@ -3524,6 +3570,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls,
             availableParameterDefinitions,
             resolvedTimezone,
+            displayTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
@@ -3601,7 +3648,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
-            resolvedTimezone,
+            resolvedTimezone: displayTimezone,
         };
     }
 
@@ -3916,6 +3963,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls,
             availableParameterDefinitions,
             resolvedTimezone,
+            displayTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -3988,7 +4036,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
-            resolvedTimezone,
+            resolvedTimezone: displayTimezone,
         };
     }
 
@@ -4237,6 +4285,7 @@ export class AsyncQueryService extends ProjectService {
             userAccessControls,
             availableParameterDefinitions,
             resolvedTimezone,
+            displayTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
@@ -4312,7 +4361,7 @@ export class AsyncQueryService extends ProjectService {
             parameterReferences,
             usedParametersValues: usedParameters,
             dateZoomApplied,
-            resolvedTimezone,
+            resolvedTimezone: displayTimezone,
         };
     }
 
@@ -4559,6 +4608,7 @@ export class AsyncQueryService extends ProjectService {
             usedParameters,
             responseMetricQuery,
             resolvedTimezone,
+            displayTimezone,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
@@ -4598,7 +4648,7 @@ export class AsyncQueryService extends ProjectService {
             warnings,
             parameterReferences,
             usedParametersValues: usedParameters,
-            resolvedTimezone,
+            resolvedTimezone: displayTimezone,
         };
     }
 

@@ -201,6 +201,7 @@ export type RunAsyncWarehouseQueryArgs = {
     originalColumns?: ResultColumns;
     query: string;
     queryCreatedAt: Date;
+    displayTimezone?: string;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<
