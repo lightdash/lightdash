@@ -1050,13 +1050,14 @@ export class AppGenerateService extends BaseService {
 
         try {
             const parsed = JSON.parse(jsonMatch[0]);
+            const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
             const name =
                 typeof parsed.name === 'string'
-                    ? parsed.name.slice(0, 255)
+                    ? stripHtml(parsed.name).slice(0, 255)
                     : null;
             const description =
                 typeof parsed.description === 'string'
-                    ? parsed.description.slice(0, 1024)
+                    ? stripHtml(parsed.description).slice(0, 1024)
                     : null;
             if (!name) {
                 this.logger.warn(
@@ -1066,8 +1067,11 @@ export class AppGenerateService extends BaseService {
             }
             return { name, description: description ?? '', durationMs };
         } catch {
+            const safeLog = generation.responseText
+                .replace(/[\n\r]/g, ' ')
+                .slice(0, 200);
             this.logger.warn(
-                `App ${appUuid}: failed to parse metadata JSON: ${generation.responseText}`,
+                `App ${appUuid}: failed to parse metadata JSON: ${safeLog}`,
             );
             return null;
         }
