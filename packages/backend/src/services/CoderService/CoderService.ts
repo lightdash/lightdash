@@ -1597,8 +1597,10 @@ export class CoderService extends BaseService {
                 projectUuid, // We use the same projectUuid for both promoted and upstream
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         PromoteService.checkPromoteDashboardPermissions(
-            user,
+            auditedAbility,
+            user.organizationUuid!,
             promotedDashboard,
             upstreamDashboard,
         );
