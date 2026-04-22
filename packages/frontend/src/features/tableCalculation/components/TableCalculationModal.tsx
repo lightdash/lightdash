@@ -284,7 +284,9 @@ const TableCalculationModal: FC<Props> = ({
     const handleFormulaAiApply = useCallback(
         (result: GeneratedFormulaTableCalculation) => {
             form.setFieldValue('formula', result.formula);
-            form.setFieldValue('name', result.displayName);
+            if (!form.values.name.trim()) {
+                form.setFieldValue('name', result.displayName);
+            }
             if (result.type) {
                 form.setFieldValue('type', result.type);
             }
