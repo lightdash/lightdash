@@ -1,3 +1,10 @@
+# [0.2775.0](https://github.com/lightdash/lightdash/compare/0.2774.2...0.2775.0) (2026-04-22)
+
+
+### Features
+
+* include query list in prompt display ([#22192](https://github.com/lightdash/lightdash/issues/22192)) ([54ce451](https://github.com/lightdash/lightdash/commit/54ce45177f9ebe57758254b1111712c3f20ada17))
+
 ## [0.2774.2](https://github.com/lightdash/lightdash/compare/0.2774.1...0.2774.2) (2026-04-22)
 
 
