@@ -809,7 +809,6 @@ export const renderFilterRuleSql = (
                     : formatTimestampAsUTC,
                 startOfWeek,
                 baseDimensionSql,
-                useTimezoneAwareDateTrunc,
             );
         }
         case DimensionType.BOOLEAN:
