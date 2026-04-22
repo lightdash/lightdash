@@ -140,6 +140,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             onSeriesContextMenu,
             itemsMap,
             resultsData,
+            resolvedTimezone,
         } = useVisualizationContext();
 
         const isLargeChartPerformanceEnabled = useClientFeatureFlag(
@@ -386,6 +387,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                                                           dim,
                                                           itemsMap,
                                                           true,
+                                                          undefined,
+                                                          undefined,
+                                                          resolvedTimezone,
                                                       )
                                                     : axisValue;
 
@@ -417,7 +421,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                     }, 100);
                 }
             },
-            [chartRef, eChartsOptions?.tooltip, itemsMap],
+            [chartRef, eChartsOptions?.tooltip, itemsMap, resolvedTimezone],
         );
 
         const handleOnMouseOut = useCallback(() => {

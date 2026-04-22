@@ -48,13 +48,18 @@ export class ProjectParametersService extends BaseService {
             sortOrder?: 'asc' | 'desc';
         },
     ) {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();

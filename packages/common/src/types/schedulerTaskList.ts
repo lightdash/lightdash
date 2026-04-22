@@ -1,7 +1,6 @@
 import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
-    type AppImageAttachment,
     type ChartReference,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
@@ -40,7 +39,7 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     appUuid: string;
     version: number;
     prompt: string;
-    image?: AppImageAttachment;
+    imageId?: string;
     isIteration: boolean;
     chartReferences?: ChartReference[];
 };

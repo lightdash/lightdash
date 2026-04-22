@@ -94,6 +94,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             ...queryResults,
             metricQuery: query.data?.metricQuery,
             fields: query.data?.fields,
+            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
         }),
         [query.data, queryResults],
     );

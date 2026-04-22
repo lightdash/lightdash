@@ -30,6 +30,7 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;

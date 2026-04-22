@@ -27,6 +27,7 @@ export type {
     QueryResult,
     Row,
     Sort,
+    TableCalculation,
     Transport,
     UnitOfTime,
 } from './types';

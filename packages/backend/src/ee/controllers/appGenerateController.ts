@@ -52,8 +52,9 @@ export class AppGenerateController extends BaseController {
             req.user!,
             projectUuid,
             body.prompt,
-            body.image,
+            body.imageId,
             body.appUuid,
+            body.chartUuids,
         );
         return {
             status: 'ok',
@@ -69,12 +70,12 @@ export class AppGenerateController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Post('/upload-image')
+    @Post('/{appUuid}/upload-image')
     @OperationId('uploadAppImage')
     async uploadImage(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Query() appUuid?: string,
+        @Path() appUuid: string,
     ): Promise<ApiAppImageUploadResponse> {
         this.setStatus(200);
         const mimeType = req.headers['content-type'];
@@ -152,7 +153,8 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             body.prompt,
-            body.image,
+            body.imageId,
+            body.chartUuids,
         );
         return {
             status: 'ok',
