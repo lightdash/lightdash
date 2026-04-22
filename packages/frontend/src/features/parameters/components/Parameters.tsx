@@ -1,12 +1,4 @@
-import {
-    DndContext,
-    DragOverlay,
-    MouseSensor,
-    TouchSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from '@dnd-kit/core';
+import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
     type ParameterDefinitions,
@@ -20,6 +12,7 @@ import {
     DraggableItem,
     DroppableArea,
 } from '../../../components/common/DndHelpers';
+import { useDndSensors } from '../../../hooks/useDndSensors';
 import Parameter from './Parameter';
 
 type Props = {
@@ -61,13 +54,7 @@ export const Parameters: FC<Props> = ({
         setOpenPopoverId(undefined);
     }, []);
 
-    const mouseSensor = useSensor(MouseSensor, {
-        activationConstraint: { distance: 10 },
-    });
-    const touchSensor = useSensor(TouchSensor, {
-        activationConstraint: { delay: 250, tolerance: 5 },
-    });
-    const dragSensors = useSensors(mouseSensor, touchSensor);
+    const dragSensors = useDndSensors();
 
     // Sort parameter entries by parameterOrder, with unordered params appended at the end
     const sortedParamEntries = useMemo(() => {

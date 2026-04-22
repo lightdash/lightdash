@@ -1,12 +1,4 @@
-import {
-    DndContext,
-    DragOverlay,
-    MouseSensor,
-    TouchSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from '@dnd-kit/core';
+import { DndContext, DragOverlay, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
     type LightdashProjectParameter,
@@ -23,6 +15,7 @@ import {
 import { IconGripVertical } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import { ParameterInput } from '../features/parameters/components/ParameterInput';
+import { useDndSensors } from '../hooks/useDndSensors';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import { DraggableItem, DroppableArea } from './common/DndHelpers';
 import MantineIcon from './common/MantineIcon';
@@ -169,13 +162,7 @@ const PinnedParameters: FC<PinnedParametersProps> = ({ isEditMode }) => {
 
     const pinnedParameterKeys = useDashboardContext((c) => c.pinnedParameters);
 
-    const mouseSensor = useSensor(MouseSensor, {
-        activationConstraint: { distance: 10 },
-    });
-    const touchSensor = useSensor(TouchSensor, {
-        activationConstraint: { delay: 250, tolerance: 5 },
-    });
-    const dragSensors = useSensors(mouseSensor, touchSensor);
+    const dragSensors = useDndSensors();
 
     const handleParameterChange = useCallback(
         (key: string, value: ParameterValue | null) => {
