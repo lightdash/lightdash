@@ -189,6 +189,11 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
+    [SCHEDULER_TASKS.DBT_CLOUD_BRANCH_PREVIEW]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
 } as const;
 
 // Generic accessor function

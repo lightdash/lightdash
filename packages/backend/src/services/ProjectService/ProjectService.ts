@@ -43,6 +43,7 @@ import {
     DatabricksAuthenticationType,
     DatabricksTokenError,
     DateZoom,
+    DbtCloudRunStatus,
     DbtExposure,
     DbtExposureType,
     DbtManifestVersion,
@@ -8169,6 +8170,99 @@ export class ProjectService extends BaseService {
             errors,
             job,
         };
+    }
+
+    async triggerBranchPreview(
+        user: SessionUser,
+        projectUuid: string,
+        gitBranch: string,
+    ): Promise<{ runId: number }> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const {
+            api_key: apiKey,
+            account_id: accountId,
+            preview_job_id: previewJobId,
+        } = project.dbtConnection;
+
+        if (!accountId || !previewJobId) {
+            throw new ParameterError(
+                'Account ID and Preview Job ID must be configured to trigger branch previews',
+            );
+        }
+
+        const client = new DbtCloudRestClient({
+            serviceToken: apiKey,
+            accountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+
+        const { runId } = await client.triggerRun({
+            jobId: previewJobId,
+            gitBranch,
+            stepsOverride: ['dbt parse'],
+        });
+
+        await this.schedulerClient.dbtCloudBranchPreview({
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            userUuid: user.userUuid,
+            runId,
+            gitBranch,
+        });
+
+        return { runId };
+    }
+
+    async pollAndCreateBranchPreview(
+        projectUuid: string,
+        runId: number,
+        gitBranch: string,
+    ): Promise<string> {
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        if (project.dbtConnection.type !== DbtProjectType.DBT_CLOUD_IDE) {
+            throw new ParameterError(
+                `Project ${projectUuid} is not a dbt Cloud IDE project`,
+            );
+        }
+
+        const { api_key: apiKey, account_id: accountId } =
+            project.dbtConnection;
+
+        if (!accountId) {
+            throw new ParameterError(
+                'Account ID must be configured for branch previews',
+            );
+        }
+
+        const client = new DbtCloudRestClient({
+            serviceToken: apiKey,
+            accountId,
+            baseUrl: project.dbtConnection.base_url,
+        });
+
+        const finalStatus = await client.pollRunUntilComplete(runId);
+
+        if (finalStatus.status !== DbtCloudRunStatus.SUCCESS) {
+            throw new ParameterError(
+                `dbt Cloud run ${runId} ended with status: ${finalStatus.statusHumanized}`,
+            );
+        }
+
+        return this.createPreviewWithExplores(
+            projectUuid,
+            accountId,
+            String(runId),
+        );
     }
 
     async createPreviewWithExplores(

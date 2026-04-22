@@ -660,6 +660,11 @@ export type CompileProjectPayload = TraceTaskBase & {
     isPreview: boolean;
 };
 
+export type DbtCloudBranchPreviewPayload = TraceTaskBase & {
+    runId: number;
+    gitBranch: string;
+};
+
 export type PreAggregateMaterializationTrigger =
     | 'compile'
     | 'cron'
