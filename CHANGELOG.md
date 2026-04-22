@@ -1,3 +1,10 @@
+## [0.2774.2](https://github.com/lightdash/lightdash/compare/0.2774.1...0.2774.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* guard against undefined tableCalculations in createSavedChartVersion ([#22202](https://github.com/lightdash/lightdash/issues/22202)) ([7249b64](https://github.com/lightdash/lightdash/commit/7249b646dc06a733ed5e592af0530e72c22ac0f0))
+
 ## [0.2774.1](https://github.com/lightdash/lightdash/compare/0.2774.0...0.2774.1) (2026-04-21)
 
 
