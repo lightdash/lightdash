@@ -36,6 +36,7 @@ import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../common/MantineIcon';
 import { PolymorphicPaperButton } from '../../common/PolymorphicPaperButton';
+import { getFormatTypeLabel } from './getFormatSummary';
 
 type Props = {
     formatInputProps: (
@@ -64,31 +65,6 @@ const dateFormatTypeOptions = [
     CustomFormatType.DATE,
     CustomFormatType.TIMESTAMP,
 ];
-
-const getFormatTypeLabel = (type: CustomFormatType): string => {
-    switch (type) {
-        case CustomFormatType.BYTES_SI:
-            return 'Bytes (SI)';
-        case CustomFormatType.BYTES_IEC:
-            return 'Bytes (IEC)';
-        case CustomFormatType.DATE:
-            return 'Date';
-        case CustomFormatType.TIMESTAMP:
-            return 'Timestamp';
-        case CustomFormatType.DEFAULT:
-            return 'Default';
-        case CustomFormatType.PERCENT:
-            return 'Percent';
-        case CustomFormatType.CURRENCY:
-            return 'Currency';
-        case CustomFormatType.NUMBER:
-            return 'Number';
-        case CustomFormatType.CUSTOM:
-            return 'Custom';
-        default:
-            return type;
-    }
-};
 
 const formatSeparatorOptions = [
     {

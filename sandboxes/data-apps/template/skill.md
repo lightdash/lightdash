@@ -73,9 +73,30 @@ A field's position in the YAML determines whether it goes in `.dimensions()` or 
 | `columns[].name` | `.dimensions(['status'])` |
 | `columns[].meta.metrics.<key>` | `.metrics(['completed_count'])` |
 | `meta.metrics.<key>` | `.metrics(['order_count'])` |
-| `meta.joins[]` | Related models you can query |
+| `meta.joins[]` | Related models you can query — use dot notation for their fields |
 
 Use the **metric key name**, not the label. YAML `label: "Order Count"` → SDK field name is `order_count`.
+
+### Joined table fields — dot notation
+
+When a model has `joins`, the joined table's dimensions and metrics are available in your query. **Use dot notation** (`table.field`) to reference fields from joined tables:
+
+```ts
+// 'orders' joins 'customers' — query fields from both:
+query('orders')
+    .dimensions(['order_date', 'customers.customer_name'])   // ← dot notation
+    .metrics(['total_revenue', 'customers.customer_count'])
+    .sorts([{ field: 'customers.customer_name', direction: 'asc' }])
+```
+
+| Field belongs to | Syntax | Resolves to |
+|---|---|---|
+| Base explore (`orders`) | `'status'` | `orders_status` |
+| Joined table (`customers`) | `'customers.name'` | `customers_name` |
+
+**This also applies to `.filters()` and `.sorts()`** — any `field` value can use dot notation.
+
+**Never prefix joined table fields with the base explore name.** `'customers.name'` is correct. `'name'` alone would resolve to `orders_name` which doesn't exist.
 
 ### Understanding data grain
 
@@ -114,9 +135,12 @@ Each file contains:
    multiple referenced queries, add/remove fields, or adjust filters as needed.
 
 **Important:** The field IDs in metric queries use qualified names (e.g.,
-`orders_total_revenue`), but the SDK uses short names (e.g., `total_revenue`). Strip the
-explore name prefix when mapping to SDK calls. Table calculation names do NOT need
-stripping — pass them through as-is.
+`orders_total_revenue`). When mapping to SDK calls:
+- **Base explore fields:** Strip the explore name prefix. `orders_total_revenue` → `total_revenue`
+- **Joined table fields:** Convert to dot notation. If the explore is `orders` and the field is
+  `customers_customer_name`, that's a joined table field — use `customers.customer_name`.
+  **Only strip the prefix if it matches the explore name.** If it doesn't match, it's a joined table.
+- **Table calculation names:** Do NOT strip — pass them through as-is.
 
 ## SDK Reference
 
@@ -158,7 +182,7 @@ export function RevenueBySegment() {
 
 ### Field names
 
-Use **short names** like `total_revenue`, not qualified names like `orders_total_revenue`. The SDK qualifies them automatically.
+Use **short names** like `total_revenue`, not qualified names like `orders_total_revenue`. The SDK qualifies them automatically. For joined table fields, use **dot notation** like `customers.name` (see "Joined table fields" above).
 
 ### Query builder
 
@@ -199,6 +223,36 @@ Each table calculation needs:
 - `name` — internal field ID (used in results, must be unique within the query)
 - `displayName` — human-readable label shown in the UI
 - `sql` — SQL expression; reference other fields with `${table.field}` syntax
+
+### Additional metrics
+
+Additional metrics are ad-hoc aggregations defined at query time. Use them when you need a metric that isn't defined in the dbt YAML — for example, a custom aggregation on a joined table column.
+
+```ts
+query('orders')
+    .label('Revenue with Custom Metric')
+    .dimensions(['order_date'])
+    .metrics(['total_revenue', 'custom_avg_price'])
+    .additionalMetrics([
+        {
+            name: 'custom_avg_price',
+            label: 'Avg Unit Price',
+            table: 'order_items',
+            type: 'average',
+            sql: '${TABLE}.unit_price',
+        },
+    ])
+```
+
+Each additional metric needs:
+- `name` — internal field ID (must be referenced in `.metrics()` too)
+- `table` — the table it belongs to
+- `type` — aggregation type: `average`, `count`, `count_distinct`, `sum`, `min`, `max`, `median`, `percentile`
+- `sql` — SQL expression; use `${TABLE}` to reference the table
+
+**When to use additional metrics vs regular `.metrics()`:**
+- If the metric exists in the dbt YAML → use `.metrics(['metric_name'])`
+- If you need a custom aggregation not in the YAML → define it with `.additionalMetrics()` AND include its name in `.metrics()`
 
 ### `useLightdash(query)` return value
 
@@ -249,6 +303,7 @@ const user = await client.auth.getUser();
 | Querying hidden fields (`driver_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
 | Qualified names like `orders_total_revenue` | Double-qualified → unknown field | Short names only |
+| Joined table field without dot notation: `customer_name` | Resolves to `orders_customer_name` → unknown field | Use `customers.customer_name` for joined tables |
 | `value: '2025'` for a number column | String won't match number | `value: 2025` |
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |

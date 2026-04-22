@@ -53,14 +53,17 @@ export class AnalyticsService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -90,13 +93,16 @@ export class AnalyticsService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -140,14 +146,17 @@ export class AnalyticsService extends BaseService {
         projectUuid: string,
         account: Account,
     ): Promise<UnusedContent> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {

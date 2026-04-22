@@ -395,6 +395,7 @@ const Space: FC = () => {
                                 ContentType.DASHBOARD,
                                 ContentType.CHART,
                                 ContentType.SPACE,
+                                ContentType.DATA_APP,
                             ],
                         }}
                         contentTypeFilter={{

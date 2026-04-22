@@ -69,6 +69,7 @@ export enum PreAggregateMissReason {
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
     USER_BYPASS = 'user_bypass',
     EXPLORE_RESOLUTION_ERROR = 'explore_resolution_error',
+    NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
 }
 
 export type PreAggregateMatchMiss =
@@ -121,6 +122,9 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR;
+      }
+    | {
+          reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION;
       };
 
 export type PreAggregateCheckResult =
@@ -192,6 +196,8 @@ export const preAggregateMissReasonLabels: Record<
     [PreAggregateMissReason.USER_BYPASS]: 'Bypassed by user',
     [PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR]:
         'Materialized explore not found',
+    [PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION]:
+        'No active materialization',
 };
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;

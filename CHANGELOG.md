@@ -1,3 +1,107 @@
+## [0.2783.1](https://github.com/lightdash/lightdash/compare/0.2783.0...0.2783.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* dashboard filter "Reset to original value" leaves Apply disabled ([#22243](https://github.com/lightdash/lightdash/issues/22243)) ([e5bc3c0](https://github.com/lightdash/lightdash/commit/e5bc3c01cad280ab22223972341d2b7064ecd93b)), closes [#22236](https://github.com/lightdash/lightdash/issues/22236)
+
+# [0.2783.0](https://github.com/lightdash/lightdash/compare/0.2782.0...0.2783.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* stop explore jitter when AI generates table calc formula ([#22224](https://github.com/lightdash/lightdash/issues/22224)) ([4b4b404](https://github.com/lightdash/lightdash/commit/4b4b4044f3540efb7c30fe1a274cbe18095ce73d))
+
+
+### Features
+
+* **data-apps:** enable moving apps between spaces ([#22239](https://github.com/lightdash/lightdash/issues/22239)) ([a03d7e1](https://github.com/lightdash/lightdash/commit/a03d7e1793a22394043349e864e66b8d4c3d2f95))
+* show restricted spaces in space selector tree ([#22190](https://github.com/lightdash/lightdash/issues/22190)) ([1ccb531](https://github.com/lightdash/lightdash/commit/1ccb531f4ba864fb1c91782be2f4d337b576dc75))
+
+# [0.2782.0](https://github.com/lightdash/lightdash/compare/0.2781.0...0.2782.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* preserve user-entered name when AI generates a formula ([#22219](https://github.com/lightdash/lightdash/issues/22219)) ([afcf09c](https://github.com/lightdash/lightdash/commit/afcf09c35bc461c63090666a7f613117941dc0e5))
+* submit AI table-calculation prompt on Enter ([#22221](https://github.com/lightdash/lightdash/issues/22221)) ([4a4acf9](https://github.com/lightdash/lightdash/commit/4a4acf947a8569aa83a1dda0f162e40561f2142f))
+
+
+### Features
+
+* **data-apps:** surface data apps in space content listings ([#22185](https://github.com/lightdash/lightdash/issues/22185)) ([a5ec454](https://github.com/lightdash/lightdash/commit/a5ec454e000fd875e729b03f178ea05b9471a2a4))
+
+# [0.2781.0](https://github.com/lightdash/lightdash/compare/0.2780.1...0.2781.0) (2026-04-22)
+
+
+### Features
+
+* **timeframes:** add toUTC inverse to dateTruncTimezoneConversions ([#22207](https://github.com/lightdash/lightdash/issues/22207)) ([bb4a6d9](https://github.com/lightdash/lightdash/commit/bb4a6d95e2c6c246f7dae0365b240e9598308ce3)), closes [#22142](https://github.com/lightdash/lightdash/issues/22142)
+
+## [0.2780.1](https://github.com/lightdash/lightdash/compare/0.2780.0...0.2780.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* **sdk:** declare moment and moment-timezone as runtime dependencies ([#22231](https://github.com/lightdash/lightdash/issues/22231)) ([c6d2a30](https://github.com/lightdash/lightdash/commit/c6d2a30d009ba7856cff819f9cc5a747cdca063a)), closes [#22108](https://github.com/lightdash/lightdash/issues/22108)
+
+# [0.2780.0](https://github.com/lightdash/lightdash/compare/0.2779.0...0.2780.0) (2026-04-22)
+
+
+### Features
+
+* **scim:** promote ScimService debug logs to info ([#22232](https://github.com/lightdash/lightdash/issues/22232)) ([f6b6dbf](https://github.com/lightdash/lightdash/commit/f6b6dbfc26dd797ff7c79177b044245404595421)), closes [#12246](https://github.com/lightdash/lightdash/issues/12246)
+
+# [0.2779.0](https://github.com/lightdash/lightdash/compare/0.2778.0...0.2779.0) (2026-04-22)
+
+
+### Features
+
+* add Databricks OAuth M2M (service principal) authentication support ([#22214](https://github.com/lightdash/lightdash/issues/22214)) ([0e2094d](https://github.com/lightdash/lightdash/commit/0e2094d886d39a76666d9c6e3b2aaa6dd91327b8))
+* include raw metric query in query tracker ([#22223](https://github.com/lightdash/lightdash/issues/22223)) ([ad30a95](https://github.com/lightdash/lightdash/commit/ad30a95924aeb63458e201e6fe185eb08137ddac))
+
+# [0.2778.0](https://github.com/lightdash/lightdash/compare/0.2777.0...0.2778.0) (2026-04-22)
+
+
+### Features
+
+* return explore warning report from deploy endpoints ([#22180](https://github.com/lightdash/lightdash/issues/22180)) ([95a68ea](https://github.com/lightdash/lightdash/commit/95a68ea996efe7b8a28d12a3a8a151e599b403e7))
+* skip materialization for preview projects and add no active materialization miss reason ([#22209](https://github.com/lightdash/lightdash/issues/22209)) ([6c4816d](https://github.com/lightdash/lightdash/commit/6c4816d753fe2860073edeccb6e4fea941a15883))
+
+# [0.2777.0](https://github.com/lightdash/lightdash/compare/0.2776.0...0.2777.0) (2026-04-22)
+
+
+### Features
+
+* auto-name data apps ([#22210](https://github.com/lightdash/lightdash/issues/22210)) ([c69020b](https://github.com/lightdash/lightdash/commit/c69020b170ff4851b8013563bc589b8a0523a286))
+
+# [0.2776.0](https://github.com/lightdash/lightdash/compare/0.2775.3...0.2776.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* enable attching images in the browser ([#22212](https://github.com/lightdash/lightdash/issues/22212)) ([b7d75e4](https://github.com/lightdash/lightdash/commit/b7d75e459054d798d2e6b502fb7dad90d6cbf059))
+* **formula:** default window function ORDER BY to query sort fields ([#22218](https://github.com/lightdash/lightdash/issues/22218)) ([6c64b29](https://github.com/lightdash/lightdash/commit/6c64b29147e0a4628edef6e4767dcf9b880f7530))
+
+
+### Features
+
+* **cli:** retry batched deploy on transient failures ([#22213](https://github.com/lightdash/lightdash/issues/22213)) ([a3dffd1](https://github.com/lightdash/lightdash/commit/a3dffd112aeedfeb9a987d44865709db3ce17126))
+
+## [0.2775.3](https://github.com/lightdash/lightdash/compare/0.2775.2...0.2775.3) (2026-04-22)
+
+
+### Bug Fixes
+
+* move total and subtotal calculations to AsyncQueryService ([#22152](https://github.com/lightdash/lightdash/issues/22152)) ([4cc3d7d](https://github.com/lightdash/lightdash/commit/4cc3d7d91f72728d6a26d31bfb033a6a71708749))
+
+## [0.2775.2](https://github.com/lightdash/lightdash/compare/0.2775.1...0.2775.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* don't jump to top on chart select in Add saved charts ([#22206](https://github.com/lightdash/lightdash/issues/22206)) ([e0e565f](https://github.com/lightdash/lightdash/commit/e0e565f81fbab92746b3a78a5b6bb136b3c7d563))
+
 ## [0.2775.1](https://github.com/lightdash/lightdash/compare/0.2775.0...0.2775.1) (2026-04-22)
 
 

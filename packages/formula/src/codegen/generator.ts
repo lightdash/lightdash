@@ -458,6 +458,14 @@ export class SqlGenerator {
     // callers that need per-function argument transforms (e.g. AVG's
     // precision-preserving cast on Redshift) build the call via their own
     // emitter and still share the PARTITION BY / ORDER BY / frame plumbing.
+    //
+    // When the formula has no explicit ORDER BY in its OVER clause we fall
+    // back to `options.defaultOrderBy` (if set). That option carries the
+    // containing query's visual sort order, so `LAG(x)` without an explicit
+    // ORDER BY picks the row the user sees immediately above the current
+    // one in the rendered table. It also makes BigQuery and Snowflake
+    // accept `LAG`/`LEAD`/`ROW_NUMBER`/... which reject an OVER clause with
+    // no ORDER BY. An explicit ORDER BY in the formula always wins.
     protected appendOverClause(
         funcCall: string,
         node: { windowClause?: WindowClauseNode | null },
@@ -474,6 +482,19 @@ export class SqlGenerator {
             overParts.push(
                 `ORDER BY ${this.generate(wc.orderBy.column)}${dir}`,
             );
+        } else {
+            const defaultOrder = this.options.defaultOrderBy;
+            if (defaultOrder && defaultOrder.length > 0) {
+                const cols = defaultOrder
+                    .map((entry) => {
+                        const dir = entry.direction
+                            ? ` ${entry.direction}`
+                            : '';
+                        return `${this.quoteIdentifier(entry.column)}${dir}`;
+                    })
+                    .join(', ');
+                overParts.push(`ORDER BY ${cols}`);
+            }
         }
 
         const framePart = frameClause ? ` ${frameClause}` : '';

@@ -19,6 +19,7 @@ import {
     IconChartAreaLine,
     IconChevronDown,
     IconChevronRight,
+    IconAppWindow,
     IconFolder,
     IconFolders,
     IconLayoutDashboard,
@@ -45,6 +46,8 @@ const getFavoriteItemUrl = (projectUuid: string, item: ResourceViewItem) => {
             return `/projects/${projectUuid}/saved/${item.data.uuid}`;
         case ResourceViewItemType.SPACE:
             return `/projects/${projectUuid}/spaces/${item.data.uuid}`;
+        case ResourceViewItemType.DATA_APP:
+            return `/projects/${projectUuid}/apps/${item.data.uuid}/preview`;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }
@@ -58,6 +61,8 @@ const getFavoriteItemIcon = (item: ResourceViewItem) => {
             return IconChartAreaLine;
         case ResourceViewItemType.SPACE:
             return IconFolder;
+        case ResourceViewItemType.DATA_APP:
+            return IconAppWindow;
         default:
             return assertUnreachable(item, `Unknown favorite item type`);
     }

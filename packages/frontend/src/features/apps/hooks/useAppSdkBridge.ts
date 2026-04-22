@@ -22,6 +22,8 @@ export type QueryEvent = {
     rowCount: number | null;
     durationMs: number | null;
     error: string | null;
+    /** The raw metric query body sent to the API */
+    rawMetricQuery: Record<string, unknown> | null;
 };
 
 /**
@@ -123,6 +125,7 @@ export function useAppSdkBridge(
                         rowCount: null,
                         durationMs: null,
                         error: null,
+                        rawMetricQuery: query,
                     });
                 }
             }
@@ -167,6 +170,7 @@ export function useAppSdkBridge(
                             rowCount: null,
                             durationMs: null,
                             error: null,
+                            rawMetricQuery: null,
                         });
                     }
 
@@ -192,6 +196,7 @@ export function useAppSdkBridge(
                                     result.metadata?.performance
                                         ?.initialQueryExecutionMs ?? null,
                                 error: null,
+                                rawMetricQuery: null,
                             });
                         } else if (
                             result?.status === 'error' ||
@@ -213,6 +218,7 @@ export function useAppSdkBridge(
                                 rowCount: null,
                                 durationMs: null,
                                 error: result.error ?? 'Query failed',
+                                rawMetricQuery: null,
                             });
                         }
                     }

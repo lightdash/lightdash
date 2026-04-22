@@ -16,6 +16,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { ALL_TRAFFIC, Sandbox } from 'e2b';
+import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
@@ -33,9 +34,11 @@ import {
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
 type AppGenerateServiceDeps = {
@@ -44,8 +47,10 @@ type AppGenerateServiceDeps = {
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
+    projectModel: ProjectModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
+    spacePermissionService: SpacePermissionService;
 };
 
 type GenerateAppResult = {
@@ -64,9 +69,13 @@ export class AppGenerateService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly projectModel: ProjectModel;
+
     private readonly schedulerClient: CommercialSchedulerClient;
 
     private readonly savedChartService: SavedChartService;
+
+    private readonly spacePermissionService: SpacePermissionService;
 
     constructor({
         lightdashConfig,
@@ -74,8 +83,10 @@ export class AppGenerateService extends BaseService {
         catalogModel,
         appModel,
         featureFlagModel,
+        projectModel,
         schedulerClient,
         savedChartService,
+        spacePermissionService,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -83,8 +94,82 @@ export class AppGenerateService extends BaseService {
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
+        this.projectModel = projectModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
+        this.spacePermissionService = spacePermissionService;
+    }
+
+    /**
+     * Resolve the organization UUID for a project. Used to derive the CASL
+     * subject's `organizationUuid` from the resource (the project itself)
+     * rather than the user — so cross-org access attempts are denied by
+     * CASL instead of relying only on upstream project scoping.
+     */
+    private async getProjectOrgUuid(projectUuid: string): Promise<string> {
+        const summary = await this.projectModel.getSummary(projectUuid);
+        return summary.organizationUuid;
+    }
+
+    /**
+     * Run a CASL check on `DataApp`, throwing `ForbiddenError` if denied.
+     * Callers must pass the resource-derived organizationUuid so that the
+     * check is a genuine cross-org guard, not a tautology on the user's own
+     * org.
+     */
+    private assertDataAppAbility(
+        user: SessionUser,
+        action: 'view' | 'manage',
+        organizationUuid: string,
+        projectUuid: string,
+        errorMessage: string,
+        extraContext: Record<string, unknown> = {},
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                action,
+                subject('DataApp', {
+                    organizationUuid,
+                    projectUuid,
+                    ...extraContext,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    /**
+     * Permission check for reading a data app.
+     *
+     * Apps can live in two modes:
+     * - Assigned to a space → the subject carries space access context and
+     *   viewers with space access match `view:DataApp`.
+     * - Personal / unassigned → the subject has no space context, so only
+     *   the admin-level `manage:DataApp` rule (which matches any action,
+     *   including view) grants access.
+     */
+    private async assertCanViewApp(
+        user: SessionUser,
+        app: Pick<DbApp, 'project_uuid' | 'space_uuid'> & {
+            organization_uuid: string;
+        },
+    ): Promise<void> {
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  app.space_uuid,
+              )
+            : {};
+        this.assertDataAppAbility(
+            user,
+            'view',
+            app.organization_uuid,
+            app.project_uuid,
+            'Insufficient permissions to access this data app',
+            spaceContext,
+        );
     }
 
     private getAnthropicApiKey(): string {
@@ -249,19 +334,14 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
     ): Promise<{ imageId: string }> {
         await this.assertDataAppsEnabled(user);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to upload app images',
-            );
-        }
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to upload app images',
+        );
 
         const validTypes = [
             'image/png',
@@ -995,6 +1075,88 @@ export class AppGenerateService extends BaseService {
         return { durationMs, responseText, toolCallCount };
     }
 
+    /**
+     * After a successful first build, ask Claude (with --continue so it has
+     * full context) for a short name and description for the app.
+     * Returns null if parsing fails — callers should treat this as non-fatal.
+     */
+    private async generateAppMetadata(
+        sandbox: Sandbox,
+        appUuid: string,
+        version: number,
+        anthropicApiKey: string,
+    ): Promise<{
+        name: string;
+        description: string;
+        durationMs: number;
+    } | null> {
+        const start = performance.now();
+        const metadataPrompt =
+            'Respond with ONLY a JSON object (no markdown, no explanation) ' +
+            'containing a short "name" (3-6 words, title case, no quotes around it) ' +
+            'and a one-sentence "description" for the app you just built. ' +
+            'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
+
+        await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
+            timeoutMs: 5_000,
+        });
+        await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
+
+        const generation = await this.runClaudeGeneration(
+            sandbox,
+            appUuid,
+            version,
+            true, // --continue: Claude remembers what it just built
+            anthropicApiKey,
+        );
+
+        const durationMs = AppGenerateService.elapsed(start);
+
+        if (!generation.responseText) {
+            this.logger.warn(
+                `App ${appUuid}: metadata generation returned no text`,
+            );
+            return null;
+        }
+
+        // Extract JSON from the response (Claude may wrap it in markdown code fences)
+        const jsonMatch = generation.responseText.match(/\{[\s\S]*\}/) ?? null;
+        if (!jsonMatch) {
+            this.logger.warn(
+                `App ${appUuid}: could not find JSON in metadata response`,
+            );
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const stripHtml = (s: string) => s.replace(/<[^>]*>/g, '').trim();
+            const name =
+                typeof parsed.name === 'string'
+                    ? stripHtml(parsed.name).slice(0, 255)
+                    : null;
+            const description =
+                typeof parsed.description === 'string'
+                    ? stripHtml(parsed.description).slice(0, 1024)
+                    : null;
+            if (!name) {
+                this.logger.warn(
+                    `App ${appUuid}: metadata missing "name" field`,
+                );
+                return null;
+            }
+            return { name, description: description ?? '', durationMs };
+        } catch {
+            const safeLog = generation.responseText
+                .replace(/[\n\r]/g, ' ')
+                .slice(0, 200);
+            this.logger.warn(
+                `App ${appUuid}: failed to parse metadata JSON: ${safeLog}`,
+            );
+            return null;
+        }
+    }
+
     private async runBuild(
         sandbox: Sandbox,
         appUuid: string,
@@ -1583,6 +1745,33 @@ export class AppGenerateService extends BaseService {
             }
         }
 
+        // --- Auto-name: first version only ---
+        if (version === 1) {
+            try {
+                const metadata = await this.generateAppMetadata(
+                    sandbox,
+                    appUuid,
+                    version,
+                    anthropicApiKey,
+                );
+                if (metadata) {
+                    await this.appModel.updateApp(appUuid, projectUuid, {
+                        name: metadata.name,
+                        description: metadata.description,
+                    });
+                    this.logger.info(
+                        `App ${appUuid}: auto-named "${metadata.name}"`,
+                    );
+                    durations.metadataMs = metadata.durationMs;
+                }
+            } catch (error) {
+                // Non-fatal — the app works fine without a name
+                this.logger.warn(
+                    `App ${appUuid}: failed to auto-generate name: ${getErrorMessage(error)}`,
+                );
+            }
+        }
+
         // --- Stage: packaging ---
         if (shouldRun('packaging')) {
             try {
@@ -1756,19 +1945,14 @@ export class AppGenerateService extends BaseService {
         chartUuids?: string[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to create data apps',
-            );
-        }
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to create data apps',
+        );
 
         if (imageId !== undefined && !isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
@@ -1931,21 +2115,14 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<void> {
         await this.assertDataAppsEnabled(user);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to cancel app generation',
-            );
-        }
-
         const app = await this.appModel.getApp(appUuid, projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            app.organization_uuid,
+            projectUuid,
+            'Insufficient permissions to cancel app generation',
+        );
 
         // Read the version before updating it so we can capture the stage
         // it was at when the cancel hit.
@@ -2015,6 +2192,7 @@ export class AppGenerateService extends BaseService {
         name: string;
         description: string;
         createdByUserUuid: string;
+        spaceUuid: string | null;
         versions: {
             version: number;
             prompt: string;
@@ -2025,28 +2203,29 @@ export class AppGenerateService extends BaseService {
         hasMore: boolean;
     }> {
         await this.assertDataAppsEnabled(user);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access data apps',
-            );
-        }
 
-        const { name, description, createdByUserUuid, versions, hasMore } =
-            await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
+        const {
+            name,
+            description,
+            createdByUserUuid,
+            organizationUuid,
+            spaceUuid,
+            versions,
+            hasMore,
+        } = await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
+
+        await this.assertCanViewApp(user, {
+            project_uuid: projectUuid,
+            space_uuid: spaceUuid,
+            organization_uuid: organizationUuid,
+        });
 
         return {
             appUuid,
             name,
             description,
             createdByUserUuid,
+            spaceUuid,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,
@@ -2080,7 +2259,8 @@ export class AppGenerateService extends BaseService {
         };
     }> {
         await this.assertDataAppsEnabled(user);
-        if (user.ability.cannot('manage', 'DataApp')) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (auditedAbility.cannot('manage', 'DataApp')) {
             throw new ForbiddenError('Insufficient permissions');
         }
 
@@ -2111,19 +2291,14 @@ export class AppGenerateService extends BaseService {
         update: { name?: string; description?: string },
     ): Promise<{ appUuid: string; name: string; description: string }> {
         await this.assertDataAppsEnabled(user);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to manage data apps',
-            );
-        }
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            app.organization_uuid,
+            projectUuid,
+            'Insufficient permissions to manage data apps',
+        );
 
         const fieldsToUpdate: Partial<{ name: string; description: string }> =
             {};
@@ -2155,16 +2330,91 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const app = await this.appModel.updateApp(
+        const updatedApp = await this.appModel.updateApp(
             appUuid,
             projectUuid,
             fieldsToUpdate,
         );
         return {
-            appUuid: app.app_id,
-            name: app.name,
-            description: app.description,
+            appUuid: updatedApp.app_id,
+            name: updatedApp.name,
+            description: updatedApp.description,
         };
+    }
+
+    /**
+     * Move a data app from one space to another.
+     *
+     * Implements the shared `BulkActionable` interface so `ContentService`
+     * can dispatch move requests uniformly alongside dashboards and charts.
+     * Only space → space moves are supported for now: personal apps (no
+     * source space) and moves to `null` (unassigning) are rejected.
+     */
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: appUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        } = {},
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+
+        if (targetSpaceUuid === null) {
+            throw new ParameterError(
+                'You cannot move a data app outside of a space',
+            );
+        }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+
+        if (app.space_uuid === null) {
+            throw new ParameterError(
+                'You cannot move a personal data app between spaces',
+            );
+        }
+
+        if (checkForAccess) {
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                app.organization_uuid,
+                projectUuid,
+                'Insufficient permissions to move data apps',
+            );
+        }
+
+        await this.appModel.moveToSpace(
+            { appId: appUuid, projectUuid, targetSpaceUuid },
+            { tx },
+        );
+
+        if (trackEvent) {
+            this.analytics.track({
+                event: 'data_app.moved',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: app.organization_uuid,
+                    projectId: projectUuid,
+                    appUuid,
+                    sourceSpaceUuid: app.space_uuid,
+                    targetSpaceUuid,
+                },
+            });
+        }
     }
 
     private static async extractAndUploadToS3(
@@ -2251,19 +2501,6 @@ export class AppGenerateService extends BaseService {
         version: number,
     ): Promise<string> {
         await this.assertDataAppsEnabled(user);
-        if (
-            user.ability.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to access data apps',
-            );
-        }
 
         if (!isValidUuid(appUuid)) {
             throw new ParameterError('Invalid UUID format');
@@ -2272,6 +2509,9 @@ export class AppGenerateService extends BaseService {
         if (!Number.isInteger(version) || version < 1) {
             throw new ParameterError('Version must be a positive integer');
         }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanViewApp(user, app);
 
         return mintPreviewToken(
             this.lightdashConfig.lightdashSecret,

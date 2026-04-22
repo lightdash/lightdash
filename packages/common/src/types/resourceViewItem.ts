@@ -1,3 +1,4 @@
+import { type AppVersionStatus } from '../ee/apps/types';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     ContentType as ResourceViewItemType,
@@ -83,15 +84,36 @@ export type ResourceViewSpaceItem = {
     };
 };
 
+export type ResourceViewDataAppItem = {
+    type: ResourceViewItemType.DATA_APP;
+    data: {
+        uuid: string;
+        name: string;
+        description: string | undefined;
+        spaceUuid: string;
+        updatedAt: Date;
+        updatedByUser: {
+            userUuid: string;
+            firstName: string;
+            lastName: string;
+        } | null;
+        latestVersionNumber: number | null;
+        latestVersionStatus: AppVersionStatus | null;
+    };
+    category?: ResourceItemCategory;
+};
+
 type ResourceViewAcceptedItems =
     | ResourceViewSpaceItem['data']
     | ResourceViewChartItem['data']
-    | ResourceViewDashboardItem['data'];
+    | ResourceViewDashboardItem['data']
+    | ResourceViewDataAppItem['data'];
 
 export type ResourceViewItem =
     | ResourceViewChartItem
     | ResourceViewDashboardItem
-    | ResourceViewSpaceItem;
+    | ResourceViewSpaceItem
+    | ResourceViewDataAppItem;
 
 export const isResourceViewItemChart = (
     item: ResourceViewItem,
@@ -106,6 +128,11 @@ export const isResourceViewSpaceItem = (
     item: ResourceViewItem,
 ): item is ResourceViewSpaceItem => item.type === ResourceViewItemType.SPACE;
 
+export const isResourceViewDataAppItem = (
+    item: ResourceViewItem,
+): item is ResourceViewDataAppItem =>
+    item.type === ResourceViewItemType.DATA_APP;
+
 export const wrapResource = <T extends ResourceViewAcceptedItems>(
     resource: T,
     type: ResourceViewItemType,
@@ -117,6 +144,11 @@ export const wrapResource = <T extends ResourceViewAcceptedItems>(
             return { type, data: resource as DashboardBasicDetails };
         case ResourceViewItemType.SPACE:
             return { type, data: resource as ResourceViewSpaceItem['data'] };
+        case ResourceViewItemType.DATA_APP:
+            return {
+                type,
+                data: resource as ResourceViewDataAppItem['data'],
+            };
         default:
             return assertUnreachable(type, `Unknown resource type: ${type}`);
     }
@@ -215,6 +247,24 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 }),
                 ResourceViewItemType.SPACE,
             );
+        case ResourceViewItemType.DATA_APP:
+            const dataAppViewItem: ResourceViewDataAppItem['data'] = {
+                uuid: content.uuid,
+                name: content.name,
+                description: content.description || undefined,
+                spaceUuid: content.space.uuid,
+                updatedAt: content.lastUpdatedAt || content.createdAt,
+                updatedByUser: updatedByUser
+                    ? {
+                          userUuid: updatedByUser.uuid,
+                          firstName: updatedByUser.firstName,
+                          lastName: updatedByUser.lastName,
+                      }
+                    : null,
+                latestVersionNumber: content.latestVersionNumber,
+                latestVersionStatus: content.latestVersionStatus,
+            };
+            return wrapResource(dataAppViewItem, ResourceViewItemType.DATA_APP);
         default:
             return assertUnreachable(content, `Unsupported content type`);
     }
@@ -227,6 +277,8 @@ export const resourceToContent = (resource: ResourceViewItem) => {
         case ResourceViewItemType.DASHBOARD:
             return resource.data;
         case ResourceViewItemType.SPACE:
+            return resource.data;
+        case ResourceViewItemType.DATA_APP:
             return resource.data;
         default:
             return assertUnreachable(resource, `Unsupported resource type`);

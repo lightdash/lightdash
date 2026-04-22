@@ -7,6 +7,7 @@ import {
     contentToResourceViewItem,
     ContentType,
     isResourceViewSpaceItem,
+    type ApiContentBulkActionBody,
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
@@ -806,33 +807,48 @@ const InfiniteResourceTable = ({
                     type: 'move',
                     targetSpaceUuid: spaceUuid,
                 },
-                content: selectedItems.map((item) => {
-                    switch (item.type) {
-                        case ContentType.CHART:
-                            return {
-                                uuid: item.data.uuid,
-                                contentType: ContentType.CHART,
-                                source:
-                                    item.data.source ??
-                                    ChartSourceType.DBT_EXPLORE,
-                            };
-                        case ContentType.DASHBOARD:
-                            return {
-                                uuid: item.data.uuid,
-                                contentType: ContentType.DASHBOARD,
-                            };
-                        case ContentType.SPACE:
-                            return {
-                                uuid: item.data.uuid,
-                                contentType: ContentType.SPACE,
-                            };
-                        default:
-                            return assertUnreachable(
-                                item,
-                                'Invalid item type in bulk move handler',
-                            );
-                    }
-                }),
+                content: selectedItems.flatMap(
+                    (item): ApiContentBulkActionBody['content'] => {
+                        switch (item.type) {
+                            case ContentType.CHART:
+                                return [
+                                    {
+                                        uuid: item.data.uuid,
+                                        contentType: ContentType.CHART,
+                                        source:
+                                            item.data.source ??
+                                            ChartSourceType.DBT_EXPLORE,
+                                    },
+                                ];
+                            case ContentType.DASHBOARD:
+                                return [
+                                    {
+                                        uuid: item.data.uuid,
+                                        contentType: ContentType.DASHBOARD,
+                                    },
+                                ];
+                            case ContentType.SPACE:
+                                return [
+                                    {
+                                        uuid: item.data.uuid,
+                                        contentType: ContentType.SPACE,
+                                    },
+                                ];
+                            case ContentType.DATA_APP:
+                                return [
+                                    {
+                                        uuid: item.data.uuid,
+                                        contentType: ContentType.DATA_APP,
+                                    },
+                                ];
+                            default:
+                                return assertUnreachable(
+                                    item,
+                                    'Invalid item type in bulk move handler',
+                                );
+                        }
+                    },
+                ),
             });
 
             table.resetRowSelection();

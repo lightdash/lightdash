@@ -345,8 +345,25 @@ const getHeader = (
     params: (TooltipFormatterParams | TooltipParam)[],
     itemsMap?: ItemsMap,
     xFieldId?: string,
+    timezone?: string,
 ): string => {
     const firstParam = params[0];
+
+    // When a project timezone is supplied, skip echarts' axisValueLabel
+    // (which uses useUTC:true semantics) and format the raw axis value
+    // ourselves so the header matches project-TZ display.
+    const rawAxisValue = firstParam?.axisValue;
+    if (timezone && itemsMap && xFieldId && rawAxisValue != null) {
+        return getFormattedValue(
+            rawAxisValue,
+            xFieldId,
+            itemsMap,
+            true,
+            undefined,
+            undefined,
+            timezone,
+        );
+    }
 
     // First try the standard axisValueLabel or name
     const standardHeader = firstParam?.axisValueLabel ?? firstParam?.name;
@@ -359,7 +376,6 @@ const getHeader = (
 
     // Fallback: try to format using the raw axis value
     // This handles cases where ECharts couldn't format the value properly
-    const rawAxisValue = firstParam?.axisValue;
     if (rawAxisValue !== undefined && rawAxisValue !== null) {
         if (itemsMap && xFieldId) {
             return getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
@@ -374,7 +390,15 @@ const getHeader = (
         if (xValue !== undefined && xValue !== null) {
             // Use getFormattedValue for consistent formatting with axis labels
             if (itemsMap && xFieldId) {
-                return getFormattedValue(xValue, xFieldId, itemsMap, true);
+                return getFormattedValue(
+                    xValue,
+                    xFieldId,
+                    itemsMap,
+                    true,
+                    undefined,
+                    undefined,
+                    timezone,
+                );
             }
             return String(xValue);
         }
@@ -843,6 +867,7 @@ export const buildCartesianTooltipFormatter =
         pivotValuesColumnsMap,
         parameters,
         rows,
+        timezone,
     }: {
         itemsMap?: ItemsMap;
         stackValue: string | boolean | undefined;
@@ -857,6 +882,7 @@ export const buildCartesianTooltipFormatter =
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
         parameters?: ParametersValuesMap;
         rows?: (ResultRow | Record<string, unknown>)[];
+        timezone?: string;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -885,7 +911,7 @@ export const buildCartesianTooltipFormatter =
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params, itemsMap, xFieldId);
+        const header = getHeader(params, itemsMap, xFieldId, timezone);
 
         const sortedParams = sortTooltipParams(
             params,
@@ -1337,6 +1363,7 @@ export const buildCartesianTooltipFormatter =
                               undefined,
                               pivotValuesColumnsMap,
                               parameters,
+                              timezone,
                           )
                         : header;
                 return `${formatTooltipHeader(

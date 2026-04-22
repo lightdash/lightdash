@@ -4,7 +4,7 @@ import {
     ApiErrorPayload,
     ApiExploreResults,
     ApiExploresResults,
-    ApiSuccessEmpty,
+    ApiSetExploresResponse,
     MetricQuery,
     type ApiFormulaValidationResults,
     type ApiPreAggregateCheckResponse,
@@ -53,15 +53,15 @@ export class ExploreController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
-    ): Promise<ApiSuccessEmpty> {
+    ): Promise<ApiSetExploresResponse> {
         this.setStatus(200);
-        await this.services
+        const results = await this.services
             .getProjectService()
             .setExplores(req.user!, projectUuid, body);
 
         return {
             status: 'ok',
-            results: undefined,
+            results,
         };
     }
 

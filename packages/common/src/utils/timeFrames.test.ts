@@ -2,6 +2,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { DimensionType } from '../types/field';
 import { DateGranularity, TimeFrames } from '../types/timeFrames';
 import {
+    dateTruncTimezoneConversions,
     getDateDimension,
     isSubDayGranularity,
     SUB_DAY_GRANULARITIES,
@@ -408,6 +409,47 @@ describe('TimeFrames', () => {
                 baseDimensionId: `dimension`,
                 newTimeFrame: TimeFrames.YEAR,
             });
+        });
+    });
+
+    describe('dateTruncTimezoneConversions', () => {
+        // Trino's client serializes `timestamp with time zone` as
+        // "YYYY-MM-DD HH:mm:ss.SSS <zone>", which dayjs/moment can't parse.
+        // `toUTC` must cast back to a naive `timestamp` so downstream parsing
+        // works.
+        test('Trino toUTC returns a naive timestamp at the correct UTC instant', () => {
+            const { toUTC } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.TRINO];
+            expect(toUTC('truncated', 'America/New_York')).toEqual(
+                `CAST(with_timezone(truncated, 'America/New_York') AT TIME ZONE 'UTC' AS timestamp)`,
+            );
+        });
+
+        test('Trino toProjectTz returns a naive timestamp in the project zone', () => {
+            const { toProjectTz } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.TRINO];
+            expect(toProjectTz('column', 'America/New_York')).toEqual(
+                `CAST(column AT TIME ZONE 'America/New_York' AS timestamp)`,
+            );
+        });
+
+        test('Athena mirrors Trino', () => {
+            const trino =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.TRINO];
+            const athena =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.ATHENA];
+            expect(athena.toUTC('x', 'UTC')).toEqual(trino.toUTC('x', 'UTC'));
+            expect(athena.toProjectTz('x', 'UTC')).toEqual(
+                trino.toProjectTz('x', 'UTC'),
+            );
+        });
+
+        test('ClickHouse toUTC lifts Date-returning truncs into DateTime before relabeling', () => {
+            const { toUTC } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.CLICKHOUSE];
+            expect(toUTC('truncated', 'Asia/Tokyo')).toEqual(
+                `toTimeZone(toDateTime(truncated, 'Asia/Tokyo'), 'UTC')`,
+            );
         });
     });
 });

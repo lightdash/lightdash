@@ -1,14 +1,13 @@
-import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import { IconDots, IconPencil } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppPreviewTest.module.css';
 
@@ -28,9 +27,10 @@ export default function AppPreviewTest() {
 
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
-    const ability = useAbilityContext();
 
-    // Always fetch app to get creator info + latest ready version when needed
+    // Always fetch app to get creator info + latest ready version when needed.
+    // The backend enforces space-aware view permissions and will 403 if the
+    // user doesn't have access — we surface that as the error state below.
     const appQuery = useGetApp(projectUuid, appUuid);
 
     const latestReadyVersion = appQuery.data?.pages[0]?.versions.find(
@@ -70,18 +70,6 @@ export default function AppPreviewTest() {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
-    if (
-        !ability.can(
-            'manage',
-            subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-            }),
-        )
-    ) {
-        return <Navigate to={`/projects/${projectUuid}/home`} replace />;
-    }
-
     if (!projectUuid || !appUuid) {
         return <div>Missing route params</div>;
     }
@@ -90,7 +78,22 @@ export default function AppPreviewTest() {
         appQuery.isLoading || (version !== undefined && isTokenLoading);
     const error = appQuery.error ?? tokenError;
 
-    if (!explicitVersion && !appQuery.isLoading && !latestReadyVersion) {
+    // Forbidden / not-found → render the standard no-access panel, not a
+    // "no ready version" message which would be misleading.
+    const isForbidden =
+        appQuery.error?.error?.statusCode === 403 ||
+        tokenError?.error?.statusCode === 403 ||
+        appQuery.error?.error?.statusCode === 404;
+    if (isForbidden) {
+        return <ForbiddenPanel />;
+    }
+
+    if (
+        !explicitVersion &&
+        !appQuery.isLoading &&
+        !appQuery.error &&
+        !latestReadyVersion
+    ) {
         return (
             <Stack align="center" justify="center" h="calc(100vh - 50px)">
                 <Text c="red" size="sm">
