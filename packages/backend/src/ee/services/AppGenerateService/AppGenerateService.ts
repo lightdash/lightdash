@@ -995,6 +995,84 @@ export class AppGenerateService extends BaseService {
         return { durationMs, responseText, toolCallCount };
     }
 
+    /**
+     * After a successful first build, ask Claude (with --continue so it has
+     * full context) for a short name and description for the app.
+     * Returns null if parsing fails — callers should treat this as non-fatal.
+     */
+    private async generateAppMetadata(
+        sandbox: Sandbox,
+        appUuid: string,
+        version: number,
+        anthropicApiKey: string,
+    ): Promise<{
+        name: string;
+        description: string;
+        durationMs: number;
+    } | null> {
+        const start = performance.now();
+        const metadataPrompt =
+            'Respond with ONLY a JSON object (no markdown, no explanation) ' +
+            'containing a short "name" (3-6 words, title case, no quotes around it) ' +
+            'and a one-sentence "description" for the app you just built. ' +
+            'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
+
+        await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
+            timeoutMs: 5_000,
+        });
+        await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
+
+        const generation = await this.runClaudeGeneration(
+            sandbox,
+            appUuid,
+            version,
+            true, // --continue: Claude remembers what it just built
+            anthropicApiKey,
+        );
+
+        const durationMs = AppGenerateService.elapsed(start);
+
+        if (!generation.responseText) {
+            this.logger.warn(
+                `App ${appUuid}: metadata generation returned no text`,
+            );
+            return null;
+        }
+
+        // Extract JSON from the response (Claude may wrap it in markdown code fences)
+        const jsonMatch = generation.responseText.match(/\{[\s\S]*\}/) ?? null;
+        if (!jsonMatch) {
+            this.logger.warn(
+                `App ${appUuid}: could not find JSON in metadata response`,
+            );
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(jsonMatch[0]);
+            const name =
+                typeof parsed.name === 'string'
+                    ? parsed.name.slice(0, 255)
+                    : null;
+            const description =
+                typeof parsed.description === 'string'
+                    ? parsed.description.slice(0, 1024)
+                    : null;
+            if (!name) {
+                this.logger.warn(
+                    `App ${appUuid}: metadata missing "name" field`,
+                );
+                return null;
+            }
+            return { name, description: description ?? '', durationMs };
+        } catch {
+            this.logger.warn(
+                `App ${appUuid}: failed to parse metadata JSON: ${generation.responseText}`,
+            );
+            return null;
+        }
+    }
+
     private async runBuild(
         sandbox: Sandbox,
         appUuid: string,
@@ -1580,6 +1658,33 @@ export class AppGenerateService extends BaseService {
                     buildFixAttempts,
                 );
                 return;
+            }
+        }
+
+        // --- Auto-name: first version only ---
+        if (version === 1) {
+            try {
+                const metadata = await this.generateAppMetadata(
+                    sandbox,
+                    appUuid,
+                    version,
+                    anthropicApiKey,
+                );
+                if (metadata) {
+                    await this.appModel.updateApp(appUuid, projectUuid, {
+                        name: metadata.name,
+                        description: metadata.description,
+                    });
+                    this.logger.info(
+                        `App ${appUuid}: auto-named "${metadata.name}"`,
+                    );
+                    durations.metadataMs = metadata.durationMs;
+                }
+            } catch (error) {
+                // Non-fatal — the app works fine without a name
+                this.logger.warn(
+                    `App ${appUuid}: failed to auto-generate name: ${getErrorMessage(error)}`,
+                );
             }
         }
 
