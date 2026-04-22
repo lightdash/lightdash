@@ -1,5 +1,7 @@
+import { Ability } from '@casl/ability';
 import {
     OrganizationMemberRole,
+    PossibleAbilities,
     Role,
     RoleWithScopes,
     SessionAccount,
@@ -19,10 +21,10 @@ export const mockAccount = {
         userUuid: 'test-user-uuid',
         isActive: true,
         role: OrganizationMemberRole.ADMIN,
-        ability: {
-            can: jest.fn(() => true),
-            cannot: jest.fn(() => false),
-        } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'Organization', action: ['manage'] },
+            { subject: 'Project', action: ['manage'] },
+        ]),
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
@@ -50,10 +52,7 @@ export const mockAccountNoAccess = {
     ...mockAccount,
     user: {
         ...mockAccount.user,
-        ability: {
-            can: jest.fn(() => false),
-            cannot: jest.fn(() => true),
-        } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        ability: new Ability<PossibleAbilities>([]),
     },
 } as SessionAccount;
 
