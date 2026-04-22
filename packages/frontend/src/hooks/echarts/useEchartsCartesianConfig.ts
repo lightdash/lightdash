@@ -75,11 +75,16 @@ import {
 import { getLegendStyle } from '@lightdash/common/src/visualizations/helpers/styles/legendStyles';
 import { useMantineTheme } from '@mantine/core';
 import dayjs from 'dayjs';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
 import {
     type DefaultLabelFormatterCallbackParams,
     type TooltipComponentFormatterCallback,
     type TooltipComponentOption,
 } from 'echarts';
+
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
 import groupBy from 'lodash/groupBy';
 import maxBy from 'lodash/maxBy';
 import toNumber from 'lodash/toNumber';
@@ -2517,32 +2522,8 @@ const useEchartsCartesianConfig = (
         );
         if (!timezoneShiftedField) return sliced;
         const { fieldId, timezone } = timezoneShiftedField;
-        const dtf = new Intl.DateTimeFormat('en-US', {
-            timeZone: timezone,
-            hour12: false,
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-        });
-        const tzOffsetMs = (ms: number): number => {
-            const parts: Record<string, string> = {};
-            for (const p of dtf.formatToParts(new Date(ms))) {
-                if (p.type !== 'literal') parts[p.type] = p.value;
-            }
-            const hour = parts.hour === '24' ? 0 : Number(parts.hour);
-            const asUtc = Date.UTC(
-                Number(parts.year),
-                Number(parts.month) - 1,
-                Number(parts.day),
-                hour,
-                Number(parts.minute),
-                Number(parts.second),
-            );
-            return asUtc - ms;
-        };
+        const tzOffsetMs = (ms: number): number =>
+            dayjs(ms).tz(timezone).utcOffset() * 60_000;
         return sliced.map((row) => {
             const cell = row[fieldId];
             const raw = cell?.value?.raw;

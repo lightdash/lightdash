@@ -174,12 +174,10 @@ export function formatTimestamp(
     }
 
     if (!timezone && displayTimezone) {
-        const offset = moment.tz(value, displayTimezone).format('Z');
-        const formatStr = getTimeFormat(timeInterval).replace(
-            '(Z)',
-            `[(${offset})]`,
-        );
-        return momentDate.format(formatStr);
+        const offsetMinutes = moment.tz(value, displayTimezone).utcOffset();
+        return momentDate
+            .utcOffset(offsetMinutes, true)
+            .format(getTimeFormat(timeInterval));
     }
 
     return momentDate.format(getTimeFormat(timeInterval));
