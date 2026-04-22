@@ -130,6 +130,7 @@ module.exports = {
                 'src/services/SlackIntegrationService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
                 'src/services/UnfurlService/**/*.ts',
+                'src/services/UserService.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',
