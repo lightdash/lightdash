@@ -7,7 +7,7 @@ import { useMutation } from '@tanstack/react-query';
 type UploadImageParams = {
     projectUuid: string;
     file: File;
-    appUuid?: string;
+    appUuid: string;
 };
 
 type UploadImageResult = ApiAppImageUploadResponse['results'];
@@ -17,9 +17,8 @@ const uploadImage = async ({
     file,
     appUuid,
 }: UploadImageParams): Promise<UploadImageResult> => {
-    const queryParams = appUuid ? `?appUuid=${appUuid}` : '';
     const response = await fetch(
-        `/api/v1/ee/projects/${projectUuid}/apps/upload-image${queryParams}`,
+        `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/upload-image`,
         {
             method: 'POST',
             body: file,

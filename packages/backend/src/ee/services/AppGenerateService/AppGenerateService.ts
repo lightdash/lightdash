@@ -12,7 +12,6 @@ import {
     MissingConfigError,
     ParameterError,
     type AppGeneratePipelineJobPayload,
-    type AppImageAttachment,
     type ChartReference,
     type SessionUser,
 } from '@lightdash/common';
@@ -145,6 +144,14 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    /**
+     * Deterministic staging path for uploaded images.
+     * No file extension — the MIME type is stored as the S3 object's ContentType.
+     */
+    private static imageStagingKey(appUuid: string, imageId: string): string {
+        return `apps/${appUuid}/uploads/${imageId}`;
+    }
+
     private static mimeToExt(mimeType: string): string {
         const extMap: Record<string, string> = {
             'image/png': 'png',
@@ -239,8 +246,8 @@ export class AppGenerateService extends BaseService {
         mimeType: string,
         body: Readable,
         contentLength: number,
-        appUuid?: string,
-    ): Promise<{ s3Key: string }> {
+        appUuid: string,
+    ): Promise<{ imageId: string }> {
         await this.assertDataAppsEnabled(user);
         if (
             user.ability.cannot(
@@ -254,10 +261,6 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError(
                 'Insufficient permissions to upload app images',
             );
-        }
-
-        if (appUuid !== undefined && !isValidUuid(appUuid)) {
-            throw new ParameterError(`Invalid appUuid: must be a valid UUID`);
         }
 
         const validTypes = [
@@ -286,9 +289,8 @@ export class AppGenerateService extends BaseService {
             );
 
         const { client: s3Client, bucket } = this.getS3Client();
-        const ext = AppGenerateService.mimeToExt(mimeType);
-        const appDir = appUuid ?? uuidv4();
-        const s3Key = `apps/${appDir}/images/${uuidv4()}.${ext}`;
+        const imageId = uuidv4();
+        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
 
         await s3Client.send(
             new PutObjectCommand({
@@ -307,12 +309,13 @@ export class AppGenerateService extends BaseService {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 appUuid,
+                imageId,
                 mimeType,
                 sizeBytes: contentLength,
             },
         });
 
-        return { s3Key };
+        return { imageId };
     }
 
     private static truncateEnd(text: string, maxLength: number): string {
@@ -647,9 +650,10 @@ export class AppGenerateService extends BaseService {
     private async writeCatalogAndPrompt(
         sandbox: Sandbox,
         appUuid: string,
+        version: number,
         projectUuid: string,
         prompt: string,
-        image: AppImageAttachment | undefined,
+        imageId: string | undefined,
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
@@ -687,12 +691,13 @@ export class AppGenerateService extends BaseService {
             finalPrompt = referenceBlock + finalPrompt;
         }
 
-        // Write image to sandbox and prepend path reference to prompt
-        if (image) {
+        // Resolve image from staging, copy to version path, and write to sandbox
+        if (imageId) {
             const imagePath = await this.writeImageToSandbox(
                 sandbox,
                 appUuid,
-                image,
+                version,
+                imageId,
                 s3Client,
                 bucket,
             );
@@ -735,30 +740,37 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Stream an image from S3 and write it into the sandbox.
-     * Returns the sandbox file path where the image was written.
+     * Reconstruct the image's staging S3 key from convention, read the object
+     * (which gives us the MIME type from ContentType), copy it to the version
+     * assets folder, and write it into the sandbox for Claude to read.
+     * Returns the sandbox file path.
      */
     private async writeImageToSandbox(
         sandbox: Sandbox,
         appUuid: string,
-        image: AppImageAttachment,
+        version: number,
+        imageId: string,
         s3Client: S3Client,
         bucket: string,
     ): Promise<string> {
-        const ext = AppGenerateService.mimeToExt(image.mimeType);
-        const filePath = `/tmp/images/reference.${ext}`;
+        const stagingKey = AppGenerateService.imageStagingKey(appUuid, imageId);
 
         this.logger.info(
-            `App ${appUuid}: streaming image from S3 (key=${image.s3Key}, type=${image.mimeType})`,
+            `App ${appUuid}: reading staged image (key=${stagingKey})`,
         );
 
         const response = await s3Client.send(
             new GetObjectCommand({
                 Bucket: bucket,
-                Key: image.s3Key,
+                Key: stagingKey,
             }),
         );
 
+        const mimeType = response.ContentType ?? 'image/png';
+        const ext = AppGenerateService.mimeToExt(mimeType);
+        const sandboxPath = `/tmp/images/reference.${ext}`;
+
+        // Read the image bytes
         const chunks: Uint8Array[] = [];
         const body = response.Body;
         if (body && typeof (body as NodeJS.ReadableStream).on === 'function') {
@@ -770,22 +782,36 @@ export class AppGenerateService extends BaseService {
         }
         const buffer = Buffer.concat(chunks);
 
+        // Copy to version assets folder
+        const versionKey = `apps/${appUuid}/versions/${version}/assets/images/${imageId}.${ext}`;
         this.logger.info(
-            `App ${appUuid}: writing image to sandbox (${image.mimeType}, ${buffer.length} bytes)`,
+            `App ${appUuid}: copying image to version path (${stagingKey} → ${versionKey})`,
+        );
+        await s3Client.send(
+            new PutObjectCommand({
+                Bucket: bucket,
+                Key: versionKey,
+                Body: buffer,
+                ContentType: mimeType,
+            }),
         );
 
+        // Write to sandbox
+        this.logger.info(
+            `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
+        );
         await sandbox.commands.run('mkdir -p /tmp/images', {
             timeoutMs: 5_000,
         });
         await sandbox.files.write(
-            filePath,
+            sandboxPath,
             buffer.buffer.slice(
                 buffer.byteOffset,
                 buffer.byteOffset + buffer.byteLength,
             ) as ArrayBuffer,
         );
 
-        return filePath;
+        return sandboxPath;
     }
 
     /**
@@ -1218,7 +1244,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             version,
             projectUuid,
-            image,
+            imageId,
             isIteration,
             chartReferences,
         } = payload;
@@ -1376,7 +1402,7 @@ export class AppGenerateService extends BaseService {
                 currentStatus,
                 wasResumed,
                 anthropicApiKey,
-                image,
+                imageId,
                 chartReferences,
             );
         } finally {
@@ -1394,7 +1420,7 @@ export class AppGenerateService extends BaseService {
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
         anthropicApiKey: string,
-        image: AppImageAttachment | undefined,
+        imageId: string | undefined,
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt } = payload;
@@ -1426,9 +1452,10 @@ export class AppGenerateService extends BaseService {
                 const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
+                    version,
                     projectUuid,
                     prompt,
-                    image,
+                    imageId,
                     s3Client,
                     bucket,
                     chartReferences,
@@ -1724,7 +1751,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         prompt: string,
-        image?: AppImageAttachment,
+        imageId?: string,
         preGeneratedAppUuid?: string,
         chartUuids?: string[],
     ): Promise<GenerateAppResult> {
@@ -1741,6 +1768,10 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError(
                 'Insufficient permissions to create data apps',
             );
+        }
+
+        if (imageId !== undefined && !isValidUuid(imageId)) {
+            throw new ParameterError('Invalid imageId: must be a valid UUID');
         }
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
@@ -1777,8 +1808,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 promptLength: prompt.length,
-                hasImage: image !== undefined,
-                imageMimeType: image?.mimeType,
+                hasImage: imageId !== undefined,
             },
         });
 
@@ -1794,7 +1824,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt,
-            image,
+            imageId,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
@@ -1808,7 +1838,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         prompt: string,
-        image?: AppImageAttachment,
+        imageId?: string,
         chartUuids?: string[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
@@ -1824,6 +1854,10 @@ export class AppGenerateService extends BaseService {
             throw new ForbiddenError(
                 'Insufficient permissions to modify data apps',
             );
+        }
+
+        if (imageId !== undefined && !isValidUuid(imageId)) {
+            throw new ParameterError('Invalid imageId: must be a valid UUID');
         }
 
         await this.appModel.getApp(appUuid, projectUuid); // validates app exists
@@ -1861,8 +1895,7 @@ export class AppGenerateService extends BaseService {
                 version: newVersion,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
-                hasImage: image !== undefined,
-                imageMimeType: image?.mimeType,
+                hasImage: imageId !== undefined,
                 previousVersionStatus: latestVersion?.status ?? null,
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
@@ -1882,7 +1915,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt,
-            image,
+            imageId,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
