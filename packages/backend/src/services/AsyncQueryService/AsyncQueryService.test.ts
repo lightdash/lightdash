@@ -1779,6 +1779,7 @@ describe('AsyncQueryService', () => {
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
                     queryCreatedAt: new Date(),
+                    displayTimezone: null,
                 };
 
                 // WHEN: runAsyncWarehouseQuery is called
@@ -1875,6 +1876,7 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration: undefined,
                 originalColumns: undefined,
                 queryCreatedAt: new Date(),
+                displayTimezone: null,
             };
 
             // WHEN: runAsyncWarehouseQuery is called
