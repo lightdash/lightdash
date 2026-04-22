@@ -40,12 +40,17 @@ export class SpotlightService extends BaseService {
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: projectSummary.name,
+                    },
                 }),
             )
         ) {
@@ -63,12 +68,17 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: projectSummary.name,
+                    },
                 }),
             )
         ) {
@@ -94,12 +104,17 @@ export class SpotlightService extends BaseService {
         projectUuid: string,
     ): Promise<void> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: projectSummary.name,
+                    },
                 }),
             )
         ) {
