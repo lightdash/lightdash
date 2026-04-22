@@ -1580,6 +1580,7 @@ const getEchartAxes = ({
     minsAndMaxes,
     parameters,
     resolvedTimezone,
+    displayTimezone,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1589,6 +1590,7 @@ const getEchartAxes = ({
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
+    displayTimezone?: string;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1801,6 +1803,7 @@ const getEchartAxes = ({
         show: showXAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1822,6 +1825,7 @@ const getEchartAxes = ({
         show: showXAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1842,6 +1846,7 @@ const getEchartAxes = ({
         show: showLeftYAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1862,6 +1867,7 @@ const getEchartAxes = ({
         show: showRightYAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2413,6 +2419,62 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
+    // When a non-UTC project tz is active on a time axis, we hard-shift the
+    // `.value.raw` of the time column on every row so that ECharts
+    // (useUTC:true) positions ticks and renders default labels as if the
+    // shifted ms were UTC — which visually reads as project-tz wall-clock.
+    // The shift happens at the row boundary (see `rows` useMemo below) so
+    // dataset.source, series inline data, and tooltip row lookups all see
+    // shifted values. Downstream formatters must NOT re-apply tz conversion
+    // on shifted values — they should use `chartTimezone` (undefined while
+    // shift is active) instead of `resolvedTimezone`.
+    const timezoneShiftedField = useMemo<
+        { fieldId: string; timezone: string } | undefined
+    >(() => {
+        if (
+            !resolvedTimezone ||
+            resolvedTimezone === 'UTC' ||
+            !validCartesianConfig ||
+            !itemsMap
+        ) {
+            return undefined;
+        }
+        const flipAxes = !!validCartesianConfig.layout?.flipAxes;
+        const timeFieldId = flipAxes
+            ? validCartesianConfig.layout?.yField?.[0]
+            : validCartesianConfig.layout?.xField;
+        if (!timeFieldId) return undefined;
+        const field = itemsMap[timeFieldId];
+        if (!field || !isDimension(field) || !field.timeInterval) {
+            return undefined;
+        }
+        // Week/Month/Quarter/Year render on a category axis (string labels),
+        // not a time axis — tick placement is not ms-based, no shift needed.
+        if (
+            TIME_INTERVALS_FOR_CATEGORY_AXIS.includes(
+                field.timeInterval as TimeFrames,
+            )
+        ) {
+            return undefined;
+        }
+        return { fieldId: timeFieldId, timezone: resolvedTimezone };
+    }, [resolvedTimezone, validCartesianConfig, itemsMap]);
+
+    // Two timezones, one source of truth. Downstream formatters receive
+    // values from two paths: ECharts-supplied (shifted ms for axis ticks,
+    // tooltip param.axisValue) and raw backend metadata (pivot values in
+    // legends). They need different handling when the shift is active:
+    //   - chartTimezone: tz for value CONVERSION. `undefined` while shift
+    //     is active so formatters don't re-convert already-shifted values.
+    //     `resolvedTimezone` otherwise (normal UTC→project tz conversion).
+    //   - displayTimezone: tz for the OFFSET ANNOTATION only. Set to
+    //     `resolvedTimezone` while shift is active so the `(Z)` token in
+    //     format strings still renders as `(-11:00)` instead of `(+00:00)`.
+    // Pivot metadata (raw backend values) continues to use `resolvedTimezone`
+    // directly — those bypass the shift entirely.
+    const chartTimezone = timezoneShiftedField ? undefined : resolvedTimezone;
+    const displayTimezone = timezoneShiftedField ? resolvedTimezone : undefined;
+
     const tooltipConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.tooltip;
@@ -2470,15 +2532,64 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
-    const rows = useMemo(
-        () =>
-            sliceRows(
-                allRows,
-                isShowHideRowsEnabled,
-                validCartesianConfig?.rowLimit,
-            ),
-        [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
-    );
+    const rows = useMemo(() => {
+        const sliced = sliceRows(
+            allRows,
+            isShowHideRowsEnabled,
+            validCartesianConfig?.rowLimit,
+        );
+        if (!timezoneShiftedField) return sliced;
+        const { fieldId, timezone } = timezoneShiftedField;
+        const dtf = new Intl.DateTimeFormat('en-US', {
+            timeZone: timezone,
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+        });
+        const tzOffsetMs = (ms: number): number => {
+            const parts: Record<string, string> = {};
+            for (const p of dtf.formatToParts(new Date(ms))) {
+                if (p.type !== 'literal') parts[p.type] = p.value;
+            }
+            const hour = parts.hour === '24' ? 0 : Number(parts.hour);
+            const asUtc = Date.UTC(
+                Number(parts.year),
+                Number(parts.month) - 1,
+                Number(parts.day),
+                hour,
+                Number(parts.minute),
+                Number(parts.second),
+            );
+            return asUtc - ms;
+        };
+        return sliced.map((row) => {
+            const cell = row[fieldId];
+            const raw = cell?.value?.raw;
+            if (raw === null || raw === undefined) return row;
+            const ms =
+                typeof raw === 'number' ? raw : new Date(String(raw)).getTime();
+            if (!Number.isFinite(ms)) return row;
+            return {
+                ...row,
+                [fieldId]: {
+                    ...cell,
+                    value: {
+                        ...cell.value,
+                        raw: ms + tzOffsetMs(ms),
+                    },
+                },
+            };
+        });
+    }, [
+        allRows,
+        isShowHideRowsEnabled,
+        validCartesianConfig?.rowLimit,
+        timezoneShiftedField,
+    ]);
 
     // Pivot references from hidden series, used for resolving custom tooltip references
     // to fields that are on the Y axis but have their chart series hidden.
@@ -2564,7 +2675,8 @@ const useEchartsCartesianConfig = (
                     : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
-            resolvedTimezone,
+            resolvedTimezone: chartTimezone,
+            displayTimezone,
         });
     }, [
         itemsMap,
@@ -2575,7 +2687,8 @@ const useEchartsCartesianConfig = (
         isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
-        resolvedTimezone,
+        chartTimezone,
+        displayTimezone,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -3137,7 +3250,8 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
-                timezone: resolvedTimezone,
+                timezone: chartTimezone,
+                displayTimezone,
             }),
         };
     }, [
@@ -3154,7 +3268,8 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
-        resolvedTimezone,
+        chartTimezone,
+        displayTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid

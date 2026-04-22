@@ -158,6 +158,7 @@ export function formatTimestamp(
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
     timezone?: string,
+    displayTimezone?: string,
 ): string {
     let momentDate;
     if (timezone) {
@@ -170,6 +171,19 @@ export function formatTimestamp(
 
     if (!momentDate.isValid()) {
         return 'NaT';
+    }
+
+    // Chart hooks that pre-shift values into project-tz-as-UTC for ECharts
+    // pass `timezone: undefined` (so we don't double-convert) but still want
+    // the offset annotation to reflect the project tz, not `(+00:00)`.
+    // `displayTimezone` overrides the `(Z)` token with the named tz's offset.
+    if (!timezone && displayTimezone) {
+        const offset = moment.tz(value, displayTimezone).format('Z');
+        const formatStr = getTimeFormat(timeInterval).replace(
+            '(Z)',
+            `[(${offset})]`,
+        );
+        return momentDate.format(formatStr);
     }
 
     return momentDate.format(getTimeFormat(timeInterval));
@@ -789,6 +803,7 @@ export function formatItemValue(
     convertToUTC?: boolean,
     parameters?: Record<string, unknown>,
     timezone?: string,
+    displayTimezone?: string,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -867,6 +882,7 @@ export function formatItemValue(
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
                               timezone,
+                              displayTimezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
@@ -877,6 +893,7 @@ export function formatItemValue(
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
                             timezone,
+                            displayTimezone,
                         );
                     }
                     break;
