@@ -1,3 +1,10 @@
+## [0.2775.1](https://github.com/lightdash/lightdash/compare/0.2775.0...0.2775.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* stage uploaded images in for data apps ([#22203](https://github.com/lightdash/lightdash/issues/22203)) ([d1395c7](https://github.com/lightdash/lightdash/commit/d1395c7e1d8dd1b5c4905ba636677c6b312e56c9))
+
 # [0.2775.0](https://github.com/lightdash/lightdash/compare/0.2774.2...0.2775.0) (2026-04-22)
 
 
