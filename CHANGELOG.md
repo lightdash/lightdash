@@ -1,3 +1,10 @@
+## [0.2780.1](https://github.com/lightdash/lightdash/compare/0.2780.0...0.2780.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* **sdk:** declare moment and moment-timezone as runtime dependencies ([#22231](https://github.com/lightdash/lightdash/issues/22231)) ([c6d2a30](https://github.com/lightdash/lightdash/commit/c6d2a30d009ba7856cff819f9cc5a747cdca063a)), closes [#22108](https://github.com/lightdash/lightdash/issues/22108)
+
 # [0.2780.0](https://github.com/lightdash/lightdash/compare/0.2779.0...0.2780.0) (2026-04-22)
 
 
