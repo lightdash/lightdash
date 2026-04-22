@@ -1359,7 +1359,7 @@ export class UserService extends BaseService {
             auditedAbility.cannot(
                 'view',
                 subject('PersonalAccessToken', {
-                    organizationUuid: user.organizationUuid ?? '',
+                    organizationUuid: user.organizationUuid!,
                 }),
             )
         ) {
