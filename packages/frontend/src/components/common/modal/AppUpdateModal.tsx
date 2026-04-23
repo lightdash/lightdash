@@ -5,9 +5,10 @@ import {
     TextInput,
     type ModalProps,
 } from '@mantine-8/core';
-import { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { IconAppWindow } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineModal from '../MantineModal';
@@ -21,10 +22,12 @@ interface AppUpdateModalProps {
     onConfirm?: () => void;
 }
 
-type FormState = {
-    name: string;
-    description: string;
-};
+const updateAppSchema = z.object({
+    name: z.string().trim().min(1, { message: 'Name is required' }),
+    description: z.string(),
+});
+
+type FormState = z.infer<typeof updateAppSchema>;
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
     uuid,
@@ -41,6 +44,8 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
             name: initialName,
             description: initialDescription,
         },
+        validate: zodResolver(updateAppSchema),
+        validateInputOnChange: true,
     });
 
     if (!projectUuid) {
@@ -72,7 +77,7 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
             icon={IconAppWindow}
             actions={
                 <Button
-                    disabled={!form.isValid() || !form.values.name.trim()}
+                    disabled={!form.isValid()}
                     loading={isUpdating}
                     type="submit"
                     form="update-app"
