@@ -134,7 +134,7 @@
         "unist-util-visit": "5.0.0",
         "use-context-selector": "1.4.1",
         "use-local-storage-state": "17.3.0",
-        "uuid": "8.3.2",
+        "uuid": "14.0.0",
         "vega": "6.2.0",
         "vega-embed": "7.1.0",
         "vega-lite": "6.4.1",
