@@ -288,7 +288,10 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleFormulaAiApply = useCallback(
         (result: GeneratedFormulaTableCalculation) => {
-            form.setFieldValue('formula', result.formula);
+            const f = result.formula.startsWith('=')
+                ? result.formula
+                : `=${result.formula}`;
+            form.setFieldValue('formula', f);
             setFormulaGeneratedByAi(true);
         },
         [form],
