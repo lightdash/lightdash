@@ -1,3 +1,17 @@
+# [0.2787.0](https://github.com/lightdash/lightdash/compare/0.2786.0...0.2787.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** enable rename from space listings ([#22274](https://github.com/lightdash/lightdash/issues/22274)) ([48f3939](https://github.com/lightdash/lightdash/commit/48f3939c9dd874b1d0cf8c44b16a4fbbe0cdfa27))
+
+# [0.2786.0](https://github.com/lightdash/lightdash/compare/0.2785.0...0.2786.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** show type and view count in space listings ([#22272](https://github.com/lightdash/lightdash/issues/22272)) ([3f1cd88](https://github.com/lightdash/lightdash/commit/3f1cd88e58c44550cf7209ce0683f927ad8c887b))
+
 # [0.2785.0](https://github.com/lightdash/lightdash/compare/0.2784.0...0.2785.0) (2026-04-23)
 
 

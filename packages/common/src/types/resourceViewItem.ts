@@ -97,6 +97,8 @@ export type ResourceViewDataAppItem = {
             firstName: string;
             lastName: string;
         } | null;
+        views: number;
+        firstViewedAt: Date | null;
         latestVersionNumber: number | null;
         latestVersionStatus: AppVersionStatus | null;
     };
@@ -261,6 +263,8 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                           lastName: updatedByUser.lastName,
                       }
                     : null,
+                views: content.views,
+                firstViewedAt: content.firstViewedAt,
                 latestVersionNumber: content.latestVersionNumber,
                 latestVersionStatus: content.latestVersionStatus,
             };
