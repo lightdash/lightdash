@@ -1,3 +1,10 @@
+# [0.2785.0](https://github.com/lightdash/lightdash/compare/0.2784.0...0.2785.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** track app views ([#22269](https://github.com/lightdash/lightdash/issues/22269)) ([49514b0](https://github.com/lightdash/lightdash/commit/49514b06e34e6211030a5f41abd4f7245fef8cee))
+
 # [0.2784.0](https://github.com/lightdash/lightdash/compare/0.2783.2...0.2784.0) (2026-04-23)
 
 
