@@ -108,46 +108,6 @@ lightdash upload --charts my-chart --dashboards my-dashboard
 lightdash upload --dashboards my-dashboard --include-charts
 ```
 
-## Delete Content
-
-Permanently delete charts and dashboards from the server and remove their local YAML files.
-
-```bash
-# Delete a chart by slug
-lightdash delete -c my-chart
-
-# Delete a dashboard by slug
-lightdash delete -d my-dashboard
-
-# Delete multiple items at once
-lightdash delete -c chart1 chart2 -d dashboard1
-
-# Delete by UUID
-lightdash delete -c abc123-def456
-
-# Delete by URL
-lightdash delete -c "https://app.lightdash.cloud/projects/xxx/saved/abc123"
-
-# Skip confirmation prompt (use with caution)
-lightdash delete -c my-chart --force
-
-# Use custom path for local files
-lightdash delete -c my-chart --path ./custom-lightdash
-
-# Delete from a specific project
-lightdash delete -c my-chart --project <project-uuid>
-```
-
-**Options:**
-
-- `-c, --charts <charts...>` - Chart slugs, UUIDs, or URLs to delete
-- `-d, --dashboards <dashboards...>` - Dashboard slugs, UUIDs, or URLs to delete
-- `-f, --force` - Skip confirmation prompt
-- `-p, --path <path>` - Custom path where local chart-as-code files are stored
-- `--project <uuid>` - Specify a project UUID
-
-**Warning:** The delete command will warn you if any charts being deleted are referenced by dashboards.
-
 ## SQL Runner
 
 Execute raw SQL queries against the warehouse using the current project's credentials.
@@ -252,7 +212,6 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 | `lightdash deploy`    | Sync semantic layer to Lightdash |
 | `lightdash upload`    | Upload charts/dashboards         |
 | `lightdash download`  | Download charts/dashboards       |
-| `lightdash delete`    | Remove charts/dashboards         |
 | `lightdash preview`   | Create temporary test project    |
 | `lightdash validate`  | Validate against server          |
 | `lightdash lint`      | Validate YAML locally            |
