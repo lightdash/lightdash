@@ -100,8 +100,8 @@ module.exports = {
         {
             // Error on direct ability checks in fully migrated services
             files: [
-                'src/ee/services/McpService/**/*.ts',
                 'src/ee/services/AiAgentService/**/*.ts',
+                'src/ee/services/McpService/**/*.ts',
                 'src/ee/services/OrganizationWarehouseCredentialsService.ts',
                 'src/services/AnalyticsService/**/*.ts',
                 'src/services/AsyncQueryService/**/*.ts',
@@ -121,6 +121,7 @@ module.exports = {
                 'src/services/PinningService/**/*.ts',
                 'src/services/ProjectCompileLogService/**/*.ts',
                 'src/services/ProjectParametersService.ts',
+                'src/services/ProjectService/**/*.ts',
                 'src/services/RolesService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
