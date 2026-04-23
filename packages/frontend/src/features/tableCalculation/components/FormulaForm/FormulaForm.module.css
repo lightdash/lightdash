@@ -6,6 +6,7 @@
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
     overflow: hidden;
+    position: relative;
 
     @mixin light {
         border-color: var(--mantine-color-ldGray-3);
@@ -48,6 +49,21 @@
     padding-top: var(--mantine-spacing-xxs);
     font-size: var(--mantine-font-size-xs);
     color: var(--mantine-color-red-6);
+}
+
+.provenance {
+    flex-shrink: 0;
+    padding-inline: var(--mantine-spacing-xxs);
+    padding-top: var(--mantine-spacing-xxs);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-indigo-7);
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
 }
 
 .helpHint {
