@@ -132,6 +132,9 @@ export const FormulaForm: FC<Props> = ({
             },
         });
 
+    const runPreviewRef = useRef(runPreview);
+    runPreviewRef.current = runPreview;
+
     // Drop caption once the user edits after generation.
     useEffect(() => {
         if (
@@ -178,17 +181,12 @@ export const FormulaForm: FC<Props> = ({
 
         const timer = setTimeout(() => {
             pendingPreviewPrompt.current = trimmed;
-            runPreview(trimmed);
+            runPreviewRef.current(trimmed);
         }, PREVIEW_DEBOUNCE_MS);
 
         return () => {
             clearTimeout(timer);
         };
-        // `runPreview` is intentionally excluded: the hook recreates the callback
-        // whenever its mutation state flips (e.g. isLoading toggle), which would
-        // otherwise cancel and reschedule the timer mid-request. Excluding it is
-        // safe — the underlying hook aborts in-flight requests on re-fire.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [formula, aiEnabled]);
 
     const generateFromPrompt = useCallback(

@@ -243,6 +243,8 @@ export const FormulaEditor: FC<Props> = ({
     );
 
     const placeholder = aiEnabled ? PLACEHOLDER_DUAL : PLACEHOLDER_FORMULA;
+    const placeholderRef = useRef(placeholder);
+    placeholderRef.current = placeholder;
 
     const editor = useEditor({
         editorProps: {
@@ -309,7 +311,9 @@ export const FormulaEditor: FC<Props> = ({
                 renderText: ({ node }) => node.attrs.id ?? '',
                 renderHTML: ({ node }) => ['span', {}, node.attrs.id ?? ''],
             }),
-            Placeholder.configure({ placeholder }),
+            Placeholder.configure({
+                placeholder: () => placeholderRef.current,
+            }),
         ],
         content: initialContent
             ? buildInitialContent(initialContent, fieldSuggestions)
@@ -351,15 +355,6 @@ export const FormulaEditor: FC<Props> = ({
         }
     }, [editor, fieldSuggestions]);
 
-    useEffect(() => {
-        if (!editor) return;
-        const ext = editor.extensionManager.extensions.find(
-            (e) => e.name === 'placeholder',
-        );
-        if (ext) ext.options.placeholder = placeholder;
-        editor.view.dispatch(editor.state.tr);
-    }, [editor, placeholder]);
-
     const showRetryHint =
         aiEnabled && hasAiError && !isGenerating && mode === 'prompt';
     const showTabHint =
@@ -388,7 +383,14 @@ export const FormulaEditor: FC<Props> = ({
     useEffect(() => {
         if (!editor) return;
         editor.view.dispatch(editor.state.tr);
-    }, [editor, previewSuffix, showTabHint, showRetryHint, isPreviewing]);
+    }, [
+        editor,
+        previewSuffix,
+        showTabHint,
+        showRetryHint,
+        isPreviewing,
+        placeholder,
+    ]);
 
     return (
         <Box className={styles.container}>
