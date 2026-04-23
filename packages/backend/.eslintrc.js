@@ -111,7 +111,6 @@ module.exports = {
                 'src/services/ContentService/**/*.ts',
                 'src/services/CsvService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
-<<<<<<< sdolidze/promote-audited-ability
                 'src/services/GdriveService/**/*.ts',
                 'src/services/GithubAppService/**/*.ts',
                 'src/services/ProjectCompileLogService/**/*.ts',
@@ -125,8 +124,6 @@ module.exports = {
                 'src/services/PinningService/**/*.ts',
                 'src/services/PromoteService/**/*.ts',
                 'src/services/RolesService/**/*.ts',
-=======
->>>>>>> main
                 'src/services/DeployService.ts',
                 'src/services/FavoritesService/**/*.ts',
                 'src/services/FunnelService/**/*.ts',
