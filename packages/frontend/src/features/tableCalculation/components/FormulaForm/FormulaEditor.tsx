@@ -124,7 +124,7 @@ const buildGhostPlugin = (state: GhostState) =>
                     badge.className = showRetry
                         ? 'formula-inline-chip formula-inline-chip--retry'
                         : 'formula-inline-chip';
-                    badge.textContent = showRetry ? '✦ Retry' : '✦ Tab';
+                    badge.textContent = showRetry ? '⇥ Retry' : '⇥ Tab';
                     container.appendChild(badge);
                 }
 
