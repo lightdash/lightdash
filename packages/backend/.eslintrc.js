@@ -124,6 +124,7 @@ module.exports = {
                 'src/services/ProjectCompileLogService/**/*.ts',
                 'src/services/ProjectParametersService.ts',
                 'src/services/ProjectService/**/*.ts',
+                'src/services/RenameService/**/*.ts',
                 'src/services/RolesService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
