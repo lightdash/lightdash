@@ -238,6 +238,8 @@ const Tree: React.FC<Props> = (props) => {
                                 ? nodeItem._fuzzyMatches
                                 : [];
 
+                        const isRestricted = nodeItem.restricted === true;
+
                         return (
                             <div {...elementProps}>
                                 <TreeItem
@@ -246,7 +248,10 @@ const Tree: React.FC<Props> = (props) => {
                                     label={node.label}
                                     matchHighlights={highlights}
                                     hasChildren={hasChildren}
+                                    restricted={isRestricted}
                                     onClick={() => {
+                                        if (isRestricted) return;
+
                                         if (type === 'multiple') {
                                             recursivelyToggleSelected(
                                                 tree,

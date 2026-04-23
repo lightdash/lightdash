@@ -1244,13 +1244,24 @@ export type DataAppImageUploadedEvent = BaseTrack & {
     };
 };
 
+export type DataAppViewedEvent = BaseTrack & {
+    event: 'data_app.view';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
     | DataAppVersionCancelledEvent
     | DataAppVersionCompletedEvent
     | DataAppVersionFailedEvent
-    | DataAppImageUploadedEvent;
+    | DataAppImageUploadedEvent
+    | DataAppViewedEvent;
 
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';

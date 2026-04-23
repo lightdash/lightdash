@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
+    Accordion,
     ActionIcon,
     Badge,
     Box,
@@ -54,6 +55,7 @@ import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { FormatForm } from '../../../components/Explorer/FormatForm';
+import { getFormatSummary } from '../../../components/Explorer/FormatForm/getFormatSummary';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -266,9 +268,6 @@ const TableCalculationModal: FC<Props> = ({
 
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
     const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
-    // Tiptap reads `initialContent` once at mount — when the AI replaces the
-    // formula we bump this key to force a remount so the new content renders.
-    const [formulaKey, setFormulaKey] = useState(0);
 
     useEffect(() => {
         if (opened) {
@@ -293,7 +292,6 @@ const TableCalculationModal: FC<Props> = ({
             if (result.format) {
                 form.setFieldValue('format', result.format);
             }
-            setFormulaKey((k) => k + 1);
             setFormulaGeneratedByAi(true);
         },
         [form],
@@ -624,7 +622,6 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
-                                key={formulaKey}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
@@ -665,11 +662,40 @@ const TableCalculationModal: FC<Props> = ({
                     </Box>
                 </Stack>
 
-                <FormatForm
-                    formatInputProps={getFormatInputProps}
-                    setFormatFieldValue={setFormatFieldValue}
-                    format={form.values.format}
-                />
+                <Accordion
+                    variant="default"
+                    chevronPosition="right"
+                    defaultValue={
+                        form.values.format.type !== CustomFormatType.DEFAULT
+                            ? 'format'
+                            : null
+                    }
+                    classNames={{
+                        item: classes.formatAccordionItem,
+                        control: classes.formatAccordionControl,
+                        content: classes.formatAccordionContent,
+                    }}
+                >
+                    <Accordion.Item value="format">
+                        <Accordion.Control>
+                            <Group gap="md" wrap="nowrap">
+                                <Text size="sm" fw={500}>
+                                    Formatting
+                                </Text>
+                                <Text size="xs" c="dimmed" truncate>
+                                    {getFormatSummary(form.values.format)}
+                                </Text>
+                            </Group>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                            <FormatForm
+                                formatInputProps={getFormatInputProps}
+                                setFormatFieldValue={setFormatFieldValue}
+                                format={form.values.format}
+                            />
+                        </Accordion.Panel>
+                    </Accordion.Item>
+                </Accordion>
             </Stack>
         </MantineModal>
     );

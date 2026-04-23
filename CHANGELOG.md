@@ -1,3 +1,63 @@
+# [0.2787.0](https://github.com/lightdash/lightdash/compare/0.2786.0...0.2787.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** enable rename from space listings ([#22274](https://github.com/lightdash/lightdash/issues/22274)) ([48f3939](https://github.com/lightdash/lightdash/commit/48f3939c9dd874b1d0cf8c44b16a4fbbe0cdfa27))
+
+# [0.2786.0](https://github.com/lightdash/lightdash/compare/0.2785.0...0.2786.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** show type and view count in space listings ([#22272](https://github.com/lightdash/lightdash/issues/22272)) ([3f1cd88](https://github.com/lightdash/lightdash/commit/3f1cd88e58c44550cf7209ce0683f927ad8c887b))
+
+# [0.2785.0](https://github.com/lightdash/lightdash/compare/0.2784.0...0.2785.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** track app views ([#22269](https://github.com/lightdash/lightdash/issues/22269)) ([49514b0](https://github.com/lightdash/lightdash/commit/49514b06e34e6211030a5f41abd4f7245fef8cee))
+
+# [0.2784.0](https://github.com/lightdash/lightdash/compare/0.2783.2...0.2784.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* buffer whole image to verify correctly ([#22241](https://github.com/lightdash/lightdash/issues/22241)) ([6b12d2e](https://github.com/lightdash/lightdash/commit/6b12d2e63c633cf46523df913d0dbfaca2843a52))
+
+
+### Features
+
+* update skills for data apps UX ([#22244](https://github.com/lightdash/lightdash/issues/22244)) ([464a830](https://github.com/lightdash/lightdash/commit/464a83048506cf272072020265fbd176d51d233b))
+
+## [0.2783.2](https://github.com/lightdash/lightdash/compare/0.2783.1...0.2783.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* period-over-period previous period metric not inheriting format ([#21588](https://github.com/lightdash/lightdash/issues/21588)) ([d149e78](https://github.com/lightdash/lightdash/commit/d149e78855cf4dacdb3ab9bfa8a4e3b1748649c7)), closes [#21207](https://github.com/lightdash/lightdash/issues/21207)
+
+## [0.2783.1](https://github.com/lightdash/lightdash/compare/0.2783.0...0.2783.1) (2026-04-22)
+
+
+### Bug Fixes
+
+* dashboard filter "Reset to original value" leaves Apply disabled ([#22243](https://github.com/lightdash/lightdash/issues/22243)) ([e5bc3c0](https://github.com/lightdash/lightdash/commit/e5bc3c01cad280ab22223972341d2b7064ecd93b)), closes [#22236](https://github.com/lightdash/lightdash/issues/22236)
+
+# [0.2783.0](https://github.com/lightdash/lightdash/compare/0.2782.0...0.2783.0) (2026-04-22)
+
+
+### Bug Fixes
+
+* stop explore jitter when AI generates table calc formula ([#22224](https://github.com/lightdash/lightdash/issues/22224)) ([4b4b404](https://github.com/lightdash/lightdash/commit/4b4b4044f3540efb7c30fe1a274cbe18095ce73d))
+
+
+### Features
+
+* **data-apps:** enable moving apps between spaces ([#22239](https://github.com/lightdash/lightdash/issues/22239)) ([a03d7e1](https://github.com/lightdash/lightdash/commit/a03d7e1793a22394043349e864e66b8d4c3d2f95))
+* show restricted spaces in space selector tree ([#22190](https://github.com/lightdash/lightdash/issues/22190)) ([1ccb531](https://github.com/lightdash/lightdash/commit/1ccb531f4ba864fb1c91782be2f4d337b576dc75))
+
 # [0.2782.0](https://github.com/lightdash/lightdash/compare/0.2781.0...0.2782.0) (2026-04-22)
 
 
