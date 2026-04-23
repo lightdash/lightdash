@@ -547,7 +547,7 @@ export const getSqlForTruncatedDate = (
     startOfWeek?: WeekDay | null,
     timezone?: string,
 ): string => {
-    if (!timezone) {
+    if (!timezone || type !== DimensionType.TIMESTAMP) {
         return warehouseConfigs[adapterType].getSqlForTruncatedDate(
             timeFrame,
             originalSql,

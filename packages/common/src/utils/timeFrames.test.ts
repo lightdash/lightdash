@@ -4,6 +4,7 @@ import { DateGranularity, TimeFrames } from '../types/timeFrames';
 import {
     dateTruncTimezoneConversions,
     getDateDimension,
+    getSqlForTruncatedDate,
     isSubDayGranularity,
     SUB_DAY_GRANULARITIES,
     timeFrameConfigs,
@@ -449,6 +450,66 @@ describe('TimeFrames', () => {
                 dateTruncTimezoneConversions[SupportedDbtAdapter.CLICKHOUSE];
             expect(toUTC('truncated', 'Asia/Tokyo')).toEqual(
                 `toTimeZone(toDateTime(truncated, 'Asia/Tokyo'), 'UTC')`,
+            );
+        });
+    });
+
+    describe('getSqlForTruncatedDate type guard for DATE', () => {
+        const tz = 'America/New_York';
+        const col = 'my_col';
+
+        test.each([
+            [SupportedDbtAdapter.POSTGRES, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.REDSHIFT, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.DUCKDB, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.SNOWFLAKE, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.DATABRICKS, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.TRINO, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.ATHENA, `DATE_TRUNC('DAY', ${col})`],
+            [SupportedDbtAdapter.CLICKHOUSE, `toStartOfDay(${col})`],
+        ])(
+            '%s: DATE dimension with timezone skips tz round-trip',
+            (adapter, expected) => {
+                expect(
+                    getSqlForTruncatedDate(
+                        adapter,
+                        TimeFrames.DAY,
+                        col,
+                        DimensionType.DATE,
+                        null,
+                        tz,
+                    ),
+                ).toEqual(expected);
+            },
+        );
+
+        test('TIMESTAMP dimension with timezone still gets tz round-trip (Postgres)', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toEqual(
+                `(DATE_TRUNC('DAY', (${col})::timestamptz AT TIME ZONE '${tz}')) AT TIME ZONE '${tz}'`,
+            );
+        });
+
+        test('TIMESTAMP dimension with timezone still gets tz round-trip (Snowflake)', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toEqual(
+                `CONVERT_TIMEZONE('${tz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', '${tz}', ${col})))`,
             );
         });
     });
