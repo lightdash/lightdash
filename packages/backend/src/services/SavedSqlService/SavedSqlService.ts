@@ -897,6 +897,16 @@ export class SavedSqlService
             );
         }
 
+        // Authorize before any external side-effects (Google Drive API call
+        // below). A user with the route middleware but no create:ScheduledDeliveries
+        // or space access shouldn't be able to probe the Drive API.
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',
@@ -913,40 +923,31 @@ export class SavedSqlService
             );
         }
 
-        if (newScheduler.format === SchedulerFormat.GSHEETS) {
-            if (!isSchedulerGsheetsOptions(newScheduler.options)) {
-                throw new ParameterError(
-                    'Google Sheets format requires valid gsheets options',
-                );
-            }
-
-            try {
-                const refreshToken = await this.userService.getRefreshToken(
-                    user.userUuid,
-                );
-                await this.googleDriveClient.assertFileIsGoogleSheet(
-                    refreshToken,
-                    newScheduler.options.gdriveId,
-                );
-            } catch (error) {
-                if (error instanceof UnexpectedGoogleSheetsError) {
-                    throw error;
-                }
-                if (error instanceof GoogleSheetsTransientError) {
-                    throw error;
-                }
-                throw new MissingConfigError(
-                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
-                );
-            }
+        if (!isSchedulerGsheetsOptions(newScheduler.options)) {
+            throw new ParameterError(
+                'Google Sheets format requires valid gsheets options',
+            );
         }
 
-        const { organizationUuid } =
-            await this.checkCreateScheduledDeliveryAccess(
-                user,
-                projectUuid,
-                savedSqlUuid,
+        try {
+            const refreshToken = await this.userService.getRefreshToken(
+                user.userUuid,
             );
+            await this.googleDriveClient.assertFileIsGoogleSheet(
+                refreshToken,
+                newScheduler.options.gdriveId,
+            );
+        } catch (error) {
+            if (error instanceof UnexpectedGoogleSheetsError) {
+                throw error;
+            }
+            if (error instanceof GoogleSheetsTransientError) {
+                throw error;
+            }
+            throw new MissingConfigError(
+                'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+            );
+        }
 
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
