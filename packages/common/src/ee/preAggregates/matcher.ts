@@ -980,16 +980,19 @@ export const findMatch = (
             preAggregateName: null,
             miss: {
                 reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
+                fieldId: getItemId(metricQuery.tableCalculations[0]),
             },
         };
     }
 
-    if ((metricQuery.additionalMetrics || []).length > 0) {
+    const firstAdditionalMetric = metricQuery.additionalMetrics?.[0];
+    if (firstAdditionalMetric) {
         return {
             hit: false,
             preAggregateName: null,
             miss: {
                 reason: PreAggregateMissReason.CUSTOM_METRIC_PRESENT,
+                fieldId: getItemId(firstAdditionalMetric),
             },
         };
     }
