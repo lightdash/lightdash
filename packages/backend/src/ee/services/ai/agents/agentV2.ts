@@ -26,7 +26,10 @@ import type {
     AiStreamAgentResponseArgs,
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
-import { getUserFacingErrorMessage } from '../utils/errorMessages';
+import {
+    AiAgentStepCapReachedError,
+    getUserFacingErrorMessage,
+} from '../utils/errorMessages';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -35,9 +38,11 @@ const createAiAgentLogger =
         }
     };
 
+const STEP_CAP = 40;
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(20),
+    stopWhen: stepCountIs(STEP_CAP),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
@@ -331,8 +336,12 @@ export const generateAgentResponse = async ({
 
         logger(
             'Generate Agent Response',
-            `Generation complete. Result text length: ${result.text.length}`,
+            `Generation complete. Result text length: ${result.text.length}, finishReason: ${result.finishReason}`,
         );
+
+        if (result.steps.length >= STEP_CAP && !result.text) {
+            throw new AiAgentStepCapReachedError(result.steps.length);
+        }
 
         const totalTime = Date.now() - startTime;
         dependencies.perf.measureGenerateResponseTime(totalTime);
@@ -546,10 +555,10 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: ({ usage, steps, reasoning }) => {
+            onFinish: ({ usage, steps, reasoning, finishReason }) => {
                 logger(
                     'On Finish',
-                    'Stream finished. Updating prompt with response.',
+                    `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
                 );
 
                 // Extract complete response from all steps instead of just the last text
@@ -557,10 +566,21 @@ export const streamAgentResponse = async ({
                     .flatMap((step) => step.text || [])
                     .join('\n');
 
-                void dependencies.updatePrompt({
-                    response: completeResponse,
-                    promptUuid: args.promptUuid,
-                });
+                const stepCapReached = steps.length >= STEP_CAP;
+
+                if (stepCapReached && !completeResponse) {
+                    void dependencies.updatePrompt({
+                        promptUuid: args.promptUuid,
+                        errorMessage: getUserFacingErrorMessage(
+                            new AiAgentStepCapReachedError(steps.length),
+                        ),
+                    });
+                } else {
+                    void dependencies.updatePrompt({
+                        response: completeResponse,
+                        promptUuid: args.promptUuid,
+                    });
+                }
 
                 logger(
                     'On Finish',
@@ -580,6 +600,8 @@ export const streamAgentResponse = async ({
                             typeof args.model === 'string'
                                 ? args.model
                                 : args.model.modelId,
+                        finishReason,
+                        stepCapReached,
                     },
                 });
                 logger(
