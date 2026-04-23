@@ -1,6 +1,9 @@
 // Query builder
 export { query } from './query';
 
+// Drill-down helper
+export { drillDown } from './drillDown';
+
 // Client
 export { createClient, LightdashClient } from './client';
 
