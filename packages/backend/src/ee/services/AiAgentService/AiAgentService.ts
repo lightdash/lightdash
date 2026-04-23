@@ -41,6 +41,7 @@ import {
     LightdashUser,
     NotFoundError,
     NotImplementedError,
+    OpenIdIdentity,
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
@@ -4690,46 +4691,86 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         channelId?: string;
         client: WebClient;
     }): Promise<string | undefined | null> {
-        if (!teamId) {
-            return undefined;
-        }
+        let result:
+            | 'no_team_id'
+            | 'oauth_not_required'
+            | 'authenticated'
+            | 'identity_missing' = 'no_team_id';
+        let organizationUuid: string | null = null;
+        let observedIdentity: OpenIdIdentity | null = null;
+        try {
+            if (!teamId) {
+                return undefined;
+            }
 
-        const organizationUuid =
-            await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
-                teamId,
-            );
+            organizationUuid =
+                await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                    teamId,
+                );
 
-        const slackSettings =
-            await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+            const slackSettings =
+                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    organizationUuid,
+                );
+
+            if (!slackSettings?.aiRequireOAuth) {
+                result = 'oauth_not_required';
+                return organizationUuid;
+            }
+
+            // TODO: Legacy Slack-linked users can still fail here if team_id was never
+            // populated on their OpenID identity.
+            const openIdIdentity =
+                await this.openIdIdentityModel.findIdentityByOpenId(
+                    OpenIdIdentityIssuerType.SLACK,
+                    userId,
+                    teamId,
+                );
+            observedIdentity = openIdIdentity;
+            if (!observedIdentity) {
+                // Observability-only: a teamless lookup so the wide event can
+                // distinguish a truly-absent identity from one filtered out by team_id.
+                observedIdentity =
+                    await this.openIdIdentityModel.findIdentityByOpenId(
+                        OpenIdIdentityIssuerType.SLACK,
+                        userId,
+                    );
+            }
+
+            if (openIdIdentity) {
+                result = 'authenticated';
+                return organizationUuid;
+            }
+
+            result = 'identity_missing';
+            if (channelId) {
+                await client.chat.postEphemeral({
+                    channel: channelId,
+                    user: userId,
+                    text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                });
+            }
+
+            return null;
+        } finally {
+            Logger.info('AI agent Slack auth check', {
+                event: 'ai_agent.slack_auth',
+                trigger: 'vote',
+                result,
                 organizationUuid,
-            );
-
-        if (!slackSettings?.aiRequireOAuth) {
-            return organizationUuid;
-        }
-
-        // TODO: Legacy Slack-linked users can still fail here if team_id was never
-        // populated on their OpenID identity.
-        const openIdIdentity =
-            await this.openIdIdentityModel.findIdentityByOpenId(
-                OpenIdIdentityIssuerType.SLACK,
-                userId,
-                teamId,
-            );
-
-        if (openIdIdentity) {
-            return organizationUuid;
-        }
-
-        if (channelId) {
-            await client.chat.postEphemeral({
-                channel: channelId,
-                user: userId,
-                text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                slackUserId: userId,
+                slackUserIdFlavor: userId.startsWith('W')
+                    ? 'enterprise'
+                    : 'workspace',
+                blockActionTeamId: teamId ?? null,
+                storedTeamId: observedIdentity?.teamId ?? null,
+                hasStoredIdentity: observedIdentity != null,
+                teamIdMatchesStored:
+                    observedIdentity?.teamId && teamId
+                        ? observedIdentity.teamId === teamId
+                        : null,
             });
         }
-
-        return null;
     }
 
     public handleAgentSelection(app: App) {
@@ -5022,60 +5063,96 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         say: Function,
         client: WebClient,
     ): Promise<{ userUuid: string } | null> {
-        const aiRequireOAuth = slackSettings?.aiRequireOAuth;
-        if (!aiRequireOAuth) {
-            return {
-                userUuid:
-                    await this.slackAuthenticationModel.getUserUuid(teamId),
-            };
-        }
+        let result:
+            | 'oauth_not_required'
+            | 'authenticated'
+            | 'identity_missing' = 'identity_missing';
+        let observedIdentity: OpenIdIdentity | null = null;
+        try {
+            const aiRequireOAuth = slackSettings?.aiRequireOAuth;
+            if (!aiRequireOAuth) {
+                result = 'oauth_not_required';
+                return {
+                    userUuid:
+                        await this.slackAuthenticationModel.getUserUuid(teamId),
+                };
+            }
 
-        const openIdIdentity =
-            await this.openIdIdentityModel.findIdentityByOpenId(
-                OpenIdIdentityIssuerType.SLACK,
-                userId,
-                teamId,
-            );
-        if (!openIdIdentity) {
-            await client.chat.postEphemeral({
-                channel: channelId,
-                user: userId,
-                text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
-                blocks: [
-                    {
-                        type: 'section',
-                        text: {
-                            type: 'mrkdwn',
-                            text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
-                        },
-                    },
-                    {
-                        type: 'actions',
-                        elements: [
-                            {
-                                type: 'button',
-                                text: {
-                                    type: 'plain_text',
-                                    text: 'Connect your Slack account',
-                                },
-                                // Encode message info in action_id since URL isn't available in action payload
-                                action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
-                                url: `${
-                                    this.lightdashConfig.siteUrl
-                                }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
-                                    threadTs ? `&thread_ts=${threadTs}` : ''
-                                }`,
-                                style: 'primary',
+            const openIdIdentity =
+                await this.openIdIdentityModel.findIdentityByOpenId(
+                    OpenIdIdentityIssuerType.SLACK,
+                    userId,
+                    teamId,
+                );
+            observedIdentity = openIdIdentity;
+            if (!observedIdentity) {
+                // Observability-only: a teamless lookup so the wide event can
+                // distinguish a truly-absent identity from one filtered out by team_id.
+                observedIdentity =
+                    await this.openIdIdentityModel.findIdentityByOpenId(
+                        OpenIdIdentityIssuerType.SLACK,
+                        userId,
+                    );
+            }
+
+            if (!openIdIdentity) {
+                await client.chat.postEphemeral({
+                    channel: channelId,
+                    user: userId,
+                    text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
+                    blocks: [
+                        {
+                            type: 'section',
+                            text: {
+                                type: 'mrkdwn',
+                                text: `Hi <@${userId}>! OAuth authentication is required to use AI Agent. Please connect your Slack account to Lightdash to continue.`,
                             },
-                        ],
-                    },
-                ],
+                        },
+                        {
+                            type: 'actions',
+                            elements: [
+                                {
+                                    type: 'button',
+                                    text: {
+                                        type: 'plain_text',
+                                        text: 'Connect your Slack account',
+                                    },
+                                    // Encode message info in action_id since URL isn't available in action payload
+                                    action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
+                                    url: `${
+                                        this.lightdashConfig.siteUrl
+                                    }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
+                                        threadTs ? `&thread_ts=${threadTs}` : ''
+                                    }`,
+                                    style: 'primary',
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                return null;
+            }
+
+            result = 'authenticated';
+            return { userUuid: openIdIdentity.userUuid };
+        } finally {
+            Logger.info('AI agent Slack auth check', {
+                event: 'ai_agent.slack_auth',
+                trigger: 'app_mention',
+                result,
+                slackUserId: userId,
+                slackUserIdFlavor: userId.startsWith('W')
+                    ? 'enterprise'
+                    : 'workspace',
+                blockActionTeamId: teamId,
+                storedTeamId: observedIdentity?.teamId ?? null,
+                hasStoredIdentity: observedIdentity != null,
+                teamIdMatchesStored: observedIdentity?.teamId
+                    ? observedIdentity.teamId === teamId
+                    : null,
             });
-
-            return null;
         }
-
-        return { userUuid: openIdIdentity.userUuid };
     }
 
     /**
