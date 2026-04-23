@@ -206,8 +206,9 @@ export class ManagedAgentService extends BaseService {
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -222,8 +223,9 @@ export class ManagedAgentService extends BaseService {
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', { organizationUuid, projectUuid }),
             )

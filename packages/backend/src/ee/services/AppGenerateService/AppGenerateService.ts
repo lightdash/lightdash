@@ -2049,8 +2049,9 @@ export class AppGenerateService extends BaseService {
         chartUuids?: string[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
                     organizationUuid: user.organizationUuid,
