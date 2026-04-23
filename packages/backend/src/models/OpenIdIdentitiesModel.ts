@@ -36,6 +36,7 @@ export class OpenIdIdentityModel {
             createdAt: identity.created_at,
             userUuid: identity.user_uuid,
             email: identity.email,
+            teamId: identity.team_id,
         };
     }
 
@@ -49,6 +50,7 @@ export class OpenIdIdentityModel {
                 'openid_identities.created_at',
                 'users.user_uuid',
                 'openid_identities.email',
+                'openid_identities.team_id',
             );
     }
 
