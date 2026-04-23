@@ -99,30 +99,29 @@ export const ImproveWithAiSlot: FC<Props> = ({
                                 </ActionIcon>
                             }
                         >
-                            <Box className={styles.promptRow}>
-                                <Box className={styles.promptField}>
-                                    <AiPromptEditor
-                                        explore={explore}
-                                        metricQuery={metricQuery}
-                                        onUpdate={handleEditorUpdate}
-                                        onSubmit={submit}
-                                        shouldClear={shouldClearEditor}
-                                        onCleared={handleEditorCleared}
-                                        disabled={isGenerating}
-                                    />
-                                </Box>
+                            <Box className={styles.editorContainer}>
+                                <AiPromptEditor
+                                    explore={explore}
+                                    metricQuery={metricQuery}
+                                    onUpdate={handleEditorUpdate}
+                                    onSubmit={submit}
+                                    shouldClear={shouldClearEditor}
+                                    onCleared={handleEditorCleared}
+                                    disabled={isGenerating}
+                                />
                                 <ActionIcon
                                     size="sm"
                                     radius="xl"
                                     onClick={handleArrowClick}
                                     disabled={isGenerating}
                                     loading={isGenerating}
+                                    className={styles.generateButton}
                                     aria-label="Submit"
                                 >
                                     <MantineIcon
                                         icon={IconArrowUp}
                                         color="ldGray.0"
-                                        size={14}
+                                        size={16}
                                         stroke={2}
                                     />
                                 </ActionIcon>

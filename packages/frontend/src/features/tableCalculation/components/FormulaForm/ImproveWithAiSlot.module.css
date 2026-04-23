@@ -35,13 +35,29 @@
     cursor: not-allowed;
 }
 
-.promptRow {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
+.editorContainer {
+    position: relative;
 }
 
-.promptField {
-    flex: 1;
-    min-width: 0;
+.generateButton {
+    position: absolute;
+    right: var(--mantine-spacing-xs);
+    bottom: var(--mantine-spacing-xs);
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0);
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
 }
