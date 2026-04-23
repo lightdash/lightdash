@@ -131,11 +131,8 @@ module.exports = {
                 'src/services/ShareService/**/*.ts',
                 'src/services/SlackIntegrationService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
-<<<<<<< sdolidze/org-audited-ability
                 'src/services/OrganizationService/**/*.ts',
-=======
                 'src/services/SpotlightService/**/*.ts',
->>>>>>> main
                 'src/services/UnfurlService/**/*.ts',
                 'src/services/UserAttributesService/**/*.ts',
                 'src/services/UserService.ts',
