@@ -1771,10 +1771,17 @@ export class AppGenerateService extends BaseService {
                     anthropicApiKey,
                 );
                 if (metadata) {
-                    await this.appModel.updateApp(appUuid, projectUuid, {
-                        name: metadata.name,
-                        description: metadata.description,
-                    });
+                    // Only fills fields the user hasn't already set — the
+                    // build is async, so by the time we get here the user
+                    // may have renamed the app themselves.
+                    await this.appModel.setMetadataIfUnset(
+                        appUuid,
+                        projectUuid,
+                        {
+                            name: metadata.name,
+                            description: metadata.description,
+                        },
+                    );
                     this.logger.info(
                         `App ${appUuid}: auto-named "${metadata.name}"`,
                     );
