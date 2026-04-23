@@ -1,6 +1,8 @@
 import type { Explore } from '../../types/explore';
 import {
     convertFieldRefToFieldId,
+    isCustomBinDimension,
+    isCustomSqlDimension,
     MetricType,
     type FieldId,
 } from '../../types/field';
@@ -867,8 +869,42 @@ const getMissForDef = ({
         defDimensions.add(preAggregateDef.timeDimension);
     }
 
+    const missingCustomDimension = (metricQuery.customDimensions || []).find(
+        (customDimension) => {
+            if (isCustomSqlDimension(customDimension)) {
+                return true;
+            }
+
+            return (
+                isCustomBinDimension(customDimension) &&
+                !dimensionFieldIdMatchesDef(
+                    customDimension.dimensionId,
+                    explore,
+                    defDimensions,
+                    dimensionsByFieldId,
+                )
+            );
+        },
+    );
+    if (missingCustomDimension) {
+        if (isCustomSqlDimension(missingCustomDimension)) {
+            return {
+                reason: PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT,
+            };
+        }
+
+        return {
+            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: getItemId(missingCustomDimension),
+        };
+    }
+
+    const customDimensionIds = new Set(
+        (metricQuery.customDimensions || []).map(getItemId),
+    );
     const missingQueryDimensionFieldId = metricQuery.dimensions.find(
         (dimensionFieldId) =>
+            !customDimensionIds.has(dimensionFieldId) &&
             !dimensionFieldIdMatchesDef(
                 dimensionFieldId,
                 explore,
@@ -934,16 +970,6 @@ export const findMatch = (
             preAggregateName: null,
             miss: {
                 reason: PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED,
-            },
-        };
-    }
-
-    if ((metricQuery.customDimensions || []).length > 0) {
-        return {
-            hit: false,
-            preAggregateName: null,
-            miss: {
-                reason: PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT,
             },
         };
     }
