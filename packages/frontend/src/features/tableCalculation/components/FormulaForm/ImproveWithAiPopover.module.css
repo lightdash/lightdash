@@ -1,6 +1,6 @@
 .trigger {
     position: absolute;
-    top: var(--mantine-spacing-sm);
+    bottom: var(--mantine-spacing-sm);
     right: var(--mantine-spacing-sm);
     display: inline-flex;
     align-items: center;

@@ -18,6 +18,7 @@ import { useFormulaValidation } from '../../hooks/useFormulaValidation';
 import { FormulaEditor } from './FormulaEditor';
 import classes from './FormulaForm.module.css';
 import { ImproveWithAiPopover } from './ImproveWithAiPopover';
+import { getInputMode } from './inputMode';
 
 type Props = {
     explore: Explore | undefined;
@@ -162,7 +163,7 @@ export const FormulaForm: FC<Props> = ({
                         hasAiError={!!aiError}
                     />
                 </Box>
-                {aiEnabled && initialFormula && (
+                {aiEnabled && getInputMode(formula) === 'formula' && (
                     <ImproveWithAiPopover
                         explore={explore}
                         metricQuery={metricQuery}
