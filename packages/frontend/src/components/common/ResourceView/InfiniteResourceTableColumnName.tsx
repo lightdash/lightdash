@@ -1,4 +1,5 @@
 import {
+    isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
     isResourceViewSpaceItem,
@@ -148,6 +149,8 @@ const InfiniteResourceTableColumnName = ({
     const isSpace = isResourceViewSpaceItem(item);
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
+    const showTypeAndViews =
+        isChartOrDashboard || isResourceViewDataAppItem(item);
 
     const hasValidationErrors =
         isChartOrDashboard &&
@@ -212,7 +215,7 @@ const InfiniteResourceTableColumnName = ({
                                 </Box>
                             )}
                     </Group>
-                    {isChartOrDashboard && (
+                    {showTypeAndViews && (
                         <Text fz={12} c="ldGray.6">
                             {getResourceTypeName(item)} •{' '}
                             <Tooltip
