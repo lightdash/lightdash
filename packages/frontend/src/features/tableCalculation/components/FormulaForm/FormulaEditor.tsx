@@ -6,7 +6,6 @@ import {
 } from '@lightdash/common';
 import { listFunctions } from '@lightdash/formula';
 import { Box } from '@mantine-8/core';
-import { clsx } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -83,22 +82,54 @@ function buildInitialContent(
     };
 }
 
-const previewPluginKey = new PluginKey('formulaPreviewGhost');
+type GhostState = {
+    getPreview: () => string | null;
+    getShowTab: () => boolean;
+    getShowRetry: () => boolean;
+};
 
-const buildPreviewPlugin = (getSuffix: () => string | null) =>
+const ghostPluginKey = new PluginKey('formulaGhostPreview');
+
+const buildGhostPlugin = (state: GhostState) =>
     new Plugin({
-        key: previewPluginKey,
+        key: ghostPluginKey,
         props: {
-            decorations(state) {
-                const suffix = getSuffix();
-                if (!suffix) return DecorationSet.empty;
-                const end = state.doc.content.size;
-                const widget = document.createElement('span');
-                widget.className = 'formula-preview-ghost';
-                widget.textContent = ` → ${suffix}`;
-                widget.setAttribute('aria-hidden', 'true');
-                return DecorationSet.create(state.doc, [
-                    Decoration.widget(end - 1, widget, { side: 1 }),
+            decorations(docState) {
+                const preview = state.getPreview();
+                const showTab = state.getShowTab();
+                const showRetry = state.getShowRetry();
+                if (!preview && !showTab && !showRetry)
+                    return DecorationSet.empty;
+
+                // Anchor at the end of the last text position so the widget flows
+                // inline with the user's cursor. `content.size - 1` lands inside
+                // the closing paragraph token, which for a single-paragraph doc
+                // (what this editor allows) is always a valid inline position.
+                const end = docState.doc.content.size;
+                const anchor = Math.max(0, end - 1);
+
+                const container = document.createElement('span');
+                container.className = 'formula-ghost-container';
+                container.setAttribute('aria-hidden', 'true');
+
+                if (preview) {
+                    const ghost = document.createElement('span');
+                    ghost.className = 'formula-preview-ghost';
+                    ghost.textContent = ` → ${preview}`;
+                    container.appendChild(ghost);
+                }
+
+                if (showTab || showRetry) {
+                    const badge = document.createElement('span');
+                    badge.className = showRetry
+                        ? 'formula-inline-chip formula-inline-chip--retry'
+                        : 'formula-inline-chip';
+                    badge.textContent = showRetry ? '✦ Retry' : '✦ Tab';
+                    container.appendChild(badge);
+                }
+
+                return DecorationSet.create(docState.doc, [
+                    Decoration.widget(anchor, container, { side: 1 }),
                 ]);
             },
         },
@@ -155,6 +186,8 @@ export const FormulaEditor: FC<Props> = ({
     onTabInPromptModeRef.current = onTabInPromptMode;
     const previewSuffixRef = useRef<string | null>(previewSuffix);
     previewSuffixRef.current = previewSuffix;
+    const showTabHintRef = useRef(false);
+    const showRetryHintRef = useRef(false);
 
     const fieldSuggestions: FieldSuggestionItem[] = useMemo(() => {
         if (!explore) return [];
@@ -314,28 +347,34 @@ export const FormulaEditor: FC<Props> = ({
         editor.view.dispatch(editor.state.tr);
     }, [editor, placeholder]);
 
-    // Register the preview decoration plugin once the editor is ready, and
+    const showRetryHint =
+        aiEnabled && hasAiError && !isGenerating && mode === 'prompt';
+    const showTabHint =
+        aiEnabled && !hasAiError && !isGenerating && mode === 'prompt';
+
+    showTabHintRef.current = showTabHint;
+    showRetryHintRef.current = showRetryHint;
+
+    // Register the ghost decoration plugin once the editor is ready, and
     // unregister it on cleanup. An empty transaction re-runs decorations when
-    // previewSuffix changes so the ref value is picked up by the plugin.
+    // any of the ghost state sources change so the ref values are picked up.
     useEffect(() => {
         if (!editor) return;
-        editor.registerPlugin(
-            buildPreviewPlugin(() => previewSuffixRef.current),
-        );
+        const plugin = buildGhostPlugin({
+            getPreview: () => previewSuffixRef.current,
+            getShowTab: () => showTabHintRef.current,
+            getShowRetry: () => showRetryHintRef.current,
+        });
+        editor.registerPlugin(plugin);
         return () => {
-            editor.unregisterPlugin(previewPluginKey);
+            editor.unregisterPlugin(ghostPluginKey);
         };
     }, [editor]);
 
     useEffect(() => {
         if (!editor) return;
         editor.view.dispatch(editor.state.tr);
-    }, [editor, previewSuffix]);
-
-    const showRetryHint =
-        aiEnabled && hasAiError && !isGenerating && mode === 'prompt';
-    const showTabHint =
-        aiEnabled && !hasAiError && !isGenerating && mode === 'prompt';
+    }, [editor, previewSuffix, showTabHint, showRetryHint]);
 
     return (
         <Box className={styles.container}>
@@ -355,17 +394,6 @@ export const FormulaEditor: FC<Props> = ({
                     />
                 </Box>
             </RichTextEditor>
-            {(showTabHint || showRetryHint) && (
-                <span
-                    className={clsx(
-                        styles.tabHint,
-                        showRetryHint && styles.tabHintRetry,
-                    )}
-                    aria-hidden
-                >
-                    ✦ {showRetryHint ? 'Retry' : 'Tab'}
-                </span>
-            )}
         </Box>
     );
 };

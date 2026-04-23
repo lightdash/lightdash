@@ -35,7 +35,7 @@ const AI_GENERIC_ERROR =
     "Couldn't generate a formula — try rephrasing or write it yourself.";
 
 const PREVIEW_DEBOUNCE_MS = 800;
-const PREVIEW_MIN_LENGTH = 10;
+const PREVIEW_MIN_LENGTH = 5;
 
 export const FormulaForm: FC<Props> = ({
     explore,
@@ -69,6 +69,8 @@ export const FormulaForm: FC<Props> = ({
         new Map(),
     );
     const pendingPreviewPrompt = useRef<string | null>(null);
+    const currentFormulaRef = useRef(formula);
+    currentFormulaRef.current = formula;
 
     useEffect(() => {
         onValidationChange(error);
@@ -121,7 +123,7 @@ export const FormulaForm: FC<Props> = ({
             const expected = pendingPreviewPrompt.current;
             if (!expected) return;
             previewCache.current.set(expected, result);
-            const currentTrimmed = formula.trim();
+            const currentTrimmed = currentFormulaRef.current.trim();
             if (currentTrimmed === expected) {
                 setPreviewSuffix(result.formula);
             }
@@ -181,7 +183,12 @@ export const FormulaForm: FC<Props> = ({
         return () => {
             clearTimeout(timer);
         };
-    }, [formula, aiEnabled, runPreview]);
+        // `runPreview` is intentionally excluded: the hook recreates the callback
+        // whenever its mutation state flips (e.g. isLoading toggle), which would
+        // otherwise cancel and reschedule the timer mid-request. Excluding it is
+        // safe — the underlying hook aborts in-flight requests on re-fire.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formula, aiEnabled]);
 
     const generateFromPrompt = useCallback(
         (prompt: string, isEdit: boolean) => {

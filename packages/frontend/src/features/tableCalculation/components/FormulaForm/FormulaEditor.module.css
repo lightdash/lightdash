@@ -60,14 +60,19 @@
     }
 }
 
-.tabHint {
-    position: absolute;
-    bottom: var(--mantine-spacing-sm);
-    right: var(--mantine-spacing-sm);
+.container :global(.formula-ghost-container) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    vertical-align: baseline;
+}
+
+.container :global(.formula-inline-chip) {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 6px;
+    padding: 1px 6px;
     border-radius: var(--mantine-radius-sm);
     font-family: var(--mantine-font-family);
     font-size: 10px;
@@ -84,7 +89,7 @@
     }
 }
 
-.tabHintRetry {
+.container :global(.formula-inline-chip--retry) {
     background-color: var(--mantine-color-red-1);
     color: var(--mantine-color-red-7);
 
