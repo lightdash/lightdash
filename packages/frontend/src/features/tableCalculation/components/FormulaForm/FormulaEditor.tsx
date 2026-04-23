@@ -86,6 +86,7 @@ type GhostState = {
     getPreview: () => string | null;
     getShowTab: () => boolean;
     getShowRetry: () => boolean;
+    getShowLoading: () => boolean;
 };
 
 const ghostPluginKey = new PluginKey('formulaGhostPreview');
@@ -94,18 +95,19 @@ const buildGhostPlugin = (state: GhostState) =>
     new Plugin({
         key: ghostPluginKey,
         props: {
-            decorations(docState) {
+            decorations(editorState) {
                 const preview = state.getPreview();
                 const showTab = state.getShowTab();
                 const showRetry = state.getShowRetry();
-                if (!preview && !showTab && !showRetry)
+                const showLoading = state.getShowLoading();
+                if (!preview && !showTab && !showRetry && !showLoading) {
                     return DecorationSet.empty;
+                }
 
-                // Anchor at the end of the last text position so the widget flows
-                // inline with the user's cursor. `content.size - 1` lands inside
-                // the closing paragraph token, which for a single-paragraph doc
-                // (what this editor allows) is always a valid inline position.
-                const end = docState.doc.content.size;
+                // `content.size - 1` lands inside the closing paragraph token,
+                // which for this single-paragraph editor is always a valid
+                // inline position.
+                const end = editorState.doc.content.size;
                 const anchor = Math.max(0, end - 1);
 
                 const container = document.createElement('span');
@@ -117,6 +119,13 @@ const buildGhostPlugin = (state: GhostState) =>
                     ghost.className = 'formula-preview-ghost';
                     ghost.textContent = ` → ${preview}`;
                     container.appendChild(ghost);
+                } else if (showLoading) {
+                    const loader = document.createElement('span');
+                    loader.className = 'formula-preview-loading';
+                    loader.appendChild(document.createElement('span'));
+                    loader.appendChild(document.createElement('span'));
+                    loader.appendChild(document.createElement('span'));
+                    container.appendChild(loader);
                 }
 
                 if (showTab || showRetry) {
@@ -128,7 +137,7 @@ const buildGhostPlugin = (state: GhostState) =>
                     container.appendChild(badge);
                 }
 
-                return DecorationSet.create(docState.doc, [
+                return DecorationSet.create(editorState.doc, [
                     Decoration.widget(anchor, container, { side: 1 }),
                 ]);
             },
@@ -153,6 +162,8 @@ type Props = {
     hasAiError?: boolean;
     /** Inline ghost preview appended to the content (read-only hint). */
     previewSuffix?: string | null;
+    /** Preview request in flight; shows a subtle loading indicator inline. */
+    isPreviewing?: boolean;
 };
 
 const PLACEHOLDER_FORMULA =
@@ -172,6 +183,7 @@ export const FormulaEditor: FC<Props> = ({
     isGenerating = false,
     hasAiError = false,
     previewSuffix = null,
+    isPreviewing = false,
 }) => {
     const [currentText, setCurrentText] = useState(initialContent ?? '');
     const mode = getInputMode(currentText);
@@ -186,6 +198,8 @@ export const FormulaEditor: FC<Props> = ({
     onTabInPromptModeRef.current = onTabInPromptMode;
     const previewSuffixRef = useRef<string | null>(previewSuffix);
     previewSuffixRef.current = previewSuffix;
+    const isPreviewingRef = useRef(isPreviewing);
+    isPreviewingRef.current = isPreviewing;
     const showTabHintRef = useRef(false);
     const showRetryHintRef = useRef(false);
 
@@ -364,6 +378,7 @@ export const FormulaEditor: FC<Props> = ({
             getPreview: () => previewSuffixRef.current,
             getShowTab: () => showTabHintRef.current,
             getShowRetry: () => showRetryHintRef.current,
+            getShowLoading: () => isPreviewingRef.current,
         });
         editor.registerPlugin(plugin);
         return () => {
@@ -374,7 +389,7 @@ export const FormulaEditor: FC<Props> = ({
     useEffect(() => {
         if (!editor) return;
         editor.view.dispatch(editor.state.tr);
-    }, [editor, previewSuffix, showTabHint, showRetryHint]);
+    }, [editor, previewSuffix, showTabHint, showRetryHint, isPreviewing]);
 
     return (
         <Box className={styles.container}>

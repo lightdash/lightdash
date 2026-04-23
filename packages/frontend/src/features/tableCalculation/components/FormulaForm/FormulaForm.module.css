@@ -66,6 +66,17 @@
     }
 }
 
+.generating {
+    flex-shrink: 0;
+    padding-inline: var(--mantine-spacing-xxs);
+    padding-top: var(--mantine-spacing-xxs);
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
 .helpHint {
     flex-shrink: 0;
     padding: var(--mantine-spacing-sm);

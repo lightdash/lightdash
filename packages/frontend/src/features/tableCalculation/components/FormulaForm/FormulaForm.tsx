@@ -3,7 +3,7 @@ import {
     type GeneratedFormulaTableCalculation,
     type MetricQuery,
 } from '@lightdash/common';
-import { Anchor, Box, Flex, Group, Text } from '@mantine-8/core';
+import { Anchor, Box, Flex, Group, Loader, Text } from '@mantine-8/core';
 import { IconInfoCircle, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -115,21 +115,22 @@ export const FormulaForm: FC<Props> = ({
         },
     });
 
-    const { generate: runPreview } = useGenerateFormulaTableCalculation({
-        projectUuid,
-        explore,
-        metricQuery,
-        onSuccess: (result) => {
-            const expected = pendingPreviewPrompt.current;
-            if (!expected) return;
-            previewCache.current.set(expected, result);
-            const currentTrimmed = currentFormulaRef.current.trim();
-            if (currentTrimmed === expected) {
-                setPreviewSuffix(result.formula);
-            }
-            pendingPreviewPrompt.current = null;
-        },
-    });
+    const { generate: runPreview, isLoading: isPreviewing } =
+        useGenerateFormulaTableCalculation({
+            projectUuid,
+            explore,
+            metricQuery,
+            onSuccess: (result) => {
+                const expected = pendingPreviewPrompt.current;
+                if (!expected) return;
+                previewCache.current.set(expected, result);
+                const currentTrimmed = currentFormulaRef.current.trim();
+                if (currentTrimmed === expected) {
+                    setPreviewSuffix(result.formula);
+                }
+                pendingPreviewPrompt.current = null;
+            },
+        });
 
     // Drop caption once the user edits after generation.
     useEffect(() => {
@@ -237,6 +238,7 @@ export const FormulaForm: FC<Props> = ({
                         aiEnabled={aiEnabled}
                         onTabInPromptMode={handleTab}
                         isGenerating={isGenerating}
+                        isPreviewing={isPreviewing}
                         hasAiError={!!aiError}
                         previewSuffix={previewSuffix}
                     />
@@ -276,6 +278,14 @@ export const FormulaForm: FC<Props> = ({
             {error && <Text className={classes.errorText}>{error}</Text>}
             {aiError && !error && (
                 <Text className={classes.errorText}>{aiError}</Text>
+            )}
+            {isGenerating && pendingPrompt && (
+                <Group gap={6} wrap="nowrap" className={classes.generating}>
+                    <Loader size="xs" color="indigo.4" />
+                    <Text span inherit>
+                        Generating from &ldquo;{pendingPrompt}&rdquo;…
+                    </Text>
+                </Group>
             )}
             {provenancePrompt && !aiError && (
                 <Group gap={6} wrap="nowrap" className={classes.provenance}>
