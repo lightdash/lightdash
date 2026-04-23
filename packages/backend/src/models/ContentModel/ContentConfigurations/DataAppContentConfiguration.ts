@@ -114,8 +114,10 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     `last_updated_by_user.first_name       as last_updated_by_user_first_name`,
                     `last_updated_by_user.last_name        as last_updated_by_user_last_name`,
 
-                    knex.raw(`0 as views`),
-                    knex.raw(`NULL::timestamp as first_viewed_at`),
+                    `${AppsTableName}.views_count as views`,
+                    knex.raw(
+                        `${AppsTableName}.created_at::timestamp as first_viewed_at`,
+                    ),
                     knex.raw(
                         `${AppsTableName}.deleted_at::timestamp as deleted_at`,
                     ),

@@ -201,6 +201,8 @@ query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).l
 
 **Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
 
+The query inspector shows for each query: the label, status, row count, duration, explore name, dimensions, and metrics. If present, it also shows table calculations and additional metrics. Write clear labels so users can match each inspector entry to the component it powers.
+
 ### Table calculations
 
 Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
@@ -290,6 +292,125 @@ type Filter = {
 import { useLightdashClient } from '@lightdash/query-sdk';
 const client = useLightdashClient();
 const user = await client.auth.getUser();
+```
+
+## Required UX Patterns
+
+### Loading states
+
+Every component that uses `useLightdash()` **must** show a loading spinner while `loading` is true. Never render an empty chart or table while waiting for data.
+
+**Keep the surrounding UI stable during loading.** Cards, headings, and layout should always render — only the data-driven content (chart, table body, KPI value) should be replaced with a spinner. This prevents the page from flashing or reflowing when data arrives.
+
+```tsx
+import { Loader2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+
+export function RevenueCard() {
+    const { data, format, loading, error } = useLightdash(revenueQuery);
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="flex items-center justify-center h-[300px]">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : error ? (
+                    <p className="text-red-500">Error: {error.message}</p>
+                ) : (
+                    /* render chart / table / KPI here */
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+```
+
+Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. Give the spinner container the same height as the content it replaces so layout doesn't shift.
+
+### Dashboard cross-filtering
+
+When building a dashboard-style app with multiple charts or cards, **every visualization must act as a cross-filter by default**. Clicking a bar, slice, row, or data point should filter the other components to match the clicked value.
+
+Implementation pattern:
+1. Lift a shared `filters` state to the dashboard container
+2. On click, extract the dimension value and add/toggle it in the shared filter state
+3. Pass the filters into each query via `.filters()`
+4. Show active filters as dismissible pills/badges above the dashboard
+
+```tsx
+const [activeFilters, setActiveFilters] = useState<Filter[]>([]);
+
+// Each chart query derives from a base with active filters applied
+const chartQuery = useMemo(
+    () => baseQuery.filters([...baseFilters, ...activeFilters]),
+    [activeFilters],
+);
+```
+
+Skip cross-filtering only if the user explicitly says not to.
+
+### Table interactions
+
+Every table component must include these standard interactions:
+
+1. **Row hover highlight** — highlight the row under the cursor
+2. **Copy cell** — clicking a cell copies its formatted value to the clipboard (show a brief toast confirmation)
+3. **Copy table as CSV** — a button above the table copies all rows as CSV to the clipboard
+4. **Scrollable with max height** — tables should be at most ~600px tall and scroll vertically within that. Use `ScrollArea` for the table body. Unless the user specifies a different height, default to `max-h-[600px]`.
+
+```tsx
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Copy } from 'lucide-react';
+
+function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+}
+
+function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
+    const header = columns.map((c) => c.label).join(',');
+    const rows = data.map((row) =>
+        columns.map((c) => `"${format(row, c.name).replace(/"/g, '""')}"`).join(','),
+    );
+    return [header, ...rows].join('\n');
+}
+
+// Table header area
+<div className="flex justify-between items-center mb-2">
+    <h3>Results</h3>
+    <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
+        <Copy className="h-4 w-4 mr-1" /> Copy CSV
+    </Button>
+</div>
+
+// Scrollable table with sticky header
+<ScrollArea className="max-h-[600px] rounded-md border">
+    <Table>
+        <TableHeader className="sticky top-0 bg-background z-10">
+            {/* header row */}
+        </TableHeader>
+        <TableBody>
+            {data.map((row, i) => (
+                <TableRow key={i} className="hover:bg-muted">
+                    {columns.map((col) => (
+                        <TableCell
+                            key={col.name}
+                            className="cursor-pointer"
+                            onClick={() => copyToClipboard(format(row, col.name))}
+                        >
+                            {format(row, col.name)}
+                        </TableCell>
+                    ))}
+                </TableRow>
+            ))}
+        </TableBody>
+    </Table>
+</ScrollArea>
 ```
 
 ## Common Pitfalls

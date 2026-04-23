@@ -80,6 +80,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AppGenerateService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
+                    analyticsModel: models.getAnalyticsModel(),
                     catalogModel: models.getCatalogModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
