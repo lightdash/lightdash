@@ -94,7 +94,15 @@ export type GenerateFormulaTableCalculationGenerated = BaseTrack & {
         organizationId: string;
         projectId: string;
         userId: string;
-        mode: 'prompt' | 'convert-sql';
+    };
+};
+
+export type ConvertSqlToFormulaGenerated = BaseTrack & {
+    event: 'ai.formula_table_calculation.converted_from_sql';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
     };
 };
 

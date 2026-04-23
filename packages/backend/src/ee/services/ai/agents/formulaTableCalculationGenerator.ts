@@ -255,7 +255,7 @@ ${fieldReferenceGuide}
 ${buildExistingNamesBlock(context.existingTableCalculations)}`;
 }
 
-export function buildUserContent(
+function buildUserContent(
     context: FormulaTableCalculationContext,
     fieldReferenceGuide: string,
 ): string {

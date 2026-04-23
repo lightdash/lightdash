@@ -69,8 +69,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
-import useTracking from '../../../providers/Tracking/useTracking';
-import { EventName } from '../../../types/Events';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
@@ -146,7 +144,6 @@ const TableCalculationModal: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
-    const { track } = useTracking();
 
     // Formula support is pinned to what the formula package can compile for
     // this warehouse. The backend mapper throws for unsupported adapters, so
@@ -337,11 +334,8 @@ const TableCalculationModal: FC<Props> = ({
     }, [opened, resetConversion]);
 
     const handleConvertClick = useCallback(() => {
-        track({
-            name: EventName.FORMULA_TABLE_CALCULATION_CONVERT_CLICKED,
-        });
         convertSqlToFormula(form.values.sql);
-    }, [convertSqlToFormula, form.values.sql, track]);
+    }, [convertSqlToFormula, form.values.sql]);
 
     const handleConvertApply = useCallback(() => {
         if (!conversionResult) return;
@@ -357,11 +351,8 @@ const TableCalculationModal: FC<Props> = ({
             form.setFieldValue('format', conversionResult.format);
         }
         setFormulaGeneratedByAi(true);
-        track({
-            name: EventName.FORMULA_TABLE_CALCULATION_CONVERT_APPLIED,
-        });
         resetConversion();
-    }, [conversionResult, form, resetConversion, track]);
+    }, [conversionResult, form, resetConversion]);
 
     const handleConvertDiscard = useCallback(() => {
         resetConversion();
