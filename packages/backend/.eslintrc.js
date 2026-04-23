@@ -117,6 +117,7 @@ module.exports = {
                 'src/services/GdriveService/**/*.ts',
                 'src/services/GithubAppService/**/*.ts',
                 'src/services/GitlabAppService/**/*.ts',
+                'src/services/GroupService.ts',
                 'src/services/OAuthService/**/*.ts',
                 'src/services/PersonalAccessTokenService.ts',
                 'src/services/PinningService/**/*.ts',
