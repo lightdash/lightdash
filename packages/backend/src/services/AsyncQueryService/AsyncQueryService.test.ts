@@ -110,6 +110,7 @@ const makeMockStrategy = (
     cleanupStats: jest.fn(async () => 0),
     getStats: noOpStrategy.getStats.bind(noOpStrategy),
     getResultsStorageClient: jest.fn(() => undefined),
+    auditDashboard: noOpStrategy.auditDashboard.bind(noOpStrategy),
 });
 
 // Import the mocked function

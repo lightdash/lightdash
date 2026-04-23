@@ -17,6 +17,7 @@ import {
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardFilters,
+    DashboardPreAggregateAudit,
     DEFAULT_RESULTS_PAGE_SIZE,
     derivePivotConfigurationFromChart,
     Dimension,
@@ -6108,5 +6109,29 @@ export class AsyncQueryService extends ProjectService {
             paginateArgs,
             filters,
         );
+    }
+
+    async getDashboardPreAggregateAudit(
+        account: Account,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<DashboardPreAggregateAudit> {
+        assertIsAccountWithOrg(account);
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+            throw new ForbiddenError();
+        }
+
+        return this.preAggregateStrategy.auditDashboard({
+            account,
+            projectUuid,
+            dashboard,
+        });
     }
 }
