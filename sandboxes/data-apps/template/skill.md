@@ -332,27 +332,107 @@ export function RevenueCard() {
 
 Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. Give the spinner container the same height as the content it replaces so layout doesn't shift.
 
-### Dashboard cross-filtering
+### Data interactions — action menu
 
-When building a dashboard-style app with multiple charts or cards, **every visualization must act as a cross-filter by default**. Clicking a bar, slice, row, or data point should filter the other components to match the clicked value.
+When a user clicks a data point (bar, slice, row, cell), **show an action menu** with contextual options. This is the default interaction pattern for all charts and tables in dashboard-style apps. The menu typically offers:
 
-Implementation pattern:
-1. Lift a shared `filters` state to the dashboard container
-2. On click, extract the dimension value and add/toggle it in the shared filter state
-3. Pass the filters into each query via `.filters()`
-4. Show active filters as dismissible pills/badges above the dashboard
+1. **Filter by this value** — cross-filter other components on the dashboard
+2. **Drill down** — see this metric broken down by another dimension
+
+Use the `DropdownMenu` component for this. The menu opens on click, and each option triggers its respective action.
+
+```tsx
+import { useState, useMemo } from 'react';
+import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+function InteractiveChart({ baseQuery, activeFilters, onFilter }) {
+    const chartQuery = useMemo(
+        () => baseQuery.filters([...activeFilters]),
+        [activeFilters],
+    );
+    const { data, format, loading } = useLightdash(chartQuery);
+    const [menuState, setMenuState] = useState(null); // { row, x, y }
+    const [drillState, setDrillState] = useState(null); // { query, title }
+
+    return (
+        <>
+            <BarChart data={data} onClick={(e) => {
+                if (e?.activePayload?.[0]) {
+                    setMenuState({
+                        row: e.activePayload[0].payload,
+                        x: e.chartX,
+                        y: e.chartY,
+                    });
+                }
+            }}>
+                {/* ... bars, axes, etc. */}
+            </BarChart>
+
+            {menuState && (
+                <DropdownMenu open onOpenChange={() => setMenuState(null)}>
+                    <DropdownMenuTrigger asChild>
+                        <div className="fixed" style={{ left: menuState.x, top: menuState.y }} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => {
+                            onFilter(menuState.row);
+                            setMenuState(null);
+                        }}>
+                            Filter by this value
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                            const row = menuState.row;
+                            setDrillState({
+                                query: drillDown({
+                                    sourceQuery: baseQuery,
+                                    metric: 'total_revenue',
+                                    dimension: 'order_date',
+                                    row,
+                                }),
+                                title: `Revenue for ${format(row, 'customer_segment')}`,
+                            });
+                            setMenuState(null);
+                        }}>
+                            Drill into revenue
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
+
+            {drillState && (
+                <Dialog open onOpenChange={() => setDrillState(null)}>
+                    <DialogContent className="max-w-3xl">
+                        <DialogHeader><DialogTitle>{drillState.title}</DialogTitle></DialogHeader>
+                        <DrillResults query={drillState.query} />
+                    </DialogContent>
+                </Dialog>
+            )}
+        </>
+    );
+}
+```
+
+**This is the default.** If the user explicitly asks for a different interaction (e.g., "clicking should always filter" or "no drill-down needed"), follow their instructions. But when building dashboard-style apps without specific guidance, always use the action menu pattern.
+
+#### Cross-filtering implementation
+
+Lift a shared `filters` state to the dashboard container. The `onFilter` callback adds/toggles a filter, and each chart query includes the active filters:
 
 ```tsx
 const [activeFilters, setActiveFilters] = useState<Filter[]>([]);
 
-// Each chart query derives from a base with active filters applied
-const chartQuery = useMemo(
-    () => baseQuery.filters([...baseFilters, ...activeFilters]),
-    [activeFilters],
-);
-```
+function handleFilter(row) {
+    const value = row['customer_segment'];
+    setActiveFilters((prev) => {
+        const exists = prev.some((f) => f.field === 'customer_segment' && f.value === value);
+        if (exists) return prev.filter((f) => !(f.field === 'customer_segment' && f.value === value));
+        return [...prev, { field: 'customer_segment', operator: 'equals', value }];
+    });
+}
 
-Skip cross-filtering only if the user explicitly says not to.
+// Show active filters as dismissible badges above the dashboard
+```
 
 ### Table interactions
 
@@ -413,6 +493,88 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
 </ScrollArea>
 ```
 
+## `drillDown()` Reference
+
+`drillDown()` builds a new query from a clicked row. Import it alongside `query` and `useLightdash`:
+
+```ts
+import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
+```
+
+### API
+
+```ts
+drillDown({
+    sourceQuery,   // The QueryBuilder that produced the clicked data
+    metric,        // Which metric to drill into (string)
+    dimension,     // Which dimension to drill by (string)
+    row,           // The clicked row from useLightdash data
+    label,         // Optional label for query inspector
+}) // → QueryBuilder
+```
+
+**Do not pass a `label`** — the default label is automatically prefixed with `[Drill down]` (e.g., `[Drill down] total_revenue by order_date`), which makes drill queries easy to identify in the query inspector.
+
+The returned `QueryBuilder` has:
+- The drill-by dimension as the sole dimension
+- The drilled metric
+- Equality filters from every dimension value in the clicked row
+- All existing filters from the source query preserved
+
+Pass the result to `useLightdash()` to execute it.
+
+### Choosing the drill dimension
+
+Pick a dimension that gives meaningful detail for the metric:
+- Revenue by month → drill by day or by product
+- Total by segment → drill by individual customer
+- Summary by region → drill by city
+
+The agent decides the drill dimension at build time from the dbt YAML. For user-selectable drill dimensions, use a `<Select>` populated with dimension options:
+
+```tsx
+const [drillDim, setDrillDim] = useState('order_date');
+// In the menu item onClick:
+setDrillQuery(drillDown({ sourceQuery, metric: 'total_revenue', dimension: drillDim, row }));
+```
+
+### Displaying drill results
+
+**Always show the filtered value in the dialog title** — e.g., "Revenue for Enterprise" or "Orders for 2024-01". This tells the user what they clicked. Store both the drill query and a descriptive title together in state (as `{ query, title }`).
+
+Show drill results in a `Dialog`. Use a separate component so `useLightdash` runs only when the dialog is open:
+
+```tsx
+function DrillResults({ query: q }) {
+    const { data, columns, format, loading, error } = useLightdash(q);
+
+    if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+    if (error) return <p className="text-red-500">Error: {error.message}</p>;
+    if (data.length === 0) return <p className="text-muted-foreground">No results</p>;
+
+    return (
+        <ScrollArea className="max-h-[400px]">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        {columns.map((col) => <TableHead key={col.name}>{col.label}</TableHead>)}
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {data.map((row, i) => (
+                        <TableRow key={i}>
+                            {columns.map((col) => (
+                                <TableCell key={col.name}>{format(row, col.name)}</TableCell>
+                            ))}
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </ScrollArea>
+    );
+}
+```
+
 ## Common Pitfalls
 
 | Mistake | Why it breaks | Fix |
@@ -429,3 +591,6 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
+| Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
+| Transparent popover/dialog/dropdown backgrounds | Content unreadable over charts | Always add `bg-white` (or `bg-popover`) class to `DropdownMenuContent`, `DialogContent`, and popover containers |
+| Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
