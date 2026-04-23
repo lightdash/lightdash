@@ -104,9 +104,8 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
     applyTimezoneShiftToEchartsOptions,
-    detectTimezoneShiftedField,
+    resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
-    type TimezoneShiftedField,
 } from './timezoneShift';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
@@ -2416,21 +2415,15 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
-    const timezoneShiftedField = useMemo<TimezoneShiftedField | undefined>(
+    const { shiftedField, axisTimezone, axisDisplayTimezone } = useMemo(
         () =>
-            detectTimezoneShiftedField({
+            resolveAxisTimezone({
                 validCartesianConfig,
                 itemsMap,
                 resolvedTimezone,
             }),
         [resolvedTimezone, validCartesianConfig, itemsMap],
     );
-
-    // Axis labels render pre-shifted values; the formatter just relabels via displayTimezone.
-    const axisTimezone = timezoneShiftedField ? undefined : resolvedTimezone;
-    const axisDisplayTimezone = timezoneShiftedField
-        ? resolvedTimezone
-        : undefined;
 
     const tooltipConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -3158,7 +3151,8 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
-                timezone: resolvedTimezone,
+                timezone: axisTimezone,
+                displayTimezone: axisDisplayTimezone,
             }),
         };
     }, [
@@ -3175,7 +3169,8 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
-        resolvedTimezone,
+        axisTimezone,
+        axisDisplayTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid
@@ -3520,7 +3515,7 @@ const useEchartsCartesianConfig = (
     const eChartsOptions = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
-        const flipAxes = !!validCartesianConfig?.layout?.flipAxes;
+        const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
         const baseOptions = {
             xAxis: sortedAxes.xAxis,
@@ -3566,12 +3561,8 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return timezoneShiftedField
-            ? applyTimezoneShiftToEchartsOptions(
-                  baseOptions,
-                  timezoneShiftedField,
-                  flipAxes,
-              )
+        return shiftedField
+            ? applyTimezoneShiftToEchartsOptions(baseOptions, shiftedField)
             : baseOptions;
     }, [
         sortedAxes,
@@ -3584,7 +3575,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
-        timezoneShiftedField,
+        shiftedField,
     ]);
 
     if (

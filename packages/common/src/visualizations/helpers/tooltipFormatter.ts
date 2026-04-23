@@ -349,16 +349,7 @@ const getHeader = (
     displayTimezone?: string,
 ): string => {
     const firstParam = params[0];
-
-    // Prefer raw row value: true UTC even when the axis uses a shifted synthetic dim.
-    const dataXValue =
-        xFieldId &&
-        firstParam?.data &&
-        typeof firstParam.data === 'object' &&
-        !Array.isArray(firstParam.data)
-            ? (firstParam.data as Record<string, unknown>)[xFieldId]
-            : undefined;
-    const rawAxisValue = dataXValue ?? firstParam?.axisValue;
+    const rawAxisValue = firstParam?.axisValue;
 
     // When a project timezone is supplied, skip echarts' axisValueLabel
     // (which uses useUTC:true semantics) and format the raw axis value
@@ -372,6 +363,21 @@ const getHeader = (
             undefined,
             undefined,
             timezone,
+        );
+    }
+
+    // Shift case: axisValue is a pre-shifted wall-clock ms. Format it through
+    // our own formatter so the header shows the date, not the raw number.
+    if (displayTimezone && itemsMap && xFieldId && rawAxisValue != null) {
+        return getFormattedValue(
+            rawAxisValue,
+            xFieldId,
+            itemsMap,
+            true,
+            undefined,
+            undefined,
+            undefined,
+            displayTimezone,
         );
     }
 
@@ -540,27 +546,60 @@ export function createStack100TooltipFormatter(
     xAxisField: string,
     itemsMap?: ItemsMap,
     xAxisDateFormat?: string,
+    timezone?: string,
+    displayTimezone?: string,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
 
         let header: string;
+        const firstParam = params[0];
+        const rawDatasetValue = (
+            firstParam?.value as Record<string, unknown> | undefined
+        )?.[xAxisField];
+
         if (xAxisDateFormat) {
             // Format from the raw data value to avoid timezone double-parsing.
-            const firstParam = params[0];
-            const rawValue =
-                (firstParam?.value as Record<string, unknown> | undefined)?.[
-                    xAxisField
-                ] ?? firstParam?.axisValue;
+            const rawValue = rawDatasetValue ?? firstParam?.axisValue;
             header =
                 rawValue != null
                     ? formatDateWithPattern(
                           rawValue as string | number,
                           xAxisDateFormat,
                       )
-                    : getHeader(params, itemsMap, xAxisField);
+                    : getHeader(
+                          params,
+                          itemsMap,
+                          xAxisField,
+                          timezone,
+                          displayTimezone,
+                      );
+        } else if (
+            (timezone || displayTimezone) &&
+            itemsMap &&
+            rawDatasetValue != null
+        ) {
+            // Per-item tooltip fires can have axisValue=undefined. Read the
+            // raw UTC value straight from the dataset row and format honestly
+            // through the tz (treat displayTimezone as the true tz here since
+            // we're starting from unshifted data).
+            header = getFormattedValue(
+                rawDatasetValue,
+                xAxisField,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                timezone ?? displayTimezone,
+            );
         } else {
-            header = getHeader(params, itemsMap, xAxisField);
+            header = getHeader(
+                params,
+                itemsMap,
+                xAxisField,
+                timezone,
+                displayTimezone,
+            );
         }
 
         const rowsHtml = params
@@ -930,6 +969,9 @@ export const buildCartesianTooltipFormatter =
                 },
                 xFieldId,
                 itemsMap,
+                undefined,
+                timezone,
+                displayTimezone,
             )(params as TooltipParam[]);
         }
 

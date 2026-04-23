@@ -153,7 +153,9 @@ export function formatDate(
     return momentDate.format(getDateFormat(timeInterval));
 }
 
-// displayTimezone: relabels a pre-shifted value with that tz's offset suffix without re-converting.
+// `timezone` converts the UTC value into that zone. `displayTimezone` assumes the
+// value is already a wall-clock ms in that zone (pre-shifted) and only appends the
+// offset suffix. Pass at most one.
 export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
