@@ -38,6 +38,7 @@ describe('SpaceService', () => {
             } as unknown as SpacePermissionService,
             savedChartService: {} as SavedChartService,
             dashboardService: {} as DashboardService,
+            appGenerateService: undefined,
         });
     });
 
@@ -906,6 +907,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
                 mockSpacePermissionService as unknown as SpacePermissionService,
             savedChartService: {} as SavedChartService,
             dashboardService: {} as DashboardService,
+            appGenerateService: undefined,
         });
 
         // Default mocks

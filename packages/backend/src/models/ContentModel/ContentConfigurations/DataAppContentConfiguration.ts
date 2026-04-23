@@ -17,15 +17,9 @@ import {
 
 export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow> =
     {
-        shouldQueryBeIncluded: (filters: ContentFilters) => {
-            // Apps don't participate in the soft-delete / restore flow yet,
-            // so exclude them from the deleted-content listing.
-            if (filters.deleted) return false;
-            return (
-                !filters.contentTypes ||
-                filters.contentTypes?.includes(ContentType.DATA_APP)
-            );
-        },
+        shouldQueryBeIncluded: (filters: ContentFilters) =>
+            !filters.contentTypes ||
+            filters.contentTypes?.includes(ContentType.DATA_APP),
         getSummaryQuery: (
             knex: Knex,
             filters: ContentFilters,
@@ -49,10 +43,17 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                         );
                     }
                 })
-                // Apps without a space are personal drafts — excluded from
-                // space-based content listings. They surface only in /user/apps.
-                .whereNotNull(`${AppsTableName}.space_uuid`)
-                .innerJoin(
+                // Apps without a space are personal drafts. They're hidden
+                // from space-based content listings but surface in the
+                // recently-deleted view so admins can restore them.
+                .where((personalFilter) => {
+                    if (!filters.deleted) {
+                        void personalFilter.whereNotNull(
+                            `${AppsTableName}.space_uuid`,
+                        );
+                    }
+                })
+                .leftJoin(
                     SpaceTableName,
                     `${SpaceTableName}.space_uuid`,
                     `${AppsTableName}.space_uuid`,

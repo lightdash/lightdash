@@ -17,6 +17,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconAppWindow,
     IconCalendar,
     IconClock,
     IconFolder,
@@ -129,7 +130,11 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const retentionDays = health.data?.softDelete.retentionDays;
 
     const [selectedContentType, setSelectedContentType] = useState<
-        'all' | ContentType.CHART | ContentType.DASHBOARD | ContentType.SPACE
+        | 'all'
+        | ContentType.CHART
+        | ContentType.DASHBOARD
+        | ContentType.SPACE
+        | ContentType.DATA_APP
     >('all');
 
     const {
@@ -256,6 +261,13 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                     <IconBox
                                         icon={IconFolder}
                                         color="violet.6"
+                                    />
+                                );
+                            case ContentType.DATA_APP:
+                                return (
+                                    <IconBox
+                                        icon={IconAppWindow}
+                                        color="orange.6"
                                     />
                                 );
                             default:
@@ -398,6 +410,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                             contentType: item.contentType,
                                         });
                                         break;
+                                    case ContentType.DATA_APP:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     default:
                                         assertUnreachable(
                                             item,
@@ -422,6 +440,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         });
                                         break;
                                     case ContentType.SPACE:
+                                        permanentlyDelete({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
+                                    case ContentType.DATA_APP:
                                         permanentlyDelete({
                                             uuid: item.uuid,
                                             contentType: item.contentType,

@@ -525,7 +525,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             });
                                         }}
                                     >
-                                        Delete {item.type}
+                                        Delete{' '}
+                                        {item.type ===
+                                        ResourceViewItemType.DATA_APP
+                                            ? 'data app'
+                                            : item.type}
                                     </Menu.Item>
                                 </>
                             )}

@@ -22,6 +22,7 @@ import {
 import { Knex } from 'knex';
 import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import {
     ContentArgs,
@@ -48,6 +49,7 @@ type ContentServiceArguments = {
     savedSqlService: SavedSqlService;
     spacePermissionService: SpacePermissionService;
     appMoveService: BulkActionable<Knex> | undefined;
+    appGenerateService: AppGenerateService | undefined;
 };
 
 export class ContentService extends BaseService {
@@ -71,6 +73,8 @@ export class ContentService extends BaseService {
 
     appMoveService: BulkActionable<Knex> | undefined;
 
+    appGenerateService: AppGenerateService | undefined;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -85,6 +89,7 @@ export class ContentService extends BaseService {
         this.savedSqlService = args.savedSqlService;
         this.spacePermissionService = args.spacePermissionService;
         this.appMoveService = args.appMoveService;
+        this.appGenerateService = args.appGenerateService;
     }
 
     private getAppMoveService(): BulkActionable<Knex> {
@@ -92,6 +97,13 @@ export class ContentService extends BaseService {
             throw new ParameterError('Data apps are not available');
         }
         return this.appMoveService;
+    }
+
+    private getAppGenerateService(): AppGenerateService {
+        if (!this.appGenerateService) {
+            throw new ParameterError('Data apps are not available');
+        }
+        return this.appGenerateService;
     }
 
     async find(
@@ -444,6 +456,7 @@ export class ContentService extends BaseService {
             ContentType.CHART,
             ContentType.DASHBOARD,
             ContentType.SPACE,
+            ContentType.DATA_APP,
         ];
 
         return this.contentModel.findDeletedContents(
@@ -502,6 +515,12 @@ export class ContentService extends BaseService {
                 return this.dashboardService.restore(user, item.uuid);
             case ContentType.SPACE:
                 return this.spaceService.restore(user, item.uuid);
+            case ContentType.DATA_APP:
+                return this.getAppGenerateService().restoreApp(
+                    user,
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -558,6 +577,12 @@ export class ContentService extends BaseService {
                 return this.dashboardService.permanentDelete(user, item.uuid);
             case ContentType.SPACE:
                 return this.spaceService.permanentDelete(user, item.uuid);
+            case ContentType.DATA_APP:
+                return this.getAppGenerateService().permanentDeleteApp(
+                    user,
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }

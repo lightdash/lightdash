@@ -3,6 +3,7 @@ import {
     ParameterError,
     type ApiAppImageUploadResponse,
     type ApiCancelAppVersionResponse,
+    type ApiDeleteAppResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
@@ -13,6 +14,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Hidden,
     Middlewares,
@@ -211,6 +213,32 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Delete an app. When soft delete is enabled, the app is marked as
+     * deleted and can be restored via the admin flow. Otherwise the app
+     * row, every version, and all S3 artifacts are permanently removed.
+     * @summary Delete app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{appUuid}')
+    @OperationId('deleteApp')
+    async deleteApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiDeleteAppResponse> {
+        await this.getAppGenerateService().deleteApp(
+            req.user!,
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 
