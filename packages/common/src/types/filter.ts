@@ -107,6 +107,12 @@ export interface FilterRule<
     disabled?: boolean;
     /** Whether this filter is required */
     required?: boolean;
+    /**
+     * Overrides the field/explore case-sensitivity for this rule only.
+     * Used by internal features like autocomplete search that must always
+     * match case-insensitively regardless of the field's configured setting.
+     */
+    caseSensitive?: boolean;
 }
 
 /** Filter rule for metrics, targeting fields by reference */

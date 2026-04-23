@@ -1,3 +1,44 @@
+# [0.2791.0](https://github.com/lightdash/lightdash/compare/0.2790.1...0.2791.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* remove moment from sdk deps & add external react-dom/server rolldown option ([#22310](https://github.com/lightdash/lightdash/issues/22310)) ([28af5c0](https://github.com/lightdash/lightdash/commit/28af5c0fbfb39fb311543e58171747aefedc976e))
+
+
+### Features
+
+* **table-calc:** unified formula/AI input with inline preview ([#22305](https://github.com/lightdash/lightdash/issues/22305)) ([cfe6af4](https://github.com/lightdash/lightdash/commit/cfe6af42b85640f7f745b65bdaa6c9d1e344d964))
+
+## [0.2790.1](https://github.com/lightdash/lightdash/compare/0.2790.0...0.2790.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* show different clock icon when pre-aggregate cache misses ([#22312](https://github.com/lightdash/lightdash/issues/22312)) ([3d9e191](https://github.com/lightdash/lightdash/commit/3d9e191cdbf6dc589aa81dc4c92872e289359b89))
+* **sql-runner:** allow non-admins to create/list schedulers on SQL charts (PROD-7098) ([#22287](https://github.com/lightdash/lightdash/issues/22287)) ([37b7697](https://github.com/lightdash/lightdash/commit/37b7697fbaf05b28b03bb34dc03eecd818d82937))
+
+# [0.2790.0](https://github.com/lightdash/lightdash/compare/0.2789.1...0.2790.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* make filter autocomplete search case-insensitive ([#22295](https://github.com/lightdash/lightdash/issues/22295)) ([ea53f70](https://github.com/lightdash/lightdash/commit/ea53f706be77e47875b4827e6f89c071b7ce8ac2)), closes [#22141](https://github.com/lightdash/lightdash/issues/22141)
+
+
+### Features
+
+* add fieldId to pre-aggregate miss reasons for table calculations and custom metrics ([#22297](https://github.com/lightdash/lightdash/issues/22297)) ([0610703](https://github.com/lightdash/lightdash/commit/06107036ce428da3c3b2f25d5829ddd6ca58002b))
+* support custom bin dimensions in pre-aggregate matcher ([#22292](https://github.com/lightdash/lightdash/issues/22292)) ([bce6e33](https://github.com/lightdash/lightdash/commit/bce6e3317555173a8115b7d75c277322079915d7))
+* support setting chart/dashboard verification via content-as-code ([#22139](https://github.com/lightdash/lightdash/issues/22139)) ([4ef2a2e](https://github.com/lightdash/lightdash/commit/4ef2a2e3cb12f6b20a0d21032ba4adfd62d3aebd)), closes [#22138](https://github.com/lightdash/lightdash/issues/22138)
+
+## [0.2789.1](https://github.com/lightdash/lightdash/compare/0.2789.0...0.2789.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* **timezone:** skip tz round-trip for DATE dimensions ([#22286](https://github.com/lightdash/lightdash/issues/22286)) ([7ac7e55](https://github.com/lightdash/lightdash/commit/7ac7e55660745bb4b356693b19550bdffb567265))
+
 # [0.2789.0](https://github.com/lightdash/lightdash/compare/0.2788.0...0.2789.0) (2026-04-23)
 
 

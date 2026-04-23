@@ -944,7 +944,8 @@ const AppGenerate: FC = () => {
                                     <EditableText
                                         value={draftName}
                                         placeholder="Untitled app"
-                                        fw={500}
+                                        fw={600}
+                                        size="md"
                                         onFocus={() => {
                                             isEditingName.current = true;
                                         }}

@@ -152,6 +152,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         { expiresIn, ...jwtData }: CreateEmbedJwt,
     ): Promise<EmbedUrl> {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -160,7 +161,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -196,6 +197,7 @@ export class EmbedService extends BaseService {
         user: LightdashSessionUser,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -203,7 +205,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -228,6 +230,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
+        const auditedAbility = this.createAuditedAbility(user);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -235,7 +238,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -269,6 +272,7 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
         }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -277,7 +281,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -303,6 +307,7 @@ export class EmbedService extends BaseService {
             allowAllCharts,
         }: UpdateEmbed,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -313,7 +318,7 @@ export class EmbedService extends BaseService {
         });
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,

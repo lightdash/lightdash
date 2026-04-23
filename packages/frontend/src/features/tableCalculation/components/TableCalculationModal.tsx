@@ -200,7 +200,7 @@ const TableCalculationModal: FC<Props> = ({
                     : '',
             formula:
                 tableCalculation && isFormulaTableCalculation(tableCalculation)
-                    ? tableCalculation.formula.replace(/^=/, '')
+                    ? tableCalculation.formula
                     : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
@@ -288,14 +288,25 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleFormulaAiApply = useCallback(
         (result: GeneratedFormulaTableCalculation) => {
-            form.setFieldValue('formula', result.formula);
-            if (!form.values.name.trim()) {
+            const f = result.formula.startsWith('=')
+                ? result.formula
+                : `=${result.formula}`;
+            form.setFieldValue('formula', f);
+            if (!form.values.name.trim() && result.displayName) {
                 form.setFieldValue('name', result.displayName);
             }
-            if (result.type) {
+            if (
+                form.values.type === TableCalculationType.NUMBER &&
+                result.type &&
+                result.type !== TableCalculationType.NUMBER
+            ) {
                 form.setFieldValue('type', result.type);
             }
-            if (result.format) {
+            if (
+                form.values.format.type === CustomFormatType.DEFAULT &&
+                result.format &&
+                result.format.type !== CustomFormatType.DEFAULT
+            ) {
                 form.setFieldValue('format', result.format);
             }
             setFormulaGeneratedByAi(true);
@@ -343,7 +354,10 @@ const TableCalculationModal: FC<Props> = ({
         // expression. Name, result type, and display format were already
         // chosen by the user on the existing SQL calc — keep them.
         setEditMode(EditMode.FORMULA);
-        form.setFieldValue('formula', conversionResult.formula);
+        const f = conversionResult.formula.startsWith('=')
+            ? conversionResult.formula
+            : `=${conversionResult.formula}`;
+        form.setFieldValue('formula', f);
         setFormulaGeneratedByAi(true);
         resetConversion();
     }, [conversionResult, form, resetConversion]);
@@ -406,13 +420,16 @@ const TableCalculationModal: FC<Props> = ({
                     { mode: 'template', generatedByAi: false },
                 );
             } else if (editMode === EditMode.FORMULA) {
+                const normalizedFormula = formula.startsWith('=')
+                    ? formula
+                    : `=${formula}`;
                 onSave(
                     {
                         name: finalName,
                         displayName: name,
                         format,
                         type,
-                        formula: `=${formula}`,
+                        formula: normalizedFormula,
                     },
                     {
                         mode: 'formula',

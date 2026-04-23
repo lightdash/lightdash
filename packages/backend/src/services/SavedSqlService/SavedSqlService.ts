@@ -789,20 +789,36 @@ export class SavedSqlService
         }
     }
 
-    async getSchedulers(
+    private async hasChartSpaceAccess(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        try {
+            return await this.spacePermissionService.can(
+                'view',
+                user,
+                spaceUuid,
+            );
+        } catch (e) {
+            return false;
+        }
+    }
+
+    private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
         projectUuid: string,
         savedSqlUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
+    ): Promise<{ organizationUuid: string; spaceUuid: string }> {
         const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
         const { organizationUuid } = sqlChart.organization;
+        const spaceUuid = sqlChart.space.uuid;
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
@@ -813,6 +829,25 @@ export class SavedSqlService
             throw new ForbiddenError();
         }
 
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
+        return { organizationUuid, spaceUuid };
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        await this.checkCreateScheduledDeliveryAccess(
+            user,
+            projectUuid,
+            savedSqlUuid,
+        );
         return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
     }
 
@@ -822,24 +857,11 @@ export class SavedSqlService
         savedSqlUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+        await this.checkCreateScheduledDeliveryAccess(
+            user,
             projectUuid,
-        });
-        const { organizationUuid } = sqlChart.organization;
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedSqlUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+            savedSqlUuid,
+        );
 
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
