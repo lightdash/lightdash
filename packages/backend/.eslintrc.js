@@ -102,6 +102,7 @@ module.exports = {
             files: [
                 'src/ee/services/McpService/**/*.ts',
                 'src/ee/services/AiAgentService/**/*.ts',
+                'src/ee/services/OrganizationWarehouseCredentialsService.ts',
                 'src/services/AnalyticsService/**/*.ts',
                 'src/services/AsyncQueryService/**/*.ts',
                 'src/services/CatalogService/**/*.ts',
