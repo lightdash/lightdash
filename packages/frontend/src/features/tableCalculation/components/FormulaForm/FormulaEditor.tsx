@@ -278,8 +278,19 @@ export const FormulaEditor: FC<Props> = ({
         }
     }, [editor, fieldSuggestions]);
 
-    const showTabHint = aiEnabled && !isGenerating && mode === 'prompt';
-    const showRetryHint = aiEnabled && hasAiError && mode === 'prompt';
+    useEffect(() => {
+        if (!editor) return;
+        const ext = editor.extensionManager.extensions.find(
+            (e) => e.name === 'placeholder',
+        );
+        if (ext) ext.options.placeholder = placeholder;
+        editor.view.dispatch(editor.state.tr);
+    }, [editor, placeholder]);
+
+    const showRetryHint =
+        aiEnabled && hasAiError && !isGenerating && mode === 'prompt';
+    const showTabHint =
+        aiEnabled && !hasAiError && !isGenerating && mode === 'prompt';
 
     return (
         <Box className={styles.container}>
