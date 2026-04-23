@@ -133,6 +133,7 @@ module.exports = {
                 'src/services/SpotlightService/**/*.ts',
                 'src/services/UnfurlService/**/*.ts',
                 'src/services/UserAttributesService/**/*.ts',
+                'src/services/UserService.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',
