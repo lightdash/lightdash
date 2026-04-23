@@ -39,6 +39,7 @@ import {
     IconMaximize,
     IconMinimize,
     IconToggleLeft,
+    IconWand,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -63,7 +64,9 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { getUniqueTableCalculationName } from '../utils';
@@ -140,6 +143,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
+    const { data: health } = useHealth();
 
     // Formula support is pinned to what the formula package can compile for
     // this warehouse. The backend mapper throws for unsupported adapters, so
@@ -149,6 +153,8 @@ const TableCalculationModal: FC<Props> = ({
         (SUPPORTED_DIALECTS as readonly string[]).includes(
             project.warehouseConnection.type as Dialect,
         );
+
+    const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
 
     const isNewCalculation = !tableCalculation;
     const hasTemplate = tableCalculation
@@ -296,6 +302,59 @@ const TableCalculationModal: FC<Props> = ({
         },
         [form],
     );
+
+    const {
+        convert: convertSqlToFormula,
+        reset: resetConversion,
+        result: conversionResult,
+        isLoading: isConvertingSql,
+        error: conversionError,
+    } = useConvertSqlToFormula({
+        projectUuid,
+        explore,
+        metricQuery,
+    });
+
+    const isExistingSqlCalc =
+        !!tableCalculation && isSqlTableCalculation(tableCalculation);
+    const showConvertToFormulaButton =
+        isExistingSqlCalc &&
+        isFormulaSupported &&
+        isAmbientAiEnabled &&
+        editMode === EditMode.SQL;
+
+    const showConversionPreview =
+        editMode === EditMode.SQL &&
+        (isConvertingSql || !!conversionResult || !!conversionError);
+
+    useEffect(() => {
+        if (!opened) {
+            resetConversion();
+        }
+    }, [opened, resetConversion]);
+
+    const handleConvertClick = useCallback(() => {
+        convertSqlToFormula(form.values.sql);
+    }, [convertSqlToFormula, form.values.sql]);
+
+    const handleConvertApply = useCallback(() => {
+        if (!conversionResult) return;
+        // Convert is a transliteration of SQL → formula: only swap the
+        // expression. Name, result type, and display format were already
+        // chosen by the user on the existing SQL calc — keep them.
+        setEditMode(EditMode.FORMULA);
+        form.setFieldValue('formula', conversionResult.formula);
+        setFormulaGeneratedByAi(true);
+        resetConversion();
+    }, [conversionResult, form, resetConversion]);
+
+    const handleConvertDiscard = useCallback(() => {
+        resetConversion();
+    }, [resetConversion]);
+
+    const handleConvertRetry = useCallback(() => {
+        convertSqlToFormula(form.values.sql);
+    }, [convertSqlToFormula, form.values.sql]);
 
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
@@ -602,6 +661,40 @@ const TableCalculationModal: FC<Props> = ({
                                 size="xs"
                             />
                         )}
+                        {showConvertToFormulaButton && (
+                            <Tooltip
+                                label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
+                                withArrow
+                                multiline
+                                w={260}
+                                disabled={showConversionPreview}
+                            >
+                                <Button
+                                    variant="light"
+                                    color="indigo"
+                                    size="xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconWand}
+                                            size="sm"
+                                        />
+                                    }
+                                    onClick={handleConvertClick}
+                                    loading={isConvertingSql}
+                                    disabled={
+                                        !form.values.sql ||
+                                        form.values.sql.trim().length === 0
+                                    }
+                                    style={{
+                                        visibility: showConversionPreview
+                                            ? 'hidden'
+                                            : 'visible',
+                                    }}
+                                >
+                                    Convert to formula
+                                </Button>
+                            </Tooltip>
+                        )}
                     </Group>
 
                     <Box
@@ -655,6 +748,22 @@ const TableCalculationModal: FC<Props> = ({
                                         focusOnRender={true}
                                         onCmdEnter={handleConfirm}
                                         onAiApplied={handleSqlAiApplied}
+                                        conversionState={
+                                            showConversionPreview
+                                                ? {
+                                                      isLoading:
+                                                          isConvertingSql,
+                                                      error: conversionError,
+                                                      result: conversionResult,
+                                                      onApply:
+                                                          handleConvertApply,
+                                                      onDiscard:
+                                                          handleConvertDiscard,
+                                                      onRetry:
+                                                          handleConvertRetry,
+                                                  }
+                                                : undefined
+                                        }
                                     />
                                 </Suspense>
                             </Box>

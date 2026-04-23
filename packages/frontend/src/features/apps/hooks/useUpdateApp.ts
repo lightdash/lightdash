@@ -6,6 +6,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { invalidateContent } from '../../../hooks/useContent';
 
 type UpdateAppParams = {
     projectUuid: string;
@@ -36,6 +37,7 @@ export const useUpdateApp = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['app', variables.projectUuid, variables.appUuid],
             });
+            void invalidateContent(queryClient, variables.projectUuid);
             const field = variables.name
                 ? 'name'
                 : variables.description
