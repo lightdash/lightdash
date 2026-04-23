@@ -1,3 +1,15 @@
+# [0.2784.0](https://github.com/lightdash/lightdash/compare/0.2783.2...0.2784.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* buffer whole image to verify correctly ([#22241](https://github.com/lightdash/lightdash/issues/22241)) ([6b12d2e](https://github.com/lightdash/lightdash/commit/6b12d2e63c633cf46523df913d0dbfaca2843a52))
+
+
+### Features
+
+* update skills for data apps UX ([#22244](https://github.com/lightdash/lightdash/issues/22244)) ([464a830](https://github.com/lightdash/lightdash/commit/464a83048506cf272072020265fbd176d51d233b))
+
 ## [0.2783.2](https://github.com/lightdash/lightdash/compare/0.2783.1...0.2783.2) (2026-04-22)
 
 
