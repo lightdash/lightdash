@@ -17,6 +17,7 @@ slug: sales-dashboard
 spaceSlug: sales
 tabs: []         # Optional tabs for organization
 tiles: []        # Chart and content tiles
+verified: true   # Optional: true/false to verify/unverify on upload, omit to leave unchanged. Admins only.
 version: 1
 ```
 
