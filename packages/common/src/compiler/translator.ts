@@ -156,6 +156,7 @@ const convertDimension = (
         timeInterval === undefined && isInterval(type, meta.dimension);
 
     let timeIntervalBaseDimensionName: string | undefined;
+    let timeIntervalBaseDimensionType: DimensionType | undefined;
 
     const groups: string[] = convertToGroups(
         meta.dimension?.groups,
@@ -164,6 +165,7 @@ const convertDimension = (
 
     if (timeInterval) {
         timeIntervalBaseDimensionName = name;
+        timeIntervalBaseDimensionType = type;
         sql = timeFrameConfigs[timeInterval].getSql(
             targetWarehouse,
             timeInterval,
@@ -196,6 +198,7 @@ const convertDimension = (
         source,
         timeInterval,
         timeIntervalBaseDimensionName,
+        timeIntervalBaseDimensionType,
         hidden: !!meta.dimension?.hidden,
         format: meta.dimension?.format,
         round: meta.dimension?.round,
@@ -781,6 +784,7 @@ export const convertTable = (
                                 source: undefined,
                                 timeInterval: undefined,
                                 timeIntervalBaseDimensionName: dim.name,
+                                timeIntervalBaseDimensionType: dim.type,
                                 customTimeInterval: customName,
                                 hidden: dim.hidden,
                                 format: undefined,
