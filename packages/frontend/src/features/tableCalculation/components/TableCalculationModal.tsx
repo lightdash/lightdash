@@ -420,13 +420,16 @@ const TableCalculationModal: FC<Props> = ({
                     { mode: 'template', generatedByAi: false },
                 );
             } else if (editMode === EditMode.FORMULA) {
+                const normalizedFormula = formula.startsWith('=')
+                    ? formula
+                    : `=${formula}`;
                 onSave(
                     {
                         name: finalName,
                         displayName: name,
                         format,
                         type,
-                        formula,
+                        formula: normalizedFormula,
                     },
                     {
                         mode: 'formula',
