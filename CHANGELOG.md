@@ -1,3 +1,11 @@
+# [0.2789.0](https://github.com/lightdash/lightdash/compare/0.2788.0...0.2789.0) (2026-04-23)
+
+
+### Features
+
+* add drilldown build to the query SDK ([#22293](https://github.com/lightdash/lightdash/issues/22293)) ([1397037](https://github.com/lightdash/lightdash/commit/139703763b32ce4a2009ae0225ab932bfac6dadf))
+* **data-apps:** support favoriting data apps ([#22291](https://github.com/lightdash/lightdash/issues/22291)) ([ea846d9](https://github.com/lightdash/lightdash/commit/ea846d965e5d683ec7134a42802abd6ea6f7b31f))
+
 # [0.2788.0](https://github.com/lightdash/lightdash/compare/0.2787.0...0.2788.0) (2026-04-23)
 
 
