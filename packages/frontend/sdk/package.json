@@ -18,10 +18,6 @@
             "default": "./dist/sdk.cjs.js"
         }
     },
-    "dependencies": {
-        "moment": "2.29.4",
-        "moment-timezone": "0.5.45"
-    },
     "peerDependencies": {
         "react": "^18.x || ^19.x",
         "react-dom": "^18.x || ^19.x"
