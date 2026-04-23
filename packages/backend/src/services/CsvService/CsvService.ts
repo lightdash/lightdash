@@ -17,6 +17,7 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isDimension,
     isField,
     ItemsMap,
     MetricQuery,
@@ -249,10 +250,21 @@ export class CsvService extends BaseService {
 
             const itemIsField = isField(item);
             if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                return moment(data).format('YYYY-MM-DD HH:mm:ss.SSS');
+                const m = timezone
+                    ? moment.utc(data).tz(timezone)
+                    : moment(data);
+                return m.format('YYYY-MM-DD HH:mm:ss.SSS');
             }
             if (itemIsField && item.type === DimensionType.DATE) {
-                return moment(data).format('YYYY-MM-DD');
+                // Only TZ format dates that have timestamps as base dimensions
+                const m =
+                    timezone &&
+                    isDimension(item) &&
+                    item.timeIntervalBaseDimensionType ===
+                        DimensionType.TIMESTAMP
+                        ? moment.utc(data).tz(timezone)
+                        : moment(data);
+                return m.format('YYYY-MM-DD');
             }
 
             // Return raw value and let csv-stringify handle the rest
