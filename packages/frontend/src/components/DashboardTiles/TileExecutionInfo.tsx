@@ -6,6 +6,7 @@ import {
 import { Divider, Stack } from '@mantine-8/core';
 import { ActionIcon, HoverCard } from '@mantine/core';
 import {
+    IconClock,
     IconClockBolt,
     IconClockPlay,
     IconDatabase,
@@ -108,7 +109,13 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
             </HoverCard.Dropdown>
             <HoverCard.Target>
                 <ActionIcon size="sm">
-                    <MantineIcon icon={IconClockBolt} />
+                    <MantineIcon
+                        icon={
+                            cacheMetadata.preAggregate?.hit
+                                ? IconClockBolt
+                                : IconClock
+                        }
+                    />
                 </ActionIcon>
             </HoverCard.Target>
         </HoverCard>
