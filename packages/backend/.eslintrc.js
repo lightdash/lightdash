@@ -131,11 +131,8 @@ module.exports = {
                 'src/services/SpaceService/**/*.ts',
                 'src/services/SpotlightService/**/*.ts',
                 'src/services/UnfurlService/**/*.ts',
-<<<<<<< sdolidze/user-svc-audited
-                'src/services/UserService.ts',
-=======
                 'src/services/UserAttributesService/**/*.ts',
->>>>>>> main
+                'src/services/UserService.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',
