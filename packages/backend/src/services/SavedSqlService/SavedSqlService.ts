@@ -887,6 +887,16 @@ export class SavedSqlService
             throw new ForbiddenError('User is not part of an organization');
         }
 
+        // SQL chart schedulers only flow through the Google Sheets upload worker
+        // (SchedulerTask.handleGsheetsUpload). Other formats route to
+        // handleScheduledDelivery, which has no SQL-chart branch and would fail
+        // at runtime with "Chart or dashboard can't be both undefined".
+        if (newScheduler.format !== SchedulerFormat.GSHEETS) {
+            throw new ParameterError(
+                'SQL chart schedulers only support Google Sheets format',
+            );
+        }
+
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(
                 'Frequency not allowed, custom input is limited to hourly',

@@ -123,8 +123,12 @@ const projectModel = {
 const spacePermissionService = {
     can: jest.fn(async () => true),
 };
-const googleDriveClient = {};
-const userService = {};
+const googleDriveClient = {
+    assertFileIsGoogleSheet: jest.fn(async () => undefined),
+};
+const userService = {
+    getRefreshToken: jest.fn(async () => 'refresh-token'),
+};
 
 jest.spyOn(analyticsMock, 'track');
 
@@ -132,8 +136,14 @@ const newSchedulerPayload = {
     name: 'Test',
     cron: '0 9 * * *',
     timezone: 'UTC',
-    format: SchedulerFormat.IMAGE,
-    options: {},
+    format: SchedulerFormat.GSHEETS,
+    options: {
+        gdriveId: 'gdrive-id',
+        gdriveName: 'sheet',
+        gdriveOrganizationName: '',
+        url: 'https://docs.google.com/spreadsheets/d/gdrive-id',
+        tabName: undefined,
+    },
     targets: [],
     includeLinks: false,
     enabled: true,
@@ -264,6 +274,18 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
                     targets: undefined as never,
                 }),
             ).rejects.toThrow('Targets is required');
+        });
+
+        it('rejects non-GSHEETS format (SQL chart schedulers are GSHEETS-only)', async () => {
+            await expect(
+                service.createScheduler(adminUser, projectUuid, savedSqlUuid, {
+                    ...newSchedulerPayload,
+                    format: SchedulerFormat.IMAGE,
+                }),
+            ).rejects.toThrow(
+                'SQL chart schedulers only support Google Sheets format',
+            );
+            expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
     });
 });
