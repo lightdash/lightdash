@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import execa from 'execa';
 import inquirer from 'inquirer';
+import * as config from '../../config';
 import GlobalState from '../../globalState';
 import { getDbtVersion } from './getDbtVersion';
 import { cliMocks } from './getDbtVersion.mocks';
@@ -14,7 +15,12 @@ const execaMock = execa as unknown as jest.Mock;
 jest.mock('inquirer', () => ({
     prompt: jest.fn(),
 }));
+jest.mock('../../config', () => ({
+    getConfig: jest.fn().mockResolvedValue({ answers: {} }),
+    setAnswer: jest.fn().mockResolvedValue(undefined),
+}));
 const promptMock = inquirer.prompt as unknown as jest.Mock;
+const getConfigMock = config.getConfig as jest.Mock;
 const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('Get dbt version', () => {
@@ -26,6 +32,7 @@ describe('Get dbt version', () => {
         process.env = { ...env };
         execaMock.mockImplementation(async () => cliMocks.dbt1_4);
         promptMock.mockImplementation(async () => ({ isConfirm: true }));
+        getConfigMock.mockResolvedValue({ answers: {} });
         GlobalState.clearPromptAnswer();
     });
 

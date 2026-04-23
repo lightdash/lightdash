@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import execa from 'execa';
 import inquirer from 'inquirer';
+import { getConfig, setAnswer } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 
@@ -121,9 +122,10 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
     }
 
+    const config = await getConfig();
     if (
         isDbtCloudCLI(verboseVersion) &&
-        !GlobalState.getSavedPromptAnswer('useExperimentalDbtCloudCLI')
+        !config.answers?.useExperimentalDbtCloudCLI
     ) {
         const message = `Support for dbt Cloud CLI is still experimental and might not work as expected.`;
         const spinner = GlobalState.getActiveSpinner();
@@ -150,7 +152,7 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
             }
         }
         spinner?.start();
-        GlobalState.savePromptAnswer('useExperimentalDbtCloudCLI', true);
+        await setAnswer({ useExperimentalDbtCloudCLI: true });
     }
 
     return {
