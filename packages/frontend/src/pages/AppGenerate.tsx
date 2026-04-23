@@ -7,7 +7,6 @@ import {
 import {
     ActionIcon,
     Box,
-    CloseButton,
     Group,
     Image,
     Loader,
@@ -34,13 +33,22 @@ import {
     type FC,
 } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Link, Navigate, useNavigate, useParams } from 'react-router';
+import {
+    Link,
+    Navigate,
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
-import AppResourcePicker, {
-    SelectedChartPills,
+import {
+    ImageButton,
+    QueryButton,
+    SelectedImageSection,
+    SelectedQuerySection,
     type SelectedChart,
 } from '../features/apps/AppResourcePicker';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
@@ -129,6 +137,7 @@ const AppGenerate: FC = () => {
         appUuid: string;
     }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const queryClient = useQueryClient();
     const [prompt, setPrompt] = useState('');
     const [imageAttachment, setImageAttachment] = useState<{
@@ -193,23 +202,32 @@ const AppGenerate: FC = () => {
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
         urlAppUuid,
     );
-    // Sync from URL when navigating (e.g. browser back/forward).
-    // When navigating to "new app" mode, clear all session state.
+    // Track the previous app UUID so we can detect intentional navigation
+    // vs. the post-submit URL update (undefined → newUuid).
+    const prevUrlAppUuid = useRef(urlAppUuid);
+    const resetSessionState = useCallback(() => {
+        setPrompt('');
+        setSelectedCharts([]);
+        setImageAttachment(null);
+        setLocalMessages([]);
+        setPreviewApp(null);
+        setTrackedQueries([]);
+        versionCacheRef.current.clear();
+        versionCacheAppRef.current = undefined;
+        sentImagesByPrompt.current.forEach((url) => URL.revokeObjectURL(url));
+        sentImagesByPrompt.current.clear();
+    }, []);
     useEffect(() => {
+        const prev = prevUrlAppUuid.current;
+        prevUrlAppUuid.current = urlAppUuid;
         setActiveAppUuid(urlAppUuid);
-        if (!urlAppUuid) {
-            setPrompt('');
-            setLocalMessages([]);
-            setPreviewApp(null);
-            versionCacheRef.current.clear();
-            versionCacheAppRef.current = undefined;
-            setTrackedQueries([]);
-            sentImagesByPrompt.current.forEach((url) =>
-                URL.revokeObjectURL(url),
-            );
-            sentImagesByPrompt.current.clear();
-        }
-    }, [urlAppUuid]);
+
+        // Post-submit redirect: undefined → new uuid. Don't clear state.
+        if (!prev && urlAppUuid) return;
+
+        // Intentional navigation: switching apps, or going to "new app" mode.
+        resetSessionState();
+    }, [urlAppUuid, location.key, resetSessionState]);
     const {
         mutate: generateMutate,
         isLoading: isGenerating,
@@ -558,7 +576,6 @@ const AppGenerate: FC = () => {
             },
         ]);
         setPrompt('');
-        // Don't revoke the object URL since it's now referenced by the message
         setImageAttachment(null);
         setSelectedCharts([]);
         resetGenerate();
@@ -843,11 +860,7 @@ const AppGenerate: FC = () => {
                                 onChange={handleFileInputChange}
                                 hidden
                             />
-                            <Box
-                                className={classes.inputWrapper}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
-                            >
+                            <Box className={classes.inputWrapper}>
                                 <Box className={classes.textareaColumn}>
                                     <Textarea
                                         ref={textareaRef}
@@ -882,71 +895,79 @@ const AppGenerate: FC = () => {
                                         <IconPlayerStop size={14} />
                                     </ActionIcon>
                                 ) : (
-                                    <Group gap={4} wrap="nowrap">
-                                        <AppResourcePicker
-                                            onImageClick={() =>
-                                                fileInputRef.current?.click()
-                                            }
-                                            imageDisabled={
-                                                isLoading || !!imageAttachment
-                                            }
-                                            selectedCharts={selectedCharts}
-                                            onChartsChange={setSelectedCharts}
-                                            disabled={isLoading}
-                                        />
-                                        <ActionIcon
-                                            size="sm"
-                                            radius="xl"
-                                            variant="filled"
-                                            color="violet"
-                                            onClick={() => void handleSubmit()}
-                                            disabled={
-                                                !prompt.trim() || isLoading
-                                            }
-                                            loading={
-                                                isGenerating || isIterating
-                                            }
-                                            className={classes.submitButton}
-                                        >
-                                            <IconArrowUp size={14} />
-                                        </ActionIcon>
-                                    </Group>
+                                    <ActionIcon
+                                        size="sm"
+                                        radius="xl"
+                                        variant="filled"
+                                        color="violet"
+                                        onClick={() => void handleSubmit()}
+                                        disabled={!prompt.trim() || isLoading}
+                                        loading={isGenerating || isIterating}
+                                        className={classes.submitButton}
+                                    >
+                                        <IconArrowUp size={14} />
+                                    </ActionIcon>
                                 )}
                             </Box>
-                            {(imageAttachment || selectedCharts.length > 0) && (
-                                <Group
-                                    gap="xs"
-                                    wrap="wrap"
-                                    align="center"
-                                    pt={4}
-                                >
-                                    {imageAttachment && (
-                                        <Box className={classes.imagePreview}>
-                                            <Image
-                                                src={imageAttachment.previewUrl}
-                                                className={
-                                                    classes.imagePreviewThumbnail
+                            <Group gap="xs" pt="xs">
+                                <QueryButton
+                                    selectedCharts={selectedCharts}
+                                    onSelect={(chart) =>
+                                        setSelectedCharts((prev) => [
+                                            ...prev,
+                                            chart,
+                                        ])
+                                    }
+                                    disabled={isLoading}
+                                />
+                                <ImageButton
+                                    onClick={() =>
+                                        fileInputRef.current?.click()
+                                    }
+                                    disabled={isLoading || !!imageAttachment}
+                                />
+                            </Group>
+                            <Box
+                                className={classes.resourceSections}
+                                onDragOver={handleDragOver}
+                                onDrop={handleDrop}
+                            >
+                                {selectedCharts.length > 0 ||
+                                imageAttachment ? (
+                                    <>
+                                        {selectedCharts.length > 0 && (
+                                            <SelectedQuerySection
+                                                charts={selectedCharts}
+                                                onRemove={(uuid) =>
+                                                    setSelectedCharts((prev) =>
+                                                        prev.filter(
+                                                            (c) =>
+                                                                c.uuid !== uuid,
+                                                        ),
+                                                    )
                                                 }
-                                                alt="Attached image"
                                             />
-                                            <CloseButton
-                                                size="xs"
-                                                onClick={clearImage}
+                                        )}
+                                        {imageAttachment && (
+                                            <SelectedImageSection
+                                                images={[
+                                                    {
+                                                        previewUrl:
+                                                            imageAttachment.previewUrl,
+                                                    },
+                                                ]}
+                                                onRemove={() => clearImage()}
                                             />
-                                        </Box>
-                                    )}
-                                    <SelectedChartPills
-                                        charts={selectedCharts}
-                                        onRemove={(uuid) =>
-                                            setSelectedCharts((prev) =>
-                                                prev.filter(
-                                                    (c) => c.uuid !== uuid,
-                                                ),
-                                            )
-                                        }
-                                    />
-                                </Group>
-                            )}
+                                        )}
+                                    </>
+                                ) : (
+                                    <Box className={classes.resourceEmpty}>
+                                        <Text size="xs" c="dimmed">
+                                            Resources
+                                        </Text>
+                                    </Box>
+                                )}
+                            </Box>
                         </Box>
                     </Box>
                 </Panel>

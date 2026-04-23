@@ -18,6 +18,7 @@
 
 .chatMessages {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: var(--mantine-spacing-md);
     display: flex;
@@ -82,7 +83,7 @@
 
 .chatInputArea {
     flex-shrink: 0;
-    padding: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 20px;
     border-top: 1px solid;
 
     @mixin light {
@@ -145,6 +146,33 @@
 .textareaWrapper {
     --input-bd: transparent;
     --input-bg: transparent;
+}
+
+.resourceSections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+    margin-top: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
+    min-height: 120px;
+    max-height: 300px;
+    overflow-y: auto;
+    border-radius: var(--mantine-radius-md);
+    border: 1px dashed;
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-4);
+    }
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-6);
+    }
+}
+
+.resourceEmpty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
 }
 
 .submitButton {
@@ -295,35 +323,11 @@
     }
 }
 
-.imagePreview {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    padding: var(--mantine-spacing-xs) 0;
-}
-
-.imagePreviewThumbnail {
-    height: 48px;
-    max-width: 120px;
-    border-radius: var(--mantine-radius-sm);
-    object-fit: cover;
-}
-
 .textareaColumn {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-width: 0;
-}
-
-.imagePickerButton {
-    flex-shrink: 0;
-    opacity: 0.6;
-    transition: opacity 150ms ease;
-
-    &:hover {
-        opacity: 1;
-    }
 }
 
 .sentImageThumbnail {
