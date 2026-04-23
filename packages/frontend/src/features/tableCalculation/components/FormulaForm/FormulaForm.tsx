@@ -17,7 +17,7 @@ import { EventName } from '../../../../types/Events';
 import { useFormulaValidation } from '../../hooks/useFormulaValidation';
 import { FormulaEditor } from './FormulaEditor';
 import classes from './FormulaForm.module.css';
-import { ImproveWithAiPopover } from './ImproveWithAiPopover';
+import { ImproveWithAiSlot } from './ImproveWithAiSlot';
 import { getInputMode } from './inputMode';
 
 type Props = {
@@ -242,7 +242,7 @@ export const FormulaForm: FC<Props> = ({
                     />
                 </Box>
                 {aiEnabled && getInputMode(formula) === 'formula' && (
-                    <ImproveWithAiPopover
+                    <ImproveWithAiSlot
                         explore={explore}
                         metricQuery={metricQuery}
                         currentFormula={formula}

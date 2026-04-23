@@ -35,10 +35,13 @@
     cursor: not-allowed;
 }
 
-.dropdown {
-    padding: var(--mantine-spacing-xs);
-    min-width: 360px;
+.promptRow {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: var(--mantine-spacing-xs);
+}
+
+.promptField {
+    flex: 1;
+    min-width: 0;
 }
