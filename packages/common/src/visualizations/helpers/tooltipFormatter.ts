@@ -349,11 +349,11 @@ const getHeader = (
     displayTimezone?: string,
 ): string => {
     const firstParam = params[0];
-    const rawAxisValue = firstParam?.axisValue;
 
     // When a project timezone is supplied, skip echarts' axisValueLabel
     // (which uses useUTC:true semantics) and format the raw axis value
     // ourselves so the header matches project-TZ display.
+    const rawAxisValue = firstParam?.axisValue;
     if (timezone && itemsMap && xFieldId && rawAxisValue != null) {
         return getFormattedValue(
             rawAxisValue,
@@ -366,47 +366,41 @@ const getHeader = (
         );
     }
 
-    // Shift case: axisValue is a pre-shifted wall-clock ms. Format it through
-    // our own formatter so the header shows the date, not the raw number.
-    if (displayTimezone && itemsMap && xFieldId && rawAxisValue != null) {
-        return getFormattedValue(
-            rawAxisValue,
-            xFieldId,
-            itemsMap,
-            true,
-            undefined,
-            undefined,
-            undefined,
-            displayTimezone,
-        );
-    }
-
-    // Item-trigger tooltips (e.g. scatter) fire per-point with axisValue=undefined.
-    // Read the raw UTC value straight from the dataset row and format through
-    // the tz (shifted path: treat displayTimezone as the true tz since we're
-    // starting from unshifted data).
-    const rawDatasetValue =
-        xFieldId &&
-        firstParam?.value &&
-        typeof firstParam.value === 'object' &&
-        !Array.isArray(firstParam.value)
-            ? (firstParam.value as Record<string, unknown>)[xFieldId]
-            : undefined;
-    if (
-        (timezone || displayTimezone) &&
-        itemsMap &&
-        xFieldId &&
-        rawDatasetValue != null
-    ) {
-        return getFormattedValue(
-            rawDatasetValue,
-            xFieldId,
-            itemsMap,
-            true,
-            undefined,
-            undefined,
-            timezone ?? displayTimezone,
-        );
+    // Shift case (axis tz swapped to displayTimezone): axis-trigger tooltips
+    // carry a pre-shifted wall-clock ms that displayTimezone's shift-aware
+    // formatter branch relabels; item-trigger tooltips (e.g. scatter) have
+    // axisValue=undefined, so read the pristine UTC from the dataset row and
+    // format through displayTimezone as the true tz.
+    if (displayTimezone && itemsMap && xFieldId) {
+        if (rawAxisValue != null) {
+            return getFormattedValue(
+                rawAxisValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+        const datasetValue =
+            firstParam?.value &&
+            typeof firstParam.value === 'object' &&
+            !Array.isArray(firstParam.value)
+                ? (firstParam.value as Record<string, unknown>)[xFieldId]
+                : undefined;
+        if (datasetValue != null) {
+            return getFormattedValue(
+                datasetValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
     }
 
     // First try the standard axisValueLabel or name
@@ -422,16 +416,7 @@ const getHeader = (
     // This handles cases where ECharts couldn't format the value properly
     if (rawAxisValue !== undefined && rawAxisValue !== null) {
         if (itemsMap && xFieldId) {
-            return getFormattedValue(
-                rawAxisValue,
-                xFieldId,
-                itemsMap,
-                true,
-                undefined,
-                undefined,
-                undefined,
-                displayTimezone,
-            );
+            return getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
         }
         return String(rawAxisValue);
     }
@@ -451,7 +436,6 @@ const getHeader = (
                     undefined,
                     undefined,
                     timezone,
-                    displayTimezone,
                 );
             }
             return String(xValue);
