@@ -222,6 +222,8 @@ models:
                 - completed
                 - return_pending
                 - returned
+                - cancelled
+                - preparing
         meta:
           dimension:
             type: string

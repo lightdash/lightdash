@@ -97,7 +97,7 @@ seeds:
       meta:
         joins: []
       column_types:
-        status_priority: integer
+        status_priority: numeric
         is_active: boolean
     columns:
       - name: status

@@ -98,6 +98,7 @@ import { ExportToGoogleSheet } from '../../features/export';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
+    shouldPivotSeriesFollowQuerySort,
 } from '../../hooks/cartesianChartConfig/utils';
 import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
 import {
@@ -229,11 +230,12 @@ const computeDashboardChartSeries = (
                 ? chart.chartConfig.config.columnLimit
                 : undefined,
         });
-        const sortedByPivot =
-            !!validPivotDimensions?.length &&
-            chart.metricQuery.sorts.some((sort) =>
-                validPivotDimensions.includes(sort.fieldId),
-            );
+        const sortedByPivot = shouldPivotSeriesFollowQuerySort(
+            validPivotDimensions,
+            chart.metricQuery.sorts,
+            chart.chartConfig.config.layout.xField,
+            chart.metricQuery.dimensions,
+        );
 
         const newSeries = mergeExistingAndExpectedSeries({
             expectedSeriesMap,

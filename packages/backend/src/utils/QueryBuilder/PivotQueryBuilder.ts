@@ -467,6 +467,7 @@ export class PivotQueryBuilder {
      * @param sortBy - Sort configuration for columns
      * @param metricFirstValueQueries - Map of CTE names to their definitions
      * @param q - Quote character for field names
+     * @param indexColumns - Index columns (first is treated as the x-axis and excluded from column ordering)
      * @returns ORDER BY clause string for groupBy columns
      */
     private buildGroupByOrderBy(
@@ -478,6 +479,7 @@ export class PivotQueryBuilder {
             { cteName: string; sql: string }
         >,
         q: string,
+        indexColumns: ReturnType<typeof normalizeIndexColumns> = [],
     ): string {
         const orderByParts: string[] = [];
 
@@ -491,6 +493,17 @@ export class PivotQueryBuilder {
                 groupByColumns.some(
                     (groupCol) => groupCol.reference === reference,
                 );
+
+            // First index column is the x-axis; a sort on it drives row order,
+            // not column order. Other index columns (extra dimensions selected
+            // only to drive the sort) SHOULD drive column order — this is the
+            // "group by X, sort by Y" case (e.g. group by status, sort by
+            // status_priority).
+            const xAxisReference = indexColumns[0]?.reference;
+            const isColumnOrderingDimension = (sort: VizSortBy) =>
+                !isValueColumn(sort) &&
+                !isGroupByColumn(sort) &&
+                sort.reference !== xAxisReference;
 
             // Create values order parts
             const valuesOrderByParts = sortBy
@@ -533,14 +546,39 @@ export class PivotQueryBuilder {
                 );
             });
 
+            // Sort on non-x-axis, non-groupBy, non-value dimensions drives
+            // column ordering when there's a functional dependency with the
+            // groupBy value (e.g. status_priority → status). These go before
+            // the groupBy tiebreaker so they dominate the ranking.
+            const columnOrderingDimParts = sortBy
+                .filter(isColumnOrderingDimension)
+                .map((sort) => {
+                    const sortDirection =
+                        sort.direction === SortByDirection.DESC
+                            ? ' DESC'
+                            : ' ASC';
+                    const nullsClause = PivotQueryBuilder.getNullsFirstLast(
+                        sort.nullsFirst,
+                    );
+                    return `g.${q}${sort.reference}${q}${sortDirection}${nullsClause}`;
+                });
+
             // Order parts cannot have values and groups interleaved. We have to ensure they are together by type
             const sortByValuesFirst = isValueColumn(
                 sortBy.find((s) => isValueColumn(s) || isGroupByColumn(s)),
             );
             if (sortByValuesFirst) {
-                orderByParts.push(...valuesOrderByParts, ...groupsOrderByParts);
+                orderByParts.push(
+                    ...valuesOrderByParts,
+                    ...columnOrderingDimParts,
+                    ...groupsOrderByParts,
+                );
             } else {
-                orderByParts.push(...groupsOrderByParts, ...valuesOrderByParts);
+                orderByParts.push(
+                    ...columnOrderingDimParts,
+                    ...groupsOrderByParts,
+                    ...valuesOrderByParts,
+                );
             }
         } else {
             // Default to all groupBy columns with ASC direction
@@ -715,6 +753,7 @@ export class PivotQueryBuilder {
         valuesColumns: PivotConfiguration['valuesColumns'],
         sortBy: PivotConfiguration['sortBy'],
         columnAnchorCTEs: Record<string, { cteName: string; sql: string }>,
+        indexColumns: ReturnType<typeof normalizeIndexColumns>,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
@@ -729,6 +768,7 @@ export class PivotQueryBuilder {
             sortBy,
             columnAnchorCTEs,
             q,
+            indexColumns,
         );
 
         // Build JOINs for column anchor CTEs
@@ -918,6 +958,7 @@ export class PivotQueryBuilder {
                 valuesColumns,
                 sortBy,
                 columnAnchorQueries,
+                indexColumns,
             );
             columnRankingCTE = `column_ranking AS (${columnRankingSQL})`;
 
@@ -1138,6 +1179,7 @@ export class PivotQueryBuilder {
             sortBy,
             metricFirstValueQueries,
             q,
+            indexColumns,
         );
 
         // If there are no index columns, use a constant for row_index (all rows have same index)

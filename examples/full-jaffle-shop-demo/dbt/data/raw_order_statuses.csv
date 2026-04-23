@@ -4,3 +4,5 @@ shipped,Shipped,2,true
 completed,Completed,3,false
 return_pending,Return Pending,4,true
 returned,Returned,5,false
+cancelled,Cancelled,2.5,false
+preparing,Preparing,1.5,true

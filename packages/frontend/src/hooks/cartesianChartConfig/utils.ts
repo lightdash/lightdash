@@ -22,6 +22,27 @@ const getPivotGroupKey = (
     pivotValues: Array<{ field: string; value: unknown }>,
 ): string => pivotValues.map((pv) => `${pv.field}:${pv.value}`).join('|');
 
+/**
+ * Pivot series should follow the query sort order (not manual reorder) when:
+ *  - Sort is on the pivot dimension itself (original PROD-2927 fix), OR
+ *  - Sort is on any non-x-axis dimension (e.g. group by `status`, sort by
+ *    `status_priority`). The backend's DENSE_RANK includes these sorts in
+ *    column_index ordering (see PivotQueryBuilder.buildGroupByOrderBy), so
+ *    expectedSeriesMap reflects the intended order and series should match.
+ */
+export const shouldPivotSeriesFollowQuerySort = (
+    pivotKeys: string[] | undefined,
+    sorts: Array<{ fieldId: string }> | undefined,
+    xField: string | undefined,
+    dimensions: string[] | undefined,
+): boolean => {
+    if (!pivotKeys?.length || !sorts?.length) return false;
+    return sorts.some((sort) => {
+        if (pivotKeys.includes(sort.fieldId)) return true;
+        return sort.fieldId !== xField && !!dimensions?.includes(sort.fieldId);
+    });
+};
+
 const limitToFirstNPivotGroups = (
     rowKeyValues: RowKeyValue[],
     limit: number,

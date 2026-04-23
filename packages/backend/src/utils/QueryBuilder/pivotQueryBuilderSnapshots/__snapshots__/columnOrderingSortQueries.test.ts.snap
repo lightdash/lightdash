@@ -1,0 +1,279 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`PivotQueryBuilder snapshot: column ordering sorts combined sort: x-axis + non-pivot dimension — x-axis only on row_index, other on column_index 1`] = `
+"WITH
+  original_query AS (
+    SELECT
+      *
+    FROM
+      events
+  ),
+  group_by_query AS (
+    SELECT
+      "category",
+      "date",
+      "category_priority",
+      sum("revenue") AS "revenue_sum"
+    FROM
+      original_query
+    group by
+      "category",
+      "date",
+      "category_priority"
+  ),
+  pivot_query AS (
+    SELECT
+      g."date",
+      g."category_priority",
+      g."category",
+      g."revenue_sum",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."date" DESC,
+          g."category_priority" ASC
+      ) AS "row_index",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."category_priority" ASC,
+          g."category" ASC
+      ) AS "column_index"
+    FROM
+      group_by_query g
+  ),
+  filtered_rows AS (
+    SELECT
+      *
+    FROM
+      pivot_query
+    WHERE
+      "row_index" <= 500
+  ),
+  total_columns AS (
+    SELECT
+      COUNT(*) AS total_columns
+    FROM
+      (
+        SELECT DISTINCT
+          "category"
+        FROM
+          filtered_rows
+      ) AS distinct_groups
+  )
+SELECT
+  p.*,
+  t.total_columns
+FROM
+  pivot_query p
+  CROSS JOIN total_columns t
+WHERE
+  p."row_index" <= 500
+order by
+  p."row_index",
+  p."column_index""
+`;
+
+exports[`PivotQueryBuilder snapshot: column ordering sorts sort by non-pivot dimension drives column ordering 1`] = `
+"WITH
+  original_query AS (
+    SELECT
+      *
+    FROM
+      events
+  ),
+  group_by_query AS (
+    SELECT
+      "category",
+      "date",
+      "category_priority",
+      sum("revenue") AS "revenue_sum"
+    FROM
+      original_query
+    group by
+      "category",
+      "date",
+      "category_priority"
+  ),
+  pivot_query AS (
+    SELECT
+      g."date",
+      g."category_priority",
+      g."category",
+      g."revenue_sum",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."category_priority" ASC,
+          g."date" ASC
+      ) AS "row_index",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."category_priority" ASC,
+          g."category" ASC
+      ) AS "column_index"
+    FROM
+      group_by_query g
+  ),
+  filtered_rows AS (
+    SELECT
+      *
+    FROM
+      pivot_query
+    WHERE
+      "row_index" <= 500
+  ),
+  total_columns AS (
+    SELECT
+      COUNT(*) AS total_columns
+    FROM
+      (
+        SELECT DISTINCT
+          "category"
+        FROM
+          filtered_rows
+      ) AS distinct_groups
+  )
+SELECT
+  p.*,
+  t.total_columns
+FROM
+  pivot_query p
+  CROSS JOIN total_columns t
+WHERE
+  p."row_index" <= 500
+order by
+  p."row_index",
+  p."column_index""
+`;
+
+exports[`PivotQueryBuilder snapshot: column ordering sorts sort by pivot (groupBy) dimension itself drives column ordering 1`] = `
+"WITH
+  original_query AS (
+    SELECT
+      *
+    FROM
+      events
+  ),
+  group_by_query AS (
+    SELECT
+      "category",
+      "date",
+      sum("revenue") AS "revenue_sum"
+    FROM
+      original_query
+    group by
+      "category",
+      "date"
+  ),
+  pivot_query AS (
+    SELECT
+      g."date",
+      g."category",
+      g."revenue_sum",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."date" ASC
+      ) AS "row_index",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."category" ASC
+      ) AS "column_index"
+    FROM
+      group_by_query g
+  ),
+  filtered_rows AS (
+    SELECT
+      *
+    FROM
+      pivot_query
+    WHERE
+      "row_index" <= 500
+  ),
+  total_columns AS (
+    SELECT
+      COUNT(*) AS total_columns
+    FROM
+      (
+        SELECT DISTINCT
+          "category"
+        FROM
+          filtered_rows
+      ) AS distinct_groups
+  )
+SELECT
+  p.*,
+  t.total_columns
+FROM
+  pivot_query p
+  CROSS JOIN total_columns t
+WHERE
+  p."row_index" <= 500
+order by
+  p."row_index",
+  p."column_index""
+`;
+
+exports[`PivotQueryBuilder snapshot: column ordering sorts sort by x-axis (first indexColumn) does NOT affect column ordering 1`] = `
+"WITH
+  original_query AS (
+    SELECT
+      *
+    FROM
+      events
+  ),
+  group_by_query AS (
+    SELECT
+      "category",
+      "date",
+      sum("revenue") AS "revenue_sum"
+    FROM
+      original_query
+    group by
+      "category",
+      "date"
+  ),
+  pivot_query AS (
+    SELECT
+      g."date",
+      g."category",
+      g."revenue_sum",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."date" DESC
+      ) AS "row_index",
+      DENSE_RANK() OVER (
+        ORDER BY
+          g."category" ASC
+      ) AS "column_index"
+    FROM
+      group_by_query g
+  ),
+  filtered_rows AS (
+    SELECT
+      *
+    FROM
+      pivot_query
+    WHERE
+      "row_index" <= 500
+  ),
+  total_columns AS (
+    SELECT
+      COUNT(*) AS total_columns
+    FROM
+      (
+        SELECT DISTINCT
+          "category"
+        FROM
+          filtered_rows
+      ) AS distinct_groups
+  )
+SELECT
+  p.*,
+  t.total_columns
+FROM
+  pivot_query p
+  CROSS JOIN total_columns t
+WHERE
+  p."row_index" <= 500
+order by
+  p."row_index",
+  p."column_index""
+`;

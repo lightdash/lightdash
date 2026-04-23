@@ -425,6 +425,103 @@ describe('PivotQueryBuilder', () => {
             expect(result).not.toContain('"revenue_column_anchor" AS (');
         });
 
+        test('Dimension sort: should drive column ordering when sorting by a non-pivot, non-xAxis dimension', () => {
+            // Group by `category`, sort by `category_priority`. The priority
+            // dimension is an "extra" index column selected solely to drive
+            // the sort (e.g. a joined dimension with a 1:1 relationship to
+            // the groupBy value — like status_priority for status).
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'date', type: VizIndexType.TIME },
+                    {
+                        reference: 'category_priority',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'category_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // column_index DENSE_RANK must include the sort dimension so
+            // pivot columns follow the query sort (with the groupBy column
+            // as a tiebreaker).
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."category_priority" asc, g."category" asc) as "column_index"',
+            );
+
+            // Dimension sorts don't need anchor CTEs
+            expect(result).not.toContain('column_ranking AS (');
+            expect(result).not.toContain('anchor_column AS (');
+            expect(result).not.toContain('"revenue_column_anchor" AS (');
+        });
+
+        test('Dimension sort: should NOT include x-axis index column in column ordering', () => {
+            // First indexColumn is the x-axis. Sorting by it should only
+            // affect row ordering, not column ordering — otherwise the
+            // DENSE_RANK would assign a different column_index per
+            // (date, category) combo and the pivot would shatter.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'date', type: VizIndexType.TIME },
+                    {
+                        reference: 'category_priority',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'date', direction: SortByDirection.DESC },
+                    {
+                        reference: 'category_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Only category_priority and category should appear in column_index
+            // ORDER BY — not the x-axis (date) sort (that belongs on row_index).
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."category_priority" asc, g."category" asc) as "column_index"',
+            );
+            // The x-axis date sort should still drive row_index
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."date" desc, g."category_priority" asc) as "row_index"',
+            );
+        });
+
         test('Metric sort: should create column_ranking and anchor_column CTEs when sorting by value column', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],

@@ -30,6 +30,7 @@ import { type MetricQueryDataContext } from '../../../components/MetricQueryData
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
+    shouldPivotSeriesFollowQuerySort,
 } from '../../../hooks/cartesianChartConfig/utils';
 import { useExplore } from '../../../hooks/useExplore';
 import { type QueryResultsProps } from '../../../hooks/useQueryResults';
@@ -437,11 +438,12 @@ export function useMetricVisualization({
         });
 
         const pivotKeys = segmentDimensionId ? [segmentDimensionId] : undefined;
-        const sortedByPivot =
-            !!pivotKeys?.length &&
-            !!executedMetricQuery?.sorts?.some((sort) =>
-                pivotKeys.includes(sort.fieldId),
-            );
+        const sortedByPivot = shouldPivotSeriesFollowQuerySort(
+            pivotKeys,
+            executedMetricQuery?.sorts,
+            chartConfig.config.layout.xField,
+            executedMetricQuery?.dimensions,
+        );
 
         return mergeExistingAndExpectedSeries({
             expectedSeriesMap,

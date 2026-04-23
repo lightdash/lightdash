@@ -35,6 +35,7 @@ import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import {
     getExpectedSeriesMap,
     mergeExistingAndExpectedSeries,
+    shouldPivotSeriesFollowQuerySort,
     sortDimensions,
 } from './utils';
 
@@ -1119,12 +1120,12 @@ const useCartesianChartConfig = ({
                     itemsMap,
                     columnLimit: effectiveColumnLimit,
                 });
-                // Check if any sort field matches a pivot dimension
-                const sortedByPivot =
-                    !!pivotKeys?.length &&
-                    !!resultsData?.metricQuery?.sorts?.some((sort) =>
-                        pivotKeys.includes(sort.fieldId),
-                    );
+                const sortedByPivot = shouldPivotSeriesFollowQuerySort(
+                    pivotKeys,
+                    resultsData?.metricQuery?.sorts,
+                    dirtyLayout.xField,
+                    resultsData?.metricQuery?.dimensions,
+                );
 
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,

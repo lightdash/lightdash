@@ -19,7 +19,10 @@ import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
 import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
-import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
+import {
+    getSeriesGroupedByField,
+    shouldPivotSeriesFollowQuerySort,
+} from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
@@ -52,13 +55,23 @@ export const Series: FC<Props> = ({ items }) => {
         colorPalette,
     } = useVisualizationContext();
 
+    const xField = isCartesianVisualizationConfig(visualizationConfig)
+        ? visualizationConfig.chartConfig.dirtyLayout?.xField
+        : undefined;
     const sortedByPivot = useMemo(
         () =>
-            !!pivotDimensions?.length &&
-            !!resultsData?.metricQuery?.sorts?.some((sort) =>
-                pivotDimensions.includes(sort.fieldId),
+            shouldPivotSeriesFollowQuerySort(
+                pivotDimensions,
+                resultsData?.metricQuery?.sorts,
+                xField,
+                resultsData?.metricQuery?.dimensions,
             ),
-        [pivotDimensions, resultsData?.metricQuery?.sorts],
+        [
+            pivotDimensions,
+            resultsData?.metricQuery?.sorts,
+            resultsData?.metricQuery?.dimensions,
+            xField,
+        ],
     );
 
     const isCartesianChart =

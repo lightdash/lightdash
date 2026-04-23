@@ -150,3 +150,22 @@ id,user_id,order_date,status,order_source,shipping_method,promo_code,order_prior
 149,1,2026-03-01,completed,website,standard,,normal,5,10.99,0.0875,USD,east_coast,
 150,3,2026-03-02,completed,mobile_app,express,,high,2,15.50,0.08,USD,west_coast,
 151,94,2026-03-03,completed,phone,standard,,normal,7,12.25,0.0925,USD,central,
+152,1,2026-03-10,completed,email,standard,,normal,5,9.99,0.0875,USD,east_coast,Email order
+153,5,2026-03-17,completed,email,express,,high,2,18.50,0.08,USD,west_coast,Email order
+154,12,2026-03-24,completed,email,standard,SPRING26,normal,6,11.25,0.0925,USD,central,Email order
+155,23,2026-03-31,completed,email,standard,,normal,5,13.75,0.085,USD,east_coast,Email order
+156,40,2026-04-07,completed,email,express,,high,2,22.99,0.08,USD,west_coast,Email order
+157,55,2026-04-14,completed,email,standard,,normal,5,8.50,0.0925,USD,central,Email order
+158,70,2026-04-21,completed,email,overnight,,urgent,1,35.00,0.085,USD,east_coast,Email order
+159,2,2026-03-12,cancelled,website,standard,,normal,5,12.50,0.0875,USD,east_coast,Cancelled order
+160,8,2026-03-19,cancelled,mobile_app,express,,high,2,19.75,0.08,USD,west_coast,Cancelled order
+161,15,2026-03-26,cancelled,website,standard,,normal,6,14.00,0.0925,USD,central,Cancelled order
+162,25,2026-04-02,cancelled,phone,standard,,normal,5,16.50,0.085,USD,east_coast,Cancelled order
+163,33,2026-04-09,cancelled,website,express,,high,2,24.99,0.08,USD,west_coast,Cancelled order
+164,47,2026-04-16,cancelled,mobile_app,standard,,normal,6,10.25,0.0925,USD,central,Cancelled order
+165,3,2026-03-05,preparing,website,standard,,normal,5,14.50,0.0875,USD,east_coast,Preparing order
+166,11,2026-03-12,preparing,mobile_app,express,,high,2,22.99,0.08,USD,west_coast,Preparing order
+167,18,2026-03-19,preparing,website,standard,SPRING,normal,6,17.25,0.0925,USD,central,Preparing order
+168,29,2026-03-26,preparing,phone,standard,,normal,5,9.99,0.085,USD,east_coast,Preparing order
+169,36,2026-04-02,preparing,website,express,,high,2,28.50,0.08,USD,west_coast,Preparing order
+170,45,2026-04-09,preparing,mobile_app,standard,,normal,6,13.75,0.0925,USD,central,Preparing order
