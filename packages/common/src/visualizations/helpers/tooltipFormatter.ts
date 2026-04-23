@@ -381,6 +381,34 @@ const getHeader = (
         );
     }
 
+    // Item-trigger tooltips (e.g. scatter) fire per-point with axisValue=undefined.
+    // Read the raw UTC value straight from the dataset row and format through
+    // the tz (shifted path: treat displayTimezone as the true tz since we're
+    // starting from unshifted data).
+    const rawDatasetValue =
+        xFieldId &&
+        firstParam?.value &&
+        typeof firstParam.value === 'object' &&
+        !Array.isArray(firstParam.value)
+            ? (firstParam.value as Record<string, unknown>)[xFieldId]
+            : undefined;
+    if (
+        (timezone || displayTimezone) &&
+        itemsMap &&
+        xFieldId &&
+        rawDatasetValue != null
+    ) {
+        return getFormattedValue(
+            rawDatasetValue,
+            xFieldId,
+            itemsMap,
+            true,
+            undefined,
+            undefined,
+            timezone ?? displayTimezone,
+        );
+    }
+
     // First try the standard axisValueLabel or name
     const standardHeader = firstParam?.axisValueLabel ?? firstParam?.name;
 
