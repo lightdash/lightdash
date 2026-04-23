@@ -3,6 +3,7 @@ import { Box, Flex, Group, Paper, Text, Tooltip } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconEye } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import MantineIcon from '../../MantineIcon';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -68,7 +69,8 @@ const ResourceViewGridDataAppItem: FC<ResourceViewGridDataAppItemProps> = ({
                     label={getResourceViewsSinceWhenDescription(item)}
                 >
                     <Flex align="center" gap={4}>
-                        <IconEye
+                        <MantineIcon
+                            icon={IconEye}
                             color="var(--mantine-color-ldGray-6)"
                             size={14}
                         />
