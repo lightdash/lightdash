@@ -32,6 +32,7 @@ import {
     CommercialFeatureFlags,
     Explore,
     ExploreCompiler,
+    FieldType,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
@@ -2761,6 +2762,52 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 const catalogFields = catalogItems.filter(
                     (item) => item.type === CatalogType.Field,
                 );
+
+                // Enrich metrics with driver/dependent relationships
+                const metricFields = catalogFields.filter(
+                    (f) => f.fieldType === FieldType.METRIC,
+                );
+                const metricUuids = metricFields.map(
+                    (f) => f.catalogSearchUuid,
+                );
+
+                if (args.includeRelationships && metricUuids.length > 0) {
+                    const edges =
+                        await this.catalogModel.getMetricRelationshipsForFields(
+                            projectUuid,
+                            metricUuids,
+                        );
+
+                    for (const field of metricFields) {
+                        const drivers = edges
+                            .filter(
+                                (e) =>
+                                    e.target.catalogSearchUuid ===
+                                    field.catalogSearchUuid,
+                            )
+                            .map((e) => ({
+                                name: e.source.name,
+                                tableName: e.source.tableName,
+                            }));
+                        const dependents = edges
+                            .filter(
+                                (e) =>
+                                    e.source.catalogSearchUuid ===
+                                    field.catalogSearchUuid,
+                            )
+                            .map((e) => ({
+                                name: e.target.name,
+                                tableName: e.target.tableName,
+                            }));
+
+                        if (drivers.length > 0) {
+                            field.metricDrivers = drivers;
+                        }
+                        if (dependents.length > 0) {
+                            field.metricDependents = dependents;
+                        }
+                    }
+                }
 
                 return { fields: catalogFields, pagination };
             });

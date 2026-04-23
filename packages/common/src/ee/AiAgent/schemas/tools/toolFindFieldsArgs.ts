@@ -14,6 +14,7 @@ Usage tips:
 - Fields are sorted by relevance, with a maximum score of 1 and a minimum of 0, so the top results are the most relevant.
 - If results aren't relevant, retry with clearer or more specific terms.
 - Results are paginated — use the next page token to get more results if needed.
+- Set includeRelationships to true when you need to understand how metrics relate to each other — e.g. exploring what drives a KPI or what downstream metrics it affects. When you just need field metadata for building a query, leave it off to keep the response concise.
 `;
 
 export const toolFindFieldsArgsSchema = createToolSchema({
@@ -26,6 +27,12 @@ export const toolFindFieldsArgsSchema = createToolSchema({
                 label: z.string().describe('Full field label'),
             }),
         ),
+        includeRelationships: z
+            .boolean()
+            .optional()
+            .describe(
+                'When true, includes metric driver/dependent relationships in the response. Use when exploring what drives a metric or what it influences.',
+            ),
     })
     .withPagination()
     .build();
