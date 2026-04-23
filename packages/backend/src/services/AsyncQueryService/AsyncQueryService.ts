@@ -1103,6 +1103,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const { displayTimezone } = await this.resolveTimezoneContext({
+            projectUuid: queryHistory.projectUuid,
+            organizationUuid: queryHistory.organizationUuid,
+            userUuid:
+                AsyncQueryService.getQueryHistoryActor(queryHistory).userUuid,
+            metricQuery: queryHistory.metricQuery,
+        });
+
         const { status, resultsFileName, fields, columns } = queryHistory;
         const resultsStorageClient = this.getResultsStorageClientForContext(
             queryHistory.context,
@@ -1227,6 +1235,7 @@ export class AsyncQueryService extends ProjectService {
                             ? null
                             : account.user.userUuid,
                         expirationSecondsOverride,
+                        timezone: displayTimezone ?? undefined,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -1255,6 +1264,7 @@ export class AsyncQueryService extends ProjectService {
                         fileType: DownloadFileType.CSV,
                         expirationSecondsOverride,
                     },
+                    displayTimezone ?? undefined,
                 );
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
@@ -1349,6 +1359,7 @@ export class AsyncQueryService extends ProjectService {
                 sortedFieldIds: string[],
                 headers: string[],
                 streams: { readStream: Readable; writeStream: Writable },
+                timezone?: string,
             ) => Promise<{ truncated: boolean }>;
         },
         options?: {
@@ -1367,6 +1378,7 @@ export class AsyncQueryService extends ProjectService {
             fileType: DownloadFileType;
             expirationSecondsOverride?: number;
         },
+        timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
@@ -1410,6 +1422,7 @@ export class AsyncQueryService extends ProjectService {
                         readStream,
                         writeStream,
                     },
+                    timezone,
                 );
 
                 return {

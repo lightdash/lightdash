@@ -247,6 +247,26 @@ $4.00,value_4,2020-03-16
         expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16 11:32:55.123']);
     });
 
+    it('accepts a timezone argument and forwards it to formatItemValue', async () => {
+        const row = {
+            column_number: 1,
+            column_string: `value_1`,
+            column_timestamp: '2020-03-16T11:32:55.123Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(
+            row,
+            itemMap,
+            false,
+            ['column_number', 'column_string', 'column_timestamp'],
+            'America/New_York',
+        );
+
+        expect(csv[0]).toBe('$1.00');
+        expect(csv[1]).toBe('value_1');
+        expect(typeof csv[2]).toBe('string');
+    });
+
     it('Should generate csv file ids', async () => {
         const time = moment('2023-09-07 12:13:45.123');
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');

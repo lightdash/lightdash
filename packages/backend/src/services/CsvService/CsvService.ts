@@ -154,6 +154,7 @@ export class CsvService extends BaseService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): string | null {
         if (!line.trim()) return null;
 
@@ -164,6 +165,7 @@ export class CsvService extends BaseService {
                 itemMap,
                 onlyRaw,
                 sortedFieldIds,
+                timezone,
             );
 
             return csvRow.map(CsvService.escapeCsvValue).join(',');
@@ -235,6 +237,7 @@ export class CsvService extends BaseService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ) {
         return sortedFieldIds.map((id: string) => {
             const data = row[id];
@@ -256,7 +259,7 @@ export class CsvService extends BaseService {
             if (onlyRaw) return data;
 
             // Use standard Lightdash formatting based on the item formatting configuration
-            return formatItemValue(item, data);
+            return formatItemValue(item, data, undefined, undefined, timezone);
         });
     }
 
@@ -293,6 +296,7 @@ export class CsvService extends BaseService {
             readStream: Readable;
             writeStream: Writable;
         },
+        timezone?: string,
     ): Promise<void> {
         // Create csv-stringify stringifier with clean configuration
         const stringifier = stringify({
@@ -313,6 +317,7 @@ export class CsvService extends BaseService {
                     itemMap,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 // Pass data to next stream in pipeline (csv-stringify)
@@ -360,6 +365,7 @@ export class CsvService extends BaseService {
             readStream,
             writeStream,
         }: { readStream: Readable; writeStream: Writable },
+        timezone?: string,
     ): Promise<{ truncated: boolean }> {
         return new Promise((resolve, reject) => {
             // Write CSV header with BOM immediately
@@ -393,6 +399,7 @@ export class CsvService extends BaseService {
                         itemMap,
                         onlyRaw,
                         sortedFieldIds,
+                        timezone,
                     );
 
                     if (csvString) {
@@ -417,6 +424,7 @@ export class CsvService extends BaseService {
                     itemMap,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 if (csvString) {
