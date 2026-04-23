@@ -31,6 +31,7 @@ export type DbProject = {
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
+    expires_at: Date | null;
 };
 
 type CreateDbProject = Pick<

@@ -24,7 +24,11 @@
     },
     "files": ["src/@types/express-session.d.ts"],
     "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.json"],
-    "exclude": ["dist", "node_modules", "src/ee/services/McpService/mcp-chart-app"],
+    "exclude": [
+        "dist",
+        "node_modules",
+        "src/ee/services/McpService/mcp-chart-app"
+    ],
     "references": [
         {
             "path": "../common"
