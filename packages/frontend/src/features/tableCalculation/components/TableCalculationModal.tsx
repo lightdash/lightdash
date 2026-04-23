@@ -295,6 +295,20 @@ const TableCalculationModal: FC<Props> = ({
             if (!form.values.name.trim() && result.displayName) {
                 form.setFieldValue('name', result.displayName);
             }
+            if (
+                form.values.type === TableCalculationType.NUMBER &&
+                result.type &&
+                result.type !== TableCalculationType.NUMBER
+            ) {
+                form.setFieldValue('type', result.type);
+            }
+            if (
+                form.values.format.type === CustomFormatType.DEFAULT &&
+                result.format &&
+                result.format.type !== CustomFormatType.DEFAULT
+            ) {
+                form.setFieldValue('format', result.format);
+            }
             setFormulaGeneratedByAi(true);
         },
         [form],
