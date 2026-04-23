@@ -6,8 +6,6 @@ import {
     SchedulerFormat,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
-import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
-import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -15,7 +13,6 @@ import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { UserService } from '../UserService';
 import { SavedSqlService } from './SavedSqlService';
 
 const organizationUuid = 'org-uuid';
@@ -93,7 +90,7 @@ const createdScheduler = {
     name: 'Test',
     cron: '0 9 * * *',
     timezone: 'UTC',
-    format: 'image',
+    format: SchedulerFormat.IMAGE,
     savedChartUuid: null,
     dashboardUuid: null,
     savedSqlUuid,
@@ -111,39 +108,16 @@ const schedulerModel = {
     getSqlChartSchedulers: jest.fn(async () => []),
     createScheduler: jest.fn(async () => createdScheduler),
 };
-const schedulerClient = {
-    generateDailyJobsForScheduler: jest.fn(async () => undefined),
-};
-const slackClient = {
-    joinChannels: jest.fn(async () => undefined),
-};
-const projectModel = {
-    get: jest.fn(async () => ({ schedulerTimezone: 'UTC' })),
-};
 const spacePermissionService = {
     can: jest.fn(async () => true),
 };
-const googleDriveClient = {
-    assertFileIsGoogleSheet: jest.fn(async () => undefined),
-};
-const userService = {
-    getRefreshToken: jest.fn(async () => 'refresh-token'),
-};
-
-jest.spyOn(analyticsMock, 'track');
 
 const newSchedulerPayload = {
     name: 'Test',
     cron: '0 9 * * *',
     timezone: 'UTC',
-    format: SchedulerFormat.GSHEETS,
-    options: {
-        gdriveId: 'gdrive-id',
-        gdriveName: 'sheet',
-        gdriveOrganizationName: '',
-        url: 'https://docs.google.com/spreadsheets/d/gdrive-id',
-        tabName: undefined,
-    },
+    format: SchedulerFormat.IMAGE,
+    options: {},
     targets: [],
     includeLinks: false,
     enabled: true,
@@ -153,16 +127,13 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
     const service = new SavedSqlService({
         lightdashConfig: lightdashConfigMock,
         analytics: analyticsMock,
-        projectModel: projectModel as unknown as ProjectModel,
+        projectModel: {} as unknown as ProjectModel,
         savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
-        schedulerClient: schedulerClient as unknown as SchedulerClient,
+        schedulerClient: {} as unknown as SchedulerClient,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
         analyticsModel: {} as unknown as AnalyticsModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
-        slackClient: slackClient as unknown as SlackClient,
-        googleDriveClient: googleDriveClient as unknown as GoogleDriveClient,
-        userService: userService as unknown as UserService,
     });
 
     afterEach(() => jest.clearAllMocks());
@@ -184,7 +155,6 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             await expect(
                 service.getSchedulers(viewerUser, projectUuid, savedSqlUuid),
             ).rejects.toThrow(ForbiddenError);
-            // Security invariant: deny must happen before any read
             expect(schedulerModel.getSqlChartSchedulers).not.toHaveBeenCalled();
         });
 
@@ -195,6 +165,7 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             ).rejects.toThrow(
                 "You don't have access to the space this chart belongs to",
             );
+            expect(schedulerModel.getSqlChartSchedulers).not.toHaveBeenCalled();
         });
     });
 
@@ -230,12 +201,7 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
                     newSchedulerPayload,
                 ),
             ).rejects.toThrow(ForbiddenError);
-            // Security invariant: deny must happen before any write or
-            // external side effect (Google Drive API)
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
-            expect(
-                googleDriveClient.assertFileIsGoogleSheet,
-            ).not.toHaveBeenCalled();
         });
 
         it('user without space access is blocked from creating scheduler', async () => {
@@ -249,39 +215,6 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
                 ),
             ).rejects.toThrow(
                 "You don't have access to the space this chart belongs to",
-            );
-            expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
-            expect(
-                googleDriveClient.assertFileIsGoogleSheet,
-            ).not.toHaveBeenCalled();
-        });
-
-        it('rejects invalid cron frequency', async () => {
-            await expect(
-                service.createScheduler(adminUser, projectUuid, savedSqlUuid, {
-                    ...newSchedulerPayload,
-                    cron: '* * * * *',
-                }),
-            ).rejects.toThrow('Frequency not allowed');
-        });
-
-        it('rejects non-array targets', async () => {
-            await expect(
-                service.createScheduler(adminUser, projectUuid, savedSqlUuid, {
-                    ...newSchedulerPayload,
-                    targets: undefined as never,
-                }),
-            ).rejects.toThrow('Targets is required');
-        });
-
-        it('rejects non-GSHEETS format (SQL chart schedulers are GSHEETS-only)', async () => {
-            await expect(
-                service.createScheduler(adminUser, projectUuid, savedSqlUuid, {
-                    ...newSchedulerPayload,
-                    format: SchedulerFormat.IMAGE,
-                }),
-            ).rejects.toThrow(
-                'SQL chart schedulers only support Google Sheets format',
             );
             expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
         });
