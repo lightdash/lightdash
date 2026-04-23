@@ -1040,6 +1040,9 @@ export class ServiceRepository
                     schedulerModel: this.models.getSchedulerModel(),
                     analyticsModel: this.models.getAnalyticsModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    slackClient: this.clients.getSlackClient(),
+                    googleDriveClient: this.clients.getGoogleDriveClient(),
+                    userService: this.getUserService(),
                 }),
         );
     }

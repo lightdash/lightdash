@@ -6,30 +6,43 @@ import {
     CreateSchedulerAndTargetsWithoutIds,
     CreateSqlChart,
     ForbiddenError,
+    getSchedulerResourceTypeAndId,
+    getTimezoneLabel,
+    GoogleSheetsTransientError,
+    isSchedulerGsheetsOptions,
+    isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
     isVizBarChartConfig,
     isVizLineChartConfig,
     isVizPieChartConfig,
+    MissingConfigError,
     NotFoundError,
     Organization,
     ParameterError,
     Project,
     QueryExecutionContext,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     SqlChart,
     SqlRunnerPivotQueryBody,
+    UnexpectedGoogleSheetsError,
     UpdateSqlChart,
     VIZ_DEFAULT_AGGREGATION,
 } from '@lightdash/common';
+import cronstrue from 'cronstrue';
 import { Knex } from 'knex';
 import { uniq } from 'lodash';
 import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
+    SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
+import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
+import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -41,6 +54,7 @@ import type {
     SoftDeleteOptions,
 } from '../SoftDeletableService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { UserService } from '../UserService';
 
 type SavedSqlServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -51,6 +65,9 @@ type SavedSqlServiceArguments = {
     schedulerModel: SchedulerModel;
     analyticsModel: AnalyticsModel;
     spacePermissionService: SpacePermissionService;
+    slackClient: SlackClient;
+    googleDriveClient: GoogleDriveClient;
+    userService: UserService;
 };
 
 // TODO: Rename to SqlRunnerService
@@ -75,6 +92,12 @@ export class SavedSqlService
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly slackClient: SlackClient;
+
+    private readonly googleDriveClient: GoogleDriveClient;
+
+    private readonly userService: UserService;
+
     constructor(args: SavedSqlServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -85,6 +108,9 @@ export class SavedSqlService
         this.schedulerModel = args.schedulerModel;
         this.analyticsModel = args.analyticsModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.slackClient = args.slackClient;
+        this.googleDriveClient = args.googleDriveClient;
+        this.userService = args.userService;
     }
 
     static getCreateVersionEventProperties(
@@ -789,20 +815,36 @@ export class SavedSqlService
         }
     }
 
-    async getSchedulers(
+    private async hasChartSpaceAccess(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        try {
+            return await this.spacePermissionService.can(
+                'view',
+                user,
+                spaceUuid,
+            );
+        } catch (e) {
+            return false;
+        }
+    }
+
+    private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
         projectUuid: string,
         savedSqlUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
+    ): Promise<{ organizationUuid: string; spaceUuid: string }> {
         const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
         const { organizationUuid } = sqlChart.organization;
+        const spaceUuid = sqlChart.space.uuid;
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
@@ -813,6 +855,25 @@ export class SavedSqlService
             throw new ForbiddenError();
         }
 
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
+        return { organizationUuid, spaceUuid };
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        await this.checkCreateScheduledDeliveryAccess(
+            user,
+            projectUuid,
+            savedSqlUuid,
+        );
         return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
     }
 
@@ -822,23 +883,8 @@ export class SavedSqlService
         savedSqlUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
-            projectUuid,
-        });
-        const { organizationUuid } = sqlChart.organization;
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedSqlUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
         }
 
         if (!isValidFrequency(newScheduler.cron)) {
@@ -851,12 +897,97 @@ export class SavedSqlService
             throw new ParameterError('Timezone string is not valid');
         }
 
-        return this.schedulerModel.createScheduler({
+        if (!newScheduler.targets || !Array.isArray(newScheduler.targets)) {
+            throw new ParameterError(
+                'Targets is required and must be an array',
+            );
+        }
+
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            if (!isSchedulerGsheetsOptions(newScheduler.options)) {
+                throw new ParameterError(
+                    'Google Sheets format requires valid gsheets options',
+                );
+            }
+
+            try {
+                const refreshToken = await this.userService.getRefreshToken(
+                    user.userUuid,
+                );
+                await this.googleDriveClient.assertFileIsGoogleSheet(
+                    refreshToken,
+                    newScheduler.options.gdriveId,
+                );
+            } catch (error) {
+                if (error instanceof UnexpectedGoogleSheetsError) {
+                    throw error;
+                }
+                if (error instanceof GoogleSheetsTransientError) {
+                    throw error;
+                }
+                throw new MissingConfigError(
+                    'Unable to validate Google Sheets file. Please ensure you have connected your Google account.',
+                );
+            }
+        }
+
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+
+        const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
             savedChartUuid: null,
             dashboardUuid: null,
             savedSqlUuid,
         });
+
+        const createSchedulerEventData: SchedulerUpsertEvent = {
+            userId: user.userUuid,
+            event: 'scheduler.created',
+            properties: {
+                projectId: projectUuid,
+                organizationId: organizationUuid,
+                schedulerId: scheduler.schedulerUuid,
+                ...getSchedulerResourceTypeAndId(scheduler),
+                cronExpression: scheduler.cron,
+                format: scheduler.format,
+                cronString: cronstrue.toString(scheduler.cron, {
+                    verbose: true,
+                    throwExceptionOnParseError: false,
+                }),
+                targets:
+                    scheduler.format === SchedulerFormat.GSHEETS
+                        ? []
+                        : scheduler.targets.map(getSchedulerTargetType),
+                timeZone: getTimezoneLabel(scheduler.timezone),
+                includeLinks: scheduler.includeLinks,
+            },
+        };
+        this.analytics.track(createSchedulerEventData);
+
+        await this.slackClient.joinChannels(
+            user.organizationUuid,
+            SchedulerModel.getSlackChannels(scheduler.targets),
+        );
+
+        const { schedulerTimezone: defaultTimezone } =
+            await this.projectModel.get(projectUuid);
+
+        await this.schedulerClient.generateDailyJobsForScheduler(
+            scheduler,
+            {
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+            },
+            defaultTimezone,
+        );
+
+        return scheduler;
     }
 }
