@@ -52,7 +52,7 @@
     "sanitize-html": "2.12.1",
     "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
-    "uuid": "11.0.3",
+    "uuid": "14.0.0",
     "yaml": "2.7.0",
     "zod": "3.25.55"
   },
