@@ -200,7 +200,7 @@ const TableCalculationModal: FC<Props> = ({
                     : '',
             formula:
                 tableCalculation && isFormulaTableCalculation(tableCalculation)
-                    ? tableCalculation.formula.replace(/^=/, '')
+                    ? tableCalculation.formula
                     : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
@@ -289,15 +289,6 @@ const TableCalculationModal: FC<Props> = ({
     const handleFormulaAiApply = useCallback(
         (result: GeneratedFormulaTableCalculation) => {
             form.setFieldValue('formula', result.formula);
-            if (!form.values.name.trim()) {
-                form.setFieldValue('name', result.displayName);
-            }
-            if (result.type) {
-                form.setFieldValue('type', result.type);
-            }
-            if (result.format) {
-                form.setFieldValue('format', result.format);
-            }
             setFormulaGeneratedByAi(true);
         },
         [form],
@@ -343,7 +334,10 @@ const TableCalculationModal: FC<Props> = ({
         // expression. Name, result type, and display format were already
         // chosen by the user on the existing SQL calc — keep them.
         setEditMode(EditMode.FORMULA);
-        form.setFieldValue('formula', conversionResult.formula);
+        const f = conversionResult.formula.startsWith('=')
+            ? conversionResult.formula
+            : `=${conversionResult.formula}`;
+        form.setFieldValue('formula', f);
         setFormulaGeneratedByAi(true);
         resetConversion();
     }, [conversionResult, form, resetConversion]);
@@ -412,7 +406,7 @@ const TableCalculationModal: FC<Props> = ({
                         displayName: name,
                         format,
                         type,
-                        formula: `=${formula}`,
+                        formula,
                     },
                     {
                         mode: 'formula',
