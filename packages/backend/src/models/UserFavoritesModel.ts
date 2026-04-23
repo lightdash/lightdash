@@ -3,8 +3,10 @@ import {
     ResourceViewItemType,
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
+    type ResourceViewDataAppItem,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
@@ -229,6 +231,83 @@ export class UserFavoritesModel {
                       }
                     : undefined,
                 verification: null,
+            },
+        }));
+    }
+
+    async getFavoriteApps(
+        projectUuid: string,
+        appUuids: string[],
+        allowedSpaceUuids: string[],
+    ): Promise<ResourceViewDataAppItem[]> {
+        if (appUuids.length === 0 || allowedSpaceUuids.length === 0) {
+            return [];
+        }
+        const rows = (await this.database(AppsTableName)
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_uuid`,
+                `${AppsTableName}.space_uuid`,
+            )
+            .innerJoin(
+                `${AppVersionsTableName} as latest_version`,
+                'latest_version.app_id',
+                `${AppsTableName}.app_id`,
+            )
+            .leftJoin(
+                'users as last_updated_by_user',
+                'last_updated_by_user.user_uuid',
+                'latest_version.created_by_user_uuid',
+            )
+            .whereIn(`${AppsTableName}.app_id`, appUuids)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .where(
+                `latest_version.app_version_id`,
+                this.database.raw(
+                    `(select app_version_id
+                      from ${AppVersionsTableName}
+                      where app_id = ${AppsTableName}.app_id
+                      order by version desc
+                      limit 1)`,
+                ),
+            )
+            .select({
+                app_id: `${AppsTableName}.app_id`,
+                name: `${AppsTableName}.name`,
+                description: `${AppsTableName}.description`,
+                space_uuid: `${SpaceTableName}.space_uuid`,
+                created_at: `${AppsTableName}.created_at`,
+                views: `${AppsTableName}.views_count`,
+                latest_version_number: 'latest_version.version',
+                latest_version_status: 'latest_version.status',
+                latest_version_created_at: 'latest_version.created_at',
+                updated_by_user_uuid: 'last_updated_by_user.user_uuid',
+                updated_by_user_first_name: 'last_updated_by_user.first_name',
+                updated_by_user_last_name: 'last_updated_by_user.last_name',
+            })) as Record<string, AnyType>[];
+
+        return rows.map<ResourceViewDataAppItem>((row) => ({
+            type: ResourceViewItemType.DATA_APP,
+            data: {
+                uuid: row.app_id,
+                name: row.name,
+                description: row.description ?? undefined,
+                spaceUuid: row.space_uuid,
+                updatedAt: row.latest_version_created_at ?? row.created_at,
+                updatedByUser: row.updated_by_user_uuid
+                    ? {
+                          userUuid: row.updated_by_user_uuid,
+                          firstName: row.updated_by_user_first_name ?? '',
+                          lastName: row.updated_by_user_last_name ?? '',
+                      }
+                    : null,
+                views: row.views,
+                firstViewedAt: row.created_at,
+                latestVersionNumber: row.latest_version_number ?? null,
+                latestVersionStatus: row.latest_version_status ?? null,
             },
         }));
     }

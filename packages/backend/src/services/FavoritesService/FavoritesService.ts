@@ -11,6 +11,7 @@ import {
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -27,6 +28,7 @@ type FavoritesServiceArguments = {
     spacePermissionService: SpacePermissionService;
     savedChartModel: SavedChartModel;
     dashboardModel: DashboardModel;
+    appModel: AppModel;
 };
 
 export class FavoritesService extends BaseService {
@@ -44,6 +46,8 @@ export class FavoritesService extends BaseService {
 
     private readonly dashboardModel: DashboardModel;
 
+    private readonly appModel: AppModel;
+
     constructor({
         analytics,
         userFavoritesModel,
@@ -52,6 +56,7 @@ export class FavoritesService extends BaseService {
         spacePermissionService,
         savedChartModel,
         dashboardModel,
+        appModel,
     }: FavoritesServiceArguments) {
         super();
         this.analytics = analytics;
@@ -61,6 +66,7 @@ export class FavoritesService extends BaseService {
         this.spacePermissionService = spacePermissionService;
         this.savedChartModel = savedChartModel;
         this.dashboardModel = dashboardModel;
+        this.appModel = appModel;
     }
 
     async toggleFavorite(
@@ -103,11 +109,22 @@ export class FavoritesService extends BaseService {
                 spaceUuid = dashboard.spaceUuid;
                 break;
             }
-            case ContentType.DATA_APP:
-                // Favoriting data apps is not supported yet
-                throw new ParameterError(
-                    'Favoriting data apps is not supported',
+            case ContentType.DATA_APP: {
+                const app = await this.appModel.getApp(
+                    contentUuid,
+                    projectUuid,
                 );
+                if (!app.space_uuid) {
+                    // Personal apps aren't listed anywhere in the content UI,
+                    // so there's no surface to unfavorite them from. Keep
+                    // them out of favorites entirely.
+                    throw new ParameterError(
+                        'Personal data apps cannot be favorited',
+                    );
+                }
+                spaceUuid = app.space_uuid;
+                break;
+            }
             default:
                 return assertUnreachable(
                     contentType,
@@ -213,8 +230,11 @@ export class FavoritesService extends BaseService {
         const favoriteSpaceUuids = favoriteRows
             .filter((r) => r.contentType === ContentType.SPACE)
             .map((r) => r.contentUuid);
+        const appUuids = favoriteRows
+            .filter((r) => r.contentType === ContentType.DATA_APP)
+            .map((r) => r.contentUuid);
 
-        const [charts, dashboards, favSpaceBases] = await Promise.all([
+        const [charts, dashboards, favSpaceBases, apps] = await Promise.all([
             this.userFavoritesModel.getFavoriteCharts(
                 projectUuid,
                 chartUuids,
@@ -228,6 +248,11 @@ export class FavoritesService extends BaseService {
             this.userFavoritesModel.getFavoriteSpaces(
                 projectUuid,
                 favoriteSpaceUuids,
+                allowedSpaceUuids,
+            ),
+            this.userFavoritesModel.getFavoriteApps(
+                projectUuid,
+                appUuids,
                 allowedSpaceUuids,
             ),
         ]);
@@ -250,6 +275,6 @@ export class FavoritesService extends BaseService {
             };
         });
 
-        return [...favSpaces, ...dashboards, ...charts];
+        return [...favSpaces, ...dashboards, ...charts, ...apps];
     }
 }

@@ -48,6 +48,7 @@ import {
 import classes from './DraggableItem.module.css';
 import ResourceViewGridChartItem from './ResourceViewGridChartItem';
 import ResourceViewGridDashboardItem from './ResourceViewGridDashboardItem';
+import ResourceViewGridDataAppItem from './ResourceViewGridDataAppItem';
 import ResourceViewGridSpaceItem from './ResourceViewGridSpaceItem';
 
 export interface ResourceViewGridCommonProps {
@@ -118,9 +119,14 @@ const ResourceCard: FC<ResourceCardProps> = ({
                 />
             );
         case ResourceViewItemType.DATA_APP:
-            // Data apps don't appear in grid views yet — they only surface
-            // via the list table in the Space page.
-            return null;
+            return (
+                <ResourceViewGridDataAppItem
+                    item={item}
+                    allowDelete={allowDelete}
+                    onAction={onAction}
+                    dragIcon={dragIcon}
+                />
+            );
         default:
             return assertUnreachable(item, `Resource type not supported`);
     }

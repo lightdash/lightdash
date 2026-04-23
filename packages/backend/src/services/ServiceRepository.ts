@@ -1091,6 +1091,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     dashboardModel: this.models.getDashboardModel(),
+                    appModel: this.models.getAppModel(),
                 }),
         );
     }
