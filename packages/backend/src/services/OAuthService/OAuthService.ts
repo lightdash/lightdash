@@ -206,6 +206,7 @@ export class OAuthService extends BaseService {
                 'manage',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { clientId },
                 }),
             )
         ) {
@@ -245,6 +246,7 @@ export class OAuthService extends BaseService {
                 'manage',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { clientId },
                 }),
             )
         ) {
