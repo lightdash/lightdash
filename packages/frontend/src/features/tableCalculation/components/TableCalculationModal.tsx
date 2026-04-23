@@ -292,6 +292,9 @@ const TableCalculationModal: FC<Props> = ({
                 ? result.formula
                 : `=${result.formula}`;
             form.setFieldValue('formula', f);
+            if (!form.values.name.trim() && result.displayName) {
+                form.setFieldValue('name', result.displayName);
+            }
             setFormulaGeneratedByAi(true);
         },
         [form],
