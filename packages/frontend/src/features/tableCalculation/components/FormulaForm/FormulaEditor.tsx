@@ -120,7 +120,7 @@ const buildGhostPlugin = (state: GhostState) =>
                 }
 
                 if (showTab || showRetry) {
-                    const badge = document.createElement('span');
+                    const badge = document.createElement('kbd');
                     badge.className = showRetry
                         ? 'formula-inline-chip formula-inline-chip--retry'
                         : 'formula-inline-chip';

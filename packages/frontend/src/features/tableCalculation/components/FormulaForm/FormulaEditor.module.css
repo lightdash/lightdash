@@ -72,30 +72,40 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 1px 6px;
-    border-radius: var(--mantine-radius-sm);
+    padding: 1px 6px 2px;
+    border-radius: 4px;
     font-family: var(--mantine-font-family);
     font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.02em;
-    background-color: var(--mantine-color-indigo-1);
-    color: var(--mantine-color-indigo-7);
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+
+    /* Mantine Kbd-style keycap: white bg, subtle border, 3D-ish shadow */
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-ldDark-9);
+    border: 1px solid var(--mantine-color-gray-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-gray-3);
+
     pointer-events: none;
     user-select: none;
 
     @mixin dark {
-        background-color: var(--mantine-color-indigo-9);
-        color: var(--mantine-color-indigo-2);
+        background-color: var(--mantine-color-ldDark-3);
+        color: var(--mantine-color-ldGray-5);
+        border-color: var(--mantine-color-ldDark-5);
+        box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
     }
 }
 
 .container :global(.formula-inline-chip--retry) {
-    background-color: var(--mantine-color-red-1);
     color: var(--mantine-color-red-7);
+    border-color: var(--mantine-color-red-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-red-3);
 
     @mixin dark {
-        background-color: var(--mantine-color-red-9);
-        color: var(--mantine-color-red-2);
+        color: var(--mantine-color-red-3);
+        border-color: var(--mantine-color-red-7);
+        box-shadow: 0 1px 0 0 var(--mantine-color-red-7);
     }
 }
 
