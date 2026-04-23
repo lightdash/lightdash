@@ -18,6 +18,7 @@ import {
     type GoogleChatBatchNotificationPayload,
     type GoogleChatNotificationPayload,
     type GsheetsNotificationPayload,
+    type ManagedAgentHeartbeatPayload,
     type MaterializePreAggregatePayload,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
@@ -126,7 +127,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: TraceTaskBase;
-    [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: TraceTaskBase;
+    [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: ManagedAgentHeartbeatPayload;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;

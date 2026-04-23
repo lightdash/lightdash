@@ -182,7 +182,9 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
-    [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: () => ({}),
+    [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: (payload) => ({
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
