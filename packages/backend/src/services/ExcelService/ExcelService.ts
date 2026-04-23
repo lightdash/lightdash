@@ -66,6 +66,7 @@ export class ExcelService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): (string | number | Date | null)[] {
         return sortedFieldIds.map((fieldId) => {
             const rawValue = row[fieldId];
@@ -105,7 +106,13 @@ export class ExcelService {
             }
 
             // Otherwise, use standard Lightdash formatting as there won't be a format expression
-            return formatItemValue(item, rawValue);
+            return formatItemValue(
+                item,
+                rawValue,
+                undefined,
+                undefined,
+                timezone,
+            );
         });
     }
 
@@ -342,6 +349,7 @@ export class ExcelService {
         lightdashConfig,
         options,
         pivotDetails,
+        timezone,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -359,6 +367,7 @@ export class ExcelService {
             pivotConfig: PivotConfig;
             attachmentDownloadName?: string;
         };
+        timezone?: string;
     }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -408,6 +417,7 @@ export class ExcelService {
             maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
+            timezone,
         });
 
         // Upload the Excel buffer to exports bucket using cross-bucket transform
@@ -460,6 +470,7 @@ export class ExcelService {
         fields: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -501,6 +512,7 @@ export class ExcelService {
                     fields,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 if (Array.isArray(rowData) && rowData.length > 0) {
@@ -558,6 +570,7 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
         } = {},
+        timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         // Handle column ordering and filtering
         const {
@@ -595,6 +608,7 @@ export class ExcelService {
                 fields,
                 onlyRaw,
                 sortedFieldIds,
+                timezone,
             );
 
             // Generate filename with truncated flag

@@ -1291,6 +1291,7 @@ export class AsyncQueryService extends ProjectService {
                                   pivotConfig,
                                   attachmentDownloadName,
                               },
+                              timezone: displayTimezone ?? undefined,
                           })
                         : // Use direct Excel export to bypass PassThrough + Upload hanging issues
                           await ExcelService.downloadAsyncExcelDirectly(
@@ -1309,6 +1310,7 @@ export class AsyncQueryService extends ProjectService {
                                   hiddenFields,
                                   attachmentDownloadName,
                               },
+                              displayTimezone ?? undefined,
                           );
                 const xlsxPersistentUrl =
                     await this.persistentDownloadFileService.createPersistentUrl(

@@ -192,6 +192,26 @@ const mockItemMapWithFormats: ItemsMap = {
 
 describe('ExcelService', () => {
     describe('convertRowToExcel', () => {
+        it('accepts a timezone argument and forwards it to formatItemValue', () => {
+            const row = {
+                number_with_usd_format: '1234.56',
+                string_column: 'test string',
+            };
+
+            const sortedFieldIds = ['number_with_usd_format', 'string_column'];
+
+            const result = ExcelService.convertRowToExcel(
+                row,
+                mockItemMapWithFormats,
+                false,
+                sortedFieldIds,
+                'America/New_York',
+            );
+
+            expect(result[0]).toBe(1234.56);
+            expect(result[1]).toBe('test string');
+        });
+
         it('should convert numeric strings to numbers when format expression is present', () => {
             const row = {
                 number_with_usd_format: '1234.56',
