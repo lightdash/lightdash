@@ -184,6 +184,8 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             await expect(
                 service.getSchedulers(viewerUser, projectUuid, savedSqlUuid),
             ).rejects.toThrow(ForbiddenError);
+            // Security invariant: deny must happen before any read
+            expect(schedulerModel.getSqlChartSchedulers).not.toHaveBeenCalled();
         });
 
         it('user without space access is blocked', async () => {
@@ -228,6 +230,12 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
                     newSchedulerPayload,
                 ),
             ).rejects.toThrow(ForbiddenError);
+            // Security invariant: deny must happen before any write or
+            // external side effect (Google Drive API)
+            expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
+            expect(
+                googleDriveClient.assertFileIsGoogleSheet,
+            ).not.toHaveBeenCalled();
         });
 
         it('user without space access is blocked from creating scheduler', async () => {
@@ -242,6 +250,10 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
             ).rejects.toThrow(
                 "You don't have access to the space this chart belongs to",
             );
+            expect(schedulerModel.createScheduler).not.toHaveBeenCalled();
+            expect(
+                googleDriveClient.assertFileIsGoogleSheet,
+            ).not.toHaveBeenCalled();
         });
 
         it('rejects invalid cron frequency', async () => {
