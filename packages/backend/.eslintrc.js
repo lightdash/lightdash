@@ -100,8 +100,8 @@ module.exports = {
         {
             // Error on direct ability checks in fully migrated services
             files: [
-                'src/ee/services/McpService/**/*.ts',
                 'src/ee/services/AiAgentService/**/*.ts',
+                'src/ee/services/McpService/**/*.ts',
                 'src/services/AnalyticsService/**/*.ts',
                 'src/services/AsyncQueryService/**/*.ts',
                 'src/services/CatalogService/**/*.ts',
@@ -109,22 +109,6 @@ module.exports = {
                 'src/services/ContentService/**/*.ts',
                 'src/services/CsvService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
-<<<<<<< refactor/project-service-audited-ability-v2
-                'src/services/GdriveService/**/*.ts',
-                'src/services/GithubAppService/**/*.ts',
-                'src/services/ProjectCompileLogService/**/*.ts',
-                'src/services/ProjectService/**/*.ts',
-                'src/services/SavedChartsService/**/*.ts',
-                'src/services/SavedSqlService/**/*.ts',
-                'src/services/SchedulerService/**/*.ts',
-                'src/services/SearchService/**/*.ts',
-                'src/services/SpaceService/**/*.ts',
-                'src/services/SpotlightService/**/*.ts',
-                'src/services/FavoritesService/**/*.ts',
-                'src/services/PinningService/**/*.ts',
-                'src/services/RolesService/**/*.ts',
-=======
->>>>>>> main
                 'src/services/DeployService.ts',
                 'src/services/FavoritesService/**/*.ts',
                 'src/services/FunnelService/**/*.ts',
@@ -136,6 +120,7 @@ module.exports = {
                 'src/services/PinningService/**/*.ts',
                 'src/services/ProjectCompileLogService/**/*.ts',
                 'src/services/ProjectParametersService.ts',
+                'src/services/ProjectService/**/*.ts',
                 'src/services/RolesService/**/*.ts',
                 'src/services/SavedChartsService/**/*.ts',
                 'src/services/SavedSqlService/**/*.ts',
