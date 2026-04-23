@@ -350,31 +350,54 @@ const getHeader = (
 ): string => {
     const firstParam = params[0];
 
-    // When a project timezone is supplied, skip echarts' axisValueLabel
-    // (which uses useUTC:true semantics) and format the raw axis value
-    // ourselves so the header matches project-TZ display.
+    // When a project timezone is supplied (non-shift), skip echarts'
+    // axisValueLabel (which uses useUTC:true semantics) and format the raw
+    // UTC value ourselves so the header matches project-TZ display. Walk
+    // axisValue → value[0] → dataset row to cover stack100 per-item fires
+    // where axisValue may be undefined.
     const rawAxisValue = firstParam?.axisValue;
-    if (timezone && itemsMap && xFieldId && rawAxisValue != null) {
-        return getFormattedValue(
-            rawAxisValue,
-            xFieldId,
-            itemsMap,
-            true,
-            undefined,
-            undefined,
-            timezone,
-        );
+    if (timezone && itemsMap && xFieldId) {
+        const formatViaTz = (v: unknown) =>
+            getFormattedValue(
+                v,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                timezone,
+            );
+        if (rawAxisValue != null) return formatViaTz(rawAxisValue);
+        if (Array.isArray(firstParam?.value) && firstParam.value[0] != null) {
+            return formatViaTz(firstParam.value[0]);
+        }
+        const datasetValue =
+            firstParam?.value &&
+            typeof firstParam.value === 'object' &&
+            !Array.isArray(firstParam.value)
+                ? (firstParam.value as Record<string, unknown>)[xFieldId]
+                : undefined;
+        if (datasetValue != null) return formatViaTz(datasetValue);
     }
 
-    // Shift case (axis tz swapped to displayTimezone): axis-trigger tooltips
-    // carry a pre-shifted wall-clock ms that displayTimezone's shift-aware
-    // formatter branch relabels; item-trigger tooltips (e.g. scatter) have
-    // axisValue=undefined, so read the pristine UTC from the dataset row and
-    // format through displayTimezone as the true tz.
+    // Shift case: axisValue / value[0] are pre-shifted ms (displayTimezone's
+    // shift-aware branch relabels); dataset row[xFieldId] is pristine UTC.
     if (displayTimezone && itemsMap && xFieldId) {
         if (rawAxisValue != null) {
             return getFormattedValue(
                 rawAxisValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+        if (Array.isArray(firstParam?.value) && firstParam.value[0] != null) {
+            return getFormattedValue(
+                firstParam.value[0],
                 xFieldId,
                 itemsMap,
                 true,
@@ -566,12 +589,12 @@ export function createStack100TooltipFormatter(
 
         let header: string;
         const firstParam = params[0];
-        const rawDatasetValue = (
-            firstParam?.value as Record<string, unknown> | undefined
-        )?.[xAxisField];
 
         if (xAxisDateFormat) {
             // Format from the raw data value to avoid timezone double-parsing.
+            const rawDatasetValue = (
+                firstParam?.value as Record<string, unknown> | undefined
+            )?.[xAxisField];
             const rawValue = rawDatasetValue ?? firstParam?.axisValue;
             header =
                 rawValue != null
@@ -586,24 +609,6 @@ export function createStack100TooltipFormatter(
                           timezone,
                           displayTimezone,
                       );
-        } else if (
-            (timezone || displayTimezone) &&
-            itemsMap &&
-            rawDatasetValue != null
-        ) {
-            // Per-item tooltip fires can have axisValue=undefined. Read the
-            // raw UTC value straight from the dataset row and format honestly
-            // through the tz (treat displayTimezone as the true tz here since
-            // we're starting from unshifted data).
-            header = getFormattedValue(
-                rawDatasetValue,
-                xAxisField,
-                itemsMap,
-                true,
-                undefined,
-                undefined,
-                timezone ?? displayTimezone,
-            );
         } else {
             header = getHeader(
                 params,
