@@ -346,23 +346,84 @@ const getHeader = (
     itemsMap?: ItemsMap,
     xFieldId?: string,
     timezone?: string,
+    displayTimezone?: string,
 ): string => {
     const firstParam = params[0];
 
-    // When a project timezone is supplied, skip echarts' axisValueLabel
-    // (which uses useUTC:true semantics) and format the raw axis value
-    // ourselves so the header matches project-TZ display.
+    // Format the raw UTC value through the project timezone. axisValue is
+    // undefined on some stack100 tooltip fires, so fall back to value[0] and
+    // then to the dataset row.
     const rawAxisValue = firstParam?.axisValue;
-    if (timezone && itemsMap && xFieldId && rawAxisValue != null) {
-        return getFormattedValue(
-            rawAxisValue,
-            xFieldId,
-            itemsMap,
-            true,
-            undefined,
-            undefined,
-            timezone,
-        );
+    if (timezone && itemsMap && xFieldId) {
+        const formatViaTz = (v: unknown) =>
+            getFormattedValue(
+                v,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                timezone,
+            );
+        if (rawAxisValue != null) return formatViaTz(rawAxisValue);
+        if (Array.isArray(firstParam?.value) && firstParam.value[0] != null) {
+            return formatViaTz(firstParam.value[0]);
+        }
+        const datasetValue =
+            firstParam?.value &&
+            typeof firstParam.value === 'object' &&
+            !Array.isArray(firstParam.value)
+                ? (firstParam.value as Record<string, unknown>)[xFieldId]
+                : undefined;
+        if (datasetValue != null) return formatViaTz(datasetValue);
+    }
+
+    // When the x-axis values were shifted to project-timezone wall-clock,
+    // axisValue and value[0] are already wall-clock (only need the offset
+    // suffix), while the dataset row still holds the original UTC value
+    // (needs the full conversion).
+    if (displayTimezone && itemsMap && xFieldId) {
+        if (rawAxisValue != null) {
+            return getFormattedValue(
+                rawAxisValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+        if (Array.isArray(firstParam?.value) && firstParam.value[0] != null) {
+            return getFormattedValue(
+                firstParam.value[0],
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+        const datasetValue =
+            firstParam?.value &&
+            typeof firstParam.value === 'object' &&
+            !Array.isArray(firstParam.value)
+                ? (firstParam.value as Record<string, unknown>)[xFieldId]
+                : undefined;
+        if (datasetValue != null) {
+            return getFormattedValue(
+                datasetValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
     }
 
     // First try the standard axisValueLabel or name
@@ -520,27 +581,42 @@ export function createStack100TooltipFormatter(
     xAxisField: string,
     itemsMap?: ItemsMap,
     xAxisDateFormat?: string,
+    timezone?: string,
+    displayTimezone?: string,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
 
         let header: string;
+        const firstParam = params[0];
+
         if (xAxisDateFormat) {
             // Format from the raw data value to avoid timezone double-parsing.
-            const firstParam = params[0];
-            const rawValue =
-                (firstParam?.value as Record<string, unknown> | undefined)?.[
-                    xAxisField
-                ] ?? firstParam?.axisValue;
+            const rawDatasetValue = (
+                firstParam?.value as Record<string, unknown> | undefined
+            )?.[xAxisField];
+            const rawValue = rawDatasetValue ?? firstParam?.axisValue;
             header =
                 rawValue != null
                     ? formatDateWithPattern(
                           rawValue as string | number,
                           xAxisDateFormat,
                       )
-                    : getHeader(params, itemsMap, xAxisField);
+                    : getHeader(
+                          params,
+                          itemsMap,
+                          xAxisField,
+                          timezone,
+                          displayTimezone,
+                      );
         } else {
-            header = getHeader(params, itemsMap, xAxisField);
+            header = getHeader(
+                params,
+                itemsMap,
+                xAxisField,
+                timezone,
+                displayTimezone,
+            );
         }
 
         const rowsHtml = params
@@ -868,6 +944,7 @@ export const buildCartesianTooltipFormatter =
         parameters,
         rows,
         timezone,
+        displayTimezone,
     }: {
         itemsMap?: ItemsMap;
         stackValue: string | boolean | undefined;
@@ -883,6 +960,7 @@ export const buildCartesianTooltipFormatter =
         parameters?: ParametersValuesMap;
         rows?: (ResultRow | Record<string, unknown>)[];
         timezone?: string;
+        displayTimezone?: string;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -908,10 +986,19 @@ export const buildCartesianTooltipFormatter =
                 },
                 xFieldId,
                 itemsMap,
+                undefined,
+                timezone,
+                displayTimezone,
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params, itemsMap, xFieldId, timezone);
+        const header = getHeader(
+            params,
+            itemsMap,
+            xFieldId,
+            timezone,
+            displayTimezone,
+        );
 
         const sortedParams = sortTooltipParams(
             params,
@@ -1247,6 +1334,8 @@ export const buildCartesianTooltipFormatter =
                             undefined,
                             pivotValuesColumnsMap,
                             parameters,
+                            timezone,
+                            displayTimezone,
                         );
                         tooltipHtml = tooltipHtml.replace(field, formatted);
                     } else {
@@ -1315,6 +1404,8 @@ export const buildCartesianTooltipFormatter =
                         undefined,
                         pivotValuesColumnsMap,
                         parameters,
+                        timezone,
+                        displayTimezone,
                     );
                     tooltipHtml = tooltipHtml.replace(field, formatted);
                 });
@@ -1364,6 +1455,7 @@ export const buildCartesianTooltipFormatter =
                               pivotValuesColumnsMap,
                               parameters,
                               timezone,
+                              displayTimezone,
                           )
                         : header;
                 return `${formatTooltipHeader(

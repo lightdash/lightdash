@@ -4621,6 +4621,7 @@ export class AsyncQueryService extends ProjectService {
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
+            timezone: metricQuery.timezone,
         };
 
         const underlyingDataMetricQueryWithLimit = applyMetricQueryLimit(
