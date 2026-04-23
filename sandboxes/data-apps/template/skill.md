@@ -296,18 +296,39 @@ const user = await client.auth.getUser();
 
 ### Loading states
 
-Every component that uses `useLightdash()` **must** show a loading skeleton or spinner while `loading` is true. Never render an empty chart or table while waiting for data.
+Every component that uses `useLightdash()` **must** show a loading spinner while `loading` is true. Never render an empty chart or table while waiting for data.
+
+**Keep the surrounding UI stable during loading.** Cards, headings, and layout should always render — only the data-driven content (chart, table body, KPI value) should be replaced with a spinner. This prevents the page from flashing or reflowing when data arrives.
 
 ```tsx
-import { Skeleton } from '@/components/ui/skeleton';
+import { Loader2 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-const { data, format, loading, error } = useLightdash(myQuery);
+export function RevenueCard() {
+    const { data, format, loading, error } = useLightdash(revenueQuery);
 
-if (loading) return <Skeleton className="h-[300px] w-full rounded-xl" />;
-if (error) return <p className="text-red-500">Error: {error.message}</p>;
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Revenue</CardTitle>
+            </CardHeader>
+            <CardContent>
+                {loading ? (
+                    <div className="flex items-center justify-center h-[300px]">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                ) : error ? (
+                    <p className="text-red-500">Error: {error.message}</p>
+                ) : (
+                    /* render chart / table / KPI here */
+                )}
+            </CardContent>
+        </Card>
+    );
+}
 ```
 
-Use `<Skeleton>` for charts and cards. Match the skeleton's dimensions to the component it replaces so the layout doesn't shift when data arrives.
+Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. Give the spinner container the same height as the content it replaces so layout doesn't shift.
 
 ### Dashboard cross-filtering
 
@@ -338,9 +359,11 @@ Every table component must include these standard interactions:
 1. **Row hover highlight** — highlight the row under the cursor
 2. **Copy cell** — clicking a cell copies its formatted value to the clipboard (show a brief toast confirmation)
 3. **Copy table as CSV** — a button above the table copies all rows as CSV to the clipboard
+4. **Scrollable with max height** — tables should be at most ~600px tall and scroll vertically within that. Use `ScrollArea` for the table body. Unless the user specifies a different height, default to `max-h-[600px]`.
 
 ```tsx
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Copy } from 'lucide-react';
 
 function copyToClipboard(text: string) {
@@ -363,18 +386,29 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     </Button>
 </div>
 
-// Table rows — use hover:bg-muted and cursor-pointer on each cell
-<TableRow className="hover:bg-muted">
-    {columns.map((col) => (
-        <TableCell
-            key={col.name}
-            className="cursor-pointer"
-            onClick={() => copyToClipboard(format(row, col.name))}
-        >
-            {format(row, col.name)}
-        </TableCell>
-    ))}
-</TableRow>
+// Scrollable table with sticky header
+<ScrollArea className="max-h-[600px] rounded-md border">
+    <Table>
+        <TableHeader className="sticky top-0 bg-background z-10">
+            {/* header row */}
+        </TableHeader>
+        <TableBody>
+            {data.map((row, i) => (
+                <TableRow key={i} className="hover:bg-muted">
+                    {columns.map((col) => (
+                        <TableCell
+                            key={col.name}
+                            className="cursor-pointer"
+                            onClick={() => copyToClipboard(format(row, col.name))}
+                        >
+                            {format(row, col.name)}
+                        </TableCell>
+                    ))}
+                </TableRow>
+            ))}
+        </TableBody>
+    </Table>
+</ScrollArea>
 ```
 
 ## Common Pitfalls
