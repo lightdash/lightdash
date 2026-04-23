@@ -1,3 +1,11 @@
+# [0.2794.0](https://github.com/lightdash/lightdash/compare/0.2793.0...0.2794.0) (2026-04-23)
+
+
+### Features
+
+* **pre-aggregates:** backend service layer for dashboard audit [ZAP-329] ([#22307](https://github.com/lightdash/lightdash/issues/22307)) ([c38fd39](https://github.com/lightdash/lightdash/commit/c38fd398cc6270b2fba498fd0e9b12b823c67889))
+* **pre-aggregates:** expose dashboard audit via REST  ([#22308](https://github.com/lightdash/lightdash/issues/22308)) ([62a5f4b](https://github.com/lightdash/lightdash/commit/62a5f4b79ffbeff00ae8479e3e9743eb300ed081))
+
 # [0.2793.0](https://github.com/lightdash/lightdash/compare/0.2792.0...0.2793.0) (2026-04-23)
 
 
