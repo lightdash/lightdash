@@ -1,3 +1,15 @@
+# [0.2792.0](https://github.com/lightdash/lightdash/compare/0.2791.0...0.2792.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* **ee:** managed agent heartbeat ignores firing project's cron ([#22311](https://github.com/lightdash/lightdash/issues/22311)) ([106539d](https://github.com/lightdash/lightdash/commit/106539d3fbc3cc3672288388b04ee4351b05b2b5))
+
+
+### Features
+
+* **pre-aggregates:** add dashboard audit foundation types ([#22306](https://github.com/lightdash/lightdash/issues/22306)) ([7dad73c](https://github.com/lightdash/lightdash/commit/7dad73ccd1ddf37d441522d5fa87da1525290c4b))
+
 # [0.2791.0](https://github.com/lightdash/lightdash/compare/0.2790.1...0.2791.0) (2026-04-23)
 
 
