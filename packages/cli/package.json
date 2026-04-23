@@ -46,7 +46,7 @@
     "columnify": "1.6.0",
     "commander": "9.5.0",
     "execa": "5.1.1",
-    "google-auth-library": "9.15.1",
+    "google-auth-library": "10.0.0",
     "inquirer": "8.2.4",
     "js-yaml": "4.1.1",
     "lodash": "4.17.23",
@@ -57,7 +57,7 @@
     "p-limit": "3.1.0",
     "parse-node-version": "2.0.0",
     "unique-names-generator": "4.7.1",
-    "uuid": "11.0.3",
+    "uuid": "14.0.0",
     "yaml": "2.7.0"
   },
   "devDependencies": {
