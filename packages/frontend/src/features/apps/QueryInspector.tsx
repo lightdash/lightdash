@@ -139,6 +139,14 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
                     className={classes.queryDetailsRow}
                 >
                     <Box className={classes.queryDetails}>
+                        {query.exploreName && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Explore
+                                </Text>
+                                <Text size="xs">{query.exploreName}</Text>
+                            </Box>
+                        )}
                         {query.dimensions.length > 0 && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
@@ -167,6 +175,18 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
                                 <Text size="xs">
                                     {query.tableCalculations
                                         .map((tc) => tc.displayName)
+                                        .join(', ')}
+                                </Text>
+                            </Box>
+                        )}
+                        {query.additionalMetrics.length > 0 && (
+                            <Box>
+                                <Text size="xs" fw={600} c="dimmed">
+                                    Additional Metrics
+                                </Text>
+                                <Text size="xs">
+                                    {query.additionalMetrics
+                                        .map((am) => am.label)
                                         .join(', ')}
                                 </Text>
                             </Box>

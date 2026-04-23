@@ -201,6 +201,8 @@ query('orders').label('KPI Summary').metrics(['total_revenue', 'order_count']).l
 
 **Always add `.label()`** — it describes what the query powers and is shown in the query inspector dev tools. Use a short human-readable name like "Revenue by Month Chart" or "Top Customers Table".
 
+The query inspector shows for each query: the label, status, row count, duration, explore name, dimensions, and metrics. If present, it also shows table calculations and additional metrics. Write clear labels so users can match each inspector entry to the component it powers.
+
 ### Table calculations
 
 Table calculations are computed columns evaluated after the warehouse query returns. They can reference dimensions and metrics using `${table.field}` syntax in their SQL expression.
