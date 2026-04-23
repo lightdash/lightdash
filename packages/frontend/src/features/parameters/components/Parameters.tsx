@@ -57,7 +57,14 @@ export const Parameters: FC<Props> = ({
         );
     }
 
-    const paramEntries = Object.entries(parameters);
+    const paramEntries = Object.entries(parameters).sort(
+        ([keyA, a], [keyB, b]) => {
+            const aOrder = a.order ?? Infinity;
+            const bOrder = b.order ?? Infinity;
+            if (aOrder !== bOrder) return aOrder - bOrder;
+            return keyA.localeCompare(keyB);
+        },
+    );
 
     return (
         <>
