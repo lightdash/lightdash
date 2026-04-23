@@ -1,0 +1,49 @@
+.trigger {
+    position: absolute;
+    top: var(--mantine-spacing-sm);
+    right: var(--mantine-spacing-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: var(--mantine-radius-sm);
+    font-size: 11px;
+    font-weight: 500;
+    background: none;
+    border: 1px solid transparent;
+    cursor: pointer;
+    color: var(--mantine-color-indigo-7);
+    z-index: 2;
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+}
+
+.trigger:hover:not(:disabled) {
+    background-color: var(--mantine-color-indigo-1);
+    border-color: var(--mantine-color-indigo-3);
+
+    @mixin dark {
+        background-color: var(--mantine-color-indigo-9);
+        border-color: var(--mantine-color-indigo-7);
+    }
+}
+
+.trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.dropdown {
+    padding: var(--mantine-spacing-xs);
+    min-width: 360px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+}
+
+.error {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-red-6);
+}

@@ -17,6 +17,7 @@ import { EventName } from '../../../../types/Events';
 import { useFormulaValidation } from '../../hooks/useFormulaValidation';
 import { FormulaEditor } from './FormulaEditor';
 import classes from './FormulaForm.module.css';
+import { ImproveWithAiPopover } from './ImproveWithAiPopover';
 
 type Props = {
     explore: Explore | undefined;
@@ -161,6 +162,16 @@ export const FormulaForm: FC<Props> = ({
                         hasAiError={!!aiError}
                     />
                 </Box>
+                {aiEnabled && initialFormula && initialFormula.length > 0 && (
+                    <ImproveWithAiPopover
+                        explore={explore}
+                        metricQuery={metricQuery}
+                        currentFormula={formula}
+                        isGenerating={isGenerating}
+                        generationError={aiError}
+                        onSubmit={(prompt) => generateFromPrompt(prompt, true)}
+                    />
+                )}
                 {!aiEnabled && (
                     <Group gap={6} wrap="nowrap" className={classes.helpHint}>
                         <MantineIcon
