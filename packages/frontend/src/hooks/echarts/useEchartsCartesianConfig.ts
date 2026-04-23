@@ -103,7 +103,7 @@ import { type InfiniteQueryResults } from '../useQueryResults';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
-    applyTimezoneShiftToRows,
+    applyTimezoneShiftToEchartsOptions,
     detectTimezoneShiftedField,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
     type TimezoneShiftedField,
@@ -193,8 +193,6 @@ export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
     }
 };
 
-// Time intervals that benefit from category axis in bar charts.
-// These must match intervals handled by getCategoryDateAxisConfig.
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -2428,8 +2426,11 @@ const useEchartsCartesianConfig = (
         [resolvedTimezone, validCartesianConfig, itemsMap],
     );
 
-    const chartTimezone = timezoneShiftedField ? undefined : resolvedTimezone;
-    const displayTimezone = timezoneShiftedField ? resolvedTimezone : undefined;
+    // Axis labels render pre-shifted values; the formatter just relabels via displayTimezone.
+    const axisTimezone = timezoneShiftedField ? undefined : resolvedTimezone;
+    const axisDisplayTimezone = timezoneShiftedField
+        ? resolvedTimezone
+        : undefined;
 
     const tooltipConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2488,24 +2489,15 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
-    const rows = useMemo(() => {
-        const sliced = sliceRows(
-            allRows,
-            isShowHideRowsEnabled,
-            validCartesianConfig?.rowLimit,
-        );
-        if (!timezoneShiftedField) return sliced;
-        return applyTimezoneShiftToRows(
-            sliced,
-            timezoneShiftedField.fieldId,
-            timezoneShiftedField.timezone,
-        );
-    }, [
-        allRows,
-        isShowHideRowsEnabled,
-        validCartesianConfig?.rowLimit,
-        timezoneShiftedField,
-    ]);
+    const rows = useMemo(
+        () =>
+            sliceRows(
+                allRows,
+                isShowHideRowsEnabled,
+                validCartesianConfig?.rowLimit,
+            ),
+        [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
+    );
 
     // Pivot references from hidden series, used for resolving custom tooltip references
     // to fields that are on the Y axis but have their chart series hidden.
@@ -2591,8 +2583,8 @@ const useEchartsCartesianConfig = (
                     : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
-            resolvedTimezone: chartTimezone,
-            displayTimezone,
+            resolvedTimezone: axisTimezone,
+            displayTimezone: axisDisplayTimezone,
         });
     }, [
         itemsMap,
@@ -2603,8 +2595,8 @@ const useEchartsCartesianConfig = (
         isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
-        chartTimezone,
-        displayTimezone,
+        axisTimezone,
+        axisDisplayTimezone,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -3166,8 +3158,7 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
-                timezone: chartTimezone,
-                displayTimezone,
+                timezone: resolvedTimezone,
             }),
         };
     }, [
@@ -3184,8 +3175,7 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
-        chartTimezone,
-        displayTimezone,
+        resolvedTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid
@@ -3530,9 +3520,9 @@ const useEchartsCartesianConfig = (
     const eChartsOptions = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
-        const flipAxes = validCartesianConfig?.layout?.flipAxes;
+        const flipAxes = !!validCartesianConfig?.layout?.flipAxes;
 
-        return {
+        const baseOptions = {
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             useUTC: true,
@@ -3575,6 +3565,14 @@ const useEchartsCartesianConfig = (
                 ],
             }),
         };
+
+        return timezoneShiftedField
+            ? applyTimezoneShiftToEchartsOptions(
+                  baseOptions,
+                  timezoneShiftedField,
+                  flipAxes,
+              )
+            : baseOptions;
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -3586,6 +3584,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
+        timezoneShiftedField,
     ]);
 
     if (

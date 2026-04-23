@@ -350,10 +350,19 @@ const getHeader = (
 ): string => {
     const firstParam = params[0];
 
+    // Prefer raw row value: true UTC even when the axis uses a shifted synthetic dim.
+    const dataXValue =
+        xFieldId &&
+        firstParam?.data &&
+        typeof firstParam.data === 'object' &&
+        !Array.isArray(firstParam.data)
+            ? (firstParam.data as Record<string, unknown>)[xFieldId]
+            : undefined;
+    const rawAxisValue = dataXValue ?? firstParam?.axisValue;
+
     // When a project timezone is supplied, skip echarts' axisValueLabel
     // (which uses useUTC:true semantics) and format the raw axis value
     // ourselves so the header matches project-TZ display.
-    const rawAxisValue = firstParam?.axisValue;
     if (timezone && itemsMap && xFieldId && rawAxisValue != null) {
         return getFormattedValue(
             rawAxisValue,
