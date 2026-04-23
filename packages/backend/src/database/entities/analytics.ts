@@ -4,6 +4,7 @@ import { Knex } from 'knex';
 export const AnalyticsChartViewsTableName = 'analytics_chart_views';
 export const AnalyticsDashboardViewsTableName = 'analytics_dashboard_views';
 export const AnalyticsSqlChartViewsTableName = 'analytics_sql_chart_views';
+export const AnalyticsAppViewsTableName = 'analytics_app_views';
 
 export type DbAnalyticsChartViews = {
     chart_uuid: string;
@@ -17,6 +18,11 @@ export type DbAnalyticsDashboardViews = {
     timestamp: Date;
     context: Record<string, AnyType> | null;
 };
+export type DbAnalyticsAppViews = {
+    app_id: string;
+    user_uuid: string | null;
+    timestamp: Date;
+};
 
 export type AnalyticsDashboardViews = Knex.CompositeTableType<
     DbAnalyticsDashboardViews,
@@ -26,4 +32,9 @@ export type AnalyticsDashboardViews = Knex.CompositeTableType<
 export type AnalyticsChartViews = Knex.CompositeTableType<
     DbAnalyticsChartViews,
     Pick<DbAnalyticsChartViews, 'chart_uuid' | 'user_uuid'>
+>;
+
+export type AnalyticsAppViews = Knex.CompositeTableType<
+    DbAnalyticsAppViews,
+    Pick<DbAnalyticsAppViews, 'app_id' | 'user_uuid'>
 >;

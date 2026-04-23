@@ -292,6 +292,91 @@ const client = useLightdashClient();
 const user = await client.auth.getUser();
 ```
 
+## Required UX Patterns
+
+### Loading states
+
+Every component that uses `useLightdash()` **must** show a loading skeleton or spinner while `loading` is true. Never render an empty chart or table while waiting for data.
+
+```tsx
+import { Skeleton } from '@/components/ui/skeleton';
+
+const { data, format, loading, error } = useLightdash(myQuery);
+
+if (loading) return <Skeleton className="h-[300px] w-full rounded-xl" />;
+if (error) return <p className="text-red-500">Error: {error.message}</p>;
+```
+
+Use `<Skeleton>` for charts and cards. Match the skeleton's dimensions to the component it replaces so the layout doesn't shift when data arrives.
+
+### Dashboard cross-filtering
+
+When building a dashboard-style app with multiple charts or cards, **every visualization must act as a cross-filter by default**. Clicking a bar, slice, row, or data point should filter the other components to match the clicked value.
+
+Implementation pattern:
+1. Lift a shared `filters` state to the dashboard container
+2. On click, extract the dimension value and add/toggle it in the shared filter state
+3. Pass the filters into each query via `.filters()`
+4. Show active filters as dismissible pills/badges above the dashboard
+
+```tsx
+const [activeFilters, setActiveFilters] = useState<Filter[]>([]);
+
+// Each chart query derives from a base with active filters applied
+const chartQuery = useMemo(
+    () => baseQuery.filters([...baseFilters, ...activeFilters]),
+    [activeFilters],
+);
+```
+
+Skip cross-filtering only if the user explicitly says not to.
+
+### Table interactions
+
+Every table component must include these standard interactions:
+
+1. **Row hover highlight** — highlight the row under the cursor
+2. **Copy cell** — clicking a cell copies its formatted value to the clipboard (show a brief toast confirmation)
+3. **Copy table as CSV** — a button above the table copies all rows as CSV to the clipboard
+
+```tsx
+import { Button } from '@/components/ui/button';
+import { Copy } from 'lucide-react';
+
+function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+}
+
+function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
+    const header = columns.map((c) => c.label).join(',');
+    const rows = data.map((row) =>
+        columns.map((c) => `"${format(row, c.name).replace(/"/g, '""')}"`).join(','),
+    );
+    return [header, ...rows].join('\n');
+}
+
+// Table header area
+<div className="flex justify-between items-center mb-2">
+    <h3>Results</h3>
+    <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
+        <Copy className="h-4 w-4 mr-1" /> Copy CSV
+    </Button>
+</div>
+
+// Table rows — use hover:bg-muted and cursor-pointer on each cell
+<TableRow className="hover:bg-muted">
+    {columns.map((col) => (
+        <TableCell
+            key={col.name}
+            className="cursor-pointer"
+            onClick={() => copyToClipboard(format(row, col.name))}
+        >
+            {format(row, col.name)}
+        </TableCell>
+    ))}
+</TableRow>
+```
+
 ## Common Pitfalls
 
 | Mistake | Why it breaks | Fix |

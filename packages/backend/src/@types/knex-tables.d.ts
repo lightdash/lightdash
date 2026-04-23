@@ -3,6 +3,8 @@ import {
     AiAgentReasoningTableName,
 } from '../database/entities/aiAgentReasoning';
 import {
+    AnalyticsAppViews,
+    AnalyticsAppViewsTableName,
     AnalyticsChartViews,
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViews,
@@ -413,6 +415,7 @@ declare module 'knex/types/tables' {
         [SlackChannelsTableName]: SlackChannelsTable;
         [AnalyticsChartViewsTableName]: AnalyticsChartViews;
         [AnalyticsDashboardViewsTableName]: AnalyticsDashboardViews;
+        [AnalyticsAppViewsTableName]: AnalyticsAppViews;
         [PinnedListTableName]: PinnedListTable;
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;

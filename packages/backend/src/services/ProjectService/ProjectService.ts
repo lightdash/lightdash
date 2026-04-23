@@ -70,6 +70,7 @@ import {
     getFields,
     getIntrinsicUserAttributes,
     getItemId,
+    getMetricOverridesWithPopInheritance,
     getMetrics,
     getParameterReferences,
     getPreAggregateExploreName,
@@ -4226,11 +4227,16 @@ export class ProjectService extends BaseService {
 
                     const { query } = fullQuery;
 
+                    const resolvedMetricOverrides =
+                        getMetricOverridesWithPopInheritance(metricQuery);
+
                     const fieldsWithOverrides: ItemsMap = Object.fromEntries(
                         Object.entries(fullQuery.fields).map(([key, value]) => {
-                            // Check for metric or dimension overrides
+                            // Check for metric or dimension overrides. PoP
+                            // metric overrides are inherited from their base
+                            // metric by the shared util above.
                             const override =
-                                metricQuery.metricOverrides?.[key] ||
+                                resolvedMetricOverrides[key] ||
                                 metricQuery.dimensionOverrides?.[key];
                             if (override) {
                                 return [

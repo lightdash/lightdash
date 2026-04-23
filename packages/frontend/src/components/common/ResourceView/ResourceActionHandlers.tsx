@@ -22,6 +22,7 @@ import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation
 import { useContentAction } from '../../../hooks/useContent';
 import { useSpace } from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import AppUpdateModal from '../modal/AppUpdateModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartDuplicateModal from '../modal/ChartDuplicateModal';
 import ChartUpdateModal from '../modal/ChartUpdateModal';
@@ -127,8 +128,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         },
                     });
                 case ResourceViewItemType.DATA_APP:
-                    // Moving data apps between spaces is not supported yet
-                    return Promise.resolve();
+                    return contentAction({
+                        action: {
+                            type: 'move',
+                            targetSpaceUuid: spaceUuid,
+                        },
+                        item: {
+                            uuid: item.data.uuid,
+                            contentType: ContentType.DATA_APP,
+                        },
+                    });
                 default:
                     return assertUnreachable(
                         item,
@@ -217,8 +226,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceViewItemType.DATA_APP:
-                    // Update via this modal isn't supported for data apps yet
-                    return null;
+                    return (
+                        <AppUpdateModal
+                            opened
+                            uuid={action.item.data.uuid}
+                            initialName={action.item.data.name}
+                            initialDescription={
+                                action.item.data.description ?? ''
+                            }
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
                 default:
                     return assertUnreachable(
                         action.item,
