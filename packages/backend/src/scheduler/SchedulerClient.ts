@@ -1563,7 +1563,7 @@ export class SchedulerClient {
      */
     async scheduleManagedAgentHeartbeat(
         cronPattern: string,
-        projectUuid?: string,
+        projectUuid: string,
     ): Promise<void> {
         const graphileClient = await this.graphileUtils;
 
@@ -1571,13 +1571,15 @@ export class SchedulerClient {
         const schedule = getSchedule(arr, new Date(), 'UTC');
         const nextRun = schedule.next().toJSDate();
 
-        const jobKey = projectUuid
-            ? `managed-agent-heartbeat:${projectUuid}`
-            : 'managed-agent-heartbeat';
+        const jobKey = `managed-agent-heartbeat:${projectUuid}`;
 
         await graphileClient.addJob(
             SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT,
-            {} as TraceTaskBase,
+            {
+                projectUuid,
+                organizationUuid: '',
+                userUuid: '',
+            } satisfies TraceTaskBase,
             {
                 runAt: nextRun,
                 maxAttempts: 1,
@@ -1587,7 +1589,7 @@ export class SchedulerClient {
         );
 
         Logger.info(
-            `Scheduled managed agent heartbeat for ${projectUuid ?? 'default'} at ${nextRun.toISOString()}`,
+            `Scheduled managed agent heartbeat for ${projectUuid} at ${nextRun.toISOString()}`,
         );
     }
 
