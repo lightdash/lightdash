@@ -153,6 +153,9 @@ export function formatDate(
     return momentDate.format(getDateFormat(timeInterval));
 }
 
+// `displayTimezone`: when `value` is already wall-clock-shifted (e.g. echarts
+// axis under the synthetic-dim shift), swaps the (Z) suffix to that tz's
+// offset without re-converting the value. Ignored if `timezone` is set.
 export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
