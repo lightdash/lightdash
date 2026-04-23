@@ -107,6 +107,10 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                     `${SpaceTableName}.deleted_by_user_uuid`,
                     'deleted_by_user.first_name as deleted_by_user_first_name',
                     'deleted_by_user.last_name as deleted_by_user_last_name',
+                    knex.raw(`null::timestamp as verified_at`),
+                    knex.raw(`null::uuid as verified_by_user_uuid`),
+                    knex.raw(`null as verified_by_user_first_name`),
+                    knex.raw(`null as verified_by_user_last_name`),
                     knex.raw(`json_build_object(
                         'dashboardCount', (${
                             filters.includeDescendantCounts
