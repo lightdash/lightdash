@@ -137,6 +137,7 @@ module.exports = {
                 'src/services/UnfurlService/**/*.ts',
                 'src/services/UserAttributesService/**/*.ts',
                 'src/services/UserService.ts',
+                'src/services/ValidationService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',
