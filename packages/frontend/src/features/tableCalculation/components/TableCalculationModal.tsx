@@ -72,7 +72,6 @@ import { useProject } from '../../../hooks/useProject';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { getUniqueTableCalculationName } from '../utils';
-import FormulaConversionPreview from './FormulaConversionPreview';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
@@ -678,22 +677,38 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         )}
                         {showConvertToFormulaButton && (
-                            <Button
-                                variant="light"
-                                color="indigo"
-                                size="xs"
-                                leftSection={
-                                    <MantineIcon icon={IconWand} size="sm" />
-                                }
-                                onClick={handleConvertClick}
-                                loading={isConvertingSql}
-                                disabled={
-                                    !form.values.sql ||
-                                    form.values.sql.trim().length === 0
-                                }
+                            <Tooltip
+                                label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
+                                withArrow
+                                multiline
+                                w={260}
+                                disabled={showConversionPreview}
                             >
-                                Convert to formula
-                            </Button>
+                                <Button
+                                    variant="light"
+                                    color="indigo"
+                                    size="xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconWand}
+                                            size="sm"
+                                        />
+                                    }
+                                    onClick={handleConvertClick}
+                                    loading={isConvertingSql}
+                                    disabled={
+                                        !form.values.sql ||
+                                        form.values.sql.trim().length === 0
+                                    }
+                                    style={{
+                                        visibility: showConversionPreview
+                                            ? 'hidden'
+                                            : 'visible',
+                                    }}
+                                >
+                                    Convert to formula
+                                </Button>
+                            </Tooltip>
                         )}
                     </Group>
 
@@ -704,7 +719,6 @@ const TableCalculationModal: FC<Props> = ({
                                 ? classes.editorContainerExpanded
                                 : classes.editorContainer
                         }
-                        mb={showConversionPreview ? 'sm' : undefined}
                     >
                         {editMode === EditMode.TEMPLATE &&
                         tableCalculation &&
@@ -749,22 +763,27 @@ const TableCalculationModal: FC<Props> = ({
                                         focusOnRender={true}
                                         onCmdEnter={handleConfirm}
                                         onAiApplied={handleSqlAiApplied}
+                                        conversionState={
+                                            showConversionPreview
+                                                ? {
+                                                      isLoading:
+                                                          isConvertingSql,
+                                                      error: conversionError,
+                                                      result: conversionResult,
+                                                      onApply:
+                                                          handleConvertApply,
+                                                      onDiscard:
+                                                          handleConvertDiscard,
+                                                      onRetry:
+                                                          handleConvertRetry,
+                                                  }
+                                                : undefined
+                                        }
                                     />
                                 </Suspense>
                             </Box>
                         )}
                     </Box>
-
-                    {showConversionPreview && (
-                        <FormulaConversionPreview
-                            isLoading={isConvertingSql}
-                            error={conversionError}
-                            result={conversionResult}
-                            onApply={handleConvertApply}
-                            onDiscard={handleConvertDiscard}
-                            onRetry={handleConvertRetry}
-                        />
-                    )}
                 </Stack>
 
                 <Accordion
