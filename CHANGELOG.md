@@ -1,3 +1,10 @@
+# [0.2795.0](https://github.com/lightdash/lightdash/compare/0.2794.0...0.2795.0) (2026-04-23)
+
+
+### Features
+
+* **cli:** add lightdash pre-aggregate-audit command [ZAP-329] ([#22309](https://github.com/lightdash/lightdash/issues/22309)) ([b39b258](https://github.com/lightdash/lightdash/commit/b39b258fe7eedf45895291576d92c2feb8329df3))
+
 # [0.2794.0](https://github.com/lightdash/lightdash/compare/0.2793.0...0.2794.0) (2026-04-23)
 
 
