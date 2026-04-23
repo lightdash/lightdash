@@ -9,9 +9,11 @@ import {
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
 import {
+    AnalyticsAppViewsTableName,
     AnalyticsChartViewsTableName,
     AnalyticsDashboardViewsTableName,
 } from '../database/entities/analytics';
+import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
@@ -153,6 +155,22 @@ export class AnalyticsModel {
                     ) as unknown as Date, // update first_viewed_at if it is null
                 })
                 .where('dashboard_uuid', dashboardUuid);
+        });
+    }
+
+    async addAppViewEvent(appId: string, userUuid: string): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await trx(AnalyticsAppViewsTableName).insert({
+                app_id: appId,
+                user_uuid: userUuid,
+            });
+            await trx(AppsTableName)
+                .update({
+                    views_count: trx.raw(
+                        'views_count + 1',
+                    ) as unknown as number,
+                })
+                .where('app_id', appId);
         });
     }
 
