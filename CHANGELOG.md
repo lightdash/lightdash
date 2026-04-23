@@ -1,3 +1,10 @@
+## [0.2789.1](https://github.com/lightdash/lightdash/compare/0.2789.0...0.2789.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* **timezone:** skip tz round-trip for DATE dimensions ([#22286](https://github.com/lightdash/lightdash/issues/22286)) ([7ac7e55](https://github.com/lightdash/lightdash/commit/7ac7e55660745bb4b356693b19550bdffb567265))
+
 # [0.2789.0](https://github.com/lightdash/lightdash/compare/0.2788.0...0.2789.0) (2026-04-23)
 
 

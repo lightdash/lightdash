@@ -49,6 +49,7 @@ describe('getFieldValuesMetricQuery', () => {
             operator: FilterOperator.INCLUDE,
             values: ['test'],
             target: { fieldId: 'a_dim1' },
+            caseSensitive: false,
         });
         expect(filterRules?.[1]).toMatchObject({
             operator: FilterOperator.NOT_NULL,

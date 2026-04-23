@@ -1,7 +1,4 @@
-import {
-    preAggregateMissReasonLabels,
-    type Dashboard,
-} from '@lightdash/common';
+import { type Dashboard } from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -25,6 +22,7 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import MantineIcon from '../MantineIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
 import classes from './PreAggregateAuditIndicator.module.css';
+import { getDetail } from './PreAggregateAuditIndicator.utils';
 
 const NONE_KEY = 'none';
 
@@ -44,16 +42,6 @@ type TabGroup = {
     misses: TilePreAggregateStatus[];
     ineligible: TilePreAggregateStatus[];
 };
-
-function getDetail(tile: TilePreAggregateStatus): string {
-    if (tile.hit && tile.preAggregateName) {
-        return tile.preAggregateName;
-    }
-    if (!tile.hit && tile.reason) {
-        return preAggregateMissReasonLabels[tile.reason.reason];
-    }
-    return '—';
-}
 
 function scrollToTile(tileUuid: string) {
     const el = document.querySelector<HTMLElement>(

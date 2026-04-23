@@ -112,9 +112,11 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.CUSTOM_METRIC_PRESENT;
+          fieldId: FieldId;
       }
     | {
           reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT;
+          fieldId: FieldId;
       }
     | {
           reason: PreAggregateMissReason.USER_BYPASS;
