@@ -1261,6 +1261,7 @@ describe('findMatch', () => {
 
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
+            fieldId: 'calc_1',
         });
     });
 
@@ -1294,6 +1295,7 @@ describe('findMatch', () => {
 
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.CUSTOM_METRIC_PRESENT,
+            fieldId: 'orders_custom',
         });
     });
 
