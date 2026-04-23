@@ -421,20 +421,20 @@ export class UserService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         // We assume users can only have one org
         const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotFoundError('Organization not found');
-        }
 
         if (
             auditedAbility.cannot(
                 'create',
-                subject('InviteLink', { organizationUuid }),
+                subject('InviteLink', { organizationUuid: organizationUuid! }),
             )
         ) {
             throw new ForbiddenError();
         }
         const { expiresAt, email, role } = createInviteLink;
         const inviteCode = nanoid(30);
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
+        }
 
         const existingUserWithEmail =
             await this.userModel.findUserByEmail(email);
@@ -520,17 +520,17 @@ export class UserService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         // We assume users can only have one org
         const { organizationUuid } = user;
-        if (organizationUuid === undefined) {
-            throw new NotFoundError('Organization not found');
-        }
 
         if (
             auditedAbility.cannot(
                 'delete',
-                subject('InviteLink', { organizationUuid }),
+                subject('InviteLink', { organizationUuid: organizationUuid! }),
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (organizationUuid === undefined) {
+            throw new NotFoundError('Organization not found');
         }
         await this.inviteLinkModel.deleteByOrganization(organizationUuid);
         this.analytics.track({
@@ -1713,11 +1713,10 @@ export class UserService extends BaseService {
         const auditedAbility = this.createAuditedAbility(requestUser);
         if (
             !requestUser.isActive ||
-            !requestUser.organizationUuid ||
             auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
-                    organizationUuid: requestUser.organizationUuid,
+                    organizationUuid: requestUser.organizationUuid!,
                     isActive: requestUser.isActive,
                 }),
             )
@@ -2370,11 +2369,10 @@ export class UserService extends BaseService {
         // Check permissions using CASL (includes org match and isActive)
         const auditedAbility = this.createAuditedAbility(adminUser);
         if (
-            !targetUser.organizationUuid ||
             auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
-                    organizationUuid: targetUser.organizationUuid,
+                    organizationUuid: targetUser.organizationUuid!,
                     isActive: targetUser.isActive,
                 }),
             )
