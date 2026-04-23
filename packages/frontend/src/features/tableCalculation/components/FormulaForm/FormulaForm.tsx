@@ -162,13 +162,12 @@ export const FormulaForm: FC<Props> = ({
                         hasAiError={!!aiError}
                     />
                 </Box>
-                {aiEnabled && initialFormula && initialFormula.length > 0 && (
+                {aiEnabled && initialFormula && (
                     <ImproveWithAiPopover
                         explore={explore}
                         metricQuery={metricQuery}
                         currentFormula={formula}
                         isGenerating={isGenerating}
-                        generationError={aiError}
                         onSubmit={(prompt) => generateFromPrompt(prompt, true)}
                     />
                 )}

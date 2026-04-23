@@ -42,8 +42,3 @@
     flex-direction: column;
     gap: var(--mantine-spacing-xs);
 }
-
-.error {
-    font-size: var(--mantine-font-size-xs);
-    color: var(--mantine-color-red-6);
-}

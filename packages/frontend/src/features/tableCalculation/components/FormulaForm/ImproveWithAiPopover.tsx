@@ -1,5 +1,5 @@
 import { type Explore, type MetricQuery } from '@lightdash/common';
-import { ActionIcon, Popover, Text } from '@mantine-8/core';
+import { ActionIcon, Popover } from '@mantine-8/core';
 import { IconArrowUp, IconSparkles } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useRef, useState, type FC } from 'react';
@@ -12,7 +12,6 @@ type Props = {
     metricQuery: MetricQuery;
     currentFormula: string;
     isGenerating: boolean;
-    generationError: string | null;
     onSubmit: (prompt: string) => void;
 };
 
@@ -21,7 +20,6 @@ export const ImproveWithAiPopover: FC<Props> = ({
     metricQuery,
     currentFormula,
     isGenerating,
-    generationError,
     onSubmit,
 }) => {
     const [opened, setOpened] = useState(false);
@@ -30,6 +28,10 @@ export const ImproveWithAiPopover: FC<Props> = ({
 
     const handleEditorUpdate = useCallback((editor: Editor | null) => {
         editorRef.current = editor;
+    }, []);
+
+    const handleEditorCleared = useCallback(() => {
+        setShouldClearEditor(false);
     }, []);
 
     const submit = useCallback(
@@ -76,7 +78,7 @@ export const ImproveWithAiPopover: FC<Props> = ({
                     onUpdate={handleEditorUpdate}
                     onSubmit={submit}
                     shouldClear={shouldClearEditor}
-                    onCleared={() => setShouldClearEditor(false)}
+                    onCleared={handleEditorCleared}
                     disabled={isGenerating}
                 />
                 <ActionIcon
@@ -95,9 +97,6 @@ export const ImproveWithAiPopover: FC<Props> = ({
                         stroke={2}
                     />
                 </ActionIcon>
-                {generationError && (
-                    <Text className={styles.error}>{generationError}</Text>
-                )}
             </Popover.Dropdown>
         </Popover>
     );
