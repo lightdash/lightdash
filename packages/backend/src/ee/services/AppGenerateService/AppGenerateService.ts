@@ -368,6 +368,16 @@ export class AppGenerateService extends BaseService {
                 mimeType,
             );
 
+        // Buffer the stream so the AWS SDK can compute a content hash for
+        // S3v4 signing. Streaming bodies use chunked signing which GCS's
+        // S3-compatible API doesn't handle reliably. Safe here because
+        // images are capped at 10 MB above.
+        const chunks: Buffer[] = [];
+        for await (const chunk of validatedBody) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const bufferedBody = Buffer.concat(chunks);
+
         const { client: s3Client, bucket } = this.getS3Client();
         const imageId = uuidv4();
         const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
@@ -376,8 +386,8 @@ export class AppGenerateService extends BaseService {
             new PutObjectCommand({
                 Bucket: bucket,
                 Key: s3Key,
-                Body: validatedBody,
-                ContentLength: contentLength,
+                Body: bufferedBody,
+                ContentLength: bufferedBody.length,
                 ContentType: mimeType,
             }),
         );
