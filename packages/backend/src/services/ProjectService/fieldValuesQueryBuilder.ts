@@ -102,9 +102,7 @@ export async function getFieldValuesMetricQuery({
             },
             operator: FilterOperator.INCLUDE,
             values: [search],
-            // Autocomplete should always match case-insensitively so users can
-            // find values without guessing the stored casing — independent of
-            // the field's configured caseSensitive setting.
+            // Autocomplete ignores the field's caseSensitive setting.
             caseSensitive: false,
         },
         {
