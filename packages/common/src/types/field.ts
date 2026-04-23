@@ -673,6 +673,7 @@ export interface Dimension extends Field {
     anyAttributes?: Record<string, string | string[]>;
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
+    timeIntervalBaseDimensionType?: DimensionType;
     customTimeInterval?: string;
     isAdditionalDimension?: boolean;
     colors?: Record<string, string>;

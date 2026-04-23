@@ -6,6 +6,13 @@ export type QueryEventTableCalculation = {
     sql: string;
 };
 
+export type QueryEventAdditionalMetric = {
+    name: string;
+    label: string;
+    table: string;
+    type: string;
+};
+
 export type QueryEvent = {
     id: string;
     timestamp: number;
@@ -16,6 +23,7 @@ export type QueryEvent = {
     filters: unknown;
     sorts: unknown[];
     tableCalculations: QueryEventTableCalculation[];
+    additionalMetrics: QueryEventAdditionalMetric[];
     limit: number;
     queryUuid: string | null;
     status: 'pending' | 'running' | 'ready' | 'error';
@@ -119,6 +127,9 @@ export function useAppSdkBridge(
                         tableCalculations:
                             (query.tableCalculations as QueryEventTableCalculation[]) ??
                             [],
+                        additionalMetrics:
+                            (query.additionalMetrics as QueryEventAdditionalMetric[]) ??
+                            [],
                         limit: (query.limit as number) ?? 0,
                         queryUuid: null,
                         status: 'pending',
@@ -164,6 +175,9 @@ export function useAppSdkBridge(
                             tableCalculations:
                                 json.results?.metricQuery?.tableCalculations ??
                                 [],
+                            additionalMetrics:
+                                json.results?.metricQuery?.additionalMetrics ??
+                                [],
                             limit: json.results?.metricQuery?.limit ?? 0,
                             queryUuid: json.results.queryUuid,
                             status: 'running',
@@ -188,6 +202,7 @@ export function useAppSdkBridge(
                                 filters: {},
                                 sorts: [],
                                 tableCalculations: [],
+                                additionalMetrics: [],
                                 limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
@@ -212,6 +227,7 @@ export function useAppSdkBridge(
                                 filters: {},
                                 sorts: [],
                                 tableCalculations: [],
+                                additionalMetrics: [],
                                 limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'error',

@@ -307,6 +307,37 @@ export class AppModel {
         return row;
     }
 
+    /**
+     * Atomically set auto-generated name/description, but only for fields
+     * that are still at their empty-string default. Used by the background
+     * pipeline so it cannot clobber edits the user made while the build
+     * was running.
+     */
+    async setMetadataIfUnset(
+        appId: string,
+        projectUuid: string,
+        metadata: { name: string; description: string },
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({
+                name: this.database.raw(
+                    `CASE WHEN ${AppsTableName}.name = '' THEN ? ELSE ${AppsTableName}.name END`,
+                    [metadata.name],
+                ) as unknown as string,
+                description: this.database.raw(
+                    `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
+                    [metadata.description],
+                ) as unknown as string,
+            })
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
     async moveToSpace(
         {
             appId,

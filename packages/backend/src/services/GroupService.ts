@@ -61,12 +61,17 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -104,12 +109,17 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(member.groupUuid);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -143,12 +153,17 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'delete',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -185,11 +200,16 @@ export class GroupsService extends BaseService {
                       offset,
                   );
 
+        const auditedAbility = this.createAuditedAbility(actor);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -207,12 +227,17 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(groupUuid);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -246,12 +271,17 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroupWithMembers(groupUuid);
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -268,14 +298,19 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -283,7 +318,7 @@ export class GroupsService extends BaseService {
         }
 
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
@@ -321,14 +356,19 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -336,7 +376,7 @@ export class GroupsService extends BaseService {
         }
 
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,
@@ -370,14 +410,19 @@ export class GroupsService extends BaseService {
             throw new ForbiddenError('Group service is not enabled');
         }
 
+        const auditedAbility = this.createAuditedAbility(actor);
         const group = await this.groupsModel.getGroup(groupUuid);
         const project = await this.projectModel.get(projectUuid);
 
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Group', {
                     organizationUuid: group.organizationUuid,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
                 }),
             )
         ) {
@@ -385,7 +430,7 @@ export class GroupsService extends BaseService {
         }
 
         if (
-            actor.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: project.organizationUuid,

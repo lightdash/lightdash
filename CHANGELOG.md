@@ -1,3 +1,63 @@
+# [0.2789.0](https://github.com/lightdash/lightdash/compare/0.2788.0...0.2789.0) (2026-04-23)
+
+
+### Features
+
+* add drilldown build to the query SDK ([#22293](https://github.com/lightdash/lightdash/issues/22293)) ([1397037](https://github.com/lightdash/lightdash/commit/139703763b32ce4a2009ae0225ab932bfac6dadf))
+* **data-apps:** support favoriting data apps ([#22291](https://github.com/lightdash/lightdash/issues/22291)) ([ea846d9](https://github.com/lightdash/lightdash/commit/ea846d965e5d683ec7134a42802abd6ea6f7b31f))
+
+# [0.2788.0](https://github.com/lightdash/lightdash/compare/0.2787.0...0.2788.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* don't overwrite user-set app name/description during auto-naming ([#22290](https://github.com/lightdash/lightdash/issues/22290)) ([3d90492](https://github.com/lightdash/lightdash/commit/3d90492c6a91646bbe5233272a083f69981bd1c3))
+
+
+### Features
+
+* convert existing SQL table calc to formula with AI ([#22281](https://github.com/lightdash/lightdash/issues/22281)) ([6b9637c](https://github.com/lightdash/lightdash/commit/6b9637c3d69f1d909149e49133fafefd6155d7c8))
+
+# [0.2787.0](https://github.com/lightdash/lightdash/compare/0.2786.0...0.2787.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** enable rename from space listings ([#22274](https://github.com/lightdash/lightdash/issues/22274)) ([48f3939](https://github.com/lightdash/lightdash/commit/48f3939c9dd874b1d0cf8c44b16a4fbbe0cdfa27))
+
+# [0.2786.0](https://github.com/lightdash/lightdash/compare/0.2785.0...0.2786.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** show type and view count in space listings ([#22272](https://github.com/lightdash/lightdash/issues/22272)) ([3f1cd88](https://github.com/lightdash/lightdash/commit/3f1cd88e58c44550cf7209ce0683f927ad8c887b))
+
+# [0.2785.0](https://github.com/lightdash/lightdash/compare/0.2784.0...0.2785.0) (2026-04-23)
+
+
+### Features
+
+* **data-apps:** track app views ([#22269](https://github.com/lightdash/lightdash/issues/22269)) ([49514b0](https://github.com/lightdash/lightdash/commit/49514b06e34e6211030a5f41abd4f7245fef8cee))
+
+# [0.2784.0](https://github.com/lightdash/lightdash/compare/0.2783.2...0.2784.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* buffer whole image to verify correctly ([#22241](https://github.com/lightdash/lightdash/issues/22241)) ([6b12d2e](https://github.com/lightdash/lightdash/commit/6b12d2e63c633cf46523df913d0dbfaca2843a52))
+
+
+### Features
+
+* update skills for data apps UX ([#22244](https://github.com/lightdash/lightdash/issues/22244)) ([464a830](https://github.com/lightdash/lightdash/commit/464a83048506cf272072020265fbd176d51d233b))
+
+## [0.2783.2](https://github.com/lightdash/lightdash/compare/0.2783.1...0.2783.2) (2026-04-22)
+
+
+### Bug Fixes
+
+* period-over-period previous period metric not inheriting format ([#21588](https://github.com/lightdash/lightdash/issues/21588)) ([d149e78](https://github.com/lightdash/lightdash/commit/d149e78855cf4dacdb3ab9bfa8a4e3b1748649c7)), closes [#21207](https://github.com/lightdash/lightdash/issues/21207)
+
 ## [0.2783.1](https://github.com/lightdash/lightdash/compare/0.2783.0...0.2783.1) (2026-04-22)
 
 

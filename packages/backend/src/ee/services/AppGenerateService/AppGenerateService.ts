@@ -31,6 +31,7 @@ import {
     type AppVersionStatus,
     type DbApp,
 } from '../../../database/entities/apps';
+import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -44,6 +45,7 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    analyticsModel: AnalyticsModel;
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
@@ -63,6 +65,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
+    private readonly analyticsModel: AnalyticsModel;
+
     private readonly catalogModel: CatalogModel;
 
     private readonly appModel: AppModel;
@@ -80,6 +84,7 @@ export class AppGenerateService extends BaseService {
     constructor({
         lightdashConfig,
         analytics,
+        analyticsModel,
         catalogModel,
         appModel,
         featureFlagModel,
@@ -91,6 +96,7 @@ export class AppGenerateService extends BaseService {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
+        this.analyticsModel = analyticsModel;
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
@@ -368,6 +374,16 @@ export class AppGenerateService extends BaseService {
                 mimeType,
             );
 
+        // Buffer the stream so the AWS SDK can compute a content hash for
+        // S3v4 signing. Streaming bodies use chunked signing which GCS's
+        // S3-compatible API doesn't handle reliably. Safe here because
+        // images are capped at 10 MB above.
+        const chunks: Buffer[] = [];
+        for await (const chunk of validatedBody) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const bufferedBody = Buffer.concat(chunks);
+
         const { client: s3Client, bucket } = this.getS3Client();
         const imageId = uuidv4();
         const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
@@ -376,8 +392,8 @@ export class AppGenerateService extends BaseService {
             new PutObjectCommand({
                 Bucket: bucket,
                 Key: s3Key,
-                Body: validatedBody,
-                ContentLength: contentLength,
+                Body: bufferedBody,
+                ContentLength: bufferedBody.length,
                 ContentType: mimeType,
             }),
         );
@@ -1755,10 +1771,17 @@ export class AppGenerateService extends BaseService {
                     anthropicApiKey,
                 );
                 if (metadata) {
-                    await this.appModel.updateApp(appUuid, projectUuid, {
-                        name: metadata.name,
-                        description: metadata.description,
-                    });
+                    // Only fills fields the user hasn't already set — the
+                    // build is async, so by the time we get here the user
+                    // may have renamed the app themselves.
+                    await this.appModel.setMetadataIfUnset(
+                        appUuid,
+                        projectUuid,
+                        {
+                            name: metadata.name,
+                            description: metadata.description,
+                        },
+                    );
                     this.logger.info(
                         `App ${appUuid}: auto-named "${metadata.name}"`,
                     );
@@ -2218,6 +2241,18 @@ export class AppGenerateService extends BaseService {
             project_uuid: projectUuid,
             space_uuid: spaceUuid,
             organization_uuid: organizationUuid,
+        });
+
+        await this.analyticsModel.addAppViewEvent(appUuid, user.userUuid);
+
+        this.analytics.track({
+            event: 'data_app.view',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid,
+            },
         });
 
         return {

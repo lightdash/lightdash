@@ -1,2 +1,3 @@
 export { AiFormulaTableCalculationInput } from './components/AiFormulaTableCalculationInput';
-export { AiTableCalculationInput } from './components/AiTableCalculationInput';
+export { AiTableCalculationInputBody } from './components/AiTableCalculationInput';
+export { AiSlot } from './components/AiSlot/AiSlot';
