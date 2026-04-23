@@ -31,6 +31,7 @@ import {
     type AppVersionStatus,
     type DbApp,
 } from '../../../database/entities/apps';
+import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -44,6 +45,7 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    analyticsModel: AnalyticsModel;
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
@@ -63,6 +65,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
+    private readonly analyticsModel: AnalyticsModel;
+
     private readonly catalogModel: CatalogModel;
 
     private readonly appModel: AppModel;
@@ -80,6 +84,7 @@ export class AppGenerateService extends BaseService {
     constructor({
         lightdashConfig,
         analytics,
+        analyticsModel,
         catalogModel,
         appModel,
         featureFlagModel,
@@ -91,6 +96,7 @@ export class AppGenerateService extends BaseService {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
+        this.analyticsModel = analyticsModel;
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
@@ -2228,6 +2234,18 @@ export class AppGenerateService extends BaseService {
             project_uuid: projectUuid,
             space_uuid: spaceUuid,
             organization_uuid: organizationUuid,
+        });
+
+        await this.analyticsModel.addAppViewEvent(appUuid, user.userUuid);
+
+        this.analytics.track({
+            event: 'data_app.view',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid,
+            },
         });
 
         return {
