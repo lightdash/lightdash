@@ -1,3 +1,10 @@
+# [0.2793.0](https://github.com/lightdash/lightdash/compare/0.2792.0...0.2793.0) (2026-04-23)
+
+
+### Features
+
+* **echarts:** shift time-axis values to project timezone wall-clock ([#22250](https://github.com/lightdash/lightdash/issues/22250)) ([c0d3cf9](https://github.com/lightdash/lightdash/commit/c0d3cf9323367bd37f71b1a64f9079562d4e8c3b))
+
 # [0.2792.0](https://github.com/lightdash/lightdash/compare/0.2791.0...0.2792.0) (2026-04-23)
 
 
