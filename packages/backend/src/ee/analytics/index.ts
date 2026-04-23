@@ -94,6 +94,7 @@ export type GenerateFormulaTableCalculationGenerated = BaseTrack & {
         organizationId: string;
         projectId: string;
         userId: string;
+        mode: 'prompt' | 'convert-sql';
     };
 };
 

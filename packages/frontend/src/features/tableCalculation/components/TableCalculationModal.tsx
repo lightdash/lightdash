@@ -39,6 +39,7 @@ import {
     IconMaximize,
     IconMinimize,
     IconToggleLeft,
+    IconWand,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -63,10 +64,15 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { getUniqueTableCalculationName } from '../utils';
+import FormulaConversionPreview from './FormulaConversionPreview';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
@@ -140,6 +146,8 @@ const TableCalculationModal: FC<Props> = ({
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
+    const { data: health } = useHealth();
+    const { track } = useTracking();
 
     // Formula support is pinned to what the formula package can compile for
     // this warehouse. The backend mapper throws for unsupported adapters, so
@@ -149,6 +157,8 @@ const TableCalculationModal: FC<Props> = ({
         (SUPPORTED_DIALECTS as readonly string[]).includes(
             project.warehouseConnection.type as Dialect,
         );
+
+    const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
 
     const isNewCalculation = !tableCalculation;
     const hasTemplate = tableCalculation
@@ -296,6 +306,71 @@ const TableCalculationModal: FC<Props> = ({
         },
         [form],
     );
+
+    const {
+        convert: convertSqlToFormula,
+        reset: resetConversion,
+        result: conversionResult,
+        isLoading: isConvertingSql,
+        error: conversionError,
+    } = useConvertSqlToFormula({
+        projectUuid,
+        explore,
+        metricQuery,
+    });
+
+    const isExistingSqlCalc =
+        !!tableCalculation && isSqlTableCalculation(tableCalculation);
+    const showConvertToFormulaButton =
+        isExistingSqlCalc &&
+        isFormulaSupported &&
+        isAmbientAiEnabled &&
+        editMode === EditMode.SQL;
+
+    const showConversionPreview =
+        editMode === EditMode.SQL &&
+        (isConvertingSql || !!conversionResult || !!conversionError);
+
+    useEffect(() => {
+        if (!opened) {
+            resetConversion();
+        }
+    }, [opened, resetConversion]);
+
+    const handleConvertClick = useCallback(() => {
+        track({
+            name: EventName.FORMULA_TABLE_CALCULATION_CONVERT_CLICKED,
+        });
+        convertSqlToFormula(form.values.sql);
+    }, [convertSqlToFormula, form.values.sql, track]);
+
+    const handleConvertApply = useCallback(() => {
+        if (!conversionResult) return;
+        setEditMode(EditMode.FORMULA);
+        form.setFieldValue('formula', conversionResult.formula);
+        if (!form.values.name.trim()) {
+            form.setFieldValue('name', conversionResult.displayName);
+        }
+        if (conversionResult.type) {
+            form.setFieldValue('type', conversionResult.type);
+        }
+        if (conversionResult.format) {
+            form.setFieldValue('format', conversionResult.format);
+        }
+        setFormulaGeneratedByAi(true);
+        track({
+            name: EventName.FORMULA_TABLE_CALCULATION_CONVERT_APPLIED,
+        });
+        resetConversion();
+    }, [conversionResult, form, resetConversion, track]);
+
+    const handleConvertDiscard = useCallback(() => {
+        resetConversion();
+    }, [resetConversion]);
+
+    const handleConvertRetry = useCallback(() => {
+        convertSqlToFormula(form.values.sql);
+    }, [convertSqlToFormula, form.values.sql]);
 
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
@@ -602,6 +677,24 @@ const TableCalculationModal: FC<Props> = ({
                                 size="xs"
                             />
                         )}
+                        {showConvertToFormulaButton && (
+                            <Button
+                                variant="light"
+                                color="indigo"
+                                size="xs"
+                                leftSection={
+                                    <MantineIcon icon={IconWand} size="sm" />
+                                }
+                                onClick={handleConvertClick}
+                                loading={isConvertingSql}
+                                disabled={
+                                    !form.values.sql ||
+                                    form.values.sql.trim().length === 0
+                                }
+                            >
+                                Convert to formula
+                            </Button>
+                        )}
                     </Group>
 
                     <Box
@@ -611,6 +704,7 @@ const TableCalculationModal: FC<Props> = ({
                                 ? classes.editorContainerExpanded
                                 : classes.editorContainer
                         }
+                        mb={showConversionPreview ? 'sm' : undefined}
                     >
                         {editMode === EditMode.TEMPLATE &&
                         tableCalculation &&
@@ -660,6 +754,17 @@ const TableCalculationModal: FC<Props> = ({
                             </Box>
                         )}
                     </Box>
+
+                    {showConversionPreview && (
+                        <FormulaConversionPreview
+                            isLoading={isConvertingSql}
+                            error={conversionError}
+                            result={conversionResult}
+                            onApply={handleConvertApply}
+                            onDiscard={handleConvertDiscard}
+                            onRetry={handleConvertRetry}
+                        />
+                    )}
                 </Stack>
 
                 <Accordion

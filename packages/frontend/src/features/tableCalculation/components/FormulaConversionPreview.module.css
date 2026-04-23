@@ -1,0 +1,52 @@
+.container {
+    padding: var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.title {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+}
+
+.formulaBox {
+    font-family: monospace;
+    font-size: var(--mantine-font-size-sm);
+    padding: var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-sm);
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    border: 1px solid var(--mantine-color-default-border);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.equalsPrefix {
+    color: var(--mantine-color-dimmed);
+    margin-right: 0.25em;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--mantine-spacing-xs);
+    margin-top: var(--mantine-spacing-sm);
+}

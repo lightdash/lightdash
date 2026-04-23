@@ -529,13 +529,7 @@ export class AiService {
 
         const result = await generateFormulaTableCalculationFromContext(
             modelOptions,
-            {
-                prompt: payload.prompt,
-                tableName: payload.tableName,
-                fieldsContext: payload.fieldsContext,
-                existingTableCalculations: payload.existingTableCalculations,
-                currentFormula: payload.currentFormula,
-            },
+            payload,
         );
 
         this.analytics.track<GenerateFormulaTableCalculationGenerated>({
@@ -545,6 +539,7 @@ export class AiService {
                 organizationId: user.organizationUuid!,
                 projectId: projectUuid,
                 userId: user.userUuid,
+                mode: payload.mode,
             },
         });
 
