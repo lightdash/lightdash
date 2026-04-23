@@ -19,7 +19,7 @@ import {
     IconExternalLink,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
 import type { QueryEvent } from './hooks/useAppSdkBridge';
@@ -139,6 +139,29 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
                     className={classes.queryDetailsRow}
                 >
                     <Box className={classes.queryDetails}>
+                        {(() => {
+                            const exploreUrl = buildExploreUrl(
+                                projectUuid,
+                                query,
+                            );
+                            return exploreUrl ? (
+                                <Anchor
+                                    href={exploreUrl}
+                                    target="_blank"
+                                    size="xs"
+                                    className={classes.openInExplore}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <Group gap={4}>
+                                        <MantineIcon
+                                            icon={IconExternalLink}
+                                            size={12}
+                                        />
+                                        Open in Explore
+                                    </Group>
+                                </Anchor>
+                            ) : null;
+                        })()}
                         {query.exploreName && (
                             <Box>
                                 <Text size="xs" fw={600} c="dimmed">
@@ -225,27 +248,6 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
                                 <Text size="xs">{query.durationMs}ms</Text>
                             </Box>
                         )}
-                        {(() => {
-                            const exploreUrl = buildExploreUrl(
-                                projectUuid,
-                                query,
-                            );
-                            return exploreUrl ? (
-                                <Anchor
-                                    href={exploreUrl}
-                                    target="_blank"
-                                    size="xs"
-                                >
-                                    <Group gap={4}>
-                                        <MantineIcon
-                                            icon={IconExternalLink}
-                                            size={12}
-                                        />
-                                        Open in Explore
-                                    </Group>
-                                </Anchor>
-                            ) : null;
-                        })()}
                     </Box>
                     {query.rawMetricQuery && (
                         <Box className={classes.rawJsonPanel}>
@@ -318,11 +320,46 @@ const QueryRow: FC<{ query: TrackedQuery; projectUuid: string }> = ({
     );
 };
 
+const MIN_HEIGHT = 100;
+const MAX_HEIGHT = 600;
+const DEFAULT_HEIGHT = 300;
+
 const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
     const [collapsed, setCollapsed] = useState(true);
     const [dismissed, setDismissed] = useState(false);
+    const [height, setHeight] = useState(DEFAULT_HEIGHT);
+    const dragRef = useRef<{
+        startY: number;
+        startHeight: number;
+    } | null>(null);
 
     const toggle = useCallback(() => setCollapsed((v) => !v), []);
+
+    const handleResizeStart = useCallback(
+        (e: React.PointerEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dragRef.current = { startY: e.clientY, startHeight: height };
+        },
+        [height],
+    );
+
+    const handleResizeMove = useCallback(
+        (e: React.PointerEvent<HTMLDivElement>) => {
+            if (!dragRef.current) return;
+            const delta = dragRef.current.startY - e.clientY;
+            const newHeight = Math.min(
+                MAX_HEIGHT,
+                Math.max(MIN_HEIGHT, dragRef.current.startHeight + delta),
+            );
+            setHeight(newHeight);
+        },
+        [],
+    );
+
+    const handleResizeEnd = useCallback(() => {
+        dragRef.current = null;
+    }, []);
 
     const handleDismiss = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();
@@ -382,7 +419,13 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                 </ActionIcon>
             </Group>
             <Collapse in={!collapsed}>
-                <ScrollArea.Autosize mah={300}>
+                <Box
+                    className={classes.resizeHandle}
+                    onPointerDown={handleResizeStart}
+                    onPointerMove={handleResizeMove}
+                    onPointerUp={handleResizeEnd}
+                />
+                <ScrollArea h={height}>
                     <Box className={classes.queryList}>
                         {queries.map((q) => (
                             <QueryRow
@@ -392,7 +435,7 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                             />
                         ))}
                     </Box>
-                </ScrollArea.Autosize>
+                </ScrollArea>
             </Collapse>
         </Box>
     );
