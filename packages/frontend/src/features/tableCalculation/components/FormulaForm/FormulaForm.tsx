@@ -135,18 +135,6 @@ export const FormulaForm: FC<Props> = ({
     const runPreviewRef = useRef(runPreview);
     runPreviewRef.current = runPreview;
 
-    // Drop caption once the user edits after generation.
-    useEffect(() => {
-        if (
-            generatedFormula !== null &&
-            formula !== generatedFormula &&
-            provenancePrompt !== null
-        ) {
-            setProvenancePrompt(null);
-            setGeneratedFormula(null);
-        }
-    }, [formula, generatedFormula, provenancePrompt]);
-
     useEffect(() => {
         if (generationError) {
             setAiError(AI_GENERIC_ERROR);
@@ -218,6 +206,9 @@ export const FormulaForm: FC<Props> = ({
         [generateFromPrompt, onAiApply, trackGenerate],
     );
 
+    const showProvenance =
+        provenancePrompt !== null && formula === generatedFormula && !aiError;
+
     return (
         <Flex direction="column" h="100%">
             <Box
@@ -285,7 +276,7 @@ export const FormulaForm: FC<Props> = ({
                     </Text>
                 </Group>
             )}
-            {provenancePrompt && !aiError && (
+            {showProvenance && (
                 <Group gap={6} wrap="nowrap" className={classes.provenance}>
                     <MantineIcon icon={IconSparkles} size="xs" />
                     <Text span inherit>
