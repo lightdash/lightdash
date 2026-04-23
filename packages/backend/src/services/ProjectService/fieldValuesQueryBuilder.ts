@@ -102,6 +102,8 @@ export async function getFieldValuesMetricQuery({
             },
             operator: FilterOperator.INCLUDE,
             values: [search],
+            // Autocomplete ignores the field's caseSensitive setting.
+            caseSensitive: false,
         },
         {
             id: uuidv4(),
