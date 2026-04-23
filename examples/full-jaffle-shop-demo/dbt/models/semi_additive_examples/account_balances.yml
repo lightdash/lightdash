@@ -1,0 +1,44 @@
+models:
+  - name: account_balances
+    config:
+      meta:
+        primary_key: [date, account_id]
+        joins:
+          - join: account_owners
+            sql_on: ${account_balances.account_id} = ${account_owners.account_id}
+            type: left
+            relationship: one-to-many
+    columns:
+      - name: date
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: date
+              primary_key: true
+      - name: account_id
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+              primary_key: true
+      - name: account_region
+        description: "The region of the account. An account can only belong to one region, but regions can have many accounts."
+        config:
+          meta:
+            dimension:
+              type: string
+            metrics:
+              count_distinct_account_regions:
+                type: count_distinct
+      - name: daily_account_balance
+        description: ""
+        config:
+          meta:
+            dimension:
+              type: number
+            metrics:
+              current_balance_incorrect:
+                type: sum
+                description: "The sum of balances which is the incorrect handling for the current balance which is semi-additive. "
