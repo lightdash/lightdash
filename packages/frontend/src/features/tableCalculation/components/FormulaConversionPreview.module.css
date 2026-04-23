@@ -1,0 +1,29 @@
+.formulaBox {
+    /* Matches the AiPromptEditor's total rendered height (editorContent
+       min-height + TipTap internal padding + editorRoot border) so
+       swapping AI input ↔ preview in SqlForm's ai slot doesn't shift. */
+    height: 47.59px;
+    font-family: monospace;
+    font-size: var(--mantine-font-size-xs);
+    padding: 6px 8px;
+    border-radius: var(--mantine-radius-md);
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    border: 1px solid var(--mantine-color-ldGray-3);
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-y: auto;
+    min-width: 0;
+    box-sizing: border-box;
+
+    @mixin dark {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.equalsPrefix {
+    color: var(--mantine-color-dimmed);
+    margin-right: 0.25em;
+}

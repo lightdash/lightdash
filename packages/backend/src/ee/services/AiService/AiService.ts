@@ -31,6 +31,7 @@ import { isFeatureFlagEnabled } from '../../../postHog';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
+    ConvertSqlToFormulaGenerated,
     CustomVizGenerated,
     DashboardSummaryCreated,
     DashboardSummaryViewed,
@@ -529,24 +530,30 @@ export class AiService {
 
         const result = await generateFormulaTableCalculationFromContext(
             modelOptions,
-            {
-                prompt: payload.prompt,
-                tableName: payload.tableName,
-                fieldsContext: payload.fieldsContext,
-                existingTableCalculations: payload.existingTableCalculations,
-                currentFormula: payload.currentFormula,
-            },
+            payload,
         );
 
-        this.analytics.track<GenerateFormulaTableCalculationGenerated>({
-            userId: user.userUuid,
-            event: 'ai.formula_table_calculation.generated',
-            properties: {
-                organizationId: user.organizationUuid!,
-                projectId: projectUuid,
+        if (payload.mode === 'convert-sql') {
+            this.analytics.track<ConvertSqlToFormulaGenerated>({
                 userId: user.userUuid,
-            },
-        });
+                event: 'ai.formula_table_calculation.converted_from_sql',
+                properties: {
+                    organizationId: user.organizationUuid!,
+                    projectId: projectUuid,
+                    userId: user.userUuid,
+                },
+            });
+        } else {
+            this.analytics.track<GenerateFormulaTableCalculationGenerated>({
+                userId: user.userUuid,
+                event: 'ai.formula_table_calculation.generated',
+                properties: {
+                    organizationId: user.organizationUuid!,
+                    projectId: projectUuid,
+                    userId: user.userUuid,
+                },
+            });
+        }
 
         return {
             formula: result.formula,

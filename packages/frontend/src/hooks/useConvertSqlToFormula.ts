@@ -12,7 +12,7 @@ import { useFormulaAiContext } from './useFormulaAiContext';
 
 const GENERATION_TIMEOUT_MS = 15000;
 
-const generateFormulaTableCalculationApi = async (
+const convertSqlToFormulaApi = async (
     projectUuid: string,
     payload: GenerateFormulaTableCalculationRequest,
     signal?: AbortSignal,
@@ -24,29 +24,29 @@ const generateFormulaTableCalculationApi = async (
         signal,
     });
 
-type UseGenerateFormulaTableCalculationOptions = {
+type UseConvertSqlToFormulaOptions = {
     projectUuid: string | undefined;
     explore: Explore | undefined;
     metricQuery: MetricQuery;
     onSuccess?: (result: GeneratedFormulaTableCalculation) => void;
 };
 
-export const useGenerateFormulaTableCalculation = ({
+export const useConvertSqlToFormula = ({
     projectUuid,
     explore,
     metricQuery,
     onSuccess,
-}: UseGenerateFormulaTableCalculationOptions) => {
+}: UseConvertSqlToFormulaOptions) => {
     const abortControllerRef = useRef<AbortController | null>(null);
     const { buildContext, isReady } = useFormulaAiContext(explore, metricQuery);
 
     const mutation = useMutation<
         GeneratedFormulaTableCalculation,
         ApiError,
-        { prompt: string; currentFormula?: string }
+        { sourceSql: string }
     >({
         onSuccess,
-        mutationFn: ({ prompt, currentFormula }) => {
+        mutationFn: ({ sourceSql }) => {
             if (!projectUuid) {
                 throw new Error('Project UUID is required');
             }
@@ -65,12 +65,11 @@ export const useGenerateFormulaTableCalculation = ({
                 controller.abort();
             }, GENERATION_TIMEOUT_MS);
 
-            return generateFormulaTableCalculationApi(
+            return convertSqlToFormulaApi(
                 projectUuid,
                 {
-                    mode: 'prompt',
-                    prompt,
-                    currentFormula,
+                    mode: 'convert-sql',
+                    sourceSql,
                     ...context,
                 },
                 controller.signal,
@@ -80,22 +79,23 @@ export const useGenerateFormulaTableCalculation = ({
         },
     });
 
-    const generate = useCallback(
-        (prompt: string, currentFormula?: string) => {
-            if (!projectUuid || !isReady || !prompt.trim()) return;
-            mutation.mutate({ prompt, currentFormula });
+    const convert = useCallback(
+        (sourceSql: string) => {
+            if (!projectUuid || !isReady || !sourceSql.trim()) return;
+            mutation.mutate({ sourceSql });
         },
         [projectUuid, isReady, mutation],
     );
 
     const reset = useCallback(() => {
+        abortControllerRef.current?.abort();
         mutation.reset();
     }, [mutation]);
 
     return {
-        generate,
+        convert,
         reset,
-        generatedResult: mutation.data ?? null,
+        result: mutation.data ?? null,
         isLoading: mutation.isLoading,
         error: mutation.error,
     };
