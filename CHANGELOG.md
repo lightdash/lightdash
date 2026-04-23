@@ -1,3 +1,15 @@
+# [0.2791.0](https://github.com/lightdash/lightdash/compare/0.2790.1...0.2791.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* remove moment from sdk deps & add external react-dom/server rolldown option ([#22310](https://github.com/lightdash/lightdash/issues/22310)) ([28af5c0](https://github.com/lightdash/lightdash/commit/28af5c0fbfb39fb311543e58171747aefedc976e))
+
+
+### Features
+
+* **table-calc:** unified formula/AI input with inline preview ([#22305](https://github.com/lightdash/lightdash/issues/22305)) ([cfe6af4](https://github.com/lightdash/lightdash/commit/cfe6af42b85640f7f745b65bdaa6c9d1e344d964))
+
 ## [0.2790.1](https://github.com/lightdash/lightdash/compare/0.2790.0...0.2790.1) (2026-04-23)
 
 
