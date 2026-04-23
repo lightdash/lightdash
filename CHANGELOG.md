@@ -1,3 +1,15 @@
+# [0.2788.0](https://github.com/lightdash/lightdash/compare/0.2787.0...0.2788.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* don't overwrite user-set app name/description during auto-naming ([#22290](https://github.com/lightdash/lightdash/issues/22290)) ([3d90492](https://github.com/lightdash/lightdash/commit/3d90492c6a91646bbe5233272a083f69981bd1c3))
+
+
+### Features
+
+* convert existing SQL table calc to formula with AI ([#22281](https://github.com/lightdash/lightdash/issues/22281)) ([6b9637c](https://github.com/lightdash/lightdash/commit/6b9637c3d69f1d909149e49133fafefd6155d7c8))
+
 # [0.2787.0](https://github.com/lightdash/lightdash/compare/0.2786.0...0.2787.0) (2026-04-23)
 
 
