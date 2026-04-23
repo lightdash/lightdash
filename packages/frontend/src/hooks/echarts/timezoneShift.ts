@@ -26,8 +26,8 @@ export type TimezoneShiftedField = {
     flipAxes: boolean;
 };
 
-// When shifted, axisTimezone is undefined and axisDisplayTimezone holds the tz.
-// Otherwise the swap is reversed. Callers shouldn't compute this themselves.
+// Exactly one of axisTimezone / axisDisplayTimezone is set: axisDisplayTimezone
+// when values are shifted to wall-clock, axisTimezone otherwise.
 export type AxisTimezoneConfig = {
     shiftedField: TimezoneShiftedField | undefined;
     axisTimezone: string | undefined;
@@ -149,7 +149,7 @@ const mapDatasets = (
     return dataset;
 };
 
-// Appends a `<fieldId>__shifted` column to every source row.
+// Adds a shifted-wall-clock column alongside the original UTC column on every row.
 const shiftDatasetSources = (
     dataset: EchartsOptionsShape['dataset'],
     shifted: TimezoneShiftedField,
@@ -171,8 +171,8 @@ const shiftDatasetSources = (
         return { ...ds, source: newSource };
     });
 
-// Tuple-mode (e.g. stacked bars) data points carry a value array indexed by
-// dimension order; overwrite the slot at the shifted dim.
+// For series whose data points are tuples indexed by dimension order (e.g.
+// stacked bars), overwrite the slot at the shifted dimension.
 const shiftSeriesTupleData = (
     series: EchartsSeriesShape,
     shifted: TimezoneShiftedField,
@@ -195,7 +195,8 @@ const shiftSeriesTupleData = (
     return { ...series, data: newData };
 };
 
-// Repoints series encoded on `fieldId` to the shifted dim.
+// Point series that were reading the original field at their encoded axis to
+// the shifted column instead.
 const renameSeriesEncoding = (
     series: EchartsSeriesShape[] | undefined,
     shifted: TimezoneShiftedField,
@@ -215,10 +216,9 @@ const renameSeriesEncoding = (
     });
 };
 
-// Some synthetic series (e.g. stack-total label series) use bare-array tuples
-// as `series.data` with no encode/dimensions, so the regular shift paths miss
-// them. They live on the same axis as the shifted bars, so shift the axis slot
-// (index 0, or 1 when flipAxes) in-place to keep labels aligned with bars.
+// Some synthetic series (e.g. stack-total labels) carry bare-array data with
+// no encode/dimensions, so the dimension-based shift above misses them. Shift
+// their axis slot in place so the labels stay aligned with the shifted bars.
 const shiftBareArraySeriesData = (
     series: EchartsSeriesShape[] | undefined,
     shifted: TimezoneShiftedField,
@@ -244,8 +244,7 @@ const shiftBareArraySeriesData = (
     });
 };
 
-// Terminal post-processor; rest of the cartesian pipeline stays in true UTC.
-// Generic preserves the caller's inferred option type for downstream destructuring.
+// Run last on the built echarts options — the rest of the pipeline stays in UTC.
 export const applyTimezoneShiftToEchartsOptions = <
     O extends EchartsOptionsShape,
 >(

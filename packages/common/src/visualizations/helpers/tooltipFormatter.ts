@@ -350,11 +350,9 @@ const getHeader = (
 ): string => {
     const firstParam = params[0];
 
-    // When a project timezone is supplied (non-shift), skip echarts'
-    // axisValueLabel (which uses useUTC:true semantics) and format the raw
-    // UTC value ourselves so the header matches project-TZ display. Walk
-    // axisValue → value[0] → dataset row to cover stack100 per-item fires
-    // where axisValue may be undefined.
+    // Format the raw UTC value through the project timezone. axisValue is
+    // undefined on some stack100 tooltip fires, so fall back to value[0] and
+    // then to the dataset row.
     const rawAxisValue = firstParam?.axisValue;
     if (timezone && itemsMap && xFieldId) {
         const formatViaTz = (v: unknown) =>
@@ -380,8 +378,10 @@ const getHeader = (
         if (datasetValue != null) return formatViaTz(datasetValue);
     }
 
-    // Shift case: axisValue / value[0] are pre-shifted ms (displayTimezone's
-    // shift-aware branch relabels); dataset row[xFieldId] is pristine UTC.
+    // When the x-axis values were shifted to project-timezone wall-clock,
+    // axisValue and value[0] are already wall-clock (only need the offset
+    // suffix), while the dataset row still holds the original UTC value
+    // (needs the full conversion).
     if (displayTimezone && itemsMap && xFieldId) {
         if (rawAxisValue != null) {
             return getFormattedValue(
