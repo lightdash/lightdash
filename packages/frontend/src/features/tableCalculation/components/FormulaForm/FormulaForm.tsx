@@ -5,7 +5,7 @@ import {
 } from '@lightdash/common';
 import { Anchor, Box, Flex, Group, Text } from '@mantine-8/core';
 import { IconInfoCircle, IconSparkles } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
@@ -32,7 +32,10 @@ type Props = {
 };
 
 const AI_GENERIC_ERROR =
-    'Couldn’t generate a formula — try rephrasing or write it yourself.';
+    "Couldn't generate a formula — try rephrasing or write it yourself.";
+
+const PREVIEW_DEBOUNCE_MS = 800;
+const PREVIEW_MIN_LENGTH = 10;
 
 export const FormulaForm: FC<Props> = ({
     explore,
@@ -61,6 +64,11 @@ export const FormulaForm: FC<Props> = ({
         null,
     );
     const [aiError, setAiError] = useState<string | null>(null);
+    const [previewSuffix, setPreviewSuffix] = useState<string | null>(null);
+    const previewCache = useRef<Map<string, GeneratedFormulaTableCalculation>>(
+        new Map(),
+    );
+    const pendingPreviewPrompt = useRef<string | null>(null);
 
     useEffect(() => {
         onValidationChange(error);
@@ -105,6 +113,22 @@ export const FormulaForm: FC<Props> = ({
         },
     });
 
+    const { generate: runPreview } = useGenerateFormulaTableCalculation({
+        projectUuid,
+        explore,
+        metricQuery,
+        onSuccess: (result) => {
+            const expected = pendingPreviewPrompt.current;
+            if (!expected) return;
+            previewCache.current.set(expected, result);
+            const currentTrimmed = formula.trim();
+            if (currentTrimmed === expected) {
+                setPreviewSuffix(result.formula);
+            }
+            pendingPreviewPrompt.current = null;
+        },
+    });
+
     // Drop caption once the user edits after generation.
     useEffect(() => {
         if (
@@ -124,6 +148,41 @@ export const FormulaForm: FC<Props> = ({
         }
     }, [generationError]);
 
+    useEffect(() => {
+        if (!aiEnabled) {
+            setPreviewSuffix(null);
+            return;
+        }
+        const mode = getInputMode(formula);
+        if (mode !== 'prompt') {
+            setPreviewSuffix(null);
+            pendingPreviewPrompt.current = null;
+            return;
+        }
+        const trimmed = formula.trim();
+        if (trimmed.length < PREVIEW_MIN_LENGTH) {
+            setPreviewSuffix(null);
+            return;
+        }
+
+        const cached = previewCache.current.get(trimmed);
+        if (cached) {
+            setPreviewSuffix(cached.formula);
+            return;
+        }
+
+        setPreviewSuffix(null);
+
+        const timer = setTimeout(() => {
+            pendingPreviewPrompt.current = trimmed;
+            runPreview(trimmed);
+        }, PREVIEW_DEBOUNCE_MS);
+
+        return () => {
+            clearTimeout(timer);
+        };
+    }, [formula, aiEnabled, runPreview]);
+
     const generateFromPrompt = useCallback(
         (prompt: string, isEdit: boolean) => {
             if (!prompt.trim()) return;
@@ -137,9 +196,20 @@ export const FormulaForm: FC<Props> = ({
 
     const handleTab = useCallback(
         (promptText: string) => {
+            const trimmed = promptText.trim();
+            const cached = previewCache.current.get(trimmed);
+            if (cached) {
+                onAiApply?.(cached);
+                setProvenancePrompt(trimmed);
+                setGeneratedFormula(cached.formula);
+                setPreviewSuffix(null);
+                setAiError(null);
+                trackGenerate(false);
+                return;
+            }
             generateFromPrompt(promptText, false);
         },
-        [generateFromPrompt],
+        [generateFromPrompt, onAiApply, trackGenerate],
     );
 
     return (
@@ -161,6 +231,7 @@ export const FormulaForm: FC<Props> = ({
                         onTabInPromptMode={handleTab}
                         isGenerating={isGenerating}
                         hasAiError={!!aiError}
+                        previewSuffix={previewSuffix}
                     />
                 </Box>
                 {aiEnabled && getInputMode(formula) === 'formula' && (

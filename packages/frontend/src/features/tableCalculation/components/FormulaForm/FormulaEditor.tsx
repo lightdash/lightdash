@@ -10,7 +10,8 @@ import { clsx } from '@mantine/core';
 import { RichTextEditor } from '@mantine/tiptap';
 import Mention from '@tiptap/extension-mention';
 import Placeholder from '@tiptap/extension-placeholder';
-import { PluginKey } from '@tiptap/pm/state';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -82,6 +83,27 @@ function buildInitialContent(
     };
 }
 
+const previewPluginKey = new PluginKey('formulaPreviewGhost');
+
+const buildPreviewPlugin = (getSuffix: () => string | null) =>
+    new Plugin({
+        key: previewPluginKey,
+        props: {
+            decorations(state) {
+                const suffix = getSuffix();
+                if (!suffix) return DecorationSet.empty;
+                const end = state.doc.content.size;
+                const widget = document.createElement('span');
+                widget.className = 'formula-preview-ghost';
+                widget.textContent = ` → ${suffix}`;
+                widget.setAttribute('aria-hidden', 'true');
+                return DecorationSet.create(state.doc, [
+                    Decoration.widget(end - 1, widget, { side: 1 }),
+                ]);
+            },
+        },
+    });
+
 type Props = {
     explore: Explore | undefined;
     metricQuery: MetricQuery;
@@ -98,6 +120,8 @@ type Props = {
     isGenerating?: boolean;
     /** Swaps Tab chip to Retry styling. */
     hasAiError?: boolean;
+    /** Inline ghost preview appended to the content (read-only hint). */
+    previewSuffix?: string | null;
 };
 
 const PLACEHOLDER_FORMULA =
@@ -116,6 +140,7 @@ export const FormulaEditor: FC<Props> = ({
     onTabInPromptMode,
     isGenerating = false,
     hasAiError = false,
+    previewSuffix = null,
 }) => {
     const [currentText, setCurrentText] = useState(initialContent ?? '');
     const mode = getInputMode(currentText);
@@ -128,6 +153,8 @@ export const FormulaEditor: FC<Props> = ({
     isGeneratingRef.current = isGenerating;
     const onTabInPromptModeRef = useRef(onTabInPromptMode);
     onTabInPromptModeRef.current = onTabInPromptMode;
+    const previewSuffixRef = useRef<string | null>(previewSuffix);
+    previewSuffixRef.current = previewSuffix;
 
     const fieldSuggestions: FieldSuggestionItem[] = useMemo(() => {
         if (!explore) return [];
@@ -286,6 +313,24 @@ export const FormulaEditor: FC<Props> = ({
         if (ext) ext.options.placeholder = placeholder;
         editor.view.dispatch(editor.state.tr);
     }, [editor, placeholder]);
+
+    // Register the preview decoration plugin once the editor is ready, and
+    // unregister it on cleanup. An empty transaction re-runs decorations when
+    // previewSuffix changes so the ref value is picked up by the plugin.
+    useEffect(() => {
+        if (!editor) return;
+        editor.registerPlugin(
+            buildPreviewPlugin(() => previewSuffixRef.current),
+        );
+        return () => {
+            editor.unregisterPlugin(previewPluginKey);
+        };
+    }, [editor]);
+
+    useEffect(() => {
+        if (!editor) return;
+        editor.view.dispatch(editor.state.tr);
+    }, [editor, previewSuffix]);
 
     const showRetryHint =
         aiEnabled && hasAiError && !isGenerating && mode === 'prompt';

@@ -93,3 +93,18 @@
         color: var(--mantine-color-red-2);
     }
 }
+
+.container :global(.formula-preview-ghost) {
+    opacity: 0.45;
+    font-style: italic;
+    pointer-events: none;
+    user-select: none;
+
+    @mixin light {
+        color: var(--mantine-color-indigo-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+}
