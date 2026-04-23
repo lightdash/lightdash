@@ -2176,6 +2176,7 @@ export default class SchedulerTask {
                 rows,
                 fields: itemMap,
                 pivotDetails,
+                displayTimezone,
             } = await this.asyncQueryService.executeMetricQueryAndGetResults(
                 {
                     account,
@@ -2203,7 +2204,13 @@ export default class SchedulerTask {
             if (payload.pivotConfig) {
                 // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                 // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
-                const formattedRows = formatRows(rows, itemMap);
+                const formattedRows = formatRows(
+                    rows,
+                    itemMap,
+                    undefined,
+                    undefined,
+                    displayTimezone ?? undefined,
+                );
 
                 const pivotedResults = pivotResultsAsCsv({
                     pivotConfig: payload.pivotConfig,
@@ -2763,6 +2770,7 @@ export default class SchedulerTask {
                     rows,
                     fields: itemMap,
                     pivotDetails,
+                    displayTimezone,
                 } = await this.asyncQueryService.executeSavedChartQueryAndGetResults(
                     {
                         account,
@@ -2812,7 +2820,13 @@ export default class SchedulerTask {
                 ) {
                     // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                     // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
-                    const formattedRows = formatRows(rows, itemMap);
+                    const formattedRows = formatRows(
+                        rows,
+                        itemMap,
+                        undefined,
+                        undefined,
+                        displayTimezone ?? undefined,
+                    );
 
                     const pivotedResults = pivotResultsAsCsv({
                         pivotConfig,
@@ -2926,6 +2940,7 @@ export default class SchedulerTask {
                             rows,
                             fields: itemMap,
                             pivotDetails,
+                            displayTimezone,
                         } = await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
                             {
                                 account: account!,
@@ -2965,7 +2980,13 @@ export default class SchedulerTask {
                         ) {
                             // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
                             // TODO: refactor pivotQueryResults to accept a Record<string, unknown>[] simple row type for performance
-                            const formattedRows = formatRows(rows, itemMap);
+                            const formattedRows = formatRows(
+                                rows,
+                                itemMap,
+                                undefined,
+                                undefined,
+                                displayTimezone ?? undefined,
+                            );
 
                             const pivotedResults = pivotResultsAsCsv({
                                 pivotConfig,

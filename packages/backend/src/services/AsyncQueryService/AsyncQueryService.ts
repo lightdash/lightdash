@@ -5261,6 +5261,7 @@ export class AsyncQueryService extends ProjectService {
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
     }> {
         const { account, projectUuid } = args;
 
@@ -5300,6 +5301,7 @@ export class AsyncQueryService extends ProjectService {
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
     }> {
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
@@ -5319,12 +5321,21 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
+        const { displayTimezone } = await this.resolveTimezoneContext({
+            projectUuid: queryHistory.projectUuid,
+            organizationUuid: queryHistory.organizationUuid,
+            userUuid:
+                AsyncQueryService.getQueryHistoryActor(queryHistory).userUuid,
+            metricQuery: queryHistory.metricQuery,
+        });
+
         return {
             rows,
             cacheMetadata,
             fields,
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+            displayTimezone,
         };
     }
 
@@ -5529,6 +5540,7 @@ export class AsyncQueryService extends ProjectService {
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
     }> {
         const { account, projectUuid } = args;
 
@@ -5614,6 +5626,7 @@ export class AsyncQueryService extends ProjectService {
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
     }> {
         const { account, projectUuid } = args;
 
