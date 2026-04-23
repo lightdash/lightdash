@@ -339,17 +339,11 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleConvertApply = useCallback(() => {
         if (!conversionResult) return;
+        // Convert is a transliteration of SQL → formula: only swap the
+        // expression. Name, result type, and display format were already
+        // chosen by the user on the existing SQL calc — keep them.
         setEditMode(EditMode.FORMULA);
         form.setFieldValue('formula', conversionResult.formula);
-        if (!form.values.name.trim()) {
-            form.setFieldValue('name', conversionResult.displayName);
-        }
-        if (conversionResult.type) {
-            form.setFieldValue('type', conversionResult.type);
-        }
-        if (conversionResult.format) {
-            form.setFieldValue('format', conversionResult.format);
-        }
         setFormulaGeneratedByAi(true);
         resetConversion();
     }, [conversionResult, form, resetConversion]);
