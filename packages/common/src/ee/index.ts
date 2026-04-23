@@ -3,6 +3,7 @@ export * from './apps/types';
 export * from './ambientAi';
 export * from './commercialFeatureFlags';
 export * from './embed';
+export * from './preAggregates';
 export * from './preAggregates/types';
 export * as preAggregateUtils from './preAggregates/utils';
 export * from './scim/errors';
