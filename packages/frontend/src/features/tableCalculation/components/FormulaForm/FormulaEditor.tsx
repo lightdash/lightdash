@@ -165,8 +165,9 @@ type Props = {
 };
 
 const PLACEHOLDER_FORMULA =
-    'Type @ for fields or # for functions. Example: IF(@Revenue > 1000, "high", "low")';
-const PLACEHOLDER_DUAL = 'Describe what to compute, or type = for a formula';
+    'Type @ for fields or # for functions. Example: =IF(@Revenue > 1000, "high", "low")';
+const PLACEHOLDER_DUAL =
+    'Describe the calculation, or =SUM(@Revenue) for a formula';
 
 export const FormulaEditor: FC<Props> = ({
     explore,
