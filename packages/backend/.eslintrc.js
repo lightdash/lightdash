@@ -108,6 +108,7 @@ module.exports = {
                 'src/services/AsyncQueryService/**/*.ts',
                 'src/services/CatalogService/**/*.ts',
                 'src/services/ChangesetService.ts',
+                'src/services/CoderService/**/*.ts',
                 'src/services/ContentService/**/*.ts',
                 'src/services/CsvService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
