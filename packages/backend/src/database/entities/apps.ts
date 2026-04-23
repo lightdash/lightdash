@@ -22,6 +22,7 @@ export type DbApp = {
     created_by_user_uuid: string;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
+    views_count: number;
 };
 
 export type AppsTable = Knex.CompositeTableType<
@@ -42,6 +43,7 @@ export type AppsTable = Knex.CompositeTableType<
             | 'sandbox_id'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
+            | 'views_count'
         >
     >
 >;

@@ -16,6 +16,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { ALL_TRAFFIC, Sandbox } from 'e2b';
+import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
@@ -30,6 +31,7 @@ import {
     type AppVersionStatus,
     type DbApp,
 } from '../../../database/entities/apps';
+import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -43,6 +45,7 @@ import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient'
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    analyticsModel: AnalyticsModel;
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
@@ -62,6 +65,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
+    private readonly analyticsModel: AnalyticsModel;
+
     private readonly catalogModel: CatalogModel;
 
     private readonly appModel: AppModel;
@@ -79,6 +84,7 @@ export class AppGenerateService extends BaseService {
     constructor({
         lightdashConfig,
         analytics,
+        analyticsModel,
         catalogModel,
         appModel,
         featureFlagModel,
@@ -90,6 +96,7 @@ export class AppGenerateService extends BaseService {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
+        this.analyticsModel = analyticsModel;
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
@@ -367,6 +374,16 @@ export class AppGenerateService extends BaseService {
                 mimeType,
             );
 
+        // Buffer the stream so the AWS SDK can compute a content hash for
+        // S3v4 signing. Streaming bodies use chunked signing which GCS's
+        // S3-compatible API doesn't handle reliably. Safe here because
+        // images are capped at 10 MB above.
+        const chunks: Buffer[] = [];
+        for await (const chunk of validatedBody) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const bufferedBody = Buffer.concat(chunks);
+
         const { client: s3Client, bucket } = this.getS3Client();
         const imageId = uuidv4();
         const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
@@ -375,8 +392,8 @@ export class AppGenerateService extends BaseService {
             new PutObjectCommand({
                 Bucket: bucket,
                 Key: s3Key,
-                Body: validatedBody,
-                ContentLength: contentLength,
+                Body: bufferedBody,
+                ContentLength: bufferedBody.length,
                 ContentType: mimeType,
             }),
         );
@@ -1754,10 +1771,17 @@ export class AppGenerateService extends BaseService {
                     anthropicApiKey,
                 );
                 if (metadata) {
-                    await this.appModel.updateApp(appUuid, projectUuid, {
-                        name: metadata.name,
-                        description: metadata.description,
-                    });
+                    // Only fills fields the user hasn't already set — the
+                    // build is async, so by the time we get here the user
+                    // may have renamed the app themselves.
+                    await this.appModel.setMetadataIfUnset(
+                        appUuid,
+                        projectUuid,
+                        {
+                            name: metadata.name,
+                            description: metadata.description,
+                        },
+                    );
                     this.logger.info(
                         `App ${appUuid}: auto-named "${metadata.name}"`,
                     );
@@ -2219,6 +2243,18 @@ export class AppGenerateService extends BaseService {
             organization_uuid: organizationUuid,
         });
 
+        await this.analyticsModel.addAppViewEvent(appUuid, user.userUuid);
+
+        this.analytics.track({
+            event: 'data_app.view',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid,
+            },
+        });
+
         return {
             appUuid,
             name,
@@ -2339,6 +2375,81 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
         };
+    }
+
+    /**
+     * Move a data app from one space to another.
+     *
+     * Implements the shared `BulkActionable` interface so `ContentService`
+     * can dispatch move requests uniformly alongside dashboards and charts.
+     * Only space → space moves are supported for now: personal apps (no
+     * source space) and moves to `null` (unassigning) are rejected.
+     */
+    async moveToSpace(
+        user: SessionUser,
+        {
+            projectUuid,
+            itemUuid: appUuid,
+            targetSpaceUuid,
+        }: {
+            projectUuid: string;
+            itemUuid: string;
+            targetSpaceUuid: string | null;
+        },
+        {
+            tx,
+            checkForAccess = true,
+            trackEvent = true,
+        }: {
+            tx?: Knex;
+            checkForAccess?: boolean;
+            trackEvent?: boolean;
+        } = {},
+    ): Promise<void> {
+        await this.assertDataAppsEnabled(user);
+
+        if (targetSpaceUuid === null) {
+            throw new ParameterError(
+                'You cannot move a data app outside of a space',
+            );
+        }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+
+        if (app.space_uuid === null) {
+            throw new ParameterError(
+                'You cannot move a personal data app between spaces',
+            );
+        }
+
+        if (checkForAccess) {
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                app.organization_uuid,
+                projectUuid,
+                'Insufficient permissions to move data apps',
+            );
+        }
+
+        await this.appModel.moveToSpace(
+            { appId: appUuid, projectUuid, targetSpaceUuid },
+            { tx },
+        );
+
+        if (trackEvent) {
+            this.analytics.track({
+                event: 'data_app.moved',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: app.organization_uuid,
+                    projectId: projectUuid,
+                    appUuid,
+                    sourceSpaceUuid: app.space_uuid,
+                    targetSpaceUuid,
+                },
+            });
+        }
     }
 
     private static async extractAndUploadToS3(

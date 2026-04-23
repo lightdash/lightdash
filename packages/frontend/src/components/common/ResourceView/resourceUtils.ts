@@ -114,9 +114,10 @@ export const getResourceViewsSinceWhenDescription = (
 ) => {
     if (
         item.type !== ResourceViewItemType.CHART &&
-        item.type !== ResourceViewItemType.DASHBOARD
+        item.type !== ResourceViewItemType.DASHBOARD &&
+        item.type !== ResourceViewItemType.DATA_APP
     ) {
-        throw new Error('Only supported for charts and dashboards');
+        throw new Error('Only supported for charts, dashboards and data apps');
     }
 
     return item.data.firstViewedAt

@@ -15,6 +15,7 @@ import {
 } from '../database/entities/apps';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectTableName } from '../database/entities/projects';
+import { SpaceTableName } from '../database/entities/spaces';
 import KnexPaginate from '../database/pagination';
 
 type AppModelArguments = {
@@ -304,6 +305,73 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    /**
+     * Atomically set auto-generated name/description, but only for fields
+     * that are still at their empty-string default. Used by the background
+     * pipeline so it cannot clobber edits the user made while the build
+     * was running.
+     */
+    async setMetadataIfUnset(
+        appId: string,
+        projectUuid: string,
+        metadata: { name: string; description: string },
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({
+                name: this.database.raw(
+                    `CASE WHEN ${AppsTableName}.name = '' THEN ? ELSE ${AppsTableName}.name END`,
+                    [metadata.name],
+                ) as unknown as string,
+                description: this.database.raw(
+                    `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
+                    [metadata.description],
+                ) as unknown as string,
+            })
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    async moveToSpace(
+        {
+            appId,
+            projectUuid,
+            targetSpaceUuid,
+        }: {
+            appId: string;
+            projectUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const space = await tx(SpaceTableName)
+            .select(`${SpaceTableName}.space_uuid`)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, targetSpaceUuid)
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first();
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const updated = await tx(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({ space_uuid: targetSpaceUuid });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
     }
 
     async listMyApps(
