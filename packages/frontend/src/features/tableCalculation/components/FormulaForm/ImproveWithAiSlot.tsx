@@ -3,7 +3,6 @@ import { ActionIcon, Box } from '@mantine-8/core';
 import { IconArrowUp, IconSparkles, IconX } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
-import { flushSync } from 'react-dom';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { AiPromptEditor } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiPromptInput';
 import { AiSlot } from '../../../../ee/features/ambientAi/components/tableCalculation/components/AiSlot/AiSlot';
@@ -15,24 +14,6 @@ type Props = {
     currentFormula: string;
     isGenerating: boolean;
     onSubmit: (prompt: string) => void;
-};
-
-// Wrap a state transition so the browser crossfades between the chip and
-// slot via the shared `view-transition-name`. Graceful fallback: instant
-// swap on browsers without support (Safari <18, old Firefox) or when the
-// user prefers reduced motion.
-const withViewTransition = (fn: () => void) => {
-    const doc = document as Document & {
-        startViewTransition?: (cb: () => void) => unknown;
-    };
-    const reduced =
-        typeof window !== 'undefined' &&
-        window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (!doc.startViewTransition || reduced) {
-        fn();
-        return;
-    }
-    doc.startViewTransition(() => flushSync(fn));
 };
 
 export const ImproveWithAiSlot: FC<Props> = ({
@@ -54,13 +35,8 @@ export const ImproveWithAiSlot: FC<Props> = ({
         setShouldClearEditor(false);
     }, []);
 
-    const open = useCallback(() => {
-        withViewTransition(() => setOpened(true));
-    }, []);
-
-    const close = useCallback(() => {
-        withViewTransition(() => setOpened(false));
-    }, []);
+    const close = useCallback(() => setOpened(false), []);
+    const open = useCallback(() => setOpened(true), []);
 
     const submit = useCallback(
         (text: string) => {
@@ -104,51 +80,49 @@ export const ImproveWithAiSlot: FC<Props> = ({
     }
 
     return (
-        <Box className={styles.slot}>
-            <AiSlot
-                icon={IconSparkles}
-                iconColor="indigo.4"
-                title="Describe the change"
-                rightSlot={
-                    <ActionIcon
-                        size="xs"
-                        variant="subtle"
-                        color="gray"
-                        onClick={close}
-                        aria-label="Close AI prompt"
-                    >
-                        <MantineIcon icon={IconX} size="sm" />
-                    </ActionIcon>
-                }
-            >
-                <Box className={styles.editorContainer}>
-                    <AiPromptEditor
-                        explore={explore}
-                        metricQuery={metricQuery}
-                        onUpdate={handleEditorUpdate}
-                        onSubmit={submit}
-                        shouldClear={shouldClearEditor}
-                        onCleared={handleEditorCleared}
-                        disabled={isGenerating}
+        <AiSlot
+            icon={IconSparkles}
+            iconColor="indigo.4"
+            title="Describe the change"
+            rightSlot={
+                <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="gray"
+                    onClick={close}
+                    aria-label="Close AI prompt"
+                >
+                    <MantineIcon icon={IconX} size="sm" />
+                </ActionIcon>
+            }
+        >
+            <Box className={styles.editorContainer}>
+                <AiPromptEditor
+                    explore={explore}
+                    metricQuery={metricQuery}
+                    onUpdate={handleEditorUpdate}
+                    onSubmit={submit}
+                    shouldClear={shouldClearEditor}
+                    onCleared={handleEditorCleared}
+                    disabled={isGenerating}
+                />
+                <ActionIcon
+                    size="sm"
+                    radius="xl"
+                    onClick={handleArrowClick}
+                    disabled={isGenerating}
+                    loading={isGenerating}
+                    className={styles.generateButton}
+                    aria-label="Submit"
+                >
+                    <MantineIcon
+                        icon={IconArrowUp}
+                        color="ldGray.0"
+                        size={16}
+                        stroke={2}
                     />
-                    <ActionIcon
-                        size="sm"
-                        radius="xl"
-                        onClick={handleArrowClick}
-                        disabled={isGenerating}
-                        loading={isGenerating}
-                        className={styles.generateButton}
-                        aria-label="Submit"
-                    >
-                        <MantineIcon
-                            icon={IconArrowUp}
-                            color="ldGray.0"
-                            size={16}
-                            stroke={2}
-                        />
-                    </ActionIcon>
-                </Box>
-            </AiSlot>
-        </Box>
+                </ActionIcon>
+            </Box>
+        </AiSlot>
     );
 };

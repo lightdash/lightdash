@@ -23,8 +23,6 @@
     cursor: pointer;
     z-index: 2;
 
-    view-transition-name: improve-ai-surface;
-
     @mixin dark {
         background-color: var(--mantine-color-ldDark-3);
         color: var(--mantine-color-ldGray-5);
@@ -49,10 +47,6 @@
 .trigger:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
-
-.slot {
-    view-transition-name: improve-ai-surface;
 }
 
 .editorContainer {

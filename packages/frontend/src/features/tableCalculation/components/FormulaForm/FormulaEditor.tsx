@@ -100,7 +100,7 @@ const buildGhostPlugin = (state: GhostState) =>
                 const showTab = state.getShowTab();
                 const showRetry = state.getShowRetry();
                 const showLoading = state.getShowLoading();
-                if (!preview && !showTab && !showRetry && !showLoading) {
+                if (!preview && !showTab && !showRetry) {
                     return DecorationSet.empty;
                 }
 
@@ -119,20 +119,18 @@ const buildGhostPlugin = (state: GhostState) =>
                     ghost.className = 'formula-preview-ghost';
                     ghost.textContent = ` → ${preview}`;
                     container.appendChild(ghost);
-                } else if (showLoading) {
-                    const loader = document.createElement('span');
-                    loader.className = 'formula-preview-loading';
-                    loader.appendChild(document.createElement('span'));
-                    loader.appendChild(document.createElement('span'));
-                    loader.appendChild(document.createElement('span'));
-                    container.appendChild(loader);
                 }
 
                 if (showTab || showRetry) {
+                    const classes = ['formula-inline-chip'];
+                    if (showRetry) classes.push('formula-inline-chip--retry');
+                    // Shimmer the keycap while a preview is being generated in the background.
+                    // Gated on !showRetry so error state stays visually still.
+                    if (showLoading && !preview && !showRetry) {
+                        classes.push('formula-inline-chip--loading');
+                    }
                     const badge = document.createElement('kbd');
-                    badge.className = showRetry
-                        ? 'formula-inline-chip formula-inline-chip--retry'
-                        : 'formula-inline-chip';
+                    badge.className = classes.join(' ');
                     badge.textContent = showRetry ? '⇥ Retry' : '⇥ Tab';
                     container.appendChild(badge);
                 }
