@@ -1,3 +1,10 @@
+# [0.2809.0](https://github.com/lightdash/lightdash/compare/0.2808.0...0.2809.0) (2026-04-24)
+
+
+### Features
+
+* **timezone:** thread displayTimezone through Excel non-pivot and pivot exports ([#22283](https://github.com/lightdash/lightdash/issues/22283)) ([4ed5e69](https://github.com/lightdash/lightdash/commit/4ed5e694bead61d54da7eadbbf1d3dd40aa4f2bb))
+
 # [0.2808.0](https://github.com/lightdash/lightdash/compare/0.2807.0...0.2808.0) (2026-04-24)
 
 
