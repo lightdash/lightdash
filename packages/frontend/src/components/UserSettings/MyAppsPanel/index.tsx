@@ -1,6 +1,7 @@
 import { type ApiAppSummary } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Group,
     Loader,
@@ -35,6 +36,9 @@ import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
+
+const hasReadyVersion = (app: ApiAppSummary) =>
+    app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
 
 const statusColor = (status: string | null) => {
     switch (status) {
@@ -96,12 +100,34 @@ const MyAppsPanel: FC = () => {
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <Text fz="sm" fw={500} truncate="end">
-                        {row.original.name ||
-                            `Untitled app ${row.original.appUuid.slice(0, 8)}`}
-                    </Text>
-                ),
+                Cell: ({ row }) => {
+                    const app = row.original;
+                    const displayName =
+                        app.name || `Untitled app ${app.appUuid.slice(0, 8)}`;
+
+                    if (hasReadyVersion(app)) {
+                        return (
+                            <Anchor
+                                component={Link}
+                                to={`/projects/${app.projectUuid}/apps/${app.appUuid}/preview`}
+                                target="_blank"
+                                fz="sm"
+                                fw={500}
+                                c="inherit"
+                                underline="hover"
+                                truncate="end"
+                            >
+                                {displayName}
+                            </Anchor>
+                        );
+                    }
+
+                    return (
+                        <Text fz="sm" fw={500} truncate="end">
+                            {displayName}
+                        </Text>
+                    );
+                },
             },
             {
                 accessorKey: 'projectName',
@@ -181,9 +207,6 @@ const MyAppsPanel: FC = () => {
                 mantineTableBodyCellProps: { align: 'right' },
                 Cell: ({ row }) => {
                     const app = row.original;
-                    const latestVersion = app.lastVersionNumber;
-                    const hasReadyVersion =
-                        app.lastVersionStatus === 'ready' && latestVersion;
 
                     return (
                         <Menu position="bottom-end" withinPortal>
@@ -197,7 +220,7 @@ const MyAppsPanel: FC = () => {
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                {hasReadyVersion && (
+                                {hasReadyVersion(app) && (
                                     <Menu.Item
                                         component={Link}
                                         to={`/projects/${app.projectUuid}/apps/${app.appUuid}/preview`}
