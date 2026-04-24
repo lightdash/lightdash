@@ -449,6 +449,10 @@ export class FeatureFlagModel {
             }
         }
 
+        if (flag.default_enabled === null) {
+            return null;
+        }
+
         return { id: args.featureFlagId, enabled: flag.default_enabled };
     }
 }
