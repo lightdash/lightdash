@@ -136,6 +136,7 @@ module.exports = {
                 'src/services/SlackIntegrationService/**/*.ts',
                 'src/services/SpaceService/**/*.ts',
                 'src/services/OrganizationService/**/*.ts',
+                'src/services/GitIntegrationService/**/*.ts',
                 'src/services/SpotlightService/**/*.ts',
                 'src/services/UnfurlService/**/*.ts',
                 'src/services/UserAttributesService/**/*.ts',
