@@ -274,9 +274,6 @@ const ValidDashboardChartTile: FC<{
         const addResultsCacheTime = useDashboardTileStatusContext(
             (c) => c.addResultsCacheTime,
         );
-        const addPreAggregateStatus = useDashboardTileStatusContext(
-            (c) => c.addPreAggregateStatus,
-        );
         const markTileScreenshotReady = useDashboardTileStatusContext(
             (c) => c.markTileScreenshotReady,
         );
@@ -307,10 +304,6 @@ const ValidDashboardChartTile: FC<{
         useEffect(() => {
             addResultsCacheTime(cacheMetadata);
         }, [cacheMetadata, addResultsCacheTime]);
-
-        useEffect(() => {
-            addPreAggregateStatus(tileUuid, cacheMetadata);
-        }, [tileUuid, cacheMetadata, addPreAggregateStatus]);
 
         const { validPivotDimensions } = usePivotDimensions(
             chart.pivotConfig?.columns,

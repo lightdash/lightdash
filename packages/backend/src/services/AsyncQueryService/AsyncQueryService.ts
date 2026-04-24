@@ -6096,6 +6096,7 @@ export class AsyncQueryService extends ProjectService {
         account: Account,
         projectUuid: string,
         dashboardUuid: string,
+        runtimeFilters?: DashboardFilters,
     ): Promise<DashboardPreAggregateAudit> {
         assertIsAccountWithOrg(account);
 
@@ -6112,6 +6113,7 @@ export class AsyncQueryService extends ProjectService {
         return this.preAggregateStrategy.auditDashboard({
             account,
             projectUuid,
+            runtimeFilters,
             dashboard,
         });
     }

@@ -1,4 +1,7 @@
-import { type Dashboard } from '@lightdash/common';
+import {
+    preAggregateMissReasonLabels,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     Badge,
     Box,
@@ -9,6 +12,7 @@ import {
     ScrollArea,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -22,7 +26,6 @@ import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types'
 import MantineIcon from '../MantineIcon';
 import { PolymorphicGroupButton } from '../PolymorphicGroupButton';
 import classes from './PreAggregateAuditIndicator.module.css';
-import { getDetail } from './PreAggregateAuditIndicator.utils';
 
 const NONE_KEY = 'none';
 
@@ -61,6 +64,60 @@ function scrollToTile(tileUuid: string) {
     );
 }
 
+function TileDetail({ tile }: { tile: TilePreAggregateStatus }) {
+    if (tile.hit && tile.preAggregateName) {
+        return (
+            <Text fz={10} className={classes.tileDetail}>
+                {tile.preAggregateName}
+            </Text>
+        );
+    }
+    if (!tile.hit && tile.reason) {
+        const reasonLabel =
+            preAggregateMissReasonLabels[tile.reason.reason] ??
+            tile.reason.reason;
+        const fieldId =
+            'fieldId' in tile.reason && tile.reason.fieldId
+                ? tile.reason.fieldId
+                : null;
+        if (!fieldId) {
+            return (
+                <Text fz={10} className={classes.tileDetail}>
+                    {reasonLabel}
+                </Text>
+            );
+        }
+        const fieldDisplay = tile.reasonFieldLabel ?? fieldId;
+        const showTooltip =
+            tile.reasonFieldLabel !== null && tile.reasonFieldLabel !== fieldId;
+        return (
+            <Text fz={10} className={classes.tileDetail}>
+                {reasonLabel}:{' '}
+                {showTooltip ? (
+                    <Tooltip
+                        label={fieldId}
+                        position="top"
+                        withArrow
+                        openDelay={150}
+                        classNames={{ tooltip: classes.fieldIdTooltip }}
+                    >
+                        <Text span fz={10} className={classes.fieldLabelHover}>
+                            {fieldDisplay}
+                        </Text>
+                    </Tooltip>
+                ) : (
+                    fieldDisplay
+                )}
+            </Text>
+        );
+    }
+    return (
+        <Text fz={10} className={classes.tileDetail}>
+            —
+        </Text>
+    );
+}
+
 function TileRow({
     tile,
     onClick,
@@ -82,9 +139,7 @@ function TileRow({
                     />
                 </Box>
             </Group>
-            <Text fz={10} className={classes.tileDetail}>
-                {getDetail(tile)}
-            </Text>
+            <TileDetail tile={tile} />
         </Box>
     );
 }

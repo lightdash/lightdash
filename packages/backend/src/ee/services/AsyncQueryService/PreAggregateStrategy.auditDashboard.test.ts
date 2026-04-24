@@ -394,4 +394,59 @@ describe('PreAggregateStrategy.auditDashboard', () => {
             findMatchSpy.mockRestore();
         }
     });
+
+    it('prefers runtimeFilters over dashboard.filters when provided', async () => {
+        const deps = makeDeps();
+        const savedFilter: DashboardFilterRule = {
+            id: 'f-saved',
+            target: { fieldId: 'orders_saved_only', tableName: 'orders' },
+            operator: FilterOperator.EQUALS,
+            values: ['saved'],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+        const runtimeFilter: DashboardFilterRule = {
+            id: 'f-runtime',
+            target: { fieldId: 'orders_runtime_only', tableName: 'orders' },
+            operator: FilterOperator.EQUALS,
+            values: ['runtime'],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+        const dashboard = makeDashboard({
+            tiles: [makeTile({ uuid: 't-1' })],
+            filters: {
+                dimensions: [savedFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+        deps.savedChartModel.get.mockResolvedValue({
+            uuid: 'c-1',
+            tableName: 'orders',
+            metricQuery: emptyMetricQuery,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any);
+        deps.projectService.getExplore.mockResolvedValue(makeExplore(false));
+        const strategy = makeStrategy(deps);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const auditTileSpy = jest.spyOn(strategy as any, 'auditTile');
+        await strategy.auditDashboard({
+            account,
+            projectUuid,
+            dashboard,
+            runtimeFilters: {
+                dimensions: [runtimeFilter],
+                metrics: [],
+                tableCalculations: [],
+            },
+        });
+
+        const calledWith = auditTileSpy.mock.calls[0][0] as {
+            savedDashboardFilters: { dimensions: DashboardFilterRule[] };
+        };
+        expect(calledWith.savedDashboardFilters.dimensions).toHaveLength(1);
+        expect(calledWith.savedDashboardFilters.dimensions[0].id).toBe(
+            'f-runtime',
+        );
+        auditTileSpy.mockRestore();
+    });
 });

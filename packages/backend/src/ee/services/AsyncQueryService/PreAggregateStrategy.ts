@@ -4,6 +4,8 @@ import {
     assertUnreachable,
     DashboardTileTypes,
     ExploreType,
+    findFieldByIdInExplore,
+    getItemLabel,
     NotFoundError,
     preAggregateUtils,
     QueryExecutionContext as QEC,
@@ -11,12 +13,15 @@ import {
     UnexpectedServerError,
     type Account,
     type DashboardDAO,
+    type DashboardFilters,
     type DashboardPreAggregateAudit,
     type DashboardTile,
     type Explore,
+    type FieldId,
     type KnexPaginateArgs,
     type KnexPaginatedData,
     type MetricQuery,
+    type PreAggregateMatchMiss,
     type QueryExecutionContext,
     type TabAuditGroup,
     type TilePreAggregateAuditStatus,
@@ -284,10 +289,12 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         account,
         projectUuid,
         dashboard,
+        runtimeFilters,
     }: {
         account: Account;
         projectUuid: string;
         dashboard: DashboardDAO;
+        runtimeFilters?: DashboardFilters;
     }): Promise<DashboardPreAggregateAudit> {
         const start = Date.now();
         const exploreCache = new Map<string, Promise<Explore>>();
@@ -305,13 +312,15 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             return exploreCache.get(exploreName)!;
         };
 
+        const dashboardFilters = runtimeFilters ?? dashboard.filters;
+
         const tileStatuses = await Promise.all(
             dashboard.tiles.map((tile) =>
                 this.auditTile({
                     tile,
                     account,
                     projectUuid,
-                    savedDashboardFilters: dashboard.filters,
+                    savedDashboardFilters: dashboardFilters,
                     getExplore,
                 }),
             ),
@@ -463,6 +472,11 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     savedChartUuid,
                     exploreName: explore.name,
                     miss: matchResult.miss,
+                    missFieldLabel: PreAggregateStrategy.resolveMissFieldLabel(
+                        matchResult.miss,
+                        explore,
+                        metricQuery,
+                    ),
                 };
             }
             default:
@@ -471,6 +485,36 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     `Unknown tile type: ${String(tileType)}`,
                 );
         }
+    }
+
+    private static resolveMissFieldLabel(
+        miss: PreAggregateMatchMiss,
+        explore: Explore,
+        metricQuery: MetricQuery,
+    ): string | null {
+        const fieldId: FieldId | undefined =
+            'fieldId' in miss ? miss.fieldId : undefined;
+        if (!fieldId) return null;
+
+        const exploreField = findFieldByIdInExplore(explore, fieldId);
+        if (exploreField) return getItemLabel(exploreField);
+
+        const additional = metricQuery.additionalMetrics?.find(
+            (m) => `${m.table}_${m.name.replaceAll('.', '__')}` === fieldId,
+        );
+        if (additional?.label) return additional.label;
+
+        const tableCalc = metricQuery.tableCalculations?.find(
+            (tc) => tc.name === fieldId,
+        );
+        if (tableCalc) return tableCalc.displayName;
+
+        const customDim = metricQuery.customDimensions?.find(
+            (cd) => cd.id === fieldId,
+        );
+        if (customDim) return customDim.name;
+
+        return null;
     }
 
     private static groupTilesByTab(

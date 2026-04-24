@@ -3,12 +3,15 @@ import {
     type ApiGetDashboardPreAggregateAuditResponse,
     type ApiGetPreAggregateMaterializationsResponse,
     type ApiGetPreAggregateStatsResponse,
+    type ApiRunDashboardPreAggregateAuditBody,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -68,10 +71,7 @@ export class PreAggregateController extends BaseController {
     }
 
     /**
-     * Audits pre-aggregate hit/miss coverage for every tile on a dashboard
-     * without executing the queries. Returns a per-tile breakdown grouped
-     * by tab, suitable for CI coverage checks and pre-aggregate tuning.
-     * @summary Get dashboard pre-aggregate audit
+     * @summary Audit pre-aggregate hit/miss coverage for a dashboard's saved filters
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -92,6 +92,34 @@ export class PreAggregateController extends BaseController {
                 req.account!,
                 projectUuid,
                 dashboard.uuid,
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * @summary Audit pre-aggregate hit/miss coverage with runtime filter overrides
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboards/{dashboardUuidOrSlug}/audit')
+    @OperationId('runDashboardPreAggregateAudit')
+    async runDashboardPreAggregateAudit(
+        @Path() projectUuid: string,
+        @Path() dashboardUuidOrSlug: string,
+        @Body() body: ApiRunDashboardPreAggregateAuditBody,
+        @Request() req: express.Request,
+    ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
+        this.setStatus(200);
+        const dashboard = await this.services
+            .getDashboardService()
+            .getByIdOrSlug(req.user!, dashboardUuidOrSlug, { projectUuid });
+        const results = await this.services
+            .getAsyncQueryService()
+            .getDashboardPreAggregateAudit(
+                req.account!,
+                projectUuid,
+                dashboard.uuid,
+                body.dashboardFilters,
             );
         return { status: 'ok', results };
     }
