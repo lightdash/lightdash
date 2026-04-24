@@ -231,6 +231,10 @@ export type ApiGetDashboardPreAggregateAuditResponse = {
     results: DashboardPreAggregateAudit;
 };
 
+export type ApiRunDashboardPreAggregateAuditBody = {
+    dashboardFilters?: DashboardFilters;
+};
+
 export enum RequestMethod {
     CLI = 'CLI',
     CLI_CI = 'CLI_CI',

@@ -12,6 +12,7 @@ import {
     type Account,
     type CacheMetadata,
     type DashboardDAO,
+    type DashboardFilters,
     type DashboardPreAggregateAudit,
     type Explore,
     type KnexPaginateArgs,
@@ -83,6 +84,7 @@ export interface PreAggregateStrategy {
         account: Account;
         projectUuid: string;
         dashboard: DashboardDAO;
+        runtimeFilters?: DashboardFilters;
     }): Promise<DashboardPreAggregateAudit>;
 }
 

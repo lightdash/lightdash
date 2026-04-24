@@ -11,6 +11,7 @@ import {
     UnexpectedServerError,
     type Account,
     type DashboardDAO,
+    type DashboardFilters,
     type DashboardPreAggregateAudit,
     type DashboardTile,
     type Explore,
@@ -284,10 +285,12 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
         account,
         projectUuid,
         dashboard,
+        runtimeFilters,
     }: {
         account: Account;
         projectUuid: string;
         dashboard: DashboardDAO;
+        runtimeFilters?: DashboardFilters;
     }): Promise<DashboardPreAggregateAudit> {
         const start = Date.now();
         const exploreCache = new Map<string, Promise<Explore>>();
@@ -305,13 +308,15 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             return exploreCache.get(exploreName)!;
         };
 
+        const dashboardFilters = runtimeFilters ?? dashboard.filters;
+
         const tileStatuses = await Promise.all(
             dashboard.tiles.map((tile) =>
                 this.auditTile({
                     tile,
                     account,
                     projectUuid,
-                    savedDashboardFilters: dashboard.filters,
+                    savedDashboardFilters: dashboardFilters,
                     getExplore,
                 }),
             ),
