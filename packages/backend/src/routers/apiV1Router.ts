@@ -399,6 +399,7 @@ apiV1Router.get(
                     messageTs: slackContext.messageTs,
                     threadTs: slackContext.threadTs,
                     userUuid: req.user.userUuid,
+                    trigger: slackContext.trigger,
                 })
                 .catch((err: unknown) => {
                     // Log but don't fail the redirect

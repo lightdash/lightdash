@@ -3863,6 +3863,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await ack();
                 const { user } = body;
                 const { teamId } = context;
+                const triggeringMessage =
+                    body.type === 'block_actions' ? body.message : undefined;
                 const organizationUuid =
                     await this.getSlackVoteOrganizationUuid({
                         teamId,
@@ -3871,6 +3873,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             body.type === 'block_actions'
                                 ? body.channel?.id
                                 : undefined,
+                        messageId: triggeringMessage?.ts,
+                        threadTs: triggeringMessage?.thread_ts,
                         client,
                     });
 
@@ -3926,6 +3930,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await ack();
                 const { user } = body;
                 const { teamId } = context;
+                const triggeringMessage =
+                    body.type === 'block_actions' ? body.message : undefined;
                 const organizationUuid =
                     await this.getSlackVoteOrganizationUuid({
                         teamId,
@@ -3934,6 +3940,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             body.type === 'block_actions'
                                 ? body.channel?.id
                                 : undefined,
+                        messageId: triggeringMessage?.ts,
+                        threadTs: triggeringMessage?.thread_ts,
                         client,
                     });
 
@@ -4577,6 +4585,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 threadTs: undefined,
                 channelId: event.channel,
                 messageId: event.ts,
+                organizationUuid,
             },
             say,
             client,
@@ -4684,11 +4693,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         teamId,
         userId,
         channelId,
+        messageId,
+        threadTs,
         client,
     }: {
         teamId?: string;
         userId: string;
         channelId?: string;
+        messageId?: string;
+        threadTs?: string;
         client: WebClient;
     }): Promise<string | undefined | null> {
         let result:
@@ -4718,24 +4731,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 return organizationUuid;
             }
 
-            // TODO: Legacy Slack-linked users can still fail here if team_id was never
-            // populated on their OpenID identity.
             const openIdIdentity =
                 await this.openIdIdentityModel.findIdentityByOpenId(
                     OpenIdIdentityIssuerType.SLACK,
                     userId,
-                    teamId,
                 );
             observedIdentity = openIdIdentity;
-            if (!observedIdentity) {
-                // Observability-only: a teamless lookup so the wide event can
-                // distinguish a truly-absent identity from one filtered out by team_id.
-                observedIdentity =
-                    await this.openIdIdentityModel.findIdentityByOpenId(
-                        OpenIdIdentityIssuerType.SLACK,
-                        userId,
-                    );
-            }
 
             if (openIdIdentity) {
                 result = 'authenticated';
@@ -4744,10 +4745,42 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
             result = 'identity_missing';
             if (channelId) {
+                const text = `Hi <@${userId}>! OAuth authentication is required to vote on AI Agent responses. Please connect your Slack account to Lightdash to continue.`;
+                const blocks =
+                    teamId && messageId
+                        ? [
+                              {
+                                  type: 'section',
+                                  text: { type: 'mrkdwn', text },
+                              },
+                              {
+                                  type: 'actions',
+                                  elements: [
+                                      {
+                                          type: 'button',
+                                          text: {
+                                              type: 'plain_text',
+                                              text: 'Connect your Slack account',
+                                          },
+                                          action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
+                                          url: `${
+                                              this.lightdashConfig.siteUrl
+                                          }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}&trigger=vote${
+                                              threadTs
+                                                  ? `&thread_ts=${threadTs}`
+                                                  : ''
+                                          }`,
+                                          style: 'primary',
+                                      },
+                                  ],
+                              },
+                          ]
+                        : undefined;
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: userId,
-                    text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                    text,
+                    blocks,
                 });
             }
 
@@ -4838,6 +4871,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         threadTs,
                         channelId,
                         messageId: body.message?.ts || '',
+                        organizationUuid,
                     },
                     // Pass a no-op function for say since we'll handle responses ourselves
                     async () => {},
@@ -5053,12 +5087,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             threadTs,
             channelId,
             messageId,
+            organizationUuid,
         }: {
             userId: string;
             teamId: string;
             threadTs: string | undefined;
             channelId: string;
             messageId: string;
+            organizationUuid: string;
         },
         say: Function,
         client: WebClient,
@@ -5082,18 +5118,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await this.openIdIdentityModel.findIdentityByOpenId(
                     OpenIdIdentityIssuerType.SLACK,
                     userId,
-                    teamId,
                 );
             observedIdentity = openIdIdentity;
-            if (!observedIdentity) {
-                // Observability-only: a teamless lookup so the wide event can
-                // distinguish a truly-absent identity from one filtered out by team_id.
-                observedIdentity =
-                    await this.openIdIdentityModel.findIdentityByOpenId(
-                        OpenIdIdentityIssuerType.SLACK,
-                        userId,
-                    );
-            }
 
             if (!openIdIdentity) {
                 await client.chat.postEphemeral({
@@ -5121,7 +5147,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                     action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
                                     url: `${
                                         this.lightdashConfig.siteUrl
-                                    }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
+                                    }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}&trigger=app_mention${
                                         threadTs ? `&thread_ts=${threadTs}` : ''
                                     }`,
                                     style: 'primary',
@@ -5141,6 +5167,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 event: 'ai_agent.slack_auth',
                 trigger: 'app_mention',
                 result,
+                organizationUuid,
                 slackUserId: userId,
                 slackUserIdFlavor: userId.startsWith('W')
                     ? 'enterprise'
@@ -5165,8 +5192,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         messageTs: string;
         threadTs?: string;
         userUuid: string;
+        trigger?: 'vote' | 'app_mention';
     }): Promise<void> {
-        const { teamId, channelId, messageTs, threadTs, userUuid } = data;
+        const {
+            teamId,
+            channelId,
+            messageTs,
+            threadTs,
+            userUuid,
+            trigger = 'app_mention',
+        } = data;
 
         Logger.info(
             `Processing pending Slack message after OAuth: team=${teamId}, channel=${channelId}, message=${messageTs}`,
@@ -5214,6 +5249,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         if (cachedResponse) {
             // Update the ephemeral message to show success, then delete after 10 seconds
+            const successText =
+                trigger === 'vote'
+                    ? '✅ Connected! Click the vote button again to submit your feedback.'
+                    : '✅ Authentication successful! Processing your request...';
             try {
                 const successResponse = await fetch(
                     cachedResponse.responseUrl,
@@ -5227,7 +5266,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                     type: 'section',
                                     text: {
                                         type: 'mrkdwn',
-                                        text: '✅ Authentication successful! Processing your request...',
+                                        text: successText,
                                     },
                                 },
                             ],
@@ -5262,6 +5301,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     e,
                 );
             }
+        }
+
+        // Vote-triggered OAuth: the original message is the AI's own reply, not
+        // a user prompt. Replaying it would feed the bot its own response.
+        // Auth is now established; user re-clicks the vote button to record it.
+        if (trigger === 'vote') {
+            return;
         }
 
         // Fetch the original message
@@ -5409,6 +5455,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
                 channelId: event.channel,
                 messageId: event.ts,
+                organizationUuid,
             },
             say,
             client,
