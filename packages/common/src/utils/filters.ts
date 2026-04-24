@@ -10,6 +10,7 @@ import {
     DimensionType,
     isCustomSqlDimension,
     isDimension,
+    isFilterableDimension,
     isTableCalculation,
     MetricType,
     TableCalculationType,
@@ -50,6 +51,7 @@ import { type MetricQuery } from '../types/metricQuery';
 import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+import { getDimensionMapFromTables, getMetricsMapFromTables } from './fields';
 import { formatDate } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
 
@@ -1196,6 +1198,45 @@ export const addDashboardFiltersToMetricQuery = (
                 undefined,
             ),
         },
+    };
+};
+
+// Mirrors the UI's getAvailableFiltersForSavedQueries. Matching on field-id (not tableName) is the source of truth — see getDashboardFilterRulesForTables below for why.
+export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
+    ...Object.entries(getDimensionMapFromTables(explore.tables))
+        .filter(([, field]) => isFilterableDimension(field) && !field.hidden)
+        .map(([fieldId]) => fieldId),
+    ...Object.entries(getMetricsMapFromTables(explore.tables))
+        .filter(([, field]) => !field.hidden)
+        .map(([fieldId]) => fieldId),
+];
+
+export const applyDashboardFiltersForTile = ({
+    tileUuid,
+    metricQuery,
+    dashboardFilters,
+    explore,
+}: {
+    tileUuid: string;
+    metricQuery: MetricQuery;
+    dashboardFilters: DashboardFilters;
+    explore: Explore;
+}): {
+    metricQuery: MetricQuery;
+    appliedDashboardFilters: DashboardFilters;
+} => {
+    const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
+        tileUuid,
+        getAvailableFilterFieldIds(explore),
+        dashboardFilters,
+    );
+    return {
+        metricQuery: addDashboardFiltersToMetricQuery(
+            metricQuery,
+            appliedDashboardFilters,
+            explore,
+        ),
+        appliedDashboardFilters,
     };
 };
 

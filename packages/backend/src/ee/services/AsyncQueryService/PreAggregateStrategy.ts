@@ -1,13 +1,9 @@
 import {
-    addDashboardFiltersToMetricQuery,
     ApiPreAggregateStatsResults,
+    applyDashboardFiltersForTile,
     assertUnreachable,
     DashboardTileTypes,
     ExploreType,
-    getDashboardFiltersForTileAndTables,
-    getDimensionMapFromTables,
-    getMetricsMapFromTables,
-    isFilterableDimension,
     NotFoundError,
     preAggregateUtils,
     QueryExecutionContext as QEC,
@@ -435,31 +431,12 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
                     throw e;
                 }
 
-                // Scope dashboard filters to this tile — mirror of the live
-                // query path in AsyncQueryService.
-                const availableFieldIds = [
-                    ...Object.entries(getDimensionMapFromTables(explore.tables))
-                        .filter(
-                            ([, field]) =>
-                                isFilterableDimension(field) && !field.hidden,
-                        )
-                        .map(([fieldId]) => fieldId),
-                    ...Object.entries(getMetricsMapFromTables(explore.tables))
-                        .filter(([, field]) => !field.hidden)
-                        .map(([fieldId]) => fieldId),
-                ];
-                const appliedDashboardFilters =
-                    getDashboardFiltersForTileAndTables(
-                        tile.uuid,
-                        availableFieldIds,
-                        savedDashboardFilters,
-                    );
-
-                const metricQuery = addDashboardFiltersToMetricQuery(
-                    savedChart.metricQuery,
-                    appliedDashboardFilters,
+                const { metricQuery } = applyDashboardFiltersForTile({
+                    tileUuid: tile.uuid,
+                    metricQuery: savedChart.metricQuery,
+                    dashboardFilters: savedDashboardFilters,
                     explore,
-                );
+                });
 
                 const matchResult = preAggregateUtils.findMatch(
                     metricQuery,
