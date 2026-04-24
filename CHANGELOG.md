@@ -1,3 +1,10 @@
+# [0.2806.0](https://github.com/lightdash/lightdash/compare/0.2805.1...0.2806.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** enable saving apps to spaces ([#22356](https://github.com/lightdash/lightdash/issues/22356)) ([d0aebae](https://github.com/lightdash/lightdash/commit/d0aebae8e98a25ffb1713510abf9e1bef0391ff6))
+
 ## [0.2805.1](https://github.com/lightdash/lightdash/compare/0.2805.0...0.2805.1) (2026-04-24)
 
 
