@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     isResourceViewDataAppItem,
     isResourceViewItemChart,
     isResourceViewItemDashboard,
@@ -9,12 +10,14 @@ import {
 import { Anchor, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import {
     IconAlertTriangle,
+    IconAppWindow,
     IconChartBar,
     IconCircleCheckFilled,
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import AttributeCount from './ResourceAttributeCount';
@@ -146,6 +149,8 @@ const InfiniteResourceTableColumnName = ({
     projectUuid,
     canUserManageValidation,
 }: InfiniteResourceTableColumnNameProps) => {
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
     const isSpace = isResourceViewSpaceItem(item);
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
@@ -244,6 +249,13 @@ const InfiniteResourceTableColumnName = ({
                                     count={item.data.chartCount}
                                     name="Charts"
                                 />
+                                {dataAppsEnabled && (
+                                    <AttributeCount
+                                        Icon={IconAppWindow}
+                                        count={item.data.appCount}
+                                        name="Data apps"
+                                    />
+                                )}
                                 <AttributeCount
                                     Icon={IconFolder}
                                     count={item.data.childSpaceCount}

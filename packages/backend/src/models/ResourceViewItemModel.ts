@@ -6,6 +6,7 @@ import {
     ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AppsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
@@ -216,6 +217,9 @@ const getAllSpaces = async (
                     child_space_count: knex.raw(
                         `(SELECT count(*) FROM ${SpaceTableName} cs WHERE cs.parent_space_uuid = ${SpaceTableName}.space_uuid AND cs.deleted_at IS NULL)`,
                     ),
+                    app_count: knex.raw(
+                        `(SELECT count(*) FROM ${AppsTableName} a WHERE a.space_uuid = ${SpaceTableName}.space_uuid AND a.deleted_at IS NULL)`,
+                    ),
                 })
                 .from(SpaceTableName)
                 .leftJoin(
@@ -287,6 +291,7 @@ const getAllSpaces = async (
             dashboard_count: knex.raw('COALESCE(sc.dashboard_count, 0)'),
             chart_count: knex.raw('COALESCE(sc.chart_count, 0)'),
             child_space_count: knex.raw('COALESCE(sc.child_space_count, 0)'),
+            app_count: knex.raw('COALESCE(sc.app_count, 0)'),
         })
         .where({
             [`${PinnedListTableName}.project_uuid`]: projectUuid,
@@ -307,6 +312,7 @@ const getAllSpaces = async (
             dashboardCount: Number(row.dashboard_count),
             chartCount: Number(row.chart_count),
             childSpaceCount: Number(row.child_space_count),
+            appCount: Number(row.app_count),
             parentSpaceUuid: row.parent_space_uuid,
             path: row.path,
         },

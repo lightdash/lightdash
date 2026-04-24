@@ -178,6 +178,13 @@ export class SpaceModel {
                                 `child_space.parent_space_uuid = ${SpaceTableName}.space_uuid`,
                             )
                             .whereNull('child_space.deleted_at'),
+                        appCount: trx
+                            .count('*')
+                            .from(AppsTableName)
+                            .whereRaw(
+                                `${AppsTableName}.space_uuid = ${SpaceTableName}.space_uuid`,
+                            )
+                            .whereNull(`${AppsTableName}.deleted_at`),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
@@ -1290,6 +1297,23 @@ export class SpaceModel {
         return apps.map((a) => ({
             appUuid: a.app_uuid,
             projectUuid: a.project_uuid,
+        }));
+    }
+
+    async getSpaceApps(
+        spaceUuids: string[],
+    ): Promise<{ uuid: string; spaceUuid: string }[]> {
+        if (spaceUuids.length === 0) return [];
+        const apps = await this.database(AppsTableName)
+            .select({
+                uuid: `${AppsTableName}.app_id`,
+                spaceUuid: `${AppsTableName}.space_uuid`,
+            })
+            .whereIn(`${AppsTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${AppsTableName}.deleted_at`);
+        return apps.map((a) => ({
+            uuid: a.uuid,
+            spaceUuid: a.spaceUuid as string,
         }));
     }
 

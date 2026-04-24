@@ -94,6 +94,7 @@ export type SpaceSummaryBase = Pick<
     chartCount: number;
     dashboardCount: number;
     childSpaceCount: number;
+    appCount: number;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -189,11 +190,14 @@ export type SpaceDeleteImpact = {
         parentSpaceUuid: string | null;
         chartCount: number;
         dashboardCount: number;
+        appCount: number;
     }[];
     charts: { uuid: string; name: string; spaceUuid: string }[];
     dashboards: { uuid: string; name: string; spaceUuid: string }[];
+    apps: { uuid: string; spaceUuid: string | null }[];
     chartCount: number;
     dashboardCount: number;
+    appCount: number;
 };
 
 export type ApiSpaceDeleteImpactResponse = {

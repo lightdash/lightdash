@@ -5,7 +5,12 @@ import type { ChartKind } from './savedCharts';
 // ---------------------------------------------------------------------------
 // Utility: WithDescendantCounts
 // ---------------------------------------------------------------------------
-type DescendantCountKey = 'nestedSpace' | 'dashboard' | 'chart' | 'scheduler';
+type DescendantCountKey =
+    | 'nestedSpace'
+    | 'dashboard'
+    | 'chart'
+    | 'scheduler'
+    | 'app';
 
 export type WithDescendantCounts<T, K extends DescendantCountKey = never> = [
     K,
@@ -118,7 +123,7 @@ export type DeletedContentWithDescendants =
       >
     | WithDescendantCounts<
           DeletedSpaceContentSummary,
-          'nestedSpace' | 'dashboard' | 'chart' | 'scheduler'
+          'nestedSpace' | 'dashboard' | 'chart' | 'scheduler' | 'app'
       >
     | WithDescendantCounts<DeletedDataAppContentSummary, never>;
 
