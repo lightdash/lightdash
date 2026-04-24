@@ -68,9 +68,16 @@ export type EchartsClickEvent = {
 
 type Props = {
     projectUuid?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
-const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
+const VisualizationCard: FC<Props> = memo((props) => {
+    const {
+        projectUuid: fallBackUUid,
+        onScreenshotReady,
+        onScreenshotError,
+    } = props;
     const { health } = useApp();
     const { data: org } = useOrganization();
     const { colorScheme } = useMantineColorScheme();
@@ -396,6 +403,8 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                         ref={measureRef}
                         className="sentry-block ph-no-capture"
                         data-testid="visualization"
+                        onScreenshotReady={onScreenshotReady}
+                        onScreenshotError={onScreenshotError}
                     />
                     <SeriesContextMenu
                         echartsSeriesClickEvent={echartsClickEvent?.event}

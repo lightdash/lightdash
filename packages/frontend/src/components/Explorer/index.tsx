@@ -1,7 +1,15 @@
 import { subject } from '@casl/ability';
 import { getAvailableParametersFromTables } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
-import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import {
     explorerActions,
     selectAdditionalMetricModal,
@@ -77,32 +85,43 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
         const { query, queryResults } = useExplorerQuery();
         const queryUuid = query.data?.queryUuid;
 
-        // Screenshot readiness tracking for EXPLORE pages (Slack unfurls)
-        const isLoadingQueryResults =
-            query.isFetching ||
-            queryResults.isFetchingRows ||
-            !query.data?.queryUuid ||
-            queryResults.queryUuid !== query.data.queryUuid;
+        // Screenshot readiness tracking for EXPLORE pages (Slack unfurls).
+        // We flip ready only when the rendered chart signals back via
+        // onScreenshotReady — the chart-level gate already waits for all
+        // rows (setFetchAll) and chart-type-specific work (e.g. map tiles).
+        // A container-level gate would race against the chart's own
+        // setFetchAll(true) mount effect.
         const hasQueryError = !!query.error || !!queryResults.error;
 
         const [isScreenshotReady, setIsScreenshotReady] = useState(false);
+        const [screenshotErrored, setScreenshotErrored] = useState(false);
         const hasSignaledReady = useRef(false);
+
+        const handleScreenshotReady = useCallback(() => {
+            if (hasSignaledReady.current) return;
+            hasSignaledReady.current = true;
+            setIsScreenshotReady(true);
+        }, []);
+
+        const handleScreenshotError = useCallback(() => {
+            if (hasSignaledReady.current) return;
+            hasSignaledReady.current = true;
+            setScreenshotErrored(true);
+            setIsScreenshotReady(true);
+        }, []);
 
         const { data: explore } = useExplore(tableName);
 
+        // Fallback: if the query itself errors, no chart mounts and neither
+        // onScreenshotReady nor onScreenshotError will fire. Signal ready
+        // with error status so the unfurl captures the error state.
         useEffect(() => {
             if (hasSignaledReady.current) return;
-            if (!tableName) return;
-            if (!explore) return;
-
-            const isSuccessfullyLoaded = !isLoadingQueryResults;
-            if (!isSuccessfullyLoaded && !hasQueryError) {
-                return;
-            }
-
-            setIsScreenshotReady(true);
+            if (!hasQueryError) return;
             hasSignaledReady.current = true;
-        }, [tableName, isLoadingQueryResults, hasQueryError, explore]);
+            setScreenshotErrored(true);
+            setIsScreenshotReady(true);
+        }, [hasQueryError]);
 
         const { data: { parameterReferences } = {}, isError } = useCompiledSql({
             enabled: !!tableName,
@@ -222,7 +241,11 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
 
                     <FiltersCard />
 
-                    <VisualizationCard projectUuid={projectUuid} />
+                    <VisualizationCard
+                        projectUuid={projectUuid}
+                        onScreenshotReady={handleScreenshotReady}
+                        onScreenshotError={handleScreenshotError}
+                    />
 
                     <ResultsCard />
 
@@ -255,8 +278,8 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 {isScreenshotReady && (
                     <ScreenshotReadyIndicator
                         tilesTotal={1}
-                        tilesReady={hasQueryError ? 0 : 1}
-                        tilesErrored={hasQueryError ? 1 : 0}
+                        tilesReady={screenshotErrored ? 0 : 1}
+                        tilesErrored={screenshotErrored ? 1 : 0}
                     />
                 )}
             </MetricQueryDataProvider>
