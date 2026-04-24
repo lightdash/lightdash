@@ -9,6 +9,7 @@ import {
     PreAggregateMissReason,
     preAggregateUtils,
     SupportedDbtAdapter,
+    TableCalculationTemplateType,
     TimeFrames,
     UnitOfTime,
     type CompiledDimension,
@@ -1232,7 +1233,78 @@ describe('findMatch', () => {
         });
     });
 
-    it('returns table_calculation_present when table calculations exist', () => {
+    it('returns hit when only template table calculations exist', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                tableCalculations: [
+                    {
+                        name: 'calc_1',
+                        displayName: 'Calc',
+                        template: {
+                            type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                            fieldId: 'orders_order_count',
+                        },
+                    },
+                ],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('returns hit when only formula table calculations exist', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                tableCalculations: [
+                    {
+                        name: 'calc_1',
+                        displayName: 'Calc',
+                        formula: '=orders_order_count * 2',
+                    },
+                ],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
+        });
+    });
+
+    it('returns table_calculation_present when a SQL table calculation exists', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -1262,6 +1334,47 @@ describe('findMatch', () => {
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
             fieldId: 'calc_1',
+        });
+    });
+
+    it('returns table_calculation_present when SQL and semantic table calculations are mixed', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_order_count'],
+                tableCalculations: [
+                    {
+                        name: 'calc_template',
+                        displayName: 'Template calc',
+                        template: {
+                            type: TableCalculationTemplateType.PERCENT_OF_COLUMN_TOTAL,
+                            fieldId: 'orders_order_count',
+                        },
+                    },
+                    {
+                        name: 'calc_sql',
+                        displayName: 'SQL calc',
+                        sql: '1',
+                    },
+                ],
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
+            fieldId: 'calc_sql',
         });
     });
 
