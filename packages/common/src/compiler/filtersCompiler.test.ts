@@ -2526,7 +2526,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         values: ['2024-01-15'],
     };
 
-    test('DATE filter wraps literal in project TZ when parameter is true', () => {
+    test('DATE-over-TIMESTAMP filter wraps literal in project TZ when parameter is true', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,
             DimensionType.DATE,
@@ -2539,6 +2539,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             undefined,
             true,
+            DimensionType.TIMESTAMP,
         );
         expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
         expect(sql).toContain("'2024-01-15'::timestamp");
@@ -2558,7 +2559,26 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         expect(sql).not.toContain('AT TIME ZONE');
     });
 
-    test('BigQuery DATE filter emits TIMESTAMP(literal, tz) instead of ::timestamp', () => {
+    test('DATE filter over a DATE base emits a bare literal even when parameter is true', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.DATE,
+        );
+        expect(sql).not.toContain('AT TIME ZONE');
+        expect(sql).not.toContain('::timestamp');
+    });
+
+    test('BigQuery DATE-over-TIMESTAMP filter emits TIMESTAMP(literal, tz)', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,
             DimensionType.DATE,
@@ -2571,12 +2591,32 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             undefined,
             true,
+            DimensionType.TIMESTAMP,
         );
         expect(sql).toContain("TIMESTAMP('2024-01-15', 'Asia/Tokyo')");
         expect(sql).not.toContain('::timestamp');
     });
 
-    test('ClickHouse DATE filter anchors literal with toDateTime(literal, tz)', () => {
+    test('BigQuery DATE filter over a DATE base emits a bare literal (no TIMESTAMP wrap)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.BIGQUERY,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.DATE,
+        );
+        expect(sql).not.toContain('TIMESTAMP(');
+        expect(sql).toContain("'2024-01-15'");
+    });
+
+    test('ClickHouse DATE-over-TIMESTAMP filter anchors literal with toDateTime(literal, tz)', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,
             DimensionType.DATE,
@@ -2589,9 +2629,28 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             undefined,
             true,
+            DimensionType.TIMESTAMP,
         );
         expect(sql).toContain("toDateTime('2024-01-15', 'Asia/Tokyo')");
         expect(sql).not.toContain('::timestamp');
+    });
+
+    test('ClickHouse DATE filter over a DATE base emits a bare literal (no toDateTime wrap)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.CLICKHOUSE,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.DATE,
+        );
+        expect(sql).not.toContain('toDateTime(');
     });
 
     test('TIMESTAMP filter does not wrap literal even when parameter is true', () => {
@@ -2607,6 +2666,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             undefined,
             true,
+            DimensionType.TIMESTAMP,
         );
         expect(sql).not.toContain("AT TIME ZONE 'Asia/Tokyo'");
     });
@@ -2619,6 +2679,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         const renderWithParam = (
             filter: FilterRule<FilterOperator, unknown>,
             useTimezoneAwareDateTrunc: boolean,
+            baseTimeIntervalDimensionType: DimensionType = DimensionType.TIMESTAMP,
         ) =>
             renderFilterRuleSql(
                 filter,
@@ -2632,6 +2693,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 true,
                 undefined,
                 useTimezoneAwareDateTrunc,
+                baseTimeIntervalDimensionType,
             );
 
         test('inThePast completed day wraps boundaries in project TZ', () => {
@@ -2682,6 +2744,31 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             };
             const sql = renderWithParam(filter, false);
             expect(sql).not.toContain('AT TIME ZONE');
+        });
+
+        test('inThePast completed weeks on a DATE-backed dimension does not wrap BigQuery literals in TIMESTAMP', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [14],
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            const sql = renderFilterRuleSql(
+                filter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.BIGQUERY,
+                'Asia/Tokyo',
+                true,
+                undefined,
+                true,
+                DimensionType.DATE,
+            );
+            expect(sql).not.toContain('TIMESTAMP(');
         });
     });
 });
