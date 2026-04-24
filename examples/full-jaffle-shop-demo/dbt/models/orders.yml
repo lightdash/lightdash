@@ -30,6 +30,62 @@ models:
               - total_completed_order_amount
             time_dimension: order_date
             granularity: day
+          - name: basic_sql_dimension_daily
+            dimensions:
+              - status
+              - constant_one
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: table_ref_dimension_daily
+            dimensions:
+              - status
+              - table_amount
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: semantic_ref_dimension_daily
+            dimensions:
+              - status
+              - semantic_amount
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: mixed_expression_dimension_daily
+            dimensions:
+              - status
+              - amount_plus_shipping
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: recursive_dimension_daily
+            dimensions:
+              - status
+              - amount_plus_shipping_band
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: param_dimension_rejected_daily
+            dimensions:
+              - status
+              - date_dim_param_test
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: user_attribute_email_rejected_daily
+            dimensions:
+              - status
+              - user_attribute_email_test
+            metrics:
+              - total_order_amount
+            time_dimension: order_date
+            granularity: day
         primary_key: order_id
         spotlight:
           categories:
@@ -190,6 +246,21 @@ models:
               filter_by: false
               segment_by: false
         type: string
+      - name: user_attribute_email_test
+        description: "Example of dimension based on a user attribute email"
+        meta:
+          dimension:
+            sql: |
+              CASE
+                WHEN ${ld.userAttributes.email} = 'demo@lightdash.com'
+                  THEN ${TABLE}.status
+                ELSE 'non-demo'
+              END
+            groups: ["pre-aggregations"]
+            spotlight:
+              filter_by: false
+              segment_by: false
+        type: string
       - name: order_date
         description: Date (UTC) that the order was placed
         config:
@@ -234,6 +305,36 @@ models:
             dimension:
               format: usd
               round: 2
+            additional_dimensions:
+              constant_one:
+                type: number
+                label: Constant One
+                groups: ["pre-aggregations"]
+                sql: "1"
+              table_amount:
+                type: number
+                label: Table Amount
+                groups: ["pre-aggregations"]
+                sql: ${TABLE}.amount
+              semantic_amount:
+                type: number
+                label: Semantic Amount
+                groups: ["pre-aggregations"]
+                sql: ${amount}
+              amount_plus_shipping:
+                type: number
+                label: Amount Plus Shipping
+                groups: ["pre-aggregations"]
+                sql: ${TABLE}.amount + ${shipping_cost}
+              amount_plus_shipping_band:
+                type: string
+                label: Amount Plus Shipping Band
+                groups: ["pre-aggregations"]
+                sql: |
+                  CASE
+                    WHEN ${amount_plus_shipping} >= 100 THEN 'high'
+                    ELSE 'low'
+                  END
             metrics:
               average_order_size:
                 type: average

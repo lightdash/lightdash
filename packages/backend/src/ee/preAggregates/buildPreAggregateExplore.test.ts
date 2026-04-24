@@ -16,12 +16,20 @@ const makeDimension = ({
     name,
     table,
     type = DimensionType.STRING,
+    sql,
+    compiledSql,
+    parameterReferences,
+    compilationError,
     timeInterval,
     timeIntervalBaseDimensionName,
 }: {
     name: string;
     table: string;
     type?: DimensionType;
+    sql?: string;
+    compiledSql?: string;
+    parameterReferences?: string[];
+    compilationError?: { message: string };
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
 }): CompiledDimension => ({
@@ -32,10 +40,12 @@ const makeDimension = ({
     label: name,
     table,
     tableLabel: table,
-    sql: `${table}.${name}`,
+    sql: sql ?? `${table}.${name}`,
     hidden: false,
-    compiledSql: `${table}.${name}`,
+    compiledSql: compiledSql ?? sql ?? `${table}.${name}`,
     tablesReferences: [table],
+    ...(parameterReferences ? { parameterReferences } : {}),
+    ...(compilationError ? { compilationError } : {}),
     ...(timeInterval ? { timeInterval } : {}),
     ...(timeIntervalBaseDimensionName ? { timeIntervalBaseDimensionName } : {}),
 });
@@ -316,5 +326,100 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(result.tables.orders.metrics.order_count).toBeDefined();
+    });
+
+    it('accepts eligible derived dimensions selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.status_label = makeDimension({
+            name: 'status_label',
+            table: 'orders',
+            sql: "concat(${status}, '-ok')",
+            compiledSql: "concat(orders.status, '-ok')",
+        });
+
+        const result = buildPreAggregateExplore(explore, {
+            name: 'derived_dimension_rollup',
+            dimensions: ['status_label'],
+            metrics: ['order_count'],
+        });
+
+        expect(result.tables.orders.dimensions.status_label).toBeDefined();
+        expect(result.tables.orders.dimensions.status_label.compiledSql).toBe(
+            'orders.orders_status_label',
+        );
+    });
+
+    it('rejects parameterized derived dimensions selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.parameterized_status = makeDimension({
+            name: 'parameterized_status',
+            table: 'orders',
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                    ELSE NULL
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['parameterized_status'],
+                metrics: ['order_count'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible dimension "parameterized_status": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
+    });
+
+    it('rejects user-attribute derived dimensions selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.region_aware_status = makeDimension({
+            name: 'region_aware_status',
+            table: 'orders',
+            sql: "case when ${ld.userAttributes.region} = 'EMEA' then ${TABLE}.status end",
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['region_aware_status'],
+                metrics: ['order_count'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible dimension "region_aware_status": dimension "orders_region_aware_status" is not eligible for direct materialization (reason: user_attributes)',
+        );
+    });
+
+    it('rejects derived dimensions whose recursive dependency is ineligible', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.parameterized_status = makeDimension({
+            name: 'parameterized_status',
+            table: 'orders',
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                    ELSE NULL
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+        explore.tables.orders.dimensions.status_wrapper = makeDimension({
+            name: 'status_wrapper',
+            table: 'orders',
+            sql: '${parameterized_status}',
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['status_wrapper'],
+                metrics: ['order_count'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible dimension "status_wrapper": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
     });
 });

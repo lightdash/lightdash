@@ -1,4 +1,5 @@
 import {
+    analyzePreAggregateDerivedDimensionEligibility,
     assertUnreachable,
     convertFieldRefToFieldId,
     getItemId,
@@ -77,15 +78,20 @@ const assertUniqueMetricFieldId = ({
 };
 
 const getDimensionFieldId = ({
-    sourceExplore,
+    dimension,
+}: {
+    dimension: CompiledDimension;
+}): FieldId => getItemId(dimension);
+
+const getSelectedDimension = ({
+    dimensionsByReference,
     preAggregateDef,
     dimensionReference,
 }: {
-    sourceExplore: Explore;
+    dimensionsByReference: Map<string, CompiledDimension[]>;
     preAggregateDef: PreAggregateDef;
     dimensionReference: string;
-}): FieldId => {
-    const dimensionsByReference = getDimensionsByReference(sourceExplore);
+}): CompiledDimension => {
     const candidates = dimensionsByReference.get(dimensionReference) || [];
 
     if (candidates.length === 0) {
@@ -117,14 +123,37 @@ const getDimensionFieldId = ({
             );
         }
 
-        return getItemId(timeGranularityDimension);
+        return timeGranularityDimension;
     }
 
     const exactBaseDimension = candidates.find(
         (dimension) => !dimension.timeInterval,
     );
 
-    return getItemId(exactBaseDimension ?? candidates[0]);
+    return exactBaseDimension ?? candidates[0];
+};
+
+const assertDimensionEligibleForDirectMaterialization = ({
+    sourceExplore,
+    preAggregateDef,
+    dimensionReference,
+    dimension,
+}: {
+    sourceExplore: Explore;
+    preAggregateDef: PreAggregateDef;
+    dimensionReference: string;
+    dimension: CompiledDimension;
+}): void => {
+    const eligibility = analyzePreAggregateDerivedDimensionEligibility({
+        dimension,
+        tables: sourceExplore.tables,
+    });
+
+    if (!eligibility.isEligible) {
+        throw new Error(
+            `Pre-aggregate "${preAggregateDef.name}" references ineligible dimension "${dimensionReference}": dimension "${eligibility.ineligibleDimensionFieldId}" is not eligible for direct materialization (reason: ${eligibility.reason})`,
+        );
+    }
 };
 
 const hasTimeDimensionReference = ({
@@ -202,6 +231,7 @@ export const buildMaterializationMetricQuery = ({
         tables: sourceExplore.tables,
         baseTable: sourceExplore.baseTable,
     });
+    const dimensionsByReference = getDimensionsByReference(sourceExplore);
     const dimensionReferences = [...preAggregateDef.dimensions];
 
     if (
@@ -212,13 +242,39 @@ export const buildMaterializationMetricQuery = ({
         dimensionReferences.push(preAggregateDef.timeDimension);
     }
 
+    const resolveSelectedDimension = (
+        dimensionReference: string,
+    ): CompiledDimension => {
+        const dimension = getSelectedDimension({
+            dimensionsByReference,
+            preAggregateDef,
+            dimensionReference,
+        });
+
+        assertDimensionEligibleForDirectMaterialization({
+            sourceExplore,
+            preAggregateDef,
+            dimensionReference,
+            dimension,
+        });
+
+        return dimension;
+    };
+
+    const selectedDimensions = Array.from(
+        new Map(
+            dimensionReferences.map((dimensionReference) => [
+                dimensionReference,
+                resolveSelectedDimension(dimensionReference),
+            ]),
+        ).values(),
+    );
+
     const dimensions = Array.from(
         new Set(
-            dimensionReferences.map((dimensionReference) =>
+            selectedDimensions.map((dimension) =>
                 getDimensionFieldId({
-                    sourceExplore,
-                    preAggregateDef,
-                    dimensionReference,
+                    dimension,
                 }),
             ),
         ),
@@ -227,9 +283,9 @@ export const buildMaterializationMetricQuery = ({
     const timeDimensionFieldId =
         preAggregateDef.timeDimension && preAggregateDef.granularity
             ? getDimensionFieldId({
-                  sourceExplore,
-                  preAggregateDef,
-                  dimensionReference: preAggregateDef.timeDimension,
+                  dimension: resolveSelectedDimension(
+                      preAggregateDef.timeDimension,
+                  ),
               })
             : null;
 

@@ -2,14 +2,47 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    getParameterReferencesFromSqlAndFormat,
     MetricType,
     SupportedDbtAdapter,
     TimeFrames,
     UnitOfTime,
+    type CompiledDimension,
     type Explore,
     type PreAggregateDef,
 } from '@lightdash/common';
 import { buildMaterializationMetricQuery } from './buildMaterializationMetricQuery';
+
+const makeDimension = ({
+    name,
+    type = DimensionType.STRING,
+    sql,
+    compiledSql,
+    parameterReferences,
+    compilationError,
+}: {
+    name: string;
+    type?: DimensionType;
+    sql?: string;
+    compiledSql?: string;
+    parameterReferences?: string[];
+    compilationError?: { message: string };
+}): CompiledDimension => ({
+    fieldType: FieldType.DIMENSION,
+    type,
+    name,
+    label: name,
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: sql ?? '${TABLE}.id',
+    hidden: false,
+    compiledSql: compiledSql ?? sql ?? '"orders".id',
+    parameterReferences:
+        parameterReferences ??
+        getParameterReferencesFromSqlAndFormat(sql ?? '${TABLE}.id'),
+    tablesReferences: ['orders'],
+    ...(compilationError ? { compilationError } : {}),
+});
 
 const getSourceExplore = (): Explore =>
     ({
@@ -335,6 +368,112 @@ describe('buildMaterializationMetricQuery', () => {
             }),
         ).toThrow(
             'Pre-aggregate "orders_rollup" generates duplicate materialization metric field ID "orders_avg_order_amount__sum"',
+        );
+    });
+
+    it('includes eligible derived dimensions in the materialization metric query', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.status_label = makeDimension({
+            name: 'status_label',
+            sql: "concat(${status}, '-ok')",
+            compiledSql: `concat("orders".status, '-ok')`,
+        });
+
+        const result = buildMaterializationMetricQuery({
+            sourceExplore,
+            preAggregateDef: {
+                name: 'orders_rollup',
+                dimensions: ['status_label'],
+                metrics: ['order_count'],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.dimensions).toEqual(['orders_status_label']);
+    });
+
+    it('rejects parameterized derived dimensions in the materialization metric query', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.parameterized_status =
+            makeDimension({
+                name: 'parameterized_status',
+                sql: `
+                    CASE
+                        WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                        ELSE NULL
+                    END
+                `,
+                parameterReferences: ['orders.region'],
+            });
+
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['parameterized_status'],
+                    metrics: ['order_count'],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" references ineligible dimension "parameterized_status": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
+    });
+
+    it('rejects user-attribute derived dimensions in the materialization metric query', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.region_aware_status =
+            makeDimension({
+                name: 'region_aware_status',
+                sql: "case when ${lightdash.userAttributes.region} = 'EMEA' then ${TABLE}.status end",
+            });
+
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['region_aware_status'],
+                    metrics: ['order_count'],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" references ineligible dimension "region_aware_status": dimension "orders_region_aware_status" is not eligible for direct materialization (reason: user_attributes)',
+        );
+    });
+
+    it('rejects derived dimensions when a recursive dependency is ineligible', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.parameterized_status =
+            makeDimension({
+                name: 'parameterized_status',
+                sql: `
+                    CASE
+                        WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                        ELSE NULL
+                    END
+                `,
+                parameterReferences: ['orders.region'],
+            });
+        sourceExplore.tables.orders.dimensions.status_wrapper = makeDimension({
+            name: 'status_wrapper',
+            sql: '${parameterized_status}',
+        });
+
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status_wrapper'],
+                    metrics: ['order_count'],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" references ineligible dimension "status_wrapper": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
         );
     });
 });
