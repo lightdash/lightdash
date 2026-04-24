@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { compile } from '../src/index';
 
-const columns = { revenue: 'revenue', region: 'region' };
+const columns = {
+    revenue: 'revenue',
+    region: 'region',
+    order_date: 'order_date',
+};
 
 describe('codegen', () => {
     describe('aggregates emit bare SQL by default', () => {
@@ -404,6 +408,24 @@ describe('codegen', () => {
                     renderAggregate: (inner) => `${inner} OVER ()`,
                 }),
             ).toBe('("revenue" - AVG("revenue") OVER ())');
+        });
+    });
+
+    describe('LAST_DAY', () => {
+        const postgresStyleLastDay = `CAST(DATE_TRUNC('month', "order_date") + INTERVAL '1 month' - INTERVAL '1 day' AS DATE)`;
+
+        it.each([
+            ['bigquery', 'LAST_DAY(`order_date`)'],
+            ['snowflake', 'LAST_DAY("order_date")'],
+            ['duckdb', 'LAST_DAY("order_date")'],
+            ['databricks', 'LAST_DAY(`order_date`)'],
+            ['postgres', postgresStyleLastDay],
+            ['redshift', postgresStyleLastDay],
+            ['clickhouse', 'toLastDayOfMonth("order_date")'],
+        ] as const)('%s → %s', (dialect, expected) => {
+            expect(
+                compile('=LAST_DAY(order_date)', { dialect, columns }),
+            ).toBe(expected);
         });
     });
 
