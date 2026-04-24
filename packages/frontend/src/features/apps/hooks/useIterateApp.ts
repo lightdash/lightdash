@@ -8,6 +8,7 @@ type IterateAppParams = {
     prompt: string;
     imageId?: string;
     chartUuids?: string[];
+    dashboardUuid?: string;
 };
 
 type IterateAppResult = ApiGenerateAppResponse['results'];
@@ -18,11 +19,12 @@ const iterateApp = async ({
     prompt,
     imageId,
     chartUuids,
+    dashboardUuid,
 }: IterateAppParams): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
-        body: JSON.stringify({ prompt, imageId, chartUuids }),
+        body: JSON.stringify({ prompt, imageId, chartUuids, dashboardUuid }),
     });
     return data;
 };

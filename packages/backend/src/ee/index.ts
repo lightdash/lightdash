@@ -91,6 +91,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartService: repository.getSavedChartService(),
                     spacePermissionService:
                         repository.getSpacePermissionService(),
+                    dashboardService: repository.getDashboardService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

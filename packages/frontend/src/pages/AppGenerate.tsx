@@ -28,6 +28,7 @@ import {
     IconFolderPlus,
     IconFolderSymlink,
     IconPencil,
+    IconLayoutDashboard,
     IconPlayerStop,
     IconSparkles,
     IconTrash,
@@ -53,16 +54,19 @@ import {
 import { v4 as uuid4 } from 'uuid';
 import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../components/common/modal/AppUpdateModal';
-import { ChartIcon } from '../components/common/ResourceIcon';
+import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import {
+    DashboardButton,
     ImageButton,
     QueryButton,
+    SelectedDashboardSection,
     SelectedImageSection,
     SelectedQuerySection,
     type SelectedChart,
+    type SelectedDashboard,
 } from '../features/apps/AppResourcePicker';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
@@ -91,6 +95,7 @@ type ChatMessage = {
     content: string;
     imagePreviewUrl: string | null;
     charts: ChatChart[];
+    dashboardName: string | null;
     appUuid: string | null;
     version: number | null;
 };
@@ -160,6 +165,8 @@ const AppGenerate: FC = () => {
     } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
+    const [selectedDashboard, setSelectedDashboard] =
+        useState<SelectedDashboard | null>(null);
     const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
     const handleQueryEvent = useCallback((event: QueryEvent) => {
         setTrackedQueries((prev) => {
@@ -211,6 +218,8 @@ const AppGenerate: FC = () => {
     const sentImagesByPrompt = useRef(new Map<string, string>());
     // Maps prompt text → chart names so they survive the local→server transition
     const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
+    // Maps prompt text → dashboard name so it survives the local→server transition
+    const sentDashboardByPrompt = useRef(new Map<string, string>());
     // Track appUuid in local state so polling starts immediately after creation
     // (before the URL param updates via replaceState)
     const [activeAppUuid, setActiveAppUuid] = useState<string | undefined>(
@@ -222,6 +231,7 @@ const AppGenerate: FC = () => {
     const resetSessionState = useCallback(() => {
         setPrompt('');
         setSelectedCharts([]);
+        setSelectedDashboard(null);
         setImageAttachment(null);
         setLocalMessages([]);
         setPreviewApp(null);
@@ -341,6 +351,8 @@ const AppGenerate: FC = () => {
                     imagePreviewUrl:
                         sentImagesByPrompt.current.get(v.prompt) ?? null,
                     charts: sentChartsByPrompt.current.get(v.prompt) ?? [],
+                    dashboardName:
+                        sentDashboardByPrompt.current.get(v.prompt) ?? null,
                     appUuid: null,
                     version: null,
                 },
@@ -355,6 +367,7 @@ const AppGenerate: FC = () => {
                             : `Version ${v.version} is ready!`),
                     imagePreviewUrl: null,
                     charts: [],
+                    dashboardName: null,
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
@@ -366,6 +379,7 @@ const AppGenerate: FC = () => {
                         'Generation failed. Please try again.',
                     imagePreviewUrl: null,
                     charts: [],
+                    dashboardName: null,
                     appUuid: null,
                     version: null,
                 });
@@ -572,6 +586,12 @@ const AppGenerate: FC = () => {
         if (sentCharts.length > 0) {
             sentChartsByPrompt.current.set(trimmed, sentCharts);
         }
+        const sentDashboardName = selectedDashboard?.name ?? null;
+        if (sentDashboardName) {
+            sentDashboardByPrompt.current.set(trimmed, sentDashboardName);
+        }
+
+        const dashboardUuid = selectedDashboard?.uuid;
 
         setLocalMessages((prev) => [
             ...prev,
@@ -580,6 +600,7 @@ const AppGenerate: FC = () => {
                 content: trimmed,
                 imagePreviewUrl: sentImageUrl,
                 charts: sentCharts,
+                dashboardName: sentDashboardName,
                 appUuid: null,
                 version: null,
             },
@@ -587,6 +608,7 @@ const AppGenerate: FC = () => {
         setPrompt('');
         setImageAttachment(null);
         setSelectedCharts([]);
+        setSelectedDashboard(null);
         resetGenerate();
         resetIterate();
 
@@ -614,6 +636,7 @@ const AppGenerate: FC = () => {
                                 : 'Failed to generate app',
                         imagePreviewUrl: null,
                         charts: [],
+                        dashboardName: null,
                         appUuid: null,
                         version: null,
                     },
@@ -629,6 +652,7 @@ const AppGenerate: FC = () => {
                     prompt: trimmed,
                     imageId,
                     chartUuids,
+                    dashboardUuid,
                 },
                 callbacks,
             );
@@ -640,6 +664,7 @@ const AppGenerate: FC = () => {
                     imageId,
                     appUuid: newAppUuid,
                     chartUuids,
+                    dashboardUuid,
                 },
                 callbacks,
             );
@@ -778,6 +803,43 @@ const AppGenerate: FC = () => {
                                                                     </Group>
                                                                 ),
                                                             )}
+                                                        </Box>
+                                                    )}
+                                                    {msg.dashboardName && (
+                                                        <Box
+                                                            mt={
+                                                                msg.charts
+                                                                    .length > 0
+                                                                    ? 0
+                                                                    : 'xs'
+                                                            }
+                                                            className={
+                                                                classes.bubbleQueryList
+                                                            }
+                                                        >
+                                                            <Group
+                                                                gap="xs"
+                                                                wrap="nowrap"
+                                                                className={
+                                                                    classes.bubbleQueryItem
+                                                                }
+                                                            >
+                                                                <IconBox
+                                                                    icon={
+                                                                        IconLayoutDashboard
+                                                                    }
+                                                                    color="green.6"
+                                                                />
+                                                                <Text
+                                                                    size="xs"
+                                                                    fw={500}
+                                                                    truncate
+                                                                >
+                                                                    {
+                                                                        msg.dashboardName
+                                                                    }
+                                                                </Text>
+                                                            </Group>
                                                         </Box>
                                                     )}
                                                     {msg.imagePreviewUrl && (
@@ -930,6 +992,11 @@ const AppGenerate: FC = () => {
                                     }
                                     disabled={isLoading}
                                 />
+                                <DashboardButton
+                                    selected={selectedDashboard}
+                                    onSelect={setSelectedDashboard}
+                                    disabled={isLoading}
+                                />
                                 <ImageButton
                                     onClick={() =>
                                         fileInputRef.current?.click()
@@ -943,6 +1010,7 @@ const AppGenerate: FC = () => {
                                 onDrop={handleDrop}
                             >
                                 {selectedCharts.length > 0 ||
+                                selectedDashboard ||
                                 imageAttachment ? (
                                     <>
                                         {selectedCharts.length > 0 && (
@@ -955,6 +1023,14 @@ const AppGenerate: FC = () => {
                                                                 c.uuid !== uuid,
                                                         ),
                                                     )
+                                                }
+                                            />
+                                        )}
+                                        {selectedDashboard && (
+                                            <SelectedDashboardSection
+                                                dashboard={selectedDashboard}
+                                                onRemove={() =>
+                                                    setSelectedDashboard(null)
                                                 }
                                             />
                                         )}
