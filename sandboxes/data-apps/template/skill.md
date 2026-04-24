@@ -342,7 +342,7 @@ When a user clicks a data point (bar, slice, row, cell), **show an action menu**
 Use the `DropdownMenu` component for this. The menu opens on click, and each option triggers its respective action.
 
 ```tsx
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -354,25 +354,31 @@ function InteractiveChart({ baseQuery, activeFilters, onFilter }) {
     const { data, format, loading } = useLightdash(chartQuery);
     const [menuState, setMenuState] = useState(null); // { row, x, y }
     const [drillState, setDrillState] = useState(null); // { query, title }
+    // Capture click position on pointerdown — this fires BEFORE Recharts'
+    // onClick, so the coordinates are ready when the chart handler runs.
+    // Recharts onClick does NOT expose the native MouseEvent.
+    const lastClick = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
     return (
         <>
+            <div onPointerDown={(e) => { lastClick.current = { x: e.clientX, y: e.clientY }; }}>
             <BarChart data={data} onClick={(e) => {
                 if (e?.activePayload?.[0]) {
                     setMenuState({
                         row: e.activePayload[0].payload,
-                        x: e.chartX,
-                        y: e.chartY,
+                        x: lastClick.current.x,
+                        y: lastClick.current.y,
                     });
                 }
             }}>
                 {/* ... bars, axes, etc. */}
             </BarChart>
+            </div>
 
             {menuState && (
                 <DropdownMenu open onOpenChange={() => setMenuState(null)}>
                     <DropdownMenuTrigger asChild>
-                        <div className="fixed" style={{ left: menuState.x, top: menuState.y }} />
+                        <div style={{ position: 'fixed', left: menuState.x, top: menuState.y, width: 1, height: 1 }} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => {
@@ -594,3 +600,4 @@ function DrillResults({ query: q }) {
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Transparent popover/dialog/dropdown backgrounds | Content unreadable over charts | Always add `bg-white` (or `bg-popover`) class to `DropdownMenuContent`, `DialogContent`, and popover containers |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
+| Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
