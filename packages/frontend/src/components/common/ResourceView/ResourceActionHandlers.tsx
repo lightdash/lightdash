@@ -22,6 +22,7 @@ import { useSpacePinningMutation } from '../../../hooks/pinning/useSpaceMutation
 import { useContentAction } from '../../../hooks/useContent';
 import { useSpace } from '../../../hooks/useSpaces';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
+import AppDeleteModal from '../modal/AppDeleteModal';
 import AppUpdateModal from '../modal/AppUpdateModal';
 import ChartDeleteModal from '../modal/ChartDeleteModal';
 import ChartDuplicateModal from '../modal/ChartDuplicateModal';
@@ -292,8 +293,16 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
                         />
                     );
                 case ResourceViewItemType.DATA_APP:
-                    // Delete from this menu isn't supported for data apps yet
-                    return null;
+                    return (
+                        <AppDeleteModal
+                            opened
+                            projectUuid={projectUuid}
+                            uuid={action.item.data.uuid}
+                            name={action.item.data.name}
+                            onClose={handleReset}
+                            onConfirm={handleReset}
+                        />
+                    );
                 default:
                     return assertUnreachable(
                         action.item,

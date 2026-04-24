@@ -204,6 +204,7 @@ export class CoderService extends BaseService {
             contentType: ContentAsCodeType.CHART,
             downloadedAt: new Date(),
             parameters: chart.parameters,
+            verified: verificationMap.has(chart.uuid) ? true : undefined,
             verification: verificationMap.get(chart.uuid) ?? null,
         };
     }
@@ -415,6 +416,7 @@ export class CoderService extends BaseService {
             version: currentVersion,
             contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
+            verified: verificationMap.has(dashboard.uuid) ? true : undefined,
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
@@ -992,6 +994,83 @@ export class CoderService extends BaseService {
         };
     }
 
+    private async syncVerification({
+        user,
+        projectUuid,
+        organizationUuid,
+        contentType,
+        contentUuid,
+        verified,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        organizationUuid: string;
+        contentType: ContentType;
+        contentUuid: string;
+        verified: boolean | undefined;
+    }): Promise<void> {
+        if (verified === undefined) return;
+
+        if (
+            user.ability.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            // Warn and skip so CI pipelines run by non-admin deployers don't fail.
+            this.logger.warn(
+                `User ${user.userUuid} cannot ${
+                    verified ? 'verify' : 'unverify'
+                } ${contentType} ${contentUuid}; skipping verification sync.`,
+            );
+            return;
+        }
+
+        const current = await this.contentVerificationModel.getByContent(
+            contentType,
+            contentUuid,
+        );
+        const isCurrentlyVerified = current !== null;
+
+        if (verified && !isCurrentlyVerified) {
+            await this.contentVerificationModel.verify(
+                contentType,
+                contentUuid,
+                projectUuid,
+                user.userUuid,
+            );
+            this.analytics.track({
+                event: 'content_verification.created',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    contentType,
+                    contentId: contentUuid,
+                },
+            });
+        } else if (!verified && isCurrentlyVerified) {
+            await this.contentVerificationModel.unverify(
+                contentType,
+                contentUuid,
+            );
+            this.analytics.track({
+                event: 'content_verification.deleted',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    contentType,
+                    contentId: contentUuid,
+                },
+            });
+        }
+    }
+
     async upsertChart(
         user: SessionUser,
         projectUuid: string,
@@ -1111,6 +1190,15 @@ export class CoderService extends BaseService {
                 createChart,
             );
 
+            await this.syncVerification({
+                user,
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                contentType: ContentType.CHART,
+                contentUuid: newChart.uuid,
+                verified: chartAsCode.verified,
+            });
+
             console.info(
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
@@ -1188,6 +1276,15 @@ export class CoderService extends BaseService {
             user,
             promotionChanges,
         );
+
+        await this.syncVerification({
+            user,
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            contentType: ContentType.CHART,
+            contentUuid: chart.uuid,
+            verified: chartAsCode.verified,
+        });
 
         console.info(
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
@@ -1478,6 +1575,7 @@ export class CoderService extends BaseService {
                 chartCount: 0,
                 dashboardCount: 0,
                 childSpaceCount: 0,
+                appCount: 0,
             },
             created: true,
         };
@@ -1558,6 +1656,15 @@ export class CoderService extends BaseService {
                 projectUuid,
             );
 
+            await this.syncVerification({
+                user,
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                contentType: ContentType.DASHBOARD,
+                contentUuid: newDashboard.uuid,
+                verified: dashboardAsCode.verified,
+            });
+
             return {
                 dashboards: [
                     {
@@ -1604,8 +1711,10 @@ export class CoderService extends BaseService {
                 projectUuid, // We use the same projectUuid for both promoted and upstream
             );
 
+        const auditedAbility = this.createAuditedAbility(user);
         PromoteService.checkPromoteDashboardPermissions(
-            user,
+            auditedAbility,
+            user.organizationUuid!,
             promotedDashboard,
             upstreamDashboard,
         );
@@ -1664,6 +1773,15 @@ export class CoderService extends BaseService {
             user,
             promotionChanges,
         );
+
+        await this.syncVerification({
+            user,
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            contentType: ContentType.DASHBOARD,
+            contentUuid: dashboard.uuid,
+            verified: dashboardAsCode.verified,
+        });
 
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,

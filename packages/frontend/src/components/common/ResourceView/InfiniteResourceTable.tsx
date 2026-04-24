@@ -6,6 +6,7 @@ import {
     ContentSortByColumns,
     contentToResourceViewItem,
     ContentType,
+    FeatureFlags,
     isResourceViewSpaceItem,
     type ApiContentBulkActionBody,
     type ResourceViewItem,
@@ -25,6 +26,7 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+    IconAppWindow,
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
@@ -58,6 +60,7 @@ import {
     useInfiniteContent,
     type ContentArgs,
 } from '../../../hooks/useContent';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
@@ -121,6 +124,8 @@ const InfiniteResourceTable = ({
     const canUserManageValidation = useValidationUserAbility(
         filters.projectUuid,
     );
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
     const [action, setAction] = useState<ResourceViewItemActionState>({
         type: ResourceViewItemAction.CLOSE,
     });
@@ -227,7 +232,12 @@ const InfiniteResourceTable = ({
                 if (!isResourceViewSpaceItem(row.original)) return null;
                 const {
                     original: {
-                        data: { dashboardCount, chartCount, childSpaceCount },
+                        data: {
+                            dashboardCount,
+                            chartCount,
+                            childSpaceCount,
+                            appCount,
+                        },
                     },
                 } = row;
                 return (
@@ -242,6 +252,13 @@ const InfiniteResourceTable = ({
                             count={chartCount}
                             name="Charts"
                         />
+                        {dataAppsEnabled && (
+                            <AttributeCount
+                                Icon={IconAppWindow}
+                                count={appCount}
+                                name="Data apps"
+                            />
+                        )}
                         <AttributeCount
                             Icon={IconFolder}
                             count={childSpaceCount}

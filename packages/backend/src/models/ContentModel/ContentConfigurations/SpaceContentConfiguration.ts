@@ -1,5 +1,6 @@
 import { ContentType, SpaceContentBase } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AppsTableName } from '../../../database/entities/apps';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { PinnedSpaceTableName } from '../../../database/entities/pinnedList';
@@ -20,6 +21,7 @@ type SpaceContentRow = SummaryContentRow<{
     dashboardCount: number;
     chartCount: number;
     childSpaceCount: number;
+    appCount: number;
     nestedSpaceCount: number;
     schedulerCount: number;
     parentSpaceUuid: string | null;
@@ -144,6 +146,15 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                             WHERE child_space.parent_space_uuid = ${SpaceTableName}.space_uuid
                             AND child_space.deleted_at IS NULL
                         ),
+                        'appCount', (${
+                            filters.includeDescendantCounts
+                                ? `SELECT count(*) FROM ${AppsTableName} a
+                                    INNER JOIN ${SpaceTableName} s2 ON s2.space_uuid = a.space_uuid
+                                    WHERE s2.path <@ ${SpaceTableName}.path`
+                                : `SELECT count(*) FROM ${AppsTableName}
+                                    WHERE ${AppsTableName}.space_uuid = ${SpaceTableName}.space_uuid
+                                    AND ${AppsTableName}.deleted_at IS NULL`
+                        }),
                         'parentSpaceUuid', ${SpaceTableName}.parent_space_uuid,
                         'path', ${SpaceTableName}.path,
                         'inheritParentPermissions', ${SpaceTableName}.inherit_parent_permissions,
@@ -289,6 +300,7 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                 dashboardCount: value.metadata.dashboardCount,
                 chartCount: value.metadata.chartCount,
                 childSpaceCount: value.metadata.childSpaceCount,
+                appCount: value.metadata.appCount,
                 verification: null,
             };
         },

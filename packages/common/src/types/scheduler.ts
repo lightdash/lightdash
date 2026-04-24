@@ -499,6 +499,8 @@ export type TraceTaskBase = {
     schedulerUuid?: string;
 };
 
+export type ManagedAgentHeartbeatPayload = TraceTaskBase;
+
 export type QueueTraceProperties = {
     traceHeader?: string;
     baggageHeader?: string;

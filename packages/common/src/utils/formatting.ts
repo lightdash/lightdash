@@ -153,11 +153,15 @@ export function formatDate(
     return momentDate.format(getDateFormat(timeInterval));
 }
 
+// Pass `timezone` to convert the UTC value into that zone. Pass `displayTimezone`
+// when the value is already wall-clock in that zone — it only appends the offset
+// suffix. Pass at most one.
 export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
     timezone?: string,
+    displayTimezone?: string,
 ): string {
     let momentDate;
     if (timezone) {
@@ -170,6 +174,13 @@ export function formatTimestamp(
 
     if (!momentDate.isValid()) {
         return 'NaT';
+    }
+
+    if (!timezone && displayTimezone) {
+        const offsetMinutes = moment.tz(value, displayTimezone).utcOffset();
+        return momentDate
+            .utcOffset(offsetMinutes, true)
+            .format(getTimeFormat(timeInterval));
     }
 
     return momentDate.format(getTimeFormat(timeInterval));
@@ -789,6 +800,7 @@ export function formatItemValue(
     convertToUTC?: boolean,
     parameters?: Record<string, unknown>,
     timezone?: string,
+    displayTimezone?: string,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -867,6 +879,7 @@ export function formatItemValue(
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
                               timezone,
+                              displayTimezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
@@ -877,6 +890,7 @@ export function formatItemValue(
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
                             timezone,
+                            displayTimezone,
                         );
                     }
                     break;

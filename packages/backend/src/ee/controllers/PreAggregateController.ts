@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    type ApiGetDashboardPreAggregateAuditResponse,
     type ApiGetPreAggregateMaterializationsResponse,
     type ApiGetPreAggregateStatsResponse,
 } from '@lightdash/common';
@@ -64,6 +65,35 @@ export class PreAggregateController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * Audits pre-aggregate hit/miss coverage for every tile on a dashboard
+     * without executing the queries. Returns a per-tile breakdown grouped
+     * by tab, suitable for CI coverage checks and pre-aggregate tuning.
+     * @summary Get dashboard pre-aggregate audit
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/dashboards/{dashboardUuidOrSlug}/audit')
+    @OperationId('getDashboardPreAggregateAudit')
+    async getDashboardPreAggregateAudit(
+        @Path() projectUuid: string,
+        @Path() dashboardUuidOrSlug: string,
+        @Request() req: express.Request,
+    ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
+        this.setStatus(200);
+        const dashboard = await this.services
+            .getDashboardService()
+            .getByIdOrSlug(req.user!, dashboardUuidOrSlug, { projectUuid });
+        const results = await this.services
+            .getAsyncQueryService()
+            .getDashboardPreAggregateAudit(
+                req.account!,
+                projectUuid,
+                dashboard.uuid,
+            );
+        return { status: 'ok', results };
     }
 
     /**

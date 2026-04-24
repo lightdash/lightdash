@@ -78,6 +78,8 @@ export type ApiUpdateAppResponse = ApiSuccess<{
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
 
+export type ApiDeleteAppResponse = ApiSuccessEmpty;
+
 export type ApiAppSummary = {
     appUuid: string;
     name: string;

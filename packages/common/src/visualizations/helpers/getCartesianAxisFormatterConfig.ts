@@ -28,6 +28,7 @@ export const getCartesianAxisFormatterConfig = ({
     show,
     parameters,
     timezone,
+    displayTimezone,
 }: {
     axisItem: ItemsMap[string] | undefined;
     longestLabelWidth?: number;
@@ -36,6 +37,7 @@ export const getCartesianAxisFormatterConfig = ({
     show?: boolean;
     parameters?: Record<string, unknown>;
     timezone?: string;
+    displayTimezone?: string;
 }) => {
     // Remove axis labels, lines, and ticks if the axis is not shown
     // This is done to prevent the grid from disappearing when the axis is not shown
@@ -74,7 +76,14 @@ export const getCartesianAxisFormatterConfig = ({
     if (axisItem && (hasFormattingConfig || axisMinInterval)) {
         axisConfig.axisLabel = {
             formatter: (value: AnyType) =>
-                formatItemValue(axisItem, value, true, parameters, timezone),
+                formatItemValue(
+                    axisItem,
+                    value,
+                    true,
+                    parameters,
+                    timezone,
+                    displayTimezone,
+                ),
         };
         axisConfig.axisPointer = {
             label: {
@@ -89,6 +98,7 @@ export const getCartesianAxisFormatterConfig = ({
                               true,
                               parameters,
                               timezone,
+                              displayTimezone,
                           )
                         : undefined,
             },
@@ -115,6 +125,7 @@ export const getCartesianAxisFormatterConfig = ({
                               true,
                               parameters,
                               timezone,
+                              displayTimezone,
                           )
                         : undefined,
             },

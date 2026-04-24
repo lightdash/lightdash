@@ -108,6 +108,8 @@ lightdash upload --charts my-chart --dashboards my-dashboard
 lightdash upload --dashboards my-dashboard --include-charts
 ```
 
+**Verification on upload:** chart and dashboard YAML files include a `verified` boolean. Set `verified: true` or `verified: false` to verify/unverify on upload; omit the field to leave the current verification state unchanged. Only admins can change verification — non-admin uploads silently skip this field.
+
 ## Delete Content
 
 Permanently delete charts and dashboards from the server and remove their local YAML files.

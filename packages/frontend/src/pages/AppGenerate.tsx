@@ -16,6 +16,7 @@ import {
     ThemeIcon,
 } from '@mantine-8/core';
 import {
+    IconAppsOff,
     IconAppWindow,
     IconArrowUp,
     IconExternalLink,
@@ -35,6 +36,7 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import AppResourcePicker, {
@@ -231,6 +233,7 @@ const AppGenerate: FC = () => {
     // Fetch version history (polling is handled by the Web Worker below)
     const {
         data: appData,
+        error: appError,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
@@ -418,6 +421,21 @@ const AppGenerate: FC = () => {
         )
     ) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
+    }
+
+    // Navigating to a soft-deleted (or never-existed) app's URL. Surface a
+    // not-found state instead of silently falling through to new-app mode —
+    // otherwise a follow-up prompt would try to iterate a ghost app.
+    if (urlAppUuid && appError?.error?.statusCode === 404) {
+        return (
+            <Box mt="30vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="Data app not found"
+                    description="This data app doesn't exist or has been deleted."
+                />
+            </Box>
+        );
     }
 
     if (!projectUuid) {
@@ -944,7 +962,8 @@ const AppGenerate: FC = () => {
                                     <EditableText
                                         value={draftName}
                                         placeholder="Untitled app"
-                                        fw={500}
+                                        fw={600}
+                                        size="md"
                                         onFocus={() => {
                                             isEditingName.current = true;
                                         }}

@@ -1,0 +1,77 @@
+.trigger {
+    position: absolute;
+    bottom: var(--mantine-spacing-sm);
+    right: var(--mantine-spacing-sm);
+
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px 3px;
+
+    border-radius: 4px;
+    border: 1px solid var(--mantine-color-gray-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-gray-3);
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-ldDark-9);
+
+    font-family: var(--mantine-font-family);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+
+    cursor: pointer;
+    z-index: 2;
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-3);
+        color: var(--mantine-color-ldGray-5);
+        border-color: var(--mantine-color-ldDark-5);
+        box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
+    }
+}
+
+.trigger:hover:not(:disabled) {
+    background-color: var(--mantine-color-ldGray-1);
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.trigger:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: none;
+}
+
+.trigger:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.editorContainer {
+    position: relative;
+}
+
+.generateButton {
+    position: absolute;
+    right: var(--mantine-spacing-xs);
+    bottom: var(--mantine-spacing-xs);
+    transition:
+        transform 150ms ease,
+        opacity 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0);
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+    }
+
+    &:active:not(:disabled) {
+        transform: scale(0.95);
+    }
+}

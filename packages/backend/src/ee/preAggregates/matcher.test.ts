@@ -1,8 +1,10 @@
 import {
+    BinType,
     CustomDimensionType,
     DimensionType,
     FieldType,
     FilterOperator,
+    GroupValueMatchType,
     MetricType,
     PreAggregateMissReason,
     preAggregateUtils,
@@ -161,6 +163,58 @@ const makeMetricQuery = (
         ? { customDimensions: partial.customDimensions }
         : {}),
 });
+
+const makeCustomBinDimension = (binType: BinType) => {
+    const base = {
+        id: `${binType}_bin`,
+        type: CustomDimensionType.BIN as const,
+        name: `${binType} bin`,
+        table: 'orders',
+        dimensionId: 'orders_amount',
+    };
+
+    switch (binType) {
+        case BinType.FIXED_WIDTH:
+            return {
+                ...base,
+                binType,
+                binWidth: 10,
+            };
+        case BinType.CUSTOM_RANGE:
+            return {
+                ...base,
+                binType,
+                customRange: [
+                    { from: undefined, to: 10 },
+                    { from: 10, to: undefined },
+                ],
+            };
+        case BinType.CUSTOM_GROUP:
+            return {
+                ...base,
+                binType,
+                customGroups: [
+                    {
+                        name: 'small',
+                        values: [
+                            {
+                                matchType: GroupValueMatchType.EXACT,
+                                value: '1',
+                            },
+                        ],
+                    },
+                ],
+            };
+        case BinType.FIXED_NUMBER:
+            return {
+                ...base,
+                binType,
+                binNumber: 4,
+            };
+        default:
+            throw new Error(`Unsupported bin type: ${binType}`);
+    }
+};
 
 describe('findMatch', () => {
     it('returns no_pre_aggregates_defined when explore has no pre-aggregates', () => {
@@ -1079,7 +1133,71 @@ describe('findMatch', () => {
         expect(result.hit).toBe(true);
     });
 
-    it('returns custom_dimension_present when custom dimensions exist', () => {
+    it.each([
+        BinType.FIXED_WIDTH,
+        BinType.CUSTOM_RANGE,
+        BinType.CUSTOM_GROUP,
+        BinType.FIXED_NUMBER,
+    ])(
+        'returns hit for %s custom bin dimensions when their dependency is in the pre-aggregate',
+        (binType) => {
+            const customBinDimension = makeCustomBinDimension(binType);
+            const explore = {
+                ...baseExplore(),
+                preAggregates: [
+                    {
+                        name: 'orders_summary',
+                        dimensions: ['status', 'amount'],
+                        metrics: ['order_count'],
+                    },
+                ],
+            };
+
+            const result = preAggregateUtils.findMatch(
+                makeMetricQuery({
+                    dimensions: [customBinDimension.id, 'orders_status'],
+                    metrics: ['orders_order_count'],
+                    customDimensions: [customBinDimension],
+                }),
+                explore,
+            );
+
+            expect(result).toStrictEqual({
+                hit: true,
+                preAggregateName: 'orders_summary',
+                miss: null,
+            });
+        },
+    );
+
+    it('returns dimension_not_in_pre_aggregate when a custom bin dependency is missing', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_summary',
+                    dimensions: ['status'],
+                    metrics: ['order_count'],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['fixed_width_bin', 'orders_status'],
+                metrics: ['orders_order_count'],
+                customDimensions: [makeCustomBinDimension(BinType.FIXED_WIDTH)],
+            }),
+            explore,
+        );
+
+        expect(result.miss).toStrictEqual({
+            reason: PreAggregateMissReason.DIMENSION_NOT_IN_PRE_AGGREGATE,
+            fieldId: 'fixed_width_bin',
+        });
+    });
+
+    it('returns custom_dimension_present when a custom SQL dimension exists', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -1143,6 +1261,7 @@ describe('findMatch', () => {
 
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
+            fieldId: 'calc_1',
         });
     });
 
@@ -1176,6 +1295,7 @@ describe('findMatch', () => {
 
         expect(result.miss).toStrictEqual({
             reason: PreAggregateMissReason.CUSTOM_METRIC_PRESENT,
+            fieldId: 'orders_custom',
         });
     });
 

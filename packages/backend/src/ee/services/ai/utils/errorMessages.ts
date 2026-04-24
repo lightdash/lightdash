@@ -1,3 +1,16 @@
+export const STEP_CAP_REACHED_MESSAGE =
+    'The agent reached its maximum number of steps before finishing. Please try asking for fewer things at once, or split your question into smaller parts.';
+
+export class AiAgentStepCapReachedError extends Error {
+    readonly stepsCount: number;
+
+    constructor(stepsCount: number) {
+        super(STEP_CAP_REACHED_MESSAGE);
+        this.name = 'AiAgentStepCapReachedError';
+        this.stepsCount = stepsCount;
+    }
+}
+
 /**
  * Converts technical error messages into user-friendly messages for AI agent errors.
  *
@@ -9,6 +22,10 @@ export const getUserFacingErrorMessage = (
     error: unknown,
     defaultMessage: string = 'Something went wrong while processing your request. Please try again.',
 ): string => {
+    if (error instanceof AiAgentStepCapReachedError) {
+        return STEP_CAP_REACHED_MESSAGE;
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
 
     // Context/token limit errors

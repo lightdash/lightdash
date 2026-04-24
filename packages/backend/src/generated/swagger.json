@@ -2106,6 +2106,10 @@
                     "required": {
                         "type": "boolean",
                         "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -3043,6 +3047,9 @@
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
                     },
+                    "timeIntervalBaseDimensionType": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
                     "customTimeInterval": {
                         "type": "string"
                     },
@@ -3189,6 +3196,10 @@
                     "required": {
                         "type": "boolean",
                         "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -3505,6 +3516,10 @@
                     "required": {
                         "type": "boolean",
                         "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -6523,6 +6538,10 @@
                     "required": {
                         "type": "boolean",
                         "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
                     }
                 },
                 "required": ["operator", "id", "target"],
@@ -6768,6 +6787,9 @@
                     },
                     "timeIntervalBaseDimensionName": {
                         "type": "string"
+                    },
+                    "timeIntervalBaseDimensionType": {
+                        "$ref": "#/components/schemas/DimensionType"
                     },
                     "customTimeInterval": {
                         "type": "string"
@@ -7610,20 +7632,26 @@
                     },
                     {
                         "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.CUSTOM_METRIC_PRESENT"
                             }
                         },
-                        "required": ["reason"],
+                        "required": ["fieldId", "reason"],
                         "type": "object"
                     },
                     {
                         "properties": {
+                            "fieldId": {
+                                "$ref": "#/components/schemas/FieldId"
+                            },
                             "reason": {
                                 "$ref": "#/components/schemas/PreAggregateMissReason.TABLE_CALCULATION_PRESENT"
                             }
                         },
-                        "required": ["reason"],
+                        "required": ["fieldId", "reason"],
                         "type": "object"
                     },
                     {
@@ -8422,6 +8450,9 @@
                     }
                 },
                 "type": "object"
+            },
+            "ApiDeleteAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
             "ApiSuccess__token-string__": {
                 "properties": {
@@ -10156,20 +10187,36 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "fieldType": {
+                                                                            "type": "string"
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -10177,17 +10224,14 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
+                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
-                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10236,8 +10280,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -10281,15 +10325,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -10297,17 +10344,14 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
-                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10335,8 +10379,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -11703,6 +11747,213 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/KnexPaginatedData_ApiPreAggregateStatsResults_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "TilePreAggregateAuditHit": {
+                "properties": {
+                    "preAggregateName": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "savedChartUuid": {
+                        "type": "string"
+                    },
+                    "tileType": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
+                    },
+                    "tileName": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["hit"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "preAggregateName",
+                    "exploreName",
+                    "savedChartUuid",
+                    "tileType",
+                    "tileName",
+                    "tileUuid",
+                    "status"
+                ],
+                "type": "object"
+            },
+            "TilePreAggregateAuditMiss": {
+                "properties": {
+                    "miss": {
+                        "$ref": "#/components/schemas/PreAggregateMatchMiss"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    },
+                    "savedChartUuid": {
+                        "type": "string"
+                    },
+                    "tileType": {
+                        "$ref": "#/components/schemas/DashboardTileTypes.SAVED_CHART"
+                    },
+                    "tileName": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["miss"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "miss",
+                    "exploreName",
+                    "savedChartUuid",
+                    "tileType",
+                    "tileName",
+                    "tileUuid",
+                    "status"
+                ],
+                "type": "object"
+            },
+            "TileIneligibleReason": {
+                "enum": [
+                    "non_chart_tile",
+                    "sql_chart",
+                    "orphaned_chart",
+                    "explore_resolution_error"
+                ],
+                "type": "string"
+            },
+            "TilePreAggregateAuditIneligible": {
+                "properties": {
+                    "ineligibleReason": {
+                        "$ref": "#/components/schemas/TileIneligibleReason"
+                    },
+                    "tileType": {
+                        "$ref": "#/components/schemas/DashboardTileTypes"
+                    },
+                    "tileName": {
+                        "type": "string"
+                    },
+                    "tileUuid": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ineligible"],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "ineligibleReason",
+                    "tileType",
+                    "tileName",
+                    "tileUuid",
+                    "status"
+                ],
+                "type": "object"
+            },
+            "TilePreAggregateAuditStatus": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/TilePreAggregateAuditHit"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TilePreAggregateAuditMiss"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TilePreAggregateAuditIneligible"
+                    }
+                ]
+            },
+            "TabAuditGroup": {
+                "properties": {
+                    "tiles": {
+                        "items": {
+                            "$ref": "#/components/schemas/TilePreAggregateAuditStatus"
+                        },
+                        "type": "array"
+                    },
+                    "tabName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "tabUuid": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["tiles", "tabName", "tabUuid"],
+                "type": "object"
+            },
+            "DashboardPreAggregateAuditSummary": {
+                "properties": {
+                    "ineligibleCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "missCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "hitCount": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["ineligibleCount", "missCount", "hitCount"],
+                "type": "object"
+            },
+            "DashboardPreAggregateAudit": {
+                "properties": {
+                    "summary": {
+                        "$ref": "#/components/schemas/DashboardPreAggregateAuditSummary"
+                    },
+                    "tabs": {
+                        "items": {
+                            "$ref": "#/components/schemas/TabAuditGroup"
+                        },
+                        "type": "array"
+                    },
+                    "dashboardName": {
+                        "type": "string"
+                    },
+                    "dashboardSlug": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "summary",
+                    "tabs",
+                    "dashboardName",
+                    "dashboardSlug",
+                    "dashboardUuid"
+                ],
+                "type": "object"
+            },
+            "ApiGetDashboardPreAggregateAuditResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardPreAggregateAudit"
                     },
                     "status": {
                         "type": "string",
@@ -16866,6 +17117,10 @@
                                 "type": "string",
                                 "format": "date-time"
                             },
+                            "appCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "childSpaceCount": {
                                 "type": "number",
                                 "format": "double"
@@ -16880,6 +17135,7 @@
                             }
                         },
                         "required": [
+                            "appCount",
                             "childSpaceCount",
                             "dashboardCount",
                             "chartCount"
@@ -18756,6 +19012,10 @@
             },
             "SpaceDeleteImpact": {
                 "properties": {
+                    "appCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "dashboardCount": {
                         "type": "number",
                         "format": "double"
@@ -18763,6 +19023,22 @@
                     "chartCount": {
                         "type": "number",
                         "format": "double"
+                    },
+                    "apps": {
+                        "items": {
+                            "properties": {
+                                "spaceUuid": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["spaceUuid", "uuid"],
+                            "type": "object"
+                        },
+                        "type": "array"
                     },
                     "dashboards": {
                         "items": {
@@ -18803,6 +19079,10 @@
                     "spaces": {
                         "items": {
                             "properties": {
+                                "appCount": {
+                                    "type": "number",
+                                    "format": "double"
+                                },
                                 "dashboardCount": {
                                     "type": "number",
                                     "format": "double"
@@ -18823,6 +19103,7 @@
                                 }
                             },
                             "required": [
+                                "appCount",
                                 "dashboardCount",
                                 "chartCount",
                                 "parentSpaceUuid",
@@ -18835,8 +19116,10 @@
                     }
                 },
                 "required": [
+                    "appCount",
                     "dashboardCount",
                     "chartCount",
+                    "apps",
                     "dashboards",
                     "charts",
                     "spaces"
@@ -21794,6 +22077,10 @@
                         "type": "boolean",
                         "description": "Whether this filter is required"
                     },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
                     "operator": {
                         "$ref": "#/components/schemas/FilterOperator",
                         "description": "Filter operator"
@@ -21900,7 +22187,11 @@
                                     }
                                 ],
                                 "nullable": true,
-                                "description": "Verification status of this chart. Read-only; ignored on upload."
+                                "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                            },
+                            "verified": {
+                                "type": "boolean",
+                                "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
                             },
                             "downloadedAt": {
                                 "type": "string",
@@ -21964,22 +22255,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -22232,6 +22523,10 @@
                         "type": "boolean",
                         "description": "Whether this filter is required"
                     },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    },
                     "operator": {
                         "$ref": "#/components/schemas/FilterOperator",
                         "description": "Filter operator"
@@ -22270,7 +22565,11 @@
                                     }
                                 ],
                                 "nullable": true,
-                                "description": "Verification status of this dashboard. Read-only; ignored on upload."
+                                "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                            },
+                            "verified": {
+                                "type": "boolean",
+                                "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                             },
                             "filters": {
                                 "properties": {
@@ -22326,22 +22625,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -22444,7 +22743,7 @@
                             }
                         ],
                         "nullable": true,
-                        "description": "Verification status of this chart. Read-only; ignored on upload."
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
                     },
                     "tableName": {
                         "type": "string",
@@ -22508,6 +22807,10 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when this chart was downloaded from Lightdash"
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified."
                     }
                 },
                 "required": [
@@ -22772,7 +23075,7 @@
                             }
                         ],
                         "nullable": true,
-                        "description": "Verification status of this dashboard. Read-only; ignored on upload."
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
                     },
                     "filters": {
                         "properties": {
@@ -22815,6 +23118,10 @@
                     "downloadedAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "verified": {
+                        "type": "boolean",
+                        "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
                     }
                 },
                 "required": ["name", "version", "slug", "tabs", "spaceSlug"],
@@ -23570,6 +23877,10 @@
                             },
                             {
                                 "properties": {
+                                    "appCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
                                     "childSpaceCount": {
                                         "type": "number",
                                         "format": "double"
@@ -23594,6 +23905,7 @@
                                     }
                                 },
                                 "required": [
+                                    "appCount",
                                     "childSpaceCount",
                                     "chartCount",
                                     "dashboardCount",
@@ -26062,6 +26374,9 @@
                     "warehouse": {
                         "type": "string"
                     },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
                     "groupLabel": {
                         "type": "string"
                     },
@@ -26092,9 +26407,6 @@
                     },
                     "sqlPath": {
                         "type": "string"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean"
                     },
                     "aiHint": {
                         "anyOf": [
@@ -29815,6 +30127,10 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "appCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "parentSpaceUuid": {
                         "type": "string",
                         "nullable": true
@@ -29850,6 +30166,7 @@
                     "dashboardCount",
                     "chartCount",
                     "childSpaceCount",
+                    "appCount",
                     "parentSpaceUuid",
                     "path",
                     "access"
@@ -30453,13 +30770,17 @@
                 ],
                 "type": "object"
             },
-            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_": {
+            "WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_": {
                 "allOf": [
                     {
                         "$ref": "#/components/schemas/DeletedSpaceContentSummary"
                     },
                     {
                         "properties": {
+                            "appCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "nestedSpaceCount": {
                                 "type": "number",
                                 "format": "double"
@@ -30478,6 +30799,7 @@
                             }
                         },
                         "required": [
+                            "appCount",
                             "nestedSpaceCount",
                             "schedulerCount",
                             "dashboardCount",
@@ -30486,6 +30808,73 @@
                         "type": "object"
                     }
                 ]
+            },
+            "DeletedDataAppContentSummary": {
+                "properties": {
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "spaceName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "deletedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "deletedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentType.DATA_APP"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "organizationUuid",
+                    "projectUuid",
+                    "spaceName",
+                    "spaceUuid",
+                    "deletedBy",
+                    "deletedAt",
+                    "contentType",
+                    "description",
+                    "name",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "WithDescendantCounts_DeletedDataAppContentSummary.never_": {
+                "$ref": "#/components/schemas/DeletedDataAppContentSummary"
             },
             "DeletedContentWithDescendants": {
                 "anyOf": [
@@ -30499,7 +30888,10 @@
                         "$ref": "#/components/schemas/WithDescendantCounts_DeletedDashboardContentSummary.chart-or-scheduler_"
                     },
                     {
-                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler_"
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedSpaceContentSummary.nestedSpace-or-dashboard-or-chart-or-scheduler-or-app_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/WithDescendantCounts_DeletedDataAppContentSummary.never_"
                     }
                 ]
             },
@@ -30583,6 +30975,18 @@
                         "properties": {
                             "contentType": {
                                 "$ref": "#/components/schemas/ContentType.SPACE"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["contentType", "uuid"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contentType": {
+                                "$ref": "#/components/schemas/ContentType.DATA_APP"
                             },
                             "uuid": {
                                 "type": "string"
@@ -30679,7 +31083,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2788.0",
+        "version": "0.2795.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -32159,6 +32563,55 @@
                         "schema": {
                             "type": "string",
                             "enum": ["chart", "dashboard", "explorer"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v2/projects/{projectUuid}/pre-aggregates/dashboards/{dashboardUuidOrSlug}/audit": {
+            "get": {
+                "operationId": "getDashboardPreAggregateAudit",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGetDashboardPreAggregateAuditResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Audits pre-aggregate hit/miss coverage for every tile on a dashboard\nwithout executing the queries. Returns a per-tile breakdown grouped\nby tab, suitable for CI coverage checks and pre-aggregate tuning.",
+                "summary": "Get dashboard pre-aggregate audit",
+                "tags": ["v2", "Pre-Aggregates"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "dashboardUuidOrSlug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 ]

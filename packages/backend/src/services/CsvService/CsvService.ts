@@ -17,6 +17,7 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isDimension,
     isField,
     ItemsMap,
     MetricQuery,
@@ -154,6 +155,7 @@ export class CsvService extends BaseService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): string | null {
         if (!line.trim()) return null;
 
@@ -164,6 +166,7 @@ export class CsvService extends BaseService {
                 itemMap,
                 onlyRaw,
                 sortedFieldIds,
+                timezone,
             );
 
             return csvRow.map(CsvService.escapeCsvValue).join(',');
@@ -235,6 +238,7 @@ export class CsvService extends BaseService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ) {
         return sortedFieldIds.map((id: string) => {
             const data = row[id];
@@ -246,17 +250,28 @@ export class CsvService extends BaseService {
 
             const itemIsField = isField(item);
             if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                return moment(data).format('YYYY-MM-DD HH:mm:ss.SSS');
+                const m = timezone
+                    ? moment.utc(data).tz(timezone)
+                    : moment(data);
+                return m.format('YYYY-MM-DD HH:mm:ss.SSS');
             }
             if (itemIsField && item.type === DimensionType.DATE) {
-                return moment(data).format('YYYY-MM-DD');
+                // Only TZ format dates that have timestamps as base dimensions
+                const m =
+                    timezone &&
+                    isDimension(item) &&
+                    item.timeIntervalBaseDimensionType ===
+                        DimensionType.TIMESTAMP
+                        ? moment.utc(data).tz(timezone)
+                        : moment(data);
+                return m.format('YYYY-MM-DD');
             }
 
             // Return raw value and let csv-stringify handle the rest
             if (onlyRaw) return data;
 
             // Use standard Lightdash formatting based on the item formatting configuration
-            return formatItemValue(item, data);
+            return formatItemValue(item, data, undefined, undefined, timezone);
         });
     }
 
@@ -293,6 +308,7 @@ export class CsvService extends BaseService {
             readStream: Readable;
             writeStream: Writable;
         },
+        timezone?: string,
     ): Promise<void> {
         // Create csv-stringify stringifier with clean configuration
         const stringifier = stringify({
@@ -313,6 +329,7 @@ export class CsvService extends BaseService {
                     itemMap,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 // Pass data to next stream in pipeline (csv-stringify)
@@ -360,6 +377,7 @@ export class CsvService extends BaseService {
             readStream,
             writeStream,
         }: { readStream: Readable; writeStream: Writable },
+        timezone?: string,
     ): Promise<{ truncated: boolean }> {
         return new Promise((resolve, reject) => {
             // Write CSV header with BOM immediately
@@ -393,6 +411,7 @@ export class CsvService extends BaseService {
                         itemMap,
                         onlyRaw,
                         sortedFieldIds,
+                        timezone,
                     );
 
                     if (csvString) {
@@ -417,6 +436,7 @@ export class CsvService extends BaseService {
                     itemMap,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 if (csvString) {

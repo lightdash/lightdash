@@ -339,7 +339,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 )}
                             {userCanPromoteChart &&
                                 !isSqlChart &&
-                                item.type !== ResourceViewItemType.SPACE && (
+                                item.type !== ResourceViewItemType.SPACE &&
+                                item.type !== ResourceViewItemType.DATA_APP && (
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={
@@ -525,7 +526,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             });
                                         }}
                                     >
-                                        Delete {item.type}
+                                        Delete{' '}
+                                        {item.type ===
+                                        ResourceViewItemType.DATA_APP
+                                            ? 'data app'
+                                            : item.type}
                                     </Menu.Item>
                                 </>
                             )}

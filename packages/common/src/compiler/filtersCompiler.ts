@@ -851,9 +851,11 @@ export const renderFilterRuleSqlFromField = (
         : field.compiledSql;
 
     // Determine if this filter should be case sensitive
-    // Priority: field-level setting > explore-level setting > default true
+    // Priority: filter-rule-level override > field-level setting > explore-level setting > default true
     let caseSensitive: boolean;
-    if (isMetric(field)) {
+    if (filterRule.caseSensitive !== undefined) {
+        caseSensitive = filterRule.caseSensitive;
+    } else if (isMetric(field)) {
         caseSensitive = true;
     } else if ('caseSensitive' in field && field.caseSensitive !== undefined) {
         caseSensitive = field.caseSensitive;

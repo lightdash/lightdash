@@ -3,6 +3,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 .editorRoot {
@@ -17,29 +18,13 @@
     font-family: monospace;
 }
 
-.editorWithPrefix {
+.editorContentWrapper {
     display: flex;
     align-items: flex-start;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-}
-
-.equalsPrefix {
-    font-family: monospace;
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 600;
-    padding: var(--mantine-spacing-md) 0 0 var(--mantine-spacing-md);
-    user-select: none;
-    flex-shrink: 0;
-
-    @mixin light {
-        color: var(--mantine-color-ldGray-5);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-ldGray-4);
-    }
+    padding-left: var(--mantine-spacing-md);
 }
 
 .editorContentInner {
@@ -72,5 +57,107 @@
         color: var(--mantine-color-foreground-0);
         background-color: var(--mantine-color-ldDark-4);
         border: 1px solid var(--mantine-color-ldDark-5);
+    }
+}
+
+.container :global(.formula-ghost-container) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 4px;
+    vertical-align: baseline;
+}
+
+.container :global(.formula-inline-chip) {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px 2px;
+    border-radius: 4px;
+    font-family: var(--mantine-font-family);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+
+    /* Mantine Kbd-style keycap: white bg, subtle border, 3D-ish shadow */
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-ldDark-9);
+    border: 1px solid var(--mantine-color-gray-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-gray-3);
+
+    pointer-events: none;
+    user-select: none;
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-3);
+        color: var(--mantine-color-ldGray-5);
+        border-color: var(--mantine-color-ldDark-5);
+        box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
+    }
+}
+
+.container :global(.formula-inline-chip--retry) {
+    color: var(--mantine-color-red-7);
+    border-color: var(--mantine-color-red-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-red-3);
+
+    @mixin dark {
+        color: var(--mantine-color-red-3);
+        border-color: var(--mantine-color-red-7);
+        box-shadow: 0 1px 0 0 var(--mantine-color-red-7);
+    }
+}
+
+.container :global(.formula-preview-ghost) {
+    opacity: 0.45;
+    font-style: italic;
+    pointer-events: none;
+    user-select: none;
+
+    @mixin light {
+        color: var(--mantine-color-indigo-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+}
+
+.container :global(.formula-inline-chip--loading) {
+    position: relative;
+    overflow: hidden;
+}
+
+.container :global(.formula-inline-chip--loading)::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(99, 91, 255, 0.18),
+        transparent
+    );
+    transform: translateX(-100%);
+    animation: formula-keycap-shimmer 1.4s linear infinite;
+    pointer-events: none;
+
+    @mixin dark {
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(255, 255, 255, 0.14),
+            transparent
+        );
+    }
+}
+
+@keyframes formula-keycap-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
     }
 }

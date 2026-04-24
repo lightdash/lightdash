@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { AppsTableName } from '../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -177,6 +178,13 @@ export class SpaceModel {
                                 `child_space.parent_space_uuid = ${SpaceTableName}.space_uuid`,
                             )
                             .whereNull('child_space.deleted_at'),
+                        appCount: trx
+                            .count('*')
+                            .from(AppsTableName)
+                            .whereRaw(
+                                `${AppsTableName}.space_uuid = ${SpaceTableName}.space_uuid`,
+                            )
+                            .whereNull(`${AppsTableName}.deleted_at`),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
@@ -1255,6 +1263,58 @@ export class SpaceModel {
 
         const dashboards = await query;
         return dashboards.map((d) => d.dashboard_uuid);
+    }
+
+    /**
+     * Returns apps directly assigned to a space. Used by the
+     * space-delete cascade to soft-delete apps alongside the space.
+     * Apps without a space are personal drafts and not returned here.
+     */
+    async getAppsInSpace(
+        spaceUuid: string,
+        options?: { deleted?: boolean; deletedByUserUuid?: string },
+    ): Promise<{ appUuid: string; projectUuid: string }[]> {
+        const query = this.database(AppsTableName)
+            .select(
+                `${AppsTableName}.app_id as app_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .where(`${AppsTableName}.space_uuid`, spaceUuid);
+
+        if (options?.deleted) {
+            void query.whereNotNull(`${AppsTableName}.deleted_at`);
+            if (options.deletedByUserUuid) {
+                void query.where(
+                    `${AppsTableName}.deleted_by_user_uuid`,
+                    options.deletedByUserUuid,
+                );
+            }
+        } else {
+            void query.whereNull(`${AppsTableName}.deleted_at`);
+        }
+
+        const apps = await query;
+        return apps.map((a) => ({
+            appUuid: a.app_uuid,
+            projectUuid: a.project_uuid,
+        }));
+    }
+
+    async getSpaceApps(
+        spaceUuids: string[],
+    ): Promise<{ uuid: string; spaceUuid: string }[]> {
+        if (spaceUuids.length === 0) return [];
+        const apps = await this.database(AppsTableName)
+            .select({
+                uuid: `${AppsTableName}.app_id`,
+                spaceUuid: `${AppsTableName}.space_uuid`,
+            })
+            .whereIn(`${AppsTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${AppsTableName}.deleted_at`);
+        return apps.map((a) => ({
+            uuid: a.uuid,
+            spaceUuid: a.spaceUuid as string,
+        }));
     }
 
     async update(

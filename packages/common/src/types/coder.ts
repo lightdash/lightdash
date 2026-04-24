@@ -80,7 +80,13 @@ export type ChartAsCode = Omit<
     spaceSlug: string;
     /** Timestamp when this chart was downloaded from Lightdash */
     downloadedAt?: Date;
-    /** Verification status of this chart. Read-only; ignored on upload. */
+    /**
+     * Declarative verification state.
+     * `true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the
+     * current state untouched. Download sets this to `true` when the chart is verified.
+     */
+    verified?: boolean;
+    /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
 };
 
@@ -171,7 +177,13 @@ export type DashboardAsCode = Pick<
         metrics?: DashboardFilterRule[];
         tableCalculations?: DashboardFilterRule[];
     };
-    /** Verification status of this dashboard. Read-only; ignored on upload. */
+    /**
+     * Declarative verification state.
+     * `true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the
+     * current state untouched. Download sets this to `true` when the dashboard is verified.
+     */
+    verified?: boolean;
+    /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
 };
 
