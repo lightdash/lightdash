@@ -1,3 +1,10 @@
+# [0.2808.0](https://github.com/lightdash/lightdash/compare/0.2807.0...0.2808.0) (2026-04-24)
+
+
+### Features
+
+* attach valid pre-aggregates to base explore and add feature flag guard ([#22355](https://github.com/lightdash/lightdash/issues/22355)) ([04ec1b7](https://github.com/lightdash/lightdash/commit/04ec1b78a1d4d1d1b7b70371711702395fa39631))
+
 # [0.2807.0](https://github.com/lightdash/lightdash/compare/0.2806.0...0.2807.0) (2026-04-24)
 
 
