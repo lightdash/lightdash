@@ -157,22 +157,24 @@ const mainBuild = {
 
 // Bundled .d.ts emit.
 //
-// KNOWN LIMITATION — MATCHES PRIOR BEHAVIOR: the emitted sdk.d.ts
-// externalizes all imports, which means consumers see dangling imports
-// for `@lightdash/common` and `../src/ee/...` source paths that don't
-// exist in the published tarball. This is identical to what the prior
-// vite-plugin-dts(rollupTypes: true) config emitted — the types have
-// shipped in this state since before the rolldown transition.
+// Externalize every bare-specifier import (anything not starting with `.`
+// or `/`) — this keeps `@lightdash/common` out of the walk, which in turn
+// keeps rollup-plugin-dts from tripping on CJS-style `.d.ts` in deps like
+// dependency-graph and echarts that are transitively reachable from it.
+// `@lightdash/common` remaining external matches what's been shipping
+// since before the rolldown transition.
 //
-// Fully inlining transitive types is blocked by rollup-plugin-dts'
-// TypeScript wrapper not parsing CJS-style d.ts from several
-// @lightdash/common transitive deps (dependency-graph, echarts, etc.).
-// Proper fix requires either switching to api-extractor or tsdown, or
-// adding @lightdash/common as a peer dependency so consumer projects
-// resolve the types. Tracked as a follow-up to not balloon this PR.
+// BUT relative imports (../src/...) must be inlined — those paths don't
+// exist inside the published tarball, so leaving them as imports would
+// produce dangling references for TS consumers. The prior
+// vite-plugin-dts(rollupTypes: true) config inlined them; matching that.
+//
+// Proper long-term fix (switching to api-extractor/tsdown, or adding
+// @lightdash/common as a peerDep so TS consumers can resolve it through
+// their own install) is tracked as a follow-up.
 const dtsBuild = {
     input: sdkInput,
-    external: () => true,
+    external: (id) => !id.startsWith('.') && !id.startsWith('/'),
     output: {
         file: resolve(distDir, 'sdk.d.ts'),
         format: 'es',
