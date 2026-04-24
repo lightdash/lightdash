@@ -1598,6 +1598,8 @@ export type AiAgentResponseStreamed = BaseTrack & {
         usageTokensCount: number;
         stepsCount: number;
         model: string;
+        finishReason: string;
+        stepCapReached: boolean;
     };
 };
 
