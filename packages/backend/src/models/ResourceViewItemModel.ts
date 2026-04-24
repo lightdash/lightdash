@@ -2,14 +2,16 @@ import {
     AnyType,
     ResourceViewChartItem,
     ResourceViewDashboardItem,
+    ResourceViewDataAppItem,
     ResourceViewItemType,
     ResourceViewSpaceItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
-import { AppsTableName } from '../database/entities/apps';
+import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
+    PinnedAppTableName,
     PinnedListTableName,
     PinnedSpaceTableName,
 } from '../database/entities/pinnedList';
@@ -192,6 +194,103 @@ const getDashboards = async (
     return items;
 };
 
+const getApps = async (
+    knex: Knex,
+    projectUuid: string,
+    pinnedListUuid: string,
+    allowedSpaceUuids: string[],
+): Promise<ResourceViewDataAppItem[]> => {
+    if (allowedSpaceUuids.length === 0) {
+        return [];
+    }
+    // Latest version per app — mirrors DataAppContentConfiguration
+    const latestVersion = knex(AppVersionsTableName)
+        .distinctOn('app_id')
+        .orderBy('app_id')
+        .orderBy('version', 'desc')
+        .select(
+            'app_id',
+            'version',
+            'status',
+            'created_at as updated_at',
+            'created_by_user_uuid',
+        )
+        .as('lv');
+
+    const rows = (await knex(PinnedListTableName)
+        .innerJoin(
+            PinnedAppTableName,
+            `${PinnedListTableName}.pinned_list_uuid`,
+            `${PinnedAppTableName}.pinned_list_uuid`,
+        )
+        .innerJoin(AppsTableName, function nonDeletedAppJoin() {
+            this.on(
+                `${PinnedAppTableName}.app_uuid`,
+                '=',
+                `${AppsTableName}.app_id`,
+            ).andOnNull(`${AppsTableName}.deleted_at`);
+        })
+        .innerJoin(
+            SpaceTableName,
+            `${AppsTableName}.space_uuid`,
+            `${SpaceTableName}.space_uuid`,
+        )
+        .leftJoin(latestVersion, 'lv.app_id', `${AppsTableName}.app_id`)
+        .leftJoin(UserTableName, 'lv.created_by_user_uuid', 'users.user_uuid')
+        .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
+        .whereNull(`${SpaceTableName}.deleted_at`)
+        .andWhere(`${PinnedListTableName}.pinned_list_uuid`, pinnedListUuid)
+        .andWhere(`${PinnedListTableName}.project_uuid`, projectUuid)
+        .select({
+            pinned_list_uuid: `${PinnedListTableName}.pinned_list_uuid`,
+            order: `${PinnedAppTableName}.order`,
+            space_uuid: `${SpaceTableName}.space_uuid`,
+            app_uuid: `${AppsTableName}.app_id`,
+            name: `${AppsTableName}.name`,
+            description: `${AppsTableName}.description`,
+            views: `${AppsTableName}.views_count`,
+            first_viewed_at: knex.raw(`${AppsTableName}.created_at`),
+            updated_at: knex.raw(
+                `COALESCE(lv.updated_at, ${AppsTableName}.created_at)`,
+            ),
+            updated_by_user_uuid: 'users.user_uuid',
+            updated_by_user_first_name: 'users.first_name',
+            updated_by_user_last_name: 'users.last_name',
+            latest_version_number: 'lv.version',
+            latest_version_status: 'lv.status',
+        })
+        .orderBy(`${PinnedAppTableName}.order`, 'asc')) as Record<
+        string,
+        AnyType
+    >[];
+
+    const resourceType: ResourceViewItemType.DATA_APP =
+        ResourceViewItemType.DATA_APP;
+    return rows.map((row) => ({
+        type: resourceType,
+        data: {
+            uuid: row.app_uuid,
+            name: row.name,
+            description: row.description || undefined,
+            spaceUuid: row.space_uuid,
+            updatedAt: row.updated_at,
+            updatedByUser: row.updated_by_user_uuid
+                ? {
+                      userUuid: row.updated_by_user_uuid,
+                      firstName: row.updated_by_user_first_name,
+                      lastName: row.updated_by_user_last_name,
+                  }
+                : null,
+            views: Number(row.views ?? 0),
+            firstViewedAt: row.first_viewed_at,
+            latestVersionNumber: row.latest_version_number ?? null,
+            latestVersionStatus: row.latest_version_status ?? null,
+            pinnedListUuid: row.pinned_list_uuid,
+            pinnedListOrder: row.order,
+        },
+    }));
+};
+
 // Intermediate type returned by the model (without access data).
 // PinningService enriches these with access data from SpacePermissionService.
 export type ResourceViewSpaceItemBase = Omit<ResourceViewSpaceItem, 'data'> & {
@@ -333,6 +432,7 @@ export class ResourceViewItemModel {
     ): Promise<{
         dashboards: ResourceViewDashboardItem[];
         charts: ResourceViewChartItem[];
+        apps: ResourceViewDataAppItem[];
     }> {
         const results = await this.database.transaction(async (trx) => {
             const dashboards = await getDashboards(
@@ -347,9 +447,16 @@ export class ResourceViewItemModel {
                 pinnedListUuid,
                 allowedSpacesUuids,
             );
+            const apps = await getApps(
+                trx,
+                projectUuid,
+                pinnedListUuid,
+                allowedSpacesUuids,
+            );
             return {
                 dashboards,
                 charts,
+                apps,
             };
         });
         return results;

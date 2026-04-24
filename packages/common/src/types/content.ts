@@ -84,6 +84,10 @@ export interface DataAppContent extends Content {
     contentType: ContentType.DATA_APP;
     latestVersionNumber: number | null;
     latestVersionStatus: AppVersionStatus | null;
+    pinnedList: {
+        uuid: string;
+        order: number;
+    } | null;
 }
 
 export interface SpaceContentBase extends Content {

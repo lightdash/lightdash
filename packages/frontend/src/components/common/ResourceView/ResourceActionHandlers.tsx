@@ -15,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useEffect, type FC } from 'react';
 import { useParams } from 'react-router';
+import { useAppPinningMutation } from '../../../features/apps/hooks/useAppPinningMutation';
 import { DeleteSqlChartModal } from '../../../features/sqlRunner/components/DeleteSqlChartModal';
 import { useChartPinningMutation } from '../../../hooks/pinning/useChartPinningMutation';
 import { useDashboardPinningMutation } from '../../../hooks/pinning/useDashboardPinningMutation';
@@ -85,6 +86,7 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
     const { mutate: pinChart } = useChartPinningMutation();
     const { mutate: pinDashboard } = useDashboardPinningMutation();
     const { mutate: pinSpace } = useSpacePinningMutation(projectUuid);
+    const { mutate: pinApp } = useAppPinningMutation();
 
     const handleReset = useCallback(() => {
         onAction({ type: ResourceViewItemAction.CLOSE });
@@ -170,15 +172,18 @@ const ResourceActionHandlers: FC<ResourceActionHandlersProps> = ({
             case ResourceViewItemType.SPACE:
                 return pinSpace(action.item.data.uuid);
             case ResourceViewItemType.DATA_APP:
-                // Pinning data apps is not supported yet
-                return undefined;
+                if (!projectUuid) return undefined;
+                return pinApp({
+                    projectUuid,
+                    appUuid: action.item.data.uuid,
+                });
             default:
                 return assertUnreachable(
                     action.item,
                     'Resource type not supported',
                 );
         }
-    }, [action, pinChart, pinDashboard, pinSpace]);
+    }, [action, pinChart, pinDashboard, pinSpace, pinApp, projectUuid]);
 
     useEffect(() => {
         if (action.type === ResourceViewItemAction.PIN_TO_HOMEPAGE) {

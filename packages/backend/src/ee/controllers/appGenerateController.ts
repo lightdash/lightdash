@@ -8,6 +8,7 @@ import {
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
+    type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
     type GenerateAppRequestBody,
@@ -239,6 +240,30 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Pin or unpin an app to the project homepage. Toggles the current state.
+     * @summary Toggle app pinning
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{appUuid}/pinning')
+    @OperationId('toggleAppPinning')
+    async toggleAppPinning(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiTogglePinnedItem> {
+        const result = await this.getAppGenerateService().togglePinning(
+            req.user!,
+            projectUuid,
+            appUuid,
+        );
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

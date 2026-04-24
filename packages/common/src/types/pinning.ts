@@ -1,6 +1,7 @@
 import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
+    type ResourceViewDataAppItem,
     type ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from './resourceViewItem';
@@ -16,6 +17,7 @@ export type PinnedItem = {
     savedChartUuid?: string;
     dashboardUuid?: string;
     spaceUuid?: string;
+    appUuid?: string;
     createdAt: Date;
 };
 
@@ -38,6 +40,11 @@ export type CreateSpacePinnedItem = {
     spaceUuid: string;
 };
 
+export type CreateAppPinnedItem = {
+    projectUuid: string;
+    appUuid: string;
+};
+
 export type DeleteChartPinnedItem = {
     pinnedListUuid: string;
     savedChartUuid: string;
@@ -53,22 +60,30 @@ export type DeleteSpacePinnedItem = {
     spaceUuid: string;
 };
 
+export type DeleteAppPinnedItem = {
+    pinnedListUuid: string;
+    appUuid: string;
+};
+
 export type DeletePinnedItem =
     | DeleteChartPinnedItem
     | DeleteDashboardPinnedItem
-    | DeleteSpacePinnedItem;
+    | DeleteSpacePinnedItem
+    | DeleteAppPinnedItem;
 
 export type CreatePinnedItem =
     | CreateChartPinnedItem
     | CreateDashboardPinnedItem
-    | CreateSpacePinnedItem;
+    | CreateSpacePinnedItem
+    | CreateAppPinnedItem;
 
 export type UpdatePinnedItemOrder = {
     type: ResourceViewItemType;
     data: Pick<
         | ResourceViewChartItem['data']
         | ResourceViewDashboardItem['data']
-        | ResourceViewSpaceItem['data'],
+        | ResourceViewSpaceItem['data']
+        | ResourceViewDataAppItem['data'],
         'uuid' | 'pinnedListOrder'
     >;
 };
@@ -91,13 +106,24 @@ export const isDeleteSpacePinnedItem = (
     item: DeletePinnedItem,
 ): item is DeleteSpacePinnedItem => 'spaceUuid' in item && !!item.spaceUuid;
 
+export const isCreateAppPinnedItem = (
+    item: CreatePinnedItem,
+): item is CreateAppPinnedItem => 'appUuid' in item && !!item.appUuid;
+
+export const isDeleteAppPinnedItem = (
+    item: DeletePinnedItem,
+): item is DeleteAppPinnedItem => 'appUuid' in item && !!item.appUuid;
+
 export type ApiPinnedItems = {
     status: 'ok';
     results: PinnedItems;
 };
 
 export type PinnedItems = Array<
-    ResourceViewDashboardItem | ResourceViewChartItem | ResourceViewSpaceItem
+    | ResourceViewDashboardItem
+    | ResourceViewChartItem
+    | ResourceViewSpaceItem
+    | ResourceViewDataAppItem
 >;
 
 export type TogglePinnedItemInfo = {

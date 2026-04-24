@@ -61,6 +61,8 @@ export type ApiGetAppResponse = ApiSuccess<{
     description: string;
     createdByUserUuid: string;
     spaceUuid: string | null;
+    pinnedListUuid: string | null;
+    pinnedListOrder: number | null;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
 }>;

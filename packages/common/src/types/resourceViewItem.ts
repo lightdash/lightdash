@@ -102,6 +102,8 @@ export type ResourceViewDataAppItem = {
         firstViewedAt: Date | null;
         latestVersionNumber: number | null;
         latestVersionStatus: AppVersionStatus | null;
+        pinnedListUuid: string | null;
+        pinnedListOrder: number | null;
     };
     category?: ResourceItemCategory;
 };
@@ -269,6 +271,8 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 firstViewedAt: content.firstViewedAt,
                 latestVersionNumber: content.latestVersionNumber,
                 latestVersionStatus: content.latestVersionStatus,
+                pinnedListUuid: content.pinnedList?.uuid || null,
+                pinnedListOrder: content.pinnedList?.order || null,
             };
             return wrapResource(dataAppViewItem, ResourceViewItemType.DATA_APP);
         default:

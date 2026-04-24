@@ -17,6 +17,7 @@ import {
     type AppGeneratePipelineJobPayload,
     type ChartReference,
     type SessionUser,
+    type TogglePinnedItemInfo,
 } from '@lightdash/common';
 import { ALL_TRAFFIC, Sandbox } from 'e2b';
 import { Knex } from 'knex';
@@ -38,6 +39,7 @@ import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
 import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
+import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
@@ -52,6 +54,7 @@ type AppGenerateServiceDeps = {
     catalogModel: CatalogModel;
     appModel: AppModel;
     featureFlagModel: FeatureFlagModel;
+    pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
@@ -76,6 +79,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly featureFlagModel: FeatureFlagModel;
 
+    private readonly pinnedListModel: PinnedListModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly schedulerClient: CommercialSchedulerClient;
@@ -91,6 +96,7 @@ export class AppGenerateService extends BaseService {
         catalogModel,
         appModel,
         featureFlagModel,
+        pinnedListModel,
         projectModel,
         schedulerClient,
         savedChartService,
@@ -103,6 +109,7 @@ export class AppGenerateService extends BaseService {
         this.catalogModel = catalogModel;
         this.appModel = appModel;
         this.featureFlagModel = featureFlagModel;
+        this.pinnedListModel = pinnedListModel;
         this.projectModel = projectModel;
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
@@ -2219,6 +2226,8 @@ export class AppGenerateService extends BaseService {
         description: string;
         createdByUserUuid: string;
         spaceUuid: string | null;
+        pinnedListUuid: string | null;
+        pinnedListOrder: number | null;
         versions: {
             version: number;
             prompt: string;
@@ -2236,6 +2245,8 @@ export class AppGenerateService extends BaseService {
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            pinnedListUuid,
+            pinnedListOrder,
             versions,
             hasMore,
         } = await this.appModel.getAppWithVersions(appUuid, projectUuid, opts);
@@ -2264,6 +2275,8 @@ export class AppGenerateService extends BaseService {
             description,
             createdByUserUuid,
             spaceUuid,
+            pinnedListUuid,
+            pinnedListOrder,
             versions: versions.map((v) => ({
                 version: v.version,
                 prompt: v.prompt,
@@ -2319,6 +2332,110 @@ export class AppGenerateService extends BaseService {
                 lastVersionStatus: row.lastVersion?.status ?? null,
             })),
             pagination: result.pagination,
+        };
+    }
+
+    /**
+     * Pin/unpin a data app to the project homepage.
+     *
+     * Personal (spaceless) apps cannot be pinned — the pinned panel is a
+     * project-wide surface, so pinning an app only visible to its creator
+     * would leak its presence to everyone else.
+     */
+    async togglePinning(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+    ): Promise<TogglePinnedItemInfo> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            app.organization_uuid,
+            projectUuid,
+            'Insufficient permissions to pin data apps',
+            { metadata: { appUuid } },
+        );
+
+        if (!app.space_uuid) {
+            throw new ParameterError('Personal data apps cannot be pinned');
+        }
+
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                app.space_uuid,
+            );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('PinnedItems', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid,
+                    metadata: { appUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid,
+                    spaceUuid: app.space_uuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: { appUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this data app belongs to",
+            );
+        }
+
+        if (app.pinned_list_uuid) {
+            await this.pinnedListModel.deleteItem({
+                pinnedListUuid: app.pinned_list_uuid,
+                appUuid,
+            });
+        } else {
+            await this.pinnedListModel.addItem({
+                projectUuid,
+                appUuid,
+            });
+        }
+
+        const pinnedList =
+            await this.pinnedListModel.getPinnedListAndItems(projectUuid);
+
+        this.analytics.track({
+            event: 'pinned_list.updated',
+            userId: user.userUuid,
+            properties: {
+                projectId: projectUuid,
+                organizationId: app.organization_uuid,
+                location: 'homepage',
+                pinnedListId: pinnedList.pinnedListUuid,
+                pinnedItems: pinnedList.items,
+            },
+        });
+
+        return {
+            projectUuid,
+            spaceUuid: app.space_uuid,
+            pinnedListUuid: pinnedList.pinnedListUuid,
+            isPinned: !!pinnedList.items.find(
+                (item) => item.appUuid === appUuid,
+            ),
         };
     }
 

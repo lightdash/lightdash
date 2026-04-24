@@ -129,14 +129,22 @@ export class PinningService extends BaseService {
                 };
             });
 
-        const { charts: allowedCharts, dashboards: allowedDashboards } =
-            await this.resourceViewItemModel.getAllowedChartsAndDashboards(
-                projectUuid,
-                pinnedListUuid,
-                allowedSpaceUuids,
-            );
+        const {
+            charts: allowedCharts,
+            dashboards: allowedDashboards,
+            apps: allowedApps,
+        } = await this.resourceViewItemModel.getAllowedChartsAndDashboards(
+            projectUuid,
+            pinnedListUuid,
+            allowedSpaceUuids,
+        );
 
-        return [...allowedPinnedSpaces, ...allowedCharts, ...allowedDashboards];
+        return [
+            ...allowedPinnedSpaces,
+            ...allowedCharts,
+            ...allowedDashboards,
+            ...allowedApps,
+        ];
     }
 
     async updatePinnedItemsOrder(

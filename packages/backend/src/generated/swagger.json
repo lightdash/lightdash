@@ -8355,7 +8355,7 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
                 "properties": {
                     "results": {
                         "properties": {
@@ -8367,6 +8367,15 @@
                                     "$ref": "#/components/schemas/ApiAppVersionSummary"
                                 },
                                 "type": "array"
+                            },
+                            "pinnedListOrder": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "pinnedListUuid": {
+                                "type": "string",
+                                "nullable": true
                             },
                             "spaceUuid": {
                                 "type": "string",
@@ -8388,6 +8397,8 @@
                         "required": [
                             "hasMore",
                             "versions",
+                            "pinnedListOrder",
+                            "pinnedListUuid",
                             "spaceUuid",
                             "createdByUserUuid",
                             "description",
@@ -8406,7 +8417,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
@@ -8453,6 +8464,43 @@
             },
             "ApiDeleteAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
+            },
+            "TogglePinnedItemInfo": {
+                "properties": {
+                    "isPinned": {
+                        "type": "boolean"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "pinnedListUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "isPinned",
+                    "spaceUuid",
+                    "projectUuid",
+                    "pinnedListUuid"
+                ],
+                "type": "object"
+            },
+            "ApiTogglePinnedItem": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/TogglePinnedItemInfo"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "ApiSuccess__token-string__": {
                 "properties": {
@@ -10177,8 +10225,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -10190,8 +10238,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10205,18 +10253,15 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "tableName": {
                                                                             "type": "string"
@@ -10224,14 +10269,17 @@
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
+                                                                        "fieldType": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10280,8 +10328,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -10325,18 +10373,15 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
                                                                                     },
                                                                                     "tableName": {
                                                                                         "type": "string"
@@ -10344,14 +10389,17 @@
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "name": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10379,8 +10427,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -23923,6 +23971,107 @@
                 "required": ["data", "type"],
                 "type": "object"
             },
+            "ResourceViewItemType.DATA_APP": {
+                "enum": ["data_app"],
+                "type": "string"
+            },
+            "ResourceViewDataAppItem": {
+                "properties": {
+                    "category": {
+                        "$ref": "#/components/schemas/ResourceItemCategory"
+                    },
+                    "data": {
+                        "properties": {
+                            "pinnedListOrder": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "pinnedListUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "latestVersionStatus": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AppVersionStatus"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "latestVersionNumber": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "firstViewedAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "nullable": true
+                            },
+                            "views": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "updatedByUser": {
+                                "properties": {
+                                    "lastName": {
+                                        "type": "string"
+                                    },
+                                    "firstName": {
+                                        "type": "string"
+                                    },
+                                    "userUuid": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "lastName",
+                                    "firstName",
+                                    "userUuid"
+                                ],
+                                "type": "object",
+                                "nullable": true
+                            },
+                            "updatedAt": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "spaceUuid": {
+                                "type": "string"
+                            },
+                            "description": {
+                                "type": "string"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "pinnedListOrder",
+                            "pinnedListUuid",
+                            "latestVersionStatus",
+                            "latestVersionNumber",
+                            "firstViewedAt",
+                            "views",
+                            "updatedByUser",
+                            "updatedAt",
+                            "spaceUuid",
+                            "name",
+                            "uuid"
+                        ],
+                        "type": "object"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ResourceViewItemType.DATA_APP"
+                    }
+                },
+                "required": ["data", "type"],
+                "type": "object"
+            },
             "PinnedItems": {
                 "items": {
                     "anyOf": [
@@ -23934,6 +24083,9 @@
                         },
                         {
                             "$ref": "#/components/schemas/ResourceViewSpaceItem"
+                        },
+                        {
+                            "$ref": "#/components/schemas/ResourceViewDataAppItem"
                         }
                     ]
                 },
@@ -23957,7 +24109,7 @@
                 "enum": ["chart", "dashboard", "space", "data_app"],
                 "type": "string"
             },
-            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data.uuid-or-pinnedListOrder_": {
+            "Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_": {
                 "properties": {
                     "uuid": {
                         "type": "string"
@@ -23975,7 +24127,7 @@
             "UpdatePinnedItemOrder": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data.uuid-or-pinnedListOrder_"
+                        "$ref": "#/components/schemas/Pick_ResourceViewChartItem-at-data-or-ResourceViewDashboardItem-at-data-or-ResourceViewSpaceItem-at-data-or-ResourceViewDataAppItem-at-data.uuid-or-pinnedListOrder_"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ResourceViewItemType"
@@ -25932,96 +26084,6 @@
                     "timestampFieldId",
                     "exploreName"
                 ],
-                "type": "object"
-            },
-            "ResourceViewItemType.DATA_APP": {
-                "enum": ["data_app"],
-                "type": "string"
-            },
-            "ResourceViewDataAppItem": {
-                "properties": {
-                    "category": {
-                        "$ref": "#/components/schemas/ResourceItemCategory"
-                    },
-                    "data": {
-                        "properties": {
-                            "latestVersionStatus": {
-                                "allOf": [
-                                    {
-                                        "$ref": "#/components/schemas/AppVersionStatus"
-                                    }
-                                ],
-                                "nullable": true
-                            },
-                            "latestVersionNumber": {
-                                "type": "number",
-                                "format": "double",
-                                "nullable": true
-                            },
-                            "firstViewedAt": {
-                                "type": "string",
-                                "format": "date-time",
-                                "nullable": true
-                            },
-                            "views": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "updatedByUser": {
-                                "properties": {
-                                    "lastName": {
-                                        "type": "string"
-                                    },
-                                    "firstName": {
-                                        "type": "string"
-                                    },
-                                    "userUuid": {
-                                        "type": "string"
-                                    }
-                                },
-                                "required": [
-                                    "lastName",
-                                    "firstName",
-                                    "userUuid"
-                                ],
-                                "type": "object",
-                                "nullable": true
-                            },
-                            "updatedAt": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "spaceUuid": {
-                                "type": "string"
-                            },
-                            "description": {
-                                "type": "string"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "latestVersionStatus",
-                            "latestVersionNumber",
-                            "firstViewedAt",
-                            "views",
-                            "updatedByUser",
-                            "updatedAt",
-                            "spaceUuid",
-                            "name",
-                            "uuid"
-                        ],
-                        "type": "object"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/ResourceViewItemType.DATA_APP"
-                    }
-                },
-                "required": ["data", "type"],
                 "type": "object"
             },
             "FavoriteItems": {
@@ -30275,11 +30337,15 @@
                     },
                     "pinnedList": {
                         "properties": {
+                            "order": {
+                                "type": "number",
+                                "format": "double"
+                            },
                             "uuid": {
                                 "type": "string"
                             }
                         },
-                        "required": ["uuid"],
+                        "required": ["order", "uuid"],
                         "type": "object",
                         "nullable": true
                     },
@@ -31083,7 +31149,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2795.0",
+        "version": "0.2799.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

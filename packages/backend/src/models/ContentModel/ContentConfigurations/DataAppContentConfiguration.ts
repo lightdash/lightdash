@@ -5,6 +5,7 @@ import {
     AppVersionsTableName,
 } from '../../../database/entities/apps';
 import { OrganizationTableName } from '../../../database/entities/organizations';
+import { PinnedAppTableName } from '../../../database/entities/pinnedList';
 import { ProjectTableName } from '../../../database/entities/projects';
 import { SpaceTableName } from '../../../database/entities/spaces';
 import { UserTableName } from '../../../database/entities/users';
@@ -83,6 +84,11 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     `last_updated_by_user.user_uuid`,
                     `latest_version.created_by_user_uuid`,
                 )
+                .leftJoin(
+                    PinnedAppTableName,
+                    `${PinnedAppTableName}.app_uuid`,
+                    `${AppsTableName}.app_id`,
+                )
                 .select<SummaryContentRow[]>([
                     knex.raw(`'${ContentType.DATA_APP}' as content_type`),
                     knex.raw(
@@ -103,7 +109,7 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     `${ProjectTableName}.name as project_name`,
                     `${OrganizationTableName}.organization_uuid`,
                     `${OrganizationTableName}.organization_name`,
-                    knex.raw(`NULL::uuid as pinned_list_uuid`),
+                    `${PinnedAppTableName}.pinned_list_uuid as pinned_list_uuid`,
                     knex.raw(
                         `${AppsTableName}.created_at::timestamp as created_at`,
                     ),
@@ -132,7 +138,8 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     knex.raw(
                         `json_build_object(
                             'latestVersionNumber', latest_version.version,
-                            'latestVersionStatus', latest_version.status
+                            'latestVersionStatus', latest_version.status,
+                            'pinnedListOrder', ${PinnedAppTableName}.order
                         ) as metadata`,
                     ),
                 ])
@@ -215,7 +222,15 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     uuid: value.space_uuid,
                     name: value.space_name,
                 },
-                pinnedList: null,
+                pinnedList: value.pinned_list_uuid
+                    ? {
+                          uuid: value.pinned_list_uuid,
+                          order:
+                              (value.metadata.pinnedListOrder as
+                                  | number
+                                  | null) ?? 0,
+                      }
+                    : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
                 verification: null,

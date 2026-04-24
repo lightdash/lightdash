@@ -84,6 +84,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     catalogModel: models.getCatalogModel(),
                     appModel: models.getAppModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
+                    pinnedListModel: models.getPinnedListModel(),
                     projectModel: models.getProjectModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,

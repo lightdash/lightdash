@@ -5,6 +5,7 @@ import { generateKeyPair } from 'crypto';
 import { parseKey } from 'sshpk';
 import { Worker } from 'worker_threads';
 import {
+    DbPinnedApp,
     DbPinnedChart,
     DbPinnedDashboard,
     DbPinnedItem,
@@ -22,6 +23,9 @@ export const isDbPinnedDashboard = (
 
 export const isDbPinnedSpace = (data: DbPinnedItem): data is DBPinnedSpace =>
     'space_uuid' in data && !!data.space_uuid;
+
+export const isDbPinnedApp = (data: DbPinnedItem): data is DbPinnedApp =>
+    'app_uuid' in data && !!data.app_uuid;
 
 export const wrapSentryTransaction = <T>(
     name: string,
