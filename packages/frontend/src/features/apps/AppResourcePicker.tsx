@@ -1,26 +1,19 @@
 import { ChartKind, type ChartContent } from '@lightdash/common';
 import {
     ActionIcon,
-    Badge,
     Box,
     Button,
+    CloseButton,
     Group,
+    Image,
     Loader,
     Popover,
     ScrollArea,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    IconChartBar,
-    IconCheck,
-    IconPhoto,
-    IconPlus,
-    IconSearch,
-    IconX,
-} from '@tabler/icons-react';
+import { IconPlus, IconSearch, IconX } from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -32,21 +25,39 @@ import classes from './AppResourcePicker.module.css';
 export type SelectedChart = {
     uuid: string;
     name: string;
+    chartKind?: ChartKind;
 };
 
-type Props = {
-    onImageClick: () => void;
-    imageDisabled: boolean;
-    selectedCharts: SelectedChart[];
-    onChartsChange: (charts: SelectedChart[]) => void;
+/**
+ * Button that triggers the file input for image upload.
+ */
+export const ImageButton: FC<{
+    onClick: () => void;
     disabled: boolean;
-};
+}> = ({ onClick, disabled }) => (
+    <Button
+        variant="default"
+        size="xs"
+        leftSection={<MantineIcon icon={IconPlus} size={14} />}
+        onClick={onClick}
+        disabled={disabled}
+        className={classes.resourceButton}
+    >
+        Images
+    </Button>
+);
 
-const ChartPicker: FC<{
-    pendingCharts: SelectedChart[];
-    onToggle: (chart: SelectedChart) => void;
-}> = ({ pendingCharts, onToggle }) => {
+/**
+ * Button + popover that shows the chart list directly.
+ * Selecting a chart removes it from the list and adds it to the parent.
+ */
+export const QueryButton: FC<{
+    selectedCharts: SelectedChart[];
+    onSelect: (chart: SelectedChart) => void;
+    disabled: boolean;
+}> = ({ selectedCharts, onSelect, disabled }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [opened, setOpened] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
 
@@ -63,7 +74,7 @@ const ChartPicker: FC<{
             pageSize: 25,
             search: debouncedSearch,
         },
-        { keepPreviousData: true },
+        { keepPreviousData: true, enabled: opened },
     );
 
     const allCharts = useMemo(
@@ -71,61 +82,96 @@ const ChartPicker: FC<{
         [chartPages?.pages],
     );
 
-    const pendingUuids = useMemo(
-        () => new Set(pendingCharts.map((c) => c.uuid)),
-        [pendingCharts],
+    const selectedUuids = useMemo(
+        () => new Set(selectedCharts.map((c) => c.uuid)),
+        [selectedCharts],
     );
 
-    // Group charts by space
+    // Filter out already-selected charts
+    const availableCharts = useMemo(
+        () => allCharts.filter((c) => !selectedUuids.has(c.uuid)),
+        [allCharts, selectedUuids],
+    );
+
+    // Group available charts by space
     const groupedCharts = useMemo(() => {
         const groups = new Map<string, ChartContent[]>();
-        for (const chart of allCharts) {
+        for (const chart of availableCharts) {
             const spaceName = chart.space.name;
             const group = groups.get(spaceName) ?? [];
             group.push(chart);
             groups.set(spaceName, group);
         }
         return groups;
-    }, [allCharts]);
+    }, [availableCharts]);
 
-    const [listOpened, setListOpened] = useState(false);
+    const handleSelect = useCallback(
+        (chart: ChartContent) => {
+            onSelect({
+                uuid: chart.uuid,
+                name: chart.name,
+                chartKind: chart.chartKind ?? ChartKind.VERTICAL_BAR,
+            });
+        },
+        [onSelect],
+    );
 
     return (
         <Popover
-            opened={listOpened}
-            onChange={setListOpened}
-            position="bottom"
-            width="target"
-            shadow="sm"
-            withinPortal={false}
+            opened={opened}
+            onChange={setOpened}
+            position="top-start"
+            offset={8}
+            shadow="md"
+            trapFocus
         >
             <Popover.Target>
-                <TextInput
+                <Button
+                    variant="default"
                     size="xs"
-                    placeholder="Search..."
-                    leftSection={<MantineIcon icon={IconSearch} size={14} />}
-                    rightSection={
-                        isFetching && !isInitialLoading ? (
-                            <Loader size={14} />
-                        ) : undefined
-                    }
-                    value={searchQuery}
-                    onChange={(e) => {
-                        setSearchQuery(e.currentTarget.value);
-                        setListOpened(true);
-                    }}
-                    onFocus={() => setListOpened(true)}
-                />
+                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
+                    onClick={() => setOpened((o) => !o)}
+                    disabled={disabled}
+                    className={classes.resourceButton}
+                >
+                    Queries
+                </Button>
             </Popover.Target>
-            <Popover.Dropdown p={4}>
-                <ScrollArea.Autosize mah={350}>
+            <Popover.Dropdown className={classes.queryDropdown}>
+                <Box p="xs" pb={0}>
+                    <Text size="sm" fw={500}>
+                        Add queries
+                    </Text>
+                    <Text size="xs" c="dimmed" mb="xs">
+                        Select queries to include in the app
+                    </Text>
+                </Box>
+                <Box px="xs" pb="xs">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search..."
+                        leftSection={
+                            <MantineIcon icon={IconSearch} size={14} />
+                        }
+                        rightSection={
+                            isFetching && !isInitialLoading ? (
+                                <Loader size={14} />
+                            ) : undefined
+                        }
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    />
+                </Box>
+                <ScrollArea.Autosize mah={350} px="xs" pb="xs">
                     {isInitialLoading ? (
                         <Group justify="center" p="sm">
                             <Loader size="sm" />
                         </Group>
-                    ) : allCharts.length === 0 ? (
+                    ) : availableCharts.length === 0 ? (
                         <Text size="xs" c="dimmed" ta="center" p="sm">
-                            No charts found
+                            {allCharts.length > 0
+                                ? 'All matching charts selected'
+                                : 'No charts found'}
                         </Text>
                     ) : (
                         <>
@@ -139,45 +185,30 @@ const ChartPicker: FC<{
                                                 {spaceName}
                                             </Text>
                                         </Box>
-                                        {charts.map((chart) => {
-                                            const isSelected = pendingUuids.has(
-                                                chart.uuid,
-                                            );
-                                            return (
-                                                <Box
-                                                    key={chart.uuid}
-                                                    className={`${classes.chartItem} ${isSelected ? classes.chartItemSelected : ''}`}
-                                                    onClick={() =>
-                                                        onToggle({
-                                                            uuid: chart.uuid,
-                                                            name: chart.name,
-                                                        })
+                                        {charts.map((chart) => (
+                                            <Box
+                                                key={chart.uuid}
+                                                className={classes.chartItem}
+                                                onClick={() =>
+                                                    handleSelect(chart)
+                                                }
+                                            >
+                                                <ChartIcon
+                                                    chartKind={
+                                                        chart.chartKind ??
+                                                        ChartKind.VERTICAL_BAR
                                                     }
+                                                />
+                                                <Text
+                                                    size="xs"
+                                                    fw={500}
+                                                    truncate
+                                                    flex={1}
                                                 >
-                                                    <ChartIcon
-                                                        chartKind={
-                                                            chart.chartKind ??
-                                                            ChartKind.VERTICAL_BAR
-                                                        }
-                                                    />
-                                                    <Text
-                                                        size="xs"
-                                                        fw={500}
-                                                        truncate
-                                                        flex={1}
-                                                    >
-                                                        {chart.name}
-                                                    </Text>
-                                                    {isSelected && (
-                                                        <MantineIcon
-                                                            icon={IconCheck}
-                                                            size={14}
-                                                            color="var(--mantine-color-violet-6)"
-                                                        />
-                                                    )}
-                                                </Box>
-                                            );
-                                        })}
+                                                    {chart.name}
+                                                </Text>
+                                            </Box>
+                                        ))}
                                     </Box>
                                 ),
                             )}
@@ -201,195 +232,64 @@ const ChartPicker: FC<{
     );
 };
 
-const AppResourcePicker: FC<Props> = ({
-    onImageClick,
-    imageDisabled,
-    selectedCharts,
-    onChartsChange,
-    disabled,
-}) => {
-    const [opened, setOpened] = useState(false);
-    const [showChartPicker, setShowChartPicker] = useState(false);
-
-    // Local pending selection — committed on "Done", discarded on "Cancel"
-    const [pendingCharts, setPendingCharts] = useState<SelectedChart[]>([]);
-
-    const toggleChart = useCallback((chart: SelectedChart) => {
-        setPendingCharts((prev) => {
-            const exists = prev.some((c) => c.uuid === chart.uuid);
-            return exists
-                ? prev.filter((c) => c.uuid !== chart.uuid)
-                : [...prev, chart];
-        });
-    }, []);
-
-    const handleOpenChartPicker = () => {
-        setPendingCharts(selectedCharts);
-        setShowChartPicker(true);
-    };
-
-    const handleDone = () => {
-        onChartsChange(pendingCharts);
-        handleClose();
-    };
-
-    const handleClose = () => {
-        setOpened(false);
-        setShowChartPicker(false);
-    };
-
-    const handleImageClick = () => {
-        onImageClick();
-        handleClose();
-    };
+/**
+ * Renders selected images as rounded thumbnails with remove buttons.
+ */
+export const SelectedImageSection: FC<{
+    images: Array<{ previewUrl: string }>;
+    onRemove: (previewUrl: string) => void;
+}> = ({ images, onRemove }) => {
+    if (images.length === 0) return null;
 
     return (
-        <Popover
-            opened={opened}
-            onChange={(val) => {
-                setOpened(val);
-                if (!val) {
-                    setShowChartPicker(false);
-                }
-            }}
-            position="top"
-            offset={8}
-            shadow="md"
-            trapFocus
-        >
-            <Popover.Target>
-                <Tooltip label="Add resources" position="top" disabled={opened}>
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => setOpened((o) => !o)}
-                        disabled={disabled || opened}
-                        className={classes.triggerButton}
-                    >
-                        <MantineIcon icon={IconPlus} size={16} />
-                    </ActionIcon>
-                </Tooltip>
-            </Popover.Target>
-
-            <Popover.Dropdown className={classes.popoverDropdown}>
-                {!showChartPicker ? (
-                    <Box>
-                        <Box
-                            className={classes.menuItem}
-                            onClick={
-                                imageDisabled ? undefined : handleImageClick
-                            }
-                            opacity={imageDisabled ? 0.5 : 1}
-                            style={{
-                                cursor: imageDisabled
-                                    ? 'not-allowed'
-                                    : 'pointer',
-                            }}
-                        >
-                            <MantineIcon icon={IconPhoto} size={16} />
-                            <Box>
-                                <Text size="sm">Add images</Text>
-                                <Text size="xs" c="dimmed">
-                                    Include images to use as inspiration
-                                </Text>
-                            </Box>
-                        </Box>
-                        <Box
-                            className={classes.menuItem}
-                            onClick={handleOpenChartPicker}
-                        >
-                            <MantineIcon icon={IconChartBar} size={16} />
-                            <Box>
-                                <Text size="sm">Add queries</Text>
-                                <Text size="xs" c="dimmed">
-                                    Include specific queries in the app
-                                </Text>
-                            </Box>
-                        </Box>
-                    </Box>
-                ) : (
-                    <Box className={classes.chartPickerSection}>
-                        <Box p="xs" pb={0}>
-                            <Text size="sm" fw={500}>
-                                Add queries
-                            </Text>
-                            <Text size="xs" c="dimmed" mb="xs">
-                                Selected queries will be passed to the app
-                                builder as starting points for the data in your
-                                app.
-                            </Text>
-                        </Box>
-                        <Box px="xs" pb="xs">
-                            <ChartPicker
-                                pendingCharts={pendingCharts}
-                                onToggle={toggleChart}
-                            />
-                        </Box>
-                        <Group
-                            justify="flex-end"
-                            gap="xs"
-                            p="xs"
-                            className={classes.chartPickerFooter}
-                        >
-                            <Button
-                                variant="subtle"
-                                size="xs"
-                                color="gray"
-                                onClick={handleClose}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="filled"
-                                size="xs"
-                                color="violet"
-                                onClick={handleDone}
-                            >
-                                Done
-                            </Button>
-                        </Group>
-                    </Box>
-                )}
-            </Popover.Dropdown>
-        </Popover>
+        <Group gap="xs">
+            {images.map((img) => (
+                <Box key={img.previewUrl} className={classes.imageItem}>
+                    <Image
+                        src={img.previewUrl}
+                        className={classes.imageThumb}
+                        alt="Attached"
+                    />
+                    <CloseButton
+                        size="xs"
+                        className={classes.imageRemove}
+                        onClick={() => onRemove(img.previewUrl)}
+                    />
+                </Box>
+            ))}
+        </Group>
     );
 };
 
 /**
- * Renders removable pills for selected charts.
- * Place this alongside the image preview in the input area.
+ * Renders selected queries as a list using the same visual as the picker.
  */
-export const SelectedChartPills: FC<{
+export const SelectedQuerySection: FC<{
     charts: SelectedChart[];
     onRemove: (uuid: string) => void;
 }> = ({ charts, onRemove }) => {
     if (charts.length === 0) return null;
 
     return (
-        <Group gap={4} className={classes.selectedCharts}>
+        <Box className={classes.selectedQueryList}>
             {charts.map((chart) => (
-                <Badge
-                    key={chart.uuid}
-                    variant="light"
-                    color="violet"
-                    size="sm"
-                    rightSection={
-                        <ActionIcon
-                            size={14}
-                            variant="transparent"
-                            color="violet"
-                            onClick={() => onRemove(chart.uuid)}
-                        >
-                            <MantineIcon icon={IconX} size={10} />
-                        </ActionIcon>
-                    }
-                >
-                    {chart.name}
-                </Badge>
+                <Box key={chart.uuid} className={classes.selectedQueryItem}>
+                    <ChartIcon
+                        chartKind={chart.chartKind ?? ChartKind.VERTICAL_BAR}
+                    />
+                    <Text size="xs" fw={500} truncate flex={1}>
+                        {chart.name}
+                    </Text>
+                    <ActionIcon
+                        size="xs"
+                        variant="subtle"
+                        color="gray"
+                        onClick={() => onRemove(chart.uuid)}
+                    >
+                        <MantineIcon icon={IconX} size={12} />
+                    </ActionIcon>
+                </Box>
             ))}
-        </Group>
+        </Box>
     );
 };
-
-export default AppResourcePicker;
