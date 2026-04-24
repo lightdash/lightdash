@@ -26,7 +26,7 @@ const VisualizationTimezone: FC<Props> = ({
 
     return (
         <Tooltip
-            label="Results and chart values are rendered in this timezone"
+            label={`Chart and results shown in ${timezone} time zone`}
             position="bottom"
         >
             <Badge
