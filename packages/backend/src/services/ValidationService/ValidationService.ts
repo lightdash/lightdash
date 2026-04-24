@@ -1058,7 +1058,7 @@ export class ValidationService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('Validation', {
-                    organizationUuid,
+                    organizationUuid: organizationUuid!,
                     projectUuid,
                 }),
             )
