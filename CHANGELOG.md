@@ -1,3 +1,10 @@
+# [0.2805.0](https://github.com/lightdash/lightdash/compare/0.2804.0...0.2805.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** pin data apps to the project homepage ([#22351](https://github.com/lightdash/lightdash/issues/22351)) ([3d604fe](https://github.com/lightdash/lightdash/commit/3d604fe2676860650d70f6de101d599a9fc5f766))
+
 # [0.2804.0](https://github.com/lightdash/lightdash/compare/0.2803.2...0.2804.0) (2026-04-24)
 
 
