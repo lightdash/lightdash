@@ -6,6 +6,7 @@ import {
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
     ApiPreAggregateStatsResults,
+    applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
     CalculateSubtotalsFromQuery,
@@ -34,10 +35,9 @@ import {
     formatRawRows,
     formatRawValue,
     formatRow,
+    getAvailableFilterFieldIds,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
-    getDashboardFiltersForTileAndTables,
-    getDimensionMapFromTables,
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
@@ -46,7 +46,6 @@ import {
     getItemMap,
     getMetricOverridesWithPopInheritance,
     getMetrics,
-    getMetricsMapFromTables,
     getMetricsWithValidParameters,
     isCartesianChartConfig,
     isCustomBinDimension,
@@ -55,7 +54,6 @@ import {
     isDateItem,
     isExploreError,
     isField,
-    isFilterableDimension,
     isJwtUser,
     isMetric,
     isValidTimezone,
@@ -4181,37 +4179,16 @@ export class AsyncQueryService extends ProjectService {
             account.isRegisteredUser() ? account.user.id : null,
         );
 
-        // Use the explore's actual field ids (dimensions + metrics) as the
-        // source of truth for which dashboard filter rules apply to this tile.
-        // Matching on field id avoids the divergence between the UI and the
-        // server when a filter rule's `target.tableName` is stale (see comment
-        // on getDashboardFilterRulesForTables in @lightdash/common filters).
-        // The set is intentionally aligned with the UI's
-        // getAvailableFiltersForSavedQueries (filterable, non-hidden).
-        const availableFieldIds = [
-            ...Object.entries(getDimensionMapFromTables(explore.tables))
-                .filter(
-                    ([, field]) =>
-                        isFilterableDimension(field) && !field.hidden,
-                )
-                .map(([fieldId]) => fieldId),
-            ...Object.entries(getMetricsMapFromTables(explore.tables))
-                .filter(([, field]) => !field.hidden)
-                .map(([fieldId]) => fieldId),
-        ];
-        const appliedDashboardFilters: DashboardFilters =
-            getDashboardFiltersForTileAndTables(
+        const { metricQuery: metricQueryWithFilters, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
                 tileUuid,
-                availableFieldIds,
+                metricQuery: savedChart.metricQuery,
                 dashboardFilters,
-            );
+                explore,
+            });
 
         const metricQueryWithDashboardOverrides: MetricQuery = {
-            ...addDashboardFiltersToMetricQuery(
-                savedChart.metricQuery,
-                appliedDashboardFilters,
-                explore,
-            ),
+            ...metricQueryWithFilters,
             sorts:
                 dashboardSorts && dashboardSorts.length > 0
                     ? dashboardSorts
@@ -5807,17 +5784,7 @@ export class AsyncQueryService extends ProjectService {
             savedChart.tableName,
             organizationUuid,
         );
-        const availableFieldIds = [
-            ...Object.entries(getDimensionMapFromTables(explore.tables))
-                .filter(
-                    ([, field]) =>
-                        isFilterableDimension(field) && !field.hidden,
-                )
-                .map(([fieldId]) => fieldId),
-            ...Object.entries(getMetricsMapFromTables(explore.tables))
-                .filter(([, field]) => !field.hidden)
-                .map(([fieldId]) => fieldId),
-        ];
+        const availableFieldIds = getAvailableFilterFieldIds(explore);
 
         const appliedDashboardFilters = dashboardFilters
             ? {

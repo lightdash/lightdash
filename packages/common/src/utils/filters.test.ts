@@ -9,10 +9,12 @@ import {
     type MetricFilterRule,
     type OrFilterGroup,
 } from '../types/filter';
+import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
+    applyDashboardFiltersForTile,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
@@ -1027,5 +1029,101 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
 
         // Verify filter-3 is not included (isSqlColumn is true but fieldId doesn't match)
         expect(result).toHaveLength(0);
+    });
+});
+
+describe('applyDashboardFiltersForTile', () => {
+    const baseMetricQuery: MetricQuery = {
+        exploreName: 'test',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+
+    const statusRule: DashboardFilterRule = {
+        id: 'f-status',
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: [true],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    const offExploreRule: DashboardFilterRule = {
+        id: 'f-off',
+        target: { fieldId: 'other_browser', tableName: 'other' },
+        operator: FilterOperator.EQUALS,
+        values: ['chrome'],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    test('drops rules whose fieldId is not in the explore', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [offExploreRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('drops rules whose tileTargets disable them for this tile', () => {
+        const disabledRule: DashboardFilterRule = {
+            ...statusRule,
+            tileTargets: { 't-1': false },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [disabledRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('merges applicable rules into the metric query', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [statusRule, offExploreRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toHaveLength(1);
+        expect(appliedDashboardFilters.dimensions[0].id).toBe('f-status');
+        const merged = (metricQuery.filters.dimensions as AndFilterGroup).and;
+        expect(merged).toHaveLength(1);
+        expect(merged[0]).toMatchObject({
+            target: { fieldId: 'orders_status' },
+            values: [true],
+        });
     });
 });

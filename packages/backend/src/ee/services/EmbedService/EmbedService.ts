@@ -28,12 +28,12 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
+    getAvailableFilterFieldIds,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
     getFilterInteractivityValue,
     getItemId,
-    getMetrics,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isChartContent,
@@ -940,14 +940,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = [
-            ...getDimensions(explore)
-                .filter((f) => isFilterableDimension(f) && !f.hidden)
-                .map(getItemId),
-            ...getMetrics(explore)
-                .filter((f) => !f.hidden)
-                .map(getItemId),
-        ];
+        const availableFieldIds = getAvailableFilterFieldIds(explore);
 
         let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
             tileUuid,
