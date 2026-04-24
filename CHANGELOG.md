@@ -1,3 +1,10 @@
+# [0.2798.0](https://github.com/lightdash/lightdash/compare/0.2797.0...0.2798.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** show data app counts in space content previews ([#22331](https://github.com/lightdash/lightdash/issues/22331)) ([4f1c850](https://github.com/lightdash/lightdash/commit/4f1c850e48f97a4dca5fa8e9ac53a16ab7d250d5))
+
 # [0.2797.0](https://github.com/lightdash/lightdash/compare/0.2796.1...0.2797.0) (2026-04-24)
 
 
