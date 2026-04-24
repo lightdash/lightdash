@@ -1,3 +1,10 @@
+# [0.2800.0](https://github.com/lightdash/lightdash/compare/0.2799.0...0.2800.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** add Data Apps option to space content type filter ([#22334](https://github.com/lightdash/lightdash/issues/22334)) ([6dd88e9](https://github.com/lightdash/lightdash/commit/6dd88e9bdcd6784e5045904361611f19ab183642))
+
 # [0.2799.0](https://github.com/lightdash/lightdash/compare/0.2798.0...0.2799.0) (2026-04-24)
 
 
