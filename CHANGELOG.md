@@ -1,3 +1,15 @@
+# [0.2801.0](https://github.com/lightdash/lightdash/compare/0.2800.1...0.2801.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** scope dashboard filters per-tile in audit path ([#22338](https://github.com/lightdash/lightdash/issues/22338)) ([1b476ff](https://github.com/lightdash/lightdash/commit/1b476ff54bbd33f002c592f62a97ff25530ffc6b))
+
+
+### Features
+
+* **explorer:** show resolved timezone badge on chart card ([#22336](https://github.com/lightdash/lightdash/issues/22336)) ([2c375f7](https://github.com/lightdash/lightdash/commit/2c375f750eaedb193ae06440f34fd815685b2009))
+
 ## [0.2800.1](https://github.com/lightdash/lightdash/compare/0.2800.0...0.2800.1) (2026-04-24)
 
 
