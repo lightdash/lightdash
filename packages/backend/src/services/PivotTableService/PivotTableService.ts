@@ -101,6 +101,7 @@ export class PivotTableService extends BaseService {
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
+        timezone,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -120,6 +121,7 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
+        timezone?: string;
     }): Promise<{ fileUrl: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -173,6 +175,7 @@ export class PivotTableService extends BaseService {
             organizationUuid,
             createdByUserUuid,
             expirationSecondsOverride,
+            timezone,
         });
 
         return {

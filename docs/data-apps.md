@@ -69,6 +69,23 @@ This means Claude can see what it built previously and make targeted changes rat
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
 (interrupting any running commands). The sandbox remains resumable for subsequent iterations.
 
+### Deletion
+
+Deleting an app goes through a single `DELETE /apps/{appUuid}` endpoint that routes to one of two modes based on the
+instance-wide `lightdashConfig.softDelete.enabled` flag — the same pattern used by charts, dashboards, spaces, and SQL
+charts.
+
+- **Soft delete** (`softDelete.enabled=true`): the `apps` row is marked with `deleted_at` and `deleted_by_user_uuid`.
+  Every read path (`getApp`, `getAppWithVersions`, `listMyApps`, `updateApp`, `moveToSpace`) already filters
+  `deleted_at IS NULL`, so the app disappears from the UI but can be restored by clearing those columns. The E2B sandbox
+  is paused so the in-flight pipeline (if any) stops against a hidden app.
+- **Hard delete** (`softDelete.enabled=false`): the `apps` row is removed; `app_versions` cascade via
+  `ON DELETE CASCADE`; the E2B sandbox is killed; and every S3 object under the `apps/{appUuid}/` prefix is
+  enumerated and deleted (staged image uploads, version source tarballs, built dist tarballs, and per-version assets).
+
+Implementation: `AppGenerateService.deleteApp` is the entry point. It delegates to `softDeleteApp` or
+`permanentDeleteApp`, which each enforce the `manage:DataApp` scope and handle sandbox/S3 cleanup.
+
 ---
 
 ## Data Model
@@ -133,6 +150,7 @@ All endpoints require the `manage:DataApp` permission and are scoped under `/api
 | `POST`  | `/projects/{projectUuid}/apps/`                                           | Create a new app from a prompt         |
 | `GET`   | `/projects/{projectUuid}/apps/{appUuid}`                                  | Get app with paginated version history |
 | `PATCH` | `/projects/{projectUuid}/apps/{appUuid}`                                  | Update name/description                |
+| `DELETE`| `/projects/{projectUuid}/apps/{appUuid}`                                  | Soft or hard delete (config-driven)    |
 | `POST`  | `/projects/{projectUuid}/apps/{appUuid}/versions`                         | Iterate with a follow-up prompt        |
 | `POST`  | `/projects/{projectUuid}/apps/{appUuid}/versions/{version}/cancel`        | Cancel a building version              |
 | `GET`   | `/projects/{projectUuid}/apps/{appUuid}/versions/{version}/preview-token` | Mint JWT for iframe preview            |

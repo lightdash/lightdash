@@ -102,6 +102,11 @@ import {
 import { type InfiniteQueryResults } from '../useQueryResults';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
+import {
+    applyTimezoneShiftToEchartsOptions,
+    resolveAxisTimezone,
+    TIME_INTERVALS_FOR_CATEGORY_AXIS,
+} from './timezoneShift';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -186,15 +191,6 @@ export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
         return 'value';
     }
 };
-
-// Time intervals that benefit from category axis in bar charts.
-// These must match intervals handled by getCategoryDateAxisConfig.
-const TIME_INTERVALS_FOR_CATEGORY_AXIS: TimeFrames[] = [
-    TimeFrames.WEEK,
-    TimeFrames.MONTH,
-    TimeFrames.QUARTER,
-    TimeFrames.YEAR,
-];
 
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
@@ -1580,6 +1576,7 @@ const getEchartAxes = ({
     minsAndMaxes,
     parameters,
     resolvedTimezone,
+    displayTimezone,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1589,6 +1586,7 @@ const getEchartAxes = ({
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
+    displayTimezone?: string;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1801,6 +1799,7 @@ const getEchartAxes = ({
         show: showXAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1822,6 +1821,7 @@ const getEchartAxes = ({
         show: showXAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1842,6 +1842,7 @@ const getEchartAxes = ({
         show: showLeftYAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1862,6 +1863,7 @@ const getEchartAxes = ({
         show: showRightYAxis,
         parameters,
         timezone: resolvedTimezone,
+        displayTimezone,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2413,6 +2415,16 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
+    const { shiftedField, axisTimezone, axisDisplayTimezone } = useMemo(
+        () =>
+            resolveAxisTimezone({
+                validCartesianConfig,
+                itemsMap,
+                resolvedTimezone,
+            }),
+        [resolvedTimezone, validCartesianConfig, itemsMap],
+    );
+
     const tooltipConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.tooltip;
@@ -2564,7 +2576,8 @@ const useEchartsCartesianConfig = (
                     : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
-            resolvedTimezone,
+            resolvedTimezone: axisTimezone,
+            displayTimezone: axisDisplayTimezone,
         });
     }, [
         itemsMap,
@@ -2575,7 +2588,8 @@ const useEchartsCartesianConfig = (
         isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
-        resolvedTimezone,
+        axisTimezone,
+        axisDisplayTimezone,
     ]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
@@ -3137,7 +3151,8 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
-                timezone: resolvedTimezone,
+                timezone: axisTimezone,
+                displayTimezone: axisDisplayTimezone,
             }),
         };
     }, [
@@ -3154,7 +3169,8 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
-        resolvedTimezone,
+        axisTimezone,
+        axisDisplayTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid
@@ -3501,7 +3517,7 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
-        return {
+        const baseOptions = {
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             useUTC: true,
@@ -3544,6 +3560,10 @@ const useEchartsCartesianConfig = (
                 ],
             }),
         };
+
+        return shiftedField
+            ? applyTimezoneShiftToEchartsOptions(baseOptions, shiftedField)
+            : baseOptions;
     }, [
         sortedAxes,
         sortedSeriesForChart,
@@ -3555,6 +3575,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
+        shiftedField,
     ]);
 
     if (

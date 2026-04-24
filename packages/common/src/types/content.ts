@@ -92,6 +92,7 @@ export interface SpaceContentBase extends Content {
     dashboardCount: number;
     chartCount: number;
     childSpaceCount: number;
+    appCount: number;
     pinnedList: {
         uuid: string;
         order: number;

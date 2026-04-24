@@ -231,6 +231,12 @@ export class ContentModel {
                     dashboardCount: Number(row.metadata.dashboardCount ?? 0),
                     chartCount: Number(row.metadata.chartCount ?? 0),
                     schedulerCount: Number(row.metadata.schedulerCount ?? 0),
+                    appCount: Number(row.metadata.appCount ?? 0),
+                };
+            case ContentType.DATA_APP:
+                return {
+                    ...base,
+                    contentType: ContentType.DATA_APP,
                 };
             default:
                 throw new Error(

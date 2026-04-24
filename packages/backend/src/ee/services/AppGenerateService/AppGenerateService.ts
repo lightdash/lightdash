@@ -1,7 +1,10 @@
 import {
+    DeleteObjectsCommand,
     GetObjectCommand,
+    ListObjectsV2Command,
     PutObjectCommand,
     S3Client,
+    type ObjectIdentifier,
     type S3ClientConfig,
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
@@ -2376,6 +2379,246 @@ export class AppGenerateService extends BaseService {
             name: updatedApp.name,
             description: updatedApp.description,
         };
+    }
+
+    /**
+     * Delete a data app. Routes to soft or permanent delete based on
+     * `lightdashConfig.softDelete.enabled`.
+     *
+     * `bypassPermissions` is used by cascading deletes from `SpaceService`
+     * where the parent space already authorized the action — skipping both
+     * the feature-flag check and the CASL check.
+     */
+    async deleteApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        options?: { bypassPermissions?: boolean },
+    ): Promise<void> {
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'delete', {
+                type: 'DataApp',
+                metadata: { appUuid },
+                organizationUuid: app.organization_uuid,
+            });
+        } else {
+            await this.assertDataAppsEnabled(user);
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                app.organization_uuid,
+                projectUuid,
+                'Insufficient permissions to delete data apps',
+            );
+        }
+
+        const softDeleteEnabled = this.lightdashConfig.softDelete.enabled;
+
+        if (softDeleteEnabled) {
+            // Pausing the sandbox interrupts any in-flight pipeline so it
+            // doesn't keep running against a now-hidden app.
+            await this.pauseSandboxIfRunning(app.sandbox_id, appUuid);
+            await this.appModel.softDelete(appUuid, projectUuid, user.userUuid);
+        } else {
+            await this.killSandboxIfExists(app.sandbox_id, appUuid);
+            await this.deleteAppS3Prefix(appUuid);
+            await this.appModel.permanentDelete(appUuid, projectUuid);
+        }
+
+        this.analytics.track({
+            event: 'data_app.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+                softDelete: softDeleteEnabled,
+            },
+        });
+    }
+
+    /**
+     * Restore a soft-deleted app. Used by the `SpaceService` restore cascade.
+     */
+    async restoreApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        options?: { bypassPermissions?: boolean },
+    ): Promise<void> {
+        const app = await this.appModel.getAppIncludingDeleted(
+            appUuid,
+            projectUuid,
+        );
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DataApp',
+                metadata: { appUuid },
+                organizationUuid: app.organization_uuid,
+            });
+        } else {
+            await this.assertDataAppsEnabled(user);
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                app.organization_uuid,
+                projectUuid,
+                'Insufficient permissions to restore data apps',
+            );
+        }
+
+        await this.appModel.restore(appUuid, projectUuid);
+
+        this.analytics.track({
+            event: 'data_app.restored',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+            },
+        });
+    }
+
+    /**
+     * Permanently delete an app regardless of current soft-delete state.
+     * Kills the sandbox and purges the S3 prefix. Used by the `SpaceService`
+     * permanent-delete cascade (where the app is typically already
+     * soft-deleted) and by the admin recently-deleted flow.
+     */
+    async permanentDeleteApp(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        options?: { bypassPermissions?: boolean },
+    ): Promise<void> {
+        const app = await this.appModel.getAppIncludingDeleted(
+            appUuid,
+            projectUuid,
+        );
+        if (options?.bypassPermissions) {
+            this.logBypassEvent(user, 'manage', {
+                type: 'DataApp',
+                metadata: { appUuid },
+                organizationUuid: app.organization_uuid,
+            });
+        } else {
+            await this.assertDataAppsEnabled(user);
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                app.organization_uuid,
+                projectUuid,
+                'Insufficient permissions to delete data apps',
+            );
+        }
+
+        await this.killSandboxIfExists(app.sandbox_id, appUuid);
+        await this.deleteAppS3Prefix(appUuid);
+        await this.appModel.permanentDelete(appUuid, projectUuid);
+
+        this.analytics.track({
+            event: 'data_app.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+                softDelete: false,
+            },
+        });
+    }
+
+    private async pauseSandboxIfRunning(
+        sandboxId: string | null,
+        appUuid: string,
+    ): Promise<void> {
+        if (!sandboxId) return;
+        try {
+            const sandbox = await Sandbox.connect(sandboxId, {
+                apiKey: this.getE2bApiKey(),
+            });
+            await sandbox.pause();
+            this.logger.info(
+                `App ${appUuid}: sandbox paused during delete (sandboxId=${sandboxId})`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to pause sandbox during delete: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    private async killSandboxIfExists(
+        sandboxId: string | null,
+        appUuid: string,
+    ): Promise<void> {
+        if (!sandboxId) return;
+        try {
+            const sandbox = await Sandbox.connect(sandboxId, {
+                apiKey: this.getE2bApiKey(),
+            });
+            await sandbox.kill();
+            this.logger.info(
+                `App ${appUuid}: sandbox killed during hard delete (sandboxId=${sandboxId})`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: failed to kill sandbox during hard delete: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /**
+     * Purge every S3 object under `apps/{appUuid}/` — covers staged image
+     * uploads, version source tarballs, built dist tarballs, and per-version
+     * assets.
+     */
+    private async deleteAppS3Prefix(appUuid: string): Promise<void> {
+        const { client, bucket } = this.getS3Client();
+        const prefix = `apps/${appUuid}/`;
+
+        let continuationToken: string | undefined;
+        let totalDeleted = 0;
+        // S3 pagination requires sequential awaits: each list call depends on
+        // the previous call's continuation token.
+        /* eslint-disable no-await-in-loop */
+        do {
+            const listResponse = await client.send(
+                new ListObjectsV2Command({
+                    Bucket: bucket,
+                    Prefix: prefix,
+                    ContinuationToken: continuationToken,
+                }),
+            );
+
+            const objects: ObjectIdentifier[] = (listResponse.Contents ?? [])
+                .map((obj) => obj.Key)
+                .filter((key): key is string => typeof key === 'string')
+                .map((Key) => ({ Key }));
+
+            if (objects.length > 0) {
+                // DeleteObjects caps at 1000 keys per call; ListObjectsV2
+                // returns at most 1000 per page, so one batch per page is safe.
+                await client.send(
+                    new DeleteObjectsCommand({
+                        Bucket: bucket,
+                        Delete: { Objects: objects, Quiet: true },
+                    }),
+                );
+                totalDeleted += objects.length;
+            }
+
+            continuationToken = listResponse.IsTruncated
+                ? listResponse.NextContinuationToken
+                : undefined;
+        } while (continuationToken);
+        /* eslint-enable no-await-in-loop */
+
+        this.logger.info(
+            `App ${appUuid}: deleted ${totalDeleted} S3 object(s) under ${prefix}`,
+        );
     }
 
     /**

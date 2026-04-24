@@ -359,6 +359,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             clients.getPreAggregateResultsFileStorageClient(),
                         isEnabled: () =>
                             context.lightdashConfig.preAggregates.enabled,
+                        dashboardModel: models.getDashboardModel(),
+                        savedChartModel: models.getSavedChartModel(),
+                        projectService: repository.getProjectService(),
                     }),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:

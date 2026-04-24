@@ -1,8 +1,9 @@
 import { FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
-import { IconDots, IconPencil } from '@tabler/icons-react';
+import { IconAppsOff, IconDots, IconPencil } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
+import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
@@ -78,14 +79,25 @@ export default function AppPreviewTest() {
         appQuery.isLoading || (version !== undefined && isTokenLoading);
     const error = appQuery.error ?? tokenError;
 
-    // Forbidden / not-found → render the standard no-access panel, not a
-    // "no ready version" message which would be misleading.
     const isForbidden =
         appQuery.error?.error?.statusCode === 403 ||
-        tokenError?.error?.statusCode === 403 ||
-        appQuery.error?.error?.statusCode === 404;
+        tokenError?.error?.statusCode === 403;
     if (isForbidden) {
         return <ForbiddenPanel />;
+    }
+    const isNotFound =
+        appQuery.error?.error?.statusCode === 404 ||
+        tokenError?.error?.statusCode === 404;
+    if (isNotFound) {
+        return (
+            <Box mt="30vh">
+                <SuboptimalState
+                    icon={IconAppsOff}
+                    title="Data app not found"
+                    description="This data app doesn't exist or has been deleted."
+                />
+            </Box>
+        );
     }
 
     if (

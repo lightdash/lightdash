@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import { Strategy as SlackStrategy } from 'passport-slack-oauth2';
 import { lightdashConfig } from '../../../config/lightdashConfig';
+import Logger from '../../../logging/logger';
 
 export const slackPassportStrategy = !(
     lightdashConfig.slack?.clientId && lightdashConfig.slack?.clientSecret
@@ -45,6 +46,13 @@ export const slackPassportStrategy = !(
                   await req.services
                       .getUserService()
                       .linkOpenIdIdentityToUser(req.user, openIdUser);
+                  Logger.info('Slack OAuth identity link attempt', {
+                      event: 'auth.slack.identity_link',
+                      result: 'created',
+                      userUuid: req.user.userUuid,
+                      slackSubject: profile.id,
+                      slackProfileTeamId: profile.team.id,
+                  });
                   return done(null, req.user);
               } catch (e: unknown) {
                   if (
@@ -54,15 +62,23 @@ export const slackPassportStrategy = !(
                       e.code === '23505'
                   ) {
                       // Postgres duplicate key error code
-                      console.warn(
-                          `Trying to link open id to user ${req.user.userUuid} but user is already linked`,
-                      );
-                      return done(null, req.user); // Silent error if user is already linked to the identity
+                      Logger.info('Slack OAuth identity link attempt', {
+                          event: 'auth.slack.identity_link',
+                          result: 'already_linked',
+                          userUuid: req.user.userUuid,
+                          slackSubject: profile.id,
+                          slackProfileTeamId: profile.team.id,
+                      });
+                      return done(null, req.user); // Silent success — user is already linked to the identity
                   }
-                  console.error(
-                      `Unable to link open id to user ${req.user.userUuid}`,
-                      e,
-                  );
+                  Logger.info('Slack OAuth identity link attempt', {
+                      event: 'auth.slack.identity_link',
+                      result: 'failed',
+                      userUuid: req.user.userUuid,
+                      slackSubject: profile.id,
+                      slackProfileTeamId: profile.team.id,
+                      errorMessage: getErrorMessage(e),
+                  });
                   return done(new UnexpectedDatabaseError(getErrorMessage(e)));
               }
           },

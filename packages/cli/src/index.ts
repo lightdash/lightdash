@@ -33,6 +33,7 @@ import {
 import { lintHandler } from './handlers/lint';
 import { listProjectsHandler } from './handlers/listProjects';
 import { login } from './handlers/login';
+import { preAggregateAuditHandler } from './handlers/preAggregateAudit';
 import {
     previewHandler,
     startPreviewHandler,
@@ -1217,6 +1218,33 @@ ${styles.bold('Examples:')}
         'cli',
     )
     .action(lintHandler);
+
+program
+    .command('pre-aggregate-audit')
+    .description(
+        'Audit pre-aggregate hit/miss coverage for a dashboard (or every dashboard with --all)',
+    )
+    .option(
+        '--dashboard <uuidOrSlug>',
+        'Dashboard UUID or slug (required unless --all is passed)',
+    )
+    .option('--all', 'Audit every dashboard in the target project', false)
+    .option(
+        '--project <projectUuid>',
+        'Project UUID (defaults to LIGHTDASH_PROJECT_UUID env or config)',
+    )
+    .option(
+        '--json',
+        'Emit machine-readable JSON instead of human output',
+        false,
+    )
+    .option(
+        '--fail-on-miss',
+        'Exit 1 if any eligible tile is a pre-aggregate miss (CI-friendly)',
+        false,
+    )
+    .option('--verbose', 'Expand the ineligible section in human output', false)
+    .action(preAggregateAuditHandler);
 
 program
     .command('sql')

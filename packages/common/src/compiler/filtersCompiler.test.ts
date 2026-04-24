@@ -1459,6 +1459,52 @@ describe('Filter SQL', () => {
             );
             expect(sql).toContain('UPPER');
         });
+
+        test('filter-rule-level caseSensitive overrides case-sensitive field and explore', () => {
+            const fieldCaseSensitive = {
+                ...mockDimension,
+                caseSensitive: true,
+            };
+            const filterRuleOverride: FilterRule = {
+                ...caseFilter,
+                caseSensitive: false,
+            };
+            const sql = renderFilterRuleSqlFromField(
+                filterRuleOverride,
+                fieldCaseSensitive,
+                '"',
+                "'",
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                true, // explore-level is also case-sensitive
+            );
+            expect(sql).toContain('UPPER');
+        });
+
+        test('filter-rule-level caseSensitive=true overrides case-insensitive field', () => {
+            const fieldCaseInsensitive = {
+                ...mockDimension,
+                caseSensitive: false,
+            };
+            const filterRuleOverride: FilterRule = {
+                ...caseFilter,
+                caseSensitive: true,
+            };
+            const sql = renderFilterRuleSqlFromField(
+                filterRuleOverride,
+                fieldCaseInsensitive,
+                '"',
+                "'",
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                false,
+            );
+            expect(sql).not.toContain('UPPER');
+        });
     });
 
     test('should return 1=1 if filter is disabled', () => {

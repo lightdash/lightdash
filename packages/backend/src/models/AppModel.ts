@@ -447,6 +447,79 @@ export class AppModel {
         };
     }
 
+    async softDelete(
+        appId: string,
+        projectUuid: string,
+        deletedByUserUuid: string,
+    ): Promise<void> {
+        const updated = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({
+                deleted_at: this.database.fn.now() as unknown as Date,
+                deleted_by_user_uuid: deletedByUserUuid,
+            });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+    }
+
+    async permanentDelete(appId: string, projectUuid: string): Promise<void> {
+        // app_versions rows cascade via FK (ON DELETE CASCADE).
+        const deleted = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .delete();
+        if (deleted === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+    }
+
+    /**
+     * Fetch an app regardless of soft-delete state. Used by restore and by
+     * cascading permanent-delete (where the app row is already soft-deleted
+     * from a prior cascade step).
+     */
+    async getAppIncludingDeleted(
+        appId: string,
+        projectUuid: string,
+    ): Promise<DbApp & { organization_uuid: string }> {
+        const row = await this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .select<(DbApp & { organization_uuid: string })[]>(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .first();
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    async restore(appId: string, projectUuid: string): Promise<void> {
+        const updated = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNotNull('deleted_at')
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            });
+        if (updated === 0) {
+            throw new NotFoundError(`Deleted app not found: ${appId}`);
+        }
+    }
+
     async updateSandboxId(
         appId: string,
         sandboxId: string | null,

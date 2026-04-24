@@ -1,4 +1,9 @@
-import { getErrorMessage, isApiError, type Project } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getErrorMessage,
+    isApiError,
+    type Project,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -16,6 +21,7 @@ import {
     useProject,
     useProjectUpdateQueryTimezoneSettings,
 } from '../../hooks/useProject';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import TimeZonePicker from '../common/TimeZonePicker';
 
@@ -74,6 +80,10 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
     projectUuid,
 }) => {
     const { showToastError, showToastSuccess } = useToaster();
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const timezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
     const { data: project, isLoading: isLoadingProject } =
         useProject(projectUuid);
     const projectMutation = useProjectUpdateQueryTimezoneSettings(projectUuid);
@@ -107,12 +117,24 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                 <Stack gap="xs">
                     <Title order={4}>Query time zone</Title>
                     <Text c="ldGray.6" fz="sm">
-                        Controls what &quot;today&quot;, &quot;this week&quot;,
-                        and other &quot;in the current&quot; date filters mean.
-                        For example, if set to US/Eastern, &quot;today&quot;
-                        means midnight-to-midnight New York time instead of UTC.
-                        This does not change your database&apos;s session time
-                        zone.
+                        {timezoneSupportEnabled ? (
+                            <>
+                                The time zone used for date filters, time
+                                grouping, and how dates appear in charts and
+                                tables. This does not change your
+                                database&apos;s session time zone.
+                            </>
+                        ) : (
+                            <>
+                                Controls what &quot;today&quot;, &quot;this
+                                week&quot;, and other &quot;in the current&quot;
+                                date filters mean. For example, if set to
+                                US/Eastern, &quot;today&quot; means
+                                midnight-to-midnight New York time instead of
+                                UTC. This does not change your database&apos;s
+                                session time zone.
+                            </>
+                        )}
                     </Text>
                     <Text c="ldGray.6" fz="xs">
                         Learn more in our{' '}

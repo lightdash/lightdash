@@ -17,6 +17,7 @@ import {
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardFilters,
+    DashboardPreAggregateAudit,
     DEFAULT_RESULTS_PAGE_SIZE,
     derivePivotConfigurationFromChart,
     Dimension,
@@ -1103,6 +1104,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        const { displayTimezone } = await this.resolveTimezoneContext({
+            projectUuid: queryHistory.projectUuid,
+            organizationUuid: queryHistory.organizationUuid,
+            userUuid:
+                AsyncQueryService.getQueryHistoryActor(queryHistory).userUuid,
+            metricQuery: queryHistory.metricQuery,
+        });
+
         const { status, resultsFileName, fields, columns } = queryHistory;
         const resultsStorageClient = this.getResultsStorageClientForContext(
             queryHistory.context,
@@ -1227,6 +1236,7 @@ export class AsyncQueryService extends ProjectService {
                             ? null
                             : account.user.userUuid,
                         expirationSecondsOverride,
+                        timezone: displayTimezone ?? undefined,
                     });
                 }
                 return this.downloadAsyncQueryResultsAsFormattedFile(
@@ -1255,6 +1265,7 @@ export class AsyncQueryService extends ProjectService {
                         fileType: DownloadFileType.CSV,
                         expirationSecondsOverride,
                     },
+                    displayTimezone ?? undefined,
                 );
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
@@ -1349,6 +1360,7 @@ export class AsyncQueryService extends ProjectService {
                 sortedFieldIds: string[],
                 headers: string[],
                 streams: { readStream: Readable; writeStream: Writable },
+                timezone?: string,
             ) => Promise<{ truncated: boolean }>;
         },
         options?: {
@@ -1367,6 +1379,7 @@ export class AsyncQueryService extends ProjectService {
             fileType: DownloadFileType;
             expirationSecondsOverride?: number;
         },
+        timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
@@ -1410,6 +1423,7 @@ export class AsyncQueryService extends ProjectService {
                         readStream,
                         writeStream,
                     },
+                    timezone,
                 );
 
                 return {
@@ -4621,6 +4635,7 @@ export class AsyncQueryService extends ProjectService {
             limit: 500,
             tableCalculations: [],
             additionalMetrics: [],
+            timezone: metricQuery.timezone,
         };
 
         const underlyingDataMetricQueryWithLimit = applyMetricQueryLimit(
@@ -6108,5 +6123,29 @@ export class AsyncQueryService extends ProjectService {
             paginateArgs,
             filters,
         );
+    }
+
+    async getDashboardPreAggregateAudit(
+        account: Account,
+        projectUuid: string,
+        dashboardUuid: string,
+    ): Promise<DashboardPreAggregateAudit> {
+        assertIsAccountWithOrg(account);
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+            throw new ForbiddenError();
+        }
+
+        return this.preAggregateStrategy.auditDashboard({
+            account,
+            projectUuid,
+            dashboard,
+        });
     }
 }

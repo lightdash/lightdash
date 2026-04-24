@@ -1,3 +1,9 @@
+import {
+    DimensionType,
+    FieldType,
+    ItemsMap,
+    type Dimension,
+} from '@lightdash/common';
 import * as fs from 'fs/promises';
 import moment from 'moment';
 import { Readable, Writable } from 'stream';
@@ -245,6 +251,73 @@ $4.00,value_4,2020-03-16
         ]);
 
         expect(csv).toEqual(['$1.00', 'value_1', '2020-03-16 11:32:55.123']);
+    });
+
+    it('Should shift timestamp dimensions into the provided timezone', async () => {
+        const row = {
+            column_string: `value_1`,
+            column_timestamp: '2020-03-16T11:32:55.123Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(
+            row,
+            itemMap,
+            false,
+            ['column_string', 'column_timestamp'],
+            'America/New_York',
+        );
+
+        expect(csv).toEqual(['value_1', '2020-03-16 07:32:55.123']);
+    });
+
+    it('Should not shift raw date dimensions (no TIMESTAMP base)', async () => {
+        const row = {
+            column_string: `value_1`,
+            column_date: '2020-03-16T02:32:55.000Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(
+            row,
+            itemMap,
+            false,
+            ['column_string', 'column_date'],
+            'America/New_York',
+        );
+
+        expect(csv).toEqual(['value_1', '2020-03-16']);
+    });
+
+    it('Should shift date dimensions that are day-truncated from a TIMESTAMP base', async () => {
+        const columnDay: Dimension = {
+            name: 'column_day',
+            description: undefined,
+            type: DimensionType.DATE,
+            hidden: false,
+            table: 'table',
+            tableLabel: 'table',
+            label: 'column day',
+            fieldType: FieldType.DIMENSION,
+            sql: '${TABLE}.column_day',
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const itemMapWithTruncatedDay: ItemsMap = {
+            ...itemMap,
+            column_day: columnDay,
+        };
+        const row = {
+            column_string: `value_1`,
+            column_day: '2020-03-16T02:32:55.000Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(
+            row,
+            itemMapWithTruncatedDay,
+            false,
+            ['column_string', 'column_day'],
+            'America/New_York',
+        );
+
+        expect(csv).toEqual(['value_1', '2020-03-15']);
     });
 
     it('Should generate csv file ids', async () => {

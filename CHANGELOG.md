@@ -1,3 +1,139 @@
+# [0.2801.0](https://github.com/lightdash/lightdash/compare/0.2800.1...0.2801.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **pre-aggregates:** scope dashboard filters per-tile in audit path ([#22338](https://github.com/lightdash/lightdash/issues/22338)) ([1b476ff](https://github.com/lightdash/lightdash/commit/1b476ff54bbd33f002c592f62a97ff25530ffc6b))
+
+
+### Features
+
+* **explorer:** show resolved timezone badge on chart card ([#22336](https://github.com/lightdash/lightdash/issues/22336)) ([2c375f7](https://github.com/lightdash/lightdash/commit/2c375f750eaedb193ae06440f34fd815685b2009))
+
+## [0.2800.1](https://github.com/lightdash/lightdash/compare/0.2800.0...0.2800.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **cli:** validate preview project exists before defaulting to it ([#22327](https://github.com/lightdash/lightdash/issues/22327)) ([a62eef0](https://github.com/lightdash/lightdash/commit/a62eef0bd545f1a55a037eb0abdb82cb06e2c360))
+
+# [0.2800.0](https://github.com/lightdash/lightdash/compare/0.2799.0...0.2800.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** add Data Apps option to space content type filter ([#22334](https://github.com/lightdash/lightdash/issues/22334)) ([6dd88e9](https://github.com/lightdash/lightdash/commit/6dd88e9bdcd6784e5045904361611f19ab183642))
+
+# [0.2799.0](https://github.com/lightdash/lightdash/compare/0.2798.0...0.2799.0) (2026-04-24)
+
+
+### Features
+
+* add step cap error handling and analytics tracking for AI agent ([#22314](https://github.com/lightdash/lightdash/issues/22314)) ([bd55165](https://github.com/lightdash/lightdash/commit/bd551652db59cebd8f70b61bb55e46a256be185f)), closes [#22294](https://github.com/lightdash/lightdash/issues/22294)
+
+# [0.2798.0](https://github.com/lightdash/lightdash/compare/0.2797.0...0.2798.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** show data app counts in space content previews ([#22331](https://github.com/lightdash/lightdash/issues/22331)) ([4f1c850](https://github.com/lightdash/lightdash/commit/4f1c850e48f97a4dca5fa8e9ac53a16ab7d250d5))
+
+# [0.2797.0](https://github.com/lightdash/lightdash/compare/0.2796.1...0.2797.0) (2026-04-24)
+
+
+### Features
+
+* **timezone:** thread displayTimezone through CSV and pivot CSV exports ([#22282](https://github.com/lightdash/lightdash/issues/22282)) ([d11f34a](https://github.com/lightdash/lightdash/commit/d11f34abace506a09a6707e5044c68243d07babb))
+
+## [0.2796.1](https://github.com/lightdash/lightdash/compare/0.2796.0...0.2796.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **data-apps:** hide promote option for data apps in space view ([#22330](https://github.com/lightdash/lightdash/issues/22330)) ([d613efc](https://github.com/lightdash/lightdash/commit/d613efc1c0bba8fca7fd81132d29aa63395dd717))
+
+# [0.2796.0](https://github.com/lightdash/lightdash/compare/0.2795.0...0.2796.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** soft and hard delete ([#22285](https://github.com/lightdash/lightdash/issues/22285)) ([4c483b9](https://github.com/lightdash/lightdash/commit/4c483b9ab796117e468ff0fa9c183802a465e04e))
+
+# [0.2795.0](https://github.com/lightdash/lightdash/compare/0.2794.0...0.2795.0) (2026-04-23)
+
+
+### Features
+
+* **cli:** add lightdash pre-aggregate-audit command [ZAP-329] ([#22309](https://github.com/lightdash/lightdash/issues/22309)) ([b39b258](https://github.com/lightdash/lightdash/commit/b39b258fe7eedf45895291576d92c2feb8329df3))
+
+# [0.2794.0](https://github.com/lightdash/lightdash/compare/0.2793.0...0.2794.0) (2026-04-23)
+
+
+### Features
+
+* **pre-aggregates:** backend service layer for dashboard audit [ZAP-329] ([#22307](https://github.com/lightdash/lightdash/issues/22307)) ([c38fd39](https://github.com/lightdash/lightdash/commit/c38fd398cc6270b2fba498fd0e9b12b823c67889))
+* **pre-aggregates:** expose dashboard audit via REST  ([#22308](https://github.com/lightdash/lightdash/issues/22308)) ([62a5f4b](https://github.com/lightdash/lightdash/commit/62a5f4b79ffbeff00ae8479e3e9743eb300ed081))
+
+# [0.2793.0](https://github.com/lightdash/lightdash/compare/0.2792.0...0.2793.0) (2026-04-23)
+
+
+### Features
+
+* **echarts:** shift time-axis values to project timezone wall-clock ([#22250](https://github.com/lightdash/lightdash/issues/22250)) ([c0d3cf9](https://github.com/lightdash/lightdash/commit/c0d3cf9323367bd37f71b1a64f9079562d4e8c3b))
+
+# [0.2792.0](https://github.com/lightdash/lightdash/compare/0.2791.0...0.2792.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* **ee:** managed agent heartbeat ignores firing project's cron ([#22311](https://github.com/lightdash/lightdash/issues/22311)) ([106539d](https://github.com/lightdash/lightdash/commit/106539d3fbc3cc3672288388b04ee4351b05b2b5))
+
+
+### Features
+
+* **pre-aggregates:** add dashboard audit foundation types ([#22306](https://github.com/lightdash/lightdash/issues/22306)) ([7dad73c](https://github.com/lightdash/lightdash/commit/7dad73ccd1ddf37d441522d5fa87da1525290c4b))
+
+# [0.2791.0](https://github.com/lightdash/lightdash/compare/0.2790.1...0.2791.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* remove moment from sdk deps & add external react-dom/server rolldown option ([#22310](https://github.com/lightdash/lightdash/issues/22310)) ([28af5c0](https://github.com/lightdash/lightdash/commit/28af5c0fbfb39fb311543e58171747aefedc976e))
+
+
+### Features
+
+* **table-calc:** unified formula/AI input with inline preview ([#22305](https://github.com/lightdash/lightdash/issues/22305)) ([cfe6af4](https://github.com/lightdash/lightdash/commit/cfe6af42b85640f7f745b65bdaa6c9d1e344d964))
+
+## [0.2790.1](https://github.com/lightdash/lightdash/compare/0.2790.0...0.2790.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* show different clock icon when pre-aggregate cache misses ([#22312](https://github.com/lightdash/lightdash/issues/22312)) ([3d9e191](https://github.com/lightdash/lightdash/commit/3d9e191cdbf6dc589aa81dc4c92872e289359b89))
+* **sql-runner:** allow non-admins to create/list schedulers on SQL charts (PROD-7098) ([#22287](https://github.com/lightdash/lightdash/issues/22287)) ([37b7697](https://github.com/lightdash/lightdash/commit/37b7697fbaf05b28b03bb34dc03eecd818d82937))
+
+# [0.2790.0](https://github.com/lightdash/lightdash/compare/0.2789.1...0.2790.0) (2026-04-23)
+
+
+### Bug Fixes
+
+* make filter autocomplete search case-insensitive ([#22295](https://github.com/lightdash/lightdash/issues/22295)) ([ea53f70](https://github.com/lightdash/lightdash/commit/ea53f706be77e47875b4827e6f89c071b7ce8ac2)), closes [#22141](https://github.com/lightdash/lightdash/issues/22141)
+
+
+### Features
+
+* add fieldId to pre-aggregate miss reasons for table calculations and custom metrics ([#22297](https://github.com/lightdash/lightdash/issues/22297)) ([0610703](https://github.com/lightdash/lightdash/commit/06107036ce428da3c3b2f25d5829ddd6ca58002b))
+* support custom bin dimensions in pre-aggregate matcher ([#22292](https://github.com/lightdash/lightdash/issues/22292)) ([bce6e33](https://github.com/lightdash/lightdash/commit/bce6e3317555173a8115b7d75c277322079915d7))
+* support setting chart/dashboard verification via content-as-code ([#22139](https://github.com/lightdash/lightdash/issues/22139)) ([4ef2a2e](https://github.com/lightdash/lightdash/commit/4ef2a2e3cb12f6b20a0d21032ba4adfd62d3aebd)), closes [#22138](https://github.com/lightdash/lightdash/issues/22138)
+
+## [0.2789.1](https://github.com/lightdash/lightdash/compare/0.2789.0...0.2789.1) (2026-04-23)
+
+
+### Bug Fixes
+
+* **timezone:** skip tz round-trip for DATE dimensions ([#22286](https://github.com/lightdash/lightdash/issues/22286)) ([7ac7e55](https://github.com/lightdash/lightdash/commit/7ac7e55660745bb4b356693b19550bdffb567265))
+
 # [0.2789.0](https://github.com/lightdash/lightdash/compare/0.2788.0...0.2789.0) (2026-04-23)
 
 

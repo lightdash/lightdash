@@ -1,4 +1,4 @@
-import { subject } from '@casl/ability';
+import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartSummary,
@@ -27,6 +27,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -355,17 +356,17 @@ export class PromoteService extends BaseService {
     }
 
     private static checkPromoteSpacePermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         upstreamContent: Pick<
             UpstreamChart | UpstreamDashboard | UpstreamSqlChart,
             'space' | 'projectUuid' | 'spaceAccessContext'
         >,
     ) {
-        const { organizationUuid } = user;
         if (upstreamContent.space) {
             // If upstreamContent has a matching space, we check if we have access
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Space', {
                         organizationUuid,
@@ -375,6 +376,10 @@ export class PromoteService extends BaseService {
                                 ?.inheritsFromOrgOrProject,
                         access:
                             upstreamContent.spaceAccessContext?.access ?? [],
+                        metadata: {
+                            spaceUuid: upstreamContent.space.uuid,
+                            spaceName: upstreamContent.space.name,
+                        },
                     }),
                 )
             ) {
@@ -384,7 +389,7 @@ export class PromoteService extends BaseService {
             }
         } // If upstreamContent has no space, we check if we have permissions to create new spaces
         else if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Space', {
                     organizationUuid,
@@ -399,17 +404,21 @@ export class PromoteService extends BaseService {
     }
 
     private static checkPromoteChartPermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
         promotedDashboard?: PromotedDashboard,
     ) {
-        const { organizationUuid } = user;
+        const chartMetadata = {
+            savedChartUuid: promotedChart.chart.uuid,
+            savedChartName: promotedChart.chart.name,
+        };
         // Check permissions on `from project`
         if (promotedChart.space) {
             // Charts within space
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
                         organizationUuid,
@@ -418,6 +427,7 @@ export class PromoteService extends BaseService {
                             promotedChart.spaceAccessContext
                                 ?.inheritsFromOrgOrProject,
                         access: promotedChart.spaceAccessContext?.access ?? [],
+                        metadata: chartMetadata,
                     }),
                 )
             )
@@ -428,11 +438,12 @@ export class PromoteService extends BaseService {
                 );
         } // Charts within dashboard
         else if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid: promotedChart.projectUuid,
+                    metadata: chartMetadata,
                 }),
             )
         )
@@ -448,7 +459,7 @@ export class PromoteService extends BaseService {
 
             if (upstreamChart.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('SavedChart', {
                             organizationUuid,
@@ -458,6 +469,7 @@ export class PromoteService extends BaseService {
                                     ?.inheritsFromOrgOrProject,
                             access:
                                 upstreamChart.spaceAccessContext?.access ?? [],
+                            metadata: chartMetadata,
                         }),
                     )
                 ) {
@@ -468,11 +480,12 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
+                        metadata: chartMetadata,
                     }),
                 )
             ) {
@@ -485,12 +498,13 @@ export class PromoteService extends BaseService {
         } else if (upstreamChart.space !== undefined) {
             // If upstreamContent has no matching chart, we check if we have access to create, if space already exists
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                         access: upstreamChart.spaceAccessContext?.access ?? [],
+                        metadata: chartMetadata,
                     }),
                 )
             ) {
@@ -502,19 +516,27 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(user, upstreamChart);
+        PromoteService.checkPromoteSpacePermissions(
+            auditedAbility,
+            organizationUuid,
+            upstreamChart,
+        );
     }
 
     private static checkPromoteSqlChartPermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         promotedSqlChart: PromotedSqlChart,
         upstreamSqlChart: UpstreamSqlChart,
         promotedDashboard?: PromotedDashboard,
     ) {
-        const { organizationUuid } = user;
+        const sqlChartMetadata = {
+            savedSqlUuid: promotedSqlChart.chart.savedSqlUuid,
+            savedSqlName: promotedSqlChart.chart.name,
+        };
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('SavedChart', {
                     organizationUuid,
@@ -523,6 +545,7 @@ export class PromoteService extends BaseService {
                         promotedSqlChart.spaceAccessContext
                             ?.inheritsFromOrgOrProject,
                     access: promotedSqlChart.spaceAccessContext?.access ?? [],
+                    metadata: sqlChartMetadata,
                 }),
             )
         ) {
@@ -536,7 +559,7 @@ export class PromoteService extends BaseService {
         if (upstreamSqlChart.chart !== undefined) {
             if (upstreamSqlChart.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('SavedChart', {
                             organizationUuid,
@@ -547,6 +570,7 @@ export class PromoteService extends BaseService {
                             access:
                                 upstreamSqlChart.spaceAccessContext?.access ??
                                 [],
+                            metadata: sqlChartMetadata,
                         }),
                     )
                 ) {
@@ -557,11 +581,12 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
+                        metadata: sqlChartMetadata,
                     }),
                 )
             ) {
@@ -573,13 +598,14 @@ export class PromoteService extends BaseService {
             }
         } else if (upstreamSqlChart.space !== undefined) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                         access:
                             upstreamSqlChart.spaceAccessContext?.access ?? [],
+                        metadata: sqlChartMetadata,
                     }),
                 )
             ) {
@@ -591,18 +617,26 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(user, upstreamSqlChart);
+        PromoteService.checkPromoteSpacePermissions(
+            auditedAbility,
+            organizationUuid,
+            upstreamSqlChart,
+        );
     }
 
     static checkPromoteDashboardPermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
     ) {
+        const dashboardMetadata = {
+            dashboardUuid: promotedDashboard.dashboard.uuid,
+            dashboardName: promotedDashboard.dashboard.name,
+        };
         // Check permissions on `from project`
-        const { organizationUuid } = user;
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('Dashboard', {
                     organizationUuid,
@@ -611,6 +645,7 @@ export class PromoteService extends BaseService {
                         promotedDashboard.spaceAccessContext
                             ?.inheritsFromOrgOrProject,
                     access: promotedDashboard.spaceAccessContext?.access ?? [],
+                    metadata: dashboardMetadata,
                 }),
             )
         )
@@ -624,7 +659,7 @@ export class PromoteService extends BaseService {
 
             if (upstreamDashboard.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('Dashboard', {
                             organizationUuid,
@@ -635,6 +670,7 @@ export class PromoteService extends BaseService {
                             access:
                                 upstreamDashboard.spaceAccessContext?.access ??
                                 [],
+                            metadata: dashboardMetadata,
                         }),
                     )
                 ) {
@@ -643,11 +679,12 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
+                        metadata: dashboardMetadata,
                     }),
                 )
             ) {
@@ -658,13 +695,14 @@ export class PromoteService extends BaseService {
         } else if (upstreamDashboard.space !== undefined) {
             // If upstreamContent has no matching dashboard, we check if we have access to create, if space already exists
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                         access:
                             upstreamDashboard.spaceAccessContext?.access ?? [],
+                        metadata: dashboardMetadata,
                     }),
                 )
             ) {
@@ -673,7 +711,11 @@ export class PromoteService extends BaseService {
                 );
             }
         }
-        PromoteService.checkPromoteSpacePermissions(user, upstreamDashboard);
+        PromoteService.checkPromoteSpacePermissions(
+            auditedAbility,
+            organizationUuid,
+            upstreamDashboard,
+        );
     }
 
     private static isSpaceUpdated(
@@ -1027,8 +1069,10 @@ export class PromoteService extends BaseService {
             );
         }
         try {
+            const auditedAbility = this.createAuditedAbility(user);
             PromoteService.checkPromoteChartPermissions(
-                user,
+                auditedAbility,
+                user.organizationUuid!,
                 promotedChart,
                 upstreamChart,
             );
@@ -1162,8 +1206,10 @@ export class PromoteService extends BaseService {
             );
 
         try {
+            const auditedAbility = this.createAuditedAbility(user);
             PromoteService.checkPromoteSqlChartPermissions(
-                user,
+                auditedAbility,
+                user.organizationUuid!,
                 promotedSqlChart,
                 upstreamSqlChart,
             );
@@ -1507,6 +1553,7 @@ export class PromoteService extends BaseService {
                 chartCount: 0,
                 dashboardCount: 0,
                 childSpaceCount: 0,
+                appCount: 0,
             };
             return {
                 action: PromotionAction.CREATE,
@@ -2132,8 +2179,10 @@ export class PromoteService extends BaseService {
             );
 
         try {
+            const auditedAbility = this.createAuditedAbility(user);
             PromoteService.checkPromoteDashboardPermissions(
-                user,
+                auditedAbility,
+                user.organizationUuid!,
                 promotedDashboard,
                 upstreamDashboard,
             );
@@ -2141,7 +2190,8 @@ export class PromoteService extends BaseService {
             // Check permissions for all chart tiles
             promotedCharts.forEach(({ promotedChart, upstreamChart }) =>
                 PromoteService.checkPromoteChartPermissions(
-                    user,
+                    auditedAbility,
+                    user.organizationUuid!,
                     promotedChart,
                     upstreamChart,
                     promotedDashboard,
@@ -2150,7 +2200,8 @@ export class PromoteService extends BaseService {
             promotedSqlCharts.forEach(
                 ({ promotedSqlChart, upstreamSqlChart }) =>
                     PromoteService.checkPromoteSqlChartPermissions(
-                        user,
+                        auditedAbility,
+                        user.organizationUuid!,
                         promotedSqlChart,
                         upstreamSqlChart,
                         promotedDashboard,

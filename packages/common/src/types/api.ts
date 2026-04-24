@@ -36,6 +36,7 @@ import type {
     DecodedEmbed,
     EmbedUrl,
 } from '../ee';
+import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
     type ApiUnusedContent,
@@ -224,6 +225,11 @@ import {
     type ValidationResponse,
 } from './validation';
 import { type ApiWarehouseTableFields } from './warehouse';
+
+export type ApiGetDashboardPreAggregateAuditResponse = {
+    status: 'ok';
+    results: DashboardPreAggregateAudit;
+};
 
 export enum RequestMethod {
     CLI = 'CLI',
