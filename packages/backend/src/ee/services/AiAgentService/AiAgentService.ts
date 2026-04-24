@@ -4718,24 +4718,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 return organizationUuid;
             }
 
-            // TODO: Legacy Slack-linked users can still fail here if team_id was never
-            // populated on their OpenID identity.
             const openIdIdentity =
                 await this.openIdIdentityModel.findIdentityByOpenId(
                     OpenIdIdentityIssuerType.SLACK,
                     userId,
-                    teamId,
                 );
             observedIdentity = openIdIdentity;
-            if (!observedIdentity) {
-                // Observability-only: a teamless lookup so the wide event can
-                // distinguish a truly-absent identity from one filtered out by team_id.
-                observedIdentity =
-                    await this.openIdIdentityModel.findIdentityByOpenId(
-                        OpenIdIdentityIssuerType.SLACK,
-                        userId,
-                    );
-            }
 
             if (openIdIdentity) {
                 result = 'authenticated';
@@ -5082,18 +5070,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await this.openIdIdentityModel.findIdentityByOpenId(
                     OpenIdIdentityIssuerType.SLACK,
                     userId,
-                    teamId,
                 );
             observedIdentity = openIdIdentity;
-            if (!observedIdentity) {
-                // Observability-only: a teamless lookup so the wide event can
-                // distinguish a truly-absent identity from one filtered out by team_id.
-                observedIdentity =
-                    await this.openIdIdentityModel.findIdentityByOpenId(
-                        OpenIdIdentityIssuerType.SLACK,
-                        userId,
-                    );
-            }
 
             if (!openIdIdentity) {
                 await client.chat.postEphemeral({
