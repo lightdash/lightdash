@@ -1,11 +1,46 @@
+import { LightdashError, Project, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
-import { Config } from '../config';
+import { Config, unsetPreviewProject } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { lightdashApi } from './dbt/apiClient';
 
 export type ProjectSelection = {
     projectUuid: string;
     isPreview: boolean;
+};
+
+const validatePreviewProject = async (
+    previewProjectUuid: string | undefined,
+): Promise<string | undefined> => {
+    if (!previewProjectUuid) {
+        return undefined;
+    }
+
+    try {
+        const project = await lightdashApi<Project>({
+            method: 'GET',
+            url: `/api/v1/projects/${previewProjectUuid}`,
+            body: undefined,
+        });
+
+        if (project.type === ProjectType.PREVIEW) {
+            return project.projectUuid;
+        }
+
+        await unsetPreviewProject();
+        return undefined;
+    } catch (error) {
+        if (
+            error instanceof LightdashError &&
+            (error.statusCode === 403 || error.statusCode === 404)
+        ) {
+            await unsetPreviewProject();
+            return undefined;
+        }
+
+        return previewProjectUuid;
+    }
 };
 
 /**
@@ -27,7 +62,9 @@ export const selectProject = async (
     }
 
     const mainProject = config.context?.project;
-    const previewProject = config.context?.previewProject;
+    const previewProject = await validatePreviewProject(
+        config.context?.previewProject,
+    );
     const previewName = config.context?.previewName;
     const mainProjectName = config.context?.projectName;
 
