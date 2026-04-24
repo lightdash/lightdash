@@ -1,3 +1,10 @@
+# [0.2797.0](https://github.com/lightdash/lightdash/compare/0.2796.1...0.2797.0) (2026-04-24)
+
+
+### Features
+
+* **timezone:** thread displayTimezone through CSV and pivot CSV exports ([#22282](https://github.com/lightdash/lightdash/issues/22282)) ([d11f34a](https://github.com/lightdash/lightdash/commit/d11f34abace506a09a6707e5044c68243d07babb))
+
 ## [0.2796.1](https://github.com/lightdash/lightdash/compare/0.2796.0...0.2796.1) (2026-04-24)
 
 
