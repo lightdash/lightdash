@@ -1,3 +1,10 @@
+# [0.2804.0](https://github.com/lightdash/lightdash/compare/0.2803.2...0.2804.0) (2026-04-24)
+
+
+### Features
+
+* update data app chat styles ([#22339](https://github.com/lightdash/lightdash/issues/22339)) ([d4209e5](https://github.com/lightdash/lightdash/commit/d4209e5dfae7f4a9ea3f3cc057653e57885fd32a))
+
 ## [0.2803.2](https://github.com/lightdash/lightdash/compare/0.2803.1...0.2803.2) (2026-04-24)
 
 
