@@ -420,7 +420,9 @@ describe('codegen', () => {
             ['duckdb', 'LAST_DAY("order_date")'],
             ['databricks', 'LAST_DAY(`order_date`)'],
             ['postgres', postgresStyleLastDay],
-            ['redshift', postgresStyleLastDay],
+            // Redshift has a native LAST_DAY (unlike Postgres) — and rejects
+            // the Postgres-style INTERVAL '1 month' composition outright.
+            ['redshift', 'LAST_DAY("order_date")'],
             ['clickhouse', 'toLastDayOfMonth("order_date")'],
         ] as const)('%s → %s', (dialect, expected) => {
             expect(
@@ -519,6 +521,63 @@ describe('codegen', () => {
                     }),
                 ).toBe(`DATE_TRUNC('week', "order_date")`);
             });
+        });
+    });
+
+    describe('DATE_ADD', () => {
+        it.each([
+            ['postgres', `("order_date" + (3) * INTERVAL '1 month')`],
+            // Redshift rejects month/year INTERVAL arithmetic on date columns,
+            // so it uses DATEADD (same shape as Snowflake).
+            ['redshift', 'DATEADD(MONTH, 3, "order_date")'],
+            ['duckdb', `("order_date" + (3) * INTERVAL '1 month')`],
+            ['bigquery', 'DATE_ADD(`order_date`, INTERVAL 3 MONTH)'],
+            ['snowflake', 'DATEADD(MONTH, 3, "order_date")'],
+            ['databricks', 'ADD_MONTHS(`order_date`, 3)'],
+            ['clickhouse', 'addMonths("order_date", 3)'],
+        ] as const)('%s → %s', (dialect, expected) => {
+            expect(
+                compile('=DATE_ADD(order_date, 3, "month")', {
+                    dialect,
+                    columns,
+                }),
+            ).toBe(expected);
+        });
+
+        it.each([
+            ['day', 'DATE_ADD(`order_date`, 1)'],
+            ['week', 'DATE_ADD(`order_date`, (1) * 7)'],
+            ['month', 'ADD_MONTHS(`order_date`, 1)'],
+            ['quarter', 'ADD_MONTHS(`order_date`, (1) * 3)'],
+            ['year', 'ADD_MONTHS(`order_date`, (1) * 12)'],
+        ] as const)(
+            'Databricks fans out "%s" to a unit-specific helper',
+            (unit, expected) => {
+                expect(
+                    compile(`=DATE_ADD(order_date, 1, "${unit}")`, {
+                        dialect: 'databricks',
+                        columns,
+                    }),
+                ).toBe(expected);
+            },
+        );
+
+        it('DATE_SUB desugars to DATE_ADD with negated n (Postgres)', () => {
+            expect(
+                compile('=DATE_SUB(order_date, 3, "month")', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe(`("order_date" + ((-(3))) * INTERVAL '1 month')`);
+        });
+
+        it('DATE_SUB threads through Snowflake DATEADD', () => {
+            expect(
+                compile('=DATE_SUB(order_date, 3, "month")', {
+                    dialect: 'snowflake',
+                    columns,
+                }),
+            ).toBe('DATEADD(MONTH, (-(3)), "order_date")');
         });
     });
 
