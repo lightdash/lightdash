@@ -58,34 +58,33 @@ Data timezone says **what the data means**. Project timezone says **what the use
 
 ## Current state
 
-A query touches timezone in three places: the SELECT (grouping), the WHERE (filtering), and the warehouse session.
+End-to-end, timezone concerns are handled at four boundaries: compile in Node, execute in the warehouse, format back in Node, render in the browser.
 
 ```mermaid
-flowchart TD
-    subgraph Compile["Query compilation (Node.js)"]
+flowchart LR
+    subgraph Compile["Compile · Node.js"]
         direction TB
-        A["Resolve project timezone<br/><code>metricQuery.timezone ?? project.queryTimezone ?? 'UTC'</code>"]
-        B["Build SELECT: DATE_TRUNC<br/>✅ Round-trip to project TZ when flag is on"]
-        C["Build WHERE: filter boundaries<br/>✅ All relative operators use project TZ"]
-        A --> B
-        A --> C
+        C1["Resolve project TZ<br/><code>metricQuery.timezone ?? project.queryTimezone ?? 'UTC'</code><br/>Build SELECT (DATE_TRUNC round-trip)<br/>Build WHERE (boundaries in project TZ)"]
     end
-
-    subgraph Execute["Query execution (Warehouse)"]
+    subgraph Execute["Execute · Warehouse"]
         direction TB
-        D["Set session timezone from dataTimezone<br/>(when flag is on)"]
-        E["Execute SQL"]
-        D --> E
+        E1["Session TZ ← <code>dataTimezone</code><br/>SQL returns UTC instants<br/>(project-TZ-aligned via round-trip)"]
+    end
+    subgraph Format["Format · Node.js"]
+        direction TB
+        F1["<code>formatRows</code> converts UTC → project TZ<br/>API response carries <code>resolvedTimezone</code>"]
+    end
+    subgraph Render["Render · Browser"]
+        direction TB
+        R1["Tables / tooltips / CSV:<br/>format(value, resolvedTimezone)"]
+        R2["ECharts: wall-clock shift<br/>+ offset label"]
+        R3["Resolved-TZ badge on chart card"]
     end
 
-    Compile --> Execute
-
-    subgraph Format["Result formatting (Node.js)"]
-        F["Format in project TZ when flag is on<br/>⚠️ Truncated intervals on DATE base dimensions skip the shift"]
-    end
-
-    Execute --> Format
+    Compile --> Execute --> Format --> Render
 ```
+
+> **Flag OFF → pre-timezone-work behavior.** With `EnableTimezoneSupport` off: no session TZ is set (Snowflake still defaults to `'UTC'`), DATE_TRUNC runs in UTC, filter literals stay bare, `resolvedTimezone` is omitted from the API, and formatters pass values through as UTC — identical to `main` before this work started.
 
 ### SELECT — DATE_TRUNC grouping
 
