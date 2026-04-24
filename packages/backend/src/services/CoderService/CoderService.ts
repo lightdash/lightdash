@@ -1011,8 +1011,9 @@ export class CoderService extends BaseService {
     }): Promise<void> {
         if (verified === undefined) return;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid,
@@ -1711,7 +1712,6 @@ export class CoderService extends BaseService {
                 projectUuid, // We use the same projectUuid for both promoted and upstream
             );
 
-        const auditedAbility = this.createAuditedAbility(user);
         PromoteService.checkPromoteDashboardPermissions(
             auditedAbility,
             user.organizationUuid!,
