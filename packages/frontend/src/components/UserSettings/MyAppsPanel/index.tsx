@@ -16,16 +16,25 @@ import {
     IconPencil,
     IconRadar,
     IconTextCaption,
+    IconTrash,
 } from '@tabler/icons-react';
 import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
 } from 'mantine-react-table';
-import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
 import MantineIcon from '../../common/MantineIcon';
+import AppDeleteModal from '../../common/modal/AppDeleteModal';
 
 const statusColor = (status: string | null) => {
     switch (status) {
@@ -43,6 +52,7 @@ const statusColor = (status: string | null) => {
 const MyAppsPanel: FC = () => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const { data, fetchNextPage, isFetching, isLoading, isError } = useMyApps();
+    const [appToDelete, setAppToDelete] = useState<ApiAppSummary | null>(null);
 
     const flatData = useMemo<ApiAppSummary[]>(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -206,6 +216,19 @@ const MyAppsPanel: FC = () => {
                                 >
                                     Continue building
                                 </Menu.Item>
+                                <Menu.Divider />
+                                <Menu.Item
+                                    color="red"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconTrash}
+                                            size={14}
+                                        />
+                                    }
+                                    onClick={() => setAppToDelete(app)}
+                                >
+                                    Delete
+                                </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>
                     );
@@ -259,6 +282,16 @@ const MyAppsPanel: FC = () => {
     return (
         <Stack gap="md">
             <MantineReactTable table={table} />
+            {appToDelete && (
+                <AppDeleteModal
+                    opened
+                    projectUuid={appToDelete.projectUuid}
+                    uuid={appToDelete.appUuid}
+                    name={appToDelete.name}
+                    onClose={() => setAppToDelete(null)}
+                    onConfirm={() => setAppToDelete(null)}
+                />
+            )}
         </Stack>
     );
 };

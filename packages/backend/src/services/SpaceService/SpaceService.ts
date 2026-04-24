@@ -19,6 +19,7 @@ import {
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -40,6 +41,9 @@ type SpaceServiceArguments = {
     spacePermissionService: SpacePermissionService;
     savedChartService: SavedChartService;
     dashboardService: DashboardService;
+    // EE-only. When the license isn't active the repository leaves this
+    // undefined and the cascade skips data apps (there are none to delete).
+    appGenerateService: AppGenerateService | undefined;
 };
 
 export const hasDirectAccessToSpace = (
@@ -88,6 +92,8 @@ export class SpaceService
 
     private readonly dashboardService: DashboardService;
 
+    private readonly appGenerateService: AppGenerateService | undefined;
+
     constructor(args: SpaceServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -98,6 +104,7 @@ export class SpaceService
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
         this.dashboardService = args.dashboardService;
+        this.appGenerateService = args.appGenerateService;
     }
 
     /** @internal For unit testing only */
@@ -547,6 +554,9 @@ export class SpaceService
             await this.spaceModel.getDashboardUuidsInSpace(spaceUuid);
         const childSpaceUuids =
             await this.spaceModel.getChildSpaceUuids(spaceUuid);
+        const apps = this.appGenerateService
+            ? await this.spaceModel.getAppsInSpace(spaceUuid)
+            : [];
 
         for (const chartUuid of chartUuids) {
             // eslint-disable-next-line no-await-in-loop
@@ -559,6 +569,15 @@ export class SpaceService
             await this.dashboardService.delete(user, dashboardUuid, {
                 bypassPermissions: true, // space delete authorized above
             });
+        }
+        for (const { appUuid, projectUuid } of apps) {
+            // eslint-disable-next-line no-await-in-loop
+            await this.appGenerateService!.deleteApp(
+                user,
+                projectUuid,
+                appUuid,
+                { bypassPermissions: true }, // space delete authorized above
+            );
         }
         for (const childSpaceUuid of childSpaceUuids) {
             // eslint-disable-next-line no-await-in-loop
@@ -688,6 +707,25 @@ export class SpaceService
                 });
             }
 
+            if (this.appGenerateService) {
+                const deletedApps = await this.spaceModel.getAppsInSpace(
+                    spaceUuid,
+                    {
+                        deleted: true,
+                        deletedByUserUuid: space.deletedBy.userUuid,
+                    },
+                );
+                for (const { appUuid, projectUuid } of deletedApps) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.appGenerateService.restoreApp(
+                        user,
+                        projectUuid,
+                        appUuid,
+                        { bypassPermissions: true }, // space restore authorized above
+                    );
+                }
+            }
+
             const deletedChildSpaceUuids =
                 await this.spaceModel.getChildSpaceUuids(spaceUuid, {
                     deleted: true,
@@ -739,6 +777,30 @@ export class SpaceService
                 )
             ) {
                 throw new ForbiddenError();
+            }
+        }
+
+        // Apps' FK is ON DELETE SET NULL, so DB CASCADE doesn't clean them up.
+        // Permanent-delete them explicitly (sandbox + S3 cleanup). Include
+        // both active and soft-deleted apps: when soft-delete is disabled the
+        // cascade from delete() bypasses the soft-delete step, so apps in the
+        // space are still active at this point.
+        if (this.appGenerateService) {
+            const [deletedApps, activeApps] = await Promise.all([
+                this.spaceModel.getAppsInSpace(spaceUuid, { deleted: true }),
+                this.spaceModel.getAppsInSpace(spaceUuid),
+            ]);
+            for (const { appUuid, projectUuid } of [
+                ...deletedApps,
+                ...activeApps,
+            ]) {
+                // eslint-disable-next-line no-await-in-loop
+                await this.appGenerateService.permanentDeleteApp(
+                    user,
+                    projectUuid,
+                    appUuid,
+                    { bypassPermissions: true },
+                );
             }
         }
 

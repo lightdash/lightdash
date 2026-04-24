@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import { LightdashConfig } from '../config/parseConfig';
+import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import { ModelRepository } from '../models/ModelRepository';
 import PrometheusMetrics from '../prometheus/PrometheusMetrics';
@@ -840,6 +841,11 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),
                     dashboardService: this.getDashboardService(),
+                    // Only wired when EE license is active. Core builds get
+                    // undefined and the delete cascade skips apps.
+                    appGenerateService: this.providers.appGenerateService
+                        ? this.getAppGenerateService<AppGenerateService>()
+                        : undefined,
                 }),
         );
     }
@@ -1062,6 +1068,9 @@ export class ServiceRepository
                     // undefined and fail DATA_APP moves with a clear error.
                     appMoveService: this.providers.appGenerateService
                         ? this.getAppGenerateService<BulkActionable<Knex>>()
+                        : undefined,
+                    appGenerateService: this.providers.appGenerateService
+                        ? this.getAppGenerateService<AppGenerateService>()
                         : undefined,
                 }),
         );

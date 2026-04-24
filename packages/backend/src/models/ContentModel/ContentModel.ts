@@ -232,6 +232,11 @@ export class ContentModel {
                     chartCount: Number(row.metadata.chartCount ?? 0),
                     schedulerCount: Number(row.metadata.schedulerCount ?? 0),
                 };
+            case ContentType.DATA_APP:
+                return {
+                    ...base,
+                    contentType: ContentType.DATA_APP,
+                };
             default:
                 throw new Error(
                     `Unexpected content type in deleted results: ${row.content_type}`,

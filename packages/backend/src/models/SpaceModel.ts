@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { AppsTableName } from '../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -1255,6 +1256,41 @@ export class SpaceModel {
 
         const dashboards = await query;
         return dashboards.map((d) => d.dashboard_uuid);
+    }
+
+    /**
+     * Returns apps directly assigned to a space. Used by the
+     * space-delete cascade to soft-delete apps alongside the space.
+     * Apps without a space are personal drafts and not returned here.
+     */
+    async getAppsInSpace(
+        spaceUuid: string,
+        options?: { deleted?: boolean; deletedByUserUuid?: string },
+    ): Promise<{ appUuid: string; projectUuid: string }[]> {
+        const query = this.database(AppsTableName)
+            .select(
+                `${AppsTableName}.app_id as app_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .where(`${AppsTableName}.space_uuid`, spaceUuid);
+
+        if (options?.deleted) {
+            void query.whereNotNull(`${AppsTableName}.deleted_at`);
+            if (options.deletedByUserUuid) {
+                void query.where(
+                    `${AppsTableName}.deleted_by_user_uuid`,
+                    options.deletedByUserUuid,
+                );
+            }
+        } else {
+            void query.whereNull(`${AppsTableName}.deleted_at`);
+        }
+
+        const apps = await query;
+        return apps.map((a) => ({
+            appUuid: a.app_uuid,
+            projectUuid: a.project_uuid,
+        }));
     }
 
     async update(
