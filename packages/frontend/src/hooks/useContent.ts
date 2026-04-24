@@ -1,12 +1,12 @@
 import {
     assertUnreachable,
+    ContentType,
     type ApiContentActionBody,
     type ApiContentBulkActionBody,
     type ApiContentResponse,
     type ApiError,
     type ApiSuccessEmpty,
     type ContentSortByColumns,
-    type ContentType,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
 import {
@@ -32,6 +32,9 @@ export type ContentArgs = {
     sortBy?: ContentSortByColumns;
     sortDirection?: 'asc' | 'desc';
 };
+
+const contentTypeLabel = (contentType: ContentType): string =>
+    contentType === ContentType.DATA_APP ? 'data app' : contentType;
 
 function createQueryString(params: Record<string, any>): string {
     const query = new URLSearchParams();
@@ -169,7 +172,9 @@ export const useContentAction = (
             switch (action.type) {
                 case 'move':
                     return showToastSuccess({
-                        title: `Successfully moved ${variables.item.contentType} to a space`,
+                        title: `Successfully moved ${contentTypeLabel(
+                            variables.item.contentType,
+                        )} to a space`,
                         action: {
                             children: 'Go to space',
                             icon: IconArrowRight,
@@ -185,7 +190,9 @@ export const useContentAction = (
                 case 'delete':
                     await queryClient.invalidateQueries(['deletedContent']);
                     return showToastSuccess({
-                        title: `Successfully deleted ${item.contentType}.`,
+                        title: `Successfully deleted ${contentTypeLabel(
+                            item.contentType,
+                        )}.`,
                         action: isSoftDeleteEnabled
                             ? {
                                   children: 'Go to recently deleted',

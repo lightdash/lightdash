@@ -2739,12 +2739,12 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
-     * Move a data app from one space to another.
+     * Move a data app into a space, or between spaces.
      *
      * Implements the shared `BulkActionable` interface so `ContentService`
      * can dispatch move requests uniformly alongside dashboards and charts.
-     * Only space → space moves are supported for now: personal apps (no
-     * source space) and moves to `null` (unassigning) are rejected.
+     * Moves to `null` (unassigning back to personal) are rejected — once
+     * shared to a space, an app stays in a space.
      */
     async moveToSpace(
         user: SessionUser,
@@ -2776,12 +2776,6 @@ export class AppGenerateService extends BaseService {
         }
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
-
-        if (app.space_uuid === null) {
-            throw new ParameterError(
-                'You cannot move a personal data app between spaces',
-            );
-        }
 
         if (checkForAccess) {
             this.assertDataAppAbility(

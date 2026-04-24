@@ -210,7 +210,7 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
 };
 
 export const storeSlackContext: RequestHandler = (req, res, next) => {
-    const { team, channel, message, thread_ts: threadTs } = req.query;
+    const { team, channel, message, thread_ts: threadTs, trigger } = req.query;
     req.session.slack = {};
 
     if (typeof team === 'string') {
@@ -224,6 +224,9 @@ export const storeSlackContext: RequestHandler = (req, res, next) => {
     }
     if (typeof threadTs === 'string') {
         req.session.slack.threadTs = threadTs;
+    }
+    if (trigger === 'vote' || trigger === 'app_mention') {
+        req.session.slack.trigger = trigger;
     }
 
     next();

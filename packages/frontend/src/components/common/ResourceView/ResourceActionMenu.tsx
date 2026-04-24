@@ -204,8 +204,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             break;
         }
         case ResourceViewItemType.DATA_APP: {
-            // Data apps are admin-only for now (manage:DataApp). Space-aware
-            // write permissions will land in a later PR.
             userCanManage =
                 user.data?.ability?.can(
                     'manage',

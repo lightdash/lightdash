@@ -237,7 +237,7 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-md);
     border-bottom: 1px solid;
 
     @mixin light {
@@ -253,7 +253,7 @@
 .previewHeaderInfo {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 2px;
     min-width: 0;
     flex: 1;
 }
