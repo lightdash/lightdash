@@ -3,6 +3,7 @@ import {
     convertFieldRefToFieldId,
     isCustomBinDimension,
     isCustomSqlDimension,
+    isSqlTableCalculation,
     MetricType,
     type FieldId,
 } from '../../types/field';
@@ -974,13 +975,16 @@ export const findMatch = (
         };
     }
 
-    if ((metricQuery.tableCalculations || []).length > 0) {
+    const sqlTableCalculation = (metricQuery.tableCalculations || []).find(
+        isSqlTableCalculation,
+    );
+    if (sqlTableCalculation) {
         return {
             hit: false,
             preAggregateName: null,
             miss: {
                 reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT,
-                fieldId: getItemId(metricQuery.tableCalculations[0]),
+                fieldId: getItemId(sqlTableCalculation),
             },
         };
     }
