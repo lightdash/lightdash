@@ -1,3 +1,15 @@
+# [0.2802.0](https://github.com/lightdash/lightdash/compare/0.2801.1...0.2802.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **filters:** skip timestamptz literal wrap for DATE-over-DATE dimensions ([#22343](https://github.com/lightdash/lightdash/issues/22343)) ([215e9b9](https://github.com/lightdash/lightdash/commit/215e9b9b0901552df56112ad85cebe9ed2c1283d))
+
+
+### Features
+
+* **apps:** make app name open latest preview on My Apps page ([#22342](https://github.com/lightdash/lightdash/issues/22342)) ([58828ce](https://github.com/lightdash/lightdash/commit/58828ceb217c31aec72b2b7a7100229b0e39c3e4))
+
 ## [0.2801.1](https://github.com/lightdash/lightdash/compare/0.2801.0...0.2801.1) (2026-04-24)
 
 
