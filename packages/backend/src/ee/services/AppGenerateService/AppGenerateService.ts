@@ -2054,7 +2054,7 @@ export class AppGenerateService extends BaseService {
             auditedAbility.cannot(
                 'manage',
                 subject('DataApp', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
             )
