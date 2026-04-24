@@ -49,9 +49,13 @@ const dockerfile = fs.readFileSync('e2b.Dockerfile', 'utf-8');
 
 async function main() {
     try {
-        const template = Template().fromDockerfile(dockerfile);
+        const template = Template({
+            fileContextPath: path.resolve('.'),
+        }).fromDockerfile(dockerfile);
 
         console.log('Submitting sandbox template build...\n');
+
+        const skipCache = process.argv.includes('--no-cache');
 
         const info = await Template.buildInBackground(
             template,
@@ -59,6 +63,7 @@ async function main() {
             {
                 cpuCount: 2,
                 memoryMB: 2048,
+                ...(skipCache ? { skipCache: true } : {}),
             },
         );
 
