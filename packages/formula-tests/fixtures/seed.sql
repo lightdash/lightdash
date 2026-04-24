@@ -35,15 +35,16 @@ CREATE TABLE test_nulls (
     id INT,
     val_a DECIMAL(10,2),
     val_b VARCHAR(50),
-    val_c INT
+    val_c INT,
+    val_d DATE
 );
 
-INSERT INTO test_nulls (id, val_a, val_b, val_c) VALUES
-(1, 10.00,  'hello', 100),
-(2, NULL,   'world', 200),
-(3, 30.00,  NULL,    300),
-(4, NULL,   NULL,    400),
-(5, 50.00,  'test',  500);
+INSERT INTO test_nulls (id, val_a, val_b, val_c, val_d) VALUES
+(1, 10.00,  'hello', 100, '2024-01-15'),
+(2, NULL,   'world', 200, NULL),
+(3, 30.00,  NULL,    300, '2024-03-10'),
+(4, NULL,   NULL,    400, NULL),
+(5, 50.00,  'test',  500, '2024-05-12');
 
 -- test_window: 20 rows for window function testing
 DROP TABLE IF EXISTS test_window;

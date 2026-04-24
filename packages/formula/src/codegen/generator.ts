@@ -8,6 +8,8 @@ import type {
     CompileOptions,
     ConditionalAggregateNode,
     CountIfNode,
+    DateFnNode,
+    DateUnit,
     IfNode,
     LogicalNode,
     NumberLiteralNode,
@@ -16,6 +18,7 @@ import type {
     StringLiteralNode,
     UnaryOpNode,
     VariadicFnNode,
+    WeekDay,
     WindowClauseNode,
     WindowFnNode,
     ZeroArgFnNode,
@@ -72,6 +75,8 @@ export class SqlGenerator {
                 return this.generateVariadicFn(node);
             case 'WindowFn':
                 return this.generateWindowFn(node);
+            case 'DateFn':
+                return this.generateDateFn(node);
             case 'ColumnRef':
                 return this.generateColumnRef(node);
             case 'NumberLiteral':
@@ -458,6 +463,46 @@ export class SqlGenerator {
 
     protected generateLastDay(arg: string): string {
         return this.dialect.generateLastDay?.(arg) ?? `LAST_DAY(${arg})`;
+    }
+
+    protected generateDateFn(node: DateFnNode): string {
+        switch (node.name) {
+            case 'DATE_TRUNC':
+                return this.generateDateTrunc(
+                    node.unit,
+                    this.generate(node.args[0]),
+                );
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown date function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateDateTrunc(unit: DateUnit, arg: string): string {
+        const weekStartDay = this.options.weekStartDay ?? 0;
+        return (
+            this.dialect.generateDateTrunc?.(unit, arg, weekStartDay) ??
+            this.defaultDateTrunc(unit, arg, weekStartDay)
+        );
+    }
+
+    // ANSI-style `DATE_TRUNC('unit', d)` with INTERVAL-based week-start offset
+    // for non-Monday starts. Matches
+    // `packages/common/src/utils/timeFrames.ts` `postgresConfig`. Used as the
+    // default for Postgres, Redshift, Snowflake, and DuckDB. BigQuery /
+    // Databricks / ClickHouse override entirely.
+    protected defaultDateTrunc(
+        unit: DateUnit,
+        arg: string,
+        weekStartDay: WeekDay,
+    ): string {
+        if (unit === 'week' && weekStartDay !== 0) {
+            const diff = `${weekStartDay} days`;
+            return `(DATE_TRUNC('week', (${arg} - INTERVAL '${diff}')) + INTERVAL '${diff}')`;
+        }
+        return `DATE_TRUNC('${unit}', ${arg})`;
     }
 
     // Attach an OVER (…) clause to a pre-built function-call string. Lets
