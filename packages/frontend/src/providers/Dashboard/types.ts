@@ -31,6 +31,7 @@ export type TilePreAggregateStatus = {
     hit: boolean;
     preAggregateName: string | null;
     reason: PreAggregateMatchMiss | null;
+    reasonFieldLabel: string | null;
     hasPreAggregateMetadata: boolean;
     tabUuid: string | null | undefined;
 };

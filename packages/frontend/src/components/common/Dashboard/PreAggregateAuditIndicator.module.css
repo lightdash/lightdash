@@ -27,6 +27,23 @@
     color: var(--mantine-color-ldGray-6);
 }
 
+.fieldLabelHover {
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--mantine-color-ldGray-3);
+    text-underline-offset: 2px;
+    cursor: help;
+}
+
+:global([data-mantine-color-scheme='dark']) .fieldLabelHover {
+    text-decoration-color: var(--mantine-color-ldDark-3);
+}
+
+.fieldIdTooltip {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-xs);
+}
+
 .scrollIcon {
     flex-shrink: 0;
     opacity: 0;

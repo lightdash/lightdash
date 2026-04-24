@@ -1,4 +1,5 @@
 import {
+    PreAggregateMissReason,
     type ApiError,
     type ApiRunDashboardPreAggregateAuditBody,
     type DashboardFilters,
@@ -36,6 +37,10 @@ export const auditResponseToTileStatuses = (
     audit.tabs.forEach((tab) => {
         tab.tiles.forEach((tile) => {
             if (tile.status === 'ineligible') return;
+            const isNoPreAggregatesDefined =
+                tile.status === 'miss' &&
+                tile.miss.reason ===
+                    PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED;
             result[tile.tileUuid] = {
                 tileUuid: tile.tileUuid,
                 tileName: tileNamesById[tile.tileUuid] ?? tile.tileUuid,
@@ -43,7 +48,9 @@ export const auditResponseToTileStatuses = (
                 preAggregateName:
                     tile.status === 'hit' ? tile.preAggregateName : null,
                 reason: tile.status === 'miss' ? tile.miss : null,
-                hasPreAggregateMetadata: true,
+                reasonFieldLabel:
+                    tile.status === 'miss' ? tile.missFieldLabel : null,
+                hasPreAggregateMetadata: !isNoPreAggregatesDefined,
                 tabUuid: tab.tabUuid,
             };
         });

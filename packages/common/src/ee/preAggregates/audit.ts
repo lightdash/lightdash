@@ -26,6 +26,7 @@ export type TilePreAggregateAuditMiss = {
     savedChartUuid: string;
     exploreName: string;
     miss: PreAggregateMatchMiss;
+    missFieldLabel: string | null;
 };
 
 export type TilePreAggregateAuditIneligible = {
