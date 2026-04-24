@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    ChartKind,
     FeatureFlags,
     isAppVersionInProgress,
     type ApiAppVersionSummary,
@@ -41,6 +42,7 @@ import {
     useParams,
 } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { ChartIcon } from '../components/common/ResourceIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
 import AppIframePreview from '../features/apps/AppIframePreview';
@@ -70,6 +72,7 @@ import classes from './AppGenerate.module.css';
 type ChatChart = {
     name: string;
     uuid: string;
+    chartKind?: ChartKind;
 };
 
 type ChatMessage = {
@@ -559,6 +562,7 @@ const AppGenerate: FC = () => {
         const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
             name: c.name,
             uuid: c.uuid,
+            chartKind: c.chartKind,
         }));
         if (sentCharts.length > 0) {
             sentChartsByPrompt.current.set(trimmed, sentCharts);
@@ -703,7 +707,7 @@ const AppGenerate: FC = () => {
                                         size="xl"
                                         radius="xl"
                                         variant="light"
-                                        color="violet"
+                                        color="gray"
                                     >
                                         <IconSparkles size={24} />
                                     </ThemeIcon>
@@ -731,43 +735,44 @@ const AppGenerate: FC = () => {
                                                 >
                                                     {msg.content}
                                                     {msg.charts.length > 0 && (
-                                                        <Box mt="xs">
-                                                            <Text
-                                                                size="sm"
-                                                                fw={700}
-                                                            >
-                                                                Included queries
-                                                            </Text>
-                                                            <ul
-                                                                style={{
-                                                                    margin: 0,
-                                                                    paddingLeft: 20,
-                                                                }}
-                                                            >
-                                                                {msg.charts.map(
-                                                                    (chart) => (
-                                                                        <li
-                                                                            key={
-                                                                                chart.uuid
+                                                        <Box
+                                                            mt="xs"
+                                                            className={
+                                                                classes.bubbleQueryList
+                                                            }
+                                                        >
+                                                            {msg.charts.map(
+                                                                (chart) => (
+                                                                    <Group
+                                                                        key={
+                                                                            chart.uuid
+                                                                        }
+                                                                        gap="xs"
+                                                                        wrap="nowrap"
+                                                                        className={
+                                                                            classes.bubbleQueryItem
+                                                                        }
+                                                                    >
+                                                                        <ChartIcon
+                                                                            chartKind={
+                                                                                chart.chartKind ??
+                                                                                ChartKind.VERTICAL_BAR
                                                                             }
+                                                                        />
+                                                                        <Text
+                                                                            size="xs"
+                                                                            fw={
+                                                                                500
+                                                                            }
+                                                                            truncate
                                                                         >
-                                                                            <Text
-                                                                                size="sm"
-                                                                                component="span"
-                                                                            >
-                                                                                {
-                                                                                    chart.name
-                                                                                }{' '}
-                                                                                (id:{' '}
-                                                                                {
-                                                                                    chart.uuid
-                                                                                }
-                                                                                )
-                                                                            </Text>
-                                                                        </li>
-                                                                    ),
-                                                                )}
-                                                            </ul>
+                                                                            {
+                                                                                chart.name
+                                                                            }
+                                                                        </Text>
+                                                                    </Group>
+                                                                ),
+                                                            )}
                                                         </Box>
                                                     )}
                                                     {msg.imagePreviewUrl && (
@@ -794,7 +799,7 @@ const AppGenerate: FC = () => {
                                                     size="sm"
                                                     radius="xl"
                                                     variant="light"
-                                                    color="violet"
+                                                    color="gray"
                                                     mt={2}
                                                 >
                                                     <IconSparkles size={12} />
@@ -828,7 +833,7 @@ const AppGenerate: FC = () => {
                                                 size="sm"
                                                 radius="xl"
                                                 variant="light"
-                                                color="violet"
+                                                color="gray"
                                                 mt={2}
                                             >
                                                 <IconSparkles size={12} />
