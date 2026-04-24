@@ -1,3 +1,16 @@
+# [0.2807.0](https://github.com/lightdash/lightdash/compare/0.2806.0...0.2807.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **sdk:** build with classic Rollup for Turbopack + isolated-Vite compat (closes [#22289](https://github.com/lightdash/lightdash/issues/22289)) ([#22319](https://github.com/lightdash/lightdash/issues/22319)) ([c4c2d41](https://github.com/lightdash/lightdash/commit/c4c2d414d3422ffbeb748a5a5cdc43ecf45bbb91))
+* use chart-level callback instead of the racy container gate ([#22357](https://github.com/lightdash/lightdash/issues/22357)) ([831f1d9](https://github.com/lightdash/lightdash/commit/831f1d9b023930c7f5357319ef6b19242a0cdd0f))
+
+
+### Features
+
+* **pre-aggregates:** unify drawer and CLI on /audit endpoint ([#22346](https://github.com/lightdash/lightdash/issues/22346)) ([21d72b9](https://github.com/lightdash/lightdash/commit/21d72b93303e282cd8ac2e714ba3694beb7c4e01)), closes [#22338](https://github.com/lightdash/lightdash/issues/22338)
+
 # [0.2806.0](https://github.com/lightdash/lightdash/compare/0.2805.1...0.2806.0) (2026-04-24)
 
 
