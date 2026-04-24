@@ -1,3 +1,37 @@
+## [0.2803.1](https://github.com/lightdash/lightdash/compare/0.2803.0...0.2803.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* drilldown menu location in data apps ([#22335](https://github.com/lightdash/lightdash/issues/22335)) ([c33d064](https://github.com/lightdash/lightdash/commit/c33d0645a3f24c0b5fca75ed5b46e7d6be48d0e2))
+
+# [0.2803.0](https://github.com/lightdash/lightdash/compare/0.2802.0...0.2803.0) (2026-04-24)
+
+
+### Features
+
+* add app resources section ([#22317](https://github.com/lightdash/lightdash/issues/22317)) ([c7be24c](https://github.com/lightdash/lightdash/commit/c7be24cec69f59ccf40720c14d5a9b4290b21a38))
+
+# [0.2802.0](https://github.com/lightdash/lightdash/compare/0.2801.1...0.2802.0) (2026-04-24)
+
+
+### Bug Fixes
+
+* **filters:** skip timestamptz literal wrap for DATE-over-DATE dimensions ([#22343](https://github.com/lightdash/lightdash/issues/22343)) ([215e9b9](https://github.com/lightdash/lightdash/commit/215e9b9b0901552df56112ad85cebe9ed2c1283d))
+
+
+### Features
+
+* **apps:** make app name open latest preview on My Apps page ([#22342](https://github.com/lightdash/lightdash/issues/22342)) ([58828ce](https://github.com/lightdash/lightdash/commit/58828ceb217c31aec72b2b7a7100229b0e39c3e4))
+
+## [0.2801.1](https://github.com/lightdash/lightdash/compare/0.2801.0...0.2801.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* allow template and formula table calculations in pre-aggregate matcher ([#22337](https://github.com/lightdash/lightdash/issues/22337)) ([e575736](https://github.com/lightdash/lightdash/commit/e5757369c4cdafa4277192f4fdbf62b03f95b0f0))
+* improve miss reason in explorer ([#22341](https://github.com/lightdash/lightdash/issues/22341)) ([7f86dbb](https://github.com/lightdash/lightdash/commit/7f86dbb605c7b4e4a4756b7e4bcebd04e96d4f9e))
+
 # [0.2801.0](https://github.com/lightdash/lightdash/compare/0.2800.1...0.2801.0) (2026-04-24)
 
 

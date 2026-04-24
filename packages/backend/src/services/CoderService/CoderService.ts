@@ -568,8 +568,9 @@ export class CoderService extends BaseService {
         content: T[],
         spaces: SpaceSummaryBase[],
     ): Promise<T[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('Project', {
                     projectUuid: project.projectUuid,
@@ -610,8 +611,9 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -747,8 +749,9 @@ export class CoderService extends BaseService {
         }
 
         // Filter charts based on user permissions (from private spaces)
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -882,8 +885,9 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1007,8 +1011,9 @@ export class CoderService extends BaseService {
     }): Promise<void> {
         if (verified === undefined) return;
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentVerification', {
                     organizationUuid,
@@ -1079,8 +1084,9 @@ export class CoderService extends BaseService {
     ) {
         const project = await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1300,8 +1306,9 @@ export class CoderService extends BaseService {
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1587,8 +1594,9 @@ export class CoderService extends BaseService {
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1704,7 +1712,6 @@ export class CoderService extends BaseService {
                 projectUuid, // We use the same projectUuid for both promoted and upstream
             );
 
-        const auditedAbility = this.createAuditedAbility(user);
         PromoteService.checkPromoteDashboardPermissions(
             auditedAbility,
             user.organizationUuid!,

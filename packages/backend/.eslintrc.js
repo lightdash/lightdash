@@ -111,6 +111,7 @@ module.exports = {
                 'src/services/AsyncQueryService/**/*.ts',
                 'src/services/CatalogService/**/*.ts',
                 'src/services/ChangesetService.ts',
+                'src/services/CoderService/**/*.ts',
                 'src/services/ContentService/**/*.ts',
                 'src/services/CsvService/**/*.ts',
                 'src/services/DashboardService/**/*.ts',
@@ -143,6 +144,7 @@ module.exports = {
                 'src/services/UnfurlService/**/*.ts',
                 'src/services/UserAttributesService/**/*.ts',
                 'src/services/UserService.ts',
+                'src/services/ValidationService/**/*.ts',
             ],
             rules: {
                 'no-direct-ability-check': 'error',

@@ -1,7 +1,4 @@
-import {
-    PreAggregateMissReason,
-    preAggregateMissReasonLabels,
-} from '@lightdash/common';
+import { PreAggregateMissReason } from '@lightdash/common';
 import { ThemeIcon, Tooltip } from '@mantine-8/core';
 import { IconBolt, IconBoltOff } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
@@ -11,6 +8,7 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { usePreAggregateCacheEnabled } from '../hooks/usePreAggregateCacheEnabled';
+import { formatTileMissReason } from './common/Dashboard/PreAggregateAuditIndicator.utils';
 
 const PreAggregateStatusBadge: FC = memo(() => {
     const preAggregateCheck = useExplorerSelector(selectPreAggregateCheck);
@@ -63,7 +61,7 @@ const PreAggregateStatusBadge: FC = memo(() => {
 
         return {
             color: 'gray',
-            tooltip: `Cache miss: ${preAggregateMissReasonLabels[result.reason.reason]}`,
+            tooltip: `Cache miss: ${formatTileMissReason(result.reason)}`,
             icon: 'bolt',
         };
     }, [preAggVisible, preAggregateCheck, preAggCacheEnabled]);

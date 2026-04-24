@@ -750,6 +750,7 @@ export const renderFilterRuleSql = (
     caseSensitive: boolean = true,
     baseDimensionSql?: string,
     useTimezoneAwareDateTrunc?: boolean,
+    baseTimeIntervalDimensionType?: DimensionType,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -788,6 +789,12 @@ export const renderFilterRuleSql = (
         }
         case DimensionType.DATE:
         case MetricType.DATE: {
+            // Only truncations over a TIMESTAMP base carry a timestamptz
+            // SQL expression; pure DATE columns stay bare DATE, so wrapping
+            // the literal would break BigQuery's DATE vs TIMESTAMP check.
+            const wrapLiteralAsTimestamptz =
+                !!useTimezoneAwareDateTrunc &&
+                baseTimeIntervalDimensionType === DimensionType.TIMESTAMP;
             return renderDateFilterSql(
                 fieldSql,
                 escapedFilterRule,
@@ -798,7 +805,7 @@ export const renderFilterRuleSql = (
                     : undefined,
                 startOfWeek,
                 baseDimensionSql,
-                useTimezoneAwareDateTrunc,
+                wrapLiteralAsTimestamptz,
             );
         }
         case DimensionType.TIMESTAMP:
@@ -863,6 +870,11 @@ export const renderFilterRuleSqlFromField = (
         caseSensitive = exploreCaseSensitive;
     }
 
+    const baseTimeIntervalDimensionType =
+        !isCompiledCustomSqlDimension(field) && !isMetric(field)
+            ? field.timeIntervalBaseDimensionType
+            : undefined;
+
     return renderFilterRuleSql(
         filterRule,
         fieldType,
@@ -875,5 +887,6 @@ export const renderFilterRuleSqlFromField = (
         caseSensitive,
         baseDimensionSql,
         useTimezoneAwareDateTrunc,
+        baseTimeIntervalDimensionType,
     );
 };
