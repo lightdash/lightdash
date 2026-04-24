@@ -3863,6 +3863,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await ack();
                 const { user } = body;
                 const { teamId } = context;
+                const triggeringMessage =
+                    body.type === 'block_actions' ? body.message : undefined;
                 const organizationUuid =
                     await this.getSlackVoteOrganizationUuid({
                         teamId,
@@ -3871,6 +3873,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             body.type === 'block_actions'
                                 ? body.channel?.id
                                 : undefined,
+                        messageId: triggeringMessage?.ts,
+                        threadTs: triggeringMessage?.thread_ts,
                         client,
                     });
 
@@ -3926,6 +3930,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 await ack();
                 const { user } = body;
                 const { teamId } = context;
+                const triggeringMessage =
+                    body.type === 'block_actions' ? body.message : undefined;
                 const organizationUuid =
                     await this.getSlackVoteOrganizationUuid({
                         teamId,
@@ -3934,6 +3940,8 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                             body.type === 'block_actions'
                                 ? body.channel?.id
                                 : undefined,
+                        messageId: triggeringMessage?.ts,
+                        threadTs: triggeringMessage?.thread_ts,
                         client,
                     });
 
@@ -4684,11 +4692,15 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         teamId,
         userId,
         channelId,
+        messageId,
+        threadTs,
         client,
     }: {
         teamId?: string;
         userId: string;
         channelId?: string;
+        messageId?: string;
+        threadTs?: string;
         client: WebClient;
     }): Promise<string | undefined | null> {
         let result:
@@ -4732,10 +4744,42 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
             result = 'identity_missing';
             if (channelId) {
+                const text = `Hi <@${userId}>! OAuth authentication is required to vote on AI Agent responses. Please connect your Slack account to Lightdash to continue.`;
+                const blocks =
+                    teamId && messageId
+                        ? [
+                              {
+                                  type: 'section',
+                                  text: { type: 'mrkdwn', text },
+                              },
+                              {
+                                  type: 'actions',
+                                  elements: [
+                                      {
+                                          type: 'button',
+                                          text: {
+                                              type: 'plain_text',
+                                              text: 'Connect your Slack account',
+                                          },
+                                          action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
+                                          url: `${
+                                              this.lightdashConfig.siteUrl
+                                          }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}&trigger=vote${
+                                              threadTs
+                                                  ? `&thread_ts=${threadTs}`
+                                                  : ''
+                                          }`,
+                                          style: 'primary',
+                                      },
+                                  ],
+                              },
+                          ]
+                        : undefined;
                 await client.chat.postEphemeral({
                     channel: channelId,
                     user: userId,
-                    text: 'You need to link your Slack account to Lightdash to vote on AI responses. Please use the AI Agent first to complete the OAuth linking process.',
+                    text,
+                    blocks,
                 });
             }
 
