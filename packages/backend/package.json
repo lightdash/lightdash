@@ -154,7 +154,7 @@
         "redoc-express": "1.0.0",
         "scim-patch": "0.8.3",
         "scim2-parse-filter": "0.2.10",
-        "simple-git": "3.33.0",
+        "simple-git": "3.36.0",
         "slackify-markdown": "4.4.0",
         "sshpk": "1.18.0",
         "tar-stream": "3.1.8",
