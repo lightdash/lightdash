@@ -3,6 +3,44 @@ import type { TestCase } from '../types';
 
 export const nullHandlingCases: TestCase[] = [
     {
+        id: 'null/last-day',
+        formula: '=DAY(LAST_DAY(A))',
+        description:
+            'LAST_DAY propagates NULL end-to-end: for NULL inputs, downstream DAY() also yields NULL',
+        columns: { A: 'val_d' },
+        sourceTable: 'test_nulls',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 31 },
+            { result: null },
+            { result: 31 },
+            { result: null },
+            { result: 31 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['null', 'date'],
+    },
+    {
+        id: 'null/date-trunc',
+        formula: '=YEAR(DATE_TRUNC("month", A))',
+        description:
+            'DATE_TRUNC propagates NULL end-to-end: for NULL inputs, downstream YEAR() also yields NULL',
+        columns: { A: 'val_d' },
+        sourceTable: 'test_nulls',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 2024 },
+            { result: null },
+            { result: 2024 },
+            { result: null },
+            { result: 2024 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['null', 'date'],
+    },
+    {
         id: 'null/coalesce-two',
         formula: '=COALESCE(A, 0)',
         description: 'Replace NULL with default value',

@@ -35,15 +35,16 @@ CREATE TABLE test_nulls (
     id INT,
     val_a DECIMAL(10,2),
     val_b STRING,
-    val_c INT
+    val_c INT,
+    val_d DATE
 ) USING DELTA;
 
 INSERT INTO test_nulls VALUES
-(1, 10.00, 'hello', 100),
-(2, NULL, 'world', 200),
-(3, 30.00, NULL, 300),
-(4, NULL, NULL, 400),
-(5, 50.00, 'test', 500);
+(1, 10.00, 'hello', 100, DATE'2024-01-15'),
+(2, NULL, 'world', 200, NULL),
+(3, 30.00, NULL, 300, DATE'2024-03-10'),
+(4, NULL, NULL, 400, NULL),
+(5, 50.00, 'test', 500, DATE'2024-05-12');
 
 DROP TABLE IF EXISTS test_window;
 
