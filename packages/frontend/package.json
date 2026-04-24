@@ -7,7 +7,7 @@
         "typecheck-sdk": "tsc --project tsconfig.json --noEmit",
         "dev": "vite",
         "build": "vite build",
-        "build-sdk": "NODE_OPTIONS='--max-old-space-size=12288' rollup -c rollup.config.mjs",
+        "build-sdk": "node --max-old-space-size=8192 ./node_modules/rollup/dist/bin/rollup -c rollup.config.mjs",
         "serve": "vite preview",
         "test": "vitest run",
         "test-watch": "vitest dev",

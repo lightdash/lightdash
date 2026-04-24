@@ -4,6 +4,7 @@ import nodeResolve from '@rollup/plugin-node-resolve';
 import replace from '@rollup/plugin-replace';
 import svgr from '@svgr/rollup';
 import { readFileSync } from 'fs';
+import { rm } from 'fs/promises';
 import { resolve } from 'path';
 import dts from 'rollup-plugin-dts';
 import esbuild from 'rollup-plugin-esbuild';
@@ -64,6 +65,17 @@ const onwarn = (warning, warn) => {
 const sdkInput = resolve(__dirname, 'sdk', 'index.tsx');
 const distDir = resolve(__dirname, 'sdk', 'dist');
 
+// Rollup has no `emptyOutDir` equivalent — wipe dist at build start so
+// we don't publish stale outputs from prior builds (e.g. when output
+// file names change between revisions). Attached only to the main
+// build; the dts build runs second and fills in sdk.d.ts afterwards.
+const cleanDist = () => ({
+    name: 'clean-dist',
+    async buildStart() {
+        await rm(distDir, { recursive: true, force: true });
+    },
+});
+
 // Main JS build (CJS + ESM). rollup-plugin-dts runs in the follow-up
 // config entry below to emit sdk.d.ts.
 const mainBuild = {
@@ -86,6 +98,7 @@ const mainBuild = {
         },
     ],
     plugins: [
+        cleanDist(),
         replace({
             preventAssignment: true,
             values: {
@@ -142,10 +155,21 @@ const mainBuild = {
     ],
 };
 
-// Bundled .d.ts emit. rollup-plugin-dts runs its own TypeScript compiler,
-// so it doesn't need esbuild/commonjs/etc. Keep this config minimal and
-// externalize *everything* so we don't walk into unrelated CJS deps trying
-// to resolve types — we only care about the types exposed from our entry.
+// Bundled .d.ts emit.
+//
+// KNOWN LIMITATION — MATCHES PRIOR BEHAVIOR: the emitted sdk.d.ts
+// externalizes all imports, which means consumers see dangling imports
+// for `@lightdash/common` and `../src/ee/...` source paths that don't
+// exist in the published tarball. This is identical to what the prior
+// vite-plugin-dts(rollupTypes: true) config emitted — the types have
+// shipped in this state since before the rolldown transition.
+//
+// Fully inlining transitive types is blocked by rollup-plugin-dts'
+// TypeScript wrapper not parsing CJS-style d.ts from several
+// @lightdash/common transitive deps (dependency-graph, echarts, etc.).
+// Proper fix requires either switching to api-extractor or tsdown, or
+// adding @lightdash/common as a peer dependency so consumer projects
+// resolve the types. Tracked as a follow-up to not balloon this PR.
 const dtsBuild = {
     input: sdkInput,
     external: () => true,
