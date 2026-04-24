@@ -2259,6 +2259,11 @@ describe('AsyncQueryService', () => {
                     pivotValuesColumns: null,
                     pivotTotalColumnCount: null,
                     originalColumns: null,
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    metricQuery: metricQueryMock,
+                    createdByActorType: 'session',
+                    createdByUserUuid: 'user-uuid',
                 } satisfies Partial<QueryHistory>);
                 (
                     service.resultsStorageClient.getDownloadStream as jest.Mock
@@ -2335,6 +2340,11 @@ describe('AsyncQueryService', () => {
                     pivotValuesColumns: null,
                     pivotTotalColumnCount: null,
                     originalColumns: null,
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    metricQuery: metricQueryMock,
+                    createdByActorType: 'session',
+                    createdByUserUuid: 'user-uuid',
                 } satisfies Partial<QueryHistory>);
                 (
                     service.resultsStorageClient.getDownloadStream as jest.Mock
