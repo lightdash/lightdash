@@ -1,3 +1,10 @@
+## [0.2803.1](https://github.com/lightdash/lightdash/compare/0.2803.0...0.2803.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* drilldown menu location in data apps ([#22335](https://github.com/lightdash/lightdash/issues/22335)) ([c33d064](https://github.com/lightdash/lightdash/commit/c33d0645a3f24c0b5fca75ed5b46e7d6be48d0e2))
+
 # [0.2803.0](https://github.com/lightdash/lightdash/compare/0.2802.0...0.2803.0) (2026-04-24)
 
 
