@@ -404,4 +404,57 @@ describe('pre-aggregate virtual explore generation', () => {
                 'Pre-aggregate "broken_rollup" references unsupported metrics: "myTable_user_count" (count_distinct). Supported metric types: sum, count, min, max, average',
         });
     });
+
+    it('keeps only successfully generated pre-aggregates on the base explore', async () => {
+        process.env.PRE_AGGREGATES_ENABLED = 'true';
+
+        const explores = await convertExplores(
+            [
+                {
+                    ...MODEL_WITH_METRIC,
+                    meta: {
+                        pre_aggregates: [
+                            {
+                                name: 'valid_rollup',
+                                dimensions: ['user_id'],
+                                metrics: [
+                                    'myTable_total_num_participating_athletes',
+                                ],
+                            },
+                            {
+                                name: 'invalid_rollup',
+                                dimensions: ['user_id'],
+                                metrics: ['missing_metric'],
+                            },
+                        ],
+                    },
+                },
+            ],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+            { postProcessors: [preAggregatePostProcessor] },
+        );
+
+        const baseExplore = explores.find(
+            (explore) => !('errors' in explore) && explore.name === 'myTable',
+        ) as Explore;
+
+        expect(baseExplore.preAggregates).toStrictEqual([
+            {
+                name: 'valid_rollup',
+                dimensions: ['user_id'],
+                metrics: ['myTable_total_num_participating_athletes'],
+            },
+        ]);
+        expect(baseExplore.warnings).toContainEqual({
+            type: InlineErrorType.FIELD_ERROR,
+            message:
+                'Pre-aggregate "invalid_rollup" references unknown metric "missing_metric"',
+        });
+    });
 });
