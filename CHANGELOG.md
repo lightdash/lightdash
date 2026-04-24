@@ -1,3 +1,10 @@
+# [0.2799.0](https://github.com/lightdash/lightdash/compare/0.2798.0...0.2799.0) (2026-04-24)
+
+
+### Features
+
+* add step cap error handling and analytics tracking for AI agent ([#22314](https://github.com/lightdash/lightdash/issues/22314)) ([bd55165](https://github.com/lightdash/lightdash/commit/bd551652db59cebd8f70b61bb55e46a256be185f)), closes [#22294](https://github.com/lightdash/lightdash/issues/22294)
+
 # [0.2798.0](https://github.com/lightdash/lightdash/compare/0.2797.0...0.2798.0) (2026-04-24)
 
 
