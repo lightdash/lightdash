@@ -757,14 +757,6 @@ export function formatRow(
         const pivotValuesColumn = pivotValuesColumns?.[columnName];
         const item = itemsMap[pivotValuesColumn?.referenceField ?? columnName];
 
-        // Truncated dimensions whose base column is DATE have no time
-        // component, so applying the display timezone would shift the day.
-        const itemTimezone =
-            isDimension(item) &&
-            item.timeIntervalBaseDimensionType === DimensionType.DATE
-                ? undefined
-                : timezone;
-
         resultRow[columnName] = {
             value: {
                 raw: formatRawValue(item, value),
@@ -773,7 +765,7 @@ export function formatRow(
                     value,
                     false,
                     parameters,
-                    itemTimezone,
+                    timezone,
                 ),
             },
         };

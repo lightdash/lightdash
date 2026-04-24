@@ -790,6 +790,40 @@ describe('Formatting', () => {
             ).toEqual('2021');
         });
 
+        test('formatItemValue DATE ignores display timezone for DATE-backed dimensions', () => {
+            const value = new Date('2026-03-03T00:00:00.000Z');
+            // DATE base: timezone must be ignored (no day-shift in negative offsets)
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.DATE,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03');
+            // TIMESTAMP base: timezone still applies
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-02');
+        });
+
         test('formatItemValue should return the right format when field is Metric', () => {
             expect(formatItemValue(metric, undefined)).toEqual('-');
             expect(formatItemValue(metric, null)).toEqual('∅');

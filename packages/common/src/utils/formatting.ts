@@ -861,15 +861,25 @@ export function formatItemValue(
                     return formatBoolean(value);
                 case DimensionType.DATE:
                 case MetricType.DATE:
-                case TableCalculationType.DATE:
+                case TableCalculationType.DATE: {
+                    // Truncated dimensions whose base column is DATE have no
+                    // time component — applying a display timezone would
+                    // shift the calendar day (off-by-one in negative offsets).
+                    const dateTimezone =
+                        isDimension(item) &&
+                        item.timeIntervalBaseDimensionType ===
+                            DimensionType.DATE
+                            ? undefined
+                            : timezone;
                     return isMomentInput(value)
                         ? formatDate(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
-                              timezone,
+                              dateTimezone,
                           )
                         : 'NaT';
+                }
                 case DimensionType.TIMESTAMP:
                 case MetricType.TIMESTAMP:
                 case TableCalculationType.TIMESTAMP:
