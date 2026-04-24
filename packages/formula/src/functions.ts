@@ -15,6 +15,7 @@ export const SINGLE_ARG_FNS = [
     'YEAR',
     'MONTH',
     'DAY',
+    'LAST_DAY',
     'ISNULL',
     'SUM',
     'AVERAGE',
@@ -92,6 +93,7 @@ export const FUNCTION_DEFINITIONS = [
     { name: 'YEAR', description: 'Extract year', minArgs: 1, maxArgs: 1, category: 'date' },
     { name: 'MONTH', description: 'Extract month', minArgs: 1, maxArgs: 1, category: 'date' },
     { name: 'DAY', description: 'Extract day', minArgs: 1, maxArgs: 1, category: 'date' },
+    { name: 'LAST_DAY', description: 'Last day of the month', minArgs: 1, maxArgs: 1, category: 'date' },
     // Null
     { name: 'COALESCE', description: 'First non-null value', minArgs: 1, maxArgs: Infinity, category: 'null' },
     { name: 'ISNULL', description: 'Check if null', minArgs: 1, maxArgs: 1, category: 'null' },

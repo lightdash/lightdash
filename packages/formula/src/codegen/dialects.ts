@@ -28,6 +28,8 @@ export interface DialectConfig {
     // ROUND emission. Set by Postgres-family configs to cast the value
     // to numeric in the 2-arg form. Unset elsewhere.
     generateRound?: (value: string, digits?: string) => string;
+    // Override when the dialect has no `LAST_DAY(d)` or names it differently.
+    generateLastDay?: (arg: string) => string;
 }
 
 // Everything a dialect needs to emit `LAG(...) OVER (...)` or
@@ -124,6 +126,12 @@ const postgresStyleRound = (value: string, digits?: string): string =>
     digits !== undefined
         ? `ROUND((${value})::numeric, ${digits})`
         : `ROUND(${value})`;
+// Cast back to DATE so downstream ops see the same type as native `LAST_DAY`
+// on warehouses that have it. The `DATE_TRUNC('month', …)` fragment will be
+// shared with `generateDateTrunc` once that lands — replace with the
+// extracted helper then.
+const postgresStyleLastDay = (arg: string): string =>
+    `CAST(DATE_TRUNC('month', ${arg}) + INTERVAL '1 month' - INTERVAL '1 day' AS DATE)`;
 
 const POSTGRES_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
@@ -131,6 +139,7 @@ const POSTGRES_CONFIG: DialectConfig = {
     generateAvg: postgresStyleAvg,
     generateConcat: postgresStyleConcat,
     generateRound: postgresStyleRound,
+    generateLastDay: postgresStyleLastDay,
 };
 
 // Redshift is Postgres-wire-compatible and inherits every Postgres-family
@@ -225,6 +234,7 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
     generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
     generateModulo: (left, right) =>
         `(toFloat64(${left}) % toFloat64(${right}))`,
+    generateLastDay: (arg) => `toLastDayOfMonth(${arg})`,
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         const chFunc = sqlFunc === 'LAG' ? 'lagInFrame' : 'leadInFrame';
         const [value, ...rest] = args;
