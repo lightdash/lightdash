@@ -1,3 +1,11 @@
+## [0.2801.1](https://github.com/lightdash/lightdash/compare/0.2801.0...0.2801.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* allow template and formula table calculations in pre-aggregate matcher ([#22337](https://github.com/lightdash/lightdash/issues/22337)) ([e575736](https://github.com/lightdash/lightdash/commit/e5757369c4cdafa4277192f4fdbf62b03f95b0f0))
+* improve miss reason in explorer ([#22341](https://github.com/lightdash/lightdash/issues/22341)) ([7f86dbb](https://github.com/lightdash/lightdash/commit/7f86dbb605c7b4e4a4756b7e4bcebd04e96d4f9e))
+
 # [0.2801.0](https://github.com/lightdash/lightdash/compare/0.2800.1...0.2801.0) (2026-04-24)
 
 
