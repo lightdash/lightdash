@@ -382,6 +382,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),
+                    contentVerificationService:
+                        repository.getContentVerificationService(),
                     projectService: repository.getProjectService(),
                     savedSqlService: repository.getSavedSqlService(),
                     schedulerService: repository.getSchedulerService(),
