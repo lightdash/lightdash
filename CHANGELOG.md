@@ -1,3 +1,10 @@
+## [0.2800.1](https://github.com/lightdash/lightdash/compare/0.2800.0...0.2800.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **cli:** validate preview project exists before defaulting to it ([#22327](https://github.com/lightdash/lightdash/issues/22327)) ([a62eef0](https://github.com/lightdash/lightdash/commit/a62eef0bd545f1a55a037eb0abdb82cb06e2c360))
+
 # [0.2800.0](https://github.com/lightdash/lightdash/compare/0.2799.0...0.2800.0) (2026-04-24)
 
 
