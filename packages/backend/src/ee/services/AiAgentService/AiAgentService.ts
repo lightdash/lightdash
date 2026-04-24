@@ -4585,6 +4585,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 threadTs: undefined,
                 channelId: event.channel,
                 messageId: event.ts,
+                organizationUuid,
             },
             say,
             client,
@@ -4870,6 +4871,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         threadTs,
                         channelId,
                         messageId: body.message?.ts || '',
+                        organizationUuid,
                     },
                     // Pass a no-op function for say since we'll handle responses ourselves
                     async () => {},
@@ -5085,12 +5087,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             threadTs,
             channelId,
             messageId,
+            organizationUuid,
         }: {
             userId: string;
             teamId: string;
             threadTs: string | undefined;
             channelId: string;
             messageId: string;
+            organizationUuid: string;
         },
         say: Function,
         client: WebClient,
@@ -5163,6 +5167,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 event: 'ai_agent.slack_auth',
                 trigger: 'app_mention',
                 result,
+                organizationUuid,
                 slackUserId: userId,
                 slackUserIdFlavor: userId.startsWith('W')
                     ? 'enterprise'
@@ -5450,6 +5455,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 threadTs: event.thread_ts || event.ts, // Use event.ts for new messages to create a thread
                 channelId: event.channel,
                 messageId: event.ts,
+                organizationUuid,
             },
             say,
             client,
