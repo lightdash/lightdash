@@ -1,3 +1,10 @@
+# [0.2811.0](https://github.com/lightdash/lightdash/compare/0.2810.0...0.2811.0) (2026-04-24)
+
+
+### Features
+
+* **timezone:** thread displayTimezone into scheduled gsheets pivot deliveries ([#22284](https://github.com/lightdash/lightdash/issues/22284)) ([fee908e](https://github.com/lightdash/lightdash/commit/fee908ed87776db81bf7e1ce9b56fe971d547109))
+
 # [0.2810.0](https://github.com/lightdash/lightdash/compare/0.2809.0...0.2810.0) (2026-04-24)
 
 
