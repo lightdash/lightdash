@@ -1,3 +1,10 @@
+# [0.2796.0](https://github.com/lightdash/lightdash/compare/0.2795.0...0.2796.0) (2026-04-24)
+
+
+### Features
+
+* **data-apps:** soft and hard delete ([#22285](https://github.com/lightdash/lightdash/issues/22285)) ([4c483b9](https://github.com/lightdash/lightdash/commit/4c483b9ab796117e468ff0fa9c183802a465e04e))
+
 # [0.2795.0](https://github.com/lightdash/lightdash/compare/0.2794.0...0.2795.0) (2026-04-23)
 
 
