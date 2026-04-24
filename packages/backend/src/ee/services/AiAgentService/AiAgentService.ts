@@ -5143,7 +5143,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                     action_id: `actions.oauth_button_click:${teamId}:${channelId}:${messageId}`,
                                     url: `${
                                         this.lightdashConfig.siteUrl
-                                    }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}${
+                                    }/api/v1/auth/slack?team=${teamId}&channel=${channelId}&message=${messageId}&trigger=app_mention${
                                         threadTs ? `&thread_ts=${threadTs}` : ''
                                     }`,
                                     style: 'primary',
@@ -5187,8 +5187,16 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         messageTs: string;
         threadTs?: string;
         userUuid: string;
+        trigger?: 'vote' | 'app_mention';
     }): Promise<void> {
-        const { teamId, channelId, messageTs, threadTs, userUuid } = data;
+        const {
+            teamId,
+            channelId,
+            messageTs,
+            threadTs,
+            userUuid,
+            trigger = 'app_mention',
+        } = data;
 
         Logger.info(
             `Processing pending Slack message after OAuth: team=${teamId}, channel=${channelId}, message=${messageTs}`,
@@ -5236,6 +5244,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         if (cachedResponse) {
             // Update the ephemeral message to show success, then delete after 10 seconds
+            const successText =
+                trigger === 'vote'
+                    ? '✅ Connected! Click the vote button again to submit your feedback.'
+                    : '✅ Authentication successful! Processing your request...';
             try {
                 const successResponse = await fetch(
                     cachedResponse.responseUrl,
@@ -5249,7 +5261,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                                     type: 'section',
                                     text: {
                                         type: 'mrkdwn',
-                                        text: '✅ Authentication successful! Processing your request...',
+                                        text: successText,
                                     },
                                 },
                             ],
@@ -5284,6 +5296,13 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     e,
                 );
             }
+        }
+
+        // Vote-triggered OAuth: the original message is the AI's own reply, not
+        // a user prompt. Replaying it would feed the bot its own response.
+        // Auth is now established; user re-clicks the vote button to record it.
+        if (trigger === 'vote') {
+            return;
         }
 
         // Fetch the original message

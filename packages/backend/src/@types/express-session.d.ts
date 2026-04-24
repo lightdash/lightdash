@@ -17,6 +17,7 @@ declare module 'express-session' {
             channelId?: string | undefined;
             messageTs?: string | undefined;
             threadTs?: string | undefined;
+            trigger?: 'vote' | 'app_mention' | undefined;
         };
         impersonation?: {
             adminUserUuid: string;
