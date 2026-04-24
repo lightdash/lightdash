@@ -31,12 +31,12 @@ const VisualizationTimezone: FC<Props> = ({
         >
             <Badge
                 leftSection={<MantineIcon icon={IconClock} size="sm" />}
-                color="gray"
+                color="ldGray.6"
                 variant="transparent"
                 size="sm"
                 tt="none"
             >
-                {getTimezoneLabel(timezone) ?? timezone}
+                {getTimezoneLabel(timezone)}
             </Badge>
         </Tooltip>
     );
