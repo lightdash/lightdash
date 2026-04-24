@@ -2,14 +2,11 @@ import {
     getAllReferences,
     getParsedReference,
 } from '../../compiler/exploreCompiler';
+import { getReferencedDimension } from '../../compiler/referenceLookup';
 import type { CompiledTable } from '../../types/explore';
 import type { CompiledDimension, FieldId } from '../../types/field';
 import { getItemId } from '../../utils/item';
-
-const USER_ATTRIBUTE_REFERENCE_PREFIXES = [
-    '${ld.userAttributes.',
-    '${lightdash.userAttributes.',
-] as const;
+import { hasLightdashUserContextVariableReference } from '../../utils/lightdashSqlVariables';
 
 export enum PreAggregateDerivedDimensionIneligibilityReason {
     CIRCULAR_DEPENDENCY = 'circular_dependency',
@@ -35,7 +32,7 @@ export type PreAggregateDerivedDimensionEligibility =
 
 type PreAggregateDimensionLookup = Record<
     string,
-    Pick<CompiledTable, 'dimensions'>
+    Pick<CompiledTable, 'name' | 'originalName' | 'dimensions'>
 >;
 
 type EligibilityTraversalState = {
@@ -52,11 +49,9 @@ const hasParameterReferences = (dimension: CompiledDimension): boolean =>
     (dimension.parameterReferences?.length ?? 0) > 0;
 
 const hasExplicitUserAttributeReference = (sql: string): boolean =>
-    // There is no shared extractor for user-attribute references today, so keep
-    // this first slice limited to explicit tokens we can detect cheaply.
-    USER_ATTRIBUTE_REFERENCE_PREFIXES.some((prefix) => sql.includes(prefix));
+    hasLightdashUserContextVariableReference(sql);
 
-const getReferencedDimension = ({
+const getReferencedDimensionForEligibility = ({
     dimension,
     ref,
     tables,
@@ -70,7 +65,7 @@ const getReferencedDimension = ({
     }
 
     const { refTable, refName } = getParsedReference(ref, dimension.table);
-    return tables[refTable]?.dimensions[refName];
+    return getReferencedDimension(refTable, refName, tables);
 };
 
 const getIneligibleResult = ({
@@ -147,7 +142,7 @@ const analyzeDimensionEligibility = ({
         }
 
         for (const ref of getAllReferences(dimension.sql)) {
-            const referencedDimension = getReferencedDimension({
+            const referencedDimension = getReferencedDimensionForEligibility({
                 dimension,
                 ref,
                 tables,

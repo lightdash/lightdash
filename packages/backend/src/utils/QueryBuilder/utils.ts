@@ -21,8 +21,10 @@ import {
     getDateDimension,
     getDimensionMapFromTables,
     getFixedWidthBinSelectSql,
+    getIntrinsicUserAttributeRegex,
     getItemId,
     getSqlForTruncatedDate,
+    getUserAttributeRegex,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
     JoinRelationship,
@@ -237,14 +239,9 @@ export const replaceUserAttributes = (
     quoteChar: string,
     wrapChar: string,
 ): string => {
-    const userAttributeRegex =
-        /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
-    const intrinsicUserAttributeRegex =
-        /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
-
     // Replace user attributes in the SQL filter
     const { replacedSql: replacedSqlFilter } = replaceLightdashValues(
-        userAttributeRegex,
+        getUserAttributeRegex(),
         sql,
         userAttributes,
         quoteChar,
@@ -253,7 +250,7 @@ export const replaceUserAttributes = (
 
     // Replace intrinsic user attributes in the SQL filter
     const { replacedSql } = replaceLightdashValues(
-        intrinsicUserAttributeRegex,
+        getIntrinsicUserAttributeRegex(),
         replacedSqlFilter,
         intrinsicUserAttributes,
         quoteChar,

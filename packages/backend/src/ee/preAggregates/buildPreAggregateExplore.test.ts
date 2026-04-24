@@ -2,6 +2,7 @@ import {
     DimensionType,
     ExploreType,
     FieldType,
+    FilterOperator,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
@@ -70,6 +71,41 @@ const makeMetric = ({
     hidden: false,
     compiledSql: `${table}.${name}`,
     tablesReferences: [table],
+});
+
+const makeCustomMetric = ({
+    name,
+    table,
+    type,
+    sql,
+    compiledSql,
+    parameterReferences,
+    compilationError,
+    filters,
+}: {
+    name: string;
+    table: string;
+    type: MetricType;
+    sql?: string;
+    compiledSql?: string;
+    parameterReferences?: string[];
+    compilationError?: { message: string };
+    filters?: CompiledMetric['filters'];
+}): CompiledMetric => ({
+    index: 0,
+    fieldType: FieldType.METRIC,
+    type,
+    name,
+    label: name,
+    table,
+    tableLabel: table,
+    sql: sql ?? `${table}.${name}`,
+    hidden: false,
+    compiledSql: compiledSql ?? sql ?? `${table}.${name}`,
+    tablesReferences: [table],
+    ...(parameterReferences ? { parameterReferences } : {}),
+    ...(compilationError ? { compilationError } : {}),
+    ...(filters ? { filters } : {}),
 });
 
 const sourceExplore = (): Explore => ({
@@ -379,7 +415,7 @@ describe('buildPreAggregateExplore', () => {
         explore.tables.orders.dimensions.region_aware_status = makeDimension({
             name: 'region_aware_status',
             table: 'orders',
-            sql: "case when ${ld.userAttributes.region} = 'EMEA' then ${TABLE}.status end",
+            sql: "case when ${ld.attr.region} = 'EMEA' then ${TABLE}.status end",
         });
 
         expect(() =>
@@ -420,6 +456,103 @@ describe('buildPreAggregateExplore', () => {
             }),
         ).toThrow(
             'Pre-aggregate "invalid_rollup" references ineligible dimension "status_wrapper": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
+    });
+
+    it('accepts eligible custom sql metrics selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.amount = makeDimension({
+            name: 'amount',
+            table: 'orders',
+            type: DimensionType.NUMBER,
+            sql: '${TABLE}.amount',
+            compiledSql: 'orders.amount',
+        });
+        explore.tables.orders.metrics.order_revenue = makeCustomMetric({
+            name: 'order_revenue',
+            table: 'orders',
+            type: MetricType.SUM,
+            sql: '${amount}',
+            compiledSql: 'SUM(orders.amount)',
+        });
+
+        const result = buildPreAggregateExplore(explore, {
+            name: 'metric_rollup',
+            dimensions: ['status'],
+            metrics: ['order_revenue'],
+        });
+
+        expect(result.tables.orders.metrics.order_revenue).toBeDefined();
+        expect(result.tables.orders.metrics.order_revenue.compiledSql).toBe(
+            'SUM(orders.orders_order_revenue)',
+        );
+    });
+
+    it('rejects parameterized custom sql metrics selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.metrics.parameterized_revenue = makeCustomMetric({
+            name: 'parameterized_revenue',
+            table: 'orders',
+            type: MetricType.SUM,
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.amount
+                    ELSE 0
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['status'],
+                metrics: ['parameterized_revenue'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible metric "parameterized_revenue": metric "orders_parameterized_revenue" is not eligible for pre-aggregation (reason: parameter_references)',
+        );
+    });
+
+    it('rejects custom sql metrics whose filter dimension is ineligible', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.parameterized_status = makeDimension({
+            name: 'parameterized_status',
+            table: 'orders',
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                    ELSE NULL
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+        explore.tables.orders.metrics.filtered_revenue = makeCustomMetric({
+            name: 'filtered_revenue',
+            table: 'orders',
+            type: MetricType.SUM,
+            sql: '${TABLE}.amount',
+            compiledSql: 'SUM(orders.amount)',
+            filters: [
+                {
+                    id: 'metric-filter',
+                    target: {
+                        fieldRef: 'parameterized_status',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['status'],
+                metrics: ['filtered_revenue'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible metric "filtered_revenue": dimension "orders_parameterized_status" is not eligible for pre-aggregation metric filters (reason: parameter_references)',
         );
     });
 });

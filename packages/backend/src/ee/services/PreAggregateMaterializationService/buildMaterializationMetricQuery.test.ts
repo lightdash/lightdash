@@ -8,6 +8,7 @@ import {
     TimeFrames,
     UnitOfTime,
     type CompiledDimension,
+    type CompiledMetric,
     type Explore,
     type PreAggregateDef,
 } from '@lightdash/common';
@@ -41,6 +42,40 @@ const makeDimension = ({
         parameterReferences ??
         getParameterReferencesFromSqlAndFormat(sql ?? '${TABLE}.id'),
     tablesReferences: ['orders'],
+    ...(compilationError ? { compilationError } : {}),
+});
+
+const makeMetric = ({
+    name,
+    type,
+    sql,
+    compiledSql,
+    parameterReferences,
+    compilationError,
+    filters,
+}: {
+    name: string;
+    type: MetricType;
+    sql?: string;
+    compiledSql?: string;
+    parameterReferences?: string[];
+    compilationError?: { message: string };
+    filters?: CompiledMetric['filters'];
+}): CompiledMetric => ({
+    fieldType: FieldType.METRIC,
+    type,
+    name,
+    label: name,
+    table: 'orders',
+    tableLabel: 'Orders',
+    sql: sql ?? 'count(*)',
+    hidden: false,
+    compiledSql: compiledSql ?? sql ?? 'count(*)',
+    parameterReferences:
+        parameterReferences ??
+        getParameterReferencesFromSqlAndFormat(sql ?? 'count(*)'),
+    tablesReferences: ['orders'],
+    ...(filters ? { filters } : {}),
     ...(compilationError ? { compilationError } : {}),
 });
 
@@ -426,7 +461,7 @@ describe('buildMaterializationMetricQuery', () => {
         sourceExplore.tables.orders.dimensions.region_aware_status =
             makeDimension({
                 name: 'region_aware_status',
-                sql: "case when ${lightdash.userAttributes.region} = 'EMEA' then ${TABLE}.status end",
+                sql: "case when ${lightdash.attribute.region} = 'EMEA' then ${TABLE}.status end",
             });
 
         expect(() =>
@@ -474,6 +509,116 @@ describe('buildMaterializationMetricQuery', () => {
             }),
         ).toThrow(
             'Pre-aggregate "orders_rollup" references ineligible dimension "status_wrapper": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
+    });
+
+    it('includes eligible custom sql sum metrics in the materialization metric query', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.amount = makeDimension({
+            name: 'amount',
+            type: DimensionType.NUMBER,
+            sql: '${TABLE}.amount',
+            compiledSql: '"orders".amount',
+        });
+        sourceExplore.tables.orders.metrics.order_revenue = makeMetric({
+            name: 'order_revenue',
+            type: MetricType.SUM,
+            sql: '${amount}',
+            compiledSql: 'SUM("orders".amount)',
+        });
+
+        const result = buildMaterializationMetricQuery({
+            sourceExplore,
+            preAggregateDef: {
+                name: 'orders_rollup',
+                dimensions: ['status'],
+                metrics: ['order_revenue'],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.metrics).toEqual(['orders_order_revenue']);
+        expect(result.metricComponents).toEqual({
+            orders_order_revenue: [
+                {
+                    componentFieldId: 'orders_order_revenue',
+                    aggregation: MetricType.SUM,
+                },
+            ],
+        });
+    });
+
+    it('rejects parameterized custom sql metrics in the materialization metric query', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.metrics.parameterized_revenue = makeMetric({
+            name: 'parameterized_revenue',
+            type: MetricType.SUM,
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.amount
+                    ELSE 0
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['parameterized_revenue'],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" references ineligible metric "parameterized_revenue": metric "orders_parameterized_revenue" is not eligible for pre-aggregation (reason: parameter_references)',
+        );
+    });
+
+    it('rejects custom sql metrics whose filter dimension is ineligible', () => {
+        const sourceExplore = getSourceExplore();
+        sourceExplore.tables.orders.dimensions.parameterized_status =
+            makeDimension({
+                name: 'parameterized_status',
+                sql: `
+                    CASE
+                        WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                        ELSE NULL
+                    END
+                `,
+                parameterReferences: ['orders.region'],
+            });
+        sourceExplore.tables.orders.metrics.filtered_revenue = makeMetric({
+            name: 'filtered_revenue',
+            type: MetricType.SUM,
+            sql: '${TABLE}.amount',
+            compiledSql: 'SUM("orders".amount)',
+            filters: [
+                {
+                    id: 'metric-filter',
+                    target: {
+                        fieldRef: 'parameterized_status',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        });
+
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore,
+                preAggregateDef: {
+                    name: 'orders_rollup',
+                    dimensions: ['status'],
+                    metrics: ['filtered_revenue'],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_rollup" references ineligible metric "filtered_revenue": dimension "orders_parameterized_status" is not eligible for pre-aggregation metric filters (reason: parameter_references)',
         );
     });
 });

@@ -1,5 +1,4 @@
 import {
-    analyzePreAggregateDerivedDimensionEligibility,
     assertUnreachable,
     ExploreType,
     getItemId,
@@ -22,6 +21,10 @@ import {
     type PreAggregateDef,
     type TimeFrames,
 } from '@lightdash/common';
+import {
+    assertDimensionEligibleForDirectMaterialization,
+    assertMetricEligibleForPreAggregation,
+} from './eligibility';
 
 const isFinerGranularity = (
     candidateGranularity: TimeFrames,
@@ -268,29 +271,6 @@ const getSelectedDimension = ({
     );
 };
 
-const assertDimensionEligibleForDirectMaterialization = ({
-    sourceExplore,
-    preAggregateDef,
-    dimensionReference,
-    dimension,
-}: {
-    sourceExplore: Explore;
-    preAggregateDef: PreAggregateDef;
-    dimensionReference: string;
-    dimension: CompiledDimension;
-}): void => {
-    const eligibility = analyzePreAggregateDerivedDimensionEligibility({
-        dimension,
-        tables: sourceExplore.tables,
-    });
-
-    if (!eligibility.isEligible) {
-        throw new Error(
-            `Pre-aggregate "${preAggregateDef.name}" references ineligible dimension "${dimensionReference}": dimension "${eligibility.ineligibleDimensionFieldId}" is not eligible for direct materialization (reason: ${eligibility.reason})`,
-        );
-    }
-};
-
 const getIncludedDimensions = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
@@ -399,6 +379,13 @@ const getIncludedMetrics = (
         }
 
         const { fieldId, metric } = metricLookup;
+
+        assertMetricEligibleForPreAggregation({
+            sourceExplore,
+            preAggregateDef,
+            metricReference,
+            metric,
+        });
 
         if (!preAggregateUtils.isSupportedMetricType(metric.type)) {
             unsupportedMetrics.push({

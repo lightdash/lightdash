@@ -32,15 +32,28 @@ const makeDimension = (
 
 const makeTables = (
     dimensions: CompiledDimension[],
-): Record<string, Pick<CompiledTable, 'dimensions'>> =>
-    dimensions.reduce<Record<string, Pick<CompiledTable, 'dimensions'>>>(
-        (acc, dimension) => {
-            acc[dimension.table] = acc[dimension.table] ?? { dimensions: {} };
-            acc[dimension.table].dimensions[dimension.name] = dimension;
-            return acc;
-        },
-        {},
-    );
+): Record<
+    string,
+    Pick<CompiledTable, 'name' | 'originalName' | 'dimensions' | 'metrics'>
+> =>
+    dimensions.reduce<
+        Record<
+            string,
+            Pick<
+                CompiledTable,
+                'name' | 'originalName' | 'dimensions' | 'metrics'
+            >
+        >
+    >((acc, dimension) => {
+        acc[dimension.table] = acc[dimension.table] ?? {
+            name: dimension.table,
+            originalName: dimension.table === 'cstmr' ? 'customers' : undefined,
+            dimensions: {},
+            metrics: {},
+        };
+        acc[dimension.table].dimensions[dimension.name] = dimension;
+        return acc;
+    }, {});
 
 describe('analyzePreAggregateDerivedDimensionEligibility', () => {
     it('classifies a plain base dimension as eligible', () => {
@@ -87,6 +100,32 @@ describe('analyzePreAggregateDerivedDimensionEligibility', () => {
                 getItemId(statusLabel),
                 getItemId(normalizedStatus),
                 getItemId(status),
+            ],
+        });
+    });
+
+    it('resolves references through a joined table original name', () => {
+        const customerFirstName = makeDimension({
+            name: 'first_name',
+            table: 'cstmr',
+            sql: '${TABLE}.first_name',
+            compiledSql: '"customers".first_name',
+        });
+        const customerGreeting = makeDimension({
+            name: 'customer_greeting',
+            sql: "concat(${customers.first_name}, ' hi')",
+        });
+
+        expect(
+            analyzePreAggregateDerivedDimensionEligibility({
+                dimension: customerGreeting,
+                tables: makeTables([customerFirstName, customerGreeting]),
+            }),
+        ).toEqual({
+            isEligible: true,
+            referencedDimensionFieldIds: [
+                getItemId(customerGreeting),
+                getItemId(customerFirstName),
             ],
         });
     });
@@ -149,7 +188,7 @@ describe('analyzePreAggregateDerivedDimensionEligibility', () => {
     it('rejects when the dimension sql contains a direct user attribute reference', () => {
         const regionAwareStatus = makeDimension({
             name: 'region_aware_status',
-            sql: "case when ${ld.userAttributes.region} = 'EMEA' then ${TABLE}.status end",
+            sql: "case when ${ld.attr.region} = 'EMEA' then ${TABLE}.status end",
         });
 
         expect(
@@ -162,6 +201,25 @@ describe('analyzePreAggregateDerivedDimensionEligibility', () => {
             reason: PreAggregateDerivedDimensionIneligibilityReason.USER_ATTRIBUTES,
             ineligibleDimensionFieldId: getItemId(regionAwareStatus),
             referencedDimensionFieldIds: [getItemId(regionAwareStatus)],
+        });
+    });
+
+    it('rejects when the dimension sql contains a direct intrinsic user reference', () => {
+        const emailAwareStatus = makeDimension({
+            name: 'email_aware_status',
+            sql: "case when ${lightdash.user.email} = 'demo@lightdash.com' then ${TABLE}.status end",
+        });
+
+        expect(
+            analyzePreAggregateDerivedDimensionEligibility({
+                dimension: emailAwareStatus,
+                tables: makeTables([emailAwareStatus]),
+            }),
+        ).toEqual({
+            isEligible: false,
+            reason: PreAggregateDerivedDimensionIneligibilityReason.USER_ATTRIBUTES,
+            ineligibleDimensionFieldId: getItemId(emailAwareStatus),
+            referencedDimensionFieldIds: [getItemId(emailAwareStatus)],
         });
     });
 
