@@ -429,6 +429,99 @@ describe('codegen', () => {
         });
     });
 
+    describe('DATE_TRUNC', () => {
+        it.each([
+            // ANSI dialects: one shape across all units.
+            ['postgres', 'day', `DATE_TRUNC('day', "order_date")`],
+            ['postgres', 'week', `DATE_TRUNC('week', "order_date")`],
+            ['postgres', 'month', `DATE_TRUNC('month', "order_date")`],
+            ['postgres', 'quarter', `DATE_TRUNC('quarter', "order_date")`],
+            ['postgres', 'year', `DATE_TRUNC('year', "order_date")`],
+            ['redshift', 'month', `DATE_TRUNC('month', "order_date")`],
+            ['snowflake', 'month', `DATE_TRUNC('month', "order_date")`],
+            ['duckdb', 'month', `DATE_TRUNC('month', "order_date")`],
+            // BigQuery: flipped arg order, bare unit identifier.
+            ['bigquery', 'day', 'DATE_TRUNC(`order_date`, DAY)'],
+            ['bigquery', 'week', 'DATE_TRUNC(`order_date`, WEEK(MONDAY))'],
+            ['bigquery', 'month', 'DATE_TRUNC(`order_date`, MONTH)'],
+            ['bigquery', 'quarter', 'DATE_TRUNC(`order_date`, QUARTER)'],
+            ['bigquery', 'year', 'DATE_TRUNC(`order_date`, YEAR)'],
+            // Databricks: ANSI form.
+            ['databricks', 'month', `DATE_TRUNC('month', \`order_date\`)`],
+            // ClickHouse: toStartOf* helpers.
+            ['clickhouse', 'day', 'toStartOfDay("order_date")'],
+            ['clickhouse', 'week', 'toStartOfWeek("order_date", 1)'],
+            ['clickhouse', 'month', 'toStartOfMonth("order_date")'],
+            ['clickhouse', 'quarter', 'toStartOfQuarter("order_date")'],
+            ['clickhouse', 'year', 'toStartOfYear("order_date")'],
+        ] as const)('%s DATE_TRUNC("%s", …) → %s', (dialect, unit, expected) => {
+            expect(
+                compile(`=DATE_TRUNC("${unit}", order_date)`, {
+                    dialect,
+                    columns,
+                }),
+            ).toBe(expected);
+        });
+
+        describe('non-Monday week start', () => {
+            // Sunday = 6 in the formula package's WeekDay type.
+            it('Postgres offsets in/out with INTERVAL days', () => {
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'postgres',
+                        columns,
+                        weekStartDay: 6,
+                    }),
+                ).toBe(
+                    `(DATE_TRUNC('week', ("order_date" - INTERVAL '6 days')) + INTERVAL '6 days')`,
+                );
+            });
+
+            it('BigQuery passes the day name to WEEK(...)', () => {
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'bigquery',
+                        columns,
+                        weekStartDay: 6,
+                    }),
+                ).toBe('DATE_TRUNC(`order_date`, WEEK(SUNDAY))');
+            });
+
+            it('Databricks offsets via DATEADD', () => {
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'databricks',
+                        columns,
+                        weekStartDay: 6,
+                    }),
+                ).toBe(
+                    "DATEADD(DAY, 6, DATE_TRUNC('week', DATEADD(DAY, -6, `order_date`)))",
+                );
+            });
+
+            it('ClickHouse shifts around the Monday anchor', () => {
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'clickhouse',
+                        columns,
+                        weekStartDay: 6,
+                    }),
+                ).toBe(
+                    'addDays(toStartOfWeek(addDays("order_date", -6), 1), 6)',
+                );
+            });
+
+            it('Monday (default) leaves the base form intact on Postgres', () => {
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'postgres',
+                        columns,
+                    }),
+                ).toBe(`DATE_TRUNC('week', "order_date")`);
+            });
+        });
+    });
+
     describe('renderAggregate invocation protocol', () => {
         // Identity renderer used to observe invocation count and order
         // without changing the generated SQL.
