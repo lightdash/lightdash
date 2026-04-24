@@ -9,7 +9,7 @@ import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import { type TilePreAggregateStatus } from '../../providers/Dashboard/types';
 
-const runDashboardPreAggregateAudit = async ({
+const runDashboardPreAggregateAudit = ({
     projectUuid,
     dashboardUuid,
     dashboardFilters,
@@ -19,14 +19,12 @@ const runDashboardPreAggregateAudit = async ({
     dashboardFilters: DashboardFilters;
 }): Promise<DashboardPreAggregateAudit> => {
     const body: ApiRunDashboardPreAggregateAuditBody = { dashboardFilters };
-    // DashboardPreAggregateAudit is an EE type excluded from the ApiResults union.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (await lightdashApi<any>({
+    return lightdashApi<DashboardPreAggregateAudit>({
         url: `/projects/${projectUuid}/pre-aggregates/dashboards/${dashboardUuid}/audit`,
         version: 'v2',
         method: 'POST',
         body: JSON.stringify(body),
-    })) as DashboardPreAggregateAudit;
+    });
 };
 
 export const auditResponseToTileStatuses = (

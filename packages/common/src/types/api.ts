@@ -1041,7 +1041,8 @@ type ApiResults =
     | ApiGetAppResponse['results']
     | ApiMyAppsResponse['results']
     | ApiPreviewTokenResponse['results']
-    | ApiAppImageUploadResponse['results'];
+    | ApiAppImageUploadResponse['results']
+    | DashboardPreAggregateAudit;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 
