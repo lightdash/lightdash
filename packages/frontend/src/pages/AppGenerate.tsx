@@ -1,8 +1,10 @@
 import { subject } from '@casl/ability';
 import {
     ChartKind,
+    ContentType,
     FeatureFlags,
     isAppVersionInProgress,
+    ResourceViewItemType,
     type ApiAppVersionSummary,
 } from '@lightdash/common';
 import {
@@ -11,17 +13,24 @@ import {
     Group,
     Image,
     Loader,
+    Menu,
     Text,
     Textarea,
     ThemeIcon,
+    Title,
 } from '@mantine-8/core';
 import {
     IconAppsOff,
     IconAppWindow,
     IconArrowUp,
+    IconDots,
     IconExternalLink,
+    IconFolderPlus,
+    IconFolderSymlink,
+    IconPencil,
     IconPlayerStop,
     IconSparkles,
+    IconTrash,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
@@ -42,9 +51,11 @@ import {
     useParams,
 } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import AppDeleteModal from '../components/common/modal/AppDeleteModal';
+import AppUpdateModal from '../components/common/modal/AppUpdateModal';
 import { ChartIcon } from '../components/common/ResourceIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
-import { EditableText } from '../components/VisualizationConfigs/common/EditableText';
+import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import {
     ImageButton,
@@ -62,8 +73,8 @@ import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion'
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
-import { useUpdateApp } from '../features/apps/hooks/useUpdateApp';
 import QueryInspector from '../features/apps/QueryInspector';
+import { useContentAction } from '../hooks/useContent';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
@@ -241,7 +252,6 @@ const AppGenerate: FC = () => {
         isLoading: isIterating,
         reset: resetIterate,
     } = useIterateApp();
-    const { mutate: updateAppMutate } = useUpdateApp();
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
     const { mutateAsync: uploadImage } = useAppImageUpload();
@@ -260,21 +270,16 @@ const AppGenerate: FC = () => {
         isFetchingNextPage,
     } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
 
-    // Derive app name/description from fetched data
+    // Derive app name/description/space from fetched data
     const appName = appData?.pages?.[0]?.name ?? '';
     const appDescription = appData?.pages?.[0]?.description ?? '';
+    const appSpaceUuid = appData?.pages?.[0]?.spaceUuid ?? null;
 
-    // Draft state for inline editing (synced from server, saved on blur)
-    const [draftName, setDraftName] = useState(appName);
-    const [draftDescription, setDraftDescription] = useState(appDescription);
-    const isEditingName = useRef(false);
-    const isEditingDescription = useRef(false);
-    useEffect(() => {
-        if (!isEditingName.current) setDraftName(appName);
-    }, [appName]);
-    useEffect(() => {
-        if (!isEditingDescription.current) setDraftDescription(appDescription);
-    }, [appDescription]);
+    const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const { mutateAsync: contentAction, isLoading: isMovingToSpace } =
+        useContentAction(projectUuid);
 
     // Accumulate all versions ever seen in this session. Refetches may lose
     // older versions when new ones shift pagination boundaries, but we keep
@@ -985,77 +990,170 @@ const AppGenerate: FC = () => {
                         {activeAppUuid && (
                             <Box className={classes.previewHeader}>
                                 <Box className={classes.previewHeaderInfo}>
-                                    <EditableText
-                                        value={draftName}
-                                        placeholder="Untitled app"
-                                        fw={600}
-                                        size="md"
-                                        onFocus={() => {
-                                            isEditingName.current = true;
-                                        }}
-                                        onChange={(e) =>
-                                            setDraftName(e.currentTarget.value)
-                                        }
-                                        onBlur={() => {
-                                            isEditingName.current = false;
-                                            const trimmed = draftName.trim();
-                                            if (
-                                                trimmed &&
-                                                trimmed !== appName
-                                            ) {
-                                                updateAppMutate({
-                                                    projectUuid,
-                                                    appUuid: activeAppUuid,
-                                                    name: trimmed,
-                                                });
-                                            } else {
-                                                setDraftName(appName);
-                                            }
-                                        }}
-                                    />
-                                    <EditableText
-                                        value={draftDescription}
-                                        placeholder="Add a description..."
-                                        lighter
-                                        onFocus={() => {
-                                            isEditingDescription.current = true;
-                                        }}
-                                        onChange={(e) =>
-                                            setDraftDescription(
-                                                e.currentTarget.value,
-                                            )
-                                        }
-                                        onBlur={() => {
-                                            isEditingDescription.current = false;
-                                            const trimmed =
-                                                draftDescription.trim();
-                                            if (trimmed !== appDescription) {
-                                                updateAppMutate({
-                                                    projectUuid,
-                                                    appUuid: activeAppUuid,
-                                                    description: trimmed,
-                                                });
-                                            } else {
-                                                setDraftDescription(
-                                                    appDescription,
-                                                );
-                                            }
-                                        }}
-                                    />
+                                    <Title order={6} fw={600} lineClamp={1}>
+                                        {appName || 'Untitled app'}
+                                    </Title>
+                                    {appDescription && (
+                                        <Text
+                                            size="xs"
+                                            c="dimmed"
+                                            lineClamp={1}
+                                        >
+                                            {appDescription}
+                                        </Text>
+                                    )}
                                 </Box>
-                                {previewApp && (
-                                    <ActionIcon
-                                        component={Link}
-                                        to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
-                                        target="_blank"
-                                        variant="subtle"
-                                        size="sm"
-                                        ml="auto"
-                                    >
-                                        <IconExternalLink size={14} />
-                                    </ActionIcon>
-                                )}
+                                <Menu
+                                    position="bottom-end"
+                                    shadow="md"
+                                    withinPortal
+                                    withArrow
+                                    arrowPosition="center"
+                                >
+                                    <Menu.Target>
+                                        <ActionIcon
+                                            variant="subtle"
+                                            size="sm"
+                                            color="ldGray.6"
+                                            ml="auto"
+                                            aria-label="App actions"
+                                        >
+                                            <IconDots size={16} />
+                                        </ActionIcon>
+                                    </Menu.Target>
+                                    <Menu.Dropdown>
+                                        {previewApp && (
+                                            <Menu.Item
+                                                component={Link}
+                                                to={`/projects/${projectUuid}/apps/${previewApp.appUuid}/preview`}
+                                                target="_blank"
+                                                leftSection={
+                                                    <IconExternalLink
+                                                        size={14}
+                                                    />
+                                                }
+                                            >
+                                                Preview latest
+                                            </Menu.Item>
+                                        )}
+                                        {previewApp && <Menu.Divider />}
+                                        <Menu.Item
+                                            leftSection={
+                                                <IconPencil size={14} />
+                                            }
+                                            onClick={() =>
+                                                setIsUpdateModalOpen(true)
+                                            }
+                                        >
+                                            Rename
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            leftSection={
+                                                appSpaceUuid ? (
+                                                    <IconFolderSymlink
+                                                        size={14}
+                                                    />
+                                                ) : (
+                                                    <IconFolderPlus size={14} />
+                                                )
+                                            }
+                                            onClick={() =>
+                                                setIsMoveToSpaceOpen(true)
+                                            }
+                                        >
+                                            {appSpaceUuid
+                                                ? 'Move'
+                                                : 'Add to space'}
+                                        </Menu.Item>
+                                        <Menu.Divider />
+                                        <Menu.Item
+                                            color="red"
+                                            leftSection={
+                                                <IconTrash size={14} />
+                                            }
+                                            onClick={() =>
+                                                setIsDeleteModalOpen(true)
+                                            }
+                                        >
+                                            Delete
+                                        </Menu.Item>
+                                    </Menu.Dropdown>
+                                </Menu>
                             </Box>
+                        )}
+                        {isMoveToSpaceOpen && activeAppUuid && (
+                            <TransferItemsModal
+                                projectUuid={projectUuid}
+                                opened
+                                onClose={() => setIsMoveToSpaceOpen(false)}
+                                items={[
+                                    {
+                                        type: ResourceViewItemType.DATA_APP,
+                                        data: {
+                                            uuid: activeAppUuid,
+                                            name: appName,
+                                            description:
+                                                appDescription || undefined,
+                                            spaceUuid: appSpaceUuid,
+                                            updatedAt: new Date(),
+                                            updatedByUser: null,
+                                            views: 0,
+                                            firstViewedAt: null,
+                                            latestVersionNumber: null,
+                                            latestVersionStatus: null,
+                                            pinnedListUuid: null,
+                                            pinnedListOrder: null,
+                                        },
+                                    },
+                                ]}
+                                isLoading={isMovingToSpace}
+                                onConfirm={async (targetSpaceUuid) => {
+                                    if (!targetSpaceUuid) return;
+                                    await contentAction({
+                                        action: {
+                                            type: 'move',
+                                            targetSpaceUuid,
+                                        },
+                                        item: {
+                                            uuid: activeAppUuid,
+                                            contentType: ContentType.DATA_APP,
+                                        },
+                                    });
+                                    await queryClient.invalidateQueries({
+                                        queryKey: [
+                                            'app',
+                                            projectUuid,
+                                            activeAppUuid,
+                                        ],
+                                    });
+                                    setIsMoveToSpaceOpen(false);
+                                }}
+                            />
+                        )}
+                        {isUpdateModalOpen && activeAppUuid && (
+                            <AppUpdateModal
+                                opened
+                                uuid={activeAppUuid}
+                                initialName={appName}
+                                initialDescription={appDescription}
+                                onClose={() => setIsUpdateModalOpen(false)}
+                                onConfirm={() => setIsUpdateModalOpen(false)}
+                            />
+                        )}
+                        {isDeleteModalOpen && activeAppUuid && (
+                            <AppDeleteModal
+                                opened
+                                projectUuid={projectUuid}
+                                uuid={activeAppUuid}
+                                name={appName}
+                                onClose={() => setIsDeleteModalOpen(false)}
+                                onConfirm={() => {
+                                    setIsDeleteModalOpen(false);
+                                    void navigate(
+                                        `/projects/${projectUuid}/apps/generate`,
+                                    );
+                                }}
+                            />
                         )}
 
                         <Box className={classes.previewContent}>

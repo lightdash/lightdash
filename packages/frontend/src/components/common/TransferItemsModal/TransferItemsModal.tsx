@@ -71,8 +71,9 @@ const TransferItemsModal = <R extends ResourceViewItem, T extends Array<R>>({
                 return item.data.parentSpaceUuid ?? undefined;
             case ResourceViewItemType.CHART:
             case ResourceViewItemType.DASHBOARD:
-            case ResourceViewItemType.DATA_APP:
                 return item.data.spaceUuid;
+            case ResourceViewItemType.DATA_APP:
+                return item.data.spaceUuid ?? undefined;
             default:
                 return assertUnreachable(item, 'Invalid item type');
         }
