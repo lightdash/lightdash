@@ -88,10 +88,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProject } from '../../../hooks/useProject';
 import { useUpdateMutation } from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import {
@@ -122,9 +119,6 @@ import SaveChartButton from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
 const SavedChartsHeader: FC = () => {
-    const userTimeZonesEnabled = useClientFeatureFlag(
-        FeatureFlags.EnableUserTimezones,
-    );
     const { data: changeChartExploreFlag } = useServerFeatureFlag(
         FeatureFlags.ChangeChartExplore,
     );
@@ -562,13 +556,6 @@ const SavedChartsHeader: FC = () => {
                         </>
                     )}
                 </div>
-                {userTimeZonesEnabled &&
-                    savedChart?.metricQuery.timezone &&
-                    !isEditMode && (
-                        <Text c="gray" mr="sm" fz="xs">
-                            {savedChart?.metricQuery.timezone}
-                        </Text>
-                    )}
                 {(userCanManageChart ||
                     userCanCreateDeliveriesAndAlerts ||
                     userCanManageExplore) && (
