@@ -1,3 +1,10 @@
+# [0.2810.0](https://github.com/lightdash/lightdash/compare/0.2809.0...0.2810.0) (2026-04-24)
+
+
+### Features
+
+* **ee/mcp:** expose verified content via MCP tool ([#22320](https://github.com/lightdash/lightdash/issues/22320)) ([eefb737](https://github.com/lightdash/lightdash/commit/eefb737172d03215522a621eee9f09c63577c02f))
+
 # [0.2809.0](https://github.com/lightdash/lightdash/compare/0.2808.0...0.2809.0) (2026-04-24)
 
 
