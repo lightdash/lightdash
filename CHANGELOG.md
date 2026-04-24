@@ -1,3 +1,10 @@
+## [0.2796.1](https://github.com/lightdash/lightdash/compare/0.2796.0...0.2796.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **data-apps:** hide promote option for data apps in space view ([#22330](https://github.com/lightdash/lightdash/issues/22330)) ([d613efc](https://github.com/lightdash/lightdash/commit/d613efc1c0bba8fca7fd81132d29aa63395dd717))
+
 # [0.2796.0](https://github.com/lightdash/lightdash/compare/0.2795.0...0.2796.0) (2026-04-24)
 
 
