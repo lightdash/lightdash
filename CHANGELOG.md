@@ -1,3 +1,10 @@
+## [0.2803.2](https://github.com/lightdash/lightdash/compare/0.2803.1...0.2803.2) (2026-04-24)
+
+
+### Bug Fixes
+
+* make feature flag `default_enabled` nullable ([#22345](https://github.com/lightdash/lightdash/issues/22345)) ([67b1b54](https://github.com/lightdash/lightdash/commit/67b1b540ab4de7b9c9f9ed7fcb8e39293074b692))
+
 ## [0.2803.1](https://github.com/lightdash/lightdash/compare/0.2803.0...0.2803.1) (2026-04-24)
 
 
