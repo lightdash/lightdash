@@ -91,7 +91,7 @@ export type ResourceViewDataAppItem = {
         uuid: string;
         name: string;
         description: string | undefined;
-        spaceUuid: string;
+        spaceUuid: string | null;
         updatedAt: Date;
         updatedByUser: {
             userUuid: string;
