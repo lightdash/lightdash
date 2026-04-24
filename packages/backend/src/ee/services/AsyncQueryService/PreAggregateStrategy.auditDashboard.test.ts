@@ -1,10 +1,13 @@
 import {
     DashboardTileTypes,
+    FilterOperator,
     NotFoundError,
     PreAggregateMissReason,
+    preAggregateUtils,
     TileIneligibleReason,
     type Account,
     type Dashboard,
+    type DashboardFilterRule,
     type Explore,
     type MetricQuery,
     type SavedChart,
@@ -69,6 +72,7 @@ const emptyMetricQuery: MetricQuery = {
 const makeExplore = (withPreAggs: boolean): Explore =>
     ({
         name: 'orders',
+        tables: {},
         preAggregates: withPreAggs
             ? [{ name: 'orders_daily', dimensions: [], metrics: [] }]
             : [],
@@ -334,5 +338,60 @@ describe('PreAggregateStrategy.auditDashboard', () => {
         expect(
             result.tabs.find((t) => t.tabUuid === null)!.tiles[0].tileUuid,
         ).toBe('t-3');
+    });
+
+    it('drops dashboard filter rules whose field is not in the tile explore before calling findMatch', async () => {
+        const findMatchSpy = jest.spyOn(preAggregateUtils, 'findMatch');
+        try {
+            const deps = makeDeps();
+            const offExploreFilter: DashboardFilterRule = {
+                id: 'f-off',
+                target: {
+                    fieldId: 'other_browser',
+                    tableName: 'other',
+                },
+                operator: FilterOperator.EQUALS,
+                values: ['chrome'],
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any;
+            const dashboard = makeDashboard({
+                tiles: [makeTile({ uuid: 't-1' })],
+                filters: {
+                    dimensions: [offExploreFilter],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+            deps.savedChartModel.get.mockResolvedValue({
+                uuid: 'c-1',
+                tableName: 'orders',
+                metricQuery: emptyMetricQuery,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any);
+            deps.projectService.getExplore.mockResolvedValue(
+                makeExplore(false),
+            );
+            const strategy = makeStrategy(deps);
+
+            await strategy.auditDashboard({
+                account,
+                projectUuid,
+                dashboard,
+            });
+
+            expect(findMatchSpy).toHaveBeenCalledTimes(1);
+            const [mqArg] = findMatchSpy.mock.calls[0] as [
+                MetricQuery,
+                Explore,
+            ];
+            const dimGroup = mqArg.filters?.dimensions as
+                | { and?: unknown[]; or?: unknown[] }
+                | undefined;
+            const dimensionFilterCount =
+                dimGroup?.and?.length ?? dimGroup?.or?.length ?? 0;
+            expect(dimensionFilterCount).toBe(0);
+        } finally {
+            findMatchSpy.mockRestore();
+        }
     });
 });
