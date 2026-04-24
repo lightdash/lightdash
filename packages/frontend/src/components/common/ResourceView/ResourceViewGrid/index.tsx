@@ -315,16 +315,13 @@ const ResourceViewGrid: FC<ResourceViewGridProps> = ({
     const pinnedItemsOrder = useCallback(
         (data: ResourceViewGridGroup[]): PinnedItems =>
             data.flatMap((group) =>
-                group.items.flatMap((item, index) => {
-                    // Data apps don't participate in pinning
-                    if (item.type === ResourceViewItemType.DATA_APP) return [];
-                    return [
-                        {
+                group.items.map(
+                    (item, index) =>
+                        ({
                             type: item.type,
                             data: { ...item.data, pinnedListOrder: index },
-                        } as PinnedItems[number],
-                    ];
-                }),
+                        }) as PinnedItems[number],
+                ),
             ),
         [],
     );

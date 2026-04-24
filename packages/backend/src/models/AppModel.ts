@@ -14,6 +14,7 @@ import {
     type DbAppVersion,
 } from '../database/entities/apps';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
 import KnexPaginate from '../database/pagination';
@@ -124,7 +125,13 @@ export class AppModel {
     async getApp(
         appId: string,
         projectUuid: string,
-    ): Promise<DbApp & { organization_uuid: string }> {
+    ): Promise<
+        DbApp & {
+            organization_uuid: string;
+            pinned_list_uuid: string | null;
+            pinned_list_order: number | null;
+        }
+    > {
         const row = await this.database(AppsTableName)
             .innerJoin(
                 ProjectTableName,
@@ -136,12 +143,25 @@ export class AppModel {
                 `${OrganizationTableName}.organization_id`,
                 `${ProjectTableName}.organization_id`,
             )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
-            .select<(DbApp & { organization_uuid: string })[]>(
+            .select<
+                (DbApp & {
+                    organization_uuid: string;
+                    pinned_list_uuid: string | null;
+                    pinned_list_order: number | null;
+                })[]
+            >(
                 `${AppsTableName}.*`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
             )
             .first();
         if (!row) {
@@ -203,6 +223,8 @@ export class AppModel {
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
+        pinnedListUuid: string | null;
+        pinnedListOrder: number | null;
         versions: DbAppVersion[];
         hasMore: boolean;
     }> {
@@ -223,6 +245,11 @@ export class AppModel {
                 `${AppsTableName}.app_id`,
                 `${AppVersionsTableName}.app_id`,
             )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
@@ -233,6 +260,8 @@ export class AppModel {
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
                 `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
             )
             .orderBy(`${AppVersionsTableName}.version`, 'desc')
             .limit(limit + 1);
@@ -251,6 +280,8 @@ export class AppModel {
             created_by_user_uuid: string;
             space_uuid: string | null;
             organization_uuid: string;
+            pinned_list_uuid: string | null;
+            pinned_list_order: number | null;
         })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
@@ -265,6 +296,8 @@ export class AppModel {
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
             organization_uuid: organizationUuid,
+            pinned_list_uuid: pinnedListUuid,
+            pinned_list_order: pinnedListOrder,
         } = rows[0];
 
         // If app exists but no versions match, we get one row with all nulls
@@ -277,6 +310,8 @@ export class AppModel {
                 created_by_user_uuid: string;
                 space_uuid: string | null;
                 organization_uuid: string;
+                pinned_list_uuid: string | null;
+                pinned_list_order: number | null;
             } => r.version !== null,
         );
         const hasMore = versions.length > limit;
@@ -286,6 +321,8 @@ export class AppModel {
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            pinnedListUuid,
+            pinnedListOrder,
             versions: versions.slice(0, limit),
             hasMore,
         };

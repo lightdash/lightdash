@@ -93,7 +93,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         name: userCanManage ? 'Pinned items' : 'Pinned for you',
                         icon: <MantineIcon icon={IconPin} size="sm" />,
                         infoTooltipText: userCanManage
-                            ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
+                            ? 'Pin Spaces, Dashboards, Charts and Data apps to the top of the homepage to guide your business users to the right content.'
                             : 'Your data team have pinned these items to help guide you towards the most relevant content!',
                         hasReorder: userCanManage,
                         filter: (item) =>

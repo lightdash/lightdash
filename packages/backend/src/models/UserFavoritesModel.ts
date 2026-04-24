@@ -9,6 +9,7 @@ import { type Knex } from 'knex';
 import { AppsTableName, AppVersionsTableName } from '../database/entities/apps';
 import { DashboardsTableName } from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
 import { SavedChartsTableName } from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
@@ -259,6 +260,11 @@ export class UserFavoritesModel {
                 'last_updated_by_user.user_uuid',
                 'latest_version.created_by_user_uuid',
             )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
             .whereIn(`${AppsTableName}.app_id`, appUuids)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
             .whereIn(`${SpaceTableName}.space_uuid`, allowedSpaceUuids)
@@ -287,6 +293,8 @@ export class UserFavoritesModel {
                 updated_by_user_uuid: 'last_updated_by_user.user_uuid',
                 updated_by_user_first_name: 'last_updated_by_user.first_name',
                 updated_by_user_last_name: 'last_updated_by_user.last_name',
+                pinned_list_uuid: `${PinnedAppTableName}.pinned_list_uuid`,
+                pinned_list_order: `${PinnedAppTableName}.order`,
             })) as Record<string, AnyType>[];
 
         return rows.map<ResourceViewDataAppItem>((row) => ({
@@ -308,6 +316,8 @@ export class UserFavoritesModel {
                 firstViewedAt: row.created_at,
                 latestVersionNumber: row.latest_version_number ?? null,
                 latestVersionStatus: row.latest_version_status ?? null,
+                pinnedListUuid: row.pinned_list_uuid ?? null,
+                pinnedListOrder: row.pinned_list_order ?? null,
             },
         }));
     }

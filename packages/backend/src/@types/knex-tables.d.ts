@@ -158,6 +158,8 @@ import {
     PersonalAccessTokenTableName,
 } from '../database/entities/personalAccessTokens';
 import {
+    PinnedAppTable,
+    PinnedAppTableName,
     PinnedChartTable,
     PinnedChartTableName,
     PinnedDashboardTable,
@@ -420,6 +422,7 @@ declare module 'knex/types/tables' {
         [PinnedChartTableName]: PinnedChartTable;
         [PinnedDashboardTableName]: PinnedDashboardTable;
         [PinnedSpaceTableName]: PinnedSpaceTable;
+        [PinnedAppTableName]: PinnedAppTable;
         [SchedulerTableName]: SchedulerTable;
         [SchedulerSlackTargetTableName]: SchedulerSlackTargetTable;
         [SchedulerEmailTargetTableName]: SchedulerEmailTargetTable;

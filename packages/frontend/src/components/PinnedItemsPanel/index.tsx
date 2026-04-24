@@ -27,13 +27,14 @@ const PinnedItemsPanel: FC<Props> = ({ pinnedItems, isEnabled }) => {
                     [
                         ResourceViewItemType.DASHBOARD,
                         ResourceViewItemType.CHART,
+                        ResourceViewItemType.DATA_APP,
                     ],
                 ],
             }}
             headerProps={{
                 title: userCanManage ? 'Pinned items' : 'Pinned for you',
                 description: userCanManage
-                    ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
+                    ? 'Pin Spaces, Dashboards, Charts and Data apps to the top of the homepage to guide your business users to the right content.'
                     : 'Your data team have pinned these items to help guide you towards the most relevant content!',
             }}
         />
