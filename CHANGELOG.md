@@ -1,3 +1,10 @@
+## [0.2805.1](https://github.com/lightdash/lightdash/compare/0.2805.0...0.2805.1) (2026-04-24)
+
+
+### Bug Fixes
+
+* **ai-agent:** Slack vote OAuth + resolve identity without team filter (PROD-7030) ([#22348](https://github.com/lightdash/lightdash/issues/22348)) ([1a6d964](https://github.com/lightdash/lightdash/commit/1a6d96486e1217ff43ac1ad51cc7f1dd5f869be5))
+
 # [0.2805.0](https://github.com/lightdash/lightdash/compare/0.2804.0...0.2805.0) (2026-04-24)
 
 
