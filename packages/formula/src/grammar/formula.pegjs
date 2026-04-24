@@ -102,6 +102,7 @@ Primary
   / ConditionalAggregate
   / CountIf
   / DateTruncExpr
+  / DateAddOrSubExpr
   / ZeroArgFn
   / SingleArgFn
   / OneOrTwoArgFn
@@ -146,6 +147,26 @@ DateTruncExpr
         error('DATE_TRUNC unit must be one of: ' + dateUnits.join(', ') + '. Got: "' + first.value + '"');
       }
       return { type: "DateFn", name: "DATE_TRUNC", unit, args: [arg] };
+    }
+
+// DATE_ADD(date, n, "unit") / DATE_SUB(date, n, "unit") — third arg must be a
+// whitelisted string literal. DATE_SUB desugars to DATE_ADD with n wrapped in
+// UnaryOp('-') so the AST + codegen only deal with DATE_ADD.
+DateAddOrSubExpr
+  = name:Identifier &{ return name.toUpperCase() === 'DATE_ADD' || name.toUpperCase() === 'DATE_SUB'; }
+    _ "(" _ date:Expression _ "," _ n:Expression _ "," _ unitArg:Expression _ ")" {
+      const fnName = name.toUpperCase();
+      if (unitArg.type !== "StringLiteral") {
+        error(fnName + ' third argument must be a string literal unit like "month"');
+      }
+      const unit = unitArg.value.toLowerCase();
+      if (!dateUnits.includes(unit)) {
+        error(fnName + ' unit must be one of: ' + dateUnits.join(', ') + '. Got: "' + unitArg.value + '"');
+      }
+      const nArg = fnName === 'DATE_SUB'
+        ? { type: "UnaryOp", op: "-", operand: n }
+        : n;
+      return { type: "DateFn", name: "DATE_ADD", unit, args: [date, nArg] };
     }
 
 ZeroArgFn

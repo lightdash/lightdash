@@ -41,6 +41,25 @@ export const nullHandlingCases: TestCase[] = [
         tags: ['null', 'date'],
     },
     {
+        id: 'null/date-add',
+        formula: '=YEAR(DATE_ADD(A, 3, "month"))',
+        description:
+            'DATE_ADD propagates NULL through the date arg: NULL input → NULL result',
+        columns: { A: 'val_d' },
+        sourceTable: 'test_nulls',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 2024 },
+            { result: null },
+            { result: 2024 },
+            { result: null },
+            { result: 2024 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['null', 'date'],
+    },
+    {
         id: 'null/coalesce-two',
         formula: '=COALESCE(A, 0)',
         description: 'Replace NULL with default value',
