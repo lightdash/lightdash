@@ -1569,6 +1569,7 @@ export class CoderService extends BaseService {
                 chartCount: 0,
                 dashboardCount: 0,
                 childSpaceCount: 0,
+                appCount: 0,
             },
             created: true,
         };

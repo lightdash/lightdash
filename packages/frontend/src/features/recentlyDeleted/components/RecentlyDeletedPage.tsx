@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    FeatureFlags,
     type DeletedContentWithDescendants,
 } from '@lightdash/common';
 import {
@@ -46,6 +47,7 @@ import {
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     useInfiniteDeletedContent,
@@ -59,6 +61,7 @@ import DeletedContentActionMenu from './DeletedContentActionMenu';
 
 function getDeletedContentDescription(
     item: DeletedContentWithDescendants,
+    dataAppsEnabled: boolean,
 ): string | null {
     const parts: string[] = [];
     if (item.contentType === ContentType.SPACE) {
@@ -73,6 +76,10 @@ function getDeletedContentDescription(
         if (item.chartCount > 0)
             parts.push(
                 `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
+            );
+        if (dataAppsEnabled && item.appCount > 0)
+            parts.push(
+                `${item.appCount} data app${item.appCount !== 1 ? 's' : ''}`,
             );
         if (item.schedulerCount > 0)
             parts.push(
@@ -128,6 +135,8 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
 
     const { health, user } = useApp();
     const retentionDays = health.data?.softDelete.retentionDays;
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
     const [selectedContentType, setSelectedContentType] = useState<
         | 'all'
@@ -279,6 +288,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     })();
                     const description = getDeletedContentDescription(
                         row.original,
+                        dataAppsEnabled,
                     );
                     return (
                         <Group gap="sm" wrap="nowrap">
@@ -471,6 +481,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             permanentlyDelete,
             isRestoring,
             isDeleting,
+            dataAppsEnabled,
         ],
     );
 

@@ -605,10 +605,11 @@ export class SpaceService
 
         const spaces = await this.spaceModel.find({ spaceUuids: allUuids });
 
-        const [charts, sqlCharts, dashboards] = await Promise.all([
+        const [charts, sqlCharts, dashboards, apps] = await Promise.all([
             this.spaceModel.getSpaceQueries(allUuids),
             this.spaceModel.getSpaceSqlCharts(allUuids),
             this.spaceModel.getSpaceDashboards(allUuids),
+            this.spaceModel.getSpaceApps(allUuids),
         ]);
 
         const allCharts = [...charts, ...sqlCharts];
@@ -620,6 +621,7 @@ export class SpaceService
                 parentSpaceUuid: s.parentSpaceUuid,
                 chartCount: Number(s.chartCount),
                 dashboardCount: Number(s.dashboardCount),
+                appCount: Number(s.appCount),
             })),
             charts: allCharts.map((c) => ({
                 uuid: c.uuid,
@@ -631,8 +633,13 @@ export class SpaceService
                 name: d.name,
                 spaceUuid: d.spaceUuid,
             })),
+            apps: apps.map((a) => ({
+                uuid: a.uuid,
+                spaceUuid: a.spaceUuid,
+            })),
             chartCount: allCharts.length,
             dashboardCount: dashboards.length,
+            appCount: apps.length,
         };
     }
 
