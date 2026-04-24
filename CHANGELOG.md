@@ -1,3 +1,10 @@
+# [0.2803.0](https://github.com/lightdash/lightdash/compare/0.2802.0...0.2803.0) (2026-04-24)
+
+
+### Features
+
+* add app resources section ([#22317](https://github.com/lightdash/lightdash/issues/22317)) ([c7be24c](https://github.com/lightdash/lightdash/commit/c7be24cec69f59ccf40720c14d5a9b4290b21a38))
+
 # [0.2802.0](https://github.com/lightdash/lightdash/compare/0.2801.1...0.2802.0) (2026-04-24)
 
 
