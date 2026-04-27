@@ -5,6 +5,7 @@
   const zeroOrOneArgFns = options.zeroOrOneArgFns;
   const variadicFns = options.variadicFns;
   const windowFns = options.windowFns;
+  const movingWindowFns = options.movingWindowFns;
   const conditionalAggFns = options.conditionalAggFns;
   const dateFns = options.dateFns;
   const dateUnits = options.dateUnits;
@@ -104,6 +105,7 @@ Primary
   / DateTruncExpr
   / DateAddOrSubExpr
   / DateDiffExpr
+  / MovingWindowFn
   / ZeroArgFn
   / SingleArgFn
   / OneOrTwoArgFn
@@ -183,6 +185,23 @@ DateDiffExpr
         error('DATE_DIFF unit must be one of: ' + dateUnits.join(', ') + '. Got: "' + unitArg.value + '"');
       }
       return { type: "DateFn", name: "DATE_DIFF", unit, args: [start, end] };
+    }
+
+// `n` is a parse-time positive integer literal, lifted onto `preceding`.
+MovingWindowFn
+  = name:Identifier &{ return movingWindowFns.includes(name.toUpperCase()); }
+    _ "(" _ arg:Expression _ "," _ n:Expression rest:WindowClausePart* _ ")" {
+      const fnName = name.toUpperCase();
+      if (n.type !== "NumberLiteral" || !Number.isInteger(n.value) || n.value <= 0) {
+        error(fnName + ' second argument must be a positive integer literal');
+      }
+      const node = { type: "MovingWindowFn", name: fnName, arg, preceding: n.value, windowClause: null };
+      for (const p of rest) {
+        if (!node.windowClause) node.windowClause = { type: "WindowClause" };
+        if (p.orderBy) node.windowClause.orderBy = p.orderBy;
+        if (p.partitionBy) node.windowClause.partitionBy = p.partitionBy;
+      }
+      return node;
     }
 
 ZeroArgFn

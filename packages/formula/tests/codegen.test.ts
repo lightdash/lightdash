@@ -677,6 +677,55 @@ describe('codegen', () => {
         });
     });
 
+    describe('MOVING_SUM / MOVING_AVG', () => {
+        it('MOVING_SUM emits SUM with ROWS BETWEEN N PRECEDING frame', () => {
+            expect(
+                compile('=MOVING_SUM(revenue, 3, ORDER BY order_date)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe(
+                'SUM("revenue") OVER (ORDER BY "order_date" ROWS BETWEEN 3 PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('MOVING_AVG routes through generateAvg (Postgres adds DOUBLE PRECISION cast)', () => {
+            expect(
+                compile('=MOVING_AVG(revenue, 7, ORDER BY order_date)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe(
+                'AVG("revenue"::DOUBLE PRECISION) OVER (ORDER BY "order_date" ROWS BETWEEN 7 PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('MOVING_AVG without dialect AVG override emits bare AVG', () => {
+            expect(
+                compile('=MOVING_AVG(revenue, 4, ORDER BY order_date)', {
+                    dialect: 'bigquery',
+                    columns,
+                }),
+            ).toBe(
+                'AVG(`revenue`) OVER (ORDER BY `order_date` ROWS BETWEEN 4 PRECEDING AND CURRENT ROW)',
+            );
+        });
+
+        it('MOVING_SUM picks up defaultOrderBy when no explicit ORDER BY', () => {
+            expect(
+                compile('=MOVING_SUM(revenue, 2)', {
+                    dialect: 'postgres',
+                    columns,
+                    defaultOrderBy: [
+                        { column: 'order_date', direction: 'ASC' },
+                    ],
+                }),
+            ).toBe(
+                'SUM("revenue") OVER (ORDER BY "order_date" ASC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)',
+            );
+        });
+    });
+
     describe('renderAggregate invocation protocol', () => {
         // Identity renderer used to observe invocation count and order
         // without changing the generated SQL.

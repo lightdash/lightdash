@@ -2,6 +2,7 @@ import type {
     ConditionalAggFnName,
     DateFnAstName,
     FunctionName,
+    MovingWindowFnName,
     OneOrTwoArgFnName,
     SingleArgFnName,
     VariadicFnName,
@@ -59,7 +60,8 @@ export interface CompileOptions {
     weekStartDay?: WeekDay;
 }
 
-// AST Node Types
+// WindowClauseNode is intentionally not in this union — it only ever appears as
+// a child of WindowFnNode and is never dispatched on its own.
 export type ASTNode =
     | BinaryOpNode
     | UnaryOpNode
@@ -72,14 +74,14 @@ export type ASTNode =
     | ZeroOrOneArgFnNode
     | VariadicFnNode
     | WindowFnNode
+    | MovingWindowFnNode
     | DateFnNode
     | ColumnRefNode
     | NumberLiteralNode
     | StringLiteralNode
     | BooleanLiteralNode
     | ComparisonNode
-    | LogicalNode
-    | WindowClauseNode;
+    | LogicalNode;
 
 export interface BinaryOpNode {
     type: 'BinaryOp';
@@ -146,6 +148,15 @@ export interface WindowFnNode {
     type: 'WindowFn';
     name: WindowFnName;
     args: ASTNode[];
+    windowClause: WindowClauseNode | null;
+}
+
+// `preceding` is a parse-time positive integer, lifted off `args` like DateFn.unit.
+export interface MovingWindowFnNode {
+    type: 'MovingWindowFn';
+    name: MovingWindowFnName;
+    arg: ASTNode;
+    preceding: number;
     windowClause: WindowClauseNode | null;
 }
 

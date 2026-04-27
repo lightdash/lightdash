@@ -34,6 +34,7 @@ export const isAggregateCall = (node: ASTNode): boolean => {
         case 'ZeroArgFn':
         case 'VariadicFn':
         case 'WindowFn':
+        case 'MovingWindowFn':
         case 'DateFn':
         case 'ColumnRef':
         case 'NumberLiteral':
@@ -41,7 +42,6 @@ export const isAggregateCall = (node: ASTNode): boolean => {
         case 'BooleanLiteral':
         case 'Comparison':
         case 'Logical':
-        case 'WindowClause':
             return false;
         default:
             return assertUnreachable(node, `Unknown AST node type`);
@@ -84,19 +84,25 @@ export const extractColumnRefs = (node: ASTNode): string[] => {
             return node.args.flatMap(extractColumnRefs);
         case 'WindowFn': {
             const argRefs = node.args.flatMap(extractColumnRefs);
-            const clauseRefs = node.windowClause
-                ? extractColumnRefs(node.windowClause)
+            const wc = node.windowClause;
+            const orderRefs = wc?.orderBy
+                ? extractColumnRefs(wc.orderBy.column)
                 : [];
-            return [...argRefs, ...clauseRefs];
+            const partitionRefs = wc?.partitionBy
+                ? extractColumnRefs(wc.partitionBy)
+                : [];
+            return [...argRefs, ...orderRefs, ...partitionRefs];
         }
-        case 'WindowClause': {
-            const orderRefs = node.orderBy
-                ? extractColumnRefs(node.orderBy.column)
+        case 'MovingWindowFn': {
+            const argRefs = extractColumnRefs(node.arg);
+            const wc = node.windowClause;
+            const orderRefs = wc?.orderBy
+                ? extractColumnRefs(wc.orderBy.column)
                 : [];
-            const partitionRefs = node.partitionBy
-                ? extractColumnRefs(node.partitionBy)
+            const partitionRefs = wc?.partitionBy
+                ? extractColumnRefs(wc.partitionBy)
                 : [];
-            return [...orderRefs, ...partitionRefs];
+            return [...argRefs, ...orderRefs, ...partitionRefs];
         }
         case 'ZeroArgFn':
         case 'NumberLiteral':

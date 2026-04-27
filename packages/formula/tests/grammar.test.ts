@@ -321,6 +321,94 @@ describe('Formula Grammar', () => {
                 arg: { type: 'ColumnRef', name: 'A' },
             });
         });
+
+        it('parses MOVING_SUM as a MovingWindowFn with typed preceding count', () => {
+            const ast = parse('=MOVING_SUM(A, 3)');
+            expect(ast).toEqual({
+                type: 'MovingWindowFn',
+                name: 'MOVING_SUM',
+                arg: { type: 'ColumnRef', name: 'A' },
+                preceding: 3,
+                windowClause: null,
+            });
+        });
+
+        it('parses MOVING_AVG as a MovingWindowFn with typed preceding count', () => {
+            const ast = parse('=MOVING_AVG(A, 5)');
+            expect(ast).toEqual({
+                type: 'MovingWindowFn',
+                name: 'MOVING_AVG',
+                arg: { type: 'ColumnRef', name: 'A' },
+                preceding: 5,
+                windowClause: null,
+            });
+        });
+
+        it('parses MOVING_SUM with an ORDER BY clause', () => {
+            const ast = parse('=MOVING_SUM(A, 3, ORDER BY date DESC)');
+            expect(ast).toEqual({
+                type: 'MovingWindowFn',
+                name: 'MOVING_SUM',
+                arg: { type: 'ColumnRef', name: 'A' },
+                preceding: 3,
+                windowClause: {
+                    type: 'WindowClause',
+                    orderBy: {
+                        column: { type: 'ColumnRef', name: 'date' },
+                        direction: 'DESC',
+                    },
+                },
+            });
+        });
+
+        it('parses MOVING_SUM with PARTITION BY and ORDER BY', () => {
+            const ast = parse(
+                '=MOVING_SUM(A, 3, PARTITION BY region, ORDER BY date)',
+            );
+            expect(ast).toEqual({
+                type: 'MovingWindowFn',
+                name: 'MOVING_SUM',
+                arg: { type: 'ColumnRef', name: 'A' },
+                preceding: 3,
+                windowClause: {
+                    type: 'WindowClause',
+                    partitionBy: { type: 'ColumnRef', name: 'region' },
+                    orderBy: {
+                        column: { type: 'ColumnRef', name: 'date' },
+                    },
+                },
+            });
+        });
+
+        it('rejects MOVING_SUM with a non-literal second argument', () => {
+            expect(() => parse('=MOVING_SUM(A, B)')).toThrow(
+                /MOVING_SUM second argument must be a positive integer/,
+            );
+        });
+
+        it('rejects MOVING_SUM with a non-integer second argument', () => {
+            expect(() => parse('=MOVING_SUM(A, 3.5)')).toThrow(
+                /MOVING_SUM second argument must be a positive integer/,
+            );
+        });
+
+        it('rejects MOVING_SUM with a zero or negative count', () => {
+            expect(() => parse('=MOVING_SUM(A, 0)')).toThrow(
+                /MOVING_SUM second argument must be a positive integer/,
+            );
+        });
+
+        it('rejects MOVING_AVG with a non-literal second argument', () => {
+            expect(() => parse('=MOVING_AVG(A, B)')).toThrow(
+                /MOVING_AVG second argument must be a positive integer/,
+            );
+        });
+
+        it('rejects MOVING_SUM with wrong arg count', () => {
+            expect(() => parse('=MOVING_SUM(A)')).toThrow(
+                /MOVING_SUM called with wrong number of arguments/,
+            );
+        });
     });
 
     describe('comparisons', () => {
