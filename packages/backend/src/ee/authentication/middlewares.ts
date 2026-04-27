@@ -206,7 +206,7 @@ export const authenticateServiceAccount: RequestHandler = async (
         // Avoid double-logging: the explicit-throw branches above already
         // emit a denied audit event with a more specific reason.
 
-        if (!(error instanceof ServiceAccountAuthError)) {
+        if (!(error instanceof AuthorizationError)) {
             logServiceAccountAuthFailure(req, message);
         }
 
