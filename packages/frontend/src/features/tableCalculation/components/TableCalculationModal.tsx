@@ -14,13 +14,13 @@ import {
 } from '@lightdash/common';
 import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
-    Accordion,
     ActionIcon,
     Badge,
     Box,
     Button,
     Group,
     Loader,
+    Paper,
     SegmentedControl,
     Select,
     Stack,
@@ -38,6 +38,7 @@ import {
     IconClockHour4,
     IconMaximize,
     IconMinimize,
+    IconPalette,
     IconToggleLeft,
     IconWand,
 } from '@tabler/icons-react';
@@ -579,6 +580,9 @@ const TableCalculationModal: FC<Props> = ({
         : editMode === EditMode.FORMULA
           ? 'Create formula'
           : 'Create SQL calculation';
+    const formatSummary = getFormatSummary(form.values.format);
+    const hasCustomFormat =
+        form.values.format.type !== CustomFormatType.DEFAULT;
 
     return (
         <MantineModal
@@ -656,172 +660,185 @@ const TableCalculationModal: FC<Props> = ({
                     />
                 </Group>
 
-                <Stack gap="xs">
-                    <Group className={classes.inputModeHeader}>
-                        <Text fz="sm" fw={600}>
-                            Input mode
-                        </Text>
-                        {isNewCalculation && isFormulaSupported && (
-                            <SegmentedControl
-                                classNames={{
-                                    root: classes.inputModeControl,
-                                    indicator:
-                                        classes.inputModeControlIndicator,
-                                    control: classes.inputModeControlItem,
-                                    label: classes.inputModeControlLabel,
-                                }}
-                                value={editMode}
-                                onChange={(value) =>
-                                    setEditMode(value as EditMode)
-                                }
-                                data={editModeOptions}
-                                size="xs"
-                            />
-                        )}
-                        {showConvertToFormulaButton && (
-                            <Tooltip
-                                label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
-                                withArrow
-                                multiline
-                                w={260}
-                                disabled={showConversionPreview}
-                            >
-                                <Button
-                                    variant="light"
-                                    color="indigo"
+                <Box className={classes.calculationLayout}>
+                    <Stack gap="xs" className={classes.editorColumn}>
+                        <Group className={classes.inputModeHeader}>
+                            <Text fz="sm" fw={600}>
+                                Input mode
+                            </Text>
+                            {isNewCalculation && isFormulaSupported && (
+                                <SegmentedControl
+                                    classNames={{
+                                        root: classes.inputModeControl,
+                                        indicator:
+                                            classes.inputModeControlIndicator,
+                                        control: classes.inputModeControlItem,
+                                        label: classes.inputModeControlLabel,
+                                    }}
+                                    value={editMode}
+                                    onChange={(value) =>
+                                        setEditMode(value as EditMode)
+                                    }
+                                    data={editModeOptions}
                                     size="xs"
-                                    leftSection={
+                                />
+                            )}
+                            {showConvertToFormulaButton && (
+                                <Tooltip
+                                    label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
+                                    withArrow
+                                    multiline
+                                    w={260}
+                                    disabled={showConversionPreview}
+                                >
+                                    <Button
+                                        variant="light"
+                                        color="indigo"
+                                        size="xs"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconWand}
+                                                size="sm"
+                                            />
+                                        }
+                                        onClick={handleConvertClick}
+                                        loading={isConvertingSql}
+                                        disabled={
+                                            !form.values.sql ||
+                                            form.values.sql.trim().length === 0
+                                        }
+                                        style={{
+                                            visibility: showConversionPreview
+                                                ? 'hidden'
+                                                : 'visible',
+                                        }}
+                                    >
+                                        Convert to formula
+                                    </Button>
+                                </Tooltip>
+                            )}
+                        </Group>
+
+                        <Box
+                            key={editMode}
+                            className={
+                                isExpanded
+                                    ? classes.editorContainerExpanded
+                                    : classes.editorContainer
+                            }
+                        >
+                            {editMode === EditMode.TEMPLATE &&
+                            tableCalculation &&
+                            isTemplateTableCalculation(tableCalculation) ? (
+                                <TemplateViewer
+                                    template={editedTemplate ?? template}
+                                    readOnly={false}
+                                    onTemplateChange={handleTemplateChange}
+                                />
+                            ) : editMode === EditMode.FORMULA ? (
+                                <FormulaForm
+                                    explore={explore}
+                                    metricQuery={metricQuery}
+                                    formula={form.values.formula}
+                                    initialFormula={
+                                        form.values.formula || undefined
+                                    }
+                                    onChange={(text) =>
+                                        form.setFieldValue('formula', text)
+                                    }
+                                    onAiApply={handleFormulaAiApply}
+                                    onValidationChange={setFormulaParseError}
+                                    isFullScreen={isExpanded}
+                                />
+                            ) : (
+                                <Box className={classes.sqlEditorBorder}>
+                                    <Suspense
+                                        fallback={
+                                            <Box
+                                                className={
+                                                    classes.loadingFallback
+                                                }
+                                            >
+                                                <Loader size="sm" />
+                                                <Text c="dimmed" size="sm">
+                                                    Loading SQL editor...
+                                                </Text>
+                                            </Box>
+                                        }
+                                    >
+                                        <SqlForm
+                                            form={form}
+                                            isFullScreen={isExpanded}
+                                            focusOnRender={true}
+                                            onCmdEnter={handleConfirm}
+                                            onAiApplied={handleSqlAiApplied}
+                                            conversionState={
+                                                showConversionPreview
+                                                    ? {
+                                                          isLoading:
+                                                              isConvertingSql,
+                                                          error: conversionError,
+                                                          result: conversionResult,
+                                                          onApply:
+                                                              handleConvertApply,
+                                                          onDiscard:
+                                                              handleConvertDiscard,
+                                                          onRetry:
+                                                              handleConvertRetry,
+                                                      }
+                                                    : undefined
+                                            }
+                                        />
+                                    </Suspense>
+                                </Box>
+                            )}
+                        </Box>
+                    </Stack>
+
+                    <Paper withBorder className={classes.formatPanel}>
+                        <Stack gap="md" h="100%">
+                            <Group justify="space-between" align="flex-start">
+                                <Group gap="xs" wrap="nowrap" flex={1}>
+                                    <Box className={classes.formatPanelIcon}>
                                         <MantineIcon
-                                            icon={IconWand}
+                                            icon={IconPalette}
                                             size="sm"
                                         />
-                                    }
-                                    onClick={handleConvertClick}
-                                    loading={isConvertingSql}
-                                    disabled={
-                                        !form.values.sql ||
-                                        form.values.sql.trim().length === 0
-                                    }
-                                    style={{
-                                        visibility: showConversionPreview
-                                            ? 'hidden'
-                                            : 'visible',
-                                    }}
-                                >
-                                    Convert to formula
-                                </Button>
-                            </Tooltip>
-                        )}
-                    </Group>
-
-                    <Box
-                        key={editMode}
-                        className={
-                            isExpanded
-                                ? classes.editorContainerExpanded
-                                : classes.editorContainer
-                        }
-                    >
-                        {editMode === EditMode.TEMPLATE &&
-                        tableCalculation &&
-                        isTemplateTableCalculation(tableCalculation) ? (
-                            <TemplateViewer
-                                template={editedTemplate ?? template}
-                                readOnly={false}
-                                onTemplateChange={handleTemplateChange}
-                            />
-                        ) : editMode === EditMode.FORMULA ? (
-                            <FormulaForm
-                                explore={explore}
-                                metricQuery={metricQuery}
-                                formula={form.values.formula}
-                                initialFormula={
-                                    form.values.formula || undefined
-                                }
-                                onChange={(text) =>
-                                    form.setFieldValue('formula', text)
-                                }
-                                onAiApply={handleFormulaAiApply}
-                                onValidationChange={setFormulaParseError}
-                                isFullScreen={isExpanded}
-                            />
-                        ) : (
-                            <Box className={classes.sqlEditorBorder}>
-                                <Suspense
-                                    fallback={
-                                        <Box
-                                            className={classes.loadingFallback}
-                                        >
-                                            <Loader size="sm" />
-                                            <Text c="dimmed" size="sm">
-                                                Loading SQL editor...
-                                            </Text>
-                                        </Box>
-                                    }
-                                >
-                                    <SqlForm
-                                        form={form}
-                                        isFullScreen={isExpanded}
-                                        focusOnRender={true}
-                                        onCmdEnter={handleConfirm}
-                                        onAiApplied={handleSqlAiApplied}
-                                        conversionState={
-                                            showConversionPreview
-                                                ? {
-                                                      isLoading:
-                                                          isConvertingSql,
-                                                      error: conversionError,
-                                                      result: conversionResult,
-                                                      onApply:
-                                                          handleConvertApply,
-                                                      onDiscard:
-                                                          handleConvertDiscard,
-                                                      onRetry:
-                                                          handleConvertRetry,
-                                                  }
-                                                : undefined
-                                        }
-                                    />
-                                </Suspense>
-                            </Box>
-                        )}
-                    </Box>
-                </Stack>
-
-                <Accordion
-                    variant="default"
-                    chevronPosition="right"
-                    defaultValue={
-                        form.values.format.type !== CustomFormatType.DEFAULT
-                            ? 'format'
-                            : null
-                    }
-                    classNames={{
-                        item: classes.formatAccordionItem,
-                        control: classes.formatAccordionControl,
-                        content: classes.formatAccordionContent,
-                    }}
-                >
-                    <Accordion.Item value="format">
-                        <Accordion.Control>
-                            <Group gap="md" wrap="nowrap">
-                                <Text size="sm" fw={500}>
-                                    Formatting
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate>
-                                    {getFormatSummary(form.values.format)}
-                                </Text>
+                                    </Box>
+                                    <Box flex={1} className={classes.minWidth0}>
+                                        <Text size="sm" fw={600}>
+                                            Result format
+                                        </Text>
+                                        <Text size="xs" c="dimmed" truncate>
+                                            {formatSummary}
+                                        </Text>
+                                    </Box>
+                                </Group>
+                                {hasCustomFormat && (
+                                    <Badge
+                                        size="sm"
+                                        radius="sm"
+                                        color="blue"
+                                        variant="light"
+                                        className={classes.formatStatusBadge}
+                                    >
+                                        Custom
+                                    </Badge>
+                                )}
                             </Group>
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            <FormatForm
-                                formatInputProps={getFormatInputProps}
-                                setFormatFieldValue={setFormatFieldValue}
-                                format={form.values.format}
-                            />
-                        </Accordion.Panel>
-                    </Accordion.Item>
-                </Accordion>
+
+                            <Box className={classes.formatPanelBody}>
+                                <FormatForm
+                                    compact
+                                    itemType={selectedTableCalculationType}
+                                    formatInputProps={getFormatInputProps}
+                                    setFormatFieldValue={setFormatFieldValue}
+                                    format={form.values.format}
+                                />
+                            </Box>
+                        </Stack>
+                    </Paper>
+                </Box>
             </Stack>
         </MantineModal>
     );
