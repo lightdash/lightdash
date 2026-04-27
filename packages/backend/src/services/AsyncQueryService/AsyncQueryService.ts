@@ -5981,6 +5981,7 @@ export class AsyncQueryService extends ProjectService {
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
                 parameters: combinedParameters,
+                invalidateCache: data.invalidateCache,
             })) as Record<string, number>;
         } catch (e) {
             if (e instanceof NotSupportedError) {

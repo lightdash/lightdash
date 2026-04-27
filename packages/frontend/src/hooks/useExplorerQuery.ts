@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import {
     explorerActions,
-    selectIsMinimal,
     selectUnpivotedQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
@@ -28,7 +27,6 @@ import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
  */
 export const useExplorerQuery = () => {
     // Get all state and runQuery from manager (single source of truth)
-    const minimal = useExplorerSelector(selectIsMinimal);
     const manager = useExplorerQueryManager();
     const { queryResults, runQuery, validQueryArgs, unpivotedQueryResults } =
         manager;
@@ -78,7 +76,6 @@ export const useExplorerQuery = () => {
                         ? {
                               ...validQueryArgs,
                               csvLimit: limit,
-                              invalidateCache: minimal,
                               pivotResults: shouldPivot,
                               pivotConfiguration: shouldPivot
                                   ? validQueryArgs.pivotConfiguration
@@ -100,7 +97,6 @@ export const useExplorerQuery = () => {
             queryResults.queryUuid,
             queryResults.totalResults,
             validQueryArgs,
-            minimal,
             useSqlPivotResults?.enabled,
         ],
     );

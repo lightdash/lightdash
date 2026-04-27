@@ -1187,6 +1187,7 @@ export type CalculateTotalFromQuery = {
     metricQuery: MetricQueryRequest;
     explore: string;
     parameters?: ParametersValuesMap;
+    invalidateCache?: boolean;
 };
 
 export type ApiCalculateTotalResponse = {
