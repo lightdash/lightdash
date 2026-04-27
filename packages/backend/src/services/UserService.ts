@@ -56,7 +56,19 @@ import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
+import {
+    createAuditLogEvent,
+    createUnknownAuthActor,
+    type AuditActor,
+    type AuditResource,
+    type AuditStatusType,
+} from '../logging/auditLog';
+import {
+    createActorFromUser,
+    type AuditableUser,
+} from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
+import { logAuditEvent } from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { GroupsModel } from '../models/GroupsModel';
@@ -99,6 +111,64 @@ function isSameMinute(a: Date | null, b: Date): boolean {
     if (!a) return false;
     return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 }
+
+export type AuthAuditContext = {
+    ip?: string;
+    userAgent?: string;
+    requestId?: string;
+};
+
+const emitAuthAuditEvent = ({
+    actor,
+    action,
+    resourceType,
+    status,
+    reason,
+    organizationUuid,
+    metadata,
+    context,
+}: {
+    actor: AuditActor;
+    action: 'login' | 'logout' | 'impersonation_start' | 'impersonation_stop';
+    resourceType:
+        | 'Session'
+        | 'PersonalAccessToken'
+        | 'ServiceAccount'
+        | 'EmbedJwt'
+        | 'User';
+    status: AuditStatusType;
+    reason?: string;
+    organizationUuid?: string;
+    metadata?: Record<string, unknown>;
+    context?: AuthAuditContext;
+}): void => {
+    try {
+        const resource: AuditResource = {
+            type: resourceType,
+            organizationUuid: organizationUuid ?? 'unknown',
+            metadata,
+        };
+        const event = createAuditLogEvent(
+            actor,
+            action,
+            resource,
+            {
+                ip: context?.ip,
+                userAgent: context?.userAgent,
+                requestId: context?.requestId,
+            },
+            status,
+            reason,
+        );
+        logAuditEvent(event);
+    } catch (err) {
+        Logger.warn('Failed to log auth audit event', {
+            error: err instanceof Error ? err.message : String(err),
+            action,
+            resourceType,
+        });
+    }
+};
 
 export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -604,6 +674,7 @@ export class UserService extends BaseService {
         authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken?: string,
+        context?: AuthAuditContext,
     ): Promise<SessionUser> {
         this.logger.info(
             `Starting loginWithOpenId - Email: ${
@@ -613,6 +684,45 @@ export class UserService extends BaseService {
             }, Has invite code: ${!!inviteCode}, Is authenticated: ${!!authenticatedUser}`,
         );
 
+        try {
+            const loggedInUser = await this.loginWithOpenIdInner(
+                openIdUser,
+                authenticatedUser,
+                inviteCode,
+                refreshToken,
+            );
+            emitAuthAuditEvent({
+                actor: createActorFromUser(loggedInUser),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'allowed',
+                organizationUuid: loggedInUser.organizationUuid,
+                metadata: { loginProvider: openIdUser.openId.issuerType },
+                context,
+            });
+            return loggedInUser;
+        } catch (e) {
+            emitAuthAuditEvent({
+                actor: createUnknownAuthActor(openIdUser.openId.email),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'denied',
+                reason: e instanceof Error ? e.message : 'OpenID login failure',
+                metadata: {
+                    loginProvider: openIdUser.openId.issuerType,
+                },
+                context,
+            });
+            throw e;
+        }
+    }
+
+    private async loginWithOpenIdInner(
+        openIdUser: OpenIdUser,
+        authenticatedUser: SessionUser | undefined,
+        inviteCode: string | undefined,
+        refreshToken: string | undefined,
+    ): Promise<SessionUser> {
         const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -1102,11 +1212,26 @@ export class UserService extends BaseService {
     async loginWithPassword(
         email: string,
         password: string,
+        context?: AuthAuditContext,
     ): Promise<LightdashUser> {
+        const emitFailure = (reason: string) =>
+            emitAuthAuditEvent({
+                actor: createUnknownAuthActor(email),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'denied',
+                reason,
+                metadata: { loginProvider: 'password' },
+                context,
+            });
+
         if (
             (await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL)) ===
             false
         ) {
+            emitFailure(
+                `User with email ${email} is not allowed to login with password`,
+            );
             throw new ForbiddenError(
                 `User with email ${email} is not allowed to login with password`,
             );
@@ -1143,11 +1268,30 @@ export class UserService extends BaseService {
                     loginProvider: 'password',
                 },
             });
+            emitAuthAuditEvent({
+                actor: createActorFromUser(userWithOrganization),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'allowed',
+                organizationUuid: userWithOrganization.organizationUuid,
+                metadata: { loginProvider: 'password' },
+                context,
+            });
             return user;
         } catch (e) {
             if (e instanceof NotFoundError) {
+                emitFailure('Email and password not recognized');
                 throw new AuthorizationError(
                     'Email and password not recognized',
+                );
+            }
+            if (e instanceof DeactivatedAccountError) {
+                emitFailure('Account is deactivated');
+            } else if (e instanceof ForbiddenError) {
+                emitFailure(e.message);
+            } else {
+                emitFailure(
+                    e instanceof Error ? e.message : 'Unknown login failure',
                 );
             }
             throw e;
@@ -1345,14 +1489,32 @@ export class UserService extends BaseService {
         }
     }
 
-    async loginWithPersonalAccessToken(token: string): Promise<SessionUser> {
+    async loginWithPersonalAccessToken(
+        token: string,
+        context?: AuthAuditContext,
+    ): Promise<SessionUser> {
+        const emitDenied = (reason: string, user?: AuditableUser) =>
+            emitAuthAuditEvent({
+                actor: user
+                    ? createActorFromUser(user)
+                    : createUnknownAuthActor(),
+                action: 'login',
+                resourceType: 'PersonalAccessToken',
+                status: 'denied',
+                reason,
+                organizationUuid: user?.organizationUuid,
+                context,
+            });
+
         const results =
             await this.userModel.findSessionUserByPersonalAccessToken(token);
         if (results === undefined) {
+            emitDenied('Personal access token not recognized');
             throw new AuthorizationError();
         }
         const { user, personalAccessToken } = results;
         if (!user.isActive) {
+            emitDenied('Account is deactivated', user);
             throw new DeactivatedAccountError();
         }
         const auditedAbility = this.createAuditedAbility(user);
@@ -1364,6 +1526,10 @@ export class UserService extends BaseService {
                 }),
             )
         ) {
+            emitDenied(
+                'User lacks permission to login with personal access tokens',
+                user,
+            );
             throw new ForbiddenError(
                 'You do not have permission to login with personal access tokens',
             );
@@ -1384,6 +1550,7 @@ export class UserService extends BaseService {
                     personalAccessToken.uuid,
                 );
             }
+            emitDenied('Personal access token expired', user);
             throw new AuthorizationError();
         }
         // Update last used date (throttled to once per minute)

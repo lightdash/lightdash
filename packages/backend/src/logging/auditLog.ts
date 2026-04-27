@@ -118,3 +118,16 @@ export const createAuditLogEvent = (
         ruleConditions,
         callStack,
     });
+
+/**
+ * Builds an audit actor for an authentication attempt where the user
+ * could not be resolved (e.g. wrong password, expired/invalid token).
+ * Includes the email when known so failed attempts are still attributable.
+ */
+export const createUnknownAuthActor = (email?: string): AuditActor => ({
+    type: 'session',
+    uuid: 'unknown',
+    email: email ?? '',
+    organizationUuid: 'unknown',
+    organizationRole: 'unknown',
+});

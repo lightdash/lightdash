@@ -1,6 +1,7 @@
 import {
     defineUserAbility,
     EmailStatus,
+    NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     ProjectMemberRole,
@@ -10,6 +11,7 @@ import { analyticsMock } from '../analytics/LightdashAnalytics.mock';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { lightdashConfigMock } from '../config/lightdashConfig.mock';
 import { LightdashConfig } from '../config/parseConfig';
+import * as winston from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { GroupsModel } from '../models/GroupsModel';
@@ -118,6 +120,10 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
     });
 
 jest.spyOn(analyticsMock, 'track');
+const auditLogSpy = jest
+    .spyOn(winston, 'logAuditEvent')
+    .mockImplementation(() => {});
+
 describe('UserService', () => {
     const userService = createUserService(lightdashConfigMock);
 
@@ -456,6 +462,153 @@ describe('UserService', () => {
             expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
             expect(userModel.activateUser as jest.Mock).toHaveBeenCalledTimes(
                 0,
+            );
+        });
+
+        test('should emit allowed audit event on successful OpenID login', async () => {
+            (
+                userModel.findSessionUserByOpenId as jest.Mock
+            ).mockImplementationOnce(async () => sessionUser);
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'login',
+                    status: 'allowed',
+                    actor: expect.objectContaining({
+                        uuid: sessionUser.userUuid,
+                        type: 'session',
+                    }),
+                    resource: expect.objectContaining({ type: 'Session' }),
+                }),
+            );
+        });
+
+        test('should emit denied audit event when OpenID provider not allowed', async () => {
+            await expect(
+                userService.loginWithOpenId(
+                    openIdUserWithInvalidIssuer,
+                    undefined,
+                    undefined,
+                ),
+            ).rejects.toThrow();
+
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'login',
+                    status: 'denied',
+                    actor: expect.objectContaining({ uuid: 'unknown' }),
+                    resource: expect.objectContaining({ type: 'Session' }),
+                }),
+            );
+        });
+    });
+
+    describe('audit events for login failures', () => {
+        test('should emit denied audit event when password is wrong', async () => {
+            const failingUserModel = {
+                ...userModel,
+                getUserByPrimaryEmailAndPassword: jest.fn(async () => {
+                    throw new NotFoundError('wrong password');
+                }),
+            };
+            const service = new UserService({
+                analytics: analyticsMock,
+                lightdashConfig: lightdashConfigMock,
+                inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
+                userModel: failingUserModel as unknown as UserModel,
+                groupsModel: {} as GroupsModel,
+                sessionModel: {} as SessionModel,
+                emailModel: emailModel as unknown as EmailModel,
+                openIdIdentityModel:
+                    openIdIdentityModel as unknown as OpenIdIdentityModel,
+                passwordResetLinkModel: {} as PasswordResetLinkModel,
+                emailClient: emailClient as unknown as EmailClient,
+                organizationMemberProfileModel:
+                    {} as OrganizationMemberProfileModel,
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                personalAccessTokenModel: {} as PersonalAccessTokenModel,
+                organizationAllowedEmailDomainsModel:
+                    {} as OrganizationAllowedEmailDomainsModel,
+                userWarehouseCredentialsModel:
+                    {} as UserWarehouseCredentialsModel,
+                warehouseAvailableTablesModel:
+                    {} as WarehouseAvailableTablesModel,
+                projectModel: projectModel as unknown as ProjectModel,
+            });
+
+            await expect(
+                service.loginWithPassword('user@example.com', 'wrong', {
+                    ip: '127.0.0.1',
+                    userAgent: 'jest',
+                }),
+            ).rejects.toThrow();
+
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'login',
+                    status: 'denied',
+                    reason: 'Email and password not recognized',
+                    actor: expect.objectContaining({
+                        uuid: 'unknown',
+                        email: 'user@example.com',
+                    }),
+                    context: expect.objectContaining({
+                        ip: '127.0.0.1',
+                        userAgent: 'jest',
+                    }),
+                    resource: expect.objectContaining({ type: 'Session' }),
+                }),
+            );
+        });
+
+        test('should emit denied audit event for unknown personal access token', async () => {
+            const tokenUserModel = {
+                ...userModel,
+                findSessionUserByPersonalAccessToken: jest.fn(
+                    async () => undefined,
+                ),
+            };
+            const service = new UserService({
+                analytics: analyticsMock,
+                lightdashConfig: lightdashConfigMock,
+                inviteLinkModel: inviteLinkModel as unknown as InviteLinkModel,
+                userModel: tokenUserModel as unknown as UserModel,
+                groupsModel: {} as GroupsModel,
+                sessionModel: {} as SessionModel,
+                emailModel: emailModel as unknown as EmailModel,
+                openIdIdentityModel:
+                    openIdIdentityModel as unknown as OpenIdIdentityModel,
+                passwordResetLinkModel: {} as PasswordResetLinkModel,
+                emailClient: emailClient as unknown as EmailClient,
+                organizationMemberProfileModel:
+                    {} as OrganizationMemberProfileModel,
+                organizationModel:
+                    organizationModel as unknown as OrganizationModel,
+                personalAccessTokenModel: {} as PersonalAccessTokenModel,
+                organizationAllowedEmailDomainsModel:
+                    {} as OrganizationAllowedEmailDomainsModel,
+                userWarehouseCredentialsModel:
+                    {} as UserWarehouseCredentialsModel,
+                warehouseAvailableTablesModel:
+                    {} as WarehouseAvailableTablesModel,
+                projectModel: projectModel as unknown as ProjectModel,
+            });
+
+            await expect(
+                service.loginWithPersonalAccessToken('bad-token'),
+            ).rejects.toThrow();
+
+            expect(auditLogSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    action: 'login',
+                    status: 'denied',
+                    resource: expect.objectContaining({
+                        type: 'PersonalAccessToken',
+                    }),
+                }),
             );
         });
     });

@@ -6,7 +6,12 @@ import { fromJwt } from '../../auth/account';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
+import {
+    createAuditLogEvent,
+    createUnknownAuthActor,
+} from '../../logging/auditLog';
 import Logger from '../../logging/logger';
+import { logAuditEvent } from '../../logging/winston';
 
 /**
  * We don't have the parsed routes yet, so we get the path params in a
@@ -101,6 +106,31 @@ export async function jwtAuthMiddleware(
 
         next();
     } catch (error) {
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createUnknownAuthActor(),
+                    'login',
+                    {
+                        type: 'EmbedJwt',
+                        organizationUuid: 'unknown',
+                        projectUuid: req.project?.projectUuid,
+                    },
+                    { ip: req.ip, userAgent: req.get('user-agent') },
+                    'denied',
+                    error instanceof Error
+                        ? error.message
+                        : 'JWT authentication failed',
+                ),
+            );
+        } catch (auditErr) {
+            Logger.warn('Failed to log JWT auth audit event', {
+                error:
+                    auditErr instanceof Error
+                        ? auditErr.message
+                        : String(auditErr),
+            });
+        }
         next(error);
     }
 }

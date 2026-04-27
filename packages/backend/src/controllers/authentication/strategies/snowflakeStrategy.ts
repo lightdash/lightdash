@@ -6,6 +6,7 @@ import {
     OpenIdIdentityIssuerType,
     OpenIdUser,
 } from '@lightdash/common';
+import express from 'express';
 import { Strategy as OAuth2Strategy, VerifyCallback } from 'passport-oauth2';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
@@ -85,6 +86,12 @@ export const snowflakePassportStrategy = !(
                           req.user,
                           undefined,
                           refreshToken,
+                          {
+                              ip: (req as express.Request).ip,
+                              userAgent: (req as express.Request).get(
+                                  'user-agent',
+                              ),
+                          },
                       );
                   done(null, user);
                   // Use the generic OIDC handler to process the profile
