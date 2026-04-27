@@ -595,7 +595,9 @@ export default class SchedulerTask {
                                 SCHEDULER_POLLING_OPTIONS,
                             );
                         csvUrl = {
-                            filename: ExcelService.generateFileId(chart.name),
+                            filename: format === SchedulerFormat.XLSX
+                                ? ExcelService.generateFileId(chart.name)
+                                : CsvService.generateFileId(chart.name),
                             path: downloadResult.fileUrl,
                             localPath: downloadResult.fileUrl,
                             truncated: false,
