@@ -91,6 +91,13 @@ export const chartForValidation: Awaited<
     dimensions: ['table_dimension'],
     metrics: ['table_metric'],
     tableCalculations: ['table_calculation'],
+    tableCalculationDefinitions: [
+        {
+            name: 'table_calculation',
+            displayName: 'Table calculation',
+            sql: '${table.metric}',
+        },
+    ],
     customMetrics: ['table_custom_metric'],
     customMetricsBaseDimensions: ['table_dimension'],
     customBinDimensions: [],

@@ -1521,6 +1521,7 @@ export class SavedChartModel {
             dimensions: string[];
             metrics: string[];
             tableCalculations: string[];
+            tableCalculationDefinitions: TableCalculation[];
             customMetrics: string[];
             customMetricsBaseDimensions: string[];
             customBinDimensions: string[];
@@ -1558,6 +1559,29 @@ export class SavedChartModel {
                 ),
                 tableCalculations: this.database.raw(
                     `COALESCE((SELECT ARRAY_AGG(DISTINCT sqvtc.name) FROM saved_queries_version_table_calculations sqvtc WHERE sqvtc.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
+                ),
+                tableCalculationDefinitions: this.database.raw(
+                    `COALESCE(
+                        (
+                            SELECT JSONB_AGG(
+                                JSONB_STRIP_NULLS(
+                                    JSONB_BUILD_OBJECT(
+                                        'name', sqvtc.name,
+                                        'displayName', sqvtc.display_name,
+                                        'sql', NULLIF(sqvtc.calculation_raw_sql, ''),
+                                        'format', sqvtc.format,
+                                        'type', sqvtc.type,
+                                        'template', sqvtc.template,
+                                        'formula', NULLIF(sqvtc.formula, '')
+                                    )
+                                )
+                                ORDER BY sqvtc.order
+                            )
+                            FROM saved_queries_version_table_calculations sqvtc
+                            WHERE sqvtc.saved_queries_version_id = saved_queries_versions.saved_queries_version_id
+                        ),
+                        '[]'::jsonb
+                    )`,
                 ),
                 customMetrics: this.database.raw(
                     `COALESCE((SELECT ARRAY_AGG(DISTINCT (sqvam.table || '_' || sqvam.name)) FROM saved_queries_version_additional_metrics sqvam WHERE sqvam.saved_queries_version_id = saved_queries_versions.saved_queries_version_id), '{}')`,
@@ -1600,6 +1624,8 @@ export class SavedChartModel {
                 ...chart,
                 customMetricsFilters: chart.customMetricsFilters.flat(),
                 pivotDimensions: chart.pivotDimensions ?? [],
+                tableCalculationDefinitions:
+                    chart.tableCalculationDefinitions ?? [],
             }))
             .filter((chart) => !chartsNotInTilesUuids.includes(chart.uuid));
     }

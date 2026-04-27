@@ -1,4 +1,7 @@
-import { TableCalculationType } from '../types/field';
+import {
+    TableCalculationTemplateType,
+    TableCalculationType,
+} from '../types/field';
 import { ChartType, type ChartConfig } from '../types/savedCharts';
 import { getUnusedDimensions } from './chartValidation';
 
@@ -31,6 +34,42 @@ describe('chartValidation', () => {
                         displayName: 'Customer label',
                         type: TableCalculationType.STRING,
                         sql: "${customers.first_name} || ' ' || ${customers.last_name}",
+                    },
+                ],
+            });
+
+            expect(unusedDimensions).toEqual(['customers_email']);
+        });
+
+        test('treats dimensions referenced by a chart-used template table calculation as used', () => {
+            const { unusedDimensions } = getUnusedDimensions({
+                chartType: ChartType.CARTESIAN,
+                chartConfig: cartesianChartConfig({
+                    xField: 'orders_running_total',
+                    yField: ['orders_total_order_amount'],
+                }),
+                pivotDimensions: [],
+                queryDimensions: [
+                    'orders_order_date_week',
+                    'orders_status',
+                    'customers_email',
+                ],
+                queryTableCalculations: [
+                    {
+                        name: 'orders_running_total',
+                        displayName: 'Orders running total',
+                        type: TableCalculationType.NUMBER,
+                        template: {
+                            type: TableCalculationTemplateType.PERCENT_CHANGE_FROM_PREVIOUS,
+                            fieldId: 'orders_total_order_amount',
+                            orderBy: [
+                                {
+                                    fieldId: 'orders_order_date_week',
+                                    order: 'asc',
+                                },
+                            ],
+                            partitionBy: ['orders_status'],
+                        },
                     },
                 ],
             });

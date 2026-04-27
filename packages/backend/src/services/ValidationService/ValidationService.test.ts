@@ -73,6 +73,88 @@ describe('validation', () => {
             await validationService.generateValidation('projectUuid'),
         ).toEqual([]);
     });
+
+    it('Should not flag dimensions used by chart table calculations as unused', async () => {
+        const baseDimension = explore.tables.table!.dimensions.dimension;
+        const exploreWithTableCalculationDependencies = {
+            ...explore,
+            tables: {
+                ...explore.tables,
+                table: {
+                    ...explore.tables.table!,
+                    dimensions: {
+                        ...explore.tables.table!.dimensions,
+                        dimension2: {
+                            ...baseDimension,
+                            name: 'dimension2',
+                            label: 'dimension2',
+                        },
+                        pivot_dimension: {
+                            ...baseDimension,
+                            name: 'pivot_dimension',
+                            label: 'pivot_dimension',
+                        },
+                    },
+                },
+            },
+        };
+        (
+            projectModel.findExploresFromCache as jest.Mock
+        ).mockImplementationOnce(async () => [
+            exploreWithTableCalculationDependencies,
+        ]);
+        (
+            savedChartModel.findChartsForValidation as jest.Mock
+        ).mockImplementationOnce(async () => [
+            {
+                ...chartForValidation,
+                dimensions: [
+                    'table_dimension',
+                    'table_dimension2',
+                    'table_pivot_dimension',
+                ],
+                filters: {
+                    dimensions: {
+                        id: 'dimensionFilterUuid',
+                        and: [],
+                    },
+                    metrics: {
+                        id: 'metricFilterUuid',
+                        and: [],
+                    },
+                },
+                tableCalculations: ['customer_label'],
+                tableCalculationDefinitions: [
+                    {
+                        name: 'customer_label',
+                        displayName: 'Customer label',
+                        sql: "${table.dimension} || ' ' || ${table.dimension2}",
+                    },
+                ],
+                customMetrics: [],
+                customMetricsBaseDimensions: [],
+                customMetricsFilters: [],
+                sorts: [],
+                chartConfig: {
+                    layout: {
+                        xField: 'customer_label',
+                        yField: ['table_metric'],
+                    },
+                    eChartsConfig: {},
+                },
+                pivotDimensions: ['table_pivot_dimension'],
+            },
+        ]);
+
+        const errors = await validationService.generateValidation(
+            'projectUuid',
+            undefined,
+            new Set([ValidationTarget.CHARTS]),
+        );
+
+        expect(errors).toEqual([]);
+    });
+
     it('Should validate project with dimension errors', async () => {
         (
             projectModel.findExploresFromCache as jest.Mock

@@ -1,6 +1,7 @@
 import {
     convertFieldRefToFieldId,
     isSqlTableCalculation,
+    isTemplateTableCalculation,
     type TableCalculation,
 } from '../types/field';
 import {
@@ -42,6 +43,36 @@ const convertReferenceToFieldId = (reference: string): string => {
     }
 };
 
+export const getTableCalculationReferencedFieldIds = (
+    tableCalculation: TableCalculation,
+): string[] => {
+    if (isSqlTableCalculation(tableCalculation)) {
+        return getLightdashReferences(tableCalculation.sql).map(
+            convertReferenceToFieldId,
+        );
+    }
+
+    if (isTemplateTableCalculation(tableCalculation)) {
+        const { template } = tableCalculation;
+        const fieldIdPart =
+            'fieldId' in template && template.fieldId !== null
+                ? [template.fieldId]
+                : [];
+        const orderByPart =
+            'orderBy' in template
+                ? template.orderBy.map((orderBy) => orderBy.fieldId)
+                : [];
+        const partitionByPart =
+            'partitionBy' in template && template.partitionBy
+                ? template.partitionBy
+                : [];
+
+        return [...fieldIdPart, ...orderByPart, ...partitionByPart];
+    }
+
+    return [];
+};
+
 const getDimensionsUsedByTableCalculations = ({
     queryDimensions,
     queryTableCalculations,
@@ -69,17 +100,15 @@ const getDimensionsUsedByTableCalculations = ({
 
         const tableCalculation =
             tableCalculationsByName.get(tableCalculationName);
-        if (!tableCalculation || !isSqlTableCalculation(tableCalculation)) {
+        if (!tableCalculation) {
             return;
         }
 
-        for (const reference of getLightdashReferences(tableCalculation.sql)) {
-            const fieldId = convertReferenceToFieldId(reference);
+        for (const fieldId of getTableCalculationReferencedFieldIds(
+            tableCalculation,
+        )) {
             if (queryDimensionsSet.has(fieldId)) {
                 dimensions.add(fieldId);
-            }
-            if (tableCalculationsByName.has(reference)) {
-                visitTableCalculation(reference);
             }
             if (tableCalculationsByName.has(fieldId)) {
                 visitTableCalculation(fieldId);
