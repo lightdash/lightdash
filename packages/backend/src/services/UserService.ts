@@ -2496,6 +2496,7 @@ export class UserService extends BaseService {
             isSessionAuth,
             getImpersonation,
             setImpersonation,
+            context,
         }: {
             isSessionAuth: boolean;
             getImpersonation: () => { targetUserUuid: string } | undefined;
@@ -2505,13 +2506,29 @@ export class UserService extends BaseService {
                 targetUserUuid: string;
                 startedAt: string;
             }) => void;
+            context?: AuthAuditContext;
         },
     ): Promise<void> {
+        const emitDenied = (reason: string, targetOrgUuid?: string) =>
+            emitAuthAuditEvent({
+                actor: createActorFromUser(adminUser),
+                action: 'impersonation_start',
+                resourceType: 'User',
+                status: 'denied',
+                reason,
+                organizationUuid:
+                    targetOrgUuid ?? adminUser.organizationUuid ?? undefined,
+                metadata: { targetUserUuid },
+                context,
+            });
+
         if (!(await this.isImpersonationEnabled(adminUser))) {
+            emitDenied('User impersonation is not enabled');
             throw new ForbiddenError('User impersonation is not enabled');
         }
 
         if (!isSessionAuth) {
+            emitDenied('Impersonation requires session authentication');
             throw new ForbiddenError(
                 'Impersonation requires session authentication',
             );
@@ -2519,6 +2536,9 @@ export class UserService extends BaseService {
 
         // Prevent recursive impersonation
         if (getImpersonation()) {
+            emitDenied(
+                'Cannot start impersonation while already impersonating',
+            );
             throw new ForbiddenError(
                 'Cannot start impersonation while already impersonating',
             );
@@ -2526,6 +2546,7 @@ export class UserService extends BaseService {
 
         // Prevent self-impersonation
         if (adminUser.userUuid === targetUserUuid) {
+            emitDenied('Cannot impersonate yourself');
             throw new ParameterError('Cannot impersonate yourself');
         }
 
@@ -2544,6 +2565,10 @@ export class UserService extends BaseService {
                 }),
             )
         ) {
+            emitDenied(
+                "You don't have permissions to impersonate this user",
+                targetUser.organizationUuid ?? undefined,
+            );
             throw new ForbiddenError(
                 "You don't have permissions to impersonate this user",
             );
@@ -2569,16 +2594,31 @@ export class UserService extends BaseService {
                 organizationUuid: adminUser.organizationUuid!,
             },
         });
+
+        emitAuthAuditEvent({
+            actor: createActorFromUser(adminUser),
+            action: 'impersonation_start',
+            resourceType: 'User',
+            status: 'allowed',
+            organizationUuid:
+                targetUser.organizationUuid ??
+                adminUser.organizationUuid ??
+                undefined,
+            metadata: { targetUserUuid },
+            context,
+        });
     }
 
     async stopImpersonation({
         getImpersonation,
         clearImpersonation,
+        context,
     }: {
         getImpersonation: () =>
             | { adminUserUuid: string; targetUserUuid: string }
             | undefined;
         clearImpersonation: () => void;
+        context?: AuthAuditContext;
     }): Promise<void> {
         const impersonation = getImpersonation();
 
@@ -2604,6 +2644,16 @@ export class UserService extends BaseService {
                 targetUserUuid,
                 organizationUuid: adminUser.organizationUuid!,
             },
+        });
+
+        emitAuthAuditEvent({
+            actor: createActorFromUser(adminUser),
+            action: 'impersonation_stop',
+            resourceType: 'User',
+            status: 'allowed',
+            organizationUuid: adminUser.organizationUuid ?? undefined,
+            metadata: { targetUserUuid },
+            context,
         });
     }
 }
