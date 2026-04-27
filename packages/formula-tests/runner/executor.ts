@@ -78,6 +78,7 @@ export async function runTestCase(
             dialect: warehouse.dialect,
             columns: testCase.columns,
             defaultOrderBy: testCase.defaultOrderBy,
+            weekStartDay: testCase.weekStartDay,
         });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);

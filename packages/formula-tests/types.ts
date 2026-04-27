@@ -13,6 +13,10 @@ export interface TestCase {
     // generate valid SQL on BigQuery/Snowflake and pick the visually-previous
     // row on every dialect.
     defaultOrderBy?: { column: string; direction?: 'ASC' | 'DESC' }[];
+    // Passed through to compile() as `weekStartDay` (0=Mon..6=Sun, matching
+    // @lightdash/common's WeekDay enum). Exercises the project-level
+    // startOfWeek that DATE_TRUNC and DATE_DIFF respect.
+    weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
     expectedRows: Record<string, any>[];
     expectedError?: string;
     warehouses: WarehouseType[];
