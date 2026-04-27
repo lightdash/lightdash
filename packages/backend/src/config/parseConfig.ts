@@ -1271,9 +1271,6 @@ export type LightdashConfig = {
     userImpersonation: {
         enabled: boolean | undefined;
     };
-    changeChartExplore: {
-        enabled: boolean | undefined;
-    };
     showHideRows: {
         enabled: boolean | undefined;
     };
@@ -2293,11 +2290,6 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.USER_IMPERSONATION_ENABLED === 'true'
                     ? true
                     : undefined,
-        },
-        changeChartExplore: {
-            enabled: process.env.CHANGE_CHART_EXPLORE_ENABLED
-                ? process.env.CHANGE_CHART_EXPLORE_ENABLED === 'true'
-                : undefined,
         },
         showHideRows: {
             enabled: process.env.SHOW_HIDE_ROWS_ENABLED
