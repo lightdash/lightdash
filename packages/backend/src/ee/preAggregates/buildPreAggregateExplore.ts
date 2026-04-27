@@ -1,4 +1,5 @@
 import {
+    analyzePreAggregateDerivedDimensionEligibility,
     assertUnreachable,
     ExploreType,
     getItemId,
@@ -219,6 +220,77 @@ const buildDimensionSql = ({
     );
 };
 
+const getSelectedDimension = ({
+    dimensionsByReference,
+    preAggregateDef,
+    dimensionReference,
+}: {
+    dimensionsByReference: Map<string, CompiledDimension[]>;
+    preAggregateDef: PreAggregateDef;
+    dimensionReference: string;
+}): CompiledDimension => {
+    const candidates = dimensionsByReference.get(dimensionReference) || [];
+
+    if (candidates.length === 0) {
+        throw new Error(
+            `Pre-aggregate "${preAggregateDef.name}" references unknown dimension "${dimensionReference}"`,
+        );
+    }
+
+    const isTimeDimensionReference =
+        !!preAggregateDef.timeDimension &&
+        preAggregateUtils.getDimensionBaseName(candidates[0]) ===
+            preAggregateDef.timeDimension;
+
+    if (
+        isTimeDimensionReference &&
+        preAggregateDef.granularity &&
+        preAggregateDef.timeDimension
+    ) {
+        const timeGranularityDimension = candidates.find(
+            (dimension) =>
+                preAggregateUtils.getDimensionBaseName(dimension) ===
+                    preAggregateDef.timeDimension &&
+                dimension.timeInterval === preAggregateDef.granularity,
+        );
+
+        if (!timeGranularityDimension) {
+            throw new Error(
+                `Pre-aggregate "${preAggregateDef.name}" is missing time granularity field "${preAggregateDef.timeDimension}_${preAggregateDef.granularity.toLowerCase()}"`,
+            );
+        }
+
+        return timeGranularityDimension;
+    }
+
+    return (
+        candidates.find((dimension) => !dimension.timeInterval) ?? candidates[0]
+    );
+};
+
+const assertDimensionEligibleForDirectMaterialization = ({
+    sourceExplore,
+    preAggregateDef,
+    dimensionReference,
+    dimension,
+}: {
+    sourceExplore: Explore;
+    preAggregateDef: PreAggregateDef;
+    dimensionReference: string;
+    dimension: CompiledDimension;
+}): void => {
+    const eligibility = analyzePreAggregateDerivedDimensionEligibility({
+        dimension,
+        tables: sourceExplore.tables,
+    });
+
+    if (!eligibility.isEligible) {
+        throw new Error(
+            `Pre-aggregate "${preAggregateDef.name}" references ineligible dimension "${dimensionReference}": dimension "${eligibility.ineligibleDimensionFieldId}" is not eligible for direct materialization (reason: ${eligibility.reason})`,
+        );
+    }
+};
+
 const getIncludedDimensions = (
     sourceExplore: Explore,
     preAggregateDef: PreAggregateDef,
@@ -247,6 +319,21 @@ const getIncludedDimensions = (
     ) {
         defDimensions.add(preAggregateDef.timeDimension);
     }
+
+    Array.from(defDimensions).forEach((dimensionReference) => {
+        const dimension = getSelectedDimension({
+            dimensionsByReference,
+            preAggregateDef,
+            dimensionReference,
+        });
+
+        assertDimensionEligibleForDirectMaterialization({
+            sourceExplore,
+            preAggregateDef,
+            dimensionReference,
+            dimension,
+        });
+    });
 
     const includedDimensions = Object.values(sourceExplore.tables).flatMap(
         (table) =>
