@@ -1,3 +1,10 @@
+## [0.2811.3](https://github.com/lightdash/lightdash/compare/0.2811.2...0.2811.3) (2026-04-27)
+
+
+### Bug Fixes
+
+* address checks when no-pre-aggregate enabled ([#22373](https://github.com/lightdash/lightdash/issues/22373)) ([9cbf0c1](https://github.com/lightdash/lightdash/commit/9cbf0c192037bbd852f96fd11a9187fc2dc9a72b))
+
 ## [0.2811.2](https://github.com/lightdash/lightdash/compare/0.2811.1...0.2811.2) (2026-04-27)
 
 
