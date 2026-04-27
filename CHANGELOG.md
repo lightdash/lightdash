@@ -1,3 +1,17 @@
+# [0.2818.0](https://github.com/lightdash/lightdash/compare/0.2817.0...0.2818.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* wrap getFromDatabase in try/catch ([#22400](https://github.com/lightdash/lightdash/issues/22400)) ([c093387](https://github.com/lightdash/lightdash/commit/c09338798e77860a32bea3a28f86b24354b02d85))
+
+
+### Features
+
+* add impersonation context to audit logs ([#22378](https://github.com/lightdash/lightdash/issues/22378)) ([489c576](https://github.com/lightdash/lightdash/commit/489c576575f78bbafaaeb46facc1d4ecf4979721))
+* **data-apps:** let interactive viewers create personal apps ([#22390](https://github.com/lightdash/lightdash/issues/22390)) ([b7cb7fe](https://github.com/lightdash/lightdash/commit/b7cb7fe144613d262ff9f44ea9a068a82a19971e))
+* **formula:** add Trino dialect support ([#22394](https://github.com/lightdash/lightdash/issues/22394)) ([407de28](https://github.com/lightdash/lightdash/commit/407de28458a781fde8901d2d73c178de0df2df95))
+
 # [0.2817.0](https://github.com/lightdash/lightdash/compare/0.2816.0...0.2817.0) (2026-04-27)
 
 
