@@ -1,9 +1,15 @@
 import { defineAbility, subject } from '@casl/ability';
 import { ForcedSubject, type AnyObject } from '@casl/ability/dist/types/types';
-import { CaslSubjectNames, OrganizationMemberRole } from '@lightdash/common';
+import {
+    CaslSubjectNames,
+    OrganizationMemberRole,
+    type Account,
+    type ImpersonationContext,
+} from '@lightdash/common';
 import { type AuditLogEvent } from './auditLog';
 import {
     CaslAuditWrapper,
+    createActorFromAccount,
     type AuditableUser,
     type AuditLogger,
 } from './caslAuditWrapper';
@@ -523,6 +529,92 @@ describe('CaslAuditWrapper', () => {
 
             expect(wrapper.can('read', 'Dashboard')).toBe(true);
             expect(throwingLogger).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('createActorFromAccount impersonation', () => {
+        const impersonation: ImpersonationContext = {
+            adminId: 'admin-001',
+            adminEmail: 'admin@example.com',
+            adminFirstName: 'Jane',
+            adminLastName: 'Admin',
+            adminRole: OrganizationMemberRole.ADMIN,
+        };
+
+        const buildSessionAccount = (overrides: {
+            authType: 'session' | 'pat' | 'oauth' | 'service-account';
+            withImpersonation: boolean;
+        }): Account =>
+            ({
+                authentication: { type: overrides.authType, source: 'src' },
+                organization: { organizationUuid: 'org-uuid' },
+                user: {
+                    id: 'user-789',
+                    type: 'registered',
+                    userUuid: 'user-789',
+                    email: 'user@example.com',
+                    firstName: 'Target',
+                    lastName: 'User',
+                    role: OrganizationMemberRole.VIEWER,
+                    ...(overrides.withImpersonation ? { impersonation } : {}),
+                },
+                isAnonymousUser: () => false,
+                isServiceAccount: () =>
+                    overrides.authType === 'service-account',
+            }) as unknown as Account;
+
+        it('should populate impersonatedBy on session actor when impersonation is present', () => {
+            const account = buildSessionAccount({
+                authType: 'session',
+                withImpersonation: true,
+            });
+            const actor = createActorFromAccount(account);
+
+            expect(actor.type).toBe('session');
+            if (actor.type !== 'session') return;
+            expect(actor.impersonatedBy).toEqual({
+                uuid: 'admin-001',
+                email: 'admin@example.com',
+                firstName: 'Jane',
+                lastName: 'Admin',
+                role: OrganizationMemberRole.ADMIN,
+            });
+        });
+
+        it('should omit impersonatedBy on session actor when impersonation is absent', () => {
+            const account = buildSessionAccount({
+                authType: 'session',
+                withImpersonation: false,
+            });
+            const actor = createActorFromAccount(account);
+
+            expect(actor.type).toBe('session');
+            if (actor.type !== 'session') return;
+            expect(actor.impersonatedBy).toBeUndefined();
+        });
+
+        it('should not propagate impersonation onto PAT actors', () => {
+            const account = buildSessionAccount({
+                authType: 'pat',
+                withImpersonation: true,
+            });
+            const actor = createActorFromAccount(account);
+
+            expect(actor.type).toBe('pat');
+            if (actor.type !== 'pat') return;
+            expect(actor.impersonatedBy).toBeUndefined();
+        });
+
+        it('should not propagate impersonation onto OAuth actors', () => {
+            const account = buildSessionAccount({
+                authType: 'oauth',
+                withImpersonation: true,
+            });
+            const actor = createActorFromAccount(account);
+
+            expect(actor.type).toBe('oauth');
+            if (actor.type !== 'oauth') return;
+            expect(actor.impersonatedBy).toBeUndefined();
         });
     });
 });

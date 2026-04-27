@@ -5,6 +5,7 @@ import {
     CaslSubjectNames,
     type Account,
     type AnonymousAccount,
+    type ImpersonationContext,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -32,6 +33,7 @@ export type AuditableUser = Pick<
     | 'lastName'
     | 'organizationUuid'
     | 'role'
+    | 'impersonation'
 >;
 
 type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
@@ -95,7 +97,21 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         email?: string;
         role?: string;
         id: string;
+        impersonation?: ImpersonationContext;
     };
+
+    // Impersonation is only attached to session users; PAT/OAuth/service-account
+    // sessions cannot be impersonated.
+    const impersonatedBy =
+        actorType === 'session' && user.impersonation
+            ? {
+                  uuid: user.impersonation.adminId,
+                  email: user.impersonation.adminEmail,
+                  firstName: user.impersonation.adminFirstName,
+                  lastName: user.impersonation.adminLastName,
+                  role: user.impersonation.adminRole,
+              }
+            : undefined;
 
     return {
         type: actorType,
@@ -107,6 +123,7 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         organizationRole: user.role || 'unknown',
         // TODO: Add group memberships
         groupMemberships: [],
+        ...(impersonatedBy && { impersonatedBy }),
     };
 };
 
@@ -114,17 +131,32 @@ export const createActorFromAccount = (account: Account): AuditActor => {
  * Creates an audit actor from a SessionUser (legacy support)
  * @deprecated Prefer createActorFromAccount with Account type
  */
-export const createActorFromUser = (user: AuditableUser): AuditActor => ({
-    type: 'session' as const,
-    uuid: user.userUuid,
-    email: user.email || '',
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    organizationUuid: user.organizationUuid || '',
-    organizationRole: user.role || 'unknown',
-    // TODO: Add group memberships
-    groupMemberships: [],
-});
+export const createActorFromUser = (user: AuditableUser): AuditActor => {
+    // Impersonation is only attached to session users; PAT/OAuth/service-account
+    // sessions cannot be impersonated.
+    const impersonatedBy = user.impersonation
+        ? {
+              uuid: user.impersonation.adminId,
+              email: user.impersonation.adminEmail,
+              firstName: user.impersonation.adminFirstName,
+              lastName: user.impersonation.adminLastName,
+              role: user.impersonation.adminRole,
+          }
+        : undefined;
+
+    return {
+        type: 'session' as const,
+        uuid: user.userUuid,
+        email: user.email || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        organizationUuid: user.organizationUuid || '',
+        organizationRole: user.role || 'unknown',
+        // TODO: Add group memberships
+        groupMemberships: [],
+        ...(impersonatedBy && { impersonatedBy }),
+    };
+};
 
 const createResourceFromSubject = (
     subjectArg: AuditableCaslSubject,

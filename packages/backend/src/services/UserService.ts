@@ -1678,7 +1678,15 @@ export class UserService extends BaseService {
     async resolveSessionUser(
         passportUser: { id: string; organization: string },
         impersonation:
-            | { targetUserUuid: string; startedAt: string }
+            | {
+                  adminUserUuid: string;
+                  adminEmail: string;
+                  adminFirstName?: string;
+                  adminLastName?: string;
+                  adminRole: string;
+                  targetUserUuid: string;
+                  startedAt: string;
+              }
             | undefined,
         clearImpersonation: () => void,
     ): Promise<SessionUser> {
@@ -1744,7 +1752,16 @@ export class UserService extends BaseService {
             return requestUser;
         }
 
-        return targetUser;
+        return {
+            ...targetUser,
+            impersonation: {
+                adminId: impersonation.adminUserUuid,
+                adminEmail: impersonation.adminEmail,
+                adminFirstName: impersonation.adminFirstName,
+                adminLastName: impersonation.adminLastName,
+                adminRole: impersonation.adminRole,
+            },
+        };
     }
 
     static async generateGoogleAccessToken(
@@ -2335,6 +2352,10 @@ export class UserService extends BaseService {
             setImpersonation: (data: {
                 adminUserUuid: string;
                 adminName: string;
+                adminEmail: string;
+                adminFirstName?: string;
+                adminLastName?: string;
+                adminRole: string;
                 targetUserUuid: string;
                 startedAt: string;
             }) => void;
@@ -2385,6 +2406,10 @@ export class UserService extends BaseService {
         setImpersonation({
             adminUserUuid: adminUser.userUuid,
             adminName: `${adminUser.firstName} ${adminUser.lastName}`,
+            adminEmail: adminUser.email ?? '',
+            adminFirstName: adminUser.firstName,
+            adminLastName: adminUser.lastName,
+            adminRole: adminUser.role ?? 'unknown',
             targetUserUuid,
             startedAt: new Date().toISOString(),
         });

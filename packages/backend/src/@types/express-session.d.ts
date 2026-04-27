@@ -22,6 +22,10 @@ declare module 'express-session' {
         impersonation?: {
             adminUserUuid: string;
             adminName: string;
+            adminEmail: string;
+            adminFirstName?: string;
+            adminLastName?: string;
+            adminRole: string;
             targetUserUuid: string;
             startedAt: string;
         };
