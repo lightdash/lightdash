@@ -270,13 +270,17 @@ describe('codegen', () => {
             ).toBe('ROUND(("revenue")::numeric, 2)');
         });
 
-        it('casts value to numeric on Redshift for the 2-arg form', () => {
+        it('pins numeric precision on Redshift so ROUND keeps decimals', () => {
+            // Bare `(x)::numeric` on Redshift means numeric(18, 0) — the
+            // input is truncated to an integer before ROUND runs, so
+            // ROUND(50.5, 1) returns 50. Pinning to numeric(38, 10) keeps
+            // the decimal payload through ROUND.
             expect(
                 compile('=ROUND(revenue, 2)', {
                     dialect: 'redshift',
                     columns,
                 }),
-            ).toBe('ROUND(("revenue")::numeric, 2)');
+            ).toBe('ROUND(("revenue")::numeric(38, 10), 2)');
         });
 
         it('leaves the 1-arg form uncast on Postgres', () => {
