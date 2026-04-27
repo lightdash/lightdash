@@ -140,6 +140,15 @@ describe('Formula Grammar', () => {
             });
         });
 
+        it('parses LAST_DAY as a single-arg function', () => {
+            const ast = parse('=LAST_DAY(A)');
+            expect(ast).toEqual({
+                type: 'SingleArgFn',
+                name: 'LAST_DAY',
+                arg: { type: 'ColumnRef', name: 'A' },
+            });
+        });
+
         it('parses variadic function', () => {
             const ast = parse('=CONCAT(A, B, C)');
             expect(ast).toEqual({

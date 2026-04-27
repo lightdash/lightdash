@@ -203,6 +203,8 @@ export class SqlGenerator {
                 return this.generateExtract('MONTH', arg);
             case 'DAY':
                 return this.generateExtract('DAY', arg);
+            case 'LAST_DAY':
+                return this.generateLastDay(arg);
             case 'ISNULL':
                 return `(${arg} IS NULL)`;
             case 'SUM':
@@ -452,6 +454,10 @@ export class SqlGenerator {
 
     protected generateExtract(part: string, expr: string): string {
         return `EXTRACT(${part} FROM ${expr})`;
+    }
+
+    protected generateLastDay(arg: string): string {
+        return this.dialect.generateLastDay?.(arg) ?? `LAST_DAY(${arg})`;
     }
 
     // Attach an OVER (…) clause to a pre-built function-call string. Lets
