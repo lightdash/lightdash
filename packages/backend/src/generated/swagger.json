@@ -8331,8 +8331,63 @@
                     "error"
                 ]
             },
+            "AppVersionImageResource": {
+                "properties": {
+                    "imageId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["imageId"],
+                "type": "object"
+            },
+            "AppVersionChartResource": {
+                "properties": {
+                    "chartKind": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "chartName": {
+                        "type": "string"
+                    },
+                    "chartUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["chartKind", "chartName", "chartUuid"],
+                "type": "object"
+            },
+            "AppVersionResources": {
+                "properties": {
+                    "dashboardName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "charts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppVersionChartResource"
+                        },
+                        "type": "array"
+                    },
+                    "images": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppVersionImageResource"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["dashboardName", "charts", "images"],
+                "type": "object"
+            },
             "ApiAppVersionSummary": {
                 "properties": {
+                    "resources": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AppVersionResources"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -8353,6 +8408,7 @@
                     }
                 },
                 "required": [
+                    "resources",
                     "createdAt",
                     "statusMessage",
                     "status",
@@ -8530,6 +8586,29 @@
             },
             "ApiPreviewTokenResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__token-string__"
+            },
+            "ApiSuccess__imageUrl-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "imageUrl": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["imageUrl"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAppImageUrlResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__imageUrl-string__"
             },
             "ApiAppSummary": {
                 "properties": {
@@ -10246,12 +10325,12 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -10282,16 +10361,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -10366,12 +10445,12 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "chartUsage": {
+                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "searchRank": {
+                                                                                    "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -31156,7 +31235,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2812.0",
+        "version": "0.2814.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -48,12 +48,33 @@ export type ApiPreviewTokenResponse = ApiSuccess<{
     token: string;
 }>;
 
+export type AppVersionImageResource = {
+    imageId: string;
+};
+
+export type AppVersionChartResource = {
+    chartUuid: string;
+    chartName: string;
+    chartKind: string | null;
+};
+
+export type AppVersionResources = {
+    images: AppVersionImageResource[];
+    charts: AppVersionChartResource[];
+    dashboardName: string | null;
+};
+
+export type ApiAppImageUrlResponse = ApiSuccess<{
+    imageUrl: string;
+}>;
+
 export type ApiAppVersionSummary = {
     version: number;
     prompt: string;
     status: AppVersionStatus;
     statusMessage: string | null;
     createdAt: Date;
+    resources: AppVersionResources | null;
 };
 
 export type ApiGetAppResponse = ApiSuccess<{

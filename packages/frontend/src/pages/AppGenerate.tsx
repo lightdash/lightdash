@@ -70,6 +70,7 @@ import {
 } from '../features/apps/AppResourcePicker';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
+import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
@@ -95,10 +96,22 @@ type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
     imagePreviewUrl: string | null;
+    imageResourceId: string | null;
     charts: ChatChart[];
     dashboardName: string | null;
     appUuid: string | null;
     version: number | null;
+};
+
+const AppResourceImage: FC<{
+    projectUuid: string;
+    appUuid: string;
+    imageId: string;
+    className?: string;
+}> = ({ projectUuid, appUuid, imageId, className }) => {
+    const { data } = useAppImageUrl(projectUuid, appUuid, imageId);
+    if (!data?.imageUrl) return null;
+    return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
 
 const AppPreview: FC<{
@@ -351,15 +364,32 @@ const AppGenerate: FC = () => {
         if (allVersions.length === 0) return [];
         const sorted = [...allVersions].sort((a, b) => a.version - b.version);
         return sorted.flatMap((v) => {
+            // Prefer server-side resources; fall back to session refs
+            const serverCharts: ChatChart[] =
+                v.resources?.charts.map((c) => ({
+                    name: c.chartName,
+                    uuid: c.chartUuid,
+                    chartKind: undefined,
+                })) ?? [];
+            const charts =
+                serverCharts.length > 0
+                    ? serverCharts
+                    : (sentChartsByPrompt.current.get(v.prompt) ?? []);
+            const imageResourceId = v.resources?.images[0]?.imageId ?? null;
+            const imagePreviewUrl =
+                sentImagesByPrompt.current.get(v.prompt) ?? null;
+            const dashboardName =
+                v.resources?.dashboardName ??
+                sentDashboardByPrompt.current.get(v.prompt) ??
+                null;
             const msgs: ChatMessage[] = [
                 {
                     role: 'user',
                     content: v.prompt,
-                    imagePreviewUrl:
-                        sentImagesByPrompt.current.get(v.prompt) ?? null,
-                    charts: sentChartsByPrompt.current.get(v.prompt) ?? [],
-                    dashboardName:
-                        sentDashboardByPrompt.current.get(v.prompt) ?? null,
+                    imagePreviewUrl,
+                    imageResourceId,
+                    charts,
+                    dashboardName,
                     appUuid: null,
                     version: null,
                 },
@@ -373,6 +403,7 @@ const AppGenerate: FC = () => {
                             ? 'Your app is ready!'
                             : `Version ${v.version} is ready!`),
                     imagePreviewUrl: null,
+                    imageResourceId: null,
                     charts: [],
                     dashboardName: null,
                     appUuid: activeAppUuid ?? null,
@@ -385,6 +416,7 @@ const AppGenerate: FC = () => {
                         v.statusMessage ??
                         'Generation failed. Please try again.',
                     imagePreviewUrl: null,
+                    imageResourceId: null,
                     charts: [],
                     dashboardName: null,
                     appUuid: null,
@@ -627,6 +659,7 @@ const AppGenerate: FC = () => {
                 role: 'user',
                 content: trimmed,
                 imagePreviewUrl: sentImageUrl,
+                imageResourceId: null,
                 charts: sentCharts,
                 dashboardName: sentDashboardName,
                 appUuid: null,
@@ -663,6 +696,7 @@ const AppGenerate: FC = () => {
                                 ? err.message
                                 : 'Failed to generate app',
                         imagePreviewUrl: null,
+                        imageResourceId: null,
                         charts: [],
                         dashboardName: null,
                         appUuid: null,
@@ -870,7 +904,7 @@ const AppGenerate: FC = () => {
                                                             </Group>
                                                         </Box>
                                                     )}
-                                                    {msg.imagePreviewUrl && (
+                                                    {msg.imagePreviewUrl ? (
                                                         <Image
                                                             src={
                                                                 msg.imagePreviewUrl
@@ -880,6 +914,25 @@ const AppGenerate: FC = () => {
                                                             }
                                                             alt="Attached"
                                                         />
+                                                    ) : (
+                                                        msg.imageResourceId &&
+                                                        activeAppUuid &&
+                                                        projectUuid && (
+                                                            <AppResourceImage
+                                                                projectUuid={
+                                                                    projectUuid
+                                                                }
+                                                                appUuid={
+                                                                    activeAppUuid
+                                                                }
+                                                                imageId={
+                                                                    msg.imageResourceId
+                                                                }
+                                                                className={
+                                                                    classes.sentImageThumbnail
+                                                                }
+                                                            />
+                                                        )
                                                     )}
                                                 </Box>
                                             </Box>

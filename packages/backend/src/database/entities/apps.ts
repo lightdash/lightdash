@@ -1,4 +1,7 @@
-import { type AppVersionStatus } from '@lightdash/common';
+import {
+    type AppVersionResources,
+    type AppVersionStatus,
+} from '@lightdash/common';
 import { type Knex } from 'knex';
 
 export {
@@ -57,6 +60,7 @@ export type DbAppVersion = {
     error: string | null;
     status_message: string | null;
     status_updated_at: Date | null;
+    resources: AppVersionResources | null;
     created_at: Date;
     created_by_user_uuid: string;
 };
@@ -67,7 +71,7 @@ export type AppVersionsTable = Knex.CompositeTableType<
         DbAppVersion,
         'app_id' | 'version' | 'prompt' | 'status' | 'created_by_user_uuid'
     > &
-        Partial<Pick<DbAppVersion, 'app_version_id'>>,
+        Partial<Pick<DbAppVersion, 'app_version_id' | 'resources'>>,
     Partial<
         Pick<
             DbAppVersion,
