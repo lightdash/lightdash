@@ -53,6 +53,8 @@ export interface LightdashSessionUser extends AccountUser {
     updatedAt: Date;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
+    /* Set only when an admin is impersonating this user via session auth */
+    impersonation?: ImpersonationContext;
 }
 
 export interface ExternalUser extends AccountUser {
@@ -75,6 +77,16 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
 
 export interface SessionUser extends LightdashUserWithAbilityRules {
     ability: MemberAbility;
+    /* Set only when an admin is impersonating this user via session auth */
+    impersonation?: ImpersonationContext;
+}
+
+export interface ImpersonationContext {
+    adminId: string;
+    adminEmail: string;
+    adminFirstName?: string;
+    adminLastName?: string;
+    adminRole: string;
 }
 
 export interface UpdatedByUser {

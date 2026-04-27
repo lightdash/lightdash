@@ -5,6 +5,7 @@ import {
     CaslSubjectNames,
     type Account,
     type AnonymousAccount,
+    type ImpersonationContext,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -95,7 +96,21 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         email?: string;
         role?: string;
         id: string;
+        impersonation?: ImpersonationContext;
     };
+
+    // Impersonation is only attached to session users; PAT/OAuth/service-account
+    // sessions cannot be impersonated.
+    const impersonatedBy =
+        actorType === 'session' && user.impersonation
+            ? {
+                  uuid: user.impersonation.adminId,
+                  email: user.impersonation.adminEmail,
+                  firstName: user.impersonation.adminFirstName,
+                  lastName: user.impersonation.adminLastName,
+                  role: user.impersonation.adminRole,
+              }
+            : undefined;
 
     return {
         type: actorType,
@@ -107,6 +122,7 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         organizationRole: user.role || 'unknown',
         // TODO: Add group memberships
         groupMemberships: [],
+        ...(impersonatedBy && { impersonatedBy }),
     };
 };
 
