@@ -1,3 +1,10 @@
+# [0.2813.0](https://github.com/lightdash/lightdash/compare/0.2812.0...0.2813.0) (2026-04-27)
+
+
+### Features
+
+* add executionSource to query analytics events ([#22365](https://github.com/lightdash/lightdash/issues/22365)) ([cfde9b7](https://github.com/lightdash/lightdash/commit/cfde9b7c97d1cfc40a3a4d6f93242a5c7dd29116))
+
 # [0.2812.0](https://github.com/lightdash/lightdash/compare/0.2811.4...0.2812.0) (2026-04-27)
 
 
