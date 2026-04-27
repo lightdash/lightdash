@@ -205,12 +205,11 @@ export const authenticateServiceAccount: RequestHandler = async (
         const message = getErrorMessage(error);
         // Avoid double-logging: the explicit-throw branches above already
         // emit a denied audit event with a more specific reason.
-        if (
-            message !== 'No service account token provided' &&
-            message !== 'Invalid service account token. Authentication failed.'
-        ) {
+
+        if (!(error instanceof ServiceAccountAuthError)) {
             logServiceAccountAuthFailure(req, message);
         }
+
         next(new AuthorizationError(message));
     }
 };
