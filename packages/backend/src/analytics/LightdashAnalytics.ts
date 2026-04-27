@@ -284,6 +284,44 @@ type QueryErrorEvent = BaseTrack & {
     };
 };
 
+type PreAggregateQueryEvent = BaseTrack & {
+    event: 'pre_aggregate.hit' | 'pre_aggregate.miss';
+    properties: {
+        organizationId: string | undefined;
+        projectId: string;
+        context: QueryExecutionContext;
+        exploreName: string;
+        routingTarget: 'warehouse' | 'pre_aggregate' | 'materialization';
+        routeMode?: 'required' | 'opportunistic';
+        preAggregateName?: string;
+        chartId?: string;
+        dashboardId?: string;
+        missReason?: string;
+    };
+};
+
+type MaterializationEvent = BaseTrack & {
+    event: 'materialization.completed' | 'materialization.failed';
+    properties: {
+        organizationId: string | undefined;
+        materializationUuid: string;
+        projectId: string;
+        preAggregateDefinitionUuid: string;
+        preAggregateName?: string;
+        trigger: string;
+        queryId?: string;
+        materializationStatus?: 'active' | 'superseded' | 'failed';
+        queryStatus?: QueryHistoryStatus;
+        format?: 'jsonl' | 'parquet';
+        rowCount?: number | null;
+        columnCount?: number | null;
+        totalBytes?: number | null;
+        warehouseExecutionTimeMs?: number | null;
+        totalDurationMs: number;
+        errorMessage?: string;
+    };
+};
+
 type QueryPageEvent = BaseTrack & {
     event: 'query_page.fetched';
     properties: {
@@ -1771,6 +1809,8 @@ type TypedEvent =
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent
+    | PreAggregateQueryEvent
+    | MaterializationEvent
     | QueryPageEvent
     | ResultsCacheCreateEvent
     | ResultsCacheWriteEvent
