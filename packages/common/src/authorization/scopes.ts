@@ -716,6 +716,17 @@ const scopes: Scope[] = [
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
     },
+    {
+        name: 'manage:DataApp@space',
+        description:
+            'Create, edit, and delete data apps in spaces where you have editor or admin access',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
+        ],
+    },
 
     // Spotlight Scopes
     {

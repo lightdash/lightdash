@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags } from '@lightdash/common';
 import { ActionIcon, Box, Loader, Menu, Stack, Text } from '@mantine-8/core';
 import { IconAppsOff, IconDots, IconPencil } from '@tabler/icons-react';
@@ -9,6 +10,7 @@ import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
 import classes from './AppPreviewTest.module.css';
 
@@ -38,9 +40,20 @@ export default function AppPreviewTest() {
         (v) => v.status === 'ready',
     )?.version;
 
-    const createdByUserUuid = appQuery.data?.pages[0]?.createdByUserUuid;
-    const isCreator =
-        !!user.data?.userUuid && user.data.userUuid === createdByUserUuid;
+    const appSpaceUuid = appQuery.data?.pages[0]?.spaceUuid ?? null;
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
+    const userSpaceAccess = appSpaceUuid
+        ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
+        : undefined;
+    const canEditApp =
+        user.data?.ability?.can(
+            'manage',
+            subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+                access: userSpaceAccess ? [userSpaceAccess] : [],
+            }),
+        ) === true;
 
     const version = explicitVersion ?? latestReadyVersion;
 
@@ -146,7 +159,7 @@ export default function AppPreviewTest() {
 
     return (
         <Box className={classes.previewContainer}>
-            {isCreator && (
+            {canEditApp && (
                 <Box className={classes.menuOverlay}>
                     <Menu
                         position="bottom-end"

@@ -204,12 +204,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
             break;
         }
         case ResourceViewItemType.DATA_APP: {
+            const userAccess = spaces.find(
+                (space) => space.uuid === item.data.spaceUuid,
+            )?.userAccess;
             userCanManage =
                 user.data?.ability?.can(
                     'manage',
                     subject('DataApp', {
                         organizationUuid,
                         projectUuid,
+                        access: userAccess ? [userAccess] : [],
                     }),
                 ) === true;
             break;
