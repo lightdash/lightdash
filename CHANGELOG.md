@@ -1,3 +1,17 @@
+# [0.2814.0](https://github.com/lightdash/lightdash/compare/0.2813.2...0.2814.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* clear pending highlight timer and dispatch downplay on chart mouseout ([#22384](https://github.com/lightdash/lightdash/issues/22384)) ([cdbf372](https://github.com/lightdash/lightdash/commit/cdbf372312bbe432a0ca7e21e668ac757a998259))
+
+
+### Features
+
+* **data-apps:** inherit edit/admin permissions from the app's space ([#22382](https://github.com/lightdash/lightdash/issues/22382)) ([4699c9e](https://github.com/lightdash/lightdash/commit/4699c9ef5e54ffd4e16313a0a724603cf949d791))
+* validate custom sql metric eligibility for pre-aggregation ([#22352](https://github.com/lightdash/lightdash/issues/22352)) ([c528cf1](https://github.com/lightdash/lightdash/commit/c528cf14ad4a7b6067e2114abe834af9b44ec495)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* validate derived dimension eligibility for pre-aggregate materialization ([#22328](https://github.com/lightdash/lightdash/issues/22328)) ([80d986f](https://github.com/lightdash/lightdash/commit/80d986f156a83b9d30dc897aae12e92bf92571af))
+
 ## [0.2813.2](https://github.com/lightdash/lightdash/compare/0.2813.1...0.2813.2) (2026-04-27)
 
 
