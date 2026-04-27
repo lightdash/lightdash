@@ -457,3 +457,9 @@
     margin-top: var(--mantine-spacing-xs);
     opacity: 0.9;
 }
+
+.screenshotLabel {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+    cursor: pointer;
+}

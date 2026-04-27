@@ -42,6 +42,8 @@ export type {
     SdkFetchRequest,
     SdkFetchResponse,
     SdkReadyMessage,
+    SdkScreenshotRequest,
+    SdkScreenshotResponse,
 } from './postMessageTransport';
 
 // Element inspector (click-to-edit) — protocol types for parent bridge.

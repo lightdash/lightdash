@@ -16,6 +16,7 @@ import {
     Badge,
     Box,
     Button,
+    Checkbox,
     Group,
     Image,
     Loader,
@@ -46,6 +47,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import {
+    forwardRef,
     useCallback,
     useEffect,
     useMemo,
@@ -68,7 +70,9 @@ import AppUpdateModal from '../components/common/modal/AppUpdateModal';
 import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
-import AppIframePreview from '../features/apps/AppIframePreview';
+import AppIframePreview, {
+    type AppIframePreviewHandle,
+} from '../features/apps/AppIframePreview';
 import AppPromptEditor, {
     type AppPromptEditorHandle,
     type ElementRef,
@@ -157,7 +161,7 @@ const AppResourceImage: FC<{
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
 
-const AppPreview: FC<{
+type AppPreviewProps = {
     projectUuid: string;
     appUuid: string;
     version: number;
@@ -171,63 +175,73 @@ const AppPreview: FC<{
     onElementSelected?: (event: { label: string }) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
     onInspectorCancelled?: () => void;
-}> = ({
-    projectUuid,
-    appUuid,
-    version,
-    refreshKey,
-    onQueryEvent,
-    inspectorEnabled,
-    onElementSelected,
-    onInspectorAvailabilityChange,
-    onInspectorCancelled,
-}) => {
-    const {
-        data: token,
-        isLoading,
-        error,
-    } = useAppPreviewToken(projectUuid, appUuid, version);
-
-    const previewOrigin = usePreviewOrigin();
-    const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-        : undefined;
-
-    if (isLoading) {
-        return (
-            <Group gap="sm" p="md" justify="center">
-                <Loader size="sm" />
-                <Text size="sm" c="dimmed">
-                    Loading preview...
-                </Text>
-            </Group>
-        );
-    }
-
-    if (error) {
-        return (
-            <Text c="red" p="md" size="sm">
-                Failed to load preview:{' '}
-                {error instanceof Error ? error.message : 'Unknown error'}
-            </Text>
-        );
-    }
-
-    if (!previewUrl) return null;
-
-    return (
-        <AppIframePreview
-            src={previewUrl}
-            expectedPreviewOrigin={previewOrigin}
-            identityKey={`${appUuid}:${version}`}
-            onQueryEvent={onQueryEvent}
-            inspectorEnabled={inspectorEnabled}
-            onElementSelected={onElementSelected}
-            onInspectorAvailabilityChange={onInspectorAvailabilityChange}
-            onInspectorCancelled={onInspectorCancelled}
-        />
-    );
 };
+
+const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
+    (
+        {
+            projectUuid,
+            appUuid,
+            version,
+            refreshKey,
+            onQueryEvent,
+            inspectorEnabled,
+            onElementSelected,
+            onInspectorAvailabilityChange,
+            onInspectorCancelled,
+        },
+        ref,
+    ) => {
+        const {
+            data: token,
+            isLoading,
+            error,
+        } = useAppPreviewToken(projectUuid, appUuid, version);
+
+        const previewOrigin = usePreviewOrigin();
+        const previewUrl = token
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+            : undefined;
+
+        if (isLoading) {
+            return (
+                <Group gap="sm" p="md" justify="center">
+                    <Loader size="sm" />
+                    <Text size="sm" c="dimmed">
+                        Loading preview...
+                    </Text>
+                </Group>
+            );
+        }
+
+        if (error) {
+            return (
+                <Text c="red" p="md" size="sm">
+                    Failed to load preview:{' '}
+                    {error instanceof Error ? error.message : 'Unknown error'}
+                </Text>
+            );
+        }
+
+        if (!previewUrl) return null;
+
+        return (
+            <AppIframePreview
+                ref={ref}
+                src={previewUrl}
+                expectedPreviewOrigin={previewOrigin}
+                identityKey={`${appUuid}:${version}`}
+                onQueryEvent={onQueryEvent}
+                inspectorEnabled={inspectorEnabled}
+                onElementSelected={onElementSelected}
+                onInspectorAvailabilityChange={onInspectorAvailabilityChange}
+                onInspectorCancelled={onInspectorCancelled}
+            />
+        );
+    },
+);
+
+AppPreview.displayName = 'AppPreview';
 
 const LoadingDots: FC = () => (
     <span className={classes.loadingDots}>
@@ -468,6 +482,11 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setImageAttachments([]);
+        setScreenshotAttachment((prev) => {
+            if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+            return null;
+        });
+        setIsCapturingScreenshot(false);
         setLocalMessages([]);
         setPreviewApp(null);
         setTrackedQueries([]);
@@ -515,6 +534,16 @@ const AppGenerate: FC = () => {
     const { user } = useApp();
     const ability = useAbilityContext();
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const previewRef = useRef<AppIframePreviewHandle>(null);
+    // Optional one-shot screenshot of the live preview, captured on demand and
+    // sent alongside the prompt so Claude can see what the user is looking at
+    // while iterating. Separate from `imageAttachments` because it has its own
+    // toggle UI and lifecycle (untoggling re-captures rather than restoring).
+    const [screenshotAttachment, setScreenshotAttachment] = useState<{
+        file: File;
+        previewUrl: string;
+    } | null>(null);
+    const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
 
     // Fetch version history (polling is handled by the Web Worker below)
     const {
@@ -976,6 +1005,15 @@ const AppGenerate: FC = () => {
             const newAppUuid = activeAppUuid ? undefined : uuid4();
             const targetAppUuid = activeAppUuid ?? newAppUuid;
 
+            // Combined upload list: manual attachments plus an optional one-shot
+            // screenshot of the current preview. The screenshot is treated as
+            // just another image on the wire — the backend doesn't need to know
+            // it was captured rather than picked from disk.
+            const uploadList = [
+                ...imageAttachments,
+                ...(screenshotAttachment ? [screenshotAttachment] : []),
+            ];
+
             // Upload images sequentially. Two reasons we can't run these in parallel:
             // 1. The backend buffers each body to avoid AWS SDK chunked signing,
             //    which MinIO/GCS handle unreliably (RequestTimeout).
@@ -984,9 +1022,9 @@ const AppGenerate: FC = () => {
             //    with "A timeout occurred while trying to lock a resource".
             // Surface individual failures via toast rather than silently dropping them.
             let imageIds: string[] | undefined;
-            if (imageAttachments.length > 0) {
+            if (uploadList.length > 0) {
                 const ids: string[] = [];
-                for (const att of imageAttachments) {
+                for (const att of uploadList) {
                     try {
                         const result = await uploadImage({
                             projectUuid: projectUuid!,
@@ -1012,7 +1050,7 @@ const AppGenerate: FC = () => {
 
             // Capture preview URLs before clearing — they stay in the message bubble.
             // Also store in the ref so they survive the local→server transition.
-            const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
+            const sentImageUrls = uploadList.map((att) => att.previewUrl);
             if (sentImageUrls.length > 0) {
                 sentImagesByPrompt.current.set(trimmed, sentImageUrls);
             }
@@ -1053,6 +1091,8 @@ const AppGenerate: FC = () => {
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
             setImageAttachments([]);
+            setScreenshotAttachment(null);
+            setIsCapturingScreenshot(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
             resetGenerate();
@@ -1742,6 +1782,78 @@ const AppGenerate: FC = () => {
                                         />
                                     )}
                                 </Group>
+                                {previewApp && (
+                                    <Group gap={6} pt={4}>
+                                        <Checkbox
+                                            size="xs"
+                                            label={
+                                                isCapturingScreenshot
+                                                    ? 'Capturing screenshot...'
+                                                    : 'Include screenshot of current app'
+                                            }
+                                            checked={
+                                                !!screenshotAttachment ||
+                                                isCapturingScreenshot
+                                            }
+                                            onChange={(e) => {
+                                                if (e.currentTarget.checked) {
+                                                    setIsCapturingScreenshot(
+                                                        true,
+                                                    );
+                                                    const p =
+                                                        previewRef.current?.captureScreenshot();
+                                                    if (!p) {
+                                                        setIsCapturingScreenshot(
+                                                            false,
+                                                        );
+                                                        return;
+                                                    }
+                                                    p.then((file) => {
+                                                        setScreenshotAttachment(
+                                                            {
+                                                                file,
+                                                                previewUrl:
+                                                                    URL.createObjectURL(
+                                                                        file,
+                                                                    ),
+                                                            },
+                                                        );
+                                                    })
+                                                        .catch((err) => {
+                                                            // eslint-disable-next-line no-console
+                                                            console.warn(
+                                                                'Screenshot capture failed:',
+                                                                err,
+                                                            );
+                                                        })
+                                                        .finally(() => {
+                                                            setIsCapturingScreenshot(
+                                                                false,
+                                                            );
+                                                        });
+                                                } else {
+                                                    if (
+                                                        screenshotAttachment?.previewUrl
+                                                    ) {
+                                                        URL.revokeObjectURL(
+                                                            screenshotAttachment.previewUrl,
+                                                        );
+                                                    }
+                                                    setScreenshotAttachment(
+                                                        null,
+                                                    );
+                                                }
+                                            }}
+                                            disabled={
+                                                isLoading ||
+                                                isCapturingScreenshot
+                                            }
+                                            classNames={{
+                                                label: classes.screenshotLabel,
+                                            }}
+                                        />
+                                    </Group>
+                                )}
                                 <Box
                                     className={classes.resourceSections}
                                     onDragOver={handleDragOver}
@@ -1749,7 +1861,8 @@ const AppGenerate: FC = () => {
                                 >
                                     {selectedCharts.length > 0 ||
                                     selectedDashboard ||
-                                    imageAttachments.length > 0 ? (
+                                    imageAttachments.length > 0 ||
+                                    screenshotAttachment ? (
                                         <>
                                             {selectedCharts.length > 0 && (
                                                 <SelectedQuerySection
@@ -1809,17 +1922,40 @@ const AppGenerate: FC = () => {
                                                     disabled={isLoading}
                                                 />
                                             )}
-                                            {imageAttachments.length > 0 && (
+                                            {(imageAttachments.length > 0 ||
+                                                screenshotAttachment) && (
                                                 <SelectedImageSection
-                                                    images={imageAttachments.map(
-                                                        (att) => ({
-                                                            previewUrl:
-                                                                att.previewUrl,
-                                                        }),
-                                                    )}
-                                                    onRemove={(previewUrl) =>
-                                                        clearImage(previewUrl)
-                                                    }
+                                                    images={[
+                                                        ...imageAttachments.map(
+                                                            (att) => ({
+                                                                previewUrl:
+                                                                    att.previewUrl,
+                                                            }),
+                                                        ),
+                                                        ...(screenshotAttachment
+                                                            ? [
+                                                                  {
+                                                                      previewUrl:
+                                                                          screenshotAttachment.previewUrl,
+                                                                  },
+                                                              ]
+                                                            : []),
+                                                    ]}
+                                                    onRemove={(previewUrl) => {
+                                                        if (
+                                                            screenshotAttachment?.previewUrl ===
+                                                            previewUrl
+                                                        ) {
+                                                            URL.revokeObjectURL(
+                                                                previewUrl,
+                                                            );
+                                                            setScreenshotAttachment(
+                                                                null,
+                                                            );
+                                                            return;
+                                                        }
+                                                        clearImage(previewUrl);
+                                                    }}
                                                     disabled={isLoading}
                                                     loading={isSubmitting}
                                                 />
@@ -2037,6 +2173,7 @@ const AppGenerate: FC = () => {
                         <Box className={classes.previewContent}>
                             {previewApp ? (
                                 <AppPreview
+                                    ref={previewRef}
                                     projectUuid={projectUuid}
                                     appUuid={previewApp.appUuid}
                                     version={previewApp.version}

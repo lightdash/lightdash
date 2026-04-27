@@ -1,9 +1,20 @@
-import { useCallback, useEffect, useRef, type FC } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+} from 'react';
 import {
     useAppSdkBridge,
     type ElementSelectedEvent,
     type QueryEvent,
 } from './hooks/useAppSdkBridge';
+import { useIframeScreenshot } from './hooks/useIframeScreenshot';
+
+export type AppIframePreviewHandle = {
+    captureScreenshot: () => Promise<File>;
+};
 
 type Props = {
     src: string;
@@ -47,82 +58,94 @@ type Props = {
  * API calls through postMessage, and this component's bridge executes them
  * using the current user's session.
  */
-const AppIframePreview: FC<Props> = ({
-    src,
-    expectedPreviewOrigin,
-    identityKey,
-    onQueryEvent,
-    onElementSelected,
-    inspectorEnabled,
-    onInspectorAvailabilityChange,
-    onInspectorCancelled,
-}) => {
-    const iframeRef = useRef<HTMLIFrameElement>(null);
-    // Memoized so the bridge's message listener doesn't re-attach on every
-    // parent render — AppGenerate re-renders on every keystroke (editor's
-    // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
-    const handleAnnounce = useCallback(() => {
-        onInspectorAvailabilityChange?.(true);
-    }, [onInspectorAvailabilityChange]);
-    const { handleIframeLoad, enableInspector, disableInspector } =
-        useAppSdkBridge(
-            iframeRef,
+const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
+    (
+        {
+            src,
             expectedPreviewOrigin,
+            identityKey,
             onQueryEvent,
             onElementSelected,
-            handleAnnounce,
-        );
+            inspectorEnabled,
+            onInspectorAvailabilityChange,
+            onInspectorCancelled,
+        },
+        ref,
+    ) => {
+        const iframeRef = useRef<HTMLIFrameElement>(null);
+        // Memoized so the bridge's message listener doesn't re-attach on every
+        // parent render — AppGenerate re-renders on every keystroke (editor's
+        // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
+        const handleAnnounce = useCallback(() => {
+            onInspectorAvailabilityChange?.(true);
+        }, [onInspectorAvailabilityChange]);
+        const { handleIframeLoad, enableInspector, disableInspector } =
+            useAppSdkBridge(
+                iframeRef,
+                expectedPreviewOrigin,
+                onQueryEvent,
+                onElementSelected,
+                handleAnnounce,
+            );
+        const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
-    // Reset availability to false when the served bundle changes (new app or
-    // new version). Fires before the browser starts loading the new content,
-    // so the new SDK's `available` announce will flip it back to true if it's
-    // wired up. Old SDKs in resumed sandboxes never announce, so it stays
-    // false. Keyed on `identityKey` rather than `src` so that pure URL bumps
-    // (manual preview refresh) don't reset — same bundle means same SDK
-    // capability, and resetting would briefly hide the Inspect button.
-    useEffect(() => {
-        onInspectorAvailabilityChange?.(false);
-    }, [identityKey, onInspectorAvailabilityChange]);
+        useImperativeHandle(ref, () => ({ captureScreenshot }), [
+            captureScreenshot,
+        ]);
 
-    // Toggling the prop while the iframe is alive — push the change through.
-    useEffect(() => {
-        if (inspectorEnabled) enableInspector();
-        else disableInspector();
-    }, [inspectorEnabled, enableInspector, disableInspector]);
+        // Reset availability to false when the served bundle changes (new app or
+        // new version). Fires before the browser starts loading the new content,
+        // so the new SDK's `available` announce will flip it back to true if it's
+        // wired up. Old SDKs in resumed sandboxes never announce, so it stays
+        // false. Keyed on `identityKey` rather than `src` so that pure URL bumps
+        // (manual preview refresh) don't reset — same bundle means same SDK
+        // capability, and resetting would briefly hide the Inspect button.
+        useEffect(() => {
+            onInspectorAvailabilityChange?.(false);
+        }, [identityKey, onInspectorAvailabilityChange]);
 
-    // Esc-to-cancel. Lives on the parent's window because focus is on the
-    // parent (the toolbar button before any click; the editor afterwards) —
-    // the iframe never holds focus during inspect mode, so an iframe-side
-    // keydown listener would never fire.
-    useEffect(() => {
-        if (!inspectorEnabled) return;
-        const onKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onInspectorCancelled?.();
-            }
+        // Toggling the prop while the iframe is alive — push the change through.
+        useEffect(() => {
+            if (inspectorEnabled) enableInspector();
+            else disableInspector();
+        }, [inspectorEnabled, enableInspector, disableInspector]);
+
+        // Esc-to-cancel. Lives on the parent's window because focus is on the
+        // parent (the toolbar button before any click; the editor afterwards) —
+        // the iframe never holds focus during inspect mode, so an iframe-side
+        // keydown listener would never fire.
+        useEffect(() => {
+            if (!inspectorEnabled) return;
+            const onKey = (e: KeyboardEvent) => {
+                if (e.key === 'Escape') {
+                    onInspectorCancelled?.();
+                }
+            };
+            window.addEventListener('keydown', onKey);
+            return () => window.removeEventListener('keydown', onKey);
+        }, [inspectorEnabled, onInspectorCancelled]);
+
+        // The iframe reloads on every new app version. The useEffect above won't
+        // re-fire if `inspectorEnabled` was already true, so re-sync on load.
+        const handleLoad = () => {
+            handleIframeLoad();
+            if (inspectorEnabled) enableInspector();
         };
-        window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
-    }, [inspectorEnabled, onInspectorCancelled]);
 
-    // The iframe reloads on every new app version. The useEffect above won't
-    // re-fire if `inspectorEnabled` was already true, so re-sync on load.
-    const handleLoad = () => {
-        handleIframeLoad();
-        if (inspectorEnabled) enableInspector();
-    };
+        return (
+            <iframe
+                ref={iframeRef}
+                src={src}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+                title="App preview"
+                sandbox="allow-scripts allow-modals"
+                allow=""
+                onLoad={handleLoad}
+            />
+        );
+    },
+);
 
-    return (
-        <iframe
-            ref={iframeRef}
-            src={src}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            title="App preview"
-            sandbox="allow-scripts allow-modals"
-            allow=""
-            onLoad={handleLoad}
-        />
-    );
-};
+AppIframePreview.displayName = 'AppIframePreview';
 
 export default AppIframePreview;
