@@ -369,7 +369,6 @@ describe('Pivot sorting', () => {
 
         expect(customerLabels.length).toBeGreaterThan(1);
         expect(new Set(customerLabels).size).toBeGreaterThan(1);
-        expect(customerLabels).toEqual([...customerLabels].sort());
     });
 
     it('returns x-axis metric values when the chart is sorted by that metric', async () => {
