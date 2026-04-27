@@ -246,7 +246,7 @@ const Settings: FC = () => {
                 ),
             });
         }
-        if (dataAppsFlag?.enabled && user?.ability.can('manage', 'DataApp')) {
+        if (dataAppsFlag?.enabled && user?.ability.can('create', 'DataApp')) {
             allowedRoutes.push({
                 path: '/myApps',
                 element: (
@@ -652,7 +652,7 @@ const Settings: FC = () => {
                                     />
                                 )}
                                 {dataAppsFlag?.enabled &&
-                                    user.ability.can('manage', 'DataApp') && (
+                                    user.ability.can('create', 'DataApp') && (
                                         <RouterNavLink
                                             label="My apps"
                                             exact

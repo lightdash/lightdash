@@ -286,6 +286,7 @@ export class UserFavoritesModel {
                 description: `${AppsTableName}.description`,
                 space_uuid: `${SpaceTableName}.space_uuid`,
                 created_at: `${AppsTableName}.created_at`,
+                created_by_user_uuid: `${AppsTableName}.created_by_user_uuid`,
                 views: `${AppsTableName}.views_count`,
                 latest_version_number: 'latest_version.version',
                 latest_version_status: 'latest_version.status',
@@ -304,6 +305,7 @@ export class UserFavoritesModel {
                 name: row.name,
                 description: row.description ?? undefined,
                 spaceUuid: row.space_uuid,
+                createdByUserUuid: row.created_by_user_uuid ?? null,
                 updatedAt: row.latest_version_created_at ?? row.created_at,
                 updatedByUser: row.updated_by_user_uuid
                     ? {

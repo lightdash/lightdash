@@ -147,7 +147,7 @@ export class AppGenerateService extends BaseService {
      */
     private assertDataAppAbility(
         user: SessionUser,
-        action: 'view' | 'manage',
+        action: 'view' | 'create' | 'manage',
         organizationUuid: string,
         projectUuid: string,
         errorMessage: string,
@@ -172,15 +172,18 @@ export class AppGenerateService extends BaseService {
      * Permission check for reading a data app.
      *
      * Apps can live in two modes:
-     * - Assigned to a space → the subject carries space access context and
-     *   viewers with space access match `view:DataApp`.
-     * - Personal / unassigned → the subject has no space context, so only
-     *   the admin-level `manage:DataApp` rule (which matches any action,
-     *   including view) grants access.
+     * - Assigned to a space → the subject carries space access context, so
+     *   any user with space access matches `view:DataApp`.
+     * - Personal / unassigned → space context is empty, but
+     *   `createdByUserUuid` lets the creator match the self rule. Project
+     *   admins always match via the project-wide rule.
      */
     private async assertCanViewApp(
         user: SessionUser,
-        app: Pick<DbApp, 'project_uuid' | 'space_uuid'> & {
+        app: Pick<
+            DbApp,
+            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+        > & {
             organization_uuid: string;
         },
     ): Promise<void> {
@@ -196,21 +199,24 @@ export class AppGenerateService extends BaseService {
             app.organization_uuid,
             app.project_uuid,
             'Insufficient permissions to access this data app',
-            spaceContext,
+            { ...spaceContext, createdByUserUuid: app.created_by_user_uuid },
         );
     }
 
     /**
      * Permission check for editing/deleting/iterating on an existing data app.
      *
-     * Mirrors `assertCanManageApp`'s shape for charts/dashboards: space
-     * editors and admins inherit manage access via the space context, while
-     * personal (spaceless) apps fall back to the project-wide
-     * `manage:DataApp` rule that only project admins hold.
+     * Mirrors the chart/dashboard pattern: space editors and admins inherit
+     * manage via the space context. For personal (spaceless) apps,
+     * `createdByUserUuid` lets the creator match the self rule. Project
+     * admins always match via the project-wide rule.
      */
     private async assertCanManageApp(
         user: SessionUser,
-        app: Pick<DbApp, 'project_uuid' | 'space_uuid'> & {
+        app: Pick<
+            DbApp,
+            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+        > & {
             organization_uuid: string;
         },
         errorMessage: string,
@@ -228,7 +234,11 @@ export class AppGenerateService extends BaseService {
             app.organization_uuid,
             app.project_uuid,
             errorMessage,
-            { ...spaceContext, ...extraContext },
+            {
+                ...spaceContext,
+                createdByUserUuid: app.created_by_user_uuid,
+                ...extraContext,
+            },
         );
     }
 
@@ -395,11 +405,11 @@ export class AppGenerateService extends BaseService {
     ): Promise<{ imageId: string }> {
         await this.assertDataAppsEnabled(user);
 
-        // For iterations the app already exists — use its space context so a
-        // space editor can attach an image. For initial creation the appUuid
-        // is generated client-side and the app row doesn't exist yet, so we
-        // fall back to the project-wide manage check (the create permission
-        // is enforced by `generateApp` itself).
+        // For iterations the app already exists — use its space + creator
+        // context so a space editor or the creator can attach an image. For
+        // initial creation the appUuid is generated client-side and the app
+        // row doesn't exist yet, so we authorize against `create:DataApp`
+        // (anyone who can create an app can stage an image for it).
         const app = await this.appModel.findApp(appUuid, projectUuid);
         if (app) {
             await this.assertCanManageApp(
@@ -411,7 +421,7 @@ export class AppGenerateService extends BaseService {
             const organizationUuid = await this.getProjectOrgUuid(projectUuid);
             this.assertDataAppAbility(
                 user,
-                'manage',
+                'create',
                 organizationUuid,
                 projectUuid,
                 'Insufficient permissions to upload app images',
@@ -2074,7 +2084,7 @@ export class AppGenerateService extends BaseService {
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
         this.assertDataAppAbility(
             user,
-            'manage',
+            'create',
             organizationUuid,
             projectUuid,
             'Insufficient permissions to create data apps',
@@ -2359,6 +2369,7 @@ export class AppGenerateService extends BaseService {
             project_uuid: projectUuid,
             space_uuid: spaceUuid,
             organization_uuid: organizationUuid,
+            created_by_user_uuid: createdByUserUuid,
         });
 
         return {
