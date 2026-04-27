@@ -133,6 +133,19 @@ const sessionUserCache =
           })
         : undefined;
 
+type CachedPatSessionUser = {
+    user: SessionUser;
+    personalAccessToken: PersonalAccessToken;
+};
+
+const patSessionUserCache =
+    process.env.EXPERIMENTAL_CACHE === 'true'
+        ? new NodeCache({
+              stdTTL: 30, // time to live in seconds
+              checkperiod: 60, // cleanup interval in seconds
+          })
+        : undefined;
+
 export class UserModel {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -881,13 +894,18 @@ export class UserModel {
             .merge();
     }
 
-    async findSessionUserByPersonalAccessToken(
-        token: string,
-    ): Promise<
-        | { user: SessionUser; personalAccessToken: PersonalAccessToken }
+    async findSessionUserByPersonalAccessToken(token: string): Promise<
+        | (CachedPatSessionUser & {
+              cacheHit: boolean;
+          })
         | undefined
     > {
         const tokenHash = await hash(token);
+        const cached =
+            patSessionUserCache?.get<CachedPatSessionUser>(tokenHash);
+        if (cached) {
+            return { ...cached, cacheHit: true };
+        }
         const [row] = await userDetailsQueryBuilder(this.database)
             .innerJoin(
                 'personal_access_tokens',
@@ -906,7 +924,7 @@ export class UserModel {
         const { abilityBuilder, lightdashUser } =
             await this.generateUserAbilityBuilder(row);
 
-        return {
+        const result: CachedPatSessionUser = {
             user: {
                 ...lightdashUser,
                 abilityRules: abilityBuilder.rules,
@@ -916,6 +934,8 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
+        patSessionUserCache?.set(tokenHash, result);
+        return { ...result, cacheHit: false };
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {

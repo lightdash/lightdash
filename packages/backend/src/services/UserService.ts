@@ -1506,8 +1506,18 @@ export class UserService extends BaseService {
                 context,
             });
 
-        const results =
-            await this.userModel.findSessionUserByPersonalAccessToken(token);
+        const results = await wrapSentryTransaction(
+            'UserService.findSessionUserByPersonalAccessToken',
+            {},
+            async (span) => {
+                const lookup =
+                    await this.userModel.findSessionUserByPersonalAccessToken(
+                        token,
+                    );
+                span.setAttribute('cacheHit', lookup?.cacheHit ?? false);
+                return lookup;
+            },
+        );
         if (results === undefined) {
             emitDenied('Personal access token not recognized');
             throw new AuthorizationError();
