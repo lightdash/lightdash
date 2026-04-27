@@ -1,3 +1,15 @@
+# [0.2815.0](https://github.com/lightdash/lightdash/compare/0.2814.1...0.2815.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* add links to dashboards and charts in user activity page ([#22388](https://github.com/lightdash/lightdash/issues/22388)) ([fe3b87d](https://github.com/lightdash/lightdash/commit/fe3b87dc0edf80fca67e7ac76566042c3c0fc272))
+
+
+### Features
+
+* **formula:** add LAST_DAY(date) to formula grammar ([#22358](https://github.com/lightdash/lightdash/issues/22358)) ([f6b085f](https://github.com/lightdash/lightdash/commit/f6b085f48aa95ba87c7c02d1773743d51e36ccd3))
+
 ## [0.2814.1](https://github.com/lightdash/lightdash/compare/0.2814.0...0.2814.1) (2026-04-27)
 
 
