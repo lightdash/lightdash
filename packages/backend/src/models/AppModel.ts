@@ -106,6 +106,26 @@ export class AppModel {
             });
     }
 
+    /**
+     * Bump status_updated_at without changing any other fields, but only if
+     * the version is still in progress. Used as a wall-clock heartbeat so
+     * that releaseStaleLocks doesn't force-release a healthy job whose
+     * current stage has gone quiet (e.g. Claude composing a single large
+     * Write tool call). Returns true if the row was bumped.
+     */
+    async touchVersionIfInProgress(
+        appId: string,
+        version: number,
+    ): Promise<boolean> {
+        const updatedRows = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .whereNotIn('status', [...APP_VERSION_TERMINAL_STATUSES])
+            .update({
+                status_updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
     async getVersionStatus(
         appId: string,
         version: number,
