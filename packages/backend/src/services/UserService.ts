@@ -1287,12 +1287,12 @@ export class UserService extends BaseService {
             }
             if (e instanceof DeactivatedAccountError) {
                 emitFailure('Account is deactivated');
+            } else if (e instanceof AuthorizationError) {
+                emitFailure('Email and password not recognized');
             } else if (e instanceof ForbiddenError) {
-                emitFailure(e.message);
+                emitFailure('Login not permitted for this account');
             } else {
-                emitFailure(
-                    e instanceof Error ? e.message : 'Unknown login failure',
-                );
+                emitFailure('Login failed');
             }
             throw e;
         }
