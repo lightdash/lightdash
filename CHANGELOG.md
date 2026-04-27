@@ -1,3 +1,10 @@
+## [0.2813.1](https://github.com/lightdash/lightdash/compare/0.2813.0...0.2813.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* user embed token creator as the main flag userUuid check with fallback like other flag checks ([#22385](https://github.com/lightdash/lightdash/issues/22385)) ([ee53632](https://github.com/lightdash/lightdash/commit/ee536328ab7bb98acc3910ccf7132b4762477018))
+
 # [0.2813.0](https://github.com/lightdash/lightdash/compare/0.2812.0...0.2813.0) (2026-04-27)
 
 
