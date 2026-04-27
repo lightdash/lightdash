@@ -85,12 +85,66 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
                 path: req.path,
                 routePath: req.route.path,
             });
-        if (serviceAccount) {
-            req.serviceAccount = serviceAccount;
-            next();
-        } else {
+        if (!serviceAccount) {
             throw new Error('Invalid SCIM token. Authentication failed.');
         }
+        req.serviceAccount = serviceAccount;
+
+        // Build CASL abilities from the service account scopes so that
+        // SCIM operations go through the same audited authorization path
+        // as regular service-account API requests.
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        applyServiceAccountAbilities({
+            scopes: serviceAccount.scopes,
+            organizationUuid: serviceAccount.organizationUuid,
+            builder,
+        });
+        const organization = await req.services
+            .getOrganizationService()
+            .getOrganizationByUuid(serviceAccount.organizationUuid);
+
+        const adminUser = await req.services
+            .getUserService()
+            .getAdminUser(
+                serviceAccount.createdByUserUuid,
+                serviceAccount.organizationUuid,
+            );
+
+        // TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
+        // service-account/principle-user unrelated to a real admin-user.
+        // @see https://github.com/lightdash/lightdash/issues/15466
+        req.user = {
+            userUuid: adminUser.userUuid,
+            email: 'service-account@lightdash.com',
+            firstName: 'service account',
+            lastName: serviceAccount.description,
+            organizationUuid: serviceAccount.organizationUuid,
+            organizationName: organization.name,
+            organizationCreatedAt: serviceAccount.createdAt,
+            isTrackingAnonymized: false,
+            isMarketingOptedIn: false,
+            isSetupComplete: true,
+            userId: adminUser.userId,
+            role: getRoleForScopes(serviceAccount.scopes),
+            ability: builder.build(),
+            isActive: true,
+            abilityRules: builder.rules,
+            createdAt: serviceAccount.createdAt,
+            updatedAt: serviceAccount.createdAt,
+        };
+
+        if (req?.account?.isAuthenticated()) {
+            Logger.warn(
+                buildAccountExistsWarning('ServiceAccount'),
+                req.account?.authentication?.type,
+            );
+        }
+        req.account = fromServiceAccount(req.user, token);
+        const requestContext = requestContextFromExpress(req);
+        req.account.requestContext = requestContext;
+        req.user.requestContext = requestContext;
+
+        next();
     } catch (error) {
         next(
             new ScimError({
