@@ -601,6 +601,82 @@ describe('codegen', () => {
         });
     });
 
+    describe('DATE_DIFF', () => {
+        const columnsAB = {
+            a: 'a',
+            b: 'b',
+        };
+
+        it.each([
+            // Postgres emulates via DATE_PART (no native DATEDIFF).
+            [
+                'postgres',
+                'month',
+                `((DATE_PART('year', "b") - DATE_PART('year', "a")) * 12 + (DATE_PART('month', "b") - DATE_PART('month', "a")))::int`,
+            ],
+            [
+                'postgres',
+                'day',
+                `(("b")::date - ("a")::date)`,
+            ],
+            [
+                'postgres',
+                'year',
+                `(DATE_PART('year', "b") - DATE_PART('year', "a"))::int`,
+            ],
+            [
+                'postgres',
+                'quarter',
+                `((DATE_PART('year', "b") - DATE_PART('year', "a")) * 4 + (DATE_PART('quarter', "b") - DATE_PART('quarter', "a")))::int`,
+            ],
+            [
+                'postgres',
+                'week',
+                `((DATE_TRUNC('week', "b")::date - DATE_TRUNC('week', "a")::date) / 7)`,
+            ],
+            // Redshift, Snowflake, Databricks — bare unit.
+            ['redshift', 'month', 'DATEDIFF(MONTH, "a", "b")'],
+            ['snowflake', 'month', 'DATEDIFF(MONTH, "a", "b")'],
+            ['databricks', 'month', 'DATEDIFF(MONTH, `a`, `b`)'],
+            // BigQuery — flipped arg order, bare unit.
+            ['bigquery', 'month', 'DATE_DIFF(`b`, `a`, MONTH)'],
+            // DuckDB + ClickHouse — quoted unit.
+            ['duckdb', 'month', `date_diff('month', "a", "b")`],
+            ['clickhouse', 'month', `dateDiff('month', "a", "b")`],
+        ] as const)('%s DATE_DIFF(a, b, "%s") → %s', (dialect, unit, expected) => {
+            expect(
+                compile(`=DATE_DIFF(a, b, "${unit}")`, {
+                    dialect,
+                    columns: columnsAB,
+                }),
+            ).toBe(expected);
+        });
+
+        it('composes non-Monday week-diff via day-diff of week-truncated endpoints (Postgres)', () => {
+            expect(
+                compile('=DATE_DIFF(a, b, "week")', {
+                    dialect: 'postgres',
+                    columns: columnsAB,
+                    weekStartDay: 6,
+                }),
+            ).toBe(
+                `((((DATE_TRUNC('week', ("b" - INTERVAL '6 days')) + INTERVAL '6 days'))::date - ((DATE_TRUNC('week', ("a" - INTERVAL '6 days')) + INTERVAL '6 days'))::date) / 7)`,
+            );
+        });
+
+        it('composes non-Monday week-diff on BigQuery via WEEK(<DAY>) truncation + day-diff', () => {
+            expect(
+                compile('=DATE_DIFF(a, b, "week")', {
+                    dialect: 'bigquery',
+                    columns: columnsAB,
+                    weekStartDay: 6,
+                }),
+            ).toBe(
+                '(DATE_DIFF(DATE_TRUNC(`b`, WEEK(SUNDAY)), DATE_TRUNC(`a`, WEEK(SUNDAY)), DAY) / 7)',
+            );
+        });
+    });
+
     describe('renderAggregate invocation protocol', () => {
         // Identity renderer used to observe invocation count and order
         // without changing the generated SQL.

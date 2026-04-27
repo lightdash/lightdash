@@ -478,6 +478,12 @@ export class SqlGenerator {
                     this.generate(node.args[0]),
                     this.generate(node.args[1]),
                 );
+            case 'DATE_DIFF':
+                return this.generateDateDiff(
+                    node.unit,
+                    this.generate(node.args[0]),
+                    this.generate(node.args[1]),
+                );
             default:
                 return assertUnreachable(
                     node.name,
@@ -528,6 +534,65 @@ export class SqlGenerator {
             return `(${date} + (${n}) * INTERVAL '3 months')`;
         }
         return `(${date} + (${n}) * INTERVAL '1 ${unit}')`;
+    }
+
+    protected generateDateDiff(
+        unit: DateUnit,
+        start: string,
+        end: string,
+    ): string {
+        const weekStartDay = this.options.weekStartDay ?? 0;
+
+        // Non-Monday week-diff composes via day-diff between week-truncated
+        // endpoints. The week truncation is already per-dialect (respects
+        // weekStartDay), so every dialect gets correct non-Monday behaviour
+        // without re-implementing the offset dance in each override.
+        if (unit === 'week' && weekStartDay !== 0) {
+            const startTrunc = this.generateDateTrunc('week', start);
+            const endTrunc = this.generateDateTrunc('week', end);
+            return `(${this.invokeDateDiff('day', startTrunc, endTrunc)} / 7)`;
+        }
+
+        return this.invokeDateDiff(unit, start, end);
+    }
+
+    private invokeDateDiff(unit: DateUnit, start: string, end: string): string {
+        return (
+            this.dialect.generateDateDiff?.(unit, start, end) ??
+            this.defaultDateDiff(unit, start, end)
+        );
+    }
+
+    // Postgres emulation (Postgres has no native DATEDIFF). Every other
+    // dialect overrides with its native form. Semantics: whole-unit calendar-
+    // boundary count, positive when `end > start` — matches BigQuery /
+    // Snowflake / DuckDB / Databricks / ClickHouse / Redshift DATEDIFF.
+    // Week/quarter/month/year fall out of DATE_PART subtractions; day is the
+    // native integer `(date - date)` operator. Non-Monday week handling is
+    // done at the `generateDateDiff` level so this function always sees
+    // Monday-aligned weeks.
+    protected defaultDateDiff(
+        unit: DateUnit,
+        start: string,
+        end: string,
+    ): string {
+        switch (unit) {
+            case 'day':
+                return `((${end})::date - (${start})::date)`;
+            case 'week':
+                return `((DATE_TRUNC('week', ${end})::date - DATE_TRUNC('week', ${start})::date) / 7)`;
+            case 'month':
+                return `((DATE_PART('year', ${end}) - DATE_PART('year', ${start})) * 12 + (DATE_PART('month', ${end}) - DATE_PART('month', ${start})))::int`;
+            case 'quarter':
+                return `((DATE_PART('year', ${end}) - DATE_PART('year', ${start})) * 4 + (DATE_PART('quarter', ${end}) - DATE_PART('quarter', ${start})))::int`;
+            case 'year':
+                return `(DATE_PART('year', ${end}) - DATE_PART('year', ${start}))::int`;
+            default:
+                return assertUnreachable(
+                    unit,
+                    `Unknown DATE_DIFF unit: ${unit}`,
+                );
+        }
     }
 
     // Attach an OVER (…) clause to a pre-built function-call string. Lets
