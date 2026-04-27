@@ -3890,17 +3890,15 @@ SELECT * FROM group_by_query LIMIT 50`);
     });
 
     // Regression for bug-C: sorting by a pivot-aware table calculation (e.g.
-    // pivot_offset, pivot_offset_list, pivot_index) silently degrades to
-    // alphabetical row order. Pivot-aware TCs cannot be evaluated until after
-    // the pivot is materialised (their value lives in pivot_table_calculations,
-    // computed via LAG/LEAD over the pivot grid), so PivotQueryBuilder fails
-    // to emit anchor CTEs for them. row_index falls back to a non-metric
-    // DENSE_RANK over the index columns and the user's stated sort silently
-    // no-ops — same shape as PROD-6906 but for the pivot TC family. The fix
-    // should either build an anchor CTE that references the TC's post-pivot
-    // value or surface a clear error so this test goes green.
+    // pivot_offset, pivot_offset_list, pivot_index, pivot_column) used to
+    // silently degrade to alphabetical row order. The TC's value is computed
+    // in the pivot_table_calculations CTE that runs AFTER row_index has been
+    // assigned by pivot_query, so the anchor pipeline that powers metric
+    // sorting cannot consume the value without circularity. The fix throws
+    // a clear ParameterError so the user gets a meaningful message instead
+    // of mysterious alphabetic ordering.
     describe('Sort by pivot-aware table calculation (bug-C)', () => {
-        test('Should generate row_anchor / column_anchor CTEs for the pivot TC sort key', () => {
+        test('Should reject sortBy that targets a pivot-aware table calculation', () => {
             const itemsMap: ItemsMap = {
                 prev_revenue: {
                     name: 'prev_revenue',
@@ -3941,14 +3939,56 @@ SELECT * FROM group_by_query LIMIT 50`);
                 itemsMap,
             );
 
-            const result = builder.toSql();
+            expect(() => builder.toSql()).toThrow(ParameterError);
+            expect(() => builder.toSql()).toThrow(/prev_revenue/);
+            expect(() => builder.toSql()).toThrow(/pivot functions/);
+        });
 
-            // After the fix, sorting by `prev_revenue` must produce the same
-            // anchor CTE pair as sorting by any other value column does for
-            // non-pivot TCs. The exact CTE names follow the
-            // `<reference>_<row|column>_anchor` pattern.
-            expect(result).toContain('"prev_revenue_column_anchor" AS (');
-            expect(result).toContain('"prev_revenue_row_anchor" AS (');
+        test('Should still allow sort by a non-pivot value column when a pivot TC is also displayed', () => {
+            const itemsMap: ItemsMap = {
+                prev_revenue: {
+                    name: 'prev_revenue',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Previous revenue',
+                    sql: 'pivot_offset(${events.revenue}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'prev_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                // Sort by the regular metric — the pivot TC is displayed but
+                // not the sort key. This must still work.
+                sortBy: [
+                    {
+                        reference: 'events_revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS prev_revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            // Should not throw; the offending sort target is allowed.
+            expect(() => builder.toSql()).not.toThrow();
         });
     });
 });

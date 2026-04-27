@@ -1,5 +1,6 @@
 import {
     convertFieldRefToFieldId,
+    isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
     type TableCalculation,
@@ -43,11 +44,47 @@ const convertReferenceToFieldId = (reference: string): string => {
     }
 };
 
+// Identifiers that are syntactically valid in a formula but never refer to a
+// user field — keywords, boolean literals, and the operators that the grammar
+// accepts in identifier position. Function names are excluded separately by
+// detecting `<ident>(`, so we don't need to enumerate them here.
+const FORMULA_RESERVED_WORDS = new Set(['TRUE', 'FALSE', 'AND', 'OR', 'NOT']);
+
+const getFormulaReferences = (formula: string): string[] => {
+    // Drop the leading `=` and any double-quoted string literals so identifiers
+    // appearing inside a string aren't mistaken for column references.
+    const stripped = formula
+        .replace(/^=/, '')
+        .replace(/"(?:[^"\\]|\\.)*"/g, '');
+
+    // An identifier immediately followed by `(` is a function call (CONCAT,
+    // SUM, IF, …) and never a column ref.
+    const functionNames = new Set(
+        [...stripped.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)].map(
+            (match) => match[1],
+        ),
+    );
+
+    return [...stripped.matchAll(/\b([A-Za-z_][A-Za-z0-9_]*)\b/g)]
+        .map((match) => match[1])
+        .filter((identifier) => !functionNames.has(identifier))
+        .filter(
+            (identifier) =>
+                !FORMULA_RESERVED_WORDS.has(identifier.toUpperCase()),
+        );
+};
+
 export const getTableCalculationReferencedFieldIds = (
     tableCalculation: TableCalculation,
 ): string[] => {
     if (isSqlTableCalculation(tableCalculation)) {
         return getLightdashReferences(tableCalculation.sql).map(
+            convertReferenceToFieldId,
+        );
+    }
+
+    if (isFormulaTableCalculation(tableCalculation)) {
+        return getFormulaReferences(tableCalculation.formula).map(
             convertReferenceToFieldId,
         );
     }

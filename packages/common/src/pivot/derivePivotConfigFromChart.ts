@@ -285,12 +285,25 @@ function getCartesianPivotConfiguration(
     } = chartConfig.config;
 
     if (pivotConfig?.columns && xField && yField) {
-        // Extract and validate pivot columns
+        // Extract and validate pivot columns. Pivot columns are usually raw
+        // dimensions but the user can also reference a metric or table
+        // calculation — both of which exist as columns in `original_query`
+        // and are valid GROUP BY targets in the downstream PivotQueryBuilder
+        // CTEs. We only drop references that match nothing in the metric
+        // query (typos / stale config) to avoid emitting SQL against
+        // non-existent columns.
         const groupByColumns = pivotConfig.columns
             .map((pv) => ({
                 reference: pv,
             }))
-            .filter((col) => metricQuery.dimensions.includes(col.reference));
+            .filter(
+                (col) =>
+                    metricQuery.dimensions.includes(col.reference) ||
+                    metricQuery.metrics.includes(col.reference) ||
+                    (metricQuery.tableCalculations || []).some(
+                        (tc) => tc.name === col.reference,
+                    ),
+            );
 
         // Extract value columns (metrics and table calculations from yField)
         const valuesColumns = yField

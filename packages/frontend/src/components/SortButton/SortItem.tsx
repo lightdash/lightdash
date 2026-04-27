@@ -93,8 +93,10 @@ const SortItem = forwardRef<HTMLDivElement, SortItemProps>(
                     <Text fz="xs">{isFirstItem ? 'Sort by' : 'then by'}</Text>
 
                     <Text fz="sm" fw={500}>
-                        {(isField(item) ? item.label : item.name) ||
-                            sort.fieldId}
+                        {(isField(item)
+                            ? item.label
+                            : ('displayName' in item && item.displayName) ||
+                              item.name) || sort.fieldId}
                     </Text>
                 </Group>
 

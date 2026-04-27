@@ -26,7 +26,10 @@ const SortButton: FC<Props> = ({ sorts, isEditMode }) => {
             const column = columns.find((c) => c.id === sort.fieldId);
             const item = column?.meta?.item;
             if (!item) return '1 field';
-            return isField(item) ? item.label : item.name;
+            if (isField(item)) return item.label;
+            // Table calculations expose `displayName` (human label) alongside
+            // their snake_case `name`; custom dimensions only have `name`.
+            return 'displayName' in item ? item.displayName : item.name;
         }
         return `${sorts.length} fields`;
     };

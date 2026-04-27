@@ -1458,6 +1458,28 @@ export class PivotQueryBuilder {
             ? [...displayColumns, ...sortOnlyColumns]
             : displayColumns;
 
+        // Pivot-aware table calculations (pivot_offset, pivot_offset_list,
+        // pivot_index, pivot_column) are computed in the pivot_table_calculations
+        // CTE — which runs AFTER pivot_query has assigned row_index/col_index.
+        // The anchor CTE pipeline that powers metric sorting needs the sort
+        // key's value BEFORE row_ranking exists, so it cannot consume a
+        // pivot-aware TC value without circularity. Rather than silently
+        // degrade to alphabetical row order (the symptom of bug-C), reject
+        // the configuration with a clear error so the caller can present a
+        // meaningful message to the user.
+        if (sortBy && sortBy.length > 0) {
+            const pivotTcSortRefs = sortBy
+                .map((s) => s.reference)
+                .filter((ref) => this.pivotTableCalculations[ref]);
+            if (pivotTcSortRefs.length > 0) {
+                throw new ParameterError(
+                    `Cannot sort pivot results by table calculation(s) that use pivot functions (pivot_offset, pivot_offset_list, pivot_index, pivot_column): ${pivotTcSortRefs.join(
+                        ', ',
+                    )}. These values are computed after the pivot is materialised and cannot drive row ordering. Sort by a regular metric, dimension, or non-pivot table calculation instead.`,
+                );
+            }
+        }
+
         // Validate that no groupBy column is also part of the index columns
         if (groupByColumns && groupByColumns.length > 0) {
             const indexRefs = new Set(indexColumns.map((c) => c.reference));
