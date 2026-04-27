@@ -571,6 +571,26 @@ describe('codegen', () => {
             ).toBe(`("order_date" + ((-(3))) * INTERVAL '1 month')`);
         });
 
+        // Postgres rejects `INTERVAL '1 quarter'` — only day/week/month/year
+        // are valid interval units. The default emitter rewrites to months.
+        it('Postgres DATE_ADD quarter routes through 3 months', () => {
+            expect(
+                compile('=DATE_ADD(order_date, 2, "quarter")', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe(`("order_date" + (2) * INTERVAL '3 months')`);
+        });
+
+        it('DuckDB DATE_ADD quarter inherits the 3-months rewrite', () => {
+            expect(
+                compile('=DATE_ADD(order_date, 2, "quarter")', {
+                    dialect: 'duckdb',
+                    columns,
+                }),
+            ).toBe(`("order_date" + (2) * INTERVAL '3 months')`);
+        });
+
         it('DATE_SUB threads through Snowflake DATEADD', () => {
             expect(
                 compile('=DATE_SUB(order_date, 3, "month")', {
