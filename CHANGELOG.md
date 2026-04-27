@@ -1,3 +1,10 @@
+# [0.2812.0](https://github.com/lightdash/lightdash/compare/0.2811.4...0.2812.0) (2026-04-27)
+
+
+### Features
+
+* add dashboards as a resource for data apps ([#22349](https://github.com/lightdash/lightdash/issues/22349)) ([7f474f0](https://github.com/lightdash/lightdash/commit/7f474f058fd462cc2c11071ef1b48e957b919ccd))
+
 ## [0.2811.4](https://github.com/lightdash/lightdash/compare/0.2811.3...0.2811.4) (2026-04-27)
 
 
