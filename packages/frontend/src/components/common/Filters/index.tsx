@@ -2,7 +2,9 @@ import {
     addFilterRule,
     deleteFilterRuleFromGroup,
     getFiltersFromGroup,
+    getFilterTypeFromItem,
     getItemId,
+    getItemLabelWithoutTableName,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
@@ -37,6 +39,7 @@ import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterGroupForm from './FilterGroupForm';
+import { getFilterOperatorOptions } from './FilterInputs/utils';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 import useFiltersContext from './useFiltersContext';
 
@@ -46,17 +49,49 @@ type Props = {
     isEditMode: boolean;
 };
 
+type InvalidFilterRule =
+    | { reason: 'unknown_field'; rule: FilterRule }
+    | {
+          reason: 'invalid_operator';
+          rule: FilterRule;
+          fieldLabel: string;
+      };
+
 const getInvalidFilterRules = (
     fields: FieldWithSuggestions[],
     filterRules: FilterRule[],
-) =>
-    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
+): InvalidFilterRule[] =>
+    filterRules.reduce<InvalidFilterRule[]>((accumulator, filterRule) => {
         const fieldInRule = fields.find(
             (field) => getItemId(field) === filterRule.target.fieldId,
         );
 
         if (!fieldInRule) {
-            return [...accumulator, filterRule];
+            return [
+                ...accumulator,
+                { reason: 'unknown_field', rule: filterRule },
+            ];
+        }
+
+        if (!isFilterableField(fieldInRule)) {
+            return accumulator;
+        }
+
+        const filterType = getFilterTypeFromItem(fieldInRule);
+        const validOperators = getFilterOperatorOptions(
+            filterType,
+            fieldInRule,
+        ).map((option) => option.value);
+
+        if (!validOperators.includes(filterRule.operator)) {
+            return [
+                ...accumulator,
+                {
+                    reason: 'invalid_operator',
+                    rule: filterRule,
+                    fieldLabel: getItemLabelWithoutTableName(fieldInRule),
+                },
+            ];
         }
 
         return accumulator;
@@ -303,9 +338,9 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
 
             {hasInvalidFilterRules && (
                 <Stack gap="xs" pl={showSimplifiedForm ? undefined : 36}>
-                    {invalidFilterRules.map((rule) => (
+                    {invalidFilterRules.map((entry) => (
                         <Group
-                            key={rule.id}
+                            key={entry.rule.id}
                             gap="xs"
                             px="xs"
                             h={30}
@@ -320,10 +355,26 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                 color="yellow.6"
                             />
                             <Text c="yellow.6" fz="xs" style={{ flex: 1 }}>
-                                Tried to reference field with unknown id:{' '}
-                                <Code fw={500} fz="xs">
-                                    {rule.target.fieldId}
-                                </Code>
+                                {entry.reason === 'unknown_field' ? (
+                                    <>
+                                        Tried to reference field with unknown
+                                        id:{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.rule.target.fieldId}
+                                        </Code>
+                                    </>
+                                ) : (
+                                    <>
+                                        Filter on{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.fieldLabel}
+                                        </Code>{' '}
+                                        uses an invalid operator:{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.rule.operator}
+                                        </Code>
+                                    </>
+                                )}
                             </Text>
                             <ActionIcon
                                 variant="subtle"
@@ -333,7 +384,7 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                     updateFiltersFromGroup(
                                         deleteFilterRuleFromGroup(
                                             rootFilterGroup,
-                                            rule.id,
+                                            entry.rule.id,
                                         ),
                                     )
                                 }
