@@ -1,3 +1,11 @@
+## [0.2811.4](https://github.com/lightdash/lightdash/compare/0.2811.3...0.2811.4) (2026-04-27)
+
+
+### Bug Fixes
+
+* make audit log linter error (instead of warn) ([#22375](https://github.com/lightdash/lightdash/issues/22375)) ([3e53ac3](https://github.com/lightdash/lightdash/commit/3e53ac3a5683db77efa6c987f7ce70cd2dd93fc8))
+* prevent preview projects from being set as default in `set-project` ([#22371](https://github.com/lightdash/lightdash/issues/22371)) ([bc7d427](https://github.com/lightdash/lightdash/commit/bc7d427abc5fccbdf1b5b9c9a183b73e8ad0eafd))
+
 ## [0.2811.3](https://github.com/lightdash/lightdash/compare/0.2811.2...0.2811.3) (2026-04-27)
 
 
