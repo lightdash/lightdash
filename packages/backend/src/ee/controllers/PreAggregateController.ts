@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    AuthorizationError,
     type ApiGetDashboardPreAggregateAuditResponse,
     type ApiGetPreAggregateMaterializationsResponse,
     type ApiGetPreAggregateStatsResponse,
@@ -71,7 +72,10 @@ export class PreAggregateController extends BaseController {
     }
 
     /**
-     * @summary Audit pre-aggregate hit/miss coverage for a dashboard's saved filters
+     * Audits pre-aggregate hit/miss coverage for every tile on a dashboard
+     * without executing the queries. Returns a per-tile breakdown grouped
+     * by tab, suitable for CI coverage checks and pre-aggregate tuning.
+     * @summary Get dashboard pre-aggregate audit
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -82,10 +86,15 @@ export class PreAggregateController extends BaseController {
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
+        if (!req.user?.userUuid) {
+            throw new AuthorizationError(
+                'Pre-aggregate audit requires a logged-in user',
+            );
+        }
         this.setStatus(200);
         const dashboard = await this.services
             .getDashboardService()
-            .getByIdOrSlug(req.user!, dashboardUuidOrSlug, { projectUuid });
+            .getByIdOrSlug(req.user, dashboardUuidOrSlug, { projectUuid });
         const results = await this.services
             .getAsyncQueryService()
             .getDashboardPreAggregateAudit(
@@ -97,7 +106,8 @@ export class PreAggregateController extends BaseController {
     }
 
     /**
-     * @summary Audit pre-aggregate hit/miss coverage with runtime filter overrides
+     * Audit pre-aggregate hit/miss coverage with runtime filter overrides
+     * @summary Run dashboard pre-aggregate audit
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -109,10 +119,15 @@ export class PreAggregateController extends BaseController {
         @Body() body: ApiRunDashboardPreAggregateAuditBody,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
+        if (!req.user?.userUuid) {
+            throw new AuthorizationError(
+                'Pre-aggregate audit requires a logged-in user',
+            );
+        }
         this.setStatus(200);
         const dashboard = await this.services
             .getDashboardService()
-            .getByIdOrSlug(req.user!, dashboardUuidOrSlug, { projectUuid });
+            .getByIdOrSlug(req.user, dashboardUuidOrSlug, { projectUuid });
         const results = await this.services
             .getAsyncQueryService()
             .getDashboardPreAggregateAudit(

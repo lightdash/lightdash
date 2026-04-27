@@ -6,10 +6,13 @@ import {
 } from '@lightdash/common';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
     auditResponseToTileStatuses,
     useDashboardPreAggregateAudit,
 } from '../../hooks/dashboard/useDashboardPreAggregateAudit';
+import useApp from '../App/useApp';
 import DashboardTileStatusContext from './tileStatusContext';
 import {
     type SqlChartTileMetadata,
@@ -239,10 +242,17 @@ const DashboardTileStatusProvider: React.FC<
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const allFilters = useDashboardContext((c) => c.allFilters);
+    const { embedToken } = useEmbed();
+    const { health } = useApp();
+    const { pathname } = useLocation();
+    const isEmbedded = !!embedToken;
+    const isMinimal = pathname.startsWith('/minimal');
+    const preAggregatesEnabled = health.data?.preAggregates.enabled ?? false;
     const { data: auditData } = useDashboardPreAggregateAudit({
         projectUuid,
         dashboardUuid: dashboard?.uuid,
         dashboardFilters: allFilters,
+        enabled: !isEmbedded && !isMinimal && preAggregatesEnabled,
     });
     const preAggregateStatuses = useMemo<
         Record<string, TilePreAggregateStatus>
