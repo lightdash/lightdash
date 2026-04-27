@@ -66,6 +66,11 @@ type GenerateAppResult = {
     version: number;
 };
 
+// Wall-clock heartbeat to bump status_updated_at while the pipeline is
+// running, independent of any per-stage progress updates. Must stay well
+// under STALE_THRESHOLD (5 minutes) in sweepStaleLocks.
+const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+
 export class AppGenerateService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -1579,6 +1584,20 @@ export class AppGenerateService extends BaseService {
             }
         }
 
+        // Wall-clock heartbeat: bumps status_updated_at every minute so a
+        // long-running stage (e.g. Claude composing one big Write tool call)
+        // doesn't trip sweepStaleLocks and get force-released to a duplicate
+        // executor while we're still alive.
+        const heartbeat = setInterval(() => {
+            void this.appModel
+                .touchVersionIfInProgress(appUuid, version)
+                .catch((e) => {
+                    this.logger.warn(
+                        `App ${appUuid}: heartbeat failed: ${getErrorMessage(e)}`,
+                    );
+                });
+        }, HEARTBEAT_INTERVAL_MS);
+
         try {
             await this.runPipelineStages(
                 sandbox,
@@ -1594,6 +1613,7 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
         } finally {
+            clearInterval(heartbeat);
             await this.pauseSandbox(sandbox, appUuid);
         }
     }
