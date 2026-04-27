@@ -1,3 +1,12 @@
+# [0.2816.0](https://github.com/lightdash/lightdash/compare/0.2815.0...0.2816.0) (2026-04-27)
+
+
+### Features
+
+* **formula:** add DATE_ADD / DATE_SUB(date, n, unit) ([#22360](https://github.com/lightdash/lightdash/issues/22360)) ([c379997](https://github.com/lightdash/lightdash/commit/c379997d86bb05e5d6d65897038294b6fd7736cc))
+* **formula:** add DATE_DIFF(start, end, unit) ([#22379](https://github.com/lightdash/lightdash/issues/22379)) ([9b8ddf6](https://github.com/lightdash/lightdash/commit/9b8ddf6e04fee032526ee5d7a027956e41f65546))
+* **formula:** add DATE_TRUNC(unit, date) with week-start support ([#22359](https://github.com/lightdash/lightdash/issues/22359)) ([d9604bd](https://github.com/lightdash/lightdash/commit/d9604bd9988e502fb7a38826b5290426dc5323fb))
+
 # [0.2815.0](https://github.com/lightdash/lightdash/compare/0.2814.1...0.2815.0) (2026-04-27)
 
 
