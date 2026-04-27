@@ -1,3 +1,10 @@
+# [0.2819.0](https://github.com/lightdash/lightdash/compare/0.2818.0...0.2819.0) (2026-04-27)
+
+
+### Features
+
+* add resources to app versions ([#22407](https://github.com/lightdash/lightdash/issues/22407)) ([7cce2ff](https://github.com/lightdash/lightdash/commit/7cce2ff891c9c938fafc2cd5a27223ace20b799a))
+
 # [0.2818.0](https://github.com/lightdash/lightdash/compare/0.2817.0...0.2818.0) (2026-04-27)
 
 
