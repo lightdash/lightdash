@@ -105,7 +105,19 @@ const FilterRuleForm: FC<Props> = memo(
         const isFieldSelectDisabled =
             !isEditMode || (isRequired && availableFields.length <= 1);
 
+        const isOperatorValid = useMemo(
+            () =>
+                filterOperatorOptions.some(
+                    (o) => o.value === filterRule.operator,
+                ),
+            [filterOperatorOptions, filterRule.operator],
+        );
+
         if (!activeField) {
+            return null;
+        }
+
+        if (!isOperatorValid) {
             return null;
         }
 
