@@ -250,6 +250,7 @@ type QueryExecutionEvent = BaseTrack & {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
+        executionSource?: QueryExecutionSource;
         cacheMetadata?: CacheMetadata;
     } & (
         | PaginatedMetricQueryExecutionProperties
@@ -258,12 +259,15 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
+type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
     properties: {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes;
+        executionSource: QueryExecutionSource;
         warehouseExecutionTimeMs: number | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -276,6 +280,7 @@ type QueryErrorEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes | undefined;
+        executionSource: QueryExecutionSource;
     };
 };
 
@@ -313,6 +318,7 @@ type ResultsCacheWriteEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         cacheKey: string;
+        executionSource: QueryExecutionSource;
         totalRowCount: number | null;
     };
 };

@@ -2189,6 +2189,7 @@ export class AsyncQueryService extends ProjectService {
                     queryId: queryUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseClient.credentials.type,
+                    executionSource,
                     warehouseExecutionTimeMs: durationMs,
                     columnsCount:
                         pivotDetails?.totalColumnCount ??
@@ -2249,6 +2250,7 @@ export class AsyncQueryService extends ProjectService {
                         queryId: queryUuid,
                         projectId: projectUuid,
                         cacheKey,
+                        executionSource,
                         totalRowCount: pivotDetails?.totalRows ?? totalRows,
                         pivotTotalColumnCount: pivotDetails?.totalColumnCount,
                         isPivoted: pivotDetails !== null,
@@ -2342,6 +2344,7 @@ export class AsyncQueryService extends ProjectService {
                     queryId: queryUuid,
                     projectId: projectUuid,
                     warehouseType: warehouseCredentialsType,
+                    executionSource,
                     ...(isRegisteredUser
                         ? undefined
                         : { externalId: userUuid }),
@@ -3058,35 +3061,41 @@ export class AsyncQueryService extends ProjectService {
                         QueryHistoryStatus.PENDING,
                         context,
                     );
-
-                    this.analytics.trackAccount(account, {
-                        event: 'query.executed',
-                        properties: {
-                            organizationId: organizationUuid,
-                            projectId: projectUuid,
-                            context,
-                            queryId: queryHistoryUuid,
-                            warehouseType: warehouseCredentialsType,
-                            ...ProjectService.getMetricQueryExecutionProperties(
-                                {
-                                    metricQuery,
-                                    queryTags,
-                                    dateZoom,
-                                    chartUuid:
-                                        'chartUuid' in requestParameters
-                                            ? requestParameters.chartUuid
-                                            : undefined,
-                                    explore,
-                                    parameters: requestParameters.parameters,
-                                },
-                            ),
-                            cacheMetadata: {
-                                cacheHit: resultsCache.cacheHit || false,
-                                cacheUpdatedTime: resultsCache.updatedAt,
-                                cacheExpiresAt: resultsCache.expiresAt,
-                            },
+                    const queryExecutedProperties = {
+                        organizationId: organizationUuid,
+                        projectId: projectUuid,
+                        context,
+                        queryId: queryHistoryUuid,
+                        warehouseType: warehouseCredentialsType,
+                        ...ProjectService.getMetricQueryExecutionProperties({
+                            metricQuery,
+                            queryTags,
+                            dateZoom,
+                            chartUuid:
+                                'chartUuid' in requestParameters
+                                    ? requestParameters.chartUuid
+                                    : undefined,
+                            explore,
+                            parameters: requestParameters.parameters,
+                        }),
+                        cacheMetadata: {
+                            cacheHit: resultsCache.cacheHit || false,
+                            cacheUpdatedTime: resultsCache.updatedAt,
+                            cacheExpiresAt: resultsCache.expiresAt,
                         },
-                    });
+                    };
+                    const trackQueryExecuted = (
+                        executionSource?: 'warehouse' | 'pre_aggregate_duckdb',
+                    ) =>
+                        this.analytics.trackAccount(account, {
+                            event: 'query.executed',
+                            properties: {
+                                ...queryExecutedProperties,
+                                ...(executionSource
+                                    ? { executionSource }
+                                    : undefined),
+                            },
+                        });
 
                     // Track cache hit/miss
                     this.prometheusMetrics?.incrementQueryCacheHit(
@@ -3096,6 +3105,7 @@ export class AsyncQueryService extends ProjectService {
                     );
 
                     if (resultsCache.cacheHit) {
+                        trackQueryExecuted();
                         if (this.lightdashConfig.natsWorker.enabled) {
                             await this.queryHistoryModel.updateStatusToExecuting(
                                 queryHistoryUuid,
@@ -3146,6 +3156,7 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     if (missingParameterReferences.length > 0) {
+                        trackQueryExecuted();
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
@@ -3221,6 +3232,7 @@ export class AsyncQueryService extends ProjectService {
                     }
 
                     if (executionPlan.target === 'error') {
+                        trackQueryExecuted();
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
@@ -3245,6 +3257,12 @@ export class AsyncQueryService extends ProjectService {
                             },
                         } satisfies ExecuteAsyncQueryReturn;
                     }
+
+                    trackQueryExecuted(
+                        executionPlan.target === 'pre_aggregate'
+                            ? 'pre_aggregate_duckdb'
+                            : 'warehouse',
+                    );
 
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
