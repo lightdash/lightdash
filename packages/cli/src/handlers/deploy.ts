@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getConfig, setProject } from '../config';
 import { getDbtContext } from '../dbt/context';
+import { loadDbtTarget } from '../dbt/profile';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
 import { CliProjectType, detectProjectType } from '../lightdash/projectType';
@@ -559,6 +560,43 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     options.warehouseCredentials = projectTypeConfig.warehouseCredentials;
     options.skipDbtCompile = projectTypeConfig.skipDbtCompile;
     options.skipWarehouseCatalog = projectTypeConfig.skipWarehouseCatalog;
+
+    // Auto-detect Spark adapter and skip warehouse credentials
+    // Spark session-based projects have no warehouse server to connect to;
+    // users configure their actual query engine (e.g., Athena) in the UI.
+    if (
+        projectTypeConfig.type === CliProjectType.Dbt &&
+        options.warehouseCredentials !== false
+    ) {
+        try {
+            const context = await getDbtContext({
+                projectDir: path.resolve(options.projectDir),
+                targetPath: options.targetPath,
+            });
+            const { target } = await loadDbtTarget({
+                profilesDir: path.resolve(options.profilesDir),
+                profileName: options.profile || context.profileName,
+                targetName: options.target,
+            });
+            if (target.type === 'spark') {
+                options.warehouseCredentials = false;
+                options.skipWarehouseCatalog = true;
+                GlobalState.debug(
+                    '> Spark adapter detected, skipping warehouse credentials',
+                );
+                console.error(
+                    styles.warning(
+                        `Spark adapter detected. Project will be created without warehouse credentials.\nConfigure your query engine (e.g., Athena) in the Lightdash UI.`,
+                    ),
+                );
+            }
+        } catch (e) {
+            // If we can't read the profile, let the normal flow handle it
+            GlobalState.debug(
+                `> Could not detect adapter type: ${getErrorMessage(e)}`,
+            );
+        }
+    }
 
     // Resolve organization credentials early before doing any heavy work
     if (options.organizationCredentials) {

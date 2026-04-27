@@ -529,6 +529,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DUCKDB]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
+    [SupportedDbtAdapter.SPARK]: databricksConfig, // Spark uses same SQL dialect as Databricks
     [SupportedDbtAdapter.TRINO]: trinoConfig,
     [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses Trino SQL dialect
     [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,

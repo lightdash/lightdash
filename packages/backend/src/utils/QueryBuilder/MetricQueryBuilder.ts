@@ -195,9 +195,10 @@ export function getIntervalSyntax(
             // BigQuery always uses DATE_ADD/DATE_SUB
             intervalExpression = `DATE_${operation}(DATE(${columnWithInterval}), INTERVAL ${value} ${granularity})`;
             break;
-        case SupportedDbtAdapter.DATABRICKS: {
-            // Databricks uses interval arithmetic with quoted values
-            // Databricks doesn't support QUARTER interval, convert to months
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK: {
+            // Databricks/Spark uses interval arithmetic with quoted values
+            // Doesn't support QUARTER interval, convert to months
             const [dbValue, dbGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
