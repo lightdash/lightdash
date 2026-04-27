@@ -43,6 +43,10 @@ export class ImpersonationController extends BaseController {
                 setImpersonation: (data) => {
                     req.session.impersonation = data;
                 },
+                context: {
+                    ip: req.ip,
+                    userAgent: req.get('user-agent'),
+                },
             });
         this.setStatus(200);
         return {
@@ -66,6 +70,10 @@ export class ImpersonationController extends BaseController {
             getImpersonation: () => req.session.impersonation,
             clearImpersonation: () => {
                 delete req.session.impersonation;
+            },
+            context: {
+                ip: req.ip,
+                userAgent: req.get('user-agent'),
             },
         });
         this.setStatus(200);

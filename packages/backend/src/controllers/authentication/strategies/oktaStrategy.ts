@@ -141,7 +141,16 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 if (openIdUser) {
                     const user = await req.services
                         .getUserService()
-                        .loginWithOpenId(openIdUser, req.user, inviteCode);
+                        .loginWithOpenId(
+                            openIdUser,
+                            req.user,
+                            inviteCode,
+                            undefined,
+                            {
+                                ip: req.ip,
+                                userAgent: req.get('user-agent'),
+                            },
+                        );
                     return this.success(user);
                 }
 
