@@ -86,6 +86,7 @@ const organizationMemberProfileModelMock = {
 
 // Mock user model
 const userModelMock = {
+    findUserByEmail: jest.fn().mockResolvedValue(undefined),
     createUser: jest.fn().mockResolvedValue({
         userId: 1,
         userUuid: mockUser.userUuid,
