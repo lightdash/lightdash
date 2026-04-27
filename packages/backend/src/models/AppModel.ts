@@ -152,7 +152,25 @@ export class AppModel {
             pinned_list_order: number | null;
         }
     > {
-        const row = await this.database(AppsTableName)
+        const row = await this.findApp(appId, projectUuid);
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    async findApp(
+        appId: string,
+        projectUuid: string,
+    ): Promise<
+        | (DbApp & {
+              organization_uuid: string;
+              pinned_list_uuid: string | null;
+              pinned_list_order: number | null;
+          })
+        | undefined
+    > {
+        return this.database(AppsTableName)
             .innerJoin(
                 ProjectTableName,
                 `${ProjectTableName}.project_uuid`,
@@ -184,10 +202,6 @@ export class AppModel {
                 `${PinnedAppTableName}.order as pinned_list_order`,
             )
             .first();
-        if (!row) {
-            throw new NotFoundError(`App not found: ${appId}`);
-        }
-        return row;
     }
 
     async getVersion(

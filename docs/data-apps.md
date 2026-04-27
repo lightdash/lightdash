@@ -145,16 +145,16 @@ All endpoints require the `manage:DataApp` permission and are scoped under `/api
 
 ### App CRUD
 
-| Method  | Path                                                                      | Description                            |
-| ------- | ------------------------------------------------------------------------- | -------------------------------------- |
-| `POST`  | `/projects/{projectUuid}/apps/`                                           | Create a new app from a prompt         |
-| `GET`   | `/projects/{projectUuid}/apps/{appUuid}`                                  | Get app with paginated version history |
-| `PATCH` | `/projects/{projectUuid}/apps/{appUuid}`                                  | Update name/description                |
-| `DELETE`| `/projects/{projectUuid}/apps/{appUuid}`                                  | Soft or hard delete (config-driven)    |
-| `POST`  | `/projects/{projectUuid}/apps/{appUuid}/versions`                         | Iterate with a follow-up prompt        |
-| `POST`  | `/projects/{projectUuid}/apps/{appUuid}/versions/{version}/cancel`        | Cancel a building version              |
-| `GET`   | `/projects/{projectUuid}/apps/{appUuid}/versions/{version}/preview-token` | Mint JWT for iframe preview            |
-| `GET`   | `/user/apps`                                                              | List current user's apps (paginated)   |
+| Method   | Path                                                                      | Description                            |
+| -------- | ------------------------------------------------------------------------- | -------------------------------------- |
+| `POST`   | `/projects/{projectUuid}/apps/`                                           | Create a new app from a prompt         |
+| `GET`    | `/projects/{projectUuid}/apps/{appUuid}`                                  | Get app with paginated version history |
+| `PATCH`  | `/projects/{projectUuid}/apps/{appUuid}`                                  | Update name/description                |
+| `DELETE` | `/projects/{projectUuid}/apps/{appUuid}`                                  | Soft or hard delete (config-driven)    |
+| `POST`   | `/projects/{projectUuid}/apps/{appUuid}/versions`                         | Iterate with a follow-up prompt        |
+| `POST`   | `/projects/{projectUuid}/apps/{appUuid}/versions/{version}/cancel`        | Cancel a building version              |
+| `GET`    | `/projects/{projectUuid}/apps/{appUuid}/versions/{version}/preview-token` | Mint JWT for iframe preview            |
+| `GET`    | `/user/apps`                                                              | List current user's apps (paginated)   |
 
 ### Preview Serving (token-based, not session-based)
 
@@ -340,9 +340,38 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 
 ## Permissions
 
-Data apps use a single CASL scope: `manage:DataApp`, defined in `packages/common/src/authorization/scopes.ts`.
+Data apps follow the same space-based permission model as charts and dashboards. Three CASL scopes, all defined in
+`packages/common/src/authorization/scopes.ts`:
 
-This scope gates all operations — creation, iteration, cancellation, viewing, and listing. It is checked at both the
-controller level (via TSOA middleware) and the service level (via explicit `user.ability.cannot()` checks).
+| Scope                  | Granted to          | Effect                                                                                                           |
+| ---------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).                   |
+| `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role.     |
+| `manage:DataApp`       | admin               | Project-wide manage — covers all apps including personal (spaceless) ones, and gates restore + permanent-delete. |
 
-The scope is enterprise-only and must be granted to users through their role or custom role configuration.
+### Permission matrix
+
+| Action                                          | Project admin | Space admin/editor | Space viewer |
+| ----------------------------------------------- | ------------- | ------------------ | ------------ |
+| View an app in a space                          | ✓             | ✓                  | ✓            |
+| View a personal (spaceless) app                 | ✓             | —                  | —            |
+| Iterate / cancel / update / pin / move / delete | ✓             | ✓                  | ✗            |
+| Restore / permanently delete                    | ✓             | ✗                  | ✗            |
+| Create a new app                                | ✓             | ✗                  | ✗            |
+
+Permission checks live in the service layer, not the controller — TSOA middleware only handles authentication. Two
+helpers in `AppGenerateService.ts` carry the space-aware logic:
+
+- `assertCanViewApp(user, app)` — used by `getAppVersions`, `getPreviewToken`. Builds a CASL subject that includes the
+  app's space access context (or an empty context for personal apps), then checks the `view` action.
+- `assertCanManageApp(user, app, msg)` — used by `iterateApp`, `cancelVersion`, `updateApp`, `togglePinning`,
+  `deleteApp`, `moveToSpace`, and `uploadImage` (when the app exists). Same space-context shape, but checks the
+  `manage` action so space editors/admins match.
+
+`restoreApp` and `permanentDeleteApp` deliberately bypass the space-aware helper and use the bare project-wide
+`manage:DataApp` check, since restoring deleted content is an admin-only recovery flow.
+
+`moveToSpace` runs the manage check twice — once on the source app (its current space) and once on the target space —
+so a user can't move an app into a space they don't own.
+
+The scopes are enterprise-only and must be granted to users through their role or custom role configuration.

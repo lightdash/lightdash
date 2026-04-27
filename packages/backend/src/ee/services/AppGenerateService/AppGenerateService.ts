@@ -193,6 +193,38 @@ export class AppGenerateService extends BaseService {
         );
     }
 
+    /**
+     * Permission check for editing/deleting/iterating on an existing data app.
+     *
+     * Mirrors `assertCanManageApp`'s shape for charts/dashboards: space
+     * editors and admins inherit manage access via the space context, while
+     * personal (spaceless) apps fall back to the project-wide
+     * `manage:DataApp` rule that only project admins hold.
+     */
+    private async assertCanManageApp(
+        user: SessionUser,
+        app: Pick<DbApp, 'project_uuid' | 'space_uuid'> & {
+            organization_uuid: string;
+        },
+        errorMessage: string,
+        extraContext: Record<string, unknown> = {},
+    ): Promise<void> {
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  app.space_uuid,
+              )
+            : {};
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            app.organization_uuid,
+            app.project_uuid,
+            errorMessage,
+            { ...spaceContext, ...extraContext },
+        );
+    }
+
     private getAnthropicApiKey(): string {
         const key = this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey;
         if (!key) {
@@ -355,14 +387,29 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
     ): Promise<{ imageId: string }> {
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
-            user,
-            'manage',
-            organizationUuid,
-            projectUuid,
-            'Insufficient permissions to upload app images',
-        );
+
+        // For iterations the app already exists — use its space context so a
+        // space editor can attach an image. For initial creation the appUuid
+        // is generated client-side and the app row doesn't exist yet, so we
+        // fall back to the project-wide manage check (the create permission
+        // is enforced by `generateApp` itself).
+        const app = await this.appModel.findApp(appUuid, projectUuid);
+        if (app) {
+            await this.assertCanManageApp(
+                user,
+                app,
+                'Insufficient permissions to upload app images',
+            );
+        } else {
+            const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                organizationUuid,
+                projectUuid,
+                'Insufficient permissions to upload app images',
+            );
+        }
 
         const validTypes = [
             'image/png',
@@ -2079,26 +2126,17 @@ export class AppGenerateService extends BaseService {
         chartUuids?: string[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('DataApp', {
-                    organizationUuid: user.organizationUuid!,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'Insufficient permissions to modify data apps',
-            );
-        }
 
         if (imageId !== undefined && !isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
         }
 
-        await this.appModel.getApp(appUuid, projectUuid); // validates app exists
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
 
         const latestVersion = await this.appModel.getLatestVersion(appUuid);
         if (
@@ -2170,11 +2208,9 @@ export class AppGenerateService extends BaseService {
     ): Promise<void> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        this.assertDataAppAbility(
+        await this.assertCanManageApp(
             user,
-            'manage',
-            app.organization_uuid,
-            projectUuid,
+            app,
             'Insufficient permissions to cancel app generation',
         );
 
@@ -2360,24 +2396,16 @@ export class AppGenerateService extends BaseService {
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
 
-        this.assertDataAppAbility(
-            user,
-            'manage',
-            app.organization_uuid,
-            projectUuid,
-            'Insufficient permissions to pin data apps',
-            { metadata: { appUuid } },
-        );
-
         if (!app.space_uuid) {
             throw new ParameterError('Personal data apps cannot be pinned');
         }
 
-        const { inheritsFromOrgOrProject, access } =
-            await this.spacePermissionService.getSpaceAccessContext(
-                user.userUuid,
-                app.space_uuid,
-            );
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to pin data apps',
+            { metadata: { appUuid } },
+        );
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -2391,24 +2419,6 @@ export class AppGenerateService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('DataApp', {
-                    organizationUuid: app.organization_uuid,
-                    projectUuid,
-                    spaceUuid: app.space_uuid,
-                    inheritsFromOrgOrProject,
-                    access,
-                    metadata: { appUuid },
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                "You don't have access to the space this data app belongs to",
-            );
         }
 
         if (app.pinned_list_uuid) {
@@ -2456,11 +2466,9 @@ export class AppGenerateService extends BaseService {
     ): Promise<{ appUuid: string; name: string; description: string }> {
         await this.assertDataAppsEnabled(user);
         const app = await this.appModel.getApp(appUuid, projectUuid);
-        this.assertDataAppAbility(
+        await this.assertCanManageApp(
             user,
-            'manage',
-            app.organization_uuid,
-            projectUuid,
+            app,
             'Insufficient permissions to manage data apps',
         );
 
@@ -2529,11 +2537,9 @@ export class AppGenerateService extends BaseService {
             });
         } else {
             await this.assertDataAppsEnabled(user);
-            this.assertDataAppAbility(
+            await this.assertCanManageApp(
                 user,
-                'manage',
-                app.organization_uuid,
-                projectUuid,
+                app,
                 'Insufficient permissions to delete data apps',
             );
         }
@@ -2786,12 +2792,27 @@ export class AppGenerateService extends BaseService {
         const app = await this.appModel.getApp(appUuid, projectUuid);
 
         if (checkForAccess) {
+            // Manage on the source app (where it currently lives) — space
+            // editors/admins of the source space can move it out.
+            await this.assertCanManageApp(
+                user,
+                app,
+                'Insufficient permissions to move data apps',
+            );
+            // …and manage on the target space, otherwise a user could move an
+            // app into a space they don't own.
+            const targetSpaceContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    targetSpaceUuid,
+                );
             this.assertDataAppAbility(
                 user,
                 'manage',
                 app.organization_uuid,
                 projectUuid,
-                'Insufficient permissions to move data apps',
+                "You don't have access to the space this data app is being moved to",
+                targetSpaceContext,
             );
         }
 

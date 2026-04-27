@@ -76,6 +76,7 @@ import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import QueryInspector from '../features/apps/QueryInspector';
 import { useContentAction } from '../hooks/useContent';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
@@ -265,6 +266,7 @@ const AppGenerate: FC = () => {
     const {
         data: appData,
         error: appError,
+        isLoading: isLoadingApp,
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
@@ -274,6 +276,10 @@ const AppGenerate: FC = () => {
     const appName = appData?.pages?.[0]?.name ?? '';
     const appDescription = appData?.pages?.[0]?.description ?? '';
     const appSpaceUuid = appData?.pages?.[0]?.spaceUuid ?? null;
+
+    // Used to resolve the user's space role when checking manage rights for
+    // an existing app — space editors/admins inherit manage on its data app.
+    const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
 
     const [isMoveToSpaceOpen, setIsMoveToSpaceOpen] = useState(false);
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -437,12 +443,25 @@ const AppGenerate: FC = () => {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
+    // For an existing app, manage rights flow through the app's space — a
+    // space editor/admin can iterate on it. For a brand-new app (no
+    // urlAppUuid), space context isn't available, so we fall back to the
+    // project-wide manage check (admin only today).
+    // Wait for the app to load before deciding — without the spaceUuid we
+    // can't tell whether a non-admin space editor should be allowed in.
+    if (urlAppUuid && isLoadingApp) {
+        return null;
+    }
+    const userSpaceAccess = appSpaceUuid
+        ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
+        : undefined;
     if (
         !ability.can(
             'manage',
             subject('DataApp', {
                 organizationUuid: user.data?.organizationUuid,
                 projectUuid,
+                access: userSpaceAccess ? [userSpaceAccess] : [],
             }),
         )
     ) {

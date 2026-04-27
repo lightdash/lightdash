@@ -46,6 +46,7 @@ const BASE_ROLE_SCOPES = {
         // Space-level content management (requires space admin/editor role)
         'manage:Dashboard@space', // Via space access
         'manage:SavedChart@space', // Via space access
+        'manage:DataApp@space', // Via space access
         'manage:Space@assigned', // Via space access (admin role)
 
         // Enterprise scopes
@@ -173,6 +174,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:ContentAsCode',
         'view:DataApp',
         'manage:DataApp',
+        'manage:DataApp@space',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

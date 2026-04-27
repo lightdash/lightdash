@@ -182,6 +182,24 @@ const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
 
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,

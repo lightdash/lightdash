@@ -146,6 +146,24 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
 
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
