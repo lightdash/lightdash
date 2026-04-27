@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AlreadyExistsError,
     ForbiddenError,
     getErrorMessage,
@@ -251,14 +252,31 @@ export class ScimService extends BaseService {
 
     // Retrieve a single SCIM user by ID
     async getUser({
+        account,
         userUuid,
         organizationUuid,
     }: {
+        account: Account;
         userUuid: string;
         organizationUuid: string;
     }): Promise<ScimUser> {
         this.logger.info('SCIM: Getting user', { userUuid, organizationUuid });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const user =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
                     organizationUuid,
@@ -308,11 +326,13 @@ export class ScimService extends BaseService {
 
     // List all SCIM users in an organization
     async listUsers({
+        account,
         organizationUuid,
         startIndex = 1,
         itemsPerPage = 100,
         filter,
     }: {
+        account: Account;
         organizationUuid: string;
         startIndex?: number;
         itemsPerPage?: number;
@@ -325,6 +345,15 @@ export class ScimService extends BaseService {
             filter,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('OrganizationMemberProfile', { organizationUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const parsedFilter = filter ? parse(filter) : null;
             this.logger.info('SCIM: Parsed filter', { parsedFilter });
 
@@ -440,9 +469,11 @@ export class ScimService extends BaseService {
 
     // Create a SCIM user
     async createUser({
+        account,
         user,
         organizationUuid,
     }: {
+        account: Account;
         user: ScimUpsertUser;
         organizationUuid: string;
     }): Promise<ScimUser> {
@@ -456,6 +487,20 @@ export class ScimService extends BaseService {
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        metadata: {
+                            userName: user.userName,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // Validate roles if provided
             const { allScimRoles } = await this.getAllRoles(organizationUuid);
             if (user.roles !== undefined) {
@@ -570,10 +615,12 @@ export class ScimService extends BaseService {
 
     // Update an existing SCIM user
     async updateUser({
+        account,
         user,
         userUuid,
         organizationUuid,
     }: {
+        account: Account;
         user: ScimUpsertUser;
         userUuid: string;
         organizationUuid: string;
@@ -590,6 +637,21 @@ export class ScimService extends BaseService {
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // Validate roles if provided
             if (user.roles !== undefined) {
                 const { allScimRoles } =
@@ -854,10 +916,12 @@ export class ScimService extends BaseService {
     }
 
     async patchUser({
+        account,
         userUuid,
         organizationUuid,
         patchOp,
     }: {
+        account: Account;
         userUuid: string;
         organizationUuid: string;
         patchOp: ScimPatch;
@@ -873,6 +937,21 @@ export class ScimService extends BaseService {
             })),
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // get existing user (and make sure user is in the organization)
             const dbUser =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
@@ -900,6 +979,7 @@ export class ScimService extends BaseService {
             });
             // apply updates to user
             const patchedUser = await this.updateUser({
+                account,
                 user: patchedDbUserObj as ScimUpsertUser,
                 userUuid,
                 organizationUuid,
@@ -954,9 +1034,11 @@ export class ScimService extends BaseService {
 
     // Delete a SCIM user by ID
     async deleteUser({
+        account,
         userUuid,
         organizationUuid,
     }: {
+        account: Account;
         userUuid: string;
         organizationUuid: string;
     }): Promise<void> {
@@ -965,6 +1047,21 @@ export class ScimService extends BaseService {
             organizationUuid,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'delete',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // get existing user (and make sure user is in the organization)
             const dbUser =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
