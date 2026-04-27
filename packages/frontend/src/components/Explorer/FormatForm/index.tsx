@@ -48,6 +48,7 @@ type Props = {
         value: ValueOf<CustomFormat>,
     ) => void;
     itemType?: DimensionType | MetricType | TableCalculationType;
+    compact?: boolean;
 };
 
 const numericFormatTypeOptions = [
@@ -128,13 +129,18 @@ export const FormatForm: FC<Props> = ({
     format,
 
     itemType,
+    compact = false,
 }) => {
     const formatType = format.type;
 
     const isDateField = useMemo(() => {
         return (
             itemType === DimensionType.DATE ||
-            itemType === DimensionType.TIMESTAMP
+            itemType === DimensionType.TIMESTAMP ||
+            itemType === MetricType.DATE ||
+            itemType === MetricType.TIMESTAMP ||
+            itemType === TableCalculationType.DATE ||
+            itemType === TableCalculationType.TIMESTAMP
         );
     }, [itemType]);
 
@@ -231,7 +237,7 @@ export const FormatForm: FC<Props> = ({
                     </Stack>
                 </Grid.Col>
             ) : (
-                <Grid.Col span={4}>
+                <Grid.Col span={compact ? 12 : 4}>
                     <Select
                         label="Format type"
                         data={formatTypeOptions.map((type) => ({
@@ -268,10 +274,14 @@ export const FormatForm: FC<Props> = ({
             {isDateType && (
                 <Grid.Col span={12}>
                     <Stack gap="md">
-                        <Flex align="flex-end" gap="md">
+                        <Flex
+                            align={compact ? 'stretch' : 'flex-end'}
+                            direction={compact ? 'column' : 'row'}
+                            gap="md"
+                        >
                             <TextInput
                                 flex={1}
-                                maw={400}
+                                maw={compact ? undefined : 400}
                                 leftSection={
                                     <MantineIcon
                                         icon={
@@ -409,7 +419,7 @@ export const FormatForm: FC<Props> = ({
             ].includes(formatType) && (
                 <>
                     {formatType === CustomFormatType.CURRENCY && (
-                        <Grid.Col span={4}>
+                        <Grid.Col span={compact ? 12 : 4}>
                             <Select
                                 searchable
                                 label="Currency"
@@ -418,7 +428,7 @@ export const FormatForm: FC<Props> = ({
                             />
                         </Grid.Col>
                     )}
-                    <Grid.Col span={4}>
+                    <Grid.Col span={compact ? 12 : 4}>
                         <NumberInput
                             type="number"
                             min={0}
@@ -436,7 +446,7 @@ export const FormatForm: FC<Props> = ({
                             }}
                         />
                     </Grid.Col>
-                    <Grid.Col span={4}>
+                    <Grid.Col span={compact ? 12 : 4}>
                         <Select
                             label="Separator style"
                             data={formatSeparatorOptions}
@@ -488,14 +498,14 @@ export const FormatForm: FC<Props> = ({
 
                     {formatType === CustomFormatType.NUMBER && (
                         <>
-                            <Grid.Col span={4}>
+                            <Grid.Col span={compact ? 12 : 4}>
                                 <TextInput
                                     label="Prefix"
                                     placeholder="e.g. $"
                                     {...formatInputProps('prefix')}
                                 />
                             </Grid.Col>
-                            <Grid.Col span={4}>
+                            <Grid.Col span={compact ? 12 : 4}>
                                 <TextInput
                                     label="Suffix"
                                     placeholder="e.g. km/h"
