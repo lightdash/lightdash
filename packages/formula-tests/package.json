@@ -17,6 +17,7 @@
     "@google-cloud/bigquery": "7.9.2",
     "duckdb": "1.4.2",
     "pg": "8.13.1",
+    "snowflake-sdk": "2.3.4",
     "trino-client": "0.2.9",
     "tsx": "4.19.2"
   },

@@ -69,9 +69,24 @@ export interface WarehouseConfig {
     };
     snowflake: {
         account: string;
-        username: string;
-        password: string;
+        user: string;
+        // Role used for the connection. Mirrors `SnowflakeWarehouseClient`'s
+        // `credentials.role`. SYSADMIN works in our staging account.
+        role: string;
+        // PEM-encoded private key for SNOWFLAKE_JWT key-pair auth — matches
+        // production's `SnowflakeWarehouseClient` private-key path. Pass the
+        // full multi-line PEM (begin/end markers included) through the env
+        // var; quoting it preserves newlines.
+        privateKey: string;
+        // Passphrase for the private key. Empty string if the key is
+        // unencrypted.
+        privateKeyPass: string;
         database: string;
+        // The runner runs `CREATE SCHEMA IF NOT EXISTS` for this schema
+        // before seeding, so a fresh value works without manual setup. The
+        // seed only ever creates / drops `test_orders` / `test_nulls` /
+        // `test_window`, so an existing schema with no name collisions is
+        // also safe.
         schema: string;
         warehouse: string;
     };
@@ -152,10 +167,13 @@ export function getWarehouseConfig(): WarehouseConfig {
         },
         snowflake: {
             account: process.env.FORMULA_TEST_SF_ACCOUNT ?? '',
-            username: process.env.FORMULA_TEST_SF_USERNAME ?? '',
-            password: process.env.FORMULA_TEST_SF_PASSWORD ?? '',
+            user: process.env.FORMULA_TEST_SF_USER ?? '',
+            role: process.env.FORMULA_TEST_SF_ROLE ?? '',
+            privateKey: process.env.FORMULA_TEST_SF_PRIVATE_KEY ?? '',
+            privateKeyPass:
+                process.env.FORMULA_TEST_SF_PRIVATE_KEY_PASS ?? '',
             database: process.env.FORMULA_TEST_SF_DATABASE ?? '',
-            schema: process.env.FORMULA_TEST_SF_SCHEMA ?? 'FORMULA_TESTS',
+            schema: process.env.FORMULA_TEST_SF_SCHEMA ?? '',
             warehouse: process.env.FORMULA_TEST_SF_WAREHOUSE ?? '',
         },
         duckdb: {},

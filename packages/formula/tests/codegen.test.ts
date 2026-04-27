@@ -349,6 +349,24 @@ describe('codegen', () => {
         });
     });
 
+    describe('Snowflake dialect', () => {
+        it('escapes single quotes by doubling and doubles backslashes', () => {
+            // Snowflake's string lexer interprets `\0`, `\n`, `\'` etc. as
+            // escape sequences inside literals — backslashes from user
+            // input must be doubled to round-trip cleanly. Mirrors
+            // `SnowflakeSqlBuilder.escapeString` (inherits the base which
+            // already doubles backslashes).
+            expect(
+                compile(`=IF(region = "O'Brien\\path", 1, 0)`, {
+                    dialect: 'snowflake',
+                    columns: { region: 'region' },
+                }),
+            ).toBe(
+                `CASE WHEN ("region" = 'O''Brien\\\\path') THEN 1 ELSE 0 END`,
+            );
+        });
+    });
+
     describe('Databricks dialect', () => {
         it('emits bare aggregates with backtick quoting by default', () => {
             expect(

@@ -244,6 +244,11 @@ const REDSHIFT_CONFIG: DialectConfig = {
 // columns. Unit names line up with BigQuery's bare identifiers.
 const SNOWFLAKE_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
+    // Snowflake's string lexer interprets backslash escapes (`\0`, `\n`,
+    // `\'`) inside literals, so any `\` from user input must be doubled to
+    // round-trip cleanly — mirrors `SnowflakeSqlBuilder.escapeString` (it
+    // inherits the base which already doubles backslashes).
+    generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
     generateDateAdd: (unit, date, n) =>
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>

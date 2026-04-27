@@ -303,6 +303,127 @@ export async function createBigQueryConnection(
     };
 }
 
+export async function createSnowflakeConnection(
+    config: WarehouseConfig['snowflake'],
+): Promise<WarehouseConnection> {
+    const missing: string[] = [];
+    if (!config.account) missing.push('FORMULA_TEST_SF_ACCOUNT');
+    if (!config.user) missing.push('FORMULA_TEST_SF_USER');
+    if (!config.role) missing.push('FORMULA_TEST_SF_ROLE');
+    if (!config.privateKey) missing.push('FORMULA_TEST_SF_PRIVATE_KEY');
+    if (!config.database) missing.push('FORMULA_TEST_SF_DATABASE');
+    if (!config.schema) missing.push('FORMULA_TEST_SF_SCHEMA');
+    if (!config.warehouse) missing.push('FORMULA_TEST_SF_WAREHOUSE');
+    if (missing.length > 0) {
+        throw new Error(
+            `Snowflake connection requires the following env vars: ${missing.join(', ')}`,
+        );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const snowflake = require('snowflake-sdk');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const crypto = require('crypto');
+
+    // Mirrors `SnowflakeWarehouseClient`'s SNOWFLAKE_JWT path: when a
+    // passphrase is set, decrypt the PEM and re-export as PKCS8 so the
+    // driver gets an unencrypted key. When unencrypted, pass through.
+    const privateKey = config.privateKeyPass
+        ? crypto
+              .createPrivateKey({
+                  key: config.privateKey,
+                  format: 'pem',
+                  passphrase: config.privateKeyPass,
+              })
+              .export({ format: 'pem', type: 'pkcs8' })
+              .toString()
+        : config.privateKey;
+
+    const connection = snowflake.createConnection({
+        account: config.account,
+        username: config.user,
+        role: config.role,
+        privateKey,
+        authenticator: 'SNOWFLAKE_JWT',
+        database: config.database,
+        schema: config.schema,
+        warehouse: config.warehouse,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+        connection.connect((err: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+        });
+    });
+
+    const execute = (sql: string): Promise<Record<string, any>[]> =>
+        new Promise((resolve, reject) => {
+            connection.execute({
+                sqlText: sql,
+                // The driver naively counts `;` characters in `sqlText` and
+                // rejects anything beyond `MULTI_STATEMENT_COUNT` (default
+                // 1) — including a `;` inside a single-quoted string
+                // literal, which trips formula tests that probe SQL
+                // injection guards. `0` means "any number of statements"
+                // and lets quoted `;` round-trip cleanly. We still call
+                // `execute()` once per statement at seed time, so this
+                // doesn't widen the multi-statement attack surface.
+                parameters: { MULTI_STATEMENT_COUNT: 0 },
+                complete: (
+                    err: Error | null,
+                    _stmt: unknown,
+                    rows: Record<string, any>[] | undefined,
+                ) => {
+                    if (err) reject(err);
+                    else resolve(rows ?? []);
+                },
+            });
+        });
+
+    // Snowflake folds unquoted identifiers to UPPERCASE at CREATE time,
+    // but the formula codegen emits `"order_amount"` (lowercase quoted)
+    // which then fails to resolve. Setting this to TRUE makes quoted-
+    // identifier resolution case-insensitive, matching every other
+    // warehouse's behaviour.
+    //
+    // Deliberate divergence from production: `SnowflakeWarehouseClient.
+    // prepareWarehouse` hardcodes this to FALSE for casing strictness. We
+    // diverge here because the test runner controls both ends — the seed
+    // creates uppercase columns and the codegen quotes lowercase, so
+    // strictness would force every test case to special-case Snowflake.
+    // Production users who want this behaviour set it on their Snowflake
+    // account directly.
+    await execute(
+        'ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = TRUE',
+    );
+
+    // The Snowflake nodejs driver doesn't accept multi-statement SQL by
+    // default (would require `MULTI_STATEMENT_COUNT` session parameter), so
+    // split the seed and run each statement individually — same approach
+    // as Databricks / ClickHouse / Athena / Trino.
+    return {
+        dialect: 'snowflake',
+        execute,
+        async seed(sql: string) {
+            // Auto-create the test schema so the runner is self-contained.
+            // SYSADMIN has the privilege; idempotent on re-runs.
+            await execute(
+                `CREATE SCHEMA IF NOT EXISTS ${config.database}.${config.schema}`,
+            );
+            await execute(`USE SCHEMA ${config.database}.${config.schema}`);
+            for (const stmt of splitSqlStatements(sql)) {
+                await execute(stmt);
+            }
+        },
+        async close() {
+            await new Promise<void>((resolve) => {
+                connection.destroy(() => resolve());
+            });
+        },
+    };
+}
+
 export async function createTrinoConnection(
     config: WarehouseConfig['trino'],
 ): Promise<WarehouseConnection> {
@@ -575,7 +696,7 @@ export async function createConnection(
         case 'bigquery':
             return createBigQueryConnection(config.bigquery);
         case 'snowflake':
-            throw new Error('Snowflake connection not yet implemented');
+            return createSnowflakeConnection(config.snowflake);
         case 'databricks':
             return createDatabricksConnection(config.databricks);
         case 'clickhouse':
