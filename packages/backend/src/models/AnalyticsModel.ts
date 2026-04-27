@@ -222,6 +222,7 @@ export class AnalyticsModel {
                 user_uuid: string;
                 first_name: string;
                 last_name: string;
+                dashboard_uuid: string;
                 dashboard_name: string;
                 count: number;
             }[];
@@ -267,6 +268,7 @@ export class AnalyticsModel {
                     firstName: row.first_name,
                     lastName: row.last_name,
                     count: row.count,
+                    dashboardUuid: row.dashboard_uuid,
                     dashboardName: row.dashboard_name,
                 }),
             ),
