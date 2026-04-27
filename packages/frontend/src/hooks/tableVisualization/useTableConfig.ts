@@ -260,6 +260,7 @@ const useTableConfig = (
                   embedToken,
                   parameters,
                   dateZoom,
+                  invalidateCache,
               },
     );
 

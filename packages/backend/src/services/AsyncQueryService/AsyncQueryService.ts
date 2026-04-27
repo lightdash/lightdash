@@ -5726,6 +5726,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDimensions,
         parameters,
         dateZoom,
+        invalidateCache,
         userAccessControls,
     }: {
         account: Account;
@@ -5744,6 +5745,7 @@ export class AsyncQueryService extends ProjectService {
         pivotDimensions?: string[];
         parameters?: ParametersValuesMap;
         dateZoom?: ExecuteAsyncMetricQueryArgs['dateZoom'];
+        invalidateCache?: boolean;
         userAccessControls?: UserAccessControls;
     }) {
         const { dimensionGroupsToSubtotal } =
@@ -5777,6 +5779,7 @@ export class AsyncQueryService extends ProjectService {
                         queryTags,
                         parameters,
                         dateZoom,
+                        invalidateCache,
                         userAccessControls,
                     });
 
@@ -6087,6 +6090,7 @@ export class AsyncQueryService extends ProjectService {
             pivotDimensions: data.pivotDimensions,
             parameters: combinedParameters,
             dateZoom: data.dateZoom,
+            invalidateCache: data.invalidateCache,
         });
     }
 
