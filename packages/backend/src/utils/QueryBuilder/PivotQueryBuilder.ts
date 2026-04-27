@@ -1021,7 +1021,7 @@ export class PivotQueryBuilder {
 
     private getPivotQuerySQL(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
-        valuesColumns: PivotConfiguration['valuesColumns'],
+        displayValuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
         metricFirstValueQueries: Record<
@@ -1029,13 +1029,14 @@ export class PivotQueryBuilder {
             { cteName: string; sql: string }
         >,
         usePrecomputedRankings: boolean = false,
+        sortValuesColumns: PivotConfiguration['valuesColumns'] = displayValuesColumns,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
         const selectReferences = [
             ...indexColumns.map((col) => `g.${q}${col.reference}${q}`),
             ...groupByColumns.map((col) => `g.${q}${col.reference}${q}`),
-            ...(valuesColumns || []).map((col) => {
+            ...(displayValuesColumns || []).map((col) => {
                 const fieldName = PivotQueryBuilder.getValueColumnFieldName(
                     col.reference,
                     col.aggregation,
@@ -1126,7 +1127,7 @@ export class PivotQueryBuilder {
         // Build ORDER BY for row_index - should only consider index columns, not groupBy columns
         const rowIndexOrderBy = this.buildRowIndexOrderBy(
             indexColumns,
-            valuesColumns,
+            sortValuesColumns,
             sortBy,
             metricFirstValueQueries,
             q,
@@ -1134,7 +1135,7 @@ export class PivotQueryBuilder {
 
         const groupByOrderBy = this.buildGroupByOrderBy(
             groupByColumns,
-            valuesColumns,
+            sortValuesColumns,
             sortBy,
             metricFirstValueQueries,
             q,
@@ -1267,7 +1268,8 @@ export class PivotQueryBuilder {
         userSql: string,
         groupByQuery: string,
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
-        valuesColumns: PivotConfiguration['valuesColumns'],
+        displayValuesColumns: PivotConfiguration['valuesColumns'],
+        executionValuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
         columnLimit: number | undefined,
@@ -1275,10 +1277,16 @@ export class PivotQueryBuilder {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const rowLimit = this.limit ?? DEFAULT_PIVOT_ROW_LIMIT;
 
-        // Exclude Pivot table calculations from valuesColumns - they are handled separately
-        const valuesColumnsWithoutPivotTableCalculations = valuesColumns.filter(
-            (col) => !this.pivotTableCalculations[col.reference],
-        );
+        // Exclude Pivot table calculations from value columns used by pivot_query.
+        // They are handled separately in the pivot_table_calculations CTE.
+        const displayValuesColumnsWithoutPivotTableCalculations =
+            displayValuesColumns.filter(
+                (col) => !this.pivotTableCalculations[col.reference],
+            );
+        const executionValuesColumnsWithoutPivotTableCalculations =
+            executionValuesColumns.filter(
+                (col) => !this.pivotTableCalculations[col.reference],
+            );
 
         // Get all metric anchor CTEs in the correct order
         const {
@@ -1289,7 +1297,7 @@ export class PivotQueryBuilder {
             metricFirstValueQueries,
         } = this.getMetricAnchorCTEs(
             indexColumns,
-            valuesColumnsWithoutPivotTableCalculations,
+            executionValuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
         );
@@ -1311,7 +1319,7 @@ export class PivotQueryBuilder {
             );
             const rowRankingSQL = this.getRowRankingSQL(
                 indexColumns,
-                valuesColumnsWithoutPivotTableCalculations,
+                executionValuesColumnsWithoutPivotTableCalculations,
                 sortBy,
                 rowAnchorQueries,
             );
@@ -1320,11 +1328,12 @@ export class PivotQueryBuilder {
 
         const pivotQuery = this.getPivotQuerySQL(
             indexColumns,
-            valuesColumnsWithoutPivotTableCalculations,
+            displayValuesColumnsWithoutPivotTableCalculations,
             groupByColumns,
             sortBy,
             metricFirstValueQueries,
             needsPrecomputedRankings,
+            executionValuesColumnsWithoutPivotTableCalculations,
         );
 
         let maxColumnsPerValueColumnSql = '';
@@ -1332,7 +1341,7 @@ export class PivotQueryBuilder {
         if (columnLimit) {
             const maxColumnsPerValueColumn =
                 PivotQueryBuilder.calculateMaxColumnsPerValueColumn(
-                    valuesColumns,
+                    displayValuesColumns,
                     columnLimit,
                     this.pivotConfiguration.metricsAsRows,
                 );
@@ -1343,7 +1352,7 @@ export class PivotQueryBuilder {
 
         const totalColumnsQuery = this.getTotalColumnsSQL(
             groupByColumns,
-            valuesColumns,
+            displayValuesColumns,
             'filtered_rows',
         );
 
@@ -1442,10 +1451,10 @@ export class PivotQueryBuilder {
             sortOnlyColumns,
         } = this.pivotConfiguration;
 
-        // Merge sort-only columns into valuesColumns for SQL generation.
-        // These columns are needed for sort anchor CTEs but are excluded
-        // from pivotDetails downstream so they don't appear as chart series.
-        const valuesColumns = sortOnlyColumns?.length
+        // Hidden sort anchors need to be available to the SQL pipeline, but
+        // only displayColumns should drive output metadata and visible column
+        // limit accounting.
+        const executionValuesColumns = sortOnlyColumns?.length
             ? [...displayColumns, ...sortOnlyColumns]
             : displayColumns;
 
@@ -1469,7 +1478,7 @@ export class PivotQueryBuilder {
 
         const groupByQuery = this.getGroupByQuerySQL(
             indexColumns,
-            valuesColumns,
+            executionValuesColumns,
             groupByColumns,
         );
 
@@ -1481,7 +1490,8 @@ export class PivotQueryBuilder {
                 baseSql,
                 groupByQuery,
                 indexColumns,
-                valuesColumns,
+                displayColumns,
+                executionValuesColumns,
                 groupByColumns,
                 sortBy,
                 columnLimit,

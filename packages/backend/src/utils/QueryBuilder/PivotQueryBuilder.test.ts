@@ -470,6 +470,58 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('CROSS JOIN anchor_column ac');
         });
 
+        test('Sort-only value columns should be execution-only, not display columns', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                sortOnlyColumns: [
+                    {
+                        reference: 'orders_count',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'orders_count',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain(
+                'group_by_query AS (SELECT "category", "date", sum("revenue") AS "revenue_sum", (ARRAY_AGG("orders_count"))[1] AS "orders_count_any" FROM original_query group by "category", "date")',
+            );
+            expect(result).toContain('"orders_count_row_anchor" AS (');
+            expect(result).toContain('"orders_count_column_anchor" AS (');
+            expect(normalized).toContain(
+                'pivot_query AS (SELECT g."date", g."category", g."revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index"',
+            );
+            expect(normalized).not.toContain('g."orders_count_any", rr.');
+            expect(result).toContain('"column_index" <= 100');
+            expect(result).not.toContain('"column_index" <= 50');
+            expect(normalized).toContain(
+                'SELECT COUNT(*) AS total_columns FROM',
+            );
+            expect(normalized).not.toContain(
+                'SELECT COUNT(*) * 2 AS total_columns',
+            );
+        });
+
         test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],

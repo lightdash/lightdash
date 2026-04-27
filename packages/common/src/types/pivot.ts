@@ -28,8 +28,8 @@ export type PivotConfiguration = {
     metricsAsRows?: boolean;
     /**
      * Metrics/table calculations needed for sort anchor CTEs but not for display.
-     * These are merged into valuesColumns for SQL generation in PivotQueryBuilder,
-     * but excluded from pivotDetails so they don't appear as chart series.
+     * These are carried as execution-only values in PivotQueryBuilder, but excluded
+     * from pivotDetails so they don't appear as chart series or exported columns.
      */
     sortOnlyColumns?: ValuesColumn[];
 };
