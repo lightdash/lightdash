@@ -1,3 +1,11 @@
+## [0.2813.2](https://github.com/lightdash/lightdash/compare/0.2813.1...0.2813.2) (2026-04-27)
+
+
+### Bug Fixes
+
+* calculate total using cached results in explore edit ([#22376](https://github.com/lightdash/lightdash/issues/22376)) ([b42053a](https://github.com/lightdash/lightdash/commit/b42053a957a287e7e66a9b41ce10a9e069d84775))
+* **saved-charts:** handle unknown chartKind on saved charts page ([#22377](https://github.com/lightdash/lightdash/issues/22377)) ([d1312b0](https://github.com/lightdash/lightdash/commit/d1312b03a47da437269fdfdc4d1cf17f55dd3454))
+
 ## [0.2813.1](https://github.com/lightdash/lightdash/compare/0.2813.0...0.2813.1) (2026-04-27)
 
 
