@@ -1,3 +1,10 @@
+## [0.2811.2](https://github.com/lightdash/lightdash/compare/0.2811.1...0.2811.2) (2026-04-27)
+
+
+### Bug Fixes
+
+* **data-apps:** heartbeat status_updated_at to avoid stale-lock race ([#22372](https://github.com/lightdash/lightdash/issues/22372)) ([a973adc](https://github.com/lightdash/lightdash/commit/a973adc691e8cf2f59307185d25e43978d9b4501))
+
 ## [0.2811.1](https://github.com/lightdash/lightdash/compare/0.2811.0...0.2811.1) (2026-04-27)
 
 
