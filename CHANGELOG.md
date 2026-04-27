@@ -1,3 +1,10 @@
+## [0.2811.1](https://github.com/lightdash/lightdash/compare/0.2811.0...0.2811.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* **data-apps:** track data app views on iframe load, not on version polling ([#22364](https://github.com/lightdash/lightdash/issues/22364)) ([902ca3d](https://github.com/lightdash/lightdash/commit/902ca3d833e6045d60745681af1e1f3ef2cff096))
+
 # [0.2811.0](https://github.com/lightdash/lightdash/compare/0.2810.0...0.2811.0) (2026-04-24)
 
 
