@@ -1614,6 +1614,7 @@ export class EmbedService extends BaseService {
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
                 parameters: combinedParameters,
+                invalidateCache: data.invalidateCache,
                 userAccessControls: {
                     userAttributes,
                     intrinsicUserAttributes,

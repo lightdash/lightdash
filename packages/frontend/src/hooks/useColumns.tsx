@@ -396,7 +396,7 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
-    const { activeFields, query } = useExplorerQuery();
+    const { activeFields, query, validQueryArgs } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
     const resultsFields = query.data?.fields;
 
@@ -512,6 +512,7 @@ export const useColumns = (): TableColumn[] => {
             ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,
         itemsMap: activeItemsMap,
+        invalidateCache: validQueryArgs?.invalidateCache,
         embedToken,
         parameters,
     });

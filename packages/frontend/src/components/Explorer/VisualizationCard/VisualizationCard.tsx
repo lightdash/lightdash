@@ -93,8 +93,13 @@ const VisualizationCard: FC<Props> = memo((props) => {
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
 
-    const { query, queryResults, isLoading, getDownloadQueryUuid } =
-        useExplorerQuery();
+    const {
+        query,
+        queryResults,
+        isLoading,
+        getDownloadQueryUuid,
+        validQueryArgs,
+    } = useExplorerQuery();
     const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
 
     const resultsData = useMemo(
@@ -301,6 +306,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 containerHeight={containerHeight}
                 isDashboard={false}
                 isEditMode={isEditMode}
+                invalidateCache={validQueryArgs?.invalidateCache}
             >
                 <CollapsableCard
                     title="Chart"

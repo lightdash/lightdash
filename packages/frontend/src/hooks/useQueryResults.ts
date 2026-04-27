@@ -164,7 +164,7 @@ const executeAsyncQuery = (
                           }
                         : undefined,
                 },
-                invalidateCache: true, // Note: do not cache explore queries
+                invalidateCache: data.invalidateCache,
                 usePreAggregateCache: data.usePreAggregateCache,
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,

@@ -231,6 +231,7 @@ const useTableConfig = (
                   explore: resultsData?.metricQuery?.exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
+                  invalidateCache,
                   showColumnCalculation:
                       tableChartConfig?.showColumnCalculation,
                   embedToken,
