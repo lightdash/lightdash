@@ -201,6 +201,15 @@ const POSTGRES_CONFIG: DialectConfig = {
 const REDSHIFT_CONFIG: DialectConfig = {
     ...POSTGRES_CONFIG,
     generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
+    // Redshift's bare `(x)::numeric` defaults to `numeric(18, 0)` and
+    // truncates the input to an integer before rounding, so e.g.
+    // `ROUND(50.5::numeric, 1)` returns 50, not 50.5. Postgres' unbounded
+    // numeric keeps full precision and isn't affected. Pin precision/scale
+    // so ROUND(x, n) keeps decimals on Redshift.
+    generateRound: (value, digits) =>
+        digits !== undefined
+            ? `ROUND((${value})::numeric(38, 10), ${digits})`
+            : `ROUND(${value})`,
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         if (args.length >= 3) {
             const [value, offset, defaultValue] = args;
