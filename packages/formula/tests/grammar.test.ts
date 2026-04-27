@@ -266,6 +266,31 @@ describe('Formula Grammar', () => {
             );
         });
 
+        it('parses DATE_DIFF as a DateFn node', () => {
+            const ast = parse('=DATE_DIFF(A, B, "day")');
+            expect(ast).toEqual({
+                type: 'DateFn',
+                name: 'DATE_DIFF',
+                unit: 'day',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'ColumnRef', name: 'B' },
+                ],
+            });
+        });
+
+        it('rejects DATE_DIFF with a non-whitelisted unit', () => {
+            expect(() => parse('=DATE_DIFF(A, B, "minute")')).toThrow(
+                /DATE_DIFF unit must be one of/,
+            );
+        });
+
+        it('rejects DATE_DIFF with wrong arg count', () => {
+            expect(() => parse('=DATE_DIFF(A, B)')).toThrow(
+                /DATE_DIFF called with wrong number of arguments/,
+            );
+        });
+
         it('parses variadic function', () => {
             const ast = parse('=CONCAT(A, B, C)');
             expect(ast).toEqual({

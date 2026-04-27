@@ -103,6 +103,7 @@ Primary
   / CountIf
   / DateTruncExpr
   / DateAddOrSubExpr
+  / DateDiffExpr
   / ZeroArgFn
   / SingleArgFn
   / OneOrTwoArgFn
@@ -167,6 +168,21 @@ DateAddOrSubExpr
         ? { type: "UnaryOp", op: "-", operand: n }
         : n;
       return { type: "DateFn", name: "DATE_ADD", unit, args: [date, nArg] };
+    }
+
+// DATE_DIFF(start, end, "unit") — whole-unit calendar-boundary difference,
+// positive when end > start. Third arg must be a whitelisted string literal
+// validated at parse time.
+DateDiffExpr
+  = "DATE_DIFF"i _ "(" _ start:Expression _ "," _ end:Expression _ "," _ unitArg:Expression _ ")" {
+      if (unitArg.type !== "StringLiteral") {
+        error('DATE_DIFF third argument must be a string literal unit like "month"');
+      }
+      const unit = unitArg.value.toLowerCase();
+      if (!dateUnits.includes(unit)) {
+        error('DATE_DIFF unit must be one of: ' + dateUnits.join(', ') + '. Got: "' + unitArg.value + '"');
+      }
+      return { type: "DateFn", name: "DATE_DIFF", unit, args: [start, end] };
     }
 
 ZeroArgFn

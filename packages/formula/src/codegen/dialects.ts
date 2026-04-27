@@ -47,6 +47,13 @@ export interface DialectConfig {
     // DATE_SUB is desugared to DATE_ADD with negated n at parse time, so
     // dialects only need to implement DATE_ADD.
     generateDateAdd?: (unit: DateUnit, date: string, n: string) => string;
+    // DATE_DIFF emission. Default is the Postgres emulation in
+    // `defaultDateDiff` (no native DATEDIFF in Postgres). Every other dialect
+    // overrides with its native function. Semantics: whole-unit calendar-
+    // boundary difference, positive when `end > start`. Non-Monday weekly
+    // diff is composed at the `generateDateDiff` level — this hook only ever
+    // sees Monday-aligned week requests.
+    generateDateDiff?: (unit: DateUnit, start: string, end: string) => string;
 }
 
 // Everything a dialect needs to emit `LAG(...) OVER (...)` or
@@ -207,6 +214,8 @@ const REDSHIFT_CONFIG: DialectConfig = {
     generateLastDay: (arg) => `LAST_DAY(${arg})`,
     generateDateAdd: (unit, date, n) =>
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
+    generateDateDiff: (unit, start, end) =>
+        `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
 };
 
 // Snowflake's `DATEADD(unit, n, d)` takes a bare unit identifier and is the
@@ -216,6 +225,8 @@ const SNOWFLAKE_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateDateAdd: (unit, date, n) =>
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
+    generateDateDiff: (unit, start, end) =>
+        `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
 };
 
 const DUCKDB_CONFIG: DialectConfig = {
@@ -226,6 +237,10 @@ const DUCKDB_CONFIG: DialectConfig = {
     // so share the emitter. Keeps formula-package and warehouse-package
     // SQL byte-identical on DuckDB.
     generateConcat: postgresStyleConcat,
+    // DuckDB has native `date_diff('unit', start, end)` — quoted unit,
+    // matches ClickHouse shape.
+    generateDateDiff: (unit, start, end) =>
+        `date_diff('${unit}', ${start}, ${end})`,
 };
 
 // SQL bare-identifier names for DateUnit, shared by any dialect that takes
@@ -267,6 +282,10 @@ const BIGQUERY_CONFIG: DialectConfig = {
     },
     generateDateAdd: (unit, date, n) =>
         `DATE_ADD(${date}, INTERVAL ${n} ${SQL_DATE_UNIT_IDENTIFIERS[unit]})`,
+    // BigQuery's DATE_DIFF flips the date args (end, start, unit) relative to
+    // every other dialect. The unit is a bare identifier.
+    generateDateDiff: (unit, start, end) =>
+        `DATE_DIFF(${end}, ${start}, ${SQL_DATE_UNIT_IDENTIFIERS[unit]})`,
 };
 
 // Databricks (Spark SQL) has no general `DATEADD(unit, …)` across versions,
@@ -302,6 +321,10 @@ const DATABRICKS_CONFIG: DialectConfig = {
         return `DATE_TRUNC('${unit}', ${arg})`;
     },
     generateDateAdd: (unit, date, n) => DATABRICKS_DATE_ADD[unit](date, n),
+    // Databricks SQL accepts `DATEDIFF(unit, start, end)` with a bare unit
+    // identifier (Databricks SQL Warehouse, Runtime 11+).
+    generateDateDiff: (unit, start, end) =>
+        `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
 };
 
 // ClickHouse has four dialect quirks the formula package cares about:
@@ -364,6 +387,11 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
     },
     generateDateAdd: (unit, date, n) =>
         `${CLICKHOUSE_ADD[unit]}(${date}, ${n})`,
+    // ClickHouse's `dateDiff('unit', start, end)` mirrors DuckDB's shape with
+    // a quoted-string unit. Week defaults to Monday boundaries (ISO), matching
+    // the `toStartOfWeek(d, 1)` we use for DATE_TRUNC.
+    generateDateDiff: (unit, start, end) =>
+        `dateDiff('${unit}', ${start}, ${end})`,
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         const chFunc = sqlFunc === 'LAG' ? 'lagInFrame' : 'leadInFrame';
         const [value, ...rest] = args;
