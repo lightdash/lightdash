@@ -51,7 +51,6 @@ export class FeatureFlagModel {
                 this.getGoogleChatEnabled.bind(this),
             [FeatureFlags.UserImpersonation]:
                 this.getUserImpersonationEnabled.bind(this),
-            [FeatureFlags.ShowHideRows]: this.getShowHideRowsEnabled.bind(this),
             [FeatureFlags.MetricDashboardFilters]:
                 this.getMetricDashboardFiltersEnabled.bind(this),
             [FeatureFlags.ShowHideColumns]:
@@ -268,31 +267,6 @@ export class FeatureFlagModel {
                       userUuid: user.userUuid,
                       organizationUuid: user.organizationUuid,
                   })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getShowHideRowsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.showHideRows.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ShowHideRows,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
                 : false);
         return {
             id: featureFlagId,

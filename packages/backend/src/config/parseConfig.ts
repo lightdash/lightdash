@@ -1271,9 +1271,6 @@ export type LightdashConfig = {
     userImpersonation: {
         enabled: boolean | undefined;
     };
-    showHideRows: {
-        enabled: boolean | undefined;
-    };
     metricDashboardFilters: {
         enabled: boolean | undefined;
     };
@@ -2290,11 +2287,6 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.USER_IMPERSONATION_ENABLED === 'true'
                     ? true
                     : undefined,
-        },
-        showHideRows: {
-            enabled: process.env.SHOW_HIDE_ROWS_ENABLED
-                ? process.env.SHOW_HIDE_ROWS_ENABLED === 'true'
-                : undefined,
         },
         metricDashboardFilters: {
             enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
