@@ -1,5 +1,4 @@
 import {
-    analyzePreAggregateDerivedDimensionEligibility,
     assertUnreachable,
     convertFieldRefToFieldId,
     getItemId,
@@ -18,6 +17,10 @@ import {
     type MetricQuery,
     type PreAggregateDef,
 } from '@lightdash/common';
+import {
+    assertDimensionEligibleForDirectMaterialization,
+    assertMetricEligibleForPreAggregation,
+} from '../../preAggregates/eligibility';
 
 const getDimensionsByReference = (sourceExplore: Explore) =>
     Object.values(sourceExplore.tables).reduce<
@@ -131,29 +134,6 @@ const getSelectedDimension = ({
     );
 
     return exactBaseDimension ?? candidates[0];
-};
-
-const assertDimensionEligibleForDirectMaterialization = ({
-    sourceExplore,
-    preAggregateDef,
-    dimensionReference,
-    dimension,
-}: {
-    sourceExplore: Explore;
-    preAggregateDef: PreAggregateDef;
-    dimensionReference: string;
-    dimension: CompiledDimension;
-}): void => {
-    const eligibility = analyzePreAggregateDerivedDimensionEligibility({
-        dimension,
-        tables: sourceExplore.tables,
-    });
-
-    if (!eligibility.isEligible) {
-        throw new Error(
-            `Pre-aggregate "${preAggregateDef.name}" references ineligible dimension "${dimensionReference}": dimension "${eligibility.ineligibleDimensionFieldId}" is not eligible for direct materialization (reason: ${eligibility.reason})`,
-        );
-    }
 };
 
 const hasTimeDimensionReference = ({
@@ -299,6 +279,13 @@ export const buildMaterializationMetricQuery = ({
                 `Pre-aggregate "${preAggregateDef.name}" references unknown metric "${metricReference}"`,
             );
         }
+
+        assertMetricEligibleForPreAggregation({
+            sourceExplore,
+            preAggregateDef,
+            metricReference,
+            metric: metricLookup.metric,
+        });
 
         acc.set(metricLookup.fieldId, metricLookup.metric);
 

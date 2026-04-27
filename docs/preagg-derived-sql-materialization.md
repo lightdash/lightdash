@@ -48,7 +48,7 @@ region_scoped_label:
   type: string
   sql: |
     CASE
-      WHEN ${ld.userAttributes.region} = 'US' THEN ${us_team_name}
+      WHEN ${ld.attr.region} = 'US' THEN ${us_team_name}
       ELSE ${global_team_name}
     END
 ```

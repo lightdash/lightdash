@@ -4,6 +4,11 @@ export {
     PreAggregateDerivedDimensionIneligibilityReason,
     type PreAggregateDerivedDimensionEligibility,
 } from './dimensionEligibility';
+export {
+    analyzePreAggregateDerivedMetricEligibility,
+    PreAggregateDerivedMetricIneligibilityReason,
+    type PreAggregateDerivedMetricEligibility,
+} from './metricEligibility';
 export { applyUserBypass, findMatch } from './matcher';
 export {
     getMetricRepresentation,

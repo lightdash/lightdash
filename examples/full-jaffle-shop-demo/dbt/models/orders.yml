@@ -30,44 +30,20 @@ models:
               - total_completed_order_amount
             time_dimension: order_date
             granularity: day
-          - name: basic_sql_dimension_daily
+          - name: sql_fields_daily
             dimensions:
               - status
               - constant_one
-            metrics:
-              - total_order_amount
-            time_dimension: order_date
-            granularity: day
-          - name: table_ref_dimension_daily
-            dimensions:
-              - status
               - table_amount
-            metrics:
-              - total_order_amount
-            time_dimension: order_date
-            granularity: day
-          - name: semantic_ref_dimension_daily
-            dimensions:
-              - status
               - semantic_amount
-            metrics:
-              - total_order_amount
-            time_dimension: order_date
-            granularity: day
-          - name: mixed_expression_dimension_daily
-            dimensions:
-              - status
               - amount_plus_shipping
-            metrics:
-              - total_order_amount
-            time_dimension: order_date
-            granularity: day
-          - name: recursive_dimension_daily
-            dimensions:
-              - status
               - amount_plus_shipping_band
             metrics:
-              - total_order_amount
+              - basic_sql_metric
+              - table_ref_metric
+              - semantic_ref_metric
+              - mixed_expression_metric
+              - average_expression_metric
             time_dimension: order_date
             granularity: day
           - name: param_dimension_rejected_daily
@@ -84,6 +60,27 @@ models:
               - user_attribute_email_test
             metrics:
               - total_order_amount
+            time_dimension: order_date
+            granularity: day
+          - name: param_metric_rejected_daily
+            dimensions:
+              - status
+            metrics:
+              - parameterized_metric_test
+            time_dimension: order_date
+            granularity: day
+          - name: user_attribute_metric_rejected_daily
+            dimensions:
+              - status
+            metrics:
+              - user_attribute_email_metric_test
+            time_dimension: order_date
+            granularity: day
+          - name: param_filter_metric_rejected_daily
+            dimensions:
+              - status
+            metrics:
+              - param_filter_metric_test
             time_dimension: order_date
             granularity: day
         primary_key: order_id
@@ -252,7 +249,7 @@ models:
           dimension:
             sql: |
               CASE
-                WHEN ${ld.userAttributes.email} = 'demo@lightdash.com'
+                WHEN ${ld.user.email} = 'demo@lightdash.com'
                   THEN ${TABLE}.status
                 ELSE 'non-demo'
               END
@@ -401,6 +398,58 @@ models:
                 type: number
                 format: "$#,##0.00"
                 sql: ${total_order_amount}-${total_completed_order_amount}
+              basic_sql_metric:
+                type: sum
+                label: Basic SQL Metric
+                groups: ["pre-aggregations"]
+                sql: "1"
+              table_ref_metric:
+                type: sum
+                label: Table Ref Metric
+                groups: ["pre-aggregations"]
+                sql: ${TABLE}.amount
+              semantic_ref_metric:
+                type: sum
+                label: Semantic Ref Metric
+                groups: ["pre-aggregations"]
+                sql: ${amount}
+              mixed_expression_metric:
+                type: sum
+                label: Mixed Expression Metric
+                groups: ["pre-aggregations"]
+                sql: ${TABLE}.amount + ${shipping_cost}
+              average_expression_metric:
+                type: average
+                label: Average Expression Metric
+                groups: ["pre-aggregations"]
+                sql: ${TABLE}.amount + ${shipping_cost}
+              parameterized_metric_test:
+                type: sum
+                label: Parameterized Metric Test
+                groups: ["pre-aggregations"]
+                sql: |
+                  CASE
+                    WHEN ${lightdash.parameters.date_dim_parameter} IS NOT NULL
+                      THEN ${TABLE}.amount
+                    ELSE 0
+                  END
+              user_attribute_email_metric_test:
+                type: sum
+                label: User Attribute Email Metric Test
+                groups: ["pre-aggregations"]
+                sql: |
+                  CASE
+                    WHEN ${ld.user.email} = 'demo@lightdash.com'
+                      THEN ${TABLE}.amount
+                    ELSE 0
+                  END
+              param_filter_metric_test:
+                type: sum
+                label: Param Filter Metric Test
+                groups: ["pre-aggregations"]
+                sql: ${amount}
+                filters:
+                  - date_dim_param_test: "param is greater"
         meta:
           dimension:
             type: number
