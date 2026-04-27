@@ -1,3 +1,10 @@
+## [0.2814.1](https://github.com/lightdash/lightdash/compare/0.2814.0...0.2814.1) (2026-04-27)
+
+
+### Bug Fixes
+
+* calculate subtotals using cached results in explore edit ([#22387](https://github.com/lightdash/lightdash/issues/22387)) ([d4818c5](https://github.com/lightdash/lightdash/commit/d4818c59dd4127779794b16aa1e5b3a4ca076344))
+
 # [0.2814.0](https://github.com/lightdash/lightdash/compare/0.2813.2...0.2814.0) (2026-04-27)
 
 
