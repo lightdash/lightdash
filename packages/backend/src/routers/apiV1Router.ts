@@ -21,7 +21,10 @@ import {
     getDatabricksStrategyName,
 } from '../controllers/authentication/strategies/databricksStrategy';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
+import { createAuditLogEvent } from '../logging/auditLog';
+import { createActorFromUser } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
+import { logAuditEvent } from '../logging/winston';
 import { UserModel } from '../models/UserModel';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
@@ -459,6 +462,9 @@ apiV1Router.get(
 );
 
 apiV1Router.get('/logout', (req, res, next) => {
+    const userBeforeLogout = req.user;
+    const { ip } = req;
+    const userAgent = req.get('user-agent');
     req.logout((err) => {
         if (err) {
             return next(err);
@@ -467,6 +473,31 @@ apiV1Router.get('/logout', (req, res, next) => {
             if (err2) {
                 next(err2);
             } else {
+                if (userBeforeLogout?.userUuid) {
+                    try {
+                        logAuditEvent(
+                            createAuditLogEvent(
+                                createActorFromUser(userBeforeLogout),
+                                'logout',
+                                {
+                                    type: 'Session',
+                                    organizationUuid:
+                                        userBeforeLogout.organizationUuid ??
+                                        'unknown',
+                                },
+                                { ip, userAgent },
+                                'allowed',
+                            ),
+                        );
+                    } catch (auditErr) {
+                        Logger.warn('Failed to log logout audit event', {
+                            error:
+                                auditErr instanceof Error
+                                    ? auditErr.message
+                                    : String(auditErr),
+                        });
+                    }
+                }
                 res.json({
                     status: 'ok',
                 });

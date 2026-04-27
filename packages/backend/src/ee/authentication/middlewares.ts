@@ -11,8 +11,35 @@ import {
 import { RequestHandler } from 'express';
 import { fromServiceAccount } from '../../auth/account/account';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
+import {
+    createAuditLogEvent,
+    createUnknownAuthActor,
+} from '../../logging/auditLog';
 import Logger from '../../logging/logger';
+import { logAuditEvent } from '../../logging/winston';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
+
+const logServiceAccountAuthFailure = (
+    req: { ip?: string; get: (h: string) => string | undefined },
+    reason: string,
+): void => {
+    try {
+        logAuditEvent(
+            createAuditLogEvent(
+                createUnknownAuthActor(),
+                'login',
+                { type: 'ServiceAccount', organizationUuid: 'unknown' },
+                { ip: req.ip, userAgent: req.get('user-agent') },
+                'denied',
+                reason,
+            ),
+        );
+    } catch (err) {
+        Logger.warn('Failed to log service account auth audit event', {
+            error: err instanceof Error ? err.message : String(err),
+        });
+    }
+};
 
 const getRoleForScopes = (scopes: ServiceAccountScope[]) => {
     if (
@@ -102,6 +129,10 @@ export const authenticateServiceAccount: RequestHandler = async (
         const ServiceAccountToken = tokenParts[1];
         // Check if the token is valid
         if (!ServiceAccountToken) {
+            logServiceAccountAuthFailure(
+                req,
+                'No service account token provided',
+            );
             throw new AuthorizationError('No service account token provided');
         }
         // Attach service account serviceAccount to request
@@ -110,6 +141,10 @@ export const authenticateServiceAccount: RequestHandler = async (
             .authenticateServiceAccount(ServiceAccountToken);
 
         if (!serviceAccount) {
+            logServiceAccountAuthFailure(
+                req,
+                'Invalid service account token. Authentication failed.',
+            );
             throw new AuthorizationError(
                 'Invalid service account token. Authentication failed.',
             );
@@ -167,6 +202,14 @@ export const authenticateServiceAccount: RequestHandler = async (
 
         next();
     } catch (error) {
-        next(new AuthorizationError(getErrorMessage(error)));
+        const message = getErrorMessage(error);
+        // Avoid double-logging: the explicit-throw branches above already
+        // emit a denied audit event with a more specific reason.
+
+        if (!(error instanceof AuthorizationError)) {
+            logServiceAccountAuthFailure(req, message);
+        }
+
+        next(new AuthorizationError(message));
     }
 };
