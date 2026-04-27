@@ -521,7 +521,12 @@ export class SqlGenerator {
     // Postgres/Redshift/DuckDB: `(d + (n) * INTERVAL '1 <unit>')`. Works
     // across all five units and propagates NULL naturally. BigQuery,
     // Snowflake, Databricks, ClickHouse override with their native forms.
+    // Postgres has no `quarter` interval unit (only day/week/month/year);
+    // emit `(n) * 3 months` instead so the path stays valid there.
     protected defaultDateAdd(unit: DateUnit, date: string, n: string): string {
+        if (unit === 'quarter') {
+            return `(${date} + (${n}) * INTERVAL '3 months')`;
+        }
         return `(${date} + (${n}) * INTERVAL '1 ${unit}')`;
     }
 
