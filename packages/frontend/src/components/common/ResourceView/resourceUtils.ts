@@ -50,10 +50,7 @@ export const getResourceTypeName = (item: ResourceViewItem) => {
                 case ChartKind.SANKEY:
                     return 'Sankey';
                 default:
-                    return assertUnreachable(
-                        item.data.chartKind,
-                        `Chart type ${item.data.chartKind} not supported`,
-                    );
+                    return 'Chart';
             }
         default:
             return assertUnreachable(item, 'Resource type not supported');

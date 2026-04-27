@@ -20,10 +20,17 @@ import {
 
 type SelectSavedSql = SummaryContentRow<{
     source: ChartSourceType.SQL;
-    chart_kind: ChartKind;
+    chart_kind: string;
     dashboard_uuid: string | null;
     dashboard_name: string | null;
 }>;
+
+const VALID_CHART_KINDS = new Set<string>(Object.values(ChartKind));
+
+const coerceChartKind = (value: string): ChartKind =>
+    VALID_CHART_KINDS.has(value)
+        ? (value as ChartKind)
+        : ChartKind.VERTICAL_BAR;
 
 export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> =
     {
@@ -211,7 +218,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     name: value.organization_name,
                 },
                 source: value.metadata.source,
-                chartKind: value.metadata.chart_kind,
+                chartKind: coerceChartKind(value.metadata.chart_kind),
                 space: {
                     uuid: value.space_uuid,
                     name: value.space_name,
