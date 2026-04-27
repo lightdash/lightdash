@@ -6095,12 +6095,12 @@ export class AsyncQueryService extends ProjectService {
     async getDashboardPreAggregateAudit(
         account: Account,
         projectUuid: string,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<DashboardPreAggregateAudit> {
         assertIsAccountWithOrg(account);
 
         const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardUuidOrSlug,
             { projectUuid },
         );
 

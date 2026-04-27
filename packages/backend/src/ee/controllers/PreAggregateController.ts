@@ -83,15 +83,12 @@ export class PreAggregateController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardPreAggregateAuditResponse> {
         this.setStatus(200);
-        const dashboard = await this.services
-            .getDashboardService()
-            .getByIdOrSlug(req.user!, dashboardUuidOrSlug, { projectUuid });
         const results = await this.services
             .getAsyncQueryService()
             .getDashboardPreAggregateAudit(
                 req.account!,
                 projectUuid,
-                dashboard.uuid,
+                dashboardUuidOrSlug,
             );
         return { status: 'ok', results };
     }
