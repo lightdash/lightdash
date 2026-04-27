@@ -897,6 +897,9 @@ importers:
       pg:
         specifier: 8.13.1
         version: 8.13.1
+      snowflake-sdk:
+        specifier: 2.3.4
+        version: 2.3.4(asn1.js@5.4.1)(encoding@0.1.13)
       trino-client:
         specifier: 0.2.9
         version: 0.2.9
