@@ -1,3 +1,16 @@
+# [0.2820.0](https://github.com/lightdash/lightdash/compare/0.2819.0...0.2820.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* **backend:** populate audit log request context (ip, userAgent, requestId) ([#22404](https://github.com/lightdash/lightdash/issues/22404)) ([9508ddb](https://github.com/lightdash/lightdash/commit/9508ddb5cfd30d0e21ba26e9af61fb77f22c9a6a))
+
+
+### Features
+
+* **audit:** emit authentication audit events for ITGC compliance ([#22395](https://github.com/lightdash/lightdash/issues/22395)) ([b23f236](https://github.com/lightdash/lightdash/commit/b23f23666188710f09a7701c90b228d84ac64de1))
+* **formula-tests:** wire Snowflake into the integration runner ([#22411](https://github.com/lightdash/lightdash/issues/22411)) ([62c8d82](https://github.com/lightdash/lightdash/commit/62c8d82b593588ce69a0b71c01cb50f841af046a))
+
 # [0.2819.0](https://github.com/lightdash/lightdash/compare/0.2818.0...0.2819.0) (2026-04-27)
 
 
