@@ -3,6 +3,7 @@
 import { JWT_HEADER_NAME, NotFoundError } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
 import { fromJwt } from '../../auth/account';
+import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
@@ -96,6 +97,7 @@ export async function jwtAuthMiddleware(
             projectUuid,
             embedToken,
         );
+        req.account.requestContext = requestContextFromExpress(req);
 
         // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
         // AuthenticatedRequest is not defined and TS won't let us use `this` in a typeguard outside of a class.

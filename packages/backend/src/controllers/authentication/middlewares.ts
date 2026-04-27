@@ -12,6 +12,7 @@ import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 import passport from 'passport';
 import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
+import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
@@ -74,10 +75,13 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             req.account?.authentication?.type,
                         );
                     }
+                    req.user = user;
                     if (user) {
                         req.account = fromOauth(user, token);
+                        const requestContext = requestContextFromExpress(req);
+                        req.account.requestContext = requestContext;
+                        req.user!.requestContext = requestContext;
                     }
-                    req.user = user;
                     next();
                 })
                 .catch((userError) => {
@@ -133,6 +137,9 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             req.user!,
                             req.headers.authorization || '',
                         );
+                        const requestContext = requestContextFromExpress(req);
+                        req.account.requestContext = requestContext;
+                        req.user.requestContext = requestContext;
                     }
                     next();
                 },
@@ -166,10 +173,13 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             req.account?.authentication?.type,
                         );
                     }
+                    req.user = user;
                     if (user) {
                         req.account = fromOauth(user, token);
+                        const requestContext = requestContextFromExpress(req);
+                        req.account.requestContext = requestContext;
+                        req.user!.requestContext = requestContext;
                     }
-                    req.user = user;
                     next();
                 })
                 .catch((userError) => {
