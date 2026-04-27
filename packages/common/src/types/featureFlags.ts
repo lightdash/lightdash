@@ -53,11 +53,6 @@ export enum FeatureFlags {
     UseSqlPivotResults = 'use-sql-pivot-results',
 
     /**
-     * Enable the unused content dashboard showing least viewed charts and dashboards
-     */
-    UnusedContentDashboard = 'unused-content-dashboard',
-
-    /**
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
