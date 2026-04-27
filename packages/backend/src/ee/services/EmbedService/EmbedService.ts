@@ -834,6 +834,7 @@ export class EmbedService extends BaseService {
         timezone,
         dateZoomGranularity,
         combinedParameters,
+        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         metricQuery: MetricQuery;
@@ -851,6 +852,7 @@ export class EmbedService extends BaseService {
         timezone: string;
         dateZoomGranularity?: DateGranularity | string;
         combinedParameters?: ParametersValuesMap;
+        useTimezoneAwareDateTrunc: boolean;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
@@ -867,12 +869,6 @@ export class EmbedService extends BaseService {
             projectUuid,
             filteredExplore,
         );
-
-        const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            });
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -1212,6 +1208,7 @@ export class EmbedService extends BaseService {
             timezone,
             dateZoomGranularity,
             combinedParameters,
+            useTimezoneAwareDateTrunc: isTimezoneSupportEnabled,
         });
 
         return {
@@ -1709,7 +1706,7 @@ export class EmbedService extends BaseService {
         tableName?: string;
         fieldId?: string;
     }): Promise<FieldValueSearchResult> {
-        const { dashboardUuids, allowAllDashboards } =
+        const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
         const { dashboardUuid } = account.access.content;
 
@@ -1800,6 +1797,12 @@ export class EmbedService extends BaseService {
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
 
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid: dashboard.organizationUuid,
+            });
+
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,
             metricQuery,
@@ -1815,6 +1818,7 @@ export class EmbedService extends BaseService {
             },
             account,
             timezone,
+            useTimezoneAwareDateTrunc,
         });
 
         return {
