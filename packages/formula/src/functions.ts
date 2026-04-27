@@ -50,8 +50,14 @@ export const BOOLEAN_FNS = ['ISNULL'] as const;
 // Parsed by dedicated grammar rules (like IF/SUMIF) rather than a generic
 // N-arg bucket because the unit is a compile-time string validated at parse.
 // DATE_SUB is a user-facing alias that desugars to DATE_ADD with negated `n`
-// at parse time, so the AST only ever carries DATE_TRUNC or DATE_ADD.
-export const DATE_FNS = ['DATE_TRUNC', 'DATE_ADD', 'DATE_SUB'] as const;
+// at parse time, so the AST only ever carries DATE_TRUNC / DATE_ADD /
+// DATE_DIFF.
+export const DATE_FNS = [
+    'DATE_TRUNC',
+    'DATE_ADD',
+    'DATE_SUB',
+    'DATE_DIFF',
+] as const;
 
 export type ZeroArgFnName = (typeof ZERO_ARG_FNS)[number];
 export type SingleArgFnName = (typeof SINGLE_ARG_FNS)[number];
@@ -108,6 +114,7 @@ export const FUNCTION_DEFINITIONS = [
     { name: 'DATE_TRUNC', description: 'Truncate a date to the start of a period ("day" | "week" | "month" | "quarter" | "year")', minArgs: 2, maxArgs: 2, category: 'date' },
     { name: 'DATE_ADD', description: 'Add an integer interval to a date (e.g. DATE_ADD(d, 3, "month"))', minArgs: 3, maxArgs: 3, category: 'date' },
     { name: 'DATE_SUB', description: 'Subtract an integer interval from a date (e.g. DATE_SUB(d, 3, "month"))', minArgs: 3, maxArgs: 3, category: 'date' },
+    { name: 'DATE_DIFF', description: 'Whole-unit calendar-boundary difference between two dates (e.g. DATE_DIFF(a, b, "month") — positive when b > a)', minArgs: 3, maxArgs: 3, category: 'date' },
     // Null
     { name: 'COALESCE', description: 'First non-null value', minArgs: 1, maxArgs: Infinity, category: 'null' },
     { name: 'ISNULL', description: 'Check if null', minArgs: 1, maxArgs: 1, category: 'null' },

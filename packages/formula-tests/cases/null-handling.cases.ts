@@ -41,6 +41,25 @@ export const nullHandlingCases: TestCase[] = [
         tags: ['null', 'date'],
     },
     {
+        id: 'null/date-diff',
+        formula: '=DATE_DIFF(A, DATE_ADD(A, 3, "month"), "month")',
+        description:
+            'DATE_DIFF propagates NULL — either endpoint NULL → NULL result (both derived from A here)',
+        columns: { A: 'val_d' },
+        sourceTable: 'test_nulls',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 3 },
+            { result: null },
+            { result: 3 },
+            { result: null },
+            { result: 3 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['null', 'date'],
+    },
+    {
         id: 'null/date-add',
         formula: '=YEAR(DATE_ADD(A, 3, "month"))',
         description:
