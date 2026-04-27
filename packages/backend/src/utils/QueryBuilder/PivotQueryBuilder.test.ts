@@ -3888,4 +3888,67 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
         });
     });
+
+    // Regression for bug-C: sorting by a pivot-aware table calculation (e.g.
+    // pivot_offset, pivot_offset_list, pivot_index) silently degrades to
+    // alphabetical row order. Pivot-aware TCs cannot be evaluated until after
+    // the pivot is materialised (their value lives in pivot_table_calculations,
+    // computed via LAG/LEAD over the pivot grid), so PivotQueryBuilder fails
+    // to emit anchor CTEs for them. row_index falls back to a non-metric
+    // DENSE_RANK over the index columns and the user's stated sort silently
+    // no-ops — same shape as PROD-6906 but for the pivot TC family. The fix
+    // should either build an anchor CTE that references the TC's post-pivot
+    // value or surface a clear error so this test goes green.
+    describe('Sort by pivot-aware table calculation (bug-C)', () => {
+        test('Should generate row_anchor / column_anchor CTEs for the pivot TC sort key', () => {
+            const itemsMap: ItemsMap = {
+                prev_revenue: {
+                    name: 'prev_revenue',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Previous revenue',
+                    sql: 'pivot_offset(${events.revenue}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'prev_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'prev_revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS prev_revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            const result = builder.toSql();
+
+            // After the fix, sorting by `prev_revenue` must produce the same
+            // anchor CTE pair as sorting by any other value column does for
+            // non-pivot TCs. The exact CTE names follow the
+            // `<reference>_<row|column>_anchor` pattern.
+            expect(result).toContain('"prev_revenue_column_anchor" AS (');
+            expect(result).toContain('"prev_revenue_row_anchor" AS (');
+        });
+    });
 });
