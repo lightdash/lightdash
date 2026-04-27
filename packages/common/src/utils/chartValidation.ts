@@ -1,4 +1,9 @@
 import {
+    convertFieldRefToFieldId,
+    isSqlTableCalculation,
+    type TableCalculation,
+} from '../types/field';
+import {
     ChartType,
     type CartesianChart,
     type ChartConfig,
@@ -16,6 +21,75 @@ export type UnusedDimensionsInput = {
     pivotDimensions: string[];
     /** All dimension field IDs in the metric query */
     queryDimensions: string[];
+    /** Table calculations in the metric query */
+    queryTableCalculations?: TableCalculation[];
+};
+
+const lightdashVariablePattern = /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.]+)\}/g;
+
+const getLightdashReferences = (sql: string): string[] =>
+    [...sql.matchAll(new RegExp(lightdashVariablePattern.source, 'g'))].map(
+        (match) => match[1],
+    );
+
+const convertReferenceToFieldId = (reference: string): string => {
+    try {
+        return reference.includes('.')
+            ? convertFieldRefToFieldId(reference)
+            : reference;
+    } catch {
+        return reference;
+    }
+};
+
+const getDimensionsUsedByTableCalculations = ({
+    queryDimensions,
+    queryTableCalculations,
+    usedTableCalculationNames,
+}: {
+    queryDimensions: string[];
+    queryTableCalculations: TableCalculation[];
+    usedTableCalculationNames: Set<string>;
+}): string[] => {
+    const dimensions = new Set<string>();
+    const queryDimensionsSet = new Set(queryDimensions);
+    const tableCalculationsByName = new Map(
+        queryTableCalculations.map((tableCalculation) => [
+            tableCalculation.name,
+            tableCalculation,
+        ]),
+    );
+    const visitedTableCalculationNames = new Set<string>();
+
+    const visitTableCalculation = (tableCalculationName: string) => {
+        if (visitedTableCalculationNames.has(tableCalculationName)) {
+            return;
+        }
+        visitedTableCalculationNames.add(tableCalculationName);
+
+        const tableCalculation =
+            tableCalculationsByName.get(tableCalculationName);
+        if (!tableCalculation || !isSqlTableCalculation(tableCalculation)) {
+            return;
+        }
+
+        for (const reference of getLightdashReferences(tableCalculation.sql)) {
+            const fieldId = convertReferenceToFieldId(reference);
+            if (queryDimensionsSet.has(fieldId)) {
+                dimensions.add(fieldId);
+            }
+            if (tableCalculationsByName.has(reference)) {
+                visitTableCalculation(reference);
+            }
+            if (tableCalculationsByName.has(fieldId)) {
+                visitTableCalculation(fieldId);
+            }
+        }
+    };
+
+    usedTableCalculationNames.forEach(visitTableCalculation);
+
+    return [...dimensions];
 };
 
 /**
@@ -34,7 +108,13 @@ export type UnusedDimensionsInput = {
 export function getUnusedDimensions(input: UnusedDimensionsInput): {
     unusedDimensions: string[];
 } {
-    const { chartType, chartConfig, pivotDimensions, queryDimensions } = input;
+    const {
+        chartType,
+        chartConfig,
+        pivotDimensions,
+        queryDimensions,
+        queryTableCalculations = [],
+    } = input;
 
     if (chartType !== ChartType.CARTESIAN) {
         return { unusedDimensions: [] };
@@ -45,6 +125,10 @@ export function getUnusedDimensions(input: UnusedDimensionsInput): {
     }
 
     const usedDimensions = new Set<string>();
+    const queryTableCalculationNames = new Set(
+        queryTableCalculations.map((tableCalculation) => tableCalculation.name),
+    );
+    const usedTableCalculationNames = new Set<string>();
 
     // Get layout from cartesian chart config
     // We cast to CartesianChart since we've already verified chartType is CARTESIAN
@@ -55,6 +139,9 @@ export function getUnusedDimensions(input: UnusedDimensionsInput): {
     if (layout?.xField && queryDimensions.includes(layout.xField)) {
         usedDimensions.add(layout.xField);
     }
+    if (layout?.xField && queryTableCalculationNames.has(layout.xField)) {
+        usedTableCalculationNames.add(layout.xField);
+    }
 
     // Add yField items if they're dimensions
     if (layout?.yField) {
@@ -62,12 +149,23 @@ export function getUnusedDimensions(input: UnusedDimensionsInput): {
             if (queryDimensions.includes(field)) {
                 usedDimensions.add(field);
             }
+            if (queryTableCalculationNames.has(field)) {
+                usedTableCalculationNames.add(field);
+            }
         }
     }
 
     // Add all pivot dimensions (these are always dimensions by definition)
     for (const pivotDim of pivotDimensions) {
         usedDimensions.add(pivotDim);
+    }
+
+    for (const dimension of getDimensionsUsedByTableCalculations({
+        queryDimensions,
+        queryTableCalculations,
+        usedTableCalculationNames,
+    })) {
+        usedDimensions.add(dimension);
     }
 
     // Find query dimensions that are not used anywhere

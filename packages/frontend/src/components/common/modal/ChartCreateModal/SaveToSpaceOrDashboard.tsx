@@ -122,6 +122,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             chartConfig: savedData.chartConfig?.config,
             pivotDimensions,
             queryDimensions,
+            queryTableCalculations:
+                savedData.metricQuery?.tableCalculations ?? [],
         });
     }, [savedData]);
 

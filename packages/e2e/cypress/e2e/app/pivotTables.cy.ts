@@ -154,6 +154,7 @@ describe('Pivot Tables', () => {
         cy.get('[data-testid="visualization"]').as('chartArea');
         cy.get('@chartArea').findByText('Loading chart').should('not.exist');
         cy.get('@chartArea').find('.echarts-for-react svg').should('exist');
+        cy.findByText('Results may be incorrect').should('not.exist');
     });
 
     // todo: remove
