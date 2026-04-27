@@ -364,9 +364,6 @@ export const lightdashConfigMock: LightdashConfig = {
     userImpersonation: {
         enabled: undefined,
     },
-    showHideRows: {
-        enabled: undefined,
-    },
     metricDashboardFilters: {
         enabled: undefined,
     },
