@@ -472,6 +472,12 @@ export class SqlGenerator {
                     node.unit,
                     this.generate(node.args[0]),
                 );
+            case 'DATE_ADD':
+                return this.generateDateAdd(
+                    node.unit,
+                    this.generate(node.args[0]),
+                    this.generate(node.args[1]),
+                );
             default:
                 return assertUnreachable(
                     node.name,
@@ -503,6 +509,25 @@ export class SqlGenerator {
             return `(DATE_TRUNC('week', (${arg} - INTERVAL '${diff}')) + INTERVAL '${diff}')`;
         }
         return `DATE_TRUNC('${unit}', ${arg})`;
+    }
+
+    protected generateDateAdd(unit: DateUnit, date: string, n: string): string {
+        return (
+            this.dialect.generateDateAdd?.(unit, date, n) ??
+            this.defaultDateAdd(unit, date, n)
+        );
+    }
+
+    // Postgres/Redshift/DuckDB: `(d + (n) * INTERVAL '1 <unit>')`. Works
+    // across all five units and propagates NULL naturally. BigQuery,
+    // Snowflake, Databricks, ClickHouse override with their native forms.
+    // Postgres has no `quarter` interval unit (only day/week/month/year);
+    // emit `(n) * 3 months` instead so the path stays valid there.
+    protected defaultDateAdd(unit: DateUnit, date: string, n: string): string {
+        if (unit === 'quarter') {
+            return `(${date} + (${n}) * INTERVAL '3 months')`;
+        }
+        return `(${date} + (${n}) * INTERVAL '1 ${unit}')`;
     }
 
     // Attach an OVER (…) clause to a pre-built function-call string. Lets

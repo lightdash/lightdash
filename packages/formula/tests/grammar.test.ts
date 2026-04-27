@@ -205,6 +205,67 @@ describe('Formula Grammar', () => {
             );
         });
 
+        it('parses DATE_ADD as a DateFn node', () => {
+            const ast = parse('=DATE_ADD(A, 3, "month")');
+            expect(ast).toEqual({
+                type: 'DateFn',
+                name: 'DATE_ADD',
+                unit: 'month',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'NumberLiteral', value: 3 },
+                ],
+            });
+        });
+
+        it('desugars DATE_SUB to DATE_ADD with negated n', () => {
+            const ast = parse('=DATE_SUB(A, 3, "month")');
+            expect(ast).toEqual({
+                type: 'DateFn',
+                name: 'DATE_ADD',
+                unit: 'month',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    {
+                        type: 'UnaryOp',
+                        op: '-',
+                        operand: { type: 'NumberLiteral', value: 3 },
+                    },
+                ],
+            });
+        });
+
+        it('accepts all whitelisted units on DATE_ADD', () => {
+            for (const unit of [
+                'day',
+                'week',
+                'month',
+                'quarter',
+                'year',
+            ] as const) {
+                const ast = parse(`=DATE_ADD(A, 1, "${unit}")`);
+                expect((ast as { unit: string }).unit).toBe(unit);
+            }
+        });
+
+        it('rejects DATE_ADD with a non-whitelisted unit', () => {
+            expect(() => parse('=DATE_ADD(A, 1, "decade")')).toThrow(
+                /DATE_ADD unit must be one of/,
+            );
+        });
+
+        it('rejects DATE_SUB with a non-literal unit', () => {
+            expect(() => parse('=DATE_SUB(A, 1, B)')).toThrow(
+                /DATE_SUB third argument must be a string literal unit/,
+            );
+        });
+
+        it('rejects DATE_ADD with wrong arg count', () => {
+            expect(() => parse('=DATE_ADD(A, 1)')).toThrow(
+                /DATE_ADD called with wrong number of arguments/,
+            );
+        });
+
         it('parses variadic function', () => {
             const ast = parse('=CONCAT(A, B, C)');
             expect(ast).toEqual({

@@ -40,6 +40,13 @@ export interface DialectConfig {
         arg: string,
         weekStartDay: WeekDay,
     ) => string;
+    // DATE_ADD emission. Default (Postgres/Redshift/DuckDB) is
+    // `(d + (n) * INTERVAL '1 <unit>')`. BigQuery uses `DATE_ADD(d, INTERVAL
+    // n UNIT)`, Snowflake uses `DATEADD(UNIT, n, d)`, Databricks fans out to
+    // `date_add` / `add_months`, ClickHouse uses `addDays` / `addMonths`…
+    // DATE_SUB is desugared to DATE_ADD with negated n at parse time, so
+    // dialects only need to implement DATE_ADD.
+    generateDateAdd?: (unit: DateUnit, date: string, n: string) => string;
 }
 
 // Everything a dialect needs to emit `LAG(...) OVER (...)` or
@@ -164,8 +171,7 @@ const POSTGRES_CONFIG: DialectConfig = {
 
 // Redshift is Postgres-wire-compatible and inherits every Postgres-family
 // emitter above (AVG double-precision cast, `||` concatenation, `%`
-// modulo, double-quoted identifiers). It adds two SECURITY- and
-// SEMANTICS-critical divergences not shared with Postgres:
+// modulo, double-quoted identifiers). It adds four divergences:
 //   1. String literals — `\'` escapes the quote in Redshift even with
 //      `standard_conforming_strings` on, so the naive doubled-quote
 //      escape Postgres gets away with would let a user value containing
@@ -178,6 +184,13 @@ const POSTGRES_CONFIG: DialectConfig = {
 //      form with "Default parameter not be supported for window function
 //      lag". Wrapping `LAG(col, offset)` in COALESCE preserves the
 //      surface behaviour without the 3-arg call.
+//   3. DATE_ADD — Redshift rejects `date + INTERVAL '1 month'` with
+//      "Interval values with month or year parts are not supported". Only
+//      day-precision intervals are allowed on date columns. `DATEADD(unit,
+//      n, d)` (same shape as Snowflake) works for every unit.
+//   4. LAST_DAY — Redshift has a native `LAST_DAY(date)` function, so the
+//      Postgres-style DATE_TRUNC + INTERVAL '1 month' composition (which
+//      would trip divergence #3 anyway) isn't needed.
 const REDSHIFT_CONFIG: DialectConfig = {
     ...POSTGRES_CONFIG,
     generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
@@ -191,10 +204,18 @@ const REDSHIFT_CONFIG: DialectConfig = {
         }
         return emitWindow(sqlFunc, args);
     },
+    generateLastDay: (arg) => `LAST_DAY(${arg})`,
+    generateDateAdd: (unit, date, n) =>
+        `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
 };
 
+// Snowflake's `DATEADD(unit, n, d)` takes a bare unit identifier and is the
+// idiomatic form — plain `d + INTERVAL '1 month'` is rejected for date
+// columns. Unit names line up with BigQuery's bare identifiers.
 const SNOWFLAKE_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
+    generateDateAdd: (unit, date, n) =>
+        `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
 };
 
 const DUCKDB_CONFIG: DialectConfig = {
@@ -207,11 +228,12 @@ const DUCKDB_CONFIG: DialectConfig = {
     generateConcat: postgresStyleConcat,
 };
 
-// BigQuery's `DATE_TRUNC` flips argument order and takes a bare identifier
-// part. Week truncation parameterises the start day inline via
-// `WEEK(<DAY_NAME>)`. Mirrors `bigqueryConfig.getSqlForTruncatedDate` in
+// SQL bare-identifier names for DateUnit, shared by any dialect that takes
+// unit as an identifier rather than a string (BigQuery, Snowflake). BigQuery
+// flips `DATE_TRUNC` arg order + parameterises weeks via `WEEK(<DAY_NAME>)`.
+// Mirrors `bigqueryConfig.getSqlForTruncatedDate` in
 // `packages/common/src/utils/timeFrames.ts`.
-const BIGQUERY_DATE_UNITS: Record<DateUnit, string> = {
+const SQL_DATE_UNIT_IDENTIFIERS: Record<DateUnit, string> = {
     day: 'DAY',
     week: 'WEEK',
     month: 'MONTH',
@@ -241,9 +263,24 @@ const BIGQUERY_CONFIG: DialectConfig = {
         if (unit === 'week') {
             return `DATE_TRUNC(${arg}, WEEK(${BIGQUERY_WEEK_DAY_NAMES[weekStartDay]}))`;
         }
-        return `DATE_TRUNC(${arg}, ${BIGQUERY_DATE_UNITS[unit]})`;
+        return `DATE_TRUNC(${arg}, ${SQL_DATE_UNIT_IDENTIFIERS[unit]})`;
     },
+    generateDateAdd: (unit, date, n) =>
+        `DATE_ADD(${date}, INTERVAL ${n} ${SQL_DATE_UNIT_IDENTIFIERS[unit]})`,
 };
+
+// Databricks (Spark SQL) has no general `DATEADD(unit, …)` across versions,
+// so each unit fans out to a native helper: `date_add` for day/week,
+// `add_months` for month/quarter/year. Week/quarter/year are scaled multiples
+// of the base helper to avoid depending on newer `dateadd` availability.
+const DATABRICKS_DATE_ADD: Record<DateUnit, (d: string, n: string) => string> =
+    {
+        day: (d, n) => `DATE_ADD(${d}, ${n})`,
+        week: (d, n) => `DATE_ADD(${d}, (${n}) * 7)`,
+        month: (d, n) => `ADD_MONTHS(${d}, ${n})`,
+        quarter: (d, n) => `ADD_MONTHS(${d}, (${n}) * 3)`,
+        year: (d, n) => `ADD_MONTHS(${d}, (${n}) * 12)`,
+    };
 
 const DATABRICKS_CONFIG: DialectConfig = {
     // Databricks runs Spark SQL. Identifier backticks are escaped by
@@ -264,6 +301,7 @@ const DATABRICKS_CONFIG: DialectConfig = {
         }
         return `DATE_TRUNC('${unit}', ${arg})`;
     },
+    generateDateAdd: (unit, date, n) => DATABRICKS_DATE_ADD[unit](date, n),
 };
 
 // ClickHouse has four dialect quirks the formula package cares about:
@@ -297,6 +335,15 @@ const CLICKHOUSE_START_OF: Record<DateUnit, string> = {
     year: 'toStartOfYear',
 };
 
+// ClickHouse has dedicated `add<Unit>s` helpers per unit.
+const CLICKHOUSE_ADD: Record<DateUnit, string> = {
+    day: 'addDays',
+    week: 'addWeeks',
+    month: 'addMonths',
+    quarter: 'addQuarters',
+    year: 'addYears',
+};
+
 const CLICKHOUSE_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
@@ -315,6 +362,8 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
         }
         return `${CLICKHOUSE_START_OF[unit]}(${arg})`;
     },
+    generateDateAdd: (unit, date, n) =>
+        `${CLICKHOUSE_ADD[unit]}(${date}, ${n})`,
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         const chFunc = sqlFunc === 'LAG' ? 'lagInFrame' : 'leadInFrame';
         const [value, ...rest] = args;

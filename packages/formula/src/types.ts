@@ -1,6 +1,6 @@
 import type {
     ConditionalAggFnName,
-    DateFnName,
+    DateFnAstName,
     FunctionName,
     OneOrTwoArgFnName,
     SingleArgFnName,
@@ -149,15 +149,15 @@ export interface WindowFnNode {
     windowClause: WindowClauseNode | null;
 }
 
-// Date functions whose first argument is a whitelisted unit literal rather
-// than an arbitrary expression (`DATE_TRUNC("month", d)`). The `unit` is
-// lifted out of `args` because it's a compile-time constant string that
-// drives both validation and per-dialect emission. `args` carries the
-// remaining expression arguments (just `[date]` for DATE_TRUNC today;
-// follow-up PRs extend this with DATE_ADD/DATE_SUB/DATE_DIFF).
+// Date functions whose unit argument is a whitelisted literal rather than an
+// arbitrary expression. The `unit` is lifted out of `args` because it's a
+// compile-time constant string that drives both validation and per-dialect
+// emission. `args` carries the remaining expression arguments:
+//   - DATE_TRUNC: [date]
+//   - DATE_ADD:   [date, n]           (DATE_SUB desugars to DATE_ADD with -n)
 export interface DateFnNode {
     type: 'DateFn';
-    name: DateFnName;
+    name: DateFnAstName;
     unit: DateUnit;
     args: ASTNode[];
 }
