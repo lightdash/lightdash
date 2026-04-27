@@ -1,13 +1,11 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     AnyType,
     ForbiddenError,
     isUserWithOrg,
     NotFoundError,
     SchedulerJobStatus,
     SessionUser,
-    UnusedContent,
     UserActivity,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
@@ -140,39 +138,5 @@ export class AnalyticsService extends BaseService {
             createdByUserUuid: user.userUuid,
         });
         return upload.path;
-    }
-
-    async getUnusedContent(
-        projectUuid: string,
-        account: Account,
-    ): Promise<UnusedContent> {
-        const { organizationUuid, name: projectName } =
-            await this.projectModel.get(projectUuid);
-
-        const auditedAbility = this.createAuditedAbility(account);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('Analytics', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { projectUuid, projectName },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        this.analytics.track({
-            event: 'usage_analytics.dashboard_viewed',
-            userId: account.user.id,
-            properties: {
-                projectId: projectUuid,
-                organizationId: organizationUuid!,
-                dashboardType: 'user_activity',
-            },
-        });
-
-        return this.analyticsModel.getUnusedContent(projectUuid);
     }
 }

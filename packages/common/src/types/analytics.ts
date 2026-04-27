@@ -65,11 +65,6 @@ export type UnusedContent = {
     dashboards: UnusedContentItem[];
 };
 
-export type ApiUnusedContent = {
-    status: 'ok';
-    results: UnusedContent;
-};
-
 export type ViewStatistics = {
     views: number;
     firstViewedAt: Date | string | null;

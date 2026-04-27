@@ -39,10 +39,7 @@ import type {
 import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
-    type ApiUnusedContent,
     type ApiUserActivityDownloadCsv,
-    type UnusedContent,
-    type UnusedContentItem,
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
@@ -900,9 +897,6 @@ type ApiResults =
     | SlackSettings
     | ApiSlackChannelsResponse['results']
     | UserActivity
-    | UnusedContent
-    | UnusedContentItem
-    | ApiUnusedContent
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult

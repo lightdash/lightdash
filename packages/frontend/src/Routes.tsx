@@ -40,7 +40,6 @@ import SourceCodeEditorRedirect from './pages/SourceCodeEditorRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
-import UnusedContent from './pages/UnusedContent';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
@@ -368,14 +367,6 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         element: (
             <TrackPage name={PageName.USER_ACTIVITY}>
                 <UserActivity />
-            </TrackPage>
-        ),
-    },
-    {
-        path: 'unused-content',
-        element: (
-            <TrackPage name={PageName.USER_ACTIVITY}>
-                <UnusedContent />
             </TrackPage>
         ),
     },
