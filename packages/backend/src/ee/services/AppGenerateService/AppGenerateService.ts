@@ -12,6 +12,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    isDashboardChartTileType,
     MissingConfigError,
     ParameterError,
     type AppGeneratePipelineJobPayload,
@@ -43,6 +44,7 @@ import { PinnedListModel } from '../../../models/PinnedListModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
+import type { DashboardService } from '../../../services/DashboardService/DashboardService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -59,6 +61,7 @@ type AppGenerateServiceDeps = {
     schedulerClient: CommercialSchedulerClient;
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
+    dashboardService: DashboardService;
 };
 
 type GenerateAppResult = {
@@ -94,6 +97,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly dashboardService: DashboardService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -106,6 +111,7 @@ export class AppGenerateService extends BaseService {
         schedulerClient,
         savedChartService,
         spacePermissionService,
+        dashboardService,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -119,6 +125,7 @@ export class AppGenerateService extends BaseService {
         this.schedulerClient = schedulerClient;
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
+        this.dashboardService = dashboardService;
     }
 
     /**
@@ -1953,6 +1960,24 @@ export class AppGenerateService extends BaseService {
      * saved chart (permission-checked), and return structured references for
      * any that resolve.
      */
+    private async resolveDashboardToChartUuids(
+        dashboardUuid: string,
+        user: SessionUser,
+    ): Promise<{ chartUuids: string[]; dashboardName: string }> {
+        const dashboard = await this.dashboardService.getByIdOrSlug(
+            user,
+            dashboardUuid,
+        );
+        const chartUuids = dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => uuid !== null);
+        return {
+            chartUuids: [...new Set(chartUuids)],
+            dashboardName: dashboard.name,
+        };
+    }
+
     private async resolveChartReferences(
         chartUuids: string[],
         user: SessionUser,
@@ -1996,6 +2021,7 @@ export class AppGenerateService extends BaseService {
         imageId?: string,
         preGeneratedAppUuid?: string,
         chartUuids?: string[],
+        dashboardUuid?: string,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2049,8 +2075,18 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        let allChartUuids = [...(chartUuids ?? [])];
+        if (dashboardUuid) {
+            const result = await this.resolveDashboardToChartUuids(
+                dashboardUuid,
+                user,
+            );
+            allChartUuids = [
+                ...new Set([...allChartUuids, ...result.chartUuids]),
+            ];
+        }
         const chartReferences = await this.resolveChartReferences(
-            chartUuids ?? [],
+            allChartUuids,
             user,
         );
 
@@ -2077,6 +2113,7 @@ export class AppGenerateService extends BaseService {
         prompt: string,
         imageId?: string,
         chartUuids?: string[],
+        dashboardUuid?: string,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const auditedAbility = this.createAuditedAbility(user);
@@ -2141,8 +2178,18 @@ export class AppGenerateService extends BaseService {
             },
         });
 
+        let allChartUuids = [...(chartUuids ?? [])];
+        if (dashboardUuid) {
+            const result = await this.resolveDashboardToChartUuids(
+                dashboardUuid,
+                user,
+            );
+            allChartUuids = [
+                ...new Set([...allChartUuids, ...result.chartUuids]),
+            ];
+        }
         const chartReferences = await this.resolveChartReferences(
-            chartUuids ?? [],
+            allChartUuids,
             user,
         );
 

@@ -8,6 +8,7 @@ type GenerateAppParams = {
     imageId?: string;
     appUuid?: string; // pre-generated UUID so images are scoped to the app in S3
     chartUuids?: string[];
+    dashboardUuid?: string;
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -18,11 +19,18 @@ const generateApp = async ({
     imageId,
     appUuid,
     chartUuids,
+    dashboardUuid,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/`,
-        body: JSON.stringify({ prompt, imageId, appUuid, chartUuids }),
+        body: JSON.stringify({
+            prompt,
+            imageId,
+            appUuid,
+            chartUuids,
+            dashboardUuid,
+        }),
     });
     return data;
 };

@@ -13,12 +13,18 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPlus, IconSearch, IconX } from '@tabler/icons-react';
+import {
+    IconLayoutDashboard,
+    IconPlus,
+    IconSearch,
+    IconX,
+} from '@tabler/icons-react';
 import uniqBy from 'lodash/uniqBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../components/common/MantineIcon';
-import { ChartIcon } from '../../components/common/ResourceIcon';
+import { ChartIcon, IconBox } from '../../components/common/ResourceIcon';
+import { useDashboards } from '../../hooks/dashboard/useDashboards';
 import { useChartSummariesV2 } from '../../hooks/useChartSummariesV2';
 import classes from './AppResourcePicker.module.css';
 
@@ -26,6 +32,11 @@ export type SelectedChart = {
     uuid: string;
     name: string;
     chartKind?: ChartKind;
+};
+
+export type SelectedDashboard = {
+    uuid: string;
+    name: string;
 };
 
 /**
@@ -293,3 +304,134 @@ export const SelectedQuerySection: FC<{
         </Box>
     );
 };
+
+/**
+ * Button + popover for selecting a single dashboard.
+ */
+export const DashboardButton: FC<{
+    selected: SelectedDashboard | null;
+    onSelect: (dashboard: SelectedDashboard) => void;
+    disabled: boolean;
+}> = ({ selected, onSelect, disabled }) => {
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const [opened, setOpened] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
+
+    const { data: dashboards, isInitialLoading } = useDashboards(projectUuid, {
+        enabled: opened,
+    });
+
+    const filteredDashboards = useMemo(() => {
+        if (!dashboards) return [];
+        const term = debouncedSearch.toLowerCase();
+        if (!term) return dashboards;
+        return dashboards.filter((d) => d.name.toLowerCase().includes(term));
+    }, [dashboards, debouncedSearch]);
+
+    const handleSelect = useCallback(
+        (dashboard: { uuid: string; name: string }) => {
+            onSelect({ uuid: dashboard.uuid, name: dashboard.name });
+            setOpened(false);
+            setSearchQuery('');
+        },
+        [onSelect],
+    );
+
+    return (
+        <Popover
+            opened={opened}
+            onChange={setOpened}
+            position="top-start"
+            offset={8}
+            shadow="md"
+            trapFocus
+        >
+            <Popover.Target>
+                <Button
+                    variant="default"
+                    size="xs"
+                    leftSection={<MantineIcon icon={IconPlus} size={14} />}
+                    onClick={() => setOpened((o) => !o)}
+                    disabled={disabled || selected !== null}
+                    className={classes.resourceButton}
+                >
+                    Dashboard
+                </Button>
+            </Popover.Target>
+            <Popover.Dropdown className={classes.queryDropdown}>
+                <Box p="xs" pb={0}>
+                    <Text size="sm" fw={500}>
+                        Add a dashboard
+                    </Text>
+                    <Text size="xs" c="dimmed" mb="xs">
+                        All chart tiles will be included as references
+                    </Text>
+                </Box>
+                <Box px="xs" pb="xs">
+                    <TextInput
+                        size="xs"
+                        placeholder="Search..."
+                        leftSection={
+                            <MantineIcon icon={IconSearch} size={14} />
+                        }
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    />
+                </Box>
+                <ScrollArea.Autosize mah={350} px="xs" pb="xs">
+                    {isInitialLoading ? (
+                        <Group justify="center" p="sm">
+                            <Loader size="sm" />
+                        </Group>
+                    ) : filteredDashboards.length === 0 ? (
+                        <Text size="xs" c="dimmed" ta="center" p="sm">
+                            No dashboards found
+                        </Text>
+                    ) : (
+                        filteredDashboards.map((dashboard) => (
+                            <Box
+                                key={dashboard.uuid}
+                                className={classes.chartItem}
+                                onClick={() => handleSelect(dashboard)}
+                            >
+                                <IconBox
+                                    icon={IconLayoutDashboard}
+                                    color="green.6"
+                                />
+                                <Text size="xs" fw={500} truncate flex={1}>
+                                    {dashboard.name}
+                                </Text>
+                            </Box>
+                        ))
+                    )}
+                </ScrollArea.Autosize>
+            </Popover.Dropdown>
+        </Popover>
+    );
+};
+
+/**
+ * Renders the selected dashboard with a remove button.
+ */
+export const SelectedDashboardSection: FC<{
+    dashboard: SelectedDashboard;
+    onRemove: () => void;
+}> = ({ dashboard, onRemove }) => (
+    <Box className={classes.selectedQueryList}>
+        <Box className={classes.selectedQueryItem}>
+            <IconBox icon={IconLayoutDashboard} color="green.6" />
+            <Text size="xs" fw={500} truncate flex={1}>
+                {dashboard.name}
+            </Text>
+            <ActionIcon
+                size="xs"
+                variant="subtle"
+                color="gray"
+                onClick={onRemove}
+            >
+                <MantineIcon icon={IconX} size={12} />
+            </ActionIcon>
+        </Box>
+    </Box>
+);
