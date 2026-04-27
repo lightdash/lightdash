@@ -54,6 +54,10 @@ export const useExplorerQuery = () => {
             queryKey: ['calculate_total'],
             exact: false,
         });
+        queryClient.removeQueries({
+            queryKey: ['calculate_subtotals'],
+            exact: false,
+        });
     }, [queryClient, dispatch]);
 
     // Action: Fetch results (force refresh - bypasses auto-fetch setting)

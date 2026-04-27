@@ -1484,6 +1484,7 @@ export class EmbedService extends BaseService {
             dashboardUuid,
             combinedParameters,
             dateZoom,
+            invalidateCache,
         );
     }
 
@@ -1499,6 +1500,7 @@ export class EmbedService extends BaseService {
         dashboardUuid?: string,
         combinedParameters?: ParametersValuesMap,
         dateZoom?: DateZoom,
+        invalidateCache?: boolean,
     ) {
         // Use the shared utility to prepare dimension groups
         const { dimensionGroupsToSubtotal, analyticsData } =
@@ -1549,6 +1551,7 @@ export class EmbedService extends BaseService {
             pivotDimensions,
             parameters: combinedParameters,
             dateZoom,
+            invalidateCache,
             userAccessControls: {
                 userAttributes,
                 intrinsicUserAttributes,
@@ -1683,6 +1686,7 @@ export class EmbedService extends BaseService {
             undefined, // no dashboardUuid for raw query
             combinedParameters,
             data.dateZoom,
+            data.invalidateCache,
         );
     }
 
