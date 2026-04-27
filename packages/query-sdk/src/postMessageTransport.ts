@@ -37,6 +37,21 @@ export type SdkReadyMessage = {
     type: 'lightdash:sdk:ready';
 };
 
+export type SdkScreenshotRequest = {
+    type: 'lightdash:sdk:screenshot-request';
+    id: string;
+};
+
+export type SdkScreenshotResponse = {
+    type: 'lightdash:sdk:screenshot-response';
+    id: string;
+    /** Serialized HTML snapshot of the iframe DOM */
+    html?: string;
+    width?: number;
+    height?: number;
+    error?: string;
+};
+
 // ---------------------------------------------------------------------------
 // postMessage FetchAdapter
 // ---------------------------------------------------------------------------

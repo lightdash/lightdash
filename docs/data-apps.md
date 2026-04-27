@@ -308,6 +308,12 @@ Allowed routes (defined in `packages/frontend/src/features/apps/hooks/useAppSdkB
 
 All other routes are rejected.
 
+The same postMessage channel also carries the inspector capability announce (`lightdash:inspect:available`),
+inspector toggle commands, element-click events, and the screenshot-capture round-trip
+(`lightdash:sdk:screenshot-request` / `…response`). The fetch listener filters by message `type` so unrelated
+messages flow through to the inspector hook (`useAppSdkBridge`) and the screenshot hook (`useIframeScreenshot`)
+without collision. See [Screenshot Capture](#screenshot-capture) for the screenshot protocol.
+
 ### Preview Token Authentication
 
 Preview requests use short-lived JWTs (signed with `LIGHTDASH_SECRET`), not session cookies:
@@ -328,55 +334,157 @@ Each preview response includes a strict CSP header:
 
 ## Image Uploads
 
-Users can attach images (screenshots, mockups, diagrams) to their prompts. These images are uploaded to S3 and passed
-to Claude as context during code generation.
+Users can attach images to their prompts. There are two kinds and they ride the same upload pipeline,
+distinguished only by an opaque `kind` tag stored on the S3 object's metadata:
+
+| Kind            | Source                                                                          | Purpose for the agent                                                                  |
+| --------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **attachment** *(default)* | User picks an image from disk / pastes / drag-and-drops in the chat UI. | A **design reference** for layout, color, component choice — something to approximate. |
+| **screenshot**  | "Screenshot" button captures the live preview iframe (see below).               | The **current state** of the built app — what the user is looking at when they prompt. |
+
+Up to `MAX_IMAGES_PER_VERSION = 4` images per submit, mixed kinds allowed.
 
 ### Upload Flow
 
 ```mermaid
 flowchart LR
-    A["1. User attaches\nimage in chat UI"] --> B["2. POST raw bytes\nto backend"]
-    B --> C["3. Backend streams\nto S3 staging path"]
+    A["1. User attaches image\n(or clicks Screenshot)"] --> B["2. POST raw bytes\nto backend\n?kind=screenshot if applicable"]
+    B --> C["3. Backend streams to\nS3 staging path,\nstamps kind metadata"]
     C --> D["4. Return imageId\n(opaque UUID)"]
     D --> E["5. Include imageId in\ngenerate/iterate request"]
     E --> F["6. Pipeline copies to\nversion assets folder"]
-    F --> G["7. Write to sandbox\nfor Claude"]
+    F --> G["7. Write to sandbox\nfor Claude with\nkind-aware filename"]
 ```
 
-1. **User attaches image** — The chat UI lets users add an image file. A local preview is shown immediately.
+1. **User attaches image (or captures screenshot)** — The chat UI shows a local preview immediately. Screenshots
+   originate from the in-page capture pipeline (see [Screenshot Capture](#screenshot-capture)); from the upload's
+   perspective they're just another `File`.
 
-2. **Upload to backend** — The frontend sends the raw file bytes directly to the backend via
+2. **Upload to backend** — The frontend sends the raw bytes directly to
    `POST /api/v1/ee/projects/{projectUuid}/apps/{appUuid}/upload-image` with the image's MIME type as the
-   `Content-Type` header. This is a plain `fetch` call (not `lightdashApi`) because the body is raw binary, not JSON.
+   `Content-Type` header. For screenshots the URL gains `?kind=screenshot`. This is a plain `fetch` (not `lightdashApi`)
+   because the body is raw binary, not JSON.
 
-3. **Stream to S3 staging** — The backend streams the request body directly to S3 via `PutObjectCommand` without
-   buffering the entire file in memory. The image is stored at a deterministic staging path:
-   `apps/{appUuid}/uploads/{imageId}` (no file extension — MIME type is stored as the S3 object's `ContentType`).
+3. **Stream to S3 staging, stamp kind** — The backend buffers and validates the body (magic-byte check), then writes
+   it to a deterministic staging path: `apps/{appUuid}/uploads/{imageId}` (no file extension — MIME is stored on the
+   S3 object's `ContentType`). When `kind=screenshot` is set, the upload also writes `Metadata: { kind: 'screenshot' }`
+   on the staging object so downstream stages can tell the two apart without a DB column.
 
-4. **Return imageId** — The backend returns `{ imageId }` — an opaque UUID. The frontend never sees the S3 key.
+4. **Return imageId** — The backend returns `{ imageId }` — an opaque UUID. The frontend never sees the S3 key or the
+   stored `kind`.
 
-5. **Attach to prompt** — When the user submits their prompt, the `imageId` is included in the generate or iterate
-   request body. The backend reconstructs the S3 staging key from the deterministic convention.
+5. **Attach to prompt** — When the user submits, every `imageId` (attachments and screenshots alike) goes in the same
+   `imageIds: string[]` field on the generate or iterate request. The backend reconstructs the S3 staging key from the
+   deterministic convention.
 
-6. **Copy to version assets** — During the pipeline, the image is copied from the staging path to the version assets
-   folder: `apps/{appUuid}/versions/{version}/assets/images/{imageId}.{ext}`.
+6. **Copy to version assets** — During the pipeline, each image is copied from staging to the version's assets folder:
+   `apps/{appUuid}/versions/{version}/assets/images/{filename}`. For screenshots, `filename` is `screenshot-{imageId}.{ext}`;
+   for attachments it's `{imageId}.{ext}`. Mirroring the prefix into the archive keeps the artifact identifiable later.
 
-7. **Write to sandbox** — The image bytes are written to the E2B sandbox at `/tmp/images/reference.{ext}` for Claude
-   to read as a design reference.
+7. **Write to sandbox** — Bytes are written to the E2B sandbox at `/tmp/images/{filename}` using the same `screenshot-`
+   prefix convention. The prompt-prepend step (next section) emits a different sentence for each kind, anchored on
+   that filename.
+
+### Telling the agent what kind it's looking at
+
+`AppGenerateService.writeCatalogAndPrompt` prepends a one-line reference to `/tmp/prompt.txt` per attached image,
+with wording chosen from the filename:
+
+- **Attachment** → `[Design reference image N at /tmp/images/<uuid>.<ext> — use the Read tool to view it]`
+- **Screenshot** → `[Screenshot of the current app at /tmp/images/screenshot-<uuid>.<ext> — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`
+
+The screenshot wording is paired with a section in `sandboxes/data-apps/template/skill.md` ("Attached images") that
+documents the filename convention so Claude doesn't try to reproduce its own screenshot pixel-for-pixel. Both lines
+are added by `writeCatalogAndPrompt` in `AppGenerateService.ts` — if you change the prefix string or the filename
+convention, update the skill at the same time.
 
 ### Security
 
 The frontend only ever sees an opaque `imageId` (UUID). It has no knowledge of S3 keys, bucket names, or storage
 paths. The backend reconstructs all storage paths from a deterministic convention using values it controls
 (`appUuid` + `imageId`). This eliminates Insecure Direct Object Reference (IDOR) risks where a modified client
-could read arbitrary S3 objects.
+could read arbitrary S3 objects. The `kind` tag is set by the backend at upload time based on the validated
+query param — clients can't retroactively re-label an image once staged.
 
 ### Constraints
 
 - **Allowed MIME types**: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
 - **Max size**: 10 MB (validated via `Content-Length` header before streaming)
+- **Max per submit**: `MAX_IMAGES_PER_VERSION = 4` (attachments + screenshots combined)
 - **Permission**: For an existing app, the standard manage check applies (space role, self for personal apps, or
   project admin). For an upload tied to a not-yet-created app (initial creation flow), `create:DataApp` is required.
+
+### Screenshot Capture
+
+Screenshots are produced entirely in the browser by a postMessage bridge between the parent app and the sandboxed
+preview iframe. The iframe can't be `getImageData`'d directly (the sandbox has no `allow-same-origin`, and the
+generated app's CSP forbids cross-origin canvas reads anyway), so the parent never tries to draw the iframe itself.
+
+```mermaid
+flowchart LR
+    A["1. User clicks\nScreenshot button"] --> B["2. Parent posts\nscreenshot-request"]
+    B --> C["3. Iframe clones DOM\n+ inlines stylesheets"]
+    C --> D["4. Iframe posts\nscreenshot-response\nwith serialized HTML"]
+    D --> E["5. Parent mounts hidden\nsrcdoc iframe with HTML"]
+    E --> F["6. html2canvas-pro\nrasterizes that iframe"]
+    F --> G["7. PNG File added to\nimageAttachments"]
+```
+
+1. **Trigger** — `ScreenshotButton` in `AppResourcePicker.tsx` is rendered next to the existing image-picker buttons,
+   but only when a `previewApp` is ready. Disabled while the max-image limit is reached or while a capture is already
+   in flight.
+
+2. **Request** — `useIframeScreenshot.captureScreenshot()` posts
+   `{ type: 'lightdash:sdk:screenshot-request', id }` to the iframe's `contentWindow` and arms a 10 s timeout
+   (`SCREENSHOT_TIMEOUT_MS`).
+
+3. **Iframe serializes its DOM** — `screenshotHandler.js` (registered at iframe load from `main.jsx`) listens for
+   the request, deep-clones `document.documentElement`, walks `document.styleSheets` to inline every accessible
+   `cssRules` block into `<style>` tags (cross-origin stylesheets are silently skipped), and strips `<link rel="stylesheet">`
+   so the snapshot is self-contained.
+
+4. **Response** — Iframe posts back `{ type: 'lightdash:sdk:screenshot-response', id, html, width, height }` to
+   `window.parent` with `'*'` as the target origin (the sandboxed iframe's own origin is opaque). The parent's
+   listener filters by `event.source` (must match the preview iframe's `contentWindow`) and by message `type`,
+   then rejects payloads above `MAX_SNAPSHOT_BYTES` (8 MiB) to bound DoS via a pathologically large srcdoc.
+
+5. **Hidden snapshot iframe (sandboxed)** — `renderSnapshotToFile` creates an offscreen `<iframe>` with
+   `sandbox="allow-same-origin"` and `srcdoc` set to the serialized HTML, then waits for `onload`. **This sandbox
+   attribute is load-bearing**: the data app whose DOM we're rendering is untrusted code, and its serialized HTML
+   may contain `<script>`, event handlers, or `javascript:` URLs. Without sandbox, srcdoc iframes inherit the
+   embedder's origin and those payloads execute as the user in Lightdash's origin — a full escape from the preview
+   iframe sandbox. The `allow-same-origin` token (and *only* that token) keeps the iframe same-origin with the parent
+   so the parent can read `contentDocument` for html2canvas, while blocking scripts, forms, top-nav, and popups.
+
+6. **Rasterize** — `html2canvas-pro` walks the snapshot iframe's body and paints it onto a `<canvas>` at
+   `min(2, devicePixelRatio)` scale. `toDataURL('image/png')` → `atob` → `Uint8Array` → `Blob` → `File`.
+
+7. **Funnel back into the image pipeline** — The resulting `File` (named `screenshot.png`) is handed to
+   `handleImageAttach(file, 'screenshot')`, which pushes it into local `imageAttachments` with `kind: 'screenshot'`
+   set on the entry. On submit, that kind flows into the `?kind=screenshot` query param at upload time — and from there
+   the regular [Upload Flow](#upload-flow) takes over.
+
+The bridge protocol types (`SdkScreenshotRequest`, `SdkScreenshotResponse`) live in
+`packages/query-sdk/src/postMessageTransport.ts` alongside the existing SDK fetch types. They are exported from the
+package so iframe-side code can import the shapes if needed, but neither side currently does — the message types
+are simple enough that both sides hand-type them.
+
+### Trust boundary summary
+
+The preview iframe is the trust boundary. Three structural defenses keep code from leaking out of it through the
+screenshot path:
+
+1. **Snapshot iframe sandbox** (`sandbox="allow-same-origin"` in `renderSnapshotToFile`) — the primary defense.
+   Even unsanitized adversarial HTML can't execute scripts or fire event handlers when re-rendered in the parent.
+2. **`event.source` identity check** in the parent's response listener — only messages from the actual preview
+   `contentWindow` are accepted, so a sibling window can't deliver a fake snapshot for us to render.
+3. **`MAX_SNAPSHOT_BYTES` size cap** — bounds the parent's exposure to a tab-crashing DoS payload before
+   `iframe.srcdoc = …` allocates.
+
+We do not sanitize the snapshot HTML. Sanitization is racing against parser/mXSS quirks forever; the sandbox
+attribute is browser-enforced and structural. If the sandbox is ever removed (e.g., because html2canvas needs a
+capability it disallows), sanitization moves from optional to mandatory and DOMPurify becomes the only acceptable
+implementation.
 
 ---
 
@@ -404,6 +512,7 @@ could read arbitrary S3 objects.
 | `useAppPreviewToken`   | `features/apps/hooks/useAppPreviewToken.ts`   | Mint JWT for iframe preview          |
 | `useCancelAppVersion`  | `features/apps/hooks/useCancelAppVersion.ts`  | Cancel a building version            |
 | `useUpdateApp`         | `features/apps/hooks/useUpdateApp.ts`         | Update app name/description          |
+| `useIframeScreenshot`  | `features/apps/hooks/useIframeScreenshot.ts`  | postMessage bridge + html2canvas-pro for live-preview snapshots |
 
 ### Build Status Polling
 
@@ -463,8 +572,11 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 | `packages/backend/src/database/entities/apps.ts`                            | DB entity type definitions                     |
 | `packages/common/src/ee/apps/types.ts`                                      | Shared API response types                      |
 | `packages/frontend/src/pages/AppGenerate.tsx`                               | Split-panel chat UI for creation and iteration |
-| `packages/frontend/src/features/apps/AppIframePreview.tsx`                  | Sandboxed iframe component                     |
+| `packages/frontend/src/features/apps/AppIframePreview.tsx`                  | Sandboxed iframe component (forwards ref so the parent can call `captureScreenshot()`) |
 | `packages/frontend/src/features/apps/hooks/useAppSdkBridge.ts`              | postMessage fetch proxy for iframe API access  |
+| `packages/frontend/src/features/apps/hooks/useIframeScreenshot.ts`          | postMessage bridge + html2canvas-pro for live-preview snapshots |
+| `sandboxes/data-apps/template/src/screenshotHandler.js`                     | Iframe-side handler that serializes the DOM and replies to screenshot requests |
+| `packages/query-sdk/src/postMessageTransport.ts`                            | Shared SDK message types — fetch, ready, inspector, screenshot |
 
 ---
 
