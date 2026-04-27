@@ -1,3 +1,17 @@
+# [0.2817.0](https://github.com/lightdash/lightdash/compare/0.2816.0...0.2817.0) (2026-04-27)
+
+
+### Bug Fixes
+
+* **formula:** preserve decimals in Redshift ROUND by pinning numeric scale ([#22386](https://github.com/lightdash/lightdash/issues/22386)) ([40f1600](https://github.com/lightdash/lightdash/commit/40f1600dfc2666ed3c039b520364ab690cbea541))
+* render invalid filter operator as removable warning instead of crashing ([#22401](https://github.com/lightdash/lightdash/issues/22401)) ([d1f2ce2](https://github.com/lightdash/lightdash/commit/d1f2ce2906c216c13de229dddf21465a91dfd983))
+
+
+### Features
+
+* add analytics tracking for pre-aggregate routing and materialization events ([#22396](https://github.com/lightdash/lightdash/issues/22396)) ([919175e](https://github.com/lightdash/lightdash/commit/919175e75aa115e775a7f7a3828ec7ca872402ce))
+* **formula:** add Athena dialect support ([#22392](https://github.com/lightdash/lightdash/issues/22392)) ([adc6737](https://github.com/lightdash/lightdash/commit/adc673770efe6a8b84bcfca243dcbc72dbb9cf61))
+
 # [0.2816.0](https://github.com/lightdash/lightdash/compare/0.2815.0...0.2816.0) (2026-04-27)
 
 
