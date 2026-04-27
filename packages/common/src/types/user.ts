@@ -75,6 +75,16 @@ export interface LightdashUserWithAbilityRules extends LightdashUser {
 
 export interface SessionUser extends LightdashUserWithAbilityRules {
     ability: MemberAbility;
+    /**
+     * Per-request metadata (IP, user agent, request id) populated by the auth
+     * middleware. Used by the audit log; intentionally not persisted in the
+     * session store.
+     */
+    requestContext?: {
+        ip?: string;
+        userAgent?: string;
+        requestId?: string;
+    };
 }
 
 export interface UpdatedByUser {

@@ -131,12 +131,23 @@ export type AccountOrganization = Partial<
 >;
 
 /**
+ * Per-request metadata captured by the auth middleware. Used by the audit log
+ * to record the IP, user agent and request id alongside permission checks.
+ */
+export type AccountRequestContext = {
+    ip?: string;
+    userAgent?: string;
+    requestId?: string;
+};
+
+/**
  * Base account interface that all account types extend
  */
 export type BaseAccount = {
     organization: AccountOrganization;
     authentication: Authentication;
     user: AccountUser;
+    requestContext?: AccountRequestContext;
 };
 
 type BaseAccountWithHelpers = BaseAccount & AccountHelpers;

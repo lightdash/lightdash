@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
 import { fromServiceAccount } from '../../auth/account/account';
+import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import Logger from '../../logging/logger';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
@@ -164,6 +165,9 @@ export const authenticateServiceAccount: RequestHandler = async (
             );
         }
         req.account = fromServiceAccount(req.user!, token);
+        const requestContext = requestContextFromExpress(req);
+        req.account.requestContext = requestContext;
+        req.user.requestContext = requestContext;
 
         next();
     } catch (error) {

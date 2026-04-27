@@ -94,10 +94,17 @@ export abstract class BaseService {
             this.logger.debug('Creating audited ability', {
                 accountType: accountOrUser.authentication.type,
             });
+            const { requestContext } = accountOrUser;
             return new CaslAuditWrapper(
                 accountOrUser.user.ability,
                 accountOrUser,
-                { callStack, auditLogger: logAuditEvent },
+                {
+                    callStack,
+                    auditLogger: logAuditEvent,
+                    ip: requestContext?.ip,
+                    userAgent: requestContext?.userAgent,
+                    requestId: requestContext?.requestId,
+                },
             );
         }
 
@@ -105,9 +112,13 @@ export abstract class BaseService {
         this.logger.debug('Creating audited ability', {
             accountType: 'session-user',
         });
+        const { requestContext } = accountOrUser;
         return new CaslAuditWrapper(accountOrUser.ability, accountOrUser, {
             callStack,
             auditLogger: logAuditEvent,
+            ip: requestContext?.ip,
+            userAgent: requestContext?.userAgent,
+            requestId: requestContext?.requestId,
         });
     }
 
