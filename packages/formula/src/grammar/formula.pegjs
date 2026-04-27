@@ -6,6 +6,8 @@
   const variadicFns = options.variadicFns;
   const windowFns = options.windowFns;
   const conditionalAggFns = options.conditionalAggFns;
+  const dateFns = options.dateFns;
+  const dateUnits = options.dateUnits;
   const allFunctionNames = options.allFunctionNames;
   const booleanFns = options.booleanFns;
 }
@@ -99,6 +101,7 @@ Primary
   = IfExpr
   / ConditionalAggregate
   / CountIf
+  / DateTruncExpr
   / ZeroArgFn
   / SingleArgFn
   / OneOrTwoArgFn
@@ -127,6 +130,22 @@ ConditionalAggregate
 CountIf
   = "COUNTIF"i _ "(" _ condition:BooleanOr _ ")" {
       return { type: "CountIf", condition };
+    }
+
+// DATE_TRUNC("unit", date) — first arg must be a whitelisted string literal.
+// Validated at parse time so bad units fail fast with a specific error rather
+// than producing invalid SQL (or, worse, valid SQL that rounds to the wrong
+// period).
+DateTruncExpr
+  = "DATE_TRUNC"i _ "(" _ first:Expression _ "," _ arg:Expression _ ")" {
+      if (first.type !== "StringLiteral") {
+        error('DATE_TRUNC first argument must be a string literal unit like "month"');
+      }
+      const unit = first.value.toLowerCase();
+      if (!dateUnits.includes(unit)) {
+        error('DATE_TRUNC unit must be one of: ' + dateUnits.join(', ') + '. Got: "' + first.value + '"');
+      }
+      return { type: "DateFn", name: "DATE_TRUNC", unit, args: [arg] };
     }
 
 ZeroArgFn

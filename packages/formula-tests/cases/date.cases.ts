@@ -119,6 +119,98 @@ export const dateCases: TestCase[] = [
         tags: ['date'],
     },
     {
+        id: 'date/date-trunc-month',
+        formula: '=YEAR(DATE_TRUNC("month", A)) * 10000 + MONTH(DATE_TRUNC("month", A)) * 100 + DAY(DATE_TRUNC("month", A))',
+        description: 'DATE_TRUNC month boundary as YYYYMMDD integer',
+        columns: { A: 'order_date' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 20240101 },
+            { result: 20240201 },
+            { result: 20240301 },
+            { result: 20240401 },
+            { result: 20240501 },
+            { result: 20240601 },
+            { result: 20240701 },
+            { result: 20240801 },
+            { result: 20240901 },
+            { result: 20241001 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['date'],
+    },
+    {
+        id: 'date/date-trunc-quarter',
+        formula: '=YEAR(DATE_TRUNC("quarter", A)) * 10000 + MONTH(DATE_TRUNC("quarter", A)) * 100 + DAY(DATE_TRUNC("quarter", A))',
+        description: 'DATE_TRUNC quarter pins to 01-Jan / 01-Apr / 01-Jul / 01-Oct',
+        columns: { A: 'order_date' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240401 },
+            { result: 20240401 },
+            { result: 20240401 },
+            { result: 20240701 },
+            { result: 20240701 },
+            { result: 20240701 },
+            { result: 20241001 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['date'],
+    },
+    {
+        id: 'date/date-trunc-year',
+        formula: '=YEAR(DATE_TRUNC("year", A)) * 10000 + MONTH(DATE_TRUNC("year", A)) * 100 + DAY(DATE_TRUNC("year", A))',
+        description: 'DATE_TRUNC year pins to 01-Jan',
+        columns: { A: 'order_date' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+            { result: 20240101 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['date'],
+    },
+    {
+        id: 'date/date-trunc-week-monday',
+        formula: '=YEAR(DATE_TRUNC("week", A)) * 10000 + MONTH(DATE_TRUNC("week", A)) * 100 + DAY(DATE_TRUNC("week", A))',
+        description: 'DATE_TRUNC week defaults to Monday-start across all dialects',
+        columns: { A: 'order_date' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 20240115 }, // 2024-01-15 Mon
+            { result: 20240219 }, // 2024-02-20 Tue → Mon 19
+            { result: 20240304 }, // 2024-03-10 Sun → Mon 4
+            { result: 20240401 }, // 2024-04-05 Fri → Mon 1
+            { result: 20240506 }, // 2024-05-12 Sun → Mon 6
+            { result: 20240617 }, // 2024-06-18 Tue → Mon 17
+            { result: 20240722 }, // 2024-07-22 Mon
+            { result: 20240826 }, // 2024-08-30 Fri → Mon 26
+            { result: 20240909 }, // 2024-09-14 Sat → Mon 9
+            { result: 20240930 }, // 2024-10-01 Tue → Mon 30 (prev month)
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['date'],
+    },
+    {
         id: 'date/day-in-if',
         formula: '=IF(DAY(A) > 15, "late", "early")',
         description: 'Date extraction combined with IF condition',
@@ -140,5 +232,54 @@ export const dateCases: TestCase[] = [
         warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['date', 'logical'],
+    },
+    {
+        id: 'date/date-trunc-day',
+        formula: '=YEAR(DATE_TRUNC("day", A)) * 10000 + MONTH(DATE_TRUNC("day", A)) * 100 + DAY(DATE_TRUNC("day", A))',
+        description:
+            'DATE_TRUNC day on a date column is a no-op — round-trips to YYYYMMDD',
+        columns: { A: 'order_date' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 20240115 },
+            { result: 20240220 },
+            { result: 20240310 },
+            { result: 20240405 },
+            { result: 20240512 },
+            { result: 20240618 },
+            { result: 20240722 },
+            { result: 20240830 },
+            { result: 20240914 },
+            { result: 20241001 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['date'],
+    },
+    {
+        id: 'date/date-trunc-week-sunday',
+        formula: '=YEAR(DATE_TRUNC("week", A)) * 10000 + MONTH(DATE_TRUNC("week", A)) * 100 + DAY(DATE_TRUNC("week", A))',
+        description:
+            'DATE_TRUNC week with weekStartDay=6 (Sunday) — exercises BigQuery WEEK(SUNDAY), Databricks/ClickHouse offset shift, Postgres composition',
+        columns: { A: 'order_date' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        weekStartDay: 6,
+        expectedRows: [
+            { result: 20240114 }, // 2024-01-15 Mon → Sun 14
+            { result: 20240218 }, // 2024-02-20 Tue → Sun 18
+            { result: 20240310 }, // 2024-03-10 Sun → itself
+            { result: 20240331 }, // 2024-04-05 Fri → Sun 03-31
+            { result: 20240512 }, // 2024-05-12 Sun → itself
+            { result: 20240616 }, // 2024-06-18 Tue → Sun 16
+            { result: 20240721 }, // 2024-07-22 Mon → Sun 21
+            { result: 20240825 }, // 2024-08-30 Fri → Sun 25
+            { result: 20240908 }, // 2024-09-14 Sat → Sun 09-08
+            { result: 20240929 }, // 2024-10-01 Tue → Sun 09-29
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['date'],
     },
 ];

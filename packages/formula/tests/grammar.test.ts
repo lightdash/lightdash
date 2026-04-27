@@ -149,6 +149,62 @@ describe('Formula Grammar', () => {
             });
         });
 
+        it('parses DATE_TRUNC with a valid unit', () => {
+            const ast = parse('=DATE_TRUNC("month", A)');
+            expect(ast).toEqual({
+                type: 'DateFn',
+                name: 'DATE_TRUNC',
+                unit: 'month',
+                args: [{ type: 'ColumnRef', name: 'A' }],
+            });
+        });
+
+        it('normalises DATE_TRUNC unit to lowercase', () => {
+            const ast = parse('=DATE_TRUNC("MONTH", A)');
+            expect(ast).toEqual({
+                type: 'DateFn',
+                name: 'DATE_TRUNC',
+                unit: 'month',
+                args: [{ type: 'ColumnRef', name: 'A' }],
+            });
+        });
+
+        it('accepts all whitelisted DATE_TRUNC units', () => {
+            for (const unit of [
+                'day',
+                'week',
+                'month',
+                'quarter',
+                'year',
+            ] as const) {
+                const ast = parse(`=DATE_TRUNC("${unit}", A)`);
+                expect(ast).toEqual({
+                    type: 'DateFn',
+                    name: 'DATE_TRUNC',
+                    unit,
+                    args: [{ type: 'ColumnRef', name: 'A' }],
+                });
+            }
+        });
+
+        it('rejects DATE_TRUNC with a non-whitelisted unit', () => {
+            expect(() => parse('=DATE_TRUNC("second", A)')).toThrow(
+                /DATE_TRUNC unit must be one of/,
+            );
+        });
+
+        it('rejects DATE_TRUNC with a non-literal first argument', () => {
+            expect(() => parse('=DATE_TRUNC(A, B)')).toThrow(
+                /must be a string literal unit/,
+            );
+        });
+
+        it('rejects DATE_TRUNC with wrong arg count', () => {
+            expect(() => parse('=DATE_TRUNC(A)')).toThrow(
+                /DATE_TRUNC called with wrong number of arguments/,
+            );
+        });
+
         it('parses variadic function', () => {
             const ast = parse('=CONCAT(A, B, C)');
             expect(ast).toEqual({

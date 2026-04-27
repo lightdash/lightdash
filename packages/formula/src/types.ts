@@ -1,5 +1,6 @@
 import type {
     ConditionalAggFnName,
+    DateFnName,
     FunctionName,
     OneOrTwoArgFnName,
     SingleArgFnName,
@@ -17,6 +18,17 @@ export type Dialect =
     | 'duckdb'
     | 'databricks'
     | 'clickhouse';
+
+// Whitelisted units accepted by date functions (DATE_TRUNC today; DATE_ADD,
+// DATE_SUB, DATE_DIFF in follow-up PRs). Validated at parse time so bad units
+// fail fast with a clear message rather than producing invalid SQL.
+export type DateUnit = 'day' | 'week' | 'month' | 'quarter' | 'year';
+
+// Numeric 0..6 matching `@lightdash/common`'s `WeekDay` enum
+// (MONDAY=0..SUNDAY=6). The formula package is dependency-free by design, so
+// callers translate the common enum to this numeric ordinal themselves.
+// Kept in the same shape so that translation is the identity function.
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface CompileOptions {
     dialect: Dialect;
@@ -40,6 +52,11 @@ export interface CompileOptions {
         column: string;
         direction?: 'ASC' | 'DESC';
     }>;
+    // Day the week starts on when `DATE_TRUNC("week", d)` is evaluated. When
+    // omitted, defaults to Monday (ISO 8601) — matching the native week
+    // boundary on Postgres, Redshift, Snowflake, DuckDB, Databricks and
+    // ClickHouse. Backend callers should forward the project's `startOfWeek`.
+    weekStartDay?: WeekDay;
 }
 
 // AST Node Types
@@ -55,6 +72,7 @@ export type ASTNode =
     | ZeroOrOneArgFnNode
     | VariadicFnNode
     | WindowFnNode
+    | DateFnNode
     | ColumnRefNode
     | NumberLiteralNode
     | StringLiteralNode
@@ -129,6 +147,19 @@ export interface WindowFnNode {
     name: WindowFnName;
     args: ASTNode[];
     windowClause: WindowClauseNode | null;
+}
+
+// Date functions whose first argument is a whitelisted unit literal rather
+// than an arbitrary expression (`DATE_TRUNC("month", d)`). The `unit` is
+// lifted out of `args` because it's a compile-time constant string that
+// drives both validation and per-dialect emission. `args` carries the
+// remaining expression arguments (just `[date]` for DATE_TRUNC today;
+// follow-up PRs extend this with DATE_ADD/DATE_SUB/DATE_DIFF).
+export interface DateFnNode {
+    type: 'DateFn';
+    name: DateFnName;
+    unit: DateUnit;
+    args: ASTNode[];
 }
 
 export interface ColumnRefNode {

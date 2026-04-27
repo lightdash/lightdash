@@ -46,6 +46,11 @@ export const CONDITIONAL_AGG_FNS = ['SUMIF', 'AVERAGEIF'] as const;
 
 export const BOOLEAN_FNS = ['ISNULL'] as const;
 
+// Functions that take a whitelisted unit literal as their first argument.
+// Parsed by dedicated grammar rules (like IF/SUMIF) rather than a generic
+// N-arg bucket because the unit is a compile-time string validated at parse.
+export const DATE_FNS = ['DATE_TRUNC'] as const;
+
 export type ZeroArgFnName = (typeof ZERO_ARG_FNS)[number];
 export type SingleArgFnName = (typeof SINGLE_ARG_FNS)[number];
 export type OneOrTwoArgFnName = (typeof ONE_OR_TWO_ARG_FNS)[number];
@@ -53,6 +58,7 @@ export type ZeroOrOneArgFnName = (typeof ZERO_OR_ONE_ARG_FNS)[number];
 export type VariadicFnName = (typeof VARIADIC_FNS)[number];
 export type WindowFnName = (typeof WINDOW_FNS)[number];
 export type ConditionalAggFnName = (typeof CONDITIONAL_AGG_FNS)[number];
+export type DateFnName = (typeof DATE_FNS)[number];
 
 export const ALL_FUNCTION_NAMES = [
     ...ZERO_ARG_FNS,
@@ -62,6 +68,7 @@ export const ALL_FUNCTION_NAMES = [
     ...VARIADIC_FNS,
     ...WINDOW_FNS,
     ...CONDITIONAL_AGG_FNS,
+    ...DATE_FNS,
     'COUNTIF',
     'IF',
 ] as const;
@@ -94,6 +101,7 @@ export const FUNCTION_DEFINITIONS = [
     { name: 'MONTH', description: 'Extract month', minArgs: 1, maxArgs: 1, category: 'date' },
     { name: 'DAY', description: 'Extract day', minArgs: 1, maxArgs: 1, category: 'date' },
     { name: 'LAST_DAY', description: 'Last day of the month', minArgs: 1, maxArgs: 1, category: 'date' },
+    { name: 'DATE_TRUNC', description: 'Truncate a date to the start of a period ("day" | "week" | "month" | "quarter" | "year")', minArgs: 2, maxArgs: 2, category: 'date' },
     // Null
     { name: 'COALESCE', description: 'First non-null value', minArgs: 1, maxArgs: Infinity, category: 'null' },
     { name: 'ISNULL', description: 'Check if null', minArgs: 1, maxArgs: 1, category: 'null' },
@@ -168,6 +176,10 @@ export const FUNCTION_CATALOG: string = (() => {
         .join('\n\n');
 })();
 
+// Unit literals accepted by date functions (DATE_TRUNC today; DATE_ADD/SUB/
+// DIFF in follow-up PRs). Validated at parse time against this list.
+export const DATE_UNITS = ['day', 'week', 'month', 'quarter', 'year'] as const;
+
 export function getParserOptions() {
     return {
         zeroArgFns: ZERO_ARG_FNS,
@@ -177,6 +189,8 @@ export function getParserOptions() {
         variadicFns: VARIADIC_FNS,
         windowFns: WINDOW_FNS,
         conditionalAggFns: CONDITIONAL_AGG_FNS,
+        dateFns: DATE_FNS,
+        dateUnits: DATE_UNITS,
         allFunctionNames: ALL_FUNCTION_NAMES,
         booleanFns: BOOLEAN_FNS,
     };

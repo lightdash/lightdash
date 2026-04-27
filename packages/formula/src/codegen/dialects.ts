@@ -1,4 +1,4 @@
-import type { Dialect, StringLiteralNode } from '../types';
+import type { DateUnit, Dialect, StringLiteralNode, WeekDay } from '../types';
 
 // Per-dialect SQL emission overrides. Every field is a full replacement for
 // the ANSI default implemented in SqlGenerator (see generator.ts). Adding a
@@ -30,6 +30,16 @@ export interface DialectConfig {
     generateRound?: (value: string, digits?: string) => string;
     // Override when the dialect has no `LAST_DAY(d)` or names it differently.
     generateLastDay?: (arg: string) => string;
+    // DATE_TRUNC emission. Default (ANSI `DATE_TRUNC('unit', d)` with
+    // INTERVAL-based offset for non-Monday week start) serves Postgres,
+    // Redshift, Snowflake, DuckDB. BigQuery flips arg order and uses
+    // WEEK(<DAY>); Databricks uses DATEADD for week offset; ClickHouse uses
+    // `toStartOfXxx` helpers. `weekStartDay` is 0 (Monday) — 6 (Sunday).
+    generateDateTrunc?: (
+        unit: DateUnit,
+        arg: string,
+        weekStartDay: WeekDay,
+    ) => string;
 }
 
 // Everything a dialect needs to emit `LAG(...) OVER (...)` or
@@ -126,12 +136,19 @@ const postgresStyleRound = (value: string, digits?: string): string =>
     digits !== undefined
         ? `ROUND((${value})::numeric, ${digits})`
         : `ROUND(${value})`;
+// ANSI DATE_TRUNC — shared by Postgres/Redshift/Snowflake/DuckDB. Non-Monday
+// week handling composes in the INTERVAL form; see `defaultDateTrunc` in
+// generator.ts for the offset dance.
+const postgresStyleDateTrunc = (unit: DateUnit, arg: string): string =>
+    `DATE_TRUNC('${unit}', ${arg})`;
+
 // Cast back to DATE so downstream ops see the same type as native `LAST_DAY`
-// on warehouses that have it. The `DATE_TRUNC('month', …)` fragment will be
-// shared with `generateDateTrunc` once that lands — replace with the
-// extracted helper then.
+// on warehouses that have it.
 const postgresStyleLastDay = (arg: string): string =>
-    `CAST(DATE_TRUNC('month', ${arg}) + INTERVAL '1 month' - INTERVAL '1 day' AS DATE)`;
+    `CAST(${postgresStyleDateTrunc(
+        'month',
+        arg,
+    )} + INTERVAL '1 month' - INTERVAL '1 day' AS DATE)`;
 
 const POSTGRES_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
@@ -140,6 +157,9 @@ const POSTGRES_CONFIG: DialectConfig = {
     generateConcat: postgresStyleConcat,
     generateRound: postgresStyleRound,
     generateLastDay: postgresStyleLastDay,
+    // DATE_TRUNC defaults to the ANSI form; leave `generateDateTrunc` unset
+    // so `defaultDateTrunc` in generator.ts handles both base + non-Monday
+    // week offset.
 };
 
 // Redshift is Postgres-wire-compatible and inherits every Postgres-family
@@ -187,6 +207,27 @@ const DUCKDB_CONFIG: DialectConfig = {
     generateConcat: postgresStyleConcat,
 };
 
+// BigQuery's `DATE_TRUNC` flips argument order and takes a bare identifier
+// part. Week truncation parameterises the start day inline via
+// `WEEK(<DAY_NAME>)`. Mirrors `bigqueryConfig.getSqlForTruncatedDate` in
+// `packages/common/src/utils/timeFrames.ts`.
+const BIGQUERY_DATE_UNITS: Record<DateUnit, string> = {
+    day: 'DAY',
+    week: 'WEEK',
+    month: 'MONTH',
+    quarter: 'QUARTER',
+    year: 'YEAR',
+};
+const BIGQUERY_WEEK_DAY_NAMES: Record<WeekDay, string> = {
+    0: 'MONDAY',
+    1: 'TUESDAY',
+    2: 'WEDNESDAY',
+    3: 'THURSDAY',
+    4: 'FRIDAY',
+    5: 'SATURDAY',
+    6: 'SUNDAY',
+};
+
 const BIGQUERY_CONFIG: DialectConfig = {
     // BigQuery identifiers escape inner backticks with a leading backslash
     // rather than Spark's doubled-backtick convention.
@@ -196,6 +237,12 @@ const BIGQUERY_CONFIG: DialectConfig = {
     // explicitly cast to NUMERIC.
     generateModulo: (left, right) =>
         `MOD(CAST(${left} AS NUMERIC), CAST(${right} AS NUMERIC))`,
+    generateDateTrunc: (unit, arg, weekStartDay) => {
+        if (unit === 'week') {
+            return `DATE_TRUNC(${arg}, WEEK(${BIGQUERY_WEEK_DAY_NAMES[weekStartDay]}))`;
+        }
+        return `DATE_TRUNC(${arg}, ${BIGQUERY_DATE_UNITS[unit]})`;
+    },
 };
 
 const DATABRICKS_CONFIG: DialectConfig = {
@@ -207,6 +254,16 @@ const DATABRICKS_CONFIG: DialectConfig = {
     // same backslash style as BigQuery.
     generateStringLiteral: backslashEscapedStringLiteral,
     // `MOD(a, b)` (the ANSI default) is valid Spark SQL with no type casts.
+    // DATE_TRUNC in Spark SQL matches the ANSI form for all units; non-Monday
+    // week start uses DATEADD-based offset because Spark has no INTERVAL
+    // literal with a day count variable. Mirrors `databricksConfig.
+    // getSqlForTruncatedDate` in timeFrames.ts.
+    generateDateTrunc: (unit, arg, weekStartDay) => {
+        if (unit === 'week' && weekStartDay !== 0) {
+            return `DATEADD(DAY, ${weekStartDay}, DATE_TRUNC('week', DATEADD(DAY, -${weekStartDay}, ${arg})))`;
+        }
+        return `DATE_TRUNC('${unit}', ${arg})`;
+    },
 };
 
 // ClickHouse has four dialect quirks the formula package cares about:
@@ -229,12 +286,35 @@ const DATABRICKS_CONFIG: DialectConfig = {
 //      Additionally, ClickHouse returns type-default (e.g. 0 for numbers)
 //      at partition boundaries instead of NULL unless the value arg is
 //      wrapped with `toNullable()`.
+// ClickHouse prefers the `toStartOf<Unit>` family for truncation; `DATE_TRUNC`
+// exists but uses string unit parsing and is less consistent across versions.
+// Mirrors `clickhouseConfig.getSqlForTruncatedDate` in timeFrames.ts.
+const CLICKHOUSE_START_OF: Record<DateUnit, string> = {
+    day: 'toStartOfDay',
+    week: 'toStartOfWeek',
+    month: 'toStartOfMonth',
+    quarter: 'toStartOfQuarter',
+    year: 'toStartOfYear',
+};
+
 const CLICKHOUSE_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateStringLiteral: ansiQuoteWithEscapedBackslashesStringLiteral,
     generateModulo: (left, right) =>
         `(toFloat64(${left}) % toFloat64(${right}))`,
     generateLastDay: (arg) => `toLastDayOfMonth(${arg})`,
+    generateDateTrunc: (unit, arg, weekStartDay) => {
+        if (unit === 'week') {
+            // `toStartOfWeek(x, mode)`: mode 1 = Monday-start (ISO). Non-Monday
+            // week starts compose via shift-in / shift-out around the Monday
+            // anchor.
+            if (weekStartDay === 0) {
+                return `toStartOfWeek(${arg}, 1)`;
+            }
+            return `addDays(toStartOfWeek(addDays(${arg}, -${weekStartDay}), 1), ${weekStartDay})`;
+        }
+        return `${CLICKHOUSE_START_OF[unit]}(${arg})`;
+    },
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         const chFunc = sqlFunc === 'LAG' ? 'lagInFrame' : 'leadInFrame';
         const [value, ...rest] = args;
