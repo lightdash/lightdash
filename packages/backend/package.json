@@ -58,7 +58,7 @@
         "@casl/ability": "6.8.0",
         "@cubejs-client/core": "0.35.23",
         "@godaddy/terminus": "4.12.0",
-        "@langchain/core": "0.3.80",
+        "@langchain/core": "1.1.7",
         "@langchain/openai": "0.4.2",
         "@lightdash/common": "workspace:*",
         "@lightdash/formula": "workspace:*",
