@@ -50,6 +50,10 @@ export const useExplorerQuery = () => {
             queryKey: ['create-query'],
             exact: false,
         });
+        queryClient.removeQueries({
+            queryKey: ['calculate_total'],
+            exact: false,
+        });
     }, [queryClient, dispatch]);
 
     // Action: Fetch results (force refresh - bypasses auto-fetch setting)
