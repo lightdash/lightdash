@@ -298,6 +298,46 @@ export class AsyncQueryService extends ProjectService {
         this.preAggregateStrategy.recordStats(params);
     }
 
+    private trackPreAggregateRoutingEvent({
+        account,
+        projectUuid,
+        context,
+        exploreName,
+        routingTarget,
+        preAggregateMetadata,
+        preAggregationRoute,
+        chartId,
+        dashboardId,
+    }: {
+        account: Account;
+        projectUuid: string;
+        context: QueryExecutionContext;
+        exploreName: string;
+        routingTarget: 'warehouse' | 'pre_aggregate' | 'materialization';
+        preAggregateMetadata: NonNullable<CacheMetadata['preAggregate']>;
+        preAggregationRoute?: PreAggregationRoute;
+        chartId?: string;
+        dashboardId?: string;
+    }): void {
+        this.analytics.trackAccount(account, {
+            event: preAggregateMetadata.hit
+                ? 'pre_aggregate.hit'
+                : 'pre_aggregate.miss',
+            properties: {
+                organizationId: account.organization?.organizationUuid,
+                projectId: projectUuid,
+                context,
+                exploreName,
+                routingTarget,
+                routeMode: preAggregationRoute?.mode,
+                preAggregateName: preAggregateMetadata.name,
+                chartId,
+                dashboardId,
+                missReason: preAggregateMetadata.reason?.reason,
+            },
+        });
+    }
+
     async cleanupPreAggregateDailyStats(
         retentionDays: number,
     ): Promise<number> {
@@ -4046,6 +4086,19 @@ export class AsyncQueryService extends ProjectService {
                 routingDecision.preAggregateMetadata.hit,
                 routingDecision.preAggregateMetadata.reason?.reason,
             );
+            this.trackPreAggregateRoutingEvent({
+                account,
+                projectUuid,
+                context,
+                exploreName: explore.name,
+                routingTarget: routingDecision.target,
+                preAggregateMetadata: routingDecision.preAggregateMetadata,
+                preAggregationRoute:
+                    routingDecision.target === 'pre_aggregate'
+                        ? routingDecision.route
+                        : undefined,
+                chartId: savedChart.uuid,
+            });
         }
 
         this.recordPreAggregateStats({
@@ -4351,6 +4404,20 @@ export class AsyncQueryService extends ProjectService {
                 routingDecision.preAggregateMetadata.hit,
                 routingDecision.preAggregateMetadata.reason?.reason,
             );
+            this.trackPreAggregateRoutingEvent({
+                account,
+                projectUuid,
+                context,
+                exploreName: explore.name,
+                routingTarget: routingDecision.target,
+                preAggregateMetadata: routingDecision.preAggregateMetadata,
+                preAggregationRoute:
+                    routingDecision.target === 'pre_aggregate'
+                        ? routingDecision.route
+                        : undefined,
+                chartId: savedChart.uuid,
+                dashboardId: dashboardUuid,
+            });
         }
 
         this.recordPreAggregateStats({

@@ -200,6 +200,20 @@ const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+        // Create personal data apps; once created, the user can also view
+        // and manage their own. Moving an app into a space is gated
+        // separately by the target space's manage rule.
+        can('create', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            createdByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            createdByUserUuid: member.userUuid,
+        });
 
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,

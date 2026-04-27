@@ -5,7 +5,9 @@ export type WarehouseType =
     | 'snowflake'
     | 'duckdb'
     | 'databricks'
-    | 'clickhouse';
+    | 'clickhouse'
+    | 'athena'
+    | 'trino';
 
 export const ALL_WAREHOUSES: WarehouseType[] = [
     'duckdb',
@@ -15,6 +17,8 @@ export const ALL_WAREHOUSES: WarehouseType[] = [
     'snowflake',
     'databricks',
     'clickhouse',
+    'athena',
+    'trino',
 ];
 
 export type Tier = 'fast' | 'tier1' | 'tier2' | 'all';
@@ -22,13 +26,23 @@ export type Tier = 'fast' | 'tier1' | 'tier2' | 'all';
 // Redshift runs in tier1 alongside Postgres: it shares the formula-package
 // codegen with Postgres (empty subclass — zero overrides), so a tier1 run
 // catches shared-path regressions without waiting for cloud-warehouse tiers.
-// Databricks and ClickHouse run in tier2 alongside BigQuery and Snowflake:
-// cloud / self-hosted warehouses with their own connection latency and
-// infrastructure considerations.
+// Databricks, ClickHouse, Athena, Trino run in tier2 alongside BigQuery
+// and Snowflake: cloud / self-hosted warehouses with their own connection
+// latency and infrastructure considerations. Athena and Trino share a
+// codegen config but each gets its own integration row so any connector-
+// level divergence (Iceberg storage, type marshalling) is caught against
+// the real engine.
 export const TIER_WAREHOUSES: Record<Tier, WarehouseType[]> = {
     fast: ['duckdb'],
     tier1: ['duckdb', 'postgres', 'redshift'],
-    tier2: ['bigquery', 'snowflake', 'databricks', 'clickhouse'],
+    tier2: [
+        'bigquery',
+        'snowflake',
+        'databricks',
+        'clickhouse',
+        'athena',
+        'trino',
+    ],
     all: ALL_WAREHOUSES,
 };
 
@@ -75,6 +89,43 @@ export interface WarehouseConfig {
         password: string;
         database: string;
     };
+    athena: {
+        accessKeyId: string;
+        secretAccessKey: string;
+        region: string;
+        // Athena catalog. Defaults to `AwsDataCatalog` (the Glue catalog).
+        // Surfaced for cross-account or Lake Formation setups that use a
+        // non-default catalog name.
+        catalog: string;
+        // The Glue database tables are created in. Equivalent to Lightdash
+        // project YAML's `schema:` for an Athena adapter.
+        database: string;
+        // Workgroup ('primary' is the AWS default). The workgroup must have
+        // Engine v3 enabled (Trino-based) and a result-output S3 location
+        // configured — Athena rejects every query without one.
+        workgroup: string;
+        // S3 prefix where Iceberg table data lives. Each table seeds into
+        // `s3://<bucket>/<prefix>/<table>/`. Distinct from the staging
+        // location below, which holds query result metadata only — though
+        // both can point at the same bucket with different prefixes.
+        s3Bucket: string;
+        s3Prefix: string;
+        // S3 location where Athena writes query results / metadata. Passed
+        // as `ResultConfiguration.OutputLocation` on every query so the
+        // runner doesn't depend on the workgroup having a default output
+        // location pre-configured. Format: `s3://bucket/path/`.
+        s3StagingDir: string;
+    };
+    trino: {
+        host: string;
+        port: number;
+        // `http` for self-hosted clusters / `https` for managed.
+        protocol: 'http' | 'https';
+        user: string;
+        password: string;
+        catalog: string;
+        schema: string;
+    };
 }
 
 export function getWarehouseConfig(): WarehouseConfig {
@@ -120,6 +171,29 @@ export function getWarehouseConfig(): WarehouseConfig {
             username: process.env.FORMULA_TEST_CH_USERNAME ?? 'default',
             password: process.env.FORMULA_TEST_CH_PASSWORD ?? '',
             database: process.env.FORMULA_TEST_CH_DATABASE ?? 'formula_tests',
+        },
+        athena: {
+            accessKeyId: process.env.FORMULA_TEST_AT_ACCESS_KEY_ID ?? '',
+            secretAccessKey:
+                process.env.FORMULA_TEST_AT_SECRET_ACCESS_KEY ?? '',
+            region: process.env.FORMULA_TEST_AT_REGION ?? '',
+            catalog: process.env.FORMULA_TEST_AT_CATALOG ?? '',
+            database: process.env.FORMULA_TEST_AT_DATABASE ?? '',
+            workgroup: process.env.FORMULA_TEST_AT_WORKGROUP ?? '',
+            s3Bucket: process.env.FORMULA_TEST_AT_S3_BUCKET ?? '',
+            s3Prefix: process.env.FORMULA_TEST_AT_S3_PREFIX ?? '',
+            s3StagingDir: process.env.FORMULA_TEST_AT_S3_STAGING_DIR ?? '',
+        },
+        trino: {
+            host: process.env.FORMULA_TEST_TR_HOST ?? '',
+            port: parseInt(process.env.FORMULA_TEST_TR_PORT ?? '0', 10),
+            protocol:
+                (process.env.FORMULA_TEST_TR_PROTOCOL as 'http' | 'https') ??
+                'http',
+            user: process.env.FORMULA_TEST_TR_USER ?? '',
+            password: process.env.FORMULA_TEST_TR_PASSWORD ?? '',
+            catalog: process.env.FORMULA_TEST_TR_CATALOG ?? '',
+            schema: process.env.FORMULA_TEST_TR_SCHEMA ?? '',
         },
     };
 }

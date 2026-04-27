@@ -557,6 +557,7 @@ export class ServiceRepository
                     preAggregateModel: this.models.getPreAggregateModel(),
                     queryHistoryModel: this.models.getQueryHistoryModel(),
                     asyncQueryService: this.getAsyncQueryService(),
+                    analytics: this.context.lightdashAnalytics,
                     preAggregateResultsStorageClient:
                         this.clients.getPreAggregateResultsFileStorageClient(),
                     prometheusMetrics: this.prometheusMetrics,

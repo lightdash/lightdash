@@ -214,6 +214,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         organizationUuid,
                         projectUuid,
                         access: userAccess ? [userAccess] : [],
+                        createdByUserUuid: item.data.createdByUserUuid,
                     }),
                 ) === true;
             break;

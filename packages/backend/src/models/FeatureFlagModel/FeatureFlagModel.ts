@@ -78,15 +78,9 @@ export class FeatureFlagModel {
         }
 
         // 3. Check database (user override > org override > flag default)
-        try {
-            const dbResult = await this.getFromDatabase(args);
-            if (dbResult !== null) {
-                return dbResult;
-            }
-        } catch (e) {
-            Logger.warn(
-                `Failed to check feature flag ${args.featureFlagId} from database, falling through to PostHog: ${e}`,
-            );
+        const dbResult = await this.tryGetFromDatabase(args);
+        if (dbResult !== null) {
+            return dbResult;
         }
 
         // 4. Fallback to PostHog (temporary, will be removed after migration)
@@ -391,7 +385,7 @@ export class FeatureFlagModel {
         if (this.lightdashConfig.query.enableTimezoneSupport) {
             return { id: args.featureFlagId, enabled: true };
         }
-        const dbResult = await this.getFromDatabase(args);
+        const dbResult = await this.tryGetFromDatabase(args);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
@@ -401,9 +395,21 @@ export class FeatureFlagModel {
         if (this.lightdashConfig.appRuntime.enabled) {
             return { id: args.featureFlagId, enabled: true };
         }
-        // Fall through to database check (pass full args for user/org override resolution)
-        const dbResult = await this.getFromDatabase(args);
+        const dbResult = await this.tryGetFromDatabase(args);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
+    }
+
+    private async tryGetFromDatabase(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag | null> {
+        try {
+            return await this.getFromDatabase(args);
+        } catch (e) {
+            Logger.warn(
+                `Failed to check feature flag ${args.featureFlagId} from database, falling through: ${e}`,
+            );
+            return null;
+        }
     }
 
     private async getFromDatabase(

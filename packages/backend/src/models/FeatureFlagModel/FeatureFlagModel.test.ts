@@ -7,9 +7,17 @@ import { FeatureFlagModel } from './FeatureFlagModel';
 // Minimal stub — tests below don't exercise the database layer
 const databaseStub = {} as Knex;
 
-const buildModel = (configOverrides: Partial<LightdashConfig> = {}) =>
+// Throws on any query — used to verify DB errors are swallowed by the model
+const throwingDatabase = (() => {
+    throw new Error('invalid input syntax for type uuid');
+}) as unknown as Knex;
+
+const buildModel = (
+    configOverrides: Partial<LightdashConfig> = {},
+    database: Knex = databaseStub,
+) =>
     new FeatureFlagModel({
-        database: databaseStub,
+        database,
         lightdashConfig: {
             ...lightdashConfigMock,
             enabledFeatureFlags: new Set<string>(),
@@ -98,6 +106,48 @@ describe('FeatureFlagModel', () => {
             });
 
             expect(result.enabled).toBe(false);
+        });
+    });
+
+    describe('database error resilience', () => {
+        // Reproduces the embed-account regression: a non-UUID userUuid
+        // (e.g. `external::…`) makes Postgres throw 22P02 on the override
+        // lookup. The model must swallow that and resolve to disabled
+        // rather than 500ing.
+        it('does not throw when EnableTimezoneSupport DB lookup fails', async () => {
+            const model = buildModel({}, throwingDatabase);
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableTimezoneSupport,
+                user: {
+                    userUuid: 'external::not-a-uuid',
+                    organizationUuid: 'org-uuid',
+                    organizationName: 'Org',
+                },
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableTimezoneSupport,
+                enabled: false,
+            });
+        });
+
+        it('does not throw when EnableDataApps DB lookup fails', async () => {
+            const model = buildModel({}, throwingDatabase);
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EnableDataApps,
+                user: {
+                    userUuid: 'external::not-a-uuid',
+                    organizationUuid: 'org-uuid',
+                    organizationName: 'Org',
+                },
+            });
+
+            expect(result).toEqual({
+                id: FeatureFlags.EnableDataApps,
+                enabled: false,
+            });
         });
     });
 });

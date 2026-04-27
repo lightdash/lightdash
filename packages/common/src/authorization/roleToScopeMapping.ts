@@ -52,6 +52,9 @@ const BASE_ROLE_SCOPES = {
         // Enterprise scopes
         'view:AiAgent',
         'create:AiAgentThread',
+        'create:DataApp', // Personal apps (not yet in a space)
+        'view:DataApp@self', // Own personal apps
+        'manage:DataApp@self', // Own personal apps
     ],
 
     [ProjectMemberRole.EDITOR]: [
@@ -175,6 +178,9 @@ export const getNonEnterpriseScopesForRole = (
         'view:DataApp',
         'manage:DataApp',
         'manage:DataApp@space',
+        'create:DataApp',
+        'view:DataApp@self',
+        'manage:DataApp@self',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

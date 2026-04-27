@@ -1,31 +1,31 @@
 import { Ability } from '@casl/ability';
 import {
     AnyType,
+    CreateWarehouseCredentials,
     DimensionType,
+    ExecuteAsyncQueryRequestParams,
     ExploreType,
     FilterOperator,
     ForbiddenError,
     NotFoundError,
+    PossibleAbilities,
     QueryExecutionContext,
+    QueryHistory,
     QueryHistoryStatus,
+    ResultColumns,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseClient,
     WarehouseTypes,
-    type CreateWarehouseCredentials,
-    type ExecuteAsyncQueryRequestParams,
-    type PossibleAbilities,
-    type QueryHistory,
-    type ResultColumns,
-    type WarehouseClient,
 } from '@lightdash/common';
-import { type SshTunnel } from '@lightdash/warehouses';
+import type { SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
-import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
