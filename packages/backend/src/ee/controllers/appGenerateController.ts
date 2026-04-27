@@ -60,6 +60,7 @@ export class AppGenerateController extends BaseController {
             body.appUuid,
             body.chartUuids,
             body.dashboardUuid,
+            body.template,
         );
         return {
             status: 'ok',

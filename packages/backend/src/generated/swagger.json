@@ -8271,6 +8271,10 @@
             "ApiGenerateAppResponse": {
                 "$ref": "#/components/schemas/ApiSuccess__appUuid-string--version-number__"
             },
+            "DataAppTemplate": {
+                "type": "string",
+                "enum": ["dashboard", "slideshow", "pdf", "custom"]
+            },
             "GenerateAppRequestBody": {
                 "properties": {
                     "dashboardUuid": {
@@ -8287,6 +8291,9 @@
                     },
                     "imageId": {
                         "type": "string"
+                    },
+                    "template": {
+                        "$ref": "#/components/schemas/DataAppTemplate"
                     },
                     "prompt": {
                         "type": "string"
@@ -10310,6 +10317,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -10570,7 +10590,7 @@
                     },
                     "artifactType": {
                         "type": "string",
-                        "enum": ["chart", "dashboard"]
+                        "enum": ["dashboard", "chart"]
                     }
                 },
                 "required": [
@@ -10941,7 +10961,7 @@
                     },
                     "artifactType": {
                         "type": "string",
-                        "enum": ["chart", "dashboard"]
+                        "enum": ["dashboard", "chart"]
                     },
                     "threadUuid": {
                         "type": "string"
@@ -30861,11 +30881,11 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "dashboardCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "dashboardCount": {
                                 "type": "number",
                                 "format": "double"
                             }
@@ -30874,8 +30894,8 @@
                             "appCount",
                             "nestedSpaceCount",
                             "schedulerCount",
-                            "dashboardCount",
-                            "chartCount"
+                            "chartCount",
+                            "dashboardCount"
                         ],
                         "type": "object"
                     }

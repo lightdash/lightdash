@@ -2,6 +2,7 @@ import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
     type ChartReference,
+    type DataAppTemplate,
     type EmbedArtifactVersionJobPayload,
     type GenerateArtifactQuestionJobPayload,
     type SlackPromptJobPayload,
@@ -40,6 +41,7 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     appUuid: string;
     version: number;
     prompt: string;
+    template?: DataAppTemplate; // starter template selected on creation; absent on iteration
     imageId?: string;
     isIteration: boolean;
     chartReferences?: ChartReference[];

@@ -36,8 +36,17 @@ export type ApiAppImageUploadResponse = ApiSuccess<{
     imageId: string;
 }>;
 
+export const DATA_APP_TEMPLATES = [
+    'dashboard',
+    'slideshow',
+    'pdf',
+    'custom',
+] as const;
+export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
+
 export type GenerateAppRequestBody = {
     prompt: string;
+    template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
     imageId?: string;
     appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
     chartUuids?: string[]; // saved chart UUIDs to resolve and pass as structured metric queries

@@ -9,10 +9,13 @@ type Props = {
 /**
  * Renders a sandboxed app preview iframe with a postMessage fetch proxy.
  *
- * The iframe has `sandbox="allow-scripts"` (no `allow-same-origin`),
- * so it cannot access the parent's cookies. The SDK inside the iframe
- * routes all API calls through postMessage, and this component's bridge
- * executes them using the current user's session.
+ * The iframe has `sandbox="allow-scripts allow-modals"` (no `allow-same-origin`),
+ * so it cannot access the parent's cookies. `allow-modals` lets generated apps
+ * call `window.print()` (needed for PDF Report templates) - it also enables
+ * `alert`/`confirm`/`prompt`, which is acceptable here since the iframe is
+ * already isolated from parent origin. The SDK inside the iframe routes all
+ * API calls through postMessage, and this component's bridge executes them
+ * using the current user's session.
  */
 const AppIframePreview: FC<Props> = ({ src, onQueryEvent }) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -24,7 +27,7 @@ const AppIframePreview: FC<Props> = ({ src, onQueryEvent }) => {
             src={src}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="App preview"
-            sandbox="allow-scripts"
+            sandbox="allow-scripts allow-modals"
             allow=""
             onLoad={handleIframeLoad}
         />
