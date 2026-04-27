@@ -868,12 +868,8 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
-        const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            });
-
+        // Explicit false for now, need to check db without userUuid which the `FeatureFlagModel` doesn't support (account.user.id is external, otherwise we need a db lookup)
+        const useTimezoneAwareDateTrunc = false;
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
             explore: filteredExplore,
@@ -1187,11 +1183,8 @@ export class EmbedService extends BaseService {
             projectTimezone,
         );
 
-        const isTimezoneSupportEnabled =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: user?.userUuid ?? account.user.id,
-                organizationUuid,
-            });
+        // Explicit false for now, need to check db without userUuid which the `FeatureFlagModel` doesn't support (account.user.id is external, otherwise we need a db lookup)
+        const isTimezoneSupportEnabled = false;
         const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
