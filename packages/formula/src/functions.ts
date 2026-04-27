@@ -38,9 +38,11 @@ export const WINDOW_FNS = [
     'LAST',
     'LAG',
     'LEAD',
-    'MOVING_SUM',
-    'MOVING_AVG',
 ] as const;
+
+// Window functions whose `preceding` count is a parse-time integer literal,
+// validated and lifted onto the AST node like DateFn's unit.
+export const MOVING_WINDOW_FNS = ['MOVING_SUM', 'MOVING_AVG'] as const;
 
 export const CONDITIONAL_AGG_FNS = ['SUMIF', 'AVERAGEIF'] as const;
 
@@ -65,6 +67,7 @@ export type OneOrTwoArgFnName = (typeof ONE_OR_TWO_ARG_FNS)[number];
 export type ZeroOrOneArgFnName = (typeof ZERO_OR_ONE_ARG_FNS)[number];
 export type VariadicFnName = (typeof VARIADIC_FNS)[number];
 export type WindowFnName = (typeof WINDOW_FNS)[number];
+export type MovingWindowFnName = (typeof MOVING_WINDOW_FNS)[number];
 export type ConditionalAggFnName = (typeof CONDITIONAL_AGG_FNS)[number];
 export type DateFnName = (typeof DATE_FNS)[number];
 // DATE_SUB desugars to DATE_ADD at parse time, so it never appears in the AST.
@@ -77,6 +80,7 @@ export const ALL_FUNCTION_NAMES = [
     ...ZERO_OR_ONE_ARG_FNS,
     ...VARIADIC_FNS,
     ...WINDOW_FNS,
+    ...MOVING_WINDOW_FNS,
     ...CONDITIONAL_AGG_FNS,
     ...DATE_FNS,
     'COUNTIF',
@@ -201,6 +205,7 @@ export function getParserOptions() {
         zeroOrOneArgFns: ZERO_OR_ONE_ARG_FNS,
         variadicFns: VARIADIC_FNS,
         windowFns: WINDOW_FNS,
+        movingWindowFns: MOVING_WINDOW_FNS,
         conditionalAggFns: CONDITIONAL_AGG_FNS,
         dateFns: DATE_FNS,
         dateUnits: DATE_UNITS,
