@@ -427,10 +427,11 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
 
 // Trino / Athena config. Athena's SQL Engine v3 is Trino, and
 // `packages/common/src/utils/timeFrames.ts` wires both adapters to the
-// same `trinoConfig`. Currently only `athena` maps to this here; the
-// `trino` dialect lands in a follow-up (ZAP-324) and reuses this entry
-// unchanged. Mirrors `TrinoSqlBuilder` / `AthenaSqlBuilder` in
-// `packages/warehouses` (escapeString, getIntervalSql, getMetricSql, etc.).
+// same `trinoConfig`. Both dialects map to this single entry — keep it
+// that way: any divergence between the two would be a footgun, since
+// production treats them as the same engine. Mirrors `TrinoSqlBuilder` /
+// `AthenaSqlBuilder` in `packages/warehouses` (escapeString,
+// getIntervalSql, getMetricSql, etc.).
 //
 // Key shape divergences from the Postgres family:
 //   - INTERVAL: `INTERVAL '<n>' <UNIT>` (value quoted, unit bare) — not
@@ -485,4 +486,5 @@ export const DIALECTS: Record<Dialect, DialectConfig> = {
     databricks: DATABRICKS_CONFIG,
     clickhouse: CLICKHOUSE_CONFIG,
     athena: TRINO_CONFIG,
+    trino: TRINO_CONFIG,
 };

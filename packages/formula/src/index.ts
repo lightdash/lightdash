@@ -37,6 +37,7 @@ export const SUPPORTED_DIALECTS = [
     'databricks',
     'clickhouse',
     'athena',
+    'trino',
 ] as const satisfies readonly Dialect[];
 
 type MissingSupportedDialect = Exclude<

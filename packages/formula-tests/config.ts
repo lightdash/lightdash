@@ -6,7 +6,8 @@ export type WarehouseType =
     | 'duckdb'
     | 'databricks'
     | 'clickhouse'
-    | 'athena';
+    | 'athena'
+    | 'trino';
 
 export const ALL_WAREHOUSES: WarehouseType[] = [
     'duckdb',
@@ -17,6 +18,7 @@ export const ALL_WAREHOUSES: WarehouseType[] = [
     'databricks',
     'clickhouse',
     'athena',
+    'trino',
 ];
 
 export type Tier = 'fast' | 'tier1' | 'tier2' | 'all';
@@ -24,9 +26,12 @@ export type Tier = 'fast' | 'tier1' | 'tier2' | 'all';
 // Redshift runs in tier1 alongside Postgres: it shares the formula-package
 // codegen with Postgres (empty subclass — zero overrides), so a tier1 run
 // catches shared-path regressions without waiting for cloud-warehouse tiers.
-// Databricks, ClickHouse, Athena run in tier2 alongside BigQuery and
-// Snowflake: cloud / self-hosted warehouses with their own connection
-// latency and infrastructure considerations.
+// Databricks, ClickHouse, Athena, Trino run in tier2 alongside BigQuery
+// and Snowflake: cloud / self-hosted warehouses with their own connection
+// latency and infrastructure considerations. Athena and Trino share a
+// codegen config but each gets its own integration row so any connector-
+// level divergence (Iceberg storage, type marshalling) is caught against
+// the real engine.
 export const TIER_WAREHOUSES: Record<Tier, WarehouseType[]> = {
     fast: ['duckdb'],
     tier1: ['duckdb', 'postgres', 'redshift'],
@@ -36,6 +41,7 @@ export const TIER_WAREHOUSES: Record<Tier, WarehouseType[]> = {
         'databricks',
         'clickhouse',
         'athena',
+        'trino',
     ],
     all: ALL_WAREHOUSES,
 };
@@ -110,6 +116,16 @@ export interface WarehouseConfig {
         // location pre-configured. Format: `s3://bucket/path/`.
         s3StagingDir: string;
     };
+    trino: {
+        host: string;
+        port: number;
+        // `http` for self-hosted clusters / `https` for managed.
+        protocol: 'http' | 'https';
+        user: string;
+        password: string;
+        catalog: string;
+        schema: string;
+    };
 }
 
 export function getWarehouseConfig(): WarehouseConfig {
@@ -167,6 +183,17 @@ export function getWarehouseConfig(): WarehouseConfig {
             s3Bucket: process.env.FORMULA_TEST_AT_S3_BUCKET ?? '',
             s3Prefix: process.env.FORMULA_TEST_AT_S3_PREFIX ?? '',
             s3StagingDir: process.env.FORMULA_TEST_AT_S3_STAGING_DIR ?? '',
+        },
+        trino: {
+            host: process.env.FORMULA_TEST_TR_HOST ?? '',
+            port: parseInt(process.env.FORMULA_TEST_TR_PORT ?? '0', 10),
+            protocol:
+                (process.env.FORMULA_TEST_TR_PROTOCOL as 'http' | 'https') ??
+                'http',
+            user: process.env.FORMULA_TEST_TR_USER ?? '',
+            password: process.env.FORMULA_TEST_TR_PASSWORD ?? '',
+            catalog: process.env.FORMULA_TEST_TR_CATALOG ?? '',
+            schema: process.env.FORMULA_TEST_TR_SCHEMA ?? '',
         },
     };
 }
