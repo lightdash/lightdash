@@ -83,6 +83,14 @@ export const selectProject = async (
         return { projectUuid: mainProject, isPreview: false };
     }
 
+    // If the stored main project is the same UUID as the preview project,
+    // the config was set up incorrectly (e.g. an older `set-project` allowed
+    // selecting a preview). Treat the project as a preview only — otherwise
+    // the prompt would show the same project under both labels.
+    if (mainProject && previewProject && mainProject === previewProject) {
+        return { projectUuid: previewProject, isPreview: true };
+    }
+
     // Both are available - need to choose
     if (mainProject && previewProject) {
         // In non-interactive mode, default to preview project
