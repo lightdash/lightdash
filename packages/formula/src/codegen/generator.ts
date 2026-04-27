@@ -12,6 +12,7 @@ import type {
     DateUnit,
     IfNode,
     LogicalNode,
+    MovingWindowFnNode,
     NumberLiteralNode,
     OneOrTwoArgFnNode,
     SingleArgFnNode,
@@ -75,6 +76,8 @@ export class SqlGenerator {
                 return this.generateVariadicFn(node);
             case 'WindowFn':
                 return this.generateWindowFn(node);
+            case 'MovingWindowFn':
+                return this.generateMovingWindowFn(node);
             case 'DateFn':
                 return this.generateDateFn(node);
             case 'ColumnRef':
@@ -89,10 +92,6 @@ export class SqlGenerator {
                 return this.generateComparison(node);
             case 'Logical':
                 return this.generateLogical(node);
-            case 'WindowClause':
-                throw new Error(
-                    'WindowClause should not be generated directly',
-                );
             default:
                 return assertUnreachable(
                     node,
@@ -318,33 +317,31 @@ export class SqlGenerator {
             case 'LAG':
             case 'LEAD':
                 return this.dispatchLagLead(node.name, args, node);
-            // TODO: unsafe cast — MOVING_SUM/MOVING_AVG assume second arg is a NumberLiteral
-            // but the grammar accepts any Expression. Fix by adding a grammar rule that
-            // enforces NumberLiteral in the second position (same pattern as BooleanExpression).
-            case 'MOVING_SUM': {
-                const preceding = (node.args[1] as NumberLiteralNode).value;
-                return this.generateWindowFunction(
-                    'SUM',
-                    [args[0]],
-                    node,
-                    `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
-                );
-            }
-            case 'MOVING_AVG': {
-                const preceding = (node.args[1] as NumberLiteralNode).value;
-                // Route through generateAvg so dialects that need to
-                // preserve precision across the AVG division (Redshift)
-                // can inject a cast on the value argument.
-                return this.appendOverClause(
-                    this.generateAvg(args[0]),
-                    node,
-                    `ROWS BETWEEN ${preceding} PRECEDING AND CURRENT ROW`,
-                );
-            }
             default:
                 return assertUnreachable(
                     node.name,
                     `Unknown window function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateMovingWindowFn(node: MovingWindowFnNode): string {
+        const arg = this.generate(node.arg);
+        const frame = `ROWS BETWEEN ${node.preceding} PRECEDING AND CURRENT ROW`;
+        switch (node.name) {
+            case 'MOVING_SUM':
+                return this.generateWindowFunction('SUM', [arg], node, frame);
+            case 'MOVING_AVG':
+                // Route through generateAvg so Redshift's DOUBLE PRECISION cast applies.
+                return this.appendOverClause(
+                    this.generateAvg(arg),
+                    node,
+                    frame,
+                );
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown moving-window function: ${node.name}`,
                 );
         }
     }
