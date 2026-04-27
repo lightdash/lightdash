@@ -8,6 +8,7 @@ import {
     PREVIEW_COOKIE_NAME,
     PREVIEW_TOKEN_MAX_AGE_SECONDS,
     verifyPreviewToken,
+    type PreviewTokenPayload,
 } from './appPreviewToken';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
@@ -88,6 +89,7 @@ const injectTokenIntoAssetUrls = (html: string, token: string): string =>
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
     lightdashSecret: string,
+    onPreviewView?: (payload: PreviewTokenPayload) => void,
 ): Router => {
     const router = express.Router({ strict: true });
 
@@ -245,6 +247,7 @@ export const createAppPreviewRouter = (
             return;
         }
 
+        res.locals.previewTokenPayload = result.payload;
         next();
     };
 
@@ -324,6 +327,10 @@ export const createAppPreviewRouter = (
             setSecurityHeaders(res);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
+
+            onPreviewView?.(
+                res.locals.previewTokenPayload as PreviewTokenPayload,
+            );
 
             if (token) {
                 const html = await bufferS3Body(result.body);

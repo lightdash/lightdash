@@ -514,11 +514,27 @@ export default class App {
         // is available regardless of whether the feature is enabled via
         // APPS_RUNTIME_ENABLED env var or the enable-data-apps feature flag.
         if (this.lightdashConfig.appRuntime.s3) {
+            const analyticsModel = this.models.getAnalyticsModel();
             expressApp.use(
                 '/api/apps',
                 createAppPreviewRouter(
                     this.lightdashConfig.appRuntime,
                     this.lightdashConfig.lightdashSecret,
+                    (p) => {
+                        void analyticsModel.addAppViewEvent(
+                            p.appUuid,
+                            p.userUuid,
+                        );
+                        this.analytics.track({
+                            event: 'data_app.view',
+                            userId: p.userUuid,
+                            properties: {
+                                organizationId: p.organizationUuid,
+                                projectId: p.projectUuid,
+                                appUuid: p.appUuid,
+                            },
+                        });
+                    },
                 ),
             );
         }
