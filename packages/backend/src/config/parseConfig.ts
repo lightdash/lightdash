@@ -1274,9 +1274,6 @@ export type LightdashConfig = {
     metricDashboardFilters: {
         enabled: boolean | undefined;
     };
-    showHideColumns: {
-        enabled: boolean | undefined;
-    };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
 };
@@ -2291,11 +2288,6 @@ export const parseConfig = (): LightdashConfig => {
         metricDashboardFilters: {
             enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
                 ? process.env.METRIC_DASHBOARD_FILTERS_ENABLED === 'true'
-                : undefined,
-        },
-        showHideColumns: {
-            enabled: process.env.SHOW_HIDE_COLUMNS_ENABLED
-                ? process.env.SHOW_HIDE_COLUMNS_ENABLED === 'true'
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
