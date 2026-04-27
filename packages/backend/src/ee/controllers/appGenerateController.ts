@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ParameterError,
     type ApiAppImageUploadResponse,
+    type ApiAppImageUrlResponse,
     type ApiCancelAppVersionResponse,
     type ApiDeleteAppResponse,
     type ApiGenerateAppResponse,
@@ -292,6 +293,28 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: { token },
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/images/{imageId}')
+    @OperationId('getAppImageUrl')
+    async getAppImageUrl(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() imageId: string,
+    ): Promise<ApiAppImageUrlResponse> {
+        const result = await this.getAppGenerateService().getImageUrl(
+            req.user!,
+            projectUuid,
+            appUuid,
+            imageId,
+        );
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

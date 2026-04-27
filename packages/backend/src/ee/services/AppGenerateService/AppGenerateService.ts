@@ -16,6 +16,8 @@ import {
     MissingConfigError,
     ParameterError,
     type AppGeneratePipelineJobPayload,
+    type AppVersionChartResource,
+    type AppVersionResources,
     type ChartReference,
     type SessionUser,
     type TogglePinnedItemInfo,
@@ -481,6 +483,39 @@ export class AppGenerateService extends BaseService {
         });
 
         return { imageId };
+    }
+
+    async getImageUrl(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        imageId: string,
+    ): Promise<{ imageUrl: string }> {
+        await this.assertDataAppsEnabled(user);
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'manage',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to view app images',
+        );
+
+        if (!isValidUuid(imageId)) {
+            throw new ParameterError('Invalid imageId: must be a valid UUID');
+        }
+
+        const { client: s3Client, bucket } = this.getS3Client();
+        const s3Key = AppGenerateService.imageStagingKey(appUuid, imageId);
+
+        const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+        const imageUrl = await getSignedUrl(
+            s3Client,
+            new GetObjectCommand({ Bucket: bucket, Key: s3Key }),
+            { expiresIn: 900 },
+        );
+
+        return { imageUrl };
     }
 
     private static truncateEnd(text: string, maxLength: number): string {
@@ -2028,9 +2063,12 @@ export class AppGenerateService extends BaseService {
     private async resolveChartReferences(
         chartUuids: string[],
         user: SessionUser,
-    ): Promise<ChartReference[]> {
+    ): Promise<{
+        references: ChartReference[];
+        chartResources: AppVersionChartResource[];
+    }> {
         const uuids = [...new Set(chartUuids)];
-        if (uuids.length === 0) return [];
+        if (uuids.length === 0) return { references: [], chartResources: [] };
 
         const account = fromSession(user);
 
@@ -2039,7 +2077,8 @@ export class AppGenerateService extends BaseService {
         );
 
         const references: ChartReference[] = [];
-        for (const result of results) {
+        const chartResources: AppVersionChartResource[] = [];
+        results.forEach((result, i) => {
             if (result.status === 'fulfilled') {
                 const chart = result.value;
                 references.push({
@@ -2048,9 +2087,14 @@ export class AppGenerateService extends BaseService {
                     exploreName: chart.tableName,
                     metricQuery: chart.metricQuery,
                 });
+                chartResources.push({
+                    chartUuid: uuids[i],
+                    chartName: chart.name,
+                    chartKind: null,
+                });
             }
             // Rejected = not a chart UUID, no access, or deleted — skip silently
-        }
+        });
 
         if (references.length > 0) {
             this.logger.info(
@@ -2058,7 +2102,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        return references;
+        return { references, chartResources };
     }
 
     async generateApp(
@@ -2091,6 +2135,28 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: generation started (promptLength=${prompt.length})`,
         );
 
+        let allChartUuids = [...(chartUuids ?? [])];
+        let dashboardName: string | null = null;
+        if (dashboardUuid) {
+            const result = await this.resolveDashboardToChartUuids(
+                dashboardUuid,
+                user,
+            );
+            allChartUuids = [
+                ...new Set([...allChartUuids, ...result.chartUuids]),
+            ];
+            dashboardName = result.dashboardName;
+        }
+        const { references: chartReferences, chartResources } =
+            await this.resolveChartReferences(allChartUuids, user);
+
+        // Build resources metadata to persist with the version
+        const resources: AppVersionResources = {
+            images: imageId ? [{ imageId }] : [],
+            charts: chartResources,
+            dashboardName,
+        };
+
         // Persist app record so we can track status immediately
         try {
             await this.appModel.createWithVersion(
@@ -2101,6 +2167,7 @@ export class AppGenerateService extends BaseService {
                 },
                 { version, prompt },
                 'pending',
+                resources,
             );
         } catch (error) {
             this.logger.error(
@@ -2121,21 +2188,6 @@ export class AppGenerateService extends BaseService {
                 hasImage: imageId !== undefined,
             },
         });
-
-        let allChartUuids = [...(chartUuids ?? [])];
-        if (dashboardUuid) {
-            const result = await this.resolveDashboardToChartUuids(
-                dashboardUuid,
-                user,
-            );
-            allChartUuids = [
-                ...new Set([...allChartUuids, ...result.chartUuids]),
-            ];
-        }
-        const chartReferences = await this.resolveChartReferences(
-            allChartUuids,
-            user,
-        );
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
@@ -2191,11 +2243,33 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: iteration started (version=${newVersion}, promptLength=${prompt.length})`,
         );
 
+        let allChartUuids = [...(chartUuids ?? [])];
+        let dashboardName: string | null = null;
+        if (dashboardUuid) {
+            const result = await this.resolveDashboardToChartUuids(
+                dashboardUuid,
+                user,
+            );
+            allChartUuids = [
+                ...new Set([...allChartUuids, ...result.chartUuids]),
+            ];
+            dashboardName = result.dashboardName;
+        }
+        const { references: chartReferences, chartResources } =
+            await this.resolveChartReferences(allChartUuids, user);
+
+        const resources: AppVersionResources = {
+            images: imageId ? [{ imageId }] : [],
+            charts: chartResources,
+            dashboardName,
+        };
+
         await this.appModel.createVersion(
             appUuid,
             { version: newVersion, prompt },
             'pending',
             user.userUuid,
+            resources,
         );
 
         this.analytics.track({
@@ -2215,21 +2289,6 @@ export class AppGenerateService extends BaseService {
                     : null,
             },
         });
-
-        let allChartUuids = [...(chartUuids ?? [])];
-        if (dashboardUuid) {
-            const result = await this.resolveDashboardToChartUuids(
-                dashboardUuid,
-                user,
-            );
-            allChartUuids = [
-                ...new Set([...allChartUuids, ...result.chartUuids]),
-            ];
-        }
-        const chartReferences = await this.resolveChartReferences(
-            allChartUuids,
-            user,
-        );
 
         await this.schedulerClient.appGeneratePipeline({
             appUuid,
@@ -2338,6 +2397,7 @@ export class AppGenerateService extends BaseService {
             status: AppVersionStatus;
             statusMessage: string | null;
             createdAt: Date;
+            resources: AppVersionResources | null;
         }[];
         hasMore: boolean;
     }> {
@@ -2374,6 +2434,7 @@ export class AppGenerateService extends BaseService {
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
+                resources: v.resources,
                 createdAt: v.created_at,
             })),
             hasMore,

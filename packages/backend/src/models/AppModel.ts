@@ -1,5 +1,6 @@
 import {
     NotFoundError,
+    type AppVersionResources,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
@@ -35,6 +36,7 @@ export class AppModel {
             Partial<Pick<DbApp, 'app_id' | 'name' | 'description'>>,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
+        resources?: AppVersionResources,
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const [appRow] = await trx(AppsTableName)
@@ -46,6 +48,13 @@ export class AppModel {
                     app_id: appRow.app_id,
                     status,
                     created_by_user_uuid: appRow.created_by_user_uuid,
+                    ...(resources
+                        ? {
+                              resources: JSON.stringify(
+                                  resources,
+                              ) as unknown as AppVersionResources,
+                          }
+                        : {}),
                 })
                 .returning('*');
             return { app: appRow, version: versionRow };
@@ -235,6 +244,7 @@ export class AppModel {
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
         createdByUserUuid: string,
+        resources?: AppVersionResources,
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -242,6 +252,13 @@ export class AppModel {
                 app_id: appId,
                 status,
                 created_by_user_uuid: createdByUserUuid,
+                ...(resources
+                    ? {
+                          resources: JSON.stringify(
+                              resources,
+                          ) as unknown as AppVersionResources,
+                      }
+                    : {}),
             })
             .returning('*');
         return row;
