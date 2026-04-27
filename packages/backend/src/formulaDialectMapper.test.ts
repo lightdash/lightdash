@@ -15,12 +15,11 @@ describe('mapAdapterToFormulaDialect', () => {
         },
     );
 
-    test.each([SupportedDbtAdapter.TRINO, SupportedDbtAdapter.ATHENA])(
-        'throws for unsupported adapter %s',
-        (adapter) => {
-            expect(() => mapAdapterToFormulaDialect(adapter)).toThrow(
-                `Formula table calculations are not yet supported for ${adapter}`,
-            );
-        },
-    );
+    test('throws for unsupported adapter trino', () => {
+        expect(() =>
+            mapAdapterToFormulaDialect(SupportedDbtAdapter.TRINO),
+        ).toThrow(
+            `Formula table calculations are not yet supported for ${SupportedDbtAdapter.TRINO}`,
+        );
+    });
 });

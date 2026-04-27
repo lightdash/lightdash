@@ -146,8 +146,8 @@ const TableCalculationModal: FC<Props> = ({
     const { data: health } = useHealth();
 
     // Formula support is pinned to what the formula package can compile for
-    // this warehouse. The backend mapper throws for unsupported adapters, so
-    // we must not offer the input mode here either.
+    // this warehouse — `SUPPORTED_DIALECTS` is the single source of truth
+    // shared with the backend mapper.
     const isFormulaSupported =
         !!project?.warehouseConnection &&
         (SUPPORTED_DIALECTS as readonly string[]).includes(

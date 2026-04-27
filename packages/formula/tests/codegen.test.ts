@@ -415,6 +415,94 @@ describe('codegen', () => {
         });
     });
 
+    describe('Athena dialect', () => {
+        // Athena's SQL Engine v3 is Trino. The formula package wires it
+        // through a `TRINO_CONFIG` shared with the (forthcoming) `trino`
+        // dialect. These tests pin the cross-cutting behaviour against
+        // `athena` so the codegen is locked in independently of the trino
+        // entry that will land next.
+
+        it('emits bare aggregates with double-quoted identifiers and ANSI string literals', () => {
+            expect(
+                compile('=SUMIF(revenue, region = "EU")', {
+                    dialect: 'athena',
+                    columns,
+                }),
+            ).toBe(`SUM(CASE WHEN ("region" = 'EU') THEN "revenue" END)`);
+        });
+
+        it('AVG stays bare (no DOUBLE PRECISION cast)', () => {
+            // Mirrors `AthenaSqlBuilder.getMetricSql` AVERAGE path, which
+            // defers to base `getDefaultMetricSql` returning `AVG(${sql})`.
+            expect(
+                compile('=AVG(revenue)', {
+                    dialect: 'athena',
+                    columns,
+                }),
+            ).toBe('AVG("revenue")');
+        });
+
+        it('ROUND stays bare in the 2-arg form (no numeric cast)', () => {
+            // Athena's ROUND works on DOUBLE/DECIMAL natively without the
+            // Postgres-family numeric-cast workaround.
+            expect(
+                compile('=ROUND(revenue, 2)', {
+                    dialect: 'athena',
+                    columns,
+                }),
+            ).toBe('ROUND("revenue", 2)');
+        });
+
+        it('CONCAT emits the base CONCAT(...) form for 2+ args', () => {
+            // Mirrors `AthenaSqlBuilder` falling through to
+            // `WarehouseBaseSqlBuilder.concatString`.
+            expect(
+                compile('=CONCAT(customer_name, " — ", category)', {
+                    dialect: 'athena',
+                    columns: { customer_name: 'name', category: 'cat' },
+                }),
+            ).toBe(`CONCAT("name", ' — ', "cat")`);
+        });
+
+        it('CONCAT with a single arg passes through unchanged', () => {
+            // Athena rejects `CONCAT('x')` with "There must be two or more
+            // concatenation arguments". The dialect detects the 1-arg case
+            // and emits the bare value.
+            expect(
+                compile('=CONCAT("*")', {
+                    dialect: 'athena',
+                    columns,
+                }),
+            ).toBe(`'*'`);
+        });
+
+        it('escapes single quotes by doubling them in string literals', () => {
+            // Mirrors `AthenaSqlBuilder.escapeString`. Backslashes are
+            // intentionally NOT escaped: Athena's lexer doesn't unescape
+            // `\\` so doubling them would corrupt user data on round-trip.
+            expect(
+                compile(`=IF(region = "O'Brien", 1, 0)`, {
+                    dialect: 'athena',
+                    columns: { region: 'region' },
+                }),
+            ).toBe(`CASE WHEN ("region" = 'O''Brien') THEN 1 ELSE 0 END`);
+        });
+
+        it('non-Monday weekStartDay propagates through DATE_DIFF composition', () => {
+            // Sanity-check that the DATE_TRUNC override is what
+            // generateDateDiff composes through for non-Monday weeks.
+            expect(
+                compile('=DATE_DIFF(a, b, "week")', {
+                    dialect: 'athena',
+                    columns: { a: 'a', b: 'b' },
+                    weekStartDay: 6,
+                }),
+            ).toBe(
+                `(DATE_DIFF('day', (DATE_TRUNC('week', ("a" - INTERVAL '6' DAY)) + INTERVAL '6' DAY), (DATE_TRUNC('week', ("b" - INTERVAL '6' DAY)) + INTERVAL '6' DAY)) / 7)`,
+            );
+        });
+    });
+
     describe('LAST_DAY', () => {
         const postgresStyleLastDay = `CAST(DATE_TRUNC('month', "order_date") + INTERVAL '1 month' - INTERVAL '1 day' AS DATE)`;
 
@@ -428,6 +516,10 @@ describe('codegen', () => {
             // the Postgres-style INTERVAL '1 month' composition outright.
             ['redshift', 'LAST_DAY("order_date")'],
             ['clickhouse', 'toLastDayOfMonth("order_date")'],
+            // Athena: native LAST_DAY_OF_MONTH (SQL Engine v3 = Trino,
+            // available since Trino 401). Distinct name from the *_DAY
+            // variants above.
+            ['athena', 'LAST_DAY_OF_MONTH("order_date")'],
         ] as const)('%s → %s', (dialect, expected) => {
             expect(
                 compile('=LAST_DAY(order_date)', { dialect, columns }),
@@ -460,6 +552,8 @@ describe('codegen', () => {
             ['clickhouse', 'month', 'toStartOfMonth("order_date")'],
             ['clickhouse', 'quarter', 'toStartOfQuarter("order_date")'],
             ['clickhouse', 'year', 'toStartOfYear("order_date")'],
+            // Athena: ANSI form, same as Postgres.
+            ['athena', 'month', `DATE_TRUNC('month', "order_date")`],
         ] as const)('%s DATE_TRUNC("%s", …) → %s', (dialect, unit, expected) => {
             expect(
                 compile(`=DATE_TRUNC("${unit}", order_date)`, {
@@ -517,6 +611,23 @@ describe('codegen', () => {
                 );
             });
 
+            it('Athena offsets in/out with Trino-flavoured INTERVAL', () => {
+                // Distinct from the Postgres shape: Athena's INTERVAL has
+                // the value quoted and the unit bare (`'6' DAY`, not
+                // `'6 days'`). Mirrors `trinoConfig.getSqlForTruncatedDate`
+                // in `packages/common/src/utils/timeFrames.ts` (Athena maps
+                // to that config because its SQL Engine v3 is Trino).
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'athena',
+                        columns,
+                        weekStartDay: 6,
+                    }),
+                ).toBe(
+                    `(DATE_TRUNC('week', ("order_date" - INTERVAL '6' DAY)) + INTERVAL '6' DAY)`,
+                );
+            });
+
             it('Monday (default) leaves the base form intact on Postgres', () => {
                 expect(
                     compile('=DATE_TRUNC("week", order_date)', {
@@ -539,6 +650,11 @@ describe('codegen', () => {
             ['snowflake', 'DATEADD(MONTH, 3, "order_date")'],
             ['databricks', 'ADD_MONTHS(`order_date`, 3)'],
             ['clickhouse', 'addMonths("order_date", 3)'],
+            // Athena uses date_add(unit, n, x) — function form chosen over
+            // INTERVAL because Athena/Trino don't allow `expr * INTERVAL
+            // '1' DAY` (interval × runtime expr). Function form takes any
+            // int expression for n.
+            ['athena', `DATE_ADD('month', 3, "order_date")`],
         ] as const)('%s → %s', (dialect, expected) => {
             expect(
                 compile('=DATE_ADD(order_date, 3, "month")', {
@@ -647,6 +763,10 @@ describe('codegen', () => {
             // DuckDB + ClickHouse — quoted unit.
             ['duckdb', 'month', `date_diff('month', "a", "b")`],
             ['clickhouse', 'month', `dateDiff('month', "a", "b")`],
+            // Athena: same shape as ClickHouse — quoted unit, function
+            // form. Mirrors `AthenaSqlBuilder.getTimestampDiffSeconds`
+            // which emits `DATE_DIFF('second', start, end)` in production.
+            ['athena', 'month', `DATE_DIFF('month', "a", "b")`],
         ] as const)('%s DATE_DIFF(a, b, "%s") → %s', (dialect, unit, expected) => {
             expect(
                 compile(`=DATE_DIFF(a, b, "${unit}")`, {

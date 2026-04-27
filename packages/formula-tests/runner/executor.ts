@@ -13,6 +13,13 @@ function normalizeValue(val: any): any {
     if (typeof val === 'number') return val;
     if (typeof val === 'boolean') return val;
     if (typeof val === 'string') {
+        // Athena's GetQueryResults marshals every cell as a `VarCharValue`
+        // string, including booleans. Recognise the canonical lowercase
+        // forms so a comparison query returning `true` matches the
+        // expected boolean. Other warehouses already return a typed
+        // bool/number and skip this branch.
+        if (val === 'true') return true;
+        if (val === 'false') return false;
         const num = Number(val);
         if (!isNaN(num) && val.trim() !== '') return num;
         return val;

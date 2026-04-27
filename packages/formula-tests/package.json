@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@lightdash/formula": "workspace:*",
+    "@aws-sdk/client-athena": "3.1000.0",
     "@clickhouse/client": "1.11.1",
     "@databricks/sql": "1.10.0",
     "@google-cloud/bigquery": "7.9.2",
