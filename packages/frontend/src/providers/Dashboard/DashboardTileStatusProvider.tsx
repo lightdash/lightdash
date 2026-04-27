@@ -6,6 +6,7 @@ import {
 } from '@lightdash/common';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import {
     auditResponseToTileStatuses,
     useDashboardPreAggregateAudit,
@@ -239,10 +240,13 @@ const DashboardTileStatusProvider: React.FC<
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboard = useDashboardContext((c) => c.dashboard);
     const allFilters = useDashboardContext((c) => c.allFilters);
+    const { embedToken } = useEmbed();
+    const isEmbedded = !!embedToken;
     const { data: auditData } = useDashboardPreAggregateAudit({
         projectUuid,
         dashboardUuid: dashboard?.uuid,
         dashboardFilters: allFilters,
+        enabled: !isEmbedded,
     });
     const preAggregateStatuses = useMemo<
         Record<string, TilePreAggregateStatus>
