@@ -92,6 +92,7 @@ export type ResourceViewDataAppItem = {
         name: string;
         description: string | undefined;
         spaceUuid: string | null;
+        createdByUserUuid: string | null;
         updatedAt: Date;
         updatedByUser: {
             userUuid: string;
@@ -259,6 +260,7 @@ export const contentToResourceViewItem = (content: SummaryContent) => {
                 name: content.name,
                 description: content.description || undefined,
                 spaceUuid: content.space.uuid,
+                createdByUserUuid: content.createdBy?.uuid ?? null,
                 updatedAt: content.lastUpdatedAt || content.createdAt,
                 updatedByUser: updatedByUser
                     ? {

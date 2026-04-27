@@ -727,6 +727,37 @@ const scopes: Scope[] = [
             addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
     },
+    {
+        name: 'create:DataApp',
+        description: 'Create new data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:DataApp@self',
+        description: 'View own personal data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
+    },
+    {
+        name: 'manage:DataApp@self',
+        description: 'Edit and delete own personal data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
+    },
 
     // Spotlight Scopes
     {

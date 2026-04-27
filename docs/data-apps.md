@@ -12,7 +12,7 @@ the hood, Claude Code runs inside an isolated sandbox, reads the project's dbt m
 builds it with Vite, and deploys the artifacts to S3. The resulting app is served in a sandboxed iframe and can query
 Lightdash metrics through a secure postMessage bridge.
 
-The feature is enterprise-only, gated behind the `APP_RUNTIME_ENABLED` flag and the `manage:DataApp` permission scope.
+The feature is enterprise-only, gated behind the `APP_RUNTIME_ENABLED` flag and the `view:DataApp` / `create:DataApp` / `manage:DataApp` permission scopes (see [Permissions](#permissions) below).
 
 ---
 
@@ -84,7 +84,8 @@ charts.
   enumerated and deleted (staged image uploads, version source tarballs, built dist tarballs, and per-version assets).
 
 Implementation: `AppGenerateService.deleteApp` is the entry point. It delegates to `softDeleteApp` or
-`permanentDeleteApp`, which each enforce the `manage:DataApp` scope and handle sandbox/S3 cleanup.
+`permanentDeleteApp`, which each enforce the appropriate manage scope (see [Permissions](#permissions) below) and
+handle sandbox/S3 cleanup.
 
 ---
 
@@ -141,7 +142,9 @@ type DbAppVersion = {
 
 ## API Endpoints
 
-All endpoints require the `manage:DataApp` permission and are scoped under `/api/v1/ee/`.
+All endpoints are scoped under `/api/v1/ee/`. The required scope per endpoint follows the model in
+[Permissions](#permissions) — `create:DataApp` for creation, `view:DataApp` (with space or self context) for reads,
+and `manage:DataApp` (with space or self context) for mutations.
 
 ### App CRUD
 
@@ -262,7 +265,8 @@ could read arbitrary S3 objects.
 
 - **Allowed MIME types**: `image/png`, `image/jpeg`, `image/gif`, `image/webp`
 - **Max size**: 10 MB (validated via `Content-Length` header before streaming)
-- **Permission**: Requires `manage:DataApp` scope (same as all app operations)
+- **Permission**: For an existing app, the standard manage check applies (space role, self for personal apps, or
+  project admin). For an upload tied to a not-yet-created app (initial creation flow), `create:DataApp` is required.
 
 ---
 
@@ -340,35 +344,48 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 
 ## Permissions
 
-Data apps follow the same space-based permission model as charts and dashboards. Three CASL scopes, all defined in
-`packages/common/src/authorization/scopes.ts`:
+Data apps follow the same space-based permission model as charts and dashboards, with one extra wrinkle: an app can
+exist as **personal** (`space_uuid IS NULL`) before its creator decides to share it by moving it into a space. The
+scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 
-| Scope                  | Granted to          | Effect                                                                                                           |
-| ---------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).                   |
-| `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role.     |
-| `manage:DataApp`       | admin               | Project-wide manage — covers all apps including personal (spaceless) ones, and gates restore + permanent-delete. |
+| Scope                  | Granted to          | Effect                                                                                                       |
+| ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).               |
+| `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. Newly-created apps are personal until moved into a space.                     |
+| `view:DataApp@self`    | interactive_viewer+ | View own personal apps (matched on `createdByUserUuid`).                                                     |
+| `manage:DataApp@self`  | interactive_viewer+ | Iterate, edit, pin (n/a for personal), move, and delete own personal apps.                                   |
+| `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role. |
+| `manage:DataApp`       | admin               | Project-wide manage — covers any app, and gates restore + permanent-delete.                                  |
 
 ### Permission matrix
 
-| Action                                          | Project admin | Space admin/editor | Space viewer |
-| ----------------------------------------------- | ------------- | ------------------ | ------------ |
-| View an app in a space                          | ✓             | ✓                  | ✓            |
-| View a personal (spaceless) app                 | ✓             | —                  | —            |
-| Iterate / cancel / update / pin / move / delete | ✓             | ✓                  | ✗            |
-| Restore / permanently delete                    | ✓             | ✗                  | ✗            |
-| Create a new app                                | ✓             | ✗                  | ✗            |
+| Action                                       | Project admin | Space admin/editor | Space viewer | App creator (personal app) |
+| -------------------------------------------- | ------------- | ------------------ | ------------ | -------------------------- |
+| View an app in a space                       | ✓             | ✓                  | ✓            | (creator viewed via space) |
+| View own personal app                        | ✓             | —                  | —            | ✓                          |
+| View someone else's personal app             | ✓             | —                  | —            | —                          |
+| Create a new app                             | ✓             | ✓                  | ✗            | n/a                        |
+| Iterate / cancel / update / move / delete    | ✓             | ✓ (in their space) | ✗            | ✓ (own personal app)       |
+| Pin to homepage                              | ✓             | ✓ (in their space) | ✗            | — (personal apps can't be pinned) |
+| Restore / permanently delete                 | ✓             | ✗                  | ✗            | ✗                          |
+
+The "App creator" column applies while an app is still personal (`space_uuid IS NULL`). Once moved into a space, the
+app's permissions follow the space — the creator no longer has special rights unless they also have a space role.
+
+### Implementation
 
 Permission checks live in the service layer, not the controller — TSOA middleware only handles authentication. Two
-helpers in `AppGenerateService.ts` carry the space-aware logic:
+helpers in `AppGenerateService.ts` carry the context-aware logic:
 
 - `assertCanViewApp(user, app)` — used by `getAppVersions`, `getPreviewToken`. Builds a CASL subject that includes the
-  app's space access context (or an empty context for personal apps), then checks the `view` action.
+  app's space access context (empty for personal apps) plus `createdByUserUuid`, then checks the `view` action.
 - `assertCanManageApp(user, app, msg)` — used by `iterateApp`, `cancelVersion`, `updateApp`, `togglePinning`,
-  `deleteApp`, `moveToSpace`, and `uploadImage` (when the app exists). Same space-context shape, but checks the
-  `manage` action so space editors/admins match.
+  `deleteApp`, `moveToSpace`, and `uploadImage` (when the app exists). Same subject shape, checks the `manage` action.
 
-`restoreApp` and `permanentDeleteApp` deliberately bypass the space-aware helper and use the bare project-wide
+`generateApp` (creation) checks the `create` action against a project-scoped subject — no app exists yet to provide
+space or creator context.
+
+`restoreApp` and `permanentDeleteApp` deliberately bypass the context-aware helper and use the bare project-wide
 `manage:DataApp` check, since restoring deleted content is an admin-only recovery flow.
 
 `moveToSpace` runs the manage check twice — once on the source app (its current space) and once on the target space —

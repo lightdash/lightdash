@@ -282,10 +282,11 @@ const AppGenerate: FC = () => {
         isFetchingNextPage,
     } = useGetApp(projectUuid, activeAppUuid ?? urlAppUuid);
 
-    // Derive app name/description/space from fetched data
+    // Derive app name/description/space/creator from fetched data
     const appName = appData?.pages?.[0]?.name ?? '';
     const appDescription = appData?.pages?.[0]?.description ?? '';
     const appSpaceUuid = appData?.pages?.[0]?.spaceUuid ?? null;
+    const appCreatedByUserUuid = appData?.pages?.[0]?.createdByUserUuid ?? null;
 
     // Used to resolve the user's space role when checking manage rights for
     // an existing app — space editors/admins inherit manage on its data app.
@@ -457,28 +458,36 @@ const AppGenerate: FC = () => {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
-    // For an existing app, manage rights flow through the app's space — a
-    // space editor/admin can iterate on it. For a brand-new app (no
-    // urlAppUuid), space context isn't available, so we fall back to the
-    // project-wide manage check (admin only today).
-    // Wait for the app to load before deciding — without the spaceUuid we
-    // can't tell whether a non-admin space editor should be allowed in.
+    // Two paths: creating a brand-new app (no urlAppUuid) → check `create`;
+    // editing an existing one → check `manage` with the app's space access
+    // and creator context (so space editors and the creator of a personal
+    // app both match).
+    // Wait for the app to load before deciding the existing-app case —
+    // without spaceUuid + createdByUserUuid we'd misjudge a non-admin user.
     if (urlAppUuid && isLoadingApp) {
         return null;
     }
     const userSpaceAccess = appSpaceUuid
         ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
         : undefined;
-    if (
-        !ability.can(
-            'manage',
-            subject('DataApp', {
-                organizationUuid: user.data?.organizationUuid,
-                projectUuid,
-                access: userSpaceAccess ? [userSpaceAccess] : [],
-            }),
-        )
-    ) {
+    const canAccessApp = urlAppUuid
+        ? ability.can(
+              'manage',
+              subject('DataApp', {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+                  access: userSpaceAccess ? [userSpaceAccess] : [],
+                  createdByUserUuid: appCreatedByUserUuid,
+              }),
+          )
+        : ability.can(
+              'create',
+              subject('DataApp', {
+                  organizationUuid: user.data?.organizationUuid,
+                  projectUuid,
+              }),
+          );
+    if (!canAccessApp) {
         return <Navigate to={`/projects/${projectUuid}/home`} replace />;
     }
 
@@ -1190,6 +1199,8 @@ const AppGenerate: FC = () => {
                                             description:
                                                 appDescription || undefined,
                                             spaceUuid: appSpaceUuid,
+                                            createdByUserUuid:
+                                                appCreatedByUserUuid,
                                             updatedAt: new Date(),
                                             updatedByUser: null,
                                             views: 0,

@@ -41,6 +41,8 @@ export default function AppPreviewTest() {
     )?.version;
 
     const appSpaceUuid = appQuery.data?.pages[0]?.spaceUuid ?? null;
+    const appCreatedByUserUuid =
+        appQuery.data?.pages[0]?.createdByUserUuid ?? null;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const userSpaceAccess = appSpaceUuid
         ? spaces.find((s) => s.uuid === appSpaceUuid)?.userAccess
@@ -52,6 +54,7 @@ export default function AppPreviewTest() {
                 organizationUuid: user.data?.organizationUuid,
                 projectUuid,
                 access: userSpaceAccess ? [userSpaceAccess] : [],
+                createdByUserUuid: appCreatedByUserUuid,
             }),
         ) === true;
 
