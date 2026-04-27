@@ -2258,18 +2258,6 @@ export class AppGenerateService extends BaseService {
             organization_uuid: organizationUuid,
         });
 
-        await this.analyticsModel.addAppViewEvent(appUuid, user.userUuid);
-
-        this.analytics.track({
-            event: 'data_app.view',
-            userId: user.userUuid,
-            properties: {
-                organizationId: organizationUuid,
-                projectId: projectUuid,
-                appUuid,
-            },
-        });
-
         return {
             appUuid,
             name,
