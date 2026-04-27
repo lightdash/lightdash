@@ -36,14 +36,8 @@ export const mapAdapterToFormulaDialect = (
             return 'clickhouse';
         case SupportedDbtAdapter.ATHENA:
             return 'athena';
-        // Trino support follow-up (ZAP-324). The frontend hides the Formula
-        // input mode for unsupported warehouses, but API clients, chart-as-
-        // code YAML, and legacy payloads can still reach this path. Fail
-        // loudly instead of producing broken SQL.
         case SupportedDbtAdapter.TRINO:
-            throw new Error(
-                `Formula table calculations are not yet supported for ${adapter}`,
-            );
+            return 'trino';
         default:
             return assertUnreachable(adapter, `Unknown adapter: ${adapter}`);
     }

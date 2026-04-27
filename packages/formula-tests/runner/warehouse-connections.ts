@@ -303,6 +303,85 @@ export async function createBigQueryConnection(
     };
 }
 
+export async function createTrinoConnection(
+    config: WarehouseConfig['trino'],
+): Promise<WarehouseConnection> {
+    const missing: string[] = [];
+    if (!config.host) missing.push('FORMULA_TEST_TR_HOST');
+    if (!config.port) missing.push('FORMULA_TEST_TR_PORT');
+    if (!config.user) missing.push('FORMULA_TEST_TR_USER');
+    if (!config.catalog) missing.push('FORMULA_TEST_TR_CATALOG');
+    if (!config.schema) missing.push('FORMULA_TEST_TR_SCHEMA');
+    if (missing.length > 0) {
+        throw new Error(
+            `Trino connection requires the following env vars: ${missing.join(', ')}`,
+        );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { BasicAuth, Trino } = require('trino-client');
+
+    const client = Trino.create({
+        server: `${config.protocol}://${config.host}:${config.port}`,
+        catalog: config.catalog,
+        schema: config.schema,
+        // trino-client treats `undefined` auth as no auth (anonymous).
+        // Wire BasicAuth only when a password is set so a single-user dev
+        // cluster (no auth) still works.
+        ...(config.password
+            ? { auth: new BasicAuth(config.user, config.password) }
+            : { source: config.user }),
+    });
+
+    // The client returns an Iterator; drain it into an array of plain rows.
+    // Trino's wire format is `{ columns, data }` with parallel column-name
+    // and row arrays — convert each row to a record keyed by column name so
+    // downstream comparators get the same shape as every other warehouse.
+    const execute = async (
+        sql: string,
+    ): Promise<Record<string, any>[]> => {
+        const iter = await client.query(sql);
+        const out: Record<string, any>[] = [];
+        let columns: string[] | undefined;
+        // eslint-disable-next-line no-await-in-loop
+        for await (const result of iter) {
+            if (!columns && result.columns) {
+                columns = result.columns.map(
+                    (c: { name: string }) => c.name,
+                );
+            }
+            if (result.error) {
+                throw new Error(result.error.message);
+            }
+            const data: any[][] = result.data ?? [];
+            for (const row of data) {
+                const obj: Record<string, any> = {};
+                (columns ?? []).forEach((name, i) => {
+                    obj[name] = row[i];
+                });
+                out.push(obj);
+            }
+        }
+        return out;
+    };
+
+    // `Trino.query()` accepts a single statement at a time — multi-
+    // statement seed blobs need splitting, same as Databricks / ClickHouse
+    // / Athena.
+    return {
+        dialect: 'trino',
+        execute,
+        async seed(sql: string) {
+            for (const stmt of splitSqlStatements(sql)) {
+                await execute(stmt);
+            }
+        },
+        async close() {
+            // trino-client has no explicit close — connections are per-query.
+        },
+    };
+}
+
 export async function createAthenaConnection(
     config: WarehouseConfig['athena'],
 ): Promise<WarehouseConnection> {
@@ -503,6 +582,8 @@ export async function createConnection(
             return createClickhouseConnection(config.clickhouse);
         case 'athena':
             return createAthenaConnection(config.athena);
+        case 'trino':
+            return createTrinoConnection(config.trino);
         default: {
             const _exhaustive: never = warehouse;
             throw new Error(`Unknown warehouse: ${warehouse}`);

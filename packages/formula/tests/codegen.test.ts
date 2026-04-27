@@ -503,6 +503,63 @@ describe('codegen', () => {
         });
     });
 
+    describe('Trino dialect', () => {
+        // Trino reuses the same `TRINO_CONFIG` as Athena (Athena's SQL
+        // Engine v3 is Trino). The Athena describe block above pins the
+        // cross-cutting behaviour against the shared config; this block
+        // adds a parity invariant so the two dialects can never silently
+        // drift in the codegen.
+        it('emits identical SQL to Athena across the date stack', () => {
+            // Don't let the two dialect entries drift accidentally — both
+            // map to the same config and that's how `packages/common/src/
+            // utils/timeFrames.ts` wires them in production.
+            const formulas = [
+                '=LAST_DAY(order_date)',
+                '=DATE_TRUNC("week", order_date)',
+                '=DATE_ADD(order_date, 1, "quarter")',
+                '=DATE_DIFF(order_date, order_date, "month")',
+                '=ROUND(revenue, 2)',
+                '=AVG(revenue)',
+                '=CONCAT(customer_name, " — ", category)',
+            ];
+            for (const formula of formulas) {
+                const trinoSql = compile(formula, {
+                    dialect: 'trino',
+                    columns: {
+                        ...columns,
+                        customer_name: 'name',
+                        category: 'cat',
+                    },
+                });
+                const athenaSql = compile(formula, {
+                    dialect: 'athena',
+                    columns: {
+                        ...columns,
+                        customer_name: 'name',
+                        category: 'cat',
+                    },
+                });
+                expect(trinoSql).toBe(athenaSql);
+            }
+        });
+
+        it('non-Monday weekStartDay parity with Athena', () => {
+            // The composition path also has to agree under non-Monday
+            // weeks — that's where dialect drift would bite hardest.
+            const trinoSql = compile('=DATE_DIFF(a, b, "week")', {
+                dialect: 'trino',
+                columns: { a: 'a', b: 'b' },
+                weekStartDay: 6,
+            });
+            const athenaSql = compile('=DATE_DIFF(a, b, "week")', {
+                dialect: 'athena',
+                columns: { a: 'a', b: 'b' },
+                weekStartDay: 6,
+            });
+            expect(trinoSql).toBe(athenaSql);
+        });
+    });
+
     describe('LAST_DAY', () => {
         const postgresStyleLastDay = `CAST(DATE_TRUNC('month', "order_date") + INTERVAL '1 month' - INTERVAL '1 day' AS DATE)`;
 
@@ -516,10 +573,11 @@ describe('codegen', () => {
             // the Postgres-style INTERVAL '1 month' composition outright.
             ['redshift', 'LAST_DAY("order_date")'],
             ['clickhouse', 'toLastDayOfMonth("order_date")'],
-            // Athena: native LAST_DAY_OF_MONTH (SQL Engine v3 = Trino,
-            // available since Trino 401). Distinct name from the *_DAY
-            // variants above.
+            // Athena (SQL Engine v3 = Trino) and Trino: native
+            // LAST_DAY_OF_MONTH (Trino 401+). Distinct name from the
+            // *_DAY variants above.
             ['athena', 'LAST_DAY_OF_MONTH("order_date")'],
+            ['trino', 'LAST_DAY_OF_MONTH("order_date")'],
         ] as const)('%s → %s', (dialect, expected) => {
             expect(
                 compile('=LAST_DAY(order_date)', { dialect, columns }),
@@ -552,8 +610,9 @@ describe('codegen', () => {
             ['clickhouse', 'month', 'toStartOfMonth("order_date")'],
             ['clickhouse', 'quarter', 'toStartOfQuarter("order_date")'],
             ['clickhouse', 'year', 'toStartOfYear("order_date")'],
-            // Athena: ANSI form, same as Postgres.
+            // Athena / Trino: ANSI form, same as Postgres.
             ['athena', 'month', `DATE_TRUNC('month', "order_date")`],
+            ['trino', 'month', `DATE_TRUNC('month', "order_date")`],
         ] as const)('%s DATE_TRUNC("%s", …) → %s', (dialect, unit, expected) => {
             expect(
                 compile(`=DATE_TRUNC("${unit}", order_date)`, {
@@ -628,6 +687,18 @@ describe('codegen', () => {
                 );
             });
 
+            it('Trino emits the same offset shape as Athena', () => {
+                expect(
+                    compile('=DATE_TRUNC("week", order_date)', {
+                        dialect: 'trino',
+                        columns,
+                        weekStartDay: 6,
+                    }),
+                ).toBe(
+                    `(DATE_TRUNC('week', ("order_date" - INTERVAL '6' DAY)) + INTERVAL '6' DAY)`,
+                );
+            });
+
             it('Monday (default) leaves the base form intact on Postgres', () => {
                 expect(
                     compile('=DATE_TRUNC("week", order_date)', {
@@ -650,11 +721,12 @@ describe('codegen', () => {
             ['snowflake', 'DATEADD(MONTH, 3, "order_date")'],
             ['databricks', 'ADD_MONTHS(`order_date`, 3)'],
             ['clickhouse', 'addMonths("order_date", 3)'],
-            // Athena uses date_add(unit, n, x) — function form chosen over
-            // INTERVAL because Athena/Trino don't allow `expr * INTERVAL
+            // Athena / Trino use date_add(unit, n, x) — function form
+            // chosen over INTERVAL because neither allows `expr * INTERVAL
             // '1' DAY` (interval × runtime expr). Function form takes any
             // int expression for n.
             ['athena', `DATE_ADD('month', 3, "order_date")`],
+            ['trino', `DATE_ADD('month', 3, "order_date")`],
         ] as const)('%s → %s', (dialect, expected) => {
             expect(
                 compile('=DATE_ADD(order_date, 3, "month")', {
@@ -763,10 +835,13 @@ describe('codegen', () => {
             // DuckDB + ClickHouse — quoted unit.
             ['duckdb', 'month', `date_diff('month', "a", "b")`],
             ['clickhouse', 'month', `dateDiff('month', "a", "b")`],
-            // Athena: same shape as ClickHouse — quoted unit, function
-            // form. Mirrors `AthenaSqlBuilder.getTimestampDiffSeconds`
-            // which emits `DATE_DIFF('second', start, end)` in production.
+            // Athena / Trino: same shape as ClickHouse — quoted unit,
+            // function form. Mirrors
+            // `AthenaSqlBuilder.getTimestampDiffSeconds` /
+            // `TrinoSqlBuilder.getTimestampDiffSeconds` which emit
+            // `DATE_DIFF('second', start, end)` in production.
             ['athena', 'month', `DATE_DIFF('month', "a", "b")`],
+            ['trino', 'month', `DATE_DIFF('month', "a", "b")`],
         ] as const)('%s DATE_DIFF(a, b, "%s") → %s', (dialect, unit, expected) => {
             expect(
                 compile(`=DATE_DIFF(a, b, "${unit}")`, {

@@ -897,6 +897,9 @@ importers:
       pg:
         specifier: 8.13.1
         version: 8.13.1
+      trino-client:
+        specifier: 0.2.9
+        version: 0.2.9
       tsx:
         specifier: 4.19.2
         version: 4.19.2

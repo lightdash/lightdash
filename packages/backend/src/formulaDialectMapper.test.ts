@@ -14,12 +14,4 @@ describe('mapAdapterToFormulaDialect', () => {
             ).toBe(dialect);
         },
     );
-
-    test('throws for unsupported adapter trino', () => {
-        expect(() =>
-            mapAdapterToFormulaDialect(SupportedDbtAdapter.TRINO),
-        ).toThrow(
-            `Formula table calculations are not yet supported for ${SupportedDbtAdapter.TRINO}`,
-        );
-    });
 });
