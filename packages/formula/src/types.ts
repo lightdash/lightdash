@@ -18,7 +18,8 @@ export type Dialect =
     | 'snowflake'
     | 'duckdb'
     | 'databricks'
-    | 'clickhouse';
+    | 'clickhouse'
+    | 'athena';
 
 // Whitelisted units accepted by date functions (DATE_TRUNC today; DATE_ADD,
 // DATE_SUB, DATE_DIFF in follow-up PRs). Validated at parse time so bad units

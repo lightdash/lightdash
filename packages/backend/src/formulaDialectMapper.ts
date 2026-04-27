@@ -34,12 +34,13 @@ export const mapAdapterToFormulaDialect = (
             return 'databricks';
         case SupportedDbtAdapter.CLICKHOUSE:
             return 'clickhouse';
-        // Belt-and-suspenders: the frontend hides the Formula input mode
-        // on unsupported warehouses, but API clients, chart-as-code YAML,
-        // or legacy payloads can still reach this path. Fail loudly
-        // instead of producing broken SQL. TODO(ZAP-324): add these.
-        case SupportedDbtAdapter.TRINO:
         case SupportedDbtAdapter.ATHENA:
+            return 'athena';
+        // Trino support follow-up (ZAP-324). The frontend hides the Formula
+        // input mode for unsupported warehouses, but API clients, chart-as-
+        // code YAML, and legacy payloads can still reach this path. Fail
+        // loudly instead of producing broken SQL.
+        case SupportedDbtAdapter.TRINO:
             throw new Error(
                 `Formula table calculations are not yet supported for ${adapter}`,
             );

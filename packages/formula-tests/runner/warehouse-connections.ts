@@ -303,6 +303,185 @@ export async function createBigQueryConnection(
     };
 }
 
+export async function createAthenaConnection(
+    config: WarehouseConfig['athena'],
+): Promise<WarehouseConnection> {
+    const missing: string[] = [];
+    if (!config.accessKeyId) missing.push('FORMULA_TEST_AT_ACCESS_KEY_ID');
+    if (!config.secretAccessKey)
+        missing.push('FORMULA_TEST_AT_SECRET_ACCESS_KEY');
+    if (!config.region) missing.push('FORMULA_TEST_AT_REGION');
+    if (!config.catalog) missing.push('FORMULA_TEST_AT_CATALOG');
+    if (!config.database) missing.push('FORMULA_TEST_AT_DATABASE');
+    if (!config.workgroup) missing.push('FORMULA_TEST_AT_WORKGROUP');
+    if (!config.s3Bucket) missing.push('FORMULA_TEST_AT_S3_BUCKET');
+    if (!config.s3Prefix) missing.push('FORMULA_TEST_AT_S3_PREFIX');
+    if (!config.s3StagingDir) missing.push('FORMULA_TEST_AT_S3_STAGING_DIR');
+    if (missing.length > 0) {
+        throw new Error(
+            `Athena connection requires the following env vars: ${missing.join(', ')}`,
+        );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const {
+        AthenaClient,
+        StartQueryExecutionCommand,
+        GetQueryExecutionCommand,
+        GetQueryResultsCommand,
+    } = require('@aws-sdk/client-athena');
+
+    const client = new AthenaClient({
+        region: config.region,
+        credentials: {
+            accessKeyId: config.accessKeyId,
+            secretAccessKey: config.secretAccessKey,
+        },
+    });
+
+    // Iceberg seed paths use a `__ATHENA_TABLE_LOCATION__` placeholder —
+    // substitute with the per-table S3 path before executing CREATE TABLE.
+    const tableLocationBase = `s3://${config.s3Bucket}/${config.s3Prefix.replace(/\/$/, '')}/`;
+
+    const startQuery = async (sql: string): Promise<string> => {
+        const out = await client.send(
+            new StartQueryExecutionCommand({
+                QueryString: sql,
+                QueryExecutionContext: {
+                    Catalog: config.catalog,
+                    Database: config.database,
+                },
+                WorkGroup: config.workgroup,
+                // Always send OutputLocation so the runner works even when
+                // the workgroup has no default output location configured.
+                ResultConfiguration: {
+                    OutputLocation: config.s3StagingDir,
+                },
+            }),
+        );
+        const id = out.QueryExecutionId as string | undefined;
+        if (!id) throw new Error('Athena did not return a QueryExecutionId');
+        return id;
+    };
+
+    const waitForQuery = async (id: string): Promise<void> => {
+        // Athena queries are async: poll until SUCCEEDED / FAILED / CANCELLED.
+        // 200ms backoff matches Lightdash's production AthenaWarehouseClient
+        // poll interval.
+        const POLL_INTERVAL_MS = 200;
+        const MAX_POLL_ATTEMPTS = 1500; // 5 minutes upper bound
+        for (let i = 0; i < MAX_POLL_ATTEMPTS; i += 1) {
+            // eslint-disable-next-line no-await-in-loop
+            const status = await client.send(
+                new GetQueryExecutionCommand({ QueryExecutionId: id }),
+            );
+            const state = status.QueryExecution?.Status?.State;
+            if (state === 'SUCCEEDED') return;
+            if (state === 'FAILED' || state === 'CANCELLED') {
+                const reason =
+                    status.QueryExecution?.Status?.StateChangeReason ?? state;
+                throw new Error(`Athena query ${state}: ${reason}`);
+            }
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => {
+                setTimeout(r, POLL_INTERVAL_MS);
+            });
+        }
+        throw new Error('Athena query timed out');
+    };
+
+    const fetchResults = async (
+        id: string,
+    ): Promise<Record<string, any>[]> => {
+        // Page through GetQueryResults. The first row of the first page is
+        // the column-name header per Athena's wire format — drop it.
+        let nextToken: string | undefined;
+        let columnNames: string[] | undefined;
+        const out: Record<string, any>[] = [];
+        let isFirstPage = true;
+        do {
+            // eslint-disable-next-line no-await-in-loop
+            const page = await client.send(
+                new GetQueryResultsCommand({
+                    QueryExecutionId: id,
+                    NextToken: nextToken,
+                }),
+            );
+            const rows = page.ResultSet?.Rows ?? [];
+            if (!columnNames) {
+                columnNames =
+                    page.ResultSet?.ResultSetMetadata?.ColumnInfo?.map(
+                        (c: { Name: string }) => c.Name,
+                    ) ?? [];
+            }
+            const startIdx = isFirstPage ? 1 : 0;
+            const cols = columnNames ?? [];
+            for (let i = startIdx; i < rows.length; i += 1) {
+                const cells = rows[i].Data ?? [];
+                const obj: Record<string, any> = {};
+                cols.forEach((name, j) => {
+                    obj[name] = cells[j]?.VarCharValue ?? null;
+                });
+                out.push(obj);
+            }
+            isFirstPage = false;
+            nextToken = page.NextToken;
+        } while (nextToken);
+        return out;
+    };
+
+    const execute = async (
+        sql: string,
+    ): Promise<Record<string, any>[]> => {
+        const id = await startQuery(sql);
+        await waitForQuery(id);
+        return fetchResults(id);
+    };
+
+    const executeWithoutResults = async (sql: string): Promise<void> => {
+        const id = await startQuery(sql);
+        await waitForQuery(id);
+    };
+
+    // CREATE DATABASE IF NOT EXISTS isn't a Glue catalog operation that
+    // takes a `Database:` context (you can't ask Glue for the metadata of
+    // a database that doesn't exist yet). Issue it without one.
+    const ensureDatabase = async (): Promise<void> => {
+        const out = await client.send(
+            new StartQueryExecutionCommand({
+                QueryString: `CREATE DATABASE IF NOT EXISTS ${config.database}`,
+                QueryExecutionContext: { Catalog: config.catalog },
+                WorkGroup: config.workgroup,
+                ResultConfiguration: {
+                    OutputLocation: config.s3StagingDir,
+                },
+            }),
+        );
+        const id = out.QueryExecutionId as string | undefined;
+        if (!id) throw new Error('Athena did not return a QueryExecutionId');
+        await waitForQuery(id);
+    };
+
+    return {
+        dialect: 'athena',
+        execute,
+        async seed(sql: string) {
+            await ensureDatabase();
+            const substituted = sql.replaceAll(
+                '__ATHENA_TABLE_LOCATION__',
+                tableLocationBase,
+            );
+            for (const stmt of splitSqlStatements(substituted)) {
+                // DDL/DML — no result rows to fetch.
+                await executeWithoutResults(stmt);
+            }
+        },
+        async close() {
+            client.destroy();
+        },
+    };
+}
+
 export async function createConnection(
     warehouse: WarehouseType,
     config: WarehouseConfig,
@@ -322,6 +501,8 @@ export async function createConnection(
             return createDatabricksConnection(config.databricks);
         case 'clickhouse':
             return createClickhouseConnection(config.clickhouse);
+        case 'athena':
+            return createAthenaConnection(config.athena);
         default: {
             const _exhaustive: never = warehouse;
             throw new Error(`Unknown warehouse: ${warehouse}`);

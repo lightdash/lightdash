@@ -106,6 +106,18 @@ const ansiQuoteWithEscapedBackslashesStringLiteral = (
     return `'${escaped}'`;
 };
 
+// Pure ANSI: only single-quote doubling, backslashes are literal. Used by
+// Trino / Athena, whose lexers do NOT support backslash escapes — `'\\'`
+// is two characters, not one. Doubling backslashes here would silently
+// corrupt user data round-trips. (Trino docs: "Escape codes are not
+// supported in string literals.")
+const ansiSingleQuoteDoubleStringLiteral = (
+    node: StringLiteralNode,
+): string => {
+    const escaped = node.value.replace(/'/g, "''");
+    return `'${escaped}'`;
+};
+
 const infixPercentModulo = (left: string, right: string): string =>
     `(${left} % ${right})`;
 
@@ -413,6 +425,57 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
     },
 };
 
+// Trino / Athena config. Athena's SQL Engine v3 is Trino, and
+// `packages/common/src/utils/timeFrames.ts` wires both adapters to the
+// same `trinoConfig`. Currently only `athena` maps to this here; the
+// `trino` dialect lands in a follow-up (ZAP-324) and reuses this entry
+// unchanged. Mirrors `TrinoSqlBuilder` / `AthenaSqlBuilder` in
+// `packages/warehouses` (escapeString, getIntervalSql, getMetricSql, etc.).
+//
+// Key shape divergences from the Postgres family:
+//   - INTERVAL: `INTERVAL '<n>' <UNIT>` (value quoted, unit bare) — not
+//     `INTERVAL '<n> <unit>'`. Matches `TrinoSqlBuilder.getIntervalSql`.
+//   - DATE_ADD: `date_add('unit', n, x)` is the idiomatic form. Multiplying
+//     interval literals isn't reliable across Trino versions, and `date_add`
+//     supports `quarter` directly so the Postgres ×3-months trick isn't
+//     needed.
+//   - DATE_DIFF: `date_diff('unit', start, end)` — same shape as ClickHouse.
+//   - LAST_DAY_OF_MONTH: native in Trino since 401, available on Athena
+//     Engine v3. We emit it directly rather than composing.
+//   - AVG / ROUND: native, no cast wrappers (Trino's AVG returns DOUBLE,
+//     ROUND on DOUBLE/DECIMAL works with no precision-truncation footgun).
+const TRINO_CONFIG: DialectConfig = {
+    quoteIdentifier: doubleQuoteIdentifier,
+    // Pure single-quote doubling. Trino / Athena lexers DO NOT unescape
+    // backslashes — `'\\'` is two characters, not one — so doubling
+    // backslashes the way the Postgres-family helper does would corrupt
+    // user data on round-trip. (`TrinoSqlBuilder.escapeString` in
+    // packages/warehouses doubles backslashes too; that's a latent bug for
+    // any string with a literal `\`. We deliberately diverge from it here
+    // and use the ANSI-correct form.)
+    generateStringLiteral: ansiSingleQuoteDoubleStringLiteral,
+    // Trino / Athena `CONCAT` requires two or more arguments — calling it
+    // with a single arg fails with "There must be two or more concatenation
+    // arguments". Pass single-arg through unchanged; otherwise use the
+    // ANSI form. Postgres-family `||` would also work but `CONCAT` keeps
+    // emission identical to a metric-level concat over the same columns.
+    generateConcat: (args) =>
+        args.length === 1 ? args[0] : `CONCAT(${args.join(', ')})`,
+    generateLastDay: (arg) => `LAST_DAY_OF_MONTH(${arg})`,
+    // ANSI `DATE_TRUNC('unit', d)` with Trino-flavoured INTERVAL for
+    // non-Monday week start. Mirrors `trinoConfig.getSqlForTruncatedDate`
+    // in `packages/common/src/utils/timeFrames.ts`.
+    generateDateTrunc: (unit, arg, weekStartDay) => {
+        if (unit === 'week' && weekStartDay !== 0) {
+            return `(DATE_TRUNC('week', (${arg} - INTERVAL '${weekStartDay}' DAY)) + INTERVAL '${weekStartDay}' DAY)`;
+        }
+        return `DATE_TRUNC('${unit}', ${arg})`;
+    },
+    generateDateAdd: (unit, date, n) => `DATE_ADD('${unit}', ${n}, ${date})`,
+    generateDateDiff: (unit, start, end) =>
+        `DATE_DIFF('${unit}', ${start}, ${end})`,
+};
+
 export const DIALECTS: Record<Dialect, DialectConfig> = {
     postgres: POSTGRES_CONFIG,
     redshift: REDSHIFT_CONFIG,
@@ -421,4 +484,5 @@ export const DIALECTS: Record<Dialect, DialectConfig> = {
     duckdb: DUCKDB_CONFIG,
     databricks: DATABRICKS_CONFIG,
     clickhouse: CLICKHOUSE_CONFIG,
+    athena: TRINO_CONFIG,
 };
