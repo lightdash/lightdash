@@ -392,15 +392,22 @@ export class PivotQueryBuilder {
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
+        const sortOnlyDimensions =
+            this.pivotConfiguration.sortOnlyDimensions ?? [];
+
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
             ...indexColumns.map((col) => `${q}${col.reference}${q}`),
+            // Sort-only dimensions ride through group_by_query so the pivot
+            // CTEs can reference them in column_index ORDER BY.
+            ...sortOnlyDimensions.map((col) => `${q}${col.reference}${q}`),
         ];
 
         // Carry _order columns through for sorted custom bin dimensions
         const sortedBinRefs = this.getSortedBinDimensionReferences([
             ...(groupByColumns || []),
             ...indexColumns,
+            ...sortOnlyDimensions,
         ]);
         for (const ref of sortedBinRefs) {
             groupBySelectDimensions.push(`${q}${ref}_order${q}`);
@@ -492,6 +499,11 @@ export class PivotQueryBuilder {
                     (groupCol) => groupCol.reference === reference,
                 );
 
+            const sortOnlyDimensions =
+                this.pivotConfiguration.sortOnlyDimensions ?? [];
+            const isSortOnlyDimension = ({ reference }: VizSortBy) =>
+                sortOnlyDimensions.some((dim) => dim.reference === reference);
+
             // Create values order parts
             const valuesOrderByParts = sortBy
                 .filter(isValueColumn)
@@ -518,8 +530,29 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Create groups order parts. Note that groups parts should follow the groupsByColumns order rather than sortBy order.
-            const groupsOrderByParts = groupByColumns.map((col) => {
+            // Sort intent on sort-only dimensions (frontend-flagged companion
+            // dims that aren't on the row axis) drives column_index too. They
+            // ride in group_by_query via metricQuery.dimensions, so we just
+            // reference them in the ORDER BY.
+            const sortOnlyDimensionParts = sortBy
+                .filter(isSortOnlyDimension)
+                .map((sort) => {
+                    const sortExpr = this.resolveSortField(
+                        sort.reference,
+                        sort.direction === SortByDirection.DESC,
+                        sort.nullsFirst,
+                    );
+                    return this.prefixSortExprWithAlias(
+                        sortExpr,
+                        sort.reference,
+                        'g',
+                    );
+                });
+
+            // Group-by parts follow groupByColumns declaration order; sortBy
+            // on a group-by only supplies direction. Declaration order defines
+            // the column hierarchy the renderer relies on for header merging.
+            const groupByOrderByParts = groupByColumns.map((col) => {
                 const sort = sortBy.find((s) => s.reference === col.reference);
                 const sortExpr = this.resolveSortField(
                     col.reference,
@@ -532,6 +565,11 @@ export class PivotQueryBuilder {
                     'g',
                 );
             });
+
+            const groupsOrderByParts = [
+                ...sortOnlyDimensionParts,
+                ...groupByOrderByParts,
+            ];
 
             // Order parts cannot have values and groups interleaved. We have to ensure they are together by type
             const sortByValuesFirst = isValueColumn(

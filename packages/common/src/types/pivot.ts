@@ -32,6 +32,14 @@ export type PivotConfiguration = {
      * but excluded from pivotDetails so they don't appear as chart series.
      */
     sortOnlyColumns?: ValuesColumn[];
+    /**
+     * Dimensions referenced only via sortBy. They are not row-axis columns and
+     * not pivot column dims; they exist solely to influence column ordering
+     * (e.g. grouping by `status` while sorting by a 1:1 lookup `status_priority`).
+     * The dim is already present in group_by_query via metricQuery.dimensions,
+     * so PivotQueryBuilder just references it in the column_index ORDER BY.
+     */
+    sortOnlyDimensions?: GroupByColumn[];
 };
 
 type Field =

@@ -607,6 +607,54 @@ describe('derivePivotConfigurationFromChart', () => {
     });
 
     describe('Sort by metric not in viz (PROD-6906)', () => {
+        it('puts sort-only dimensions in sortOnlyDimensions, not indexColumn (PROD-7154)', () => {
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: mockCartesianChartConfig, // xField: payment_method, yField: total_revenue
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            // customer_id is a dimension that's only referenced via sortBy —
+            // not the x-axis, not a pivot column, not a metric.
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_status',
+                    'customers_customer_id',
+                ],
+                sorts: [
+                    { fieldId: 'customers_customer_id', descending: false },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+            // customer_id should NOT be an index column
+            expect(result?.indexColumn).toEqual([
+                {
+                    reference: 'payments_payment_method',
+                    type: VizIndexType.CATEGORY,
+                },
+            ]);
+            expect(result?.sortOnlyDimensions).toEqual([
+                { reference: 'customers_customer_id' },
+            ]);
+            expect(result?.sortBy).toEqual([
+                {
+                    reference: 'customers_customer_id',
+                    direction: SortByDirection.ASC,
+                },
+            ]);
+        });
+
         it('puts sort-only metrics in sortOnlyColumns for Cartesian charts', () => {
             const itemsWithExtraMetric: ItemsMap = {
                 ...mockItems,
