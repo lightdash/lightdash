@@ -1,3 +1,10 @@
+## [0.2825.1](https://github.com/lightdash/lightdash/compare/0.2825.0...0.2825.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* upload image to s3 with correct credentials ([#22238](https://github.com/lightdash/lightdash/issues/22238)) ([c2d3eff](https://github.com/lightdash/lightdash/commit/c2d3eff4af4d14163045b95bd5da4e1ba1480ef9))
+
 # [0.2825.0](https://github.com/lightdash/lightdash/compare/0.2824.0...0.2825.0) (2026-04-28)
 
 
