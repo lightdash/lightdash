@@ -938,11 +938,6 @@ export class UserModel {
         return { ...result, cacheHit: false };
     }
 
-    static async invalidatePatCache(token: string): Promise<void> {
-        if (!patSessionUserCache) return;
-        patSessionUserCache.del(await hash(token));
-    }
-
     async createPassword(userId: number, newPassword: string): Promise<void> {
         if (!validatePassword(newPassword)) {
             throw new ParameterError("Password doesn't meet requirements");
