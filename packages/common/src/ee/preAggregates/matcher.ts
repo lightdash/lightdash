@@ -848,10 +848,8 @@ const getMissForDef = ({
         }
 
         if (metric.type === MetricType.NUMBER) {
-            return {
-                reason: PreAggregateMissReason.CUSTOM_SQL_METRIC,
-                fieldId: metricFieldId,
-            };
+            // eslint-disable-next-line no-continue
+            continue;
         }
         if (!isCompatible(metric.type)) {
             return {

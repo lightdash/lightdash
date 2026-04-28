@@ -163,6 +163,11 @@ const sourceExplore = (): Explore => ({
                     table: 'orders',
                     type: MetricType.SUM,
                 }),
+                shipping_total: makeMetric({
+                    name: 'shipping_total',
+                    table: 'orders',
+                    type: MetricType.SUM,
+                }),
                 order_count: makeMetric({
                     name: 'order_count',
                     table: 'orders',
@@ -188,6 +193,18 @@ const sourceExplore = (): Explore => ({
                     table: 'orders',
                     type: MetricType.NUMBER,
                 }),
+                gross_total: makeCustomMetric({
+                    name: 'gross_total',
+                    table: 'orders',
+                    type: MetricType.NUMBER,
+                    sql: '${total_order_amount} + ${shipping_total}',
+                }),
+                total_order_amount_plus_average_customer_age: makeCustomMetric({
+                    name: 'total_order_amount_plus_average_customer_age',
+                    table: 'orders',
+                    type: MetricType.NUMBER,
+                    sql: '${total_order_amount} + ${customers.average_age}',
+                }),
             },
             lineageGraph: {},
         },
@@ -204,6 +221,11 @@ const sourceExplore = (): Explore => ({
                 }),
             },
             metrics: {
+                average_age: makeMetric({
+                    name: 'average_age',
+                    table: 'customers',
+                    type: MetricType.AVERAGE,
+                }),
                 max_customer_age: makeMetric({
                     name: 'max_customer_age',
                     table: 'customers',
@@ -335,6 +357,58 @@ describe('buildPreAggregateExplore', () => {
             }),
         ).toThrow(
             'Pre-aggregate "invalid_rollup" references unsupported metrics: "distinct_customer_count" (count_distinct), "median_order_amount" (median), "custom_sql" (number). Supported metric types: sum, count, min, max, average',
+        );
+    });
+
+    it('requires dependent metrics for supported number metrics', () => {
+        expect(() =>
+            buildPreAggregateExplore(sourceExplore(), {
+                name: 'number_metric_rollup',
+                dimensions: ['status'],
+                metrics: ['gross_total', 'total_order_amount'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "number_metric_rollup" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
+        );
+    });
+
+    it('keeps supported number metrics on the pre-aggregate explore and rewrites them to use materialized dependencies', () => {
+        const result = buildPreAggregateExplore(sourceExplore(), {
+            name: 'number_metric_rollup',
+            dimensions: ['status'],
+            metrics: ['gross_total', 'total_order_amount', 'shipping_total'],
+        });
+
+        expect(result.tables.orders.metrics.gross_total.compiledSql).toBe(
+            '(SUM(orders.orders_total_order_amount)) + (SUM(orders.orders_shipping_total))',
+        );
+        expect(
+            result.tables.orders.metrics.total_order_amount.compiledSql,
+        ).toBe('SUM(orders.orders_total_order_amount)');
+        expect(result.tables.orders.metrics.shipping_total.compiledSql).toBe(
+            'SUM(orders.orders_shipping_total)',
+        );
+    });
+
+    it('rewrites supported cross-model number metrics to use materialized dependencies from joined tables', () => {
+        const result = buildPreAggregateExplore(sourceExplore(), {
+            name: 'cross_model_number_metric_rollup',
+            dimensions: ['status'],
+            metrics: [
+                'total_order_amount_plus_average_customer_age',
+                'total_order_amount',
+                'customers.average_age',
+            ],
+        });
+
+        expect(
+            result.tables.orders.metrics
+                .total_order_amount_plus_average_customer_age.compiledSql,
+        ).toBe(
+            '(SUM(orders.orders_total_order_amount)) + (CAST(SUM(orders.customers_average_age__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.customers_average_age__count), 0) AS DOUBLE))',
+        );
+        expect(result.tables.customers.metrics.average_age.compiledSql).toBe(
+            'CAST(SUM(orders.customers_average_age__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.customers_average_age__count), 0) AS DOUBLE)',
         );
     });
 

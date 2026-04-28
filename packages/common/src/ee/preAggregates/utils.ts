@@ -9,6 +9,11 @@ export {
     PreAggregateDerivedMetricIneligibilityReason,
     type PreAggregateDerivedMetricEligibility,
 } from './metricEligibility';
+export {
+    analyzePreAggregateNumberMetricDependencies,
+    PreAggregateNumberMetricDependencyIneligibilityReason,
+    type PreAggregateNumberMetricDependencies,
+} from './numberMetricDependencies';
 export { applyUserBypass, findMatch } from './matcher';
 export {
     getMetricRepresentation,
