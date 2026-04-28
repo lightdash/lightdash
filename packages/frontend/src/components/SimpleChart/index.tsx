@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getFormattedValue,
     isLineSeriesOption,
     type PivotReference,
@@ -9,7 +8,6 @@ import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
-import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
@@ -143,10 +141,6 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             resolvedTimezone,
         } = useVisualizationContext();
 
-        const isLargeChartPerformanceEnabled = useClientFeatureFlag(
-            FeatureFlags.LargeChartPerformance,
-        );
-
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
         const eChartsOptions = useEchartsCartesianConfig(
@@ -254,7 +248,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 ...(props.isInDashboard && { useCoarsePointer: true }),
             };
 
-            if (!isLargeChartPerformanceEnabled || !eChartsOptions) {
+            if (!eChartsOptions) {
                 return baseOpts;
             }
             const seriesCount = eChartsOptions.series?.length ?? 0;
@@ -265,11 +259,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 return { ...baseOpts, renderer: 'canvas' };
             }
             return baseOpts;
-        }, [
-            isLargeChartPerformanceEnabled,
-            eChartsOptions,
-            props.isInDashboard,
-        ]);
+        }, [eChartsOptions, props.isInDashboard]);
 
         // When using canvas renderer, resolve CSS variables to computed values
         // since canvas doesn't have DOM access to resolve var(--...) strings.
