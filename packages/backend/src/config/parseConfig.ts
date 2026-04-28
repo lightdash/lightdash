@@ -1283,7 +1283,6 @@ export type SlackConfig = {
     socketMode?: boolean;
     channelsCachedTime: number;
     supportUrl: string;
-    multiAgentChannelEnabled: boolean;
     /*
      This is the setting that controls whether we generate image previews for link shares in Slack
      @default true
@@ -2053,8 +2052,6 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ), // 10 minutes
             supportUrl: process.env.SLACK_SUPPORT_URL || '',
-            multiAgentChannelEnabled:
-                process.env.SLACK_MULTI_AGENT_CHANNEL_ENABLED === 'true',
             linkShareImagePreviewEnabled:
                 process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
