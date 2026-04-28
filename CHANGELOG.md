@@ -1,3 +1,10 @@
+## [0.2822.1](https://github.com/lightdash/lightdash/compare/0.2822.0...0.2822.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* **data-apps:** preserve "Cancelled by user" when cancel races a stage transition (GLITCH-369) ([#22431](https://github.com/lightdash/lightdash/issues/22431)) ([b8bef6d](https://github.com/lightdash/lightdash/commit/b8bef6d884757dc8d7150ae2a67c6486650e2fe2))
+
 # [0.2822.0](https://github.com/lightdash/lightdash/compare/0.2821.0...0.2822.0) (2026-04-28)
 
 
