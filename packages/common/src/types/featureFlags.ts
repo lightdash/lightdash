@@ -90,8 +90,9 @@ export enum FeatureFlags {
 
     /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
-     * re-switching. Disabled by default because large dashboards can spike
-     * browser memory to 3 GB+ when all tab data stays in memory.
+     * re-switching. Enabled by default; disabled per-org for orgs where
+     * large dashboards spiked browser memory to 3 GB+ from accumulated
+     * tab content.
      */
     DashboardTabsInMemory = 'dashboard-tabs-in-memory',
 
