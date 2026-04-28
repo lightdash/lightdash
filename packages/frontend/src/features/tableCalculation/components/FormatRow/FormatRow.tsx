@@ -5,6 +5,8 @@ import {
     currencies,
     CustomFormatType,
     findCompactConfig,
+    formatDate,
+    formatTimestamp,
     formatValueWithExpression,
     getCompactOptionsForFormatType,
     NumberSeparator,
@@ -202,10 +204,12 @@ const getPreviewValue = (
             ) {
                 return formatValueWithExpression(format.custom, sample);
             }
-            // Default Date / Timestamp rendering
+            // Default Date / Timestamp rendering — match what the explore
+            // results table renders for these types (formatDate /
+            // formatTimestamp from @lightdash/common), not toLocaleString.
             return dataType === TableCalculationType.TIMESTAMP
-                ? sample.toLocaleString()
-                : sample.toLocaleDateString();
+                ? formatTimestamp(sample)
+                : formatDate(sample);
         }
 
         const expression = convertCustomFormatToFormatExpression(format);
