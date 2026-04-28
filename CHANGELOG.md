@@ -1,3 +1,10 @@
+# [0.2823.0](https://github.com/lightdash/lightdash/compare/0.2822.1...0.2823.0) (2026-04-28)
+
+
+### Features
+
+* **table-calc:** redesign Create/Edit Table Calculation modal ([#22426](https://github.com/lightdash/lightdash/issues/22426)) ([e2d1913](https://github.com/lightdash/lightdash/commit/e2d1913c93ab38bca8222650728373251a554157))
+
 ## [0.2822.1](https://github.com/lightdash/lightdash/compare/0.2822.0...0.2822.1) (2026-04-28)
 
 
