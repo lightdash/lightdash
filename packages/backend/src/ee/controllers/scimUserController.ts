@@ -96,6 +96,7 @@ export class ScimUserController extends BaseController {
     ): Promise<ScimListResponse<ScimUser>> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         const users = await this.getScimService().listUsers({
+            account: req.account!,
             organizationUuid,
             filter,
             startIndex,
@@ -157,6 +158,7 @@ export class ScimUserController extends BaseController {
     ): Promise<ScimUser> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         const user = await this.getScimService().getUser({
+            account: req.account!,
             organizationUuid,
             userUuid,
         });
@@ -181,6 +183,7 @@ export class ScimUserController extends BaseController {
     ): Promise<ScimUser> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         const user = await this.getScimService().createUser({
+            account: req.account!,
             organizationUuid,
             user: body,
         });
@@ -208,6 +211,7 @@ export class ScimUserController extends BaseController {
     ): Promise<ScimUser> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         const user = await this.getScimService().updateUser({
+            account: req.account!,
             organizationUuid,
             userUuid,
             user: body,
@@ -235,6 +239,7 @@ export class ScimUserController extends BaseController {
     ): Promise<ScimUser> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         const user = await this.getScimService().patchUser({
+            account: req.account!,
             organizationUuid,
             userUuid,
             patchOp: body,
@@ -259,6 +264,7 @@ export class ScimUserController extends BaseController {
     ): Promise<void> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         await this.getScimService().deleteUser({
+            account: req.account!,
             organizationUuid,
             userUuid,
         });

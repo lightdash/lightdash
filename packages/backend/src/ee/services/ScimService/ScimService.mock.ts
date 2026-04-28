@@ -1,8 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     OrganizationMemberProfile,
     OrganizationMemberRole,
+    PossibleAbilities,
     ProjectType,
     Role,
+    ServiceAcctAccount,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
@@ -16,6 +19,48 @@ import { UserModel } from '../../../models/UserModel';
 import { CommercialFeatureFlagModel } from '../../models/CommercialFeatureFlagModel';
 import { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import { ScimService } from './ScimService';
+
+// Mock SCIM service-account Account for tests that exercise audited ability checks.
+export const mockScimAccount = {
+    authentication: {
+        type: 'service-account' as const,
+        source: 'test-scim-token',
+    },
+    user: {
+        type: 'registered' as const,
+        id: 'scim-service-account-user-uuid',
+        userUuid: 'scim-service-account-user-uuid',
+        email: 'service-account@lightdash.com',
+        firstName: 'service account',
+        lastName: 'SCIM',
+        isActive: true,
+        role: OrganizationMemberRole.ADMIN,
+        ability: new Ability<PossibleAbilities>([
+            { subject: 'OrganizationMemberProfile', action: ['manage'] },
+            { subject: 'Group', action: ['manage'] },
+        ]),
+        abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+        isTrackingAnonymized: false,
+        isMarketingOptedIn: false,
+        isSetupComplete: true,
+        userId: 1,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+    },
+    organization: {
+        organizationUuid: 'org-uuid',
+        name: 'Test Organization',
+        createdAt: new Date('2024-01-01'),
+    },
+    isAuthenticated: () => true,
+    isRegisteredUser: () => true,
+    isAnonymousUser: () => false,
+    isSessionUser: () => false,
+    isJwtUser: () => false,
+    isServiceAccount: () => true,
+    isPatUser: () => false,
+    isOauthUser: () => false,
+} as ServiceAcctAccount;
 
 // Mock user for testing
 export const mockUser: OrganizationMemberProfile = {

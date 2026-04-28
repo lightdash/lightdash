@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { ScimPatch } from 'scim-patch';
 import { ScimService } from './ScimService';
-import { mockUser, ScimServiceArgumentsMock } from './ScimService.mock';
+import {
+    mockScimAccount,
+    mockUser,
+    ScimServiceArgumentsMock,
+} from './ScimService.mock';
 
 describe('ScimService', () => {
     const service = new ScimService(ScimServiceArgumentsMock);
@@ -200,6 +204,7 @@ describe('ScimService', () => {
 
             // Call createUser
             await service.createUser({
+                account: mockScimAccount,
                 user: scimUser,
                 organizationUuid: 'org-uuid',
             });
@@ -241,6 +246,7 @@ describe('ScimService', () => {
 
             // Call createUser
             await service.createUser({
+                account: mockScimAccount,
                 user: scimUser,
                 organizationUuid: 'org-uuid',
             });
@@ -361,6 +367,7 @@ describe('ScimService', () => {
             // Call createUser with the invalid role and expect it to throw an error
             await expect(
                 service.createUser({
+                    account: mockScimAccount,
                     user: scimUser,
                     organizationUuid: 'org-uuid',
                 }),
@@ -400,6 +407,7 @@ describe('ScimService', () => {
             };
 
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -453,6 +461,7 @@ describe('ScimService', () => {
             // Call updateUser with the invalid role and expect it to throw an error
             await expect(
                 service.updateUser({
+                    account: mockScimAccount,
                     user: scimUser,
                     userUuid: mockUser.userUuid,
                     organizationUuid: mockUser.organizationUuid,
@@ -489,6 +498,7 @@ describe('ScimService', () => {
 
             // Call updateUser with the valid role
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -552,6 +562,7 @@ describe('ScimService', () => {
 
             // Call updateUser with roles
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -606,6 +617,7 @@ describe('ScimService', () => {
 
             // Call updateUser with organization role
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -641,6 +653,7 @@ describe('ScimService', () => {
 
             // Call patchUser with the patch operation
             await service.patchUser({
+                account: mockScimAccount,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
                 patchOp,
