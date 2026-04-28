@@ -57,6 +57,7 @@ import {
 } from '../database/entities/users';
 import { deprecatedHash, hash } from '../utils/hash';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { PatSessionCache } from './PatSessionCache';
 import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
@@ -126,19 +127,6 @@ type UserModelArguments = {
 };
 
 const sessionUserCache =
-    process.env.EXPERIMENTAL_CACHE === 'true'
-        ? new NodeCache({
-              stdTTL: 30, // time to live in seconds
-              checkperiod: 60, // cleanup interval in seconds
-          })
-        : undefined;
-
-type CachedPatSessionUser = {
-    user: SessionUser;
-    personalAccessToken: PersonalAccessToken;
-};
-
-const patSessionUserCache =
     process.env.EXPERIMENTAL_CACHE === 'true'
         ? new NodeCache({
               stdTTL: 30, // time to live in seconds
@@ -495,13 +483,13 @@ export class UserModel {
             }
         });
         if (isActive === false) {
-            UserModel.invalidatePatSessionCache();
+            PatSessionCache.invalidate();
         }
         return this.getUserDetailsByUuid(userUuid);
     }
 
     async delete(userUuid: string): Promise<void> {
-        UserModel.invalidatePatSessionCache();
+        PatSessionCache.invalidate();
         await this.database(UserTableName)
             .where('user_uuid', userUuid)
             .delete();
@@ -899,17 +887,18 @@ export class UserModel {
     }
 
     async findSessionUserByPersonalAccessToken(token: string): Promise<
-        | (CachedPatSessionUser & {
+        | {
+              user: SessionUser;
+              personalAccessToken: PersonalAccessToken;
               cacheHit: boolean;
-          })
+          }
         | undefined
     > {
-        const tokenHash = await hash(token);
-        const cached =
-            patSessionUserCache?.get<CachedPatSessionUser>(tokenHash);
+        const cached = PatSessionCache.get(token);
         if (cached) {
             return { ...cached, cacheHit: true };
         }
+        const tokenHash = await hash(token);
         const [row] = await userDetailsQueryBuilder(this.database)
             .innerJoin(
                 'personal_access_tokens',
@@ -928,7 +917,7 @@ export class UserModel {
         const { abilityBuilder, lightdashUser } =
             await this.generateUserAbilityBuilder(row);
 
-        const result: CachedPatSessionUser = {
+        const result = {
             user: {
                 ...lightdashUser,
                 abilityRules: abilityBuilder.rules,
@@ -938,12 +927,8 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
-        patSessionUserCache?.set(tokenHash, result);
+        PatSessionCache.set(token, result);
         return { ...result, cacheHit: false };
-    }
-
-    static invalidatePatSessionCache(): void {
-        patSessionUserCache?.flushAll();
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {

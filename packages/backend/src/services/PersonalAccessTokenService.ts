@@ -11,7 +11,6 @@ import {
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
-import { UserModel } from '../models/UserModel';
 import { BaseService } from './BaseService';
 
 type PersonalAccessTokenServiceArguments = {
@@ -114,7 +113,6 @@ export class PersonalAccessTokenService extends BaseService {
             );
         }
 
-        UserModel.invalidatePatSessionCache();
         await this.personalAccessTokenModel.delete(personalAccessTokenUuid);
         this.analytics.track({
             userId: user.userUuid,
@@ -187,7 +185,6 @@ export class PersonalAccessTokenService extends BaseService {
             throw new ParameterError('Token can only be rotated once per hour');
         }
 
-        UserModel.invalidatePatSessionCache();
         const newToken = await this.personalAccessTokenModel.rotate({
             personalAccessTokenUuid,
             expiresAt: data.expiresAt,

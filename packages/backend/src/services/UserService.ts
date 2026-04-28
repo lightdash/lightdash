@@ -1555,7 +1555,6 @@ export class UserService extends BaseService {
             personalAccessToken.expiresAt &&
             personalAccessToken.expiresAt <= now
         ) {
-            UserModel.invalidatePatSessionCache();
             if (personalAccessToken.uuid) {
                 await this.personalAccessTokenModel.delete(
                     personalAccessToken.uuid,
