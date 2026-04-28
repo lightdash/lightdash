@@ -33,9 +33,9 @@ flowchart LR
 1. **App creation** — The API creates a `DbApp` record and a v1 `DbAppVersion` with `status='building'`, then returns
    immediately with `{ appUuid, version }`. The pipeline runs asynchronously in the background.
 
-2. **Sandbox setup** — An [E2B](https://e2b.dev/) sandbox is created from the `lightdash-data-app` template. The
-   template contains a pre-configured React + Vite project with the Lightdash App SDK, plus a system prompt
-   (`/app/skill.md`) that teaches Claude how to build data apps.
+2. **Sandbox setup** — An [E2B](https://e2b.dev/) sandbox is created from the `lightdash-data-app` template (override
+   with `E2B_TEMPLATE_NAME` for development). The template contains a pre-configured React + Vite project with the
+   Lightdash App SDK, plus a system prompt (`/app/skill.md`) that teaches Claude how to build data apps.
 
 3. **Catalog injection** — The project's dbt catalog (tables, dimensions, metrics) is fetched via `CatalogModel` and
    written as YAML into the sandbox at `/tmp/dbt-repo/models/schema.yml`. This gives Claude full context on the
@@ -316,6 +316,7 @@ notification via `useBuildNotification`.
 ```
 APP_RUNTIME_ENABLED=true                           # Master feature flag
 E2B_API_KEY=...                                    # E2B sandbox API key
+E2B_TEMPLATE_NAME=lightdash-data-app               # Optional E2B template override (for dev)
 APP_RUNTIME_LIGHTDASH_ORIGIN=https://app.example   # Origin for CORS/CSP (defaults to SITE_URL)
 APP_RUNTIME_CDN_ORIGIN=https://cdn.example.com     # Optional CDN for CSP
 APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain for preview serving

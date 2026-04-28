@@ -57,6 +57,24 @@ pnpm run dev
 pnpm run build
 ```
 
+## E2B template name
+
+The build script (`build-sandbox.ts`) and the backend (`AppGenerateService`) both target the
+`lightdash-data-app` E2B template by default — this is the production template.
+
+During development, set `E2B_TEMPLATE_NAME` to a different name to build and use a personal/dev
+template instead. Both `build-sandbox.ts` and the backend read the same env var, so as long as
+they share it, the backend will spin up sandboxes from your dev template.
+
+```bash
+# Build to a dev template
+E2B_TEMPLATE_NAME=lightdash-data-app-dev pnpm run build
+
+# Backend will use the same template when this env var is set
+```
+
+When `E2B_TEMPLATE_NAME` is unset, both sides fall back to the prod `lightdash-data-app` template.
+
 ## Related
 
 - **GLITCH-270** — E2B sandbox that runs this scaffold in production
