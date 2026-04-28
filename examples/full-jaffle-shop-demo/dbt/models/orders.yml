@@ -46,6 +46,26 @@ models:
               - average_expression_metric
             time_dimension: order_date
             granularity: day
+          - name: orders_daily_number_metric_refs_demo
+            dimensions:
+              - shipping_method
+              - shipping_cost_tier
+            metrics:
+              - total_non_completed_order_amount
+              - total_order_amount
+              - total_completed_order_amount
+              - completion_percentage
+            time_dimension: order_date
+            granularity: day
+          - name: orders_daily_cross_model_number_metric_refs_demo
+            dimensions:
+              - status
+            metrics:
+              - order_amount_plus_average_customer_age
+              - total_order_amount
+              - customers.average_age
+            time_dimension: order_date
+            granularity: day
           - name: param_dimension_rejected_daily
             dimensions:
               - status
@@ -121,6 +141,14 @@ models:
             description: "Average deduped revenue per order. References a cross-model sum_distinct metric to test PROD-6869."
             format: usd
             round: 2
+          order_amount_plus_average_customer_age:
+            type: number
+            sql: ${total_order_amount} + ${customers.average_age}
+            description: "Example type:number metric that references a joined customers metric."
+            groups: ["pre-aggregations"]
+            drivers:
+              - total_order_amount
+              - customers.average_age
         default_time_dimension:
           field: order_date
           interval: MONTH

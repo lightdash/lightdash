@@ -1,18 +1,5 @@
-import {
-    getAllReferences,
-    getParsedReference,
-} from '../../compiler/exploreCompiler';
-import {
-    getReferencedDimension,
-    getReferencedDimensionCaseInsensitive,
-    getReferencedMetric,
-} from '../../compiler/referenceLookup';
-import type { CompiledTable } from '../../types/explore';
-import type {
-    CompiledDimension,
-    CompiledMetric,
-    FieldId,
-} from '../../types/field';
+import { getAllReferences } from '../../compiler/exploreCompiler';
+import type { CompiledMetric, FieldId } from '../../types/field';
 import { getItemId } from '../../utils/item';
 import { hasLightdashUserContextVariableReference } from '../../utils/lightdashSqlVariables';
 import {
@@ -20,6 +7,12 @@ import {
     type PreAggregateDerivedDimensionEligibility,
     type PreAggregateDerivedDimensionIneligibilityReason,
 } from './dimensionEligibility';
+import {
+    getReferencedDimensionForPreAggregation,
+    getReferencedFilterDimensionForPreAggregation,
+    getReferencedMetricForPreAggregation,
+    type PreAggregateReferenceLookup,
+} from './referenceLookup';
 
 export enum PreAggregateDerivedMetricIneligibilityReason {
     CIRCULAR_DEPENDENCY = 'circular_dependency',
@@ -31,11 +24,6 @@ export enum PreAggregateDerivedMetricIneligibilityReason {
     PARAMETER_REFERENCES = 'parameter_references',
     USER_ATTRIBUTES = 'user_attributes',
 }
-
-type PreAggregateMetricLookup = Record<
-    string,
-    Pick<CompiledTable, 'name' | 'originalName' | 'dimensions' | 'metrics'>
->;
 
 type PreAggregateDerivedMetricEligibilityBase = {
     referencedDimensionFieldIds: FieldId[];
@@ -67,53 +55,6 @@ const hasParameterReferences = (metric: CompiledMetric): boolean =>
 
 const hasExplicitUserAttributeReference = (sql: string): boolean =>
     hasLightdashUserContextVariableReference(sql);
-
-const getReferencedDimensionForEligibility = ({
-    metric,
-    ref,
-    tables,
-}: {
-    metric: CompiledMetric;
-    ref: string;
-    tables: PreAggregateMetricLookup;
-}): CompiledDimension | undefined => {
-    if (ref === 'TABLE') {
-        return undefined;
-    }
-
-    const { refTable, refName } = getParsedReference(ref, metric.table);
-    return getReferencedDimension(refTable, refName, tables);
-};
-
-const getReferencedMetricForEligibility = ({
-    metric,
-    ref,
-    tables,
-}: {
-    metric: CompiledMetric;
-    ref: string;
-    tables: PreAggregateMetricLookup;
-}): CompiledMetric | undefined => {
-    if (ref === 'TABLE') {
-        return undefined;
-    }
-
-    const { refTable, refName } = getParsedReference(ref, metric.table);
-    return getReferencedMetric(refTable, refName, tables);
-};
-
-const getReferencedFilterDimension = ({
-    metric,
-    fieldRef,
-    tables,
-}: {
-    metric: CompiledMetric;
-    fieldRef: string;
-    tables: PreAggregateMetricLookup;
-}): CompiledDimension | undefined => {
-    const { refTable, refName } = getParsedReference(fieldRef, metric.table);
-    return getReferencedDimensionCaseInsensitive(refTable, refName, tables);
-};
 
 const getIneligibleMetricResult = ({
     metricFieldId,
@@ -159,7 +100,7 @@ const analyzeMetricEligibility = ({
     state,
 }: {
     metric: CompiledMetric;
-    tables: PreAggregateMetricLookup;
+    tables: PreAggregateReferenceLookup;
     state: EligibilityTraversalState;
 }): PreAggregateDerivedMetricEligibility => {
     const currentFieldId = getItemId(metric);
@@ -222,11 +163,13 @@ const analyzeMetricEligibility = ({
                 continue;
             }
 
-            const referencedDimension = getReferencedDimensionForEligibility({
-                metric,
-                ref,
-                tables,
-            });
+            const referencedDimension = getReferencedDimensionForPreAggregation(
+                {
+                    metric,
+                    ref,
+                    tables,
+                },
+            );
 
             if (referencedDimension) {
                 const dimensionEligibility =
@@ -265,7 +208,7 @@ const analyzeMetricEligibility = ({
                 continue;
             }
 
-            const referencedMetric = getReferencedMetricForEligibility({
+            const referencedMetric = getReferencedMetricForPreAggregation({
                 metric,
                 ref,
                 tables,
@@ -328,11 +271,12 @@ const analyzeMetricEligibility = ({
                     // @ts-expect-error This fallback is to support old metric filters in yml. We can delete this after a few months since we can assume all projects have been redeployed
                     (filter.target.fieldRef || filter.target.fieldId) as string;
 
-                const referencedDimension = getReferencedFilterDimension({
-                    metric,
-                    fieldRef,
-                    tables,
-                });
+                const referencedDimension =
+                    getReferencedFilterDimensionForPreAggregation({
+                        metric,
+                        fieldRef,
+                        tables,
+                    });
 
                 if (!referencedDimension) {
                     result = getIneligibleMetricResult({
@@ -393,7 +337,7 @@ export const analyzePreAggregateDerivedMetricEligibility = ({
     tables,
 }: {
     metric: CompiledMetric;
-    tables: PreAggregateMetricLookup;
+    tables: PreAggregateReferenceLookup;
 }): PreAggregateDerivedMetricEligibility =>
     analyzeMetricEligibility({
         metric,

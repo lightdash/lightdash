@@ -16,6 +16,8 @@ import { buildMaterializationMetricQuery } from './buildMaterializationMetricQue
 
 const makeDimension = ({
     name,
+    table = 'orders',
+    tableLabel,
     type = DimensionType.STRING,
     sql,
     compiledSql,
@@ -23,6 +25,8 @@ const makeDimension = ({
     compilationError,
 }: {
     name: string;
+    table?: string;
+    tableLabel?: string;
     type?: DimensionType;
     sql?: string;
     compiledSql?: string;
@@ -33,20 +37,22 @@ const makeDimension = ({
     type,
     name,
     label: name,
-    table: 'orders',
-    tableLabel: 'Orders',
+    table,
+    tableLabel: tableLabel ?? table,
     sql: sql ?? '${TABLE}.id',
     hidden: false,
     compiledSql: compiledSql ?? sql ?? '"orders".id',
     parameterReferences:
         parameterReferences ??
         getParameterReferencesFromSqlAndFormat(sql ?? '${TABLE}.id'),
-    tablesReferences: ['orders'],
+    tablesReferences: [table],
     ...(compilationError ? { compilationError } : {}),
 });
 
 const makeMetric = ({
     name,
+    table = 'orders',
+    tableLabel,
     type,
     sql,
     compiledSql,
@@ -55,6 +61,8 @@ const makeMetric = ({
     filters,
 }: {
     name: string;
+    table?: string;
+    tableLabel?: string;
     type: MetricType;
     sql?: string;
     compiledSql?: string;
@@ -66,15 +74,15 @@ const makeMetric = ({
     type,
     name,
     label: name,
-    table: 'orders',
-    tableLabel: 'Orders',
+    table,
+    tableLabel: tableLabel ?? table,
     sql: sql ?? 'count(*)',
     hidden: false,
     compiledSql: compiledSql ?? sql ?? 'count(*)',
     parameterReferences:
         parameterReferences ??
         getParameterReferencesFromSqlAndFormat(sql ?? 'count(*)'),
-    tablesReferences: ['orders'],
+    tablesReferences: [table],
     ...(filters ? { filters } : {}),
     ...(compilationError ? { compilationError } : {}),
 });
@@ -85,7 +93,13 @@ const getSourceExplore = (): Explore =>
         label: 'Orders',
         tags: [],
         baseTable: 'orders',
-        joinedTables: [],
+        joinedTables: [
+            {
+                table: 'customers',
+                sqlOn: '${orders.customer_id} = ${customers.customer_id}',
+                compiledSqlOn: '"orders".customer_id = "customers".customer_id',
+            },
+        ],
         targetDatabase: SupportedDbtAdapter.POSTGRES,
         tables: {
             orders: {
@@ -147,6 +161,56 @@ const getSourceExplore = (): Explore =>
                         compiledSql: 'count(*)',
                         tablesReferences: ['orders'],
                     },
+                    total_order_amount: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.SUM,
+                        name: 'total_order_amount',
+                        label: 'Total order amount',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.amount',
+                        hidden: false,
+                        compiledSql: 'SUM("orders".amount)',
+                        tablesReferences: ['orders'],
+                    },
+                    shipping_total: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.SUM,
+                        name: 'shipping_total',
+                        label: 'Shipping total',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${TABLE}.shipping_cost',
+                        hidden: false,
+                        compiledSql: 'SUM("orders".shipping_cost)',
+                        tablesReferences: ['orders'],
+                    },
+                    gross_total: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                        name: 'gross_total',
+                        label: 'Gross total',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${total_order_amount} + ${shipping_total}',
+                        hidden: false,
+                        compiledSql:
+                            '(SUM("orders".amount)) + (SUM("orders".shipping_cost))',
+                        tablesReferences: ['orders'],
+                    },
+                    total_order_amount_plus_average_customer_age: {
+                        fieldType: FieldType.METRIC,
+                        type: MetricType.NUMBER,
+                        name: 'total_order_amount_plus_average_customer_age',
+                        label: 'Total order amount plus average customer age',
+                        table: 'orders',
+                        tableLabel: 'Orders',
+                        sql: '${total_order_amount} + ${customers.average_age}',
+                        hidden: false,
+                        compiledSql:
+                            '(SUM("orders".amount)) + (AVG("customers".age))',
+                        tablesReferences: ['orders', 'customers'],
+                    },
                     avg_order_amount: {
                         fieldType: FieldType.METRIC,
                         type: MetricType.AVERAGE,
@@ -181,6 +245,29 @@ const getSourceExplore = (): Explore =>
                         compiledSql: 'SUM("orders".amount)',
                         tablesReferences: ['orders'],
                     },
+                },
+                lineageGraph: {},
+            },
+            customers: {
+                name: 'customers',
+                label: 'Customers',
+                database: 'analytics',
+                schema: 'public',
+                sqlTable: 'public.customers',
+                dimensions: {
+                    first_name: makeDimension({
+                        name: 'first_name',
+                        table: 'customers',
+                    }),
+                },
+                metrics: {
+                    average_age: makeMetric({
+                        name: 'average_age',
+                        table: 'customers',
+                        type: MetricType.AVERAGE,
+                        sql: '${TABLE}.age',
+                        compiledSql: 'AVG("customers".age)',
+                    }),
                 },
                 lineageGraph: {},
             },
@@ -542,6 +629,97 @@ describe('buildMaterializationMetricQuery', () => {
             orders_order_revenue: [
                 {
                     componentFieldId: 'orders_order_revenue',
+                    aggregation: MetricType.SUM,
+                },
+            ],
+        });
+    });
+
+    it('requires dependent metrics for supported number metrics', () => {
+        expect(() =>
+            buildMaterializationMetricQuery({
+                sourceExplore: getSourceExplore(),
+                preAggregateDef: {
+                    name: 'orders_number_metric_preagg',
+                    dimensions: ['status'],
+                    metrics: ['gross_total', 'total_order_amount'],
+                },
+                materializationConfig: { maxRows: null },
+            }),
+        ).toThrow(
+            'Pre-aggregate "orders_number_metric_preagg" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
+        );
+    });
+
+    it('materializes only the leaf dependencies for supported number metrics', () => {
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef: {
+                name: 'orders_number_metric_preagg',
+                dimensions: ['status'],
+                metrics: [
+                    'gross_total',
+                    'total_order_amount',
+                    'shipping_total',
+                ],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.metrics).toEqual([
+            'orders_total_order_amount',
+            'orders_shipping_total',
+        ]);
+        expect(result.metricComponents).toEqual({
+            orders_total_order_amount: [
+                {
+                    componentFieldId: 'orders_total_order_amount',
+                    aggregation: MetricType.SUM,
+                },
+            ],
+            orders_shipping_total: [
+                {
+                    componentFieldId: 'orders_shipping_total',
+                    aggregation: MetricType.SUM,
+                },
+            ],
+        });
+    });
+
+    it('materializes cross-model dependencies for supported number metrics', () => {
+        const result = buildMaterializationMetricQuery({
+            sourceExplore: getSourceExplore(),
+            preAggregateDef: {
+                name: 'orders_cross_model_number_metric_preagg',
+                dimensions: ['status'],
+                metrics: [
+                    'total_order_amount_plus_average_customer_age',
+                    'total_order_amount',
+                    'customers.average_age',
+                ],
+            },
+            materializationConfig: { maxRows: null },
+        });
+
+        expect(result.metricQuery.metrics).toEqual([
+            'orders_total_order_amount',
+            'customers_average_age__sum',
+            'customers_average_age__count',
+        ]);
+        expect(result.metricComponents).toEqual({
+            orders_total_order_amount: [
+                {
+                    componentFieldId: 'orders_total_order_amount',
+                    aggregation: MetricType.SUM,
+                },
+            ],
+            customers_average_age: [
+                {
+                    componentFieldId: 'customers_average_age__sum',
+                    aggregation: MetricType.SUM,
+                },
+                {
+                    componentFieldId: 'customers_average_age__count',
                     aggregation: MetricType.SUM,
                 },
             ],

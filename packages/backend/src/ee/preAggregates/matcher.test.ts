@@ -110,6 +110,10 @@ const baseExplore = (): Explore => ({
                     name: 'total_order_amount',
                     type: MetricType.SUM,
                 }),
+                shipping_total: makeMetric({
+                    name: 'shipping_total',
+                    type: MetricType.SUM,
+                }),
                 order_count: makeMetric({
                     name: 'order_count',
                     type: MetricType.COUNT,
@@ -122,6 +126,14 @@ const baseExplore = (): Explore => ({
                     name: 'custom_metric',
                     type: MetricType.NUMBER,
                 }),
+                gross_total: {
+                    ...makeMetric({
+                        name: 'gross_total',
+                        type: MetricType.NUMBER,
+                    }),
+                    sql: '${total_order_amount} + ${shipping_total}',
+                    compiledSql: '(SUM(x)) + (SUM(y))',
+                },
                 avg_order_amount: makeMetric({
                     name: 'avg_order_amount',
                     type: MetricType.AVERAGE,
@@ -254,6 +266,37 @@ describe('findMatch', () => {
             makeMetricQuery({
                 dimensions: ['orders_status', 'orders_order_date_month'],
                 metrics: ['orders_order_count'],
+            }),
+            explore,
+        );
+
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_daily',
+            miss: null,
+        });
+    });
+
+    it('returns hit for eligible number metrics when the pre-aggregate explicitly includes their dependencies', () => {
+        const explore = {
+            ...baseExplore(),
+            preAggregates: [
+                {
+                    name: 'orders_daily',
+                    dimensions: ['status'],
+                    metrics: [
+                        'gross_total',
+                        'total_order_amount',
+                        'shipping_total',
+                    ],
+                },
+            ],
+        };
+
+        const result = preAggregateUtils.findMatch(
+            makeMetricQuery({
+                dimensions: ['orders_status'],
+                metrics: ['orders_gross_total'],
             }),
             explore,
         );
@@ -986,7 +1029,7 @@ describe('findMatch', () => {
         });
     });
 
-    it('returns custom_sql_metric for type:number metrics', () => {
+    it('allows type:number metrics when they are explicitly included in the pre-aggregate definition', () => {
         const explore = {
             ...baseExplore(),
             preAggregates: [
@@ -1006,9 +1049,10 @@ describe('findMatch', () => {
             explore,
         );
 
-        expect(result.miss).toStrictEqual({
-            reason: PreAggregateMissReason.CUSTOM_SQL_METRIC,
-            fieldId: 'orders_custom_metric',
+        expect(result).toStrictEqual({
+            hit: true,
+            preAggregateName: 'orders_summary',
+            miss: null,
         });
     });
 
