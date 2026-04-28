@@ -544,14 +544,15 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:SqlRunner',
-        description: 'Run SQL queries and execute SQL charts',
+        description:
+            'Run SQL queries, execute SQL charts, and browse warehouse schema',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:CustomSql',
-        description: 'Save SQL charts and browse warehouse schema',
+        description: 'Save SQL charts',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
