@@ -1,3 +1,10 @@
+## [0.2828.1](https://github.com/lightdash/lightdash/compare/0.2828.0...0.2828.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* update OAuth clients icon to `IconApps` ([#22464](https://github.com/lightdash/lightdash/issues/22464)) ([0203818](https://github.com/lightdash/lightdash/commit/020381811e81d12300abf0eaddfcf7f73256f036))
+
 # [0.2828.0](https://github.com/lightdash/lightdash/compare/0.2827.0...0.2828.0) (2026-04-28)
 
 
