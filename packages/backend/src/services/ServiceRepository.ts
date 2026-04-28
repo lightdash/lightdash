@@ -1030,6 +1030,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     schedulerModel: this.models.getSchedulerModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }

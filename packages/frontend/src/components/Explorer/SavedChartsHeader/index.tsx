@@ -338,14 +338,6 @@ const SavedChartsHeader: FC = () => {
         }),
     );
 
-    const userCanUpdateProject = user.data?.ability.can(
-        'update',
-        subject('Project', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
-
     const userCanCreateDeliveriesAndAlerts = user.data?.ability?.can(
         'create',
         subject('ScheduledDeliveries', {
@@ -748,7 +740,7 @@ const SavedChartsHeader: FC = () => {
                                     </Menu.Item>
                                 )}
                                 {changeChartExploreEnabled &&
-                                    userCanUpdateProject &&
+                                    userCanManageChart &&
                                     !isEditMode && (
                                         <Menu.Item
                                             leftSection={
