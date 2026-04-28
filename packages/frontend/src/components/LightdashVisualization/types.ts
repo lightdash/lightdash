@@ -180,6 +180,7 @@ export type VisualizationConfigTreemapProps =
         itemsMap: ItemsMap | undefined;
         tableCalculationsMetadata?: TableCalculationMetadata[];
         parameters?: ParametersValuesMap;
+        savedChartUuid?: string;
     };
 
 // Custom

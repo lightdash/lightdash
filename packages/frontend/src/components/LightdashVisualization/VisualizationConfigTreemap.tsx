@@ -17,6 +17,7 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
     tableCalculationsMetadata,
     children,
     parameters,
+    savedChartUuid,
 }) => {
     const { dimensions, numericMetrics } = useMemo(() => {
         const metrics = getMetricsFromItemsMap(itemsMap ?? {}, isNumericItem);
@@ -35,6 +36,7 @@ const VisualizationConfigTreemap: FC<VisualizationConfigTreemapProps> = ({
         numericMetrics,
         tableCalculationsMetadata,
         parameters,
+        savedChartUuid,
     );
 
     useEffect(() => {

@@ -465,6 +465,7 @@ const VisualizationProvider: FC<
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
+                    savedChartUuid={savedChartUuid}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
