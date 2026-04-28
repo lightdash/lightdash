@@ -264,8 +264,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [isFetching, isPreviousData, isMutating],
     );
 
-    const hasMetricsLoaded = flatData.length > 0;
-
     const dataHasCategories = useMemo(() => {
         return flatData.some((item) => item.categories?.length);
     }, [flatData]);
@@ -510,9 +508,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
-                    isValidMetricsTree
-                    hasMetricsSelected={hasMetricsLoaded}
-                    isValidMetricsEdgeCount
                     metricCatalogView={metricCatalogView}
                     table={table}
                 />
@@ -668,9 +663,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             showCategoriesFilter={
                                 canManageTags || dataHasCategories
                             }
-                            isValidMetricsTree
-                            hasMetricsSelected={hasMetricsLoaded}
-                            isValidMetricsEdgeCount
                             metricCatalogView={metricCatalogView}
                             table={table}
                         />
