@@ -15,12 +15,12 @@ import {
 import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Box,
     Button,
     Group,
     Loader,
-    SegmentedControl,
     Stack,
     Text,
     TextInput,
@@ -482,36 +482,17 @@ const TableCalculationModal: FC<Props> = ({
         [form],
     );
 
-    const editModeOptions = useMemo(
-        () => [
-            {
-                value: EditMode.FORMULA,
-                label: (
-                    <Group
-                        gap={4}
-                        wrap="nowrap"
-                        justify="center"
-                        className={classes.inputModeFormulaLabel}
-                    >
-                        <Text span inherit>
-                            Formula
-                        </Text>
-                        <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
-                            <Badge
-                                color="indigo"
-                                radius="sm"
-                                className={classes.inputModeBadge}
-                            >
-                                Beta
-                            </Badge>
-                        </Tooltip>
-                    </Group>
-                ),
-            },
-            { value: EditMode.SQL, label: 'SQL' },
-        ],
-        [],
-    );
+    const canSwitchEditMode = isNewCalculation && isFormulaSupported;
+    const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
+    const switchEditModeLabel =
+        editMode === EditMode.FORMULA
+            ? 'Use SQL instead'
+            : 'Use formula instead';
+    const handleSwitchEditMode = useCallback(() => {
+        setEditMode(
+            editMode === EditMode.FORMULA ? EditMode.SQL : EditMode.FORMULA,
+        );
+    }, [editMode]);
 
     const saveButtonLabel = tableCalculation
         ? 'Save changes'
@@ -559,35 +540,41 @@ const TableCalculationModal: FC<Props> = ({
                     ? {
                           content: {
                               minWidth: '90vw',
-                              height: '80vh',
-                              maxHeight: '90vh',
+                              height: '92vh',
+                              maxHeight: '95vh',
                           },
                       }
                     : undefined,
             }}
         >
-            <Stack gap="lg">
-                <Stack gap="xs">
+            <Stack gap="lg" mih={isExpanded ? undefined : 520}>
+                <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
-                        <Text fz="sm" fw={600}>
-                            Input mode
-                        </Text>
-                        {isNewCalculation && isFormulaSupported && (
-                            <SegmentedControl
-                                classNames={{
-                                    root: classes.inputModeControl,
-                                    indicator:
-                                        classes.inputModeControlIndicator,
-                                    control: classes.inputModeControlItem,
-                                    label: classes.inputModeControlLabel,
-                                }}
-                                value={editMode}
-                                onChange={(value) =>
-                                    setEditMode(value as EditMode)
-                                }
-                                data={editModeOptions}
+                        <Group gap={6} align="center">
+                            <Text fz="sm" fw={600}>
+                                {editorLabel}
+                            </Text>
+                            {editMode === EditMode.FORMULA && (
+                                <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
+                                    <Badge
+                                        color="indigo"
+                                        radius="sm"
+                                        className={classes.inputModeBadge}
+                                    >
+                                        Beta
+                                    </Badge>
+                                </Tooltip>
+                            )}
+                        </Group>
+                        {canSwitchEditMode && (
+                            <Anchor
                                 size="xs"
-                            />
+                                c="dimmed"
+                                onClick={handleSwitchEditMode}
+                                className={classes.switchEditModeLink}
+                            >
+                                {switchEditModeLabel}
+                            </Anchor>
                         )}
                         {showConvertToFormulaButton && (
                             <Tooltip

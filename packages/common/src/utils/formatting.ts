@@ -850,6 +850,28 @@ export function formatItemValue(
 
         if (isCustomSqlDimension(item) || 'type' in item) {
             const type = getItemType(item);
+
+            // Date/Timestamp table calculations may carry a CUSTOM format
+            // expression (e.g. "mmmm d, yyyy"). The default switch path
+            // hardwires formatDate/formatTimestamp and would silently drop
+            // it, so honour the custom expression first.
+            if (
+                (type === TableCalculationType.DATE ||
+                    type === TableCalculationType.TIMESTAMP) &&
+                customFormat?.type === CustomFormatType.CUSTOM &&
+                customFormat.custom &&
+                isMomentInput(value)
+            ) {
+                try {
+                    return formatValueWithExpression(
+                        customFormat.custom,
+                        value,
+                    );
+                } catch {
+                    // Fall through to the default date/timestamp render.
+                }
+            }
+
             switch (type) {
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:

@@ -1,8 +1,8 @@
-.root {
-    padding: var(--mantine-spacing-md);
+.card {
+    padding: 6px var(--mantine-spacing-sm) var(--mantine-spacing-xs);
     border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-ldGray-0);
+    background-color: var(--mantine-color-white);
 
     @mixin dark {
         background-color: var(--mantine-color-ldDark-2);
@@ -10,58 +10,39 @@
     }
 }
 
-.header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--mantine-spacing-sm);
-    margin-bottom: var(--mantine-spacing-sm);
+.cardEmpty {
+    padding: 6px var(--mantine-spacing-sm);
 }
 
-.headerLabel {
-    display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
-    color: var(--mantine-color-ldGray-7);
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-9);
-    }
-}
-
-.dataTypeSelect {
-    width: 160px;
-}
-
-.pillRow {
+.topRow {
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-sm);
+    min-height: 26px;
     flex-wrap: wrap;
 }
 
-.previewPill {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    min-height: 28px;
-    color: var(--mantine-color-ldGray-7);
-    background-color: var(--mantine-color-white);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-sm);
-    font-size: var(--mantine-font-size-sm);
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-9);
-        background-color: var(--mantine-color-ldDark-3);
-        border-color: var(--mantine-color-ldDark-4);
-    }
+.dataTypeSelect {
+    width: 132px;
+    flex-shrink: 0;
 }
 
-.previewIcon {
+.pillsGroup {
+    flex-shrink: 0;
+}
+
+.pillButton {
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.preview {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding-left: var(--mantine-spacing-sm);
+}
+
+.previewArrow {
     color: var(--mantine-color-ldGray-5);
 
     @mixin dark {
@@ -69,112 +50,94 @@
     }
 }
 
-.divider {
-    width: 1px;
-    align-self: stretch;
-    background-color: var(--mantine-color-ldGray-2);
+.previewValue {
+    font-size: var(--mantine-font-size-md);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-ldDark-9);
 
     @mixin dark {
-        background-color: var(--mantine-color-ldDark-4);
-    }
-}
-
-.pillsControl {
-    background: transparent;
-    padding: 0;
-    gap: 4px;
-}
-
-.pillsControlIndicator {
-    background-color: var(--mantine-color-blue-6);
-    box-shadow: none;
-}
-
-.pillsControlItem {
-    border-radius: 999px;
-}
-
-.pillsControlLabel {
-    padding-inline: var(--mantine-spacing-sm);
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    line-height: 24px;
-    color: var(--mantine-color-ldGray-7);
-    border-radius: 999px;
-
-    &[data-active] {
         color: var(--mantine-color-white);
     }
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-9);
-    }
 }
 
-.subRow {
-    display: flex;
-    align-items: flex-end;
-    gap: var(--mantine-spacing-md);
-    margin-top: var(--mantine-spacing-sm);
-    padding-top: var(--mantine-spacing-sm);
+.divider {
+    height: 1px;
+    margin: 6px 0;
     border-top: 1px dashed var(--mantine-color-ldGray-2);
-    flex-wrap: wrap;
 
     @mixin dark {
         border-top-color: var(--mantine-color-ldDark-4);
     }
 }
 
-.subRowField {
+.subBody {
+    /* Matches a labeled input row (label ~16 + input 28 + gap) so switching
+       between Plain (no inputs) and other pills doesn't jump the modal. */
+    min-height: 50px;
     display: flex;
-    align-items: center;
-    gap: var(--mantine-spacing-xs);
+    flex-direction: column;
+    justify-content: center;
 }
 
-.subRowFieldLabel {
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    color: var(--mantine-color-ldGray-6);
-    white-space: nowrap;
+.emptyBody {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--mantine-color-ldGray-5);
 
     @mixin dark {
-        color: var(--mantine-color-ldDark-8);
+        color: var(--mantine-color-ldDark-7);
     }
 }
 
-.subRowInput {
-    width: 84px;
+.subFieldInput {
+    width: 100px;
 }
 
-.subRowSelect {
+.subFieldInputNarrow {
+    width: 80px;
+}
+
+.subFieldSelect {
+    width: 150px;
+}
+
+.subFieldSelectNarrow {
     width: 130px;
 }
 
-.subRowCurrencySelect {
+.subFieldSeparator {
     width: 160px;
 }
 
-.subRowText {
-    width: 110px;
+.subFieldSelectWide {
+    width: 180px;
 }
 
-.customExpression {
-    margin-top: var(--mantine-spacing-sm);
-    padding-top: var(--mantine-spacing-sm);
-    border-top: 1px dashed var(--mantine-color-ldGray-2);
-
-    @mixin dark {
-        border-top-color: var(--mantine-color-ldDark-4);
-    }
+.subFieldText {
+    width: 130px;
 }
 
-.dateBody {
-    margin-top: var(--mantine-spacing-sm);
-    padding-top: var(--mantine-spacing-sm);
-    border-top: 1px dashed var(--mantine-color-ldGray-2);
+.subFieldTextNarrow {
+    width: 100px;
+}
+
+.subFieldCurrency {
+    width: 200px;
+}
+
+.fullWidthLabel {
+    width: 100%;
+    display: block;
+}
+
+.labelLink {
+    color: var(--mantine-color-blue-6);
+    font-weight: 500;
 
     @mixin dark {
-        border-top-color: var(--mantine-color-ldDark-4);
+        color: var(--mantine-color-blue-3);
     }
 }
 
@@ -182,50 +145,38 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--mantine-spacing-xs);
-    margin-top: var(--mantine-spacing-xs);
-}
-
-.headerIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    color: var(--mantine-color-blue-6);
-    background-color: var(--mantine-color-blue-0);
-    border: 1px solid var(--mantine-color-blue-1);
-    border-radius: var(--mantine-radius-sm);
-
-    @mixin dark {
-        color: var(--mantine-color-blue-3);
-        background-color: var(--mantine-color-blue-9);
-        border-color: var(--mantine-color-blue-8);
-    }
 }
 
 @media (max-width: 48em) {
-    .pillRow {
+    .topRow {
         flex-direction: column;
         align-items: stretch;
     }
 
-    .divider {
-        display: none;
+    .preview {
+        margin-left: 0;
+        padding-left: 0;
+        justify-content: flex-end;
     }
 
-    .subRow {
-        flex-direction: column;
-        align-items: stretch;
+    .pillsGroup {
+        flex-wrap: wrap;
     }
 
-    .subRowField {
-        justify-content: space-between;
+    .subFieldInput,
+    .subFieldInputNarrow,
+    .subFieldSelect,
+    .subFieldSelectNarrow,
+    .subFieldSelectWide,
+    .subFieldSeparator,
+    .subFieldText,
+    .subFieldTextNarrow,
+    .subFieldCurrency {
+        flex: 1;
+        width: auto;
     }
 
-    .subRowInput,
-    .subRowSelect,
-    .subRowCurrencySelect,
-    .subRowText {
+    .dataTypeSelect {
         width: 100%;
     }
 }

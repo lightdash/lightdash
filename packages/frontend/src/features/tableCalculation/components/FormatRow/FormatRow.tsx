@@ -12,14 +12,17 @@ import {
     type CustomFormat,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Anchor,
     Box,
+    Button,
     Group,
-    SegmentedControl,
+    Menu,
     Select,
     Stack,
     Text,
     TextInput,
+    Tooltip,
     type ComboboxItem,
 } from '@mantine-8/core';
 import { NumberInput } from '@mantine/core';
@@ -27,17 +30,16 @@ import { type UseFormReturnType } from '@mantine/form';
 import {
     Icon123,
     IconAbc,
-    IconArrowBackUp,
+    IconArrowRight,
     IconCalendar,
+    IconChevronDown,
     IconClockHour4,
     IconExternalLink,
-    IconPalette,
     IconToggleLeft,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../../components/common/MantineIcon';
-import { PolymorphicPaperButton } from '../../../../components/common/PolymorphicPaperButton';
 import classes from './FormatRow.module.css';
 
 type Props = {
@@ -116,7 +118,7 @@ const currencyOptions: ComboboxItem[] = currencies.map((c) => {
     });
     return {
         value: c,
-        label: `${c} (${formatter.format(1234.56).replace(/\u00A0/, ' ')})`,
+        label: `${c} (${formatter.format(1234.56).replace(/ /, ' ')})`,
     };
 });
 
@@ -141,9 +143,6 @@ const TIMESTAMP_FORMATS = [
 const isDateLike = (dataType: TableCalculationType) =>
     dataType === TableCalculationType.DATE ||
     dataType === TableCalculationType.TIMESTAMP;
-
-const isFormatRowVisible = (dataType: TableCalculationType) =>
-    dataType === TableCalculationType.NUMBER || isDateLike(dataType);
 
 const getNumericPillValue = (formatType: CustomFormatType): NumericPill => {
     if (
@@ -188,19 +187,34 @@ const getPreviewValue = (
     dataType: TableCalculationType,
 ): string | null => {
     try {
+        if (dataType === TableCalculationType.BOOLEAN) {
+            return 'true';
+        }
+        if (dataType === TableCalculationType.STRING) {
+            return 'Sample text';
+        }
         if (isDateLike(dataType)) {
+            const sample = new Date();
             if (
                 format.type === CustomFormatType.CUSTOM &&
                 format.custom &&
                 format.custom.trim().length > 0
             ) {
-                return formatValueWithExpression(format.custom, new Date());
+                return formatValueWithExpression(format.custom, sample);
             }
-            return null;
+            // Default Date / Timestamp rendering
+            return dataType === TableCalculationType.TIMESTAMP
+                ? sample.toLocaleString()
+                : sample.toLocaleDateString();
         }
 
         const expression = convertCustomFormatToFormatExpression(format);
-        if (!expression) return String(NUMERIC_SAMPLE);
+        if (!expression) {
+            // Plain — show the raw sample with grouping so it reads cleanly.
+            return new Intl.NumberFormat(undefined, {
+                maximumFractionDigits: 12,
+            }).format(NUMERIC_SAMPLE);
+        }
         return formatValueWithExpression(expression, NUMERIC_SAMPLE);
     } catch {
         return 'Invalid format';
@@ -330,140 +344,121 @@ export const FormatRow: FC<Props> = ({
         setFormatFieldValue('compact', undefined);
     };
 
-    if (!isFormatRowVisible(dataType)) {
-        // String / Boolean — no format row, but keep the data-type Select so
-        // the user can still switch back to a numeric/date type.
-        return (
-            <Stack gap="xs">
-                <Group justify="space-between" align="center">
-                    <Group gap="xs" className={classes.headerLabel}>
-                        <Box className={classes.headerIcon}>
-                            <MantineIcon icon={IconPalette} size="sm" />
-                        </Box>
-                        <Text size="sm" fw={600}>
-                            Format
-                        </Text>
-                    </Group>
-                    <Select
-                        className={classes.dataTypeSelect}
-                        value={dataType}
-                        onChange={(value) =>
-                            value &&
-                            onDataTypeChange(value as TableCalculationType)
-                        }
-                        data={dataTypeOptions}
-                        allowDeselect={false}
-                        leftSection={
-                            <MantineIcon
-                                icon={selectedDataTypeMeta.icon}
-                                size="sm"
-                            />
-                        }
-                        renderOption={renderDataTypeOption}
-                        checkIconPosition="right"
-                        size="xs"
-                    />
-                </Group>
-                <Text size="xs" c="dimmed">
-                    {dataType === TableCalculationType.STRING
-                        ? 'Strings render as-is.'
-                        : 'Booleans render as true / false.'}
+    const dataTypeSelect = (
+        <Select
+            className={classes.dataTypeSelect}
+            value={dataType}
+            onChange={(value) =>
+                value && onDataTypeChange(value as TableCalculationType)
+            }
+            data={dataTypeOptions}
+            allowDeselect={false}
+            leftSection={
+                <MantineIcon icon={selectedDataTypeMeta.icon} size="sm" />
+            }
+            renderOption={renderDataTypeOption}
+            checkIconPosition="right"
+            size="xs"
+        />
+    );
+
+    const isNumeric = dataType === TableCalculationType.NUMBER;
+    const isPlainNumeric =
+        isNumeric && numericPill === CustomFormatType.DEFAULT;
+
+    const headerRow = (
+        <Group justify="space-between" align="center" wrap="nowrap">
+            <Group gap="md" align="center" wrap="nowrap">
+                <Text size="sm" fw={600}>
+                    Format
                 </Text>
+                {dataTypeSelect}
+            </Group>
+            {previewValue !== null && (
+                <Group gap={6} wrap="nowrap" className={classes.preview}>
+                    <MantineIcon
+                        icon={IconArrowRight}
+                        size="sm"
+                        className={classes.previewArrow}
+                    />
+                    <Text className={classes.previewValue}>{previewValue}</Text>
+                </Group>
+            )}
+        </Group>
+    );
+
+    if (
+        dataType === TableCalculationType.STRING ||
+        dataType === TableCalculationType.BOOLEAN
+    ) {
+        // Strings / Booleans render as-is. Slim card — no pills/divider —
+        // since there's nothing to choose.
+        return (
+            <Stack gap={2}>
+                {headerRow}
+                <Box className={`${classes.card} ${classes.cardEmpty}`}>
+                    <Box className={classes.emptyBody}>
+                        <Text size="xs" c="dimmed" fs="italic">
+                            No formatting options for this type
+                        </Text>
+                    </Box>
+                </Box>
             </Stack>
         );
     }
 
-    const isNumeric = dataType === TableCalculationType.NUMBER;
+    const pills = isNumeric ? numericPills : datePills;
+    const activePillValue: string = isNumeric ? numericPill : datePill;
+    const onPillClick = (value: string) => {
+        if (isNumeric) {
+            handleNumericPillChange(value as NumericPill);
+        } else {
+            handleDatePillChange(value as DatePill);
+        }
+    };
 
     return (
-        <Box className={classes.root}>
-            <Box className={classes.header}>
-                <Group gap="xs" className={classes.headerLabel}>
-                    <Box className={classes.headerIcon}>
-                        <MantineIcon icon={IconPalette} size="sm" />
-                    </Box>
-                    <Text size="sm" fw={600}>
-                        Format
-                    </Text>
-                </Group>
-                <Select
-                    className={classes.dataTypeSelect}
-                    value={dataType}
-                    onChange={(value) =>
-                        value && onDataTypeChange(value as TableCalculationType)
-                    }
-                    data={dataTypeOptions}
-                    allowDeselect={false}
-                    leftSection={
-                        <MantineIcon
-                            icon={selectedDataTypeMeta.icon}
-                            size="sm"
-                        />
-                    }
-                    renderOption={renderDataTypeOption}
-                    checkIconPosition="right"
-                    size="xs"
-                />
-            </Box>
+        <Stack gap={2}>
+            {headerRow}
+            <Box className={classes.card}>
+                <Box className={classes.topRow}>
+                    <Group gap={6} wrap="wrap" className={classes.pillsGroup}>
+                        {pills.map((p) => {
+                            const isActive = activePillValue === p.value;
+                            return (
+                                <Button
+                                    key={p.value}
+                                    size="compact-xs"
+                                    radius="md"
+                                    variant={isActive ? 'filled' : 'default'}
+                                    color={isActive ? 'blue' : undefined}
+                                    onClick={() => onPillClick(p.value)}
+                                    className={classes.pillButton}
+                                >
+                                    {p.label}
+                                </Button>
+                            );
+                        })}
+                    </Group>
+                </Box>
 
-            <Box className={classes.pillRow}>
-                {previewValue !== null && (
-                    <Box className={classes.previewPill}>
-                        <MantineIcon
-                            icon={IconArrowBackUp}
-                            size="sm"
-                            className={classes.previewIcon}
-                        />
-                        <Text component="span" inherit>
-                            {previewValue}
+                <Box className={classes.divider} />
+
+                <Box className={classes.subBody}>
+                    {isPlainNumeric && (
+                        <Text size="xs" c="dimmed" fs="italic">
+                            No further options for this preset
                         </Text>
-                    </Box>
-                )}
-                {previewValue !== null && <Box className={classes.divider} />}
-                {isNumeric ? (
-                    <SegmentedControl
-                        value={numericPill}
-                        onChange={(value) =>
-                            handleNumericPillChange(value as NumericPill)
-                        }
-                        data={numericPills}
-                        size="xs"
-                        classNames={{
-                            root: classes.pillsControl,
-                            indicator: classes.pillsControlIndicator,
-                            label: classes.pillsControlLabel,
-                            control: classes.pillsControlItem,
-                        }}
-                    />
-                ) : (
-                    <SegmentedControl
-                        value={datePill}
-                        onChange={(value) =>
-                            handleDatePillChange(value as DatePill)
-                        }
-                        data={datePills}
-                        size="xs"
-                        classNames={{
-                            root: classes.pillsControl,
-                            indicator: classes.pillsControlIndicator,
-                            label: classes.pillsControlLabel,
-                            control: classes.pillsControlItem,
-                        }}
-                    />
-                )}
-            </Box>
+                    )}
 
-            {isNumeric && format.type === CustomFormatType.NUMBER && (
-                <>
-                    <Box className={classes.subRow}>
-                        <Box className={classes.subRowField}>
-                            <Text className={classes.subRowFieldLabel}>
-                                Decimals
-                            </Text>
+                    {isNumeric && format.type === CustomFormatType.NUMBER && (
+                        <Group gap="md" wrap="wrap" align="flex-end">
                             <NumberInput
-                                className={classes.subRowInput}
+                                className={classes.subFieldInputNarrow}
                                 size="xs"
+                                radius="md"
                                 min={0}
+                                label="Decimals"
                                 placeholder="Auto"
                                 {...{
                                     ...formatInputProps('round'),
@@ -474,15 +469,11 @@ export const FormatRow: FC<Props> = ({
                                         ),
                                 }}
                             />
-                        </Box>
-                        <Box className={classes.subRowField}>
-                            <Text className={classes.subRowFieldLabel}>
-                                Compact
-                            </Text>
                             <Select
-                                className={classes.subRowSelect}
+                                className={classes.subFieldSelectNarrow}
                                 size="xs"
                                 clearable
+                                label="Compact"
                                 placeholder="None"
                                 data={compactSelectData}
                                 value={compactValidValue}
@@ -495,68 +486,84 @@ export const FormatRow: FC<Props> = ({
                                     )
                                 }
                             />
-                        </Box>
-                    </Box>
-                    <Box className={classes.subRow}>
-                        <Box className={classes.subRowField}>
-                            <Text className={classes.subRowFieldLabel}>
-                                Prefix
-                            </Text>
                             <TextInput
-                                className={classes.subRowText}
+                                className={classes.subFieldTextNarrow}
                                 size="xs"
-                                placeholder="e.g. $"
+                                label="Prefix"
+                                placeholder="$"
                                 {...formatInputProps('prefix')}
                             />
-                        </Box>
-                        <Box className={classes.subRowField}>
-                            <Text className={classes.subRowFieldLabel}>
-                                Suffix
-                            </Text>
                             <TextInput
-                                className={classes.subRowText}
+                                className={classes.subFieldTextNarrow}
                                 size="xs"
-                                placeholder="e.g. km/h"
+                                label="Suffix"
+                                placeholder="km/h"
                                 {...formatInputProps('suffix')}
                             />
-                        </Box>
-                        <Box className={classes.subRowField}>
-                            <Text className={classes.subRowFieldLabel}>
-                                Separator
-                            </Text>
                             <Select
-                                className={classes.subRowSelect}
+                                className={classes.subFieldSeparator}
                                 size="xs"
+                                label="Separator"
                                 data={separatorOptions}
                                 {...formatInputProps('separator')}
                             />
-                        </Box>
-                    </Box>
-                </>
-            )}
+                        </Group>
+                    )}
 
-            {isNumeric && format.type === CustomFormatType.CURRENCY && (
-                <Box className={classes.subRow}>
-                    <Box className={classes.subRowField}>
-                        <Text className={classes.subRowFieldLabel}>
-                            Currency
-                        </Text>
-                        <Select
-                            className={classes.subRowCurrencySelect}
-                            size="xs"
-                            searchable
-                            data={currencyOptions}
-                            {...formatInputProps('currency')}
-                        />
-                    </Box>
-                    <Box className={classes.subRowField}>
-                        <Text className={classes.subRowFieldLabel}>
-                            Decimals
-                        </Text>
+                    {isNumeric && format.type === CustomFormatType.CURRENCY && (
+                        <Group gap="md" wrap="wrap" align="flex-end">
+                            <Select
+                                className={classes.subFieldCurrency}
+                                size="xs"
+                                searchable
+                                label="Currency"
+                                placeholder="Pick a currency"
+                                data={currencyOptions}
+                                {...formatInputProps('currency')}
+                            />
+                            <NumberInput
+                                className={classes.subFieldInput}
+                                size="xs"
+                                radius="md"
+                                min={0}
+                                label="Decimals"
+                                placeholder="Auto"
+                                {...{
+                                    ...formatInputProps('round'),
+                                    onChange: (value) =>
+                                        setFormatFieldValue(
+                                            'round',
+                                            value === '' ? undefined : value,
+                                        ),
+                                }}
+                            />
+                            <Select
+                                className={classes.subFieldSelect}
+                                size="xs"
+                                clearable
+                                label="Compact"
+                                placeholder="None"
+                                data={compactSelectData}
+                                value={compactValidValue}
+                                onChange={(value) =>
+                                    setFormatFieldValue(
+                                        'compact',
+                                        !value || !(value in CompactConfigMap)
+                                            ? undefined
+                                            : value,
+                                    )
+                                }
+                            />
+                        </Group>
+                    )}
+
+                    {isNumeric && format.type === CustomFormatType.PERCENT && (
                         <NumberInput
-                            className={classes.subRowInput}
+                            className={classes.subFieldInput}
                             size="xs"
+                            radius="md"
                             min={0}
+                            label="Decimals"
                             placeholder="Auto"
                             {...{
                                 ...formatInputProps('round'),
@@ -567,145 +574,107 @@ export const FormatRow: FC<Props> = ({
                                     ),
                             }}
                         />
-                    </Box>
-                    <Box className={classes.subRowField}>
-                        <Text className={classes.subRowFieldLabel}>
-                            Compact
-                        </Text>
-                        <Select
-                            className={classes.subRowSelect}
-                            size="xs"
-                            clearable
-                            placeholder="None"
-                            data={compactSelectData}
-                            value={compactValidValue}
-                            onChange={(value) =>
-                                setFormatFieldValue(
-                                    'compact',
-                                    !value || !(value in CompactConfigMap)
-                                        ? undefined
-                                        : value,
-                                )
-                            }
-                        />
-                    </Box>
-                </Box>
-            )}
+                    )}
 
-            {isNumeric && format.type === CustomFormatType.PERCENT && (
-                <Box className={classes.subRow}>
-                    <Box className={classes.subRowField}>
-                        <Text className={classes.subRowFieldLabel}>
-                            Decimals
-                        </Text>
-                        <NumberInput
-                            className={classes.subRowInput}
-                            size="xs"
-                            min={0}
-                            placeholder="Auto"
-                            {...{
-                                ...formatInputProps('round'),
-                                onChange: (value) =>
+                    {isNumeric && isBytes && (
+                        <Group gap="md" wrap="wrap" align="flex-end">
+                            <Select
+                                className={classes.subFieldSelect}
+                                size="xs"
+                                label="Unit system"
+                                data={bytesUnitOptions}
+                                value={
+                                    format.type === CustomFormatType.BYTES_IEC
+                                        ? 'iec'
+                                        : 'si'
+                                }
+                                onChange={(value) =>
+                                    handleBytesUnitChange(value as 'si' | 'iec')
+                                }
+                                allowDeselect={false}
+                            />
+                            <Select
+                                className={classes.subFieldSelect}
+                                size="xs"
+                                clearable
+                                label="Compact"
+                                placeholder="None"
+                                data={compactSelectData}
+                                value={compactValidValue}
+                                onChange={(value) =>
                                     setFormatFieldValue(
-                                        'round',
-                                        value === '' ? undefined : value,
-                                    ),
-                            }}
-                        />
-                    </Box>
-                </Box>
-            )}
+                                        'compact',
+                                        !value || !(value in CompactConfigMap)
+                                            ? undefined
+                                            : value,
+                                    )
+                                }
+                            />
+                        </Group>
+                    )}
 
-            {isNumeric && isBytes && (
-                <Box className={classes.subRow}>
-                    <Box className={classes.subRowField}>
-                        <Text className={classes.subRowFieldLabel}>
-                            Unit system
-                        </Text>
-                        <Select
-                            className={classes.subRowSelect}
+                    {isNumeric && format.type === CustomFormatType.CUSTOM && (
+                        <TextInput
                             size="xs"
-                            data={bytesUnitOptions}
-                            value={
-                                format.type === CustomFormatType.BYTES_IEC
-                                    ? 'iec'
-                                    : 'si'
-                            }
-                            onChange={(value) =>
-                                handleBytesUnitChange(value as 'si' | 'iec')
-                            }
-                            allowDeselect={false}
-                        />
-                    </Box>
-                    <Box className={classes.subRowField}>
-                        <Text className={classes.subRowFieldLabel}>
-                            Compact
-                        </Text>
-                        <Select
-                            className={classes.subRowSelect}
-                            size="xs"
-                            clearable
-                            placeholder="None"
-                            data={compactSelectData}
-                            value={compactValidValue}
-                            onChange={(value) =>
-                                setFormatFieldValue(
-                                    'compact',
-                                    !value || !(value in CompactConfigMap)
-                                        ? undefined
-                                        : value,
-                                )
-                            }
-                        />
-                    </Box>
-                </Box>
-            )}
-
-            {isNumeric && format.type === CustomFormatType.CUSTOM && (
-                <Box className={classes.customExpression}>
-                    <TextInput
-                        size="xs"
-                        label="Format expression"
-                        placeholder="e.g. #,##0.00"
-                        description={
-                            <Group gap="two">
-                                <MantineIcon
-                                    icon={IconExternalLink}
-                                    size="sm"
-                                    color="blue.6"
-                                />
-                                <Anchor
-                                    href="https://customformats.com"
-                                    target="_blank"
-                                    size="xs"
+                            radius="md"
+                            placeholder="e.g. #,##0.00"
+                            label={
+                                <Group
+                                    justify="space-between"
+                                    align="baseline"
+                                    w="100%"
+                                    gap={6}
                                 >
-                                    Build your format at customformats.com
-                                </Anchor>
-                            </Group>
-                        }
-                        {...formatInputProps('custom')}
-                    />
-                </Box>
-            )}
+                                    <Text size="xs" fw={500} c="ldGray.7">
+                                        Format expression
+                                    </Text>
+                                    <Anchor
+                                        href="https://customformats.com"
+                                        target="_blank"
+                                        size="xs"
+                                        className={classes.labelLink}
+                                    >
+                                        <Group gap={4} wrap="nowrap">
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size="sm"
+                                            />
+                                            Build at customformats.com
+                                        </Group>
+                                    </Anchor>
+                                </Group>
+                            }
+                            classNames={{ label: classes.fullWidthLabel }}
+                            {...formatInputProps('custom')}
+                        />
+                    )}
 
-            {!isNumeric && datePill === CustomFormatType.CUSTOM && (
-                <DateFormatBody
-                    format={format}
-                    formatInputProps={formatInputProps}
-                    setFormatFieldValue={setFormatFieldValue}
-                    isTimestamp={dataType === TableCalculationType.TIMESTAMP}
-                />
-            )}
-        </Box>
+                    {!isNumeric && datePill === CustomFormatType.DEFAULT && (
+                        <Text size="xs" c="dimmed" fs="italic">
+                            No further options for this preset
+                        </Text>
+                    )}
+
+                    {!isNumeric && datePill === CustomFormatType.CUSTOM && (
+                        <DateFormatBody
+                            formatInputProps={formatInputProps}
+                            setFormatFieldValue={setFormatFieldValue}
+                            isTimestamp={
+                                dataType === TableCalculationType.TIMESTAMP
+                            }
+                        />
+                    )}
+                </Box>
+            </Box>
+        </Stack>
     );
 };
 
 const DateFormatBody: FC<{
-    format: CustomFormat;
     formatInputProps: Props['formatInputProps'];
     setFormatFieldValue: Props['setFormatFieldValue'];
     isTimestamp: boolean;
-}> = ({ format, formatInputProps, setFormatFieldValue, isTimestamp }) => {
+}> = ({ formatInputProps, setFormatFieldValue, isTimestamp }) => {
     const presets = isTimestamp ? TIMESTAMP_FORMATS : DATE_FORMATS;
     const sample = useMemo(() => new Date(), []);
     const examples = useMemo(
@@ -718,73 +687,76 @@ const DateFormatBody: FC<{
     );
 
     return (
-        <Box className={classes.dateBody}>
-            <TextInput
-                size="xs"
-                label="Custom format"
-                placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
-                leftSection={
-                    <MantineIcon
-                        icon={isTimestamp ? IconClockHour4 : IconCalendar}
-                        size="sm"
-                    />
-                }
-                {...formatInputProps('custom')}
-            />
-            <Stack gap={4} mt="xs">
-                <Group gap="xs">
-                    <Text size="xs" c="ldGray.6" fw={500}>
-                        Common formats
+        <TextInput
+            size="xs"
+            radius="md"
+            placeholder="e.g. dd/mm/yyyy or mmmm d, yyyy"
+            label={
+                <Group
+                    justify="space-between"
+                    align="baseline"
+                    w="100%"
+                    gap={6}
+                >
+                    <Text size="xs" fw={500} c="ldGray.7">
+                        {isTimestamp ? 'Timestamp format' : 'Date format'}
                     </Text>
                     <Anchor
                         href="https://customformats.com"
                         target="_blank"
                         size="xs"
+                        className={classes.labelLink}
                     >
-                        <MantineIcon
-                            icon={IconExternalLink}
-                            size="sm"
-                            color="blue.6"
-                        />
+                        <Group gap={4} wrap="nowrap">
+                            <MantineIcon icon={IconExternalLink} size="sm" />
+                            Build at customformats.com
+                        </Group>
                     </Anchor>
                 </Group>
-                <Box className={classes.dateExamplesRow}>
-                    {examples.map(({ format: fmt, example }) => (
-                        <PolymorphicPaperButton
-                            key={fmt}
-                            withBorder
-                            p="xs"
-                            shadow="none"
-                            radius="md"
-                            onClick={() => setFormatFieldValue('custom', fmt)}
-                        >
-                            <Text size="xs" c="ldDark.8" fw={500}>
-                                {example}
-                            </Text>
-                            <Text size="xs" c="ldGray.5">
-                                {fmt}
-                            </Text>
-                        </PolymorphicPaperButton>
-                    ))}
-                </Box>
-            </Stack>
-            {format.custom && (
-                <Text size="xs" c="ldGray.6" mt="xs">
-                    Preview:{' '}
-                    <Text span fw={600} c="inherit">
-                        {(() => {
-                            try {
-                                return formatValueWithExpression(
-                                    format.custom,
-                                    sample,
-                                );
-                            } catch {
-                                return 'Invalid format';
-                            }
-                        })()}
-                    </Text>
-                </Text>
-            )}
-        </Box>
+            }
+            classNames={{ label: classes.fullWidthLabel }}
+            leftSection={
+                <MantineIcon
+                    icon={isTimestamp ? IconClockHour4 : IconCalendar}
+                    size="sm"
+                />
+            }
+            rightSection={
+                <Menu shadow="md" position="bottom-end" width={240}>
+                    <Menu.Target>
+                        <Tooltip label="Pick a preset" withArrow>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                aria-label="Pick a preset"
+                            >
+                                <MantineIcon icon={IconChevronDown} size="sm" />
+                            </ActionIcon>
+                        </Tooltip>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        {examples.map(({ format: fmt, example }) => (
+                            <Menu.Item
+                                key={fmt}
+                                onClick={() =>
+                                    setFormatFieldValue('custom', fmt)
+                                }
+                            >
+                                <Stack gap={0}>
+                                    <Text size="xs" fw={600} c="ldDark.8">
+                                        {example}
+                                    </Text>
+                                    <Text size="xs" c="ldGray.5">
+                                        {fmt}
+                                    </Text>
+                                </Stack>
+                            </Menu.Item>
+                        ))}
+                    </Menu.Dropdown>
+                </Menu>
+            }
+            {...formatInputProps('custom')}
+        />
     );
 };
