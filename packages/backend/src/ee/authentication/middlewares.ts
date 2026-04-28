@@ -131,6 +131,11 @@ export const isScimAuthenticated: RequestHandler = async (req, res, next) => {
             abilityRules: builder.rules,
             createdAt: serviceAccount.createdAt,
             updatedAt: serviceAccount.createdAt,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+                attributedUserEmail: adminUser.email,
+            },
         };
 
         if (req?.account?.isAuthenticated()) {
@@ -245,6 +250,11 @@ export const authenticateServiceAccount: RequestHandler = async (
             abilityRules: builder.rules,
             createdAt: serviceAccount.createdAt,
             updatedAt: serviceAccount.createdAt,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+                attributedUserEmail: adminUser.email,
+            },
         };
 
         if (req?.account?.isAuthenticated()) {

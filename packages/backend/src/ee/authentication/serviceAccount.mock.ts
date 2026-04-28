@@ -30,6 +30,7 @@ export const mockOrganization = {
 export const mockAdminUser = {
     userUuid: 'test-user-uuid',
     userId: 1,
+    email: 'admin@example.com',
 };
 
 // Mock requests for different scenarios

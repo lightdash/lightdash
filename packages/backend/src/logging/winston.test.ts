@@ -67,26 +67,27 @@ describe('formatAuditActor', () => {
         ).toBe('user-uuid');
     });
 
-    it('shows service-account with email', () => {
+    it('shows service-account with description', () => {
         expect(
             formatAuditActor({
                 type: 'service-account',
                 uuid: 'sa-uuid',
-                email: 'ci-deploy@company.com',
+                description: 'ci-deploy',
                 organizationUuid: 'org-uuid',
                 organizationRole: 'admin',
+                attributedUserUuid: 'admin-uuid',
             }),
-        ).toBe('service-account "ci-deploy@company.com"');
+        ).toBe('service-account "ci-deploy"');
     });
 
-    it('shows service-account with uuid when email is missing', () => {
+    it('shows service-account with uuid when description is missing', () => {
         expect(
             formatAuditActor({
                 type: 'service-account',
                 uuid: 'sa-uuid',
-                email: '',
                 organizationUuid: 'org-uuid',
                 organizationRole: 'admin',
+                attributedUserUuid: 'admin-uuid',
             }),
         ).toBe('service-account sa-uuid');
     });
@@ -229,16 +230,18 @@ describe('formatAuditMessage', () => {
         );
     });
 
-    it('formats service account event', () => {
+    it('formats service account event with attribution caveat (email)', () => {
         expect(
             formatAuditMessage({
                 ...baseEvent,
                 actor: {
                     type: 'service-account',
                     uuid: 'sa-uuid',
-                    email: 'ci@company.com',
+                    description: 'ci-deploy',
                     organizationUuid: 'org-uuid',
                     organizationRole: 'admin',
+                    attributedUserUuid: 'admin-uuid',
+                    attributedUserEmail: 'admin@company.com',
                 },
                 action: 'manage',
                 resource: {
@@ -251,7 +254,31 @@ describe('formatAuditMessage', () => {
                 },
             }),
         ).toBe(
-            'service-account "ci@company.com" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed)',
+            'service-account "ci-deploy" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed) (recorded against user admin@company.com)',
+        );
+    });
+
+    it('formats service account event with attribution caveat falling back to uuid', () => {
+        expect(
+            formatAuditMessage({
+                ...baseEvent,
+                actor: {
+                    type: 'service-account',
+                    uuid: 'sa-uuid',
+                    description: 'ci-deploy',
+                    organizationUuid: 'org-uuid',
+                    organizationRole: 'admin',
+                    attributedUserUuid: 'admin-uuid',
+                },
+                action: 'manage',
+                resource: {
+                    type: 'Group',
+                    metadata: { groupUuid: 'group-uuid' },
+                    organizationUuid: 'org-uuid',
+                },
+            }),
+        ).toBe(
+            'service-account "ci-deploy" managed Group -> groupUuid: group-uuid (allowed) (recorded against user admin-uuid)',
         );
     });
 
