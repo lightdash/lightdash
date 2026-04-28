@@ -489,10 +489,10 @@ export class UserModel {
     }
 
     async delete(userUuid: string): Promise<void> {
-        PatSessionCache.invalidate();
         await this.database(UserTableName)
             .where('user_uuid', userUuid)
             .delete();
+        PatSessionCache.invalidate();
     }
 
     async getUserProjectRoles(
