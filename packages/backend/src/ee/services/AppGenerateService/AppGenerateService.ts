@@ -649,15 +649,18 @@ export class AppGenerateService extends BaseService {
         e2bApiKey: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await Sandbox.create('lightdash-data-app', {
-            timeoutMs: 60 * 60 * 1000,
-            apiKey: e2bApiKey,
-            lifecycle: { onTimeout: 'pause' },
-            network: {
-                allowOut: ['api.anthropic.com'],
-                denyOut: [ALL_TRAFFIC],
+        const sandbox = await Sandbox.create(
+            this.lightdashConfig.appRuntime.e2bTemplateName,
+            {
+                timeoutMs: 60 * 60 * 1000,
+                apiKey: e2bApiKey,
+                lifecycle: { onTimeout: 'pause' },
+                network: {
+                    allowOut: ['api.anthropic.com'],
+                    denyOut: [ALL_TRAFFIC],
+                },
             },
-        });
+        );
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: E2B sandbox created (sandboxId=${sandbox.sandboxId}, ${durationMs}ms)`,

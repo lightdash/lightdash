@@ -1332,6 +1332,7 @@ export type AppRuntimeConfig = {
     previewOrigin: string | null;
     s3: S3Config | null;
     e2bApiKey: string | null;
+    e2bTemplateName: string;
 };
 
 export type IntercomConfig = {
@@ -1539,6 +1540,7 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
+        e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
     };
 };
 

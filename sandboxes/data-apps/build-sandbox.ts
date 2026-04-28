@@ -53,13 +53,17 @@ async function main() {
             fileContextPath: path.resolve('.'),
         }).fromDockerfile(dockerfile);
 
-        console.log('Submitting sandbox template build...\n');
+        const templateName =
+            process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app';
+        console.log(
+            `Submitting sandbox template build (template: ${templateName})...\n`,
+        );
 
         const skipCache = process.argv.includes('--no-cache');
 
         const info = await Template.buildInBackground(
             template,
-            'lightdash-data-app',
+            templateName,
             {
                 cpuCount: 2,
                 memoryMB: 2048,

@@ -374,6 +374,7 @@ export const lightdashConfigMock: LightdashConfig = {
         previewOrigin: null,
         s3: null,
         e2bApiKey: null,
+        e2bTemplateName: 'lightdash-data-app',
     },
     enabledFeatureFlags: new Set<string>(),
 };
