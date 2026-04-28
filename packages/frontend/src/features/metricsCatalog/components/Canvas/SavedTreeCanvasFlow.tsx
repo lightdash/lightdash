@@ -36,6 +36,9 @@ type Props = {
     sidebarFilter?: (node: ExpandedNodeData) => boolean;
     /** All YAML edges for the project — used to inject YAML edges reactively in edit mode */
     allProjectYamlEdges?: CatalogMetricsTreeEdge[];
+    hasMoreMetrics?: boolean;
+    isLoadingMoreMetrics?: boolean;
+    onLoadMoreMetrics?: () => void;
 };
 
 const SavedTreeCanvasFlow: FC<Props> = ({
@@ -45,6 +48,9 @@ const SavedTreeCanvasFlow: FC<Props> = ({
     onCanvasStateChange,
     sidebarFilter,
     allProjectYamlEdges,
+    hasMoreMetrics,
+    isLoadingMoreMetrics,
+    onLoadMoreMetrics,
 }) => {
     const theme = useMantineTheme();
 
@@ -61,7 +67,14 @@ const SavedTreeCanvasFlow: FC<Props> = ({
 
     return (
         <PanelGroup direction="horizontal" style={{ height: '100%' }}>
-            {!viewOnly && <MetricsSidebar nodes={flow.sidebarNodes} />}
+            {!viewOnly && (
+                <MetricsSidebar
+                    nodes={flow.sidebarNodes}
+                    hasMore={hasMoreMetrics}
+                    isLoadingMore={isLoadingMoreMetrics}
+                    onLoadMore={onLoadMoreMetrics}
+                />
+            )}
             <Panel id="metrics-canvas" order={2}>
                 <Box h="100%">
                     <ReactFlow
