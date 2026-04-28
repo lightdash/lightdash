@@ -1522,7 +1522,10 @@ export class UserService extends BaseService {
             emitDenied('Personal access token not recognized');
             throw new AuthorizationError();
         }
-        const { user, personalAccessToken, cacheHit } = results;
+        const {
+            data: { user, personalAccessToken },
+            cacheHit,
+        } = results;
         if (!user.isActive) {
             emitDenied('Account is deactivated', user);
             throw new DeactivatedAccountError();

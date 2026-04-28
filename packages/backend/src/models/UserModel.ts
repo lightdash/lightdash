@@ -57,7 +57,7 @@ import {
 } from '../database/entities/users';
 import { deprecatedHash, hash } from '../utils/hash';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
-import { PatSessionCache } from './PatSessionCache';
+import { CachedPatSessionUser, PatSessionCache } from './PatSessionCache';
 import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
@@ -888,15 +888,14 @@ export class UserModel {
 
     async findSessionUserByPersonalAccessToken(token: string): Promise<
         | {
-              user: SessionUser;
-              personalAccessToken: PersonalAccessToken;
+              data: CachedPatSessionUser;
               cacheHit: boolean;
           }
         | undefined
     > {
         const cached = PatSessionCache.get(token);
         if (cached) {
-            return { ...cached, cacheHit: true };
+            return { data: cached, cacheHit: true };
         }
         const tokenHash = await hash(token);
         const [row] = await userDetailsQueryBuilder(this.database)
@@ -917,7 +916,7 @@ export class UserModel {
         const { abilityBuilder, lightdashUser } =
             await this.generateUserAbilityBuilder(row);
 
-        const result = {
+        const data: CachedPatSessionUser = {
             user: {
                 ...lightdashUser,
                 abilityRules: abilityBuilder.rules,
@@ -927,8 +926,8 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
-        PatSessionCache.set(token, result);
-        return { ...result, cacheHit: false };
+        PatSessionCache.set(token, data);
+        return { data, cacheHit: false };
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {
