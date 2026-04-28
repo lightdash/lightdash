@@ -27,7 +27,11 @@ import {
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
-import { normalizeIndexColumns } from './utils';
+import {
+    getSortOnlyDimensionColumns,
+    getSortOnlyValuesColumns,
+    normalizeIndexColumns,
+} from './utils';
 
 function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
@@ -318,18 +322,11 @@ function getCartesianPivotConfiguration(
         // they aren't classified as index columns.
         const allValuesColumns = [
             ...valuesColumns,
-            ...sortOnlyColumns.filter(
-                (
-                    col,
-                ): col is {
-                    reference: string;
-                    aggregation: VizAggregationOptions;
-                } => 'aggregation' in col,
-            ),
+            ...getSortOnlyValuesColumns(sortOnlyColumns),
         ];
         const allGroupByColumns = [
             ...groupByColumns,
-            ...sortOnlyColumns.filter((col) => !('aggregation' in col)),
+            ...getSortOnlyDimensionColumns(sortOnlyColumns),
         ];
         const indexColumn = getIndexColumn(
             allGroupByColumns,

@@ -791,7 +791,6 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('"event_priority"');
         });
 
-
         test('Should use index column sort for row_index in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],

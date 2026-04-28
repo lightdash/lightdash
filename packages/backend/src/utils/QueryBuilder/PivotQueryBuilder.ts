@@ -2,6 +2,8 @@ import {
     getAggregatedField,
     getItemId,
     getParsedReference,
+    getSortOnlyDimensionColumns,
+    getSortOnlyValuesColumns,
     hasPivotFunctions,
     isCustomBinDimension,
     isDimension,
@@ -81,34 +83,6 @@ export class PivotQueryBuilder {
         this.itemsMap = itemsMap ?? {};
         this.pivotTableCalculations = this.identifyPivotTableCalculations();
         this.implicitMetricReferences = this.getImplicitMetricReferences();
-    }
-
-    /**
-     * Items in sortOnlyColumns that carry an `aggregation` (metrics or table
-     * calcs needed for sort-anchor CTEs).
-     */
-    private getSortOnlyMetricColumns(): NonNullable<
-        PivotConfiguration['valuesColumns']
-    > {
-        return (this.pivotConfiguration.sortOnlyColumns ?? []).filter(
-            (
-                col,
-            ): col is NonNullable<
-                PivotConfiguration['valuesColumns']
-            >[number] => 'aggregation' in col,
-        );
-    }
-
-    /**
-     * Items in sortOnlyColumns that don't carry an `aggregation` (dimensions
-     * that ride through group_by_query to drive column_index ORDER BY).
-     */
-    private getSortOnlyDimensionColumns(): NonNullable<
-        PivotConfiguration['groupByColumns']
-    > {
-        return (this.pivotConfiguration.sortOnlyColumns ?? []).filter(
-            (col) => !('aggregation' in col),
-        );
     }
 
     /**
@@ -420,7 +394,9 @@ export class PivotQueryBuilder {
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
-        const sortOnlyDimensions = this.getSortOnlyDimensionColumns();
+        const sortOnlyDimensions = getSortOnlyDimensionColumns(
+            this.pivotConfiguration.sortOnlyColumns,
+        );
 
         const groupBySelectDimensions = [
             ...(groupByColumns || []).map((col) => `${q}${col.reference}${q}`),
@@ -526,7 +502,9 @@ export class PivotQueryBuilder {
                     (groupCol) => groupCol.reference === reference,
                 );
 
-            const sortOnlyDimensions = this.getSortOnlyDimensionColumns();
+            const sortOnlyDimensions = getSortOnlyDimensionColumns(
+                this.pivotConfiguration.sortOnlyColumns,
+            );
             const isSortOnlyDimension = ({ reference }: VizSortBy) =>
                 sortOnlyDimensions.some((dim) => dim.reference === reference);
 
@@ -1505,14 +1483,16 @@ export class PivotQueryBuilder {
             sortBy,
         } = this.pivotConfiguration;
 
-        // Merge sort-only metric columns into valuesColumns for SQL generation.
+        // Merge sort-only values columns into valuesColumns for SQL generation.
         // These columns are needed for sort anchor CTEs but are excluded
         // from pivotDetails downstream so they don't appear as chart series.
         // Sort-only dimensions are handled separately via getGroupByQuerySQL
         // and buildGroupByOrderBy.
-        const sortOnlyMetricColumns = this.getSortOnlyMetricColumns();
-        const valuesColumns = sortOnlyMetricColumns.length
-            ? [...displayColumns, ...sortOnlyMetricColumns]
+        const sortOnlyValuesColumns = getSortOnlyValuesColumns(
+            this.pivotConfiguration.sortOnlyColumns,
+        );
+        const valuesColumns = sortOnlyValuesColumns.length
+            ? [...displayColumns, ...sortOnlyValuesColumns]
             : displayColumns;
 
         // Validate that no groupBy column is also part of the index columns
