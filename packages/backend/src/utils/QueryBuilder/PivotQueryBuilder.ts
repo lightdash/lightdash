@@ -518,20 +518,45 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Create groups order parts. Note that groups parts should follow the groupsByColumns order rather than sortBy order.
-            const groupsOrderByParts = groupByColumns.map((col) => {
-                const sort = sortBy.find((s) => s.reference === col.reference);
+            // Group-by parts: first, emit any group-by columns referenced in
+            // sortBy in the order the user specified them (so the user's sort
+            // intent drives column_index). Then append remaining group-by
+            // columns in declaration order with default ASC. This is what
+            // makes `group by status, status_priority` + `sort by status_priority`
+            // produce columns ordered by priority instead of alphabetical status.
+            const sortedGroupBys = sortBy.filter(isGroupByColumn);
+            const sortedGroupByRefs = new Set(
+                sortedGroupBys.map((s) => s.reference),
+            );
+            const sortedGroupByParts = sortedGroupBys.map((sort) => {
                 const sortExpr = this.resolveSortField(
-                    col.reference,
-                    sort?.direction === SortByDirection.DESC,
-                    sort?.nullsFirst,
+                    sort.reference,
+                    sort.direction === SortByDirection.DESC,
+                    sort.nullsFirst,
                 );
                 return this.prefixSortExprWithAlias(
                     sortExpr,
-                    col.reference,
+                    sort.reference,
                     'g',
                 );
             });
+            const remainingGroupByParts = groupByColumns
+                .filter((col) => !sortedGroupByRefs.has(col.reference))
+                .map((col) => {
+                    const sortExpr = this.resolveSortField(
+                        col.reference,
+                        false,
+                    );
+                    return this.prefixSortExprWithAlias(
+                        sortExpr,
+                        col.reference,
+                        'g',
+                    );
+                });
+            const groupsOrderByParts = [
+                ...sortedGroupByParts,
+                ...remainingGroupByParts,
+            ];
 
             // Order parts cannot have values and groups interleaved. We have to ensure they are together by type
             const sortByValuesFirst = isValueColumn(
