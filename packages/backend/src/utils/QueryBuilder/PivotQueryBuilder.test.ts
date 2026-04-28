@@ -4412,5 +4412,352 @@ SELECT * FROM group_by_query LIMIT 50`);
                 'dense_rank() over (order by g."order_date_week" asc) as "row_index"',
             );
         });
+
+        test('Multi-key groupBy sort follows groupBy declaration order, not sortBy order, with each direction matched by reference (#16871)', () => {
+            // https://github.com/lightdash/lightdash/issues/16871
+            // Repro: groupBy=[payment_method, status], sortBy=[status DESC,
+            // payment_method ASC]. The bug let sortBy order leak into the
+            // column_index ORDER BY, producing alternating-tuple column orders
+            // that re-emerged as duplicate (payment_method, status) tuples
+            // under a single payment_method.
+            // Expectation: column_index ORDER BY iterates groupByColumns in
+            // declared order — payment_method first, status second — and
+            // picks each direction from the matching sortBy entry by
+            // reference. The sortBy listing order is irrelevant.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'order_date_year', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'total_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'payment_method' },
+                    { reference: 'status' },
+                ],
+                // Deliberately reversed: sortBy lists status first.
+                sortBy: [
+                    { reference: 'status', direction: SortByDirection.DESC },
+                    {
+                        reference: 'payment_method',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // payment_method comes first because groupByColumns lists it
+            // first; status's DESC and payment_method's ASC are picked from
+            // sortBy by reference match. The reverse order would indicate a
+            // regression where sortBy order won.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."payment_method" ASC, g."status" DESC) AS "column_index"',
+            );
+
+            // Negative: the (wrongly) sortBy-ordered shape must not appear.
+            expect(replaceWhitespace(result)).not.toContain(
+                'DENSE_RANK() OVER (ORDER BY g."status" DESC, g."payment_method" ASC) AS "column_index"',
+            );
+        });
+
+        test('total_columns CTE counts via nested DISTINCT subquery, never via COUNT(DISTINCT CONCAT(...)) (#19767)', () => {
+            // https://github.com/lightdash/lightdash/issues/19767 / PROD-2762
+            // Repro: pivot a chart whose groupBy mixes types (e.g. a
+            // TIMESTAMP column AND a STRING column) on Redshift. The bug
+            // emitted `COUNT(DISTINCT CONCAT('col1', "col1", '-', 'col2',
+            // "col2"))` for total_columns, which Redshift refused because
+            // CONCAT across mixed types fails type checking.
+            // Expectation: total_columns is computed via
+            // `SELECT COUNT(*) FROM (SELECT DISTINCT col1, col2 FROM
+            // filtered_rows) AS distinct_groups` — warehouse-agnostic, no
+            // CONCAT, no DISTINCT-CONCAT.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'order_date_year' },
+                    { reference: 'payment_method' },
+                ],
+                sortBy: [{ reference: 'date', direction: SortByDirection.ASC }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Subquery-DISTINCT shape — both groupBy refs appear in the
+            // SELECT DISTINCT list inside the inner subquery.
+            expect(replaceWhitespace(result)).toContain(
+                'total_columns AS (SELECT COUNT(*) AS total_columns FROM (SELECT DISTINCT "order_date_year", "payment_method" FROM filtered_rows) AS distinct_groups)',
+            );
+
+            // Negative: the bugged Redshift-incompatible form must not
+            // appear anywhere. CONCAT-based counting was the original bug.
+            expect(result).not.toContain('COUNT(DISTINCT CONCAT(');
+            expect(result).not.toContain('COUNT(DISTINCT concat(');
+        });
+
+        test('Named time-interval index columns sort chronologically via CASE WHEN, not alphabetically (#18245)', () => {
+            // https://github.com/lightdash/lightdash/issues/18245
+            // Repro: x-axis = month_name (or day_of_week_name, quarter_name)
+            // with groupBy and sort ASC. The default string ORDER BY put
+            // April before December alphabetically; users expected
+            // chronological order.
+            // Expectation: PivotQueryBuilder dispatches MONTH_NAME,
+            // DAY_OF_WEEK_NAME, and QUARTER_NAME index columns to
+            // CASE-WHEN ORDER BY expressions that map names to
+            // chronological positions. A regression that drops the special
+            // case falls back to bare alphabetical "name" ASC ordering.
+            const monthNameDimension: CompiledDimension = {
+                type: DimensionType.STRING,
+                name: 'month_name',
+                label: 'Month Name',
+                table: 'orders',
+                tableLabel: 'Orders',
+                fieldType: FieldType.DIMENSION,
+                sql: '${TABLE}.month_name',
+                compiledSql: '"orders".month_name',
+                tablesReferences: ['orders'],
+                timeInterval: TimeFrames.MONTH_NAME,
+                hidden: false,
+            };
+            const dayNameDimension: CompiledDimension = {
+                ...monthNameDimension,
+                name: 'day_name',
+                label: 'Day Name',
+                sql: '${TABLE}.day_name',
+                compiledSql: '"orders".day_name',
+                timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
+            };
+            const quarterNameDimension: CompiledDimension = {
+                ...monthNameDimension,
+                name: 'quarter_name',
+                label: 'Quarter Name',
+                sql: '${TABLE}.quarter_name',
+                compiledSql: '"orders".quarter_name',
+                timeInterval: TimeFrames.QUARTER_NAME,
+            };
+
+            const itemsMap: ItemsMap = {
+                orders_month_name: monthNameDimension,
+                orders_day_name: dayNameDimension,
+                orders_quarter_name: quarterNameDimension,
+            };
+
+            // Each named-time-interval dim is exercised in turn under the
+            // same pivot+groupBy+sort scenario.
+            const cases: Array<{
+                reference: string;
+                marker: string;
+            }> = [
+                {
+                    reference: 'orders_month_name',
+                    marker: '"orders_month_name" = \'January\' THEN 1',
+                },
+                {
+                    reference: 'orders_day_name',
+                    marker: '"orders_day_name" = \'Monday\' THEN',
+                },
+                {
+                    reference: 'orders_quarter_name',
+                    marker: '"orders_quarter_name" = \'Q1\' THEN 1',
+                },
+            ];
+
+            for (const { reference, marker } of cases) {
+                const pivotConfiguration = {
+                    indexColumn: [{ reference, type: VizIndexType.CATEGORY }],
+                    valuesColumns: [
+                        {
+                            reference: 'revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'category' }],
+                    sortBy: [{ reference, direction: SortByDirection.ASC }],
+                };
+
+                const builder = new PivotQueryBuilder(
+                    baseSql,
+                    pivotConfiguration,
+                    mockWarehouseSqlBuilder,
+                    500,
+                    itemsMap,
+                );
+                const result = builder.toSql();
+
+                // CASE-WHEN mapping for chronological order is present.
+                expect(result).toContain('CASE');
+                expect(result).toContain(marker);
+
+                // Negative: the bare alphabetical "ref" ASC form would mean
+                // the special-case dispatch was bypassed. Only the bare
+                // form (the dim itself, not the table-prefixed compiledSql)
+                // is what would replace the CASE WHEN.
+                expect(replaceWhitespace(result)).not.toContain(
+                    `DENSE_RANK() OVER (ORDER BY g."${reference}" ASC) AS "row_index"`,
+                );
+            }
+        });
+
+        test('Sorted custom bin dimension as pivot index uses the hidden _order column for row_index — not the bin label (#20566)', () => {
+            // https://github.com/lightdash/lightdash/issues/20566
+            // Repro: cartesian chart with x-axis = a custom bin dimension
+            // (e.g. 11 fixed bins on orders.amount), grouped by status,
+            // sort by the bin ASC. Without group by, the chart sorts
+            // correctly; adding a group by routed the chart through the
+            // pivot pipeline, and the bin's hidden `_order` column was
+            // dropped from the pivot CTEs — so bins came out alphabetically
+            // (e.g. 101-113 before 1-11).
+            // Expectation: the pivot SQL select-list and group_by_query
+            // group-by carry the bin's `_order` column through, and
+            // row_index ORDER BY references ONLY the `_order` alias — the
+            // bare bin reference must not leak in alongside it.
+            const binDimension: CustomBinDimension = {
+                id: 'amount_binned_amount',
+                name: 'binned_amount',
+                table: 'orders',
+                type: CustomDimensionType.BIN,
+                dimensionId: 'orders_amount',
+                binType: BinType.FIXED_WIDTH,
+                binWidth: 10,
+            };
+            const itemsMap: ItemsMap = {
+                amount_binned_amount: binDimension,
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'amount_binned_amount',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'unique_order_count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'amount_binned_amount',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+            const result = builder.toSql();
+
+            // _order column flows through group_by_query so it is available
+            // downstream in row_index ORDER BY.
+            expect(result).toContain('"amount_binned_amount_order"');
+            expect(replaceWhitespace(result)).toContain(
+                'group by "status", "amount_binned_amount", "amount_binned_amount_order"',
+            );
+
+            // row_index orders by the _order alias — the negative assertion
+            // is what locks the regression: the bare bin reference must not
+            // appear in row_index ORDER BY, otherwise alphabetical fallback
+            // could re-creep in.
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."amount_binned_amount_order" asc) as "row_index"',
+            );
+            expect(replaceWhitespace(result)).not.toContain(
+                'DENSE_RANK() OVER (ORDER BY g."amount_binned_amount" ASC) AS "row_index"',
+            );
+        });
+
+        test('column_anchor CTE body contains the FIRST_VALUE PARTITION BY groupBy expression — not row-anchor MAX(CASE WHEN…) (#19509 column-side)', () => {
+            // Companion to the existing #19509 row-anchor test. That test
+            // locks that row_anchor uses MAX(CASE WHEN guarded on
+            // anchor_category equality...). This locks the column-side
+            // anchor's distinct shape: column_anchor uses FIRST_VALUE
+            // PARTITION BY <groupBy> ORDER BY <metric>, with frame clause.
+            // Risk: a refactor that "unifies" anchor CTE generation could
+            // collapse the two CTEs into one shape, silently re-introducing
+            // the wrong-rows ordering #19509 fixed without any of the
+            // existing isolated-line assertions failing — they test that
+            // the substrings exist somewhere, not that they are inside
+            // column_anchor.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // Slice out the column_anchor CTE body so the assertions are
+            // scoped to just that CTE rather than the whole SQL. Nested
+            // parens inside FIRST_VALUE / OVER (...) make a regex slice
+            // brittle, so use named CTE markers as bounds.
+            const colAnchorStart = collapsed.indexOf(
+                '"revenue_column_anchor" AS (',
+            );
+            const rowAnchorStart = collapsed.indexOf(
+                '"revenue_row_anchor" AS (',
+                colAnchorStart,
+            );
+            expect(colAnchorStart).toBeGreaterThanOrEqual(0);
+            expect(rowAnchorStart).toBeGreaterThan(colAnchorStart);
+            const colAnchorBody = collapsed.slice(
+                colAnchorStart,
+                rowAnchorStart,
+            );
+
+            // FIRST_VALUE PARTITION BY <groupBy> ORDER BY <metric>, with the
+            // explicit ROWS BETWEEN frame, lives inside column_anchor.
+            expect(colAnchorBody).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+
+            // Negative: column_anchor must NOT carry row-anchor's
+            // MAX(CASE WHEN…) expression — that is the row-side shape.
+            // Mixing them up is the documented regression path.
+            expect(colAnchorBody).not.toContain('MAX(CASE WHEN');
+            expect(colAnchorBody).not.toContain('CROSS JOIN anchor_column');
+        });
     });
 });
