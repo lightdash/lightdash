@@ -1,3 +1,10 @@
+# [0.2822.0](https://github.com/lightdash/lightdash/compare/0.2821.0...0.2822.0) (2026-04-28)
+
+
+### Features
+
+* **data-apps:** add starter templates for app generation (GLITCH-356) ([#22413](https://github.com/lightdash/lightdash/issues/22413)) ([154d71c](https://github.com/lightdash/lightdash/commit/154d71cf8997e28a8e6ac859dedd90ff84130437))
+
 # [0.2821.0](https://github.com/lightdash/lightdash/compare/0.2820.1...0.2821.0) (2026-04-28)
 
 
