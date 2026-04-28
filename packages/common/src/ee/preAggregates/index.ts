@@ -9,3 +9,8 @@ export {
     PreAggregateDerivedMetricIneligibilityReason,
     type PreAggregateDerivedMetricEligibility,
 } from './metricEligibility';
+export {
+    analyzePreAggregateNumberMetricDependencies,
+    PreAggregateNumberMetricDependencyIneligibilityReason,
+    type PreAggregateNumberMetricDependencies,
+} from './numberMetricDependencies';
