@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { formatSql } from '@lightdash/common';
+import { formatSql, hasSqlAuthoredFields } from '@lightdash/common';
 import {
     ActionIcon,
     CopyButton,
@@ -22,6 +22,7 @@ import {
 import {
     explorerActions,
     selectIsSqlExpanded,
+    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -55,6 +56,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const dispatch = useExplorerDispatch();
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -65,8 +67,22 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);
 
+    // Hide the SQL panel when the chart contains SQL-authored fields and the
+    // user lacks `manage:CustomFields`. The compiled SQL would inline the
+    // body of those fields, leaking authored SQL the user has no permission
+    // to see — and the legacy compileQuery endpoint also 403s on this path.
+    const cannotViewSqlAuthoredFields =
+        hasSqlAuthoredFields(metricQuery) &&
+        user.data?.ability.cannot(
+            'manage',
+            subject('CustomFields', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        );
+
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
-        enabled: !!unsavedChartVersionTableName,
+        enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
     });
 
     const hasPivotQuery = !!data?.pivotQuery;
@@ -80,6 +96,10 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 : '',
         [selectedSql, project?.warehouseConnection?.type],
     );
+
+    if (cannotViewSqlAuthoredFields) {
+        return null;
+    }
 
     return (
         <CollapsableCard

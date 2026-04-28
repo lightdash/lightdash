@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     DimensionType,
     FeatureFlags,
@@ -75,6 +76,14 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
+
+    const cannotAuthorCustomSql = user.data?.ability.cannot(
+        'manage',
+        subject('CustomFields', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
         FeatureFlags.WriteBackCustomBinDimensions,
@@ -264,41 +273,51 @@ const TreeSingleNodeActions: FC<Props> = ({
 
                 {isCustomDimension(item) && (
                     <>
-                        <Menu.Item
-                            component="button"
-                            leftSection={<MantineIcon icon={IconEdit} />}
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.stopPropagation();
-                                dispatch(
-                                    explorerActions.toggleCustomDimensionModal({
-                                        item,
-                                        isEditing: true,
-                                    }),
-                                );
-                            }}
-                        >
-                            Edit custom dimension
-                        </Menu.Item>
-                        <Menu.Item
-                            component="button"
-                            leftSection={<MantineIcon icon={IconCopy} />}
-                            onClick={(
-                                e: React.MouseEvent<HTMLButtonElement>,
-                            ) => {
-                                e.stopPropagation();
-                                duplicateCustomDimension(item);
-                                track({
-                                    name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
-                                });
-                                showToastSuccess({
-                                    title: 'Copy of Custom Dimension added successfully',
-                                });
-                            }}
-                        >
-                            Duplicate custom dimension
-                        </Menu.Item>
+                        {!(
+                            isCustomSqlDimension(item) && cannotAuthorCustomSql
+                        ) && (
+                            <Menu.Item
+                                component="button"
+                                leftSection={<MantineIcon icon={IconEdit} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    dispatch(
+                                        explorerActions.toggleCustomDimensionModal(
+                                            {
+                                                item,
+                                                isEditing: true,
+                                            },
+                                        ),
+                                    );
+                                }}
+                            >
+                                Edit custom dimension
+                            </Menu.Item>
+                        )}
+                        {!(
+                            isCustomSqlDimension(item) && cannotAuthorCustomSql
+                        ) && (
+                            <Menu.Item
+                                component="button"
+                                leftSection={<MantineIcon icon={IconCopy} />}
+                                onClick={(
+                                    e: React.MouseEvent<HTMLButtonElement>,
+                                ) => {
+                                    e.stopPropagation();
+                                    duplicateCustomDimension(item);
+                                    track({
+                                        name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                                    });
+                                    showToastSuccess({
+                                        title: 'Copy of Custom Dimension added successfully',
+                                    });
+                                }}
+                            >
+                                Duplicate custom dimension
+                            </Menu.Item>
+                        )}
                         {(isCustomSqlDimension(item) ||
                             isWriteBackCustomBinDimensionsEnabled) && (
                             <Menu.Item
