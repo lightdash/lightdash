@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     CustomSqlQueryForbiddenError,
     ForbiddenError,
-    isCustomSqlDimension,
+    hasSqlAuthoredFields,
     SessionUser,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
@@ -100,9 +100,7 @@ export class GdriveService extends BaseService {
         }
 
         if (
-            gsheetOptions.metricQuery.customDimensions?.some(
-                isCustomSqlDimension,
-            ) &&
+            hasSqlAuthoredFields(gsheetOptions.metricQuery) &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', {

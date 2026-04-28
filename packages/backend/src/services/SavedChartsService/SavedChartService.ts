@@ -29,6 +29,7 @@ import {
     isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
+    isSqlTableCalculation,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -521,6 +522,22 @@ export class SavedChartService
         ) {
             throw new ForbiddenError(
                 'User cannot save queries with custom SQL dimensions',
+            );
+        }
+
+        if (
+            data.metricQuery.tableCalculations.some(isSqlTableCalculation) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL table calculations',
             );
         }
 
@@ -1220,6 +1237,23 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            savedChart.metricQuery.tableCalculations.some(
+                isSqlTableCalculation,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with custom SQL table calculations',
+            );
         }
 
         if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {

@@ -33,6 +33,7 @@ export function buildQueryArgs(options: {
     minimal: boolean;
     usePreAggregateCache?: boolean;
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>;
+    savedChartUuid?: string;
 }): QueryResultsProps | null {
     const {
         activeFields,
@@ -46,6 +47,7 @@ export function buildQueryArgs(options: {
         viewModeQueryArgs,
         dateZoomGranularity,
         minimal,
+        savedChartUuid,
     } = options;
 
     const hasFields = activeFields.size > 0;
@@ -80,6 +82,7 @@ export function buildQueryArgs(options: {
             pivotDimensions,
         },
         ...savedChartArgs,
+        savedChartUuid,
         dateZoomGranularity,
         invalidateCache: savedChartArgs ? minimal : true,
         usePreAggregateCache: options.usePreAggregateCache,

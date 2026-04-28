@@ -169,6 +169,7 @@ export const useExplorerQueryManager = () => {
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
             savedChart: chartConfigForQuery,
+            savedChartUuid: savedQueryUuid,
         });
 
         if (mainQueryArgs) {
@@ -188,6 +189,7 @@ export const useExplorerQueryManager = () => {
         minimal,
         preAggCacheEnabled,
         chartConfigForQuery,
+        savedQueryUuid,
         dispatch,
     ]);
 

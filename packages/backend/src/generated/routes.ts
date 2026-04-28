@@ -6802,6 +6802,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                savedChartUuid: { dataType: 'string' },
                 invalidateCache: { dataType: 'boolean' },
                 parameters: { ref: 'ParametersValuesMap' },
                 explore: { dataType: 'string', required: true },
@@ -27750,6 +27751,7 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        savedChartUuid: { dataType: 'string' },
                         pivotConfiguration: { ref: 'PivotConfiguration' },
                         dateZoom: { ref: 'DateZoom' },
                         query: {
