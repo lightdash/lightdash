@@ -948,12 +948,7 @@ const AppGenerate: FC = () => {
                                                     )}
                                                     {msg.dashboardName && (
                                                         <Box
-                                                            mt={
-                                                                msg.charts
-                                                                    .length > 0
-                                                                    ? 0
-                                                                    : 'xs'
-                                                            }
+                                                            mt="xs"
                                                             className={
                                                                 classes.bubbleQueryList
                                                             }
@@ -1099,6 +1094,7 @@ const AppGenerate: FC = () => {
                                             ref={textareaRef}
                                             placeholder="Describe the app you want to build..."
                                             autosize
+                                            autoFocus
                                             minRows={1}
                                             maxRows={6}
                                             value={prompt}
