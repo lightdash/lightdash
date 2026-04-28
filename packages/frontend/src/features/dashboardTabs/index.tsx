@@ -32,7 +32,7 @@ import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import useToaster from '../../hooks/toaster/useToaster';
-import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { TrackSection } from '../../providers/Tracking/TrackingProvider';
@@ -239,9 +239,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     const { health } = useApp();
     const [, startTabTransition] = useTransition();
 
-    const keepTabsInMemory = useClientFeatureFlag(
+    const { data: dashboardTabsInMemoryFlag } = useServerFeatureFlag(
         FeatureFlags.DashboardTabsInMemory,
     );
+    const keepTabsInMemory = dashboardTabsInMemoryFlag?.enabled ?? false;
 
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
