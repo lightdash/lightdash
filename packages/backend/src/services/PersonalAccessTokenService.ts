@@ -18,7 +18,6 @@ type PersonalAccessTokenServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     personalAccessTokenModel: PersonalAccessTokenModel;
-    userModel: UserModel;
 };
 
 export class PersonalAccessTokenService extends BaseService {
@@ -28,14 +27,11 @@ export class PersonalAccessTokenService extends BaseService {
 
     private readonly personalAccessTokenModel: PersonalAccessTokenModel;
 
-    private readonly userModel: UserModel;
-
     constructor(args: PersonalAccessTokenServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.personalAccessTokenModel = args.personalAccessTokenModel;
-        this.userModel = args.userModel;
     }
 
     private throwIfExpirationTimeIsInvalid(expiresAt: string | Date | null) {
@@ -118,9 +114,7 @@ export class PersonalAccessTokenService extends BaseService {
             );
         }
 
-        await this.userModel.invalidatePatSessionCacheForTokenUuid(
-            personalAccessTokenUuid,
-        );
+        UserModel.invalidatePatSessionCache();
         await this.personalAccessTokenModel.delete(personalAccessTokenUuid);
         this.analytics.track({
             userId: user.userUuid,
@@ -193,9 +187,7 @@ export class PersonalAccessTokenService extends BaseService {
             throw new ParameterError('Token can only be rotated once per hour');
         }
 
-        await this.userModel.invalidatePatSessionCacheForTokenUuid(
-            personalAccessTokenUuid,
-        );
+        UserModel.invalidatePatSessionCache();
         const newToken = await this.personalAccessTokenModel.rotate({
             personalAccessTokenUuid,
             expiresAt: data.expiresAt,

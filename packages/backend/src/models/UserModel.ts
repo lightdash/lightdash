@@ -45,10 +45,7 @@ import {
     DbPasswordLoginIn,
     PasswordLoginTableName,
 } from '../database/entities/passwordLogins';
-import {
-    DbPersonalAccessToken,
-    PersonalAccessTokenTableName,
-} from '../database/entities/personalAccessTokens';
+import { DbPersonalAccessToken } from '../database/entities/personalAccessTokens';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
 import { ScopedRolesTableName } from '../database/entities/roles';
@@ -498,13 +495,13 @@ export class UserModel {
             }
         });
         if (isActive === false) {
-            await this.invalidatePatSessionCacheForUserUuid(userUuid);
+            UserModel.invalidatePatSessionCache();
         }
         return this.getUserDetailsByUuid(userUuid);
     }
 
     async delete(userUuid: string): Promise<void> {
-        await this.invalidatePatSessionCacheForUserUuid(userUuid);
+        UserModel.invalidatePatSessionCache();
         await this.database(UserTableName)
             .where('user_uuid', userUuid)
             .delete();
@@ -904,7 +901,6 @@ export class UserModel {
     async findSessionUserByPersonalAccessToken(token: string): Promise<
         | (CachedPatSessionUser & {
               cacheHit: boolean;
-              tokenHash: string;
           })
         | undefined
     > {
@@ -912,7 +908,7 @@ export class UserModel {
         const cached =
             patSessionUserCache?.get<CachedPatSessionUser>(tokenHash);
         if (cached) {
-            return { ...cached, cacheHit: true, tokenHash };
+            return { ...cached, cacheHit: true };
         }
         const [row] = await userDetailsQueryBuilder(this.database)
             .innerJoin(
@@ -943,41 +939,11 @@ export class UserModel {
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
         patSessionUserCache?.set(tokenHash, result);
-        return { ...result, cacheHit: false, tokenHash };
+        return { ...result, cacheHit: false };
     }
 
-    static invalidatePatSessionCacheForTokenHash(tokenHash: string): void {
-        patSessionUserCache?.del(tokenHash);
-    }
-
-    async invalidatePatSessionCacheForTokenUuid(
-        tokenUuid: string,
-    ): Promise<void> {
-        if (!patSessionUserCache) return;
-        const row = await this.database(PersonalAccessTokenTableName)
-            .select('token_hash')
-            .where('personal_access_token_uuid', tokenUuid)
-            .first();
-        if (row?.token_hash) {
-            patSessionUserCache.del(row.token_hash);
-        }
-    }
-
-    async invalidatePatSessionCacheForUserUuid(
-        userUuid: string,
-    ): Promise<void> {
-        if (!patSessionUserCache) return;
-        const rows = await this.database(PersonalAccessTokenTableName)
-            .innerJoin(
-                UserTableName,
-                `${PersonalAccessTokenTableName}.created_by_user_id`,
-                `${UserTableName}.user_id`,
-            )
-            .where(`${UserTableName}.user_uuid`, userUuid)
-            .select(`${PersonalAccessTokenTableName}.token_hash`);
-        for (const row of rows) {
-            patSessionUserCache.del(row.token_hash);
-        }
+    static invalidatePatSessionCache(): void {
+        patSessionUserCache?.flushAll();
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {

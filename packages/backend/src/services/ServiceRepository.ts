@@ -574,7 +574,6 @@ export class ServiceRepository
                     analytics: this.context.lightdashAnalytics,
                     personalAccessTokenModel:
                         this.models.getPersonalAccessTokenModel(),
-                    userModel: this.models.getUserModel(),
                 }),
         );
     }
