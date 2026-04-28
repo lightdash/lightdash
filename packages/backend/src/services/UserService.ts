@@ -1568,6 +1568,7 @@ export class UserService extends BaseService {
             await this.personalAccessTokenModel.updateUsedDate(
                 personalAccessToken.uuid,
             );
+            await UserModel.invalidatePatCache(token);
         }
         return userWithOrganization;
     }
