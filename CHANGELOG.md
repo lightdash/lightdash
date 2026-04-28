@@ -1,3 +1,10 @@
+# [0.2825.0](https://github.com/lightdash/lightdash/compare/0.2824.0...0.2825.0) (2026-04-28)
+
+
+### Features
+
+* add pat session user cache under experimental cache ([#22412](https://github.com/lightdash/lightdash/issues/22412)) ([7f2b4c8](https://github.com/lightdash/lightdash/commit/7f2b4c8b37562a80b53808c3f04923458926c799))
+
 # [0.2824.0](https://github.com/lightdash/lightdash/compare/0.2823.0...0.2824.0) (2026-04-28)
 
 
