@@ -19,11 +19,13 @@ Build a slideshow-style data app:
 
 const PDF_REPORT_INSTRUCTIONS = `[Starter template: PDF Report]
 Build a print-optimized report:
-- Layout for A4/Letter portrait pages with comfortable margins.
+- Layout for A4/Letter portrait pages with comfortable internal padding.
+- Set \`@page { margin: 0; size: A4 }\` so the design fills the sheet edge-to-edge — apply your own padding inside each page (e.g. \`p-12\`) instead of relying on the browser's default page margin (which is ugly and shrinks the canvas).
 - Use a clean, document-style typography hierarchy (title, section headings, body).
 - Render charts at fixed widths so they reflow across pages cleanly.
 - Include a title page header (title, subtitle, generated-on date) and section dividers.
 - Apply CSS \`@media print\` rules and \`page-break-inside: avoid\` on cards and figures.
+- Note: browsers may inject their own header/footer on printed pages (URL, page number, date), controlled by the user's print dialog — not removable via CSS. Keep critical content away from the very top and bottom edges so it doesn't sit underneath.
 - Prefer narrative copy with charts as supporting evidence, not a dense dashboard grid.`;
 
 export const getTemplateInstructions = (
