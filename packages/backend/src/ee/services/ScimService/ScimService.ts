@@ -1172,6 +1172,7 @@ export class ScimService extends BaseService {
     }
 
     async getGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
     ): Promise<ScimGroup> {
@@ -1180,6 +1181,20 @@ export class ScimService extends BaseService {
             organizationUuid,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const group = await this.groupsModel.getGroupWithMembers(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
                 this.logger.info('SCIM: Group not found in organization', {
@@ -1224,11 +1239,13 @@ export class ScimService extends BaseService {
     }
 
     async listGroups({
+        account,
         organizationUuid,
         startIndex = 1,
         itemsPerPage = 100,
         filter,
     }: {
+        account: Account;
         organizationUuid: string;
         startIndex?: number;
         itemsPerPage?: number;
@@ -1241,6 +1258,15 @@ export class ScimService extends BaseService {
             filter,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Group', { organizationUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const parsedFilter = filter ? parse(filter) : null;
             this.logger.info('SCIM: Parsed group filter', { parsedFilter });
 
@@ -1312,6 +1338,7 @@ export class ScimService extends BaseService {
     }
 
     async createGroup(
+        account: Account,
         organizationUuid: string,
         groupToCreate: ScimUpsertGroup,
     ): Promise<ScimGroup> {
@@ -1322,6 +1349,20 @@ export class ScimService extends BaseService {
             memberUuids: groupToCreate.members?.map((m) => m.value) || [],
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupName: groupToCreate.displayName,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             if (!groupToCreate.displayName) {
                 throw new ScimError({
                     detail: 'displayName is required',
@@ -1402,6 +1443,7 @@ export class ScimService extends BaseService {
     }
 
     async replaceGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
         groupToUpdate: ScimUpsertGroup,
@@ -1414,6 +1456,20 @@ export class ScimService extends BaseService {
             memberUuids: groupToUpdate.members?.map((m) => m.value) || [],
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             if (!groupToUpdate.displayName) {
                 throw new ScimError({
                     detail: 'displayName is required',
@@ -1526,6 +1582,7 @@ export class ScimService extends BaseService {
     }
 
     async updateGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
         patchOp: ScimPatch,
@@ -1541,6 +1598,20 @@ export class ScimService extends BaseService {
             })),
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const existingGroup =
                 await this.groupsModel.getGroupWithMembers(groupUuid);
             if (existingGroup.organizationUuid !== organizationUuid) {
@@ -1657,6 +1728,7 @@ export class ScimService extends BaseService {
     }
 
     async deleteGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
     ): Promise<void> {
@@ -1665,6 +1737,20 @@ export class ScimService extends BaseService {
             groupUuid,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'delete',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const group = await this.groupsModel.getGroup(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
                 this.logger.info(
