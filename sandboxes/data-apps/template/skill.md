@@ -164,8 +164,8 @@ const revenueQuery = query('orders')
 export function RevenueBySegment() {
     const { data, format, loading, error } = useLightdash(revenueQuery);
 
-    if (loading) return <p className="text-gray-500">Loading...</p>;
-    if (error) return <p className="text-red-500">Error: {error.message}</p>;
+    if (loading) return <p className="text-sm text-muted-foreground">Loading...</p>;
+    if (error) return <p className="text-sm text-destructive">Error: {error.message}</p>;
 
     return (
         <div className="space-y-2">
@@ -294,6 +294,16 @@ const client = useLightdashClient();
 const user = await client.auth.getUser();
 ```
 
+## Visual Design
+
+**Invoke the `frontend-design` skill before writing any UI code** (auto-loaded from `.claude/skills/frontend-design/`). It drives the aesthetic direction — pick a distinctive look for *this* app rather than defaulting to generic shadcn-on-dark-mode. This guide does not prescribe layout, typography, color, or composition; that's `frontend-design`'s job.
+
+Lightdash-specific constraints that apply on top of `frontend-design`'s direction:
+
+- **Chart series colors must come from `CHART_COLORS` in `@/lib/theme`** — the canonical Lightdash palette, so generated apps' charts visually match native Lightdash dashboards. Cycle by index for multi-series (`CHART_COLORS[i % CHART_COLORS.length]`). `frontend-design`'s chosen accent/background/typography colors are independent of this.
+- **Use semantic shadcn tokens for UI chrome** — `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `text-destructive`, `border`, etc. Don't hardcode hex values for surfaces, text, or borders. (`frontend-design` may direct you to redefine the underlying CSS variables for a chosen theme — that's fine; the rule is no inline hex, not "use only the default token values".)
+- **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark"` to your top-level `<div>` so Tailwind activates the dark token values, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
+
 ## Required UX Patterns
 
 ### Loading states
@@ -305,6 +315,7 @@ Every component that uses `useLightdash()` **must** show a loading spinner while
 ```tsx
 import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function RevenueCard() {
     const { data, format, loading, error } = useLightdash(revenueQuery);
@@ -320,7 +331,9 @@ export function RevenueCard() {
                         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                     </div>
                 ) : error ? (
-                    <p className="text-red-500">Error: {error.message}</p>
+                    <Alert variant="destructive">
+                        <AlertDescription>{error.message}</AlertDescription>
+                    </Alert>
                 ) : (
                     /* render chart / table / KPI here */
                 )}
@@ -468,7 +481,7 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
 
 // Table header area
 <div className="flex justify-between items-center mb-2">
-    <h3>Results</h3>
+    <h3 className="text-base font-medium">Results</h3>
     <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
         <Copy className="h-4 w-4 mr-1" /> Copy CSV
     </Button>
@@ -554,9 +567,9 @@ Show drill results in a `Dialog`. Use a separate component so `useLightdash` run
 function DrillResults({ query: q }) {
     const { data, columns, format, loading, error } = useLightdash(q);
 
-    if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-    if (error) return <p className="text-red-500">Error: {error.message}</p>;
-    if (data.length === 0) return <p className="text-muted-foreground">No results</p>;
+    if (loading) return <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+    if (error) return <Alert variant="destructive"><AlertDescription>{error.message}</AlertDescription></Alert>;
+    if (data.length === 0) return <p className="text-sm text-muted-foreground">No results</p>;
 
     return (
         <ScrollArea className="max-h-[400px]">

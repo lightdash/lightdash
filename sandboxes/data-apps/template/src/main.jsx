@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createClient, LightdashProvider } from '@lightdash/query-sdk';
 import App from './App';
 import './index.css';
+import './chart-overrides.css';
 
 const queryClient = new QueryClient({
     defaultOptions: {

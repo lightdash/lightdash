@@ -31,5 +31,9 @@ RUN npx shadcn@2.3.0 add --overwrite --yes \
     button badge card table dialog tabs select input label popover tooltip separator \
     skeleton dropdown-menu sheet scroll-area switch checkbox avatar alert progress
 
+# Vendored Claude Code skills (e.g. frontend-design @ Apache-2.0). Auto-discovered
+# from /app/.claude/skills/ when Claude Code starts in the sandbox.
+COPY template/.claude/ ./.claude/
+
 # E2B sandbox runs as 'user' — make /app writable
 RUN chown -R user:user /app

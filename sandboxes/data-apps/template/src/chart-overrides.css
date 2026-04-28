@@ -1,0 +1,31 @@
+/* Lightdash chart palette overrides.
+   Replaces shadcn's monochrome chart tokens with the categorical palette used by every
+   native Lightdash chart, so generated data apps share the product's visual identity.
+   Source of truth: ECHARTS_DEFAULT_COLORS in packages/common/src/types/savedCharts.ts
+
+   Imported after index.css in main.jsx — CSS cascade gives these declarations the win
+   without needing @layer wrapping (which would also break Tailwind's per-file processing). */
+
+:root {
+    --chart-1: 228 49% 55%; /* #5470c6 blue       */
+    --chart-2: 18 97% 65%;  /* #fc8452 orange     */
+    --chart-3: 102 45% 63%; /* #91cc75 green      */
+    --chart-4: 42 95% 66%;  /* #fac858 yellow     */
+    --chart-5: 0 81% 67%;   /* #ee6666 coral red  */
+    --chart-6: 195 60% 66%; /* #73c0de light blue */
+    --chart-7: 150 47% 43%; /* #3ba272 dark green */
+    --chart-8: 282 32% 54%; /* #9a60b4 purple     */
+    --chart-9: 317 73% 70%; /* #ea7ccc pink       */
+}
+
+.dark {
+    --chart-1: 228 49% 55%;
+    --chart-2: 18 97% 65%;
+    --chart-3: 102 45% 63%;
+    --chart-4: 42 95% 66%;
+    --chart-5: 0 81% 67%;
+    --chart-6: 195 60% 66%;
+    --chart-7: 150 47% 43%;
+    --chart-8: 282 32% 54%;
+    --chart-9: 317 73% 70%;
+}
