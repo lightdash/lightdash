@@ -640,14 +640,14 @@ describe('buildMaterializationMetricQuery', () => {
             buildMaterializationMetricQuery({
                 sourceExplore: getSourceExplore(),
                 preAggregateDef: {
-                    name: 'orders_rollup',
+                    name: 'orders_number_metric_preagg',
                     dimensions: ['status'],
                     metrics: ['gross_total', 'total_order_amount'],
                 },
                 materializationConfig: { maxRows: null },
             }),
         ).toThrow(
-            'Pre-aggregate "orders_rollup" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
+            'Pre-aggregate "orders_number_metric_preagg" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
         );
     });
 
@@ -655,7 +655,7 @@ describe('buildMaterializationMetricQuery', () => {
         const result = buildMaterializationMetricQuery({
             sourceExplore: getSourceExplore(),
             preAggregateDef: {
-                name: 'orders_rollup',
+                name: 'orders_number_metric_preagg',
                 dimensions: ['status'],
                 metrics: [
                     'gross_total',
@@ -690,7 +690,7 @@ describe('buildMaterializationMetricQuery', () => {
         const result = buildMaterializationMetricQuery({
             sourceExplore: getSourceExplore(),
             preAggregateDef: {
-                name: 'orders_rollup',
+                name: 'orders_cross_model_number_metric_preagg',
                 dimensions: ['status'],
                 metrics: [
                     'total_order_amount_plus_average_customer_age',

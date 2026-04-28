@@ -401,7 +401,7 @@ describe('pre-aggregate virtual explore generation', () => {
         expect((explores[0] as Explore).warnings).toContainEqual({
             type: InlineErrorType.FIELD_ERROR,
             message:
-                'Pre-aggregate "broken_rollup" references unsupported metrics: "myTable_user_count" (count_distinct). Supported metric types: sum, count, min, max, average',
+                'Pre-aggregate "broken_rollup" references unsupported metrics: "user_count" (count_distinct). Supported metric types: sum, count, min, max, average',
         });
     });
 

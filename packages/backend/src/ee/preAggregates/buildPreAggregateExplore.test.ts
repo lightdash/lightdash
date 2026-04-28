@@ -363,18 +363,18 @@ describe('buildPreAggregateExplore', () => {
     it('requires dependent metrics for supported number metrics', () => {
         expect(() =>
             buildPreAggregateExplore(sourceExplore(), {
-                name: 'number_metric_rollup',
+                name: 'number_metric_preagg',
                 dimensions: ['status'],
                 metrics: ['gross_total', 'total_order_amount'],
             }),
         ).toThrow(
-            'Pre-aggregate "number_metric_rollup" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
+            'Pre-aggregate "number_metric_preagg" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
         );
     });
 
     it('keeps supported number metrics on the pre-aggregate explore and rewrites them to use materialized dependencies', () => {
         const result = buildPreAggregateExplore(sourceExplore(), {
-            name: 'number_metric_rollup',
+            name: 'number_metric_preagg',
             dimensions: ['status'],
             metrics: ['gross_total', 'total_order_amount', 'shipping_total'],
         });
@@ -392,7 +392,7 @@ describe('buildPreAggregateExplore', () => {
 
     it('rewrites supported cross-model number metrics to use materialized dependencies from joined tables', () => {
         const result = buildPreAggregateExplore(sourceExplore(), {
-            name: 'cross_model_number_metric_rollup',
+            name: 'cross_model_number_metric_preagg',
             dimensions: ['status'],
             metrics: [
                 'total_order_amount_plus_average_customer_age',
