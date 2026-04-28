@@ -1,3 +1,10 @@
+# [0.2834.0](https://github.com/lightdash/lightdash/compare/0.2833.0...0.2834.0) (2026-04-28)
+
+
+### Features
+
+* **permissions:** gate SQL authoring in the Table Calculation modal ([#22456](https://github.com/lightdash/lightdash/issues/22456)) ([9637f9b](https://github.com/lightdash/lightdash/commit/9637f9b454f66ba2c5950895cd656edadfbd4ec8))
+
 # [0.2833.0](https://github.com/lightdash/lightdash/compare/0.2832.0...0.2833.0) (2026-04-28)
 
 
