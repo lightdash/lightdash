@@ -1,3 +1,10 @@
+## [0.2820.1](https://github.com/lightdash/lightdash/compare/0.2820.0...0.2820.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* adopt SCIM orphan users instead of wiping openid_identity on 409 ([#22405](https://github.com/lightdash/lightdash/issues/22405)) ([a216d14](https://github.com/lightdash/lightdash/commit/a216d14b0ec79d3fbddc1f12b44cc573109b0e63))
+
 # [0.2820.0](https://github.com/lightdash/lightdash/compare/0.2819.0...0.2820.0) (2026-04-27)
 
 
