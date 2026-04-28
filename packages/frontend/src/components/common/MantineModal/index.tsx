@@ -170,6 +170,13 @@ export type MantineModalProps = {
     modalHeaderProps?: Partial<ModalHeaderProps>;
     modalBodyProps?: Partial<ModalBodyProps>;
     modalActionsProps?: Partial<FlexProps>;
+    /**
+     * Max-height for the body's ScrollArea in standard (non-fullscreen) mode.
+     * Use this to grow the modal vertically when the content needs more room.
+     * Ignored when `fullScreen` is true.
+     * @default 'calc(80vh - 140px)'
+     */
+    bodyScrollAreaMaxHeight?: string;
 };
 
 const MantineModal: React.FC<MantineModalProps> = ({
@@ -200,6 +207,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
     modalHeaderProps,
     modalBodyProps,
     modalActionsProps,
+    bodyScrollAreaMaxHeight = 'calc(80vh - 140px)',
 }) => {
     const [
         isConfirmCloseOpen,
@@ -254,7 +262,7 @@ const MantineModal: React.FC<MantineModalProps> = ({
         // Standard mode: ScrollArea with max height
         return (
             <Modal.Body p={0} className={classes.body}>
-                <ScrollArea.Autosize mah="calc(80vh - 140px)">
+                <ScrollArea.Autosize mah={bodyScrollAreaMaxHeight}>
                     <Stack
                         gap="md"
                         px={modalBodyProps?.px ?? 'xl'}

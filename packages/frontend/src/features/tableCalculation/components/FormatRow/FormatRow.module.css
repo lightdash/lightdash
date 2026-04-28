@@ -1,0 +1,182 @@
+.card {
+    padding: 6px var(--mantine-spacing-sm) var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-white);
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.cardEmpty {
+    padding: 6px var(--mantine-spacing-sm);
+}
+
+.topRow {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    min-height: 26px;
+    flex-wrap: wrap;
+}
+
+.dataTypeSelect {
+    width: 132px;
+    flex-shrink: 0;
+}
+
+.pillsGroup {
+    flex-shrink: 0;
+}
+
+.pillButton {
+    font-weight: 500;
+    letter-spacing: 0;
+}
+
+.preview {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding-left: var(--mantine-spacing-sm);
+}
+
+.previewArrow {
+    color: var(--mantine-color-ldGray-5);
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-7);
+    }
+}
+
+.previewValue {
+    font-size: var(--mantine-font-size-md);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-ldDark-9);
+
+    @mixin dark {
+        color: var(--mantine-color-white);
+    }
+}
+
+.divider {
+    height: 1px;
+    margin: 6px 0;
+    border-top: 1px dashed var(--mantine-color-ldGray-2);
+
+    @mixin dark {
+        border-top-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.subBody {
+    /* Matches a labeled input row (label ~16 + input 28 + gap) so switching
+       between Plain (no inputs) and other pills doesn't jump the modal. */
+    min-height: 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.emptyBody {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--mantine-color-ldGray-5);
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-7);
+    }
+}
+
+.subFieldInput {
+    width: 100px;
+}
+
+.subFieldInputNarrow {
+    width: 80px;
+}
+
+.subFieldSelect {
+    width: 150px;
+}
+
+.subFieldSelectNarrow {
+    width: 130px;
+}
+
+.subFieldSeparator {
+    width: 160px;
+}
+
+.subFieldSelectWide {
+    width: 180px;
+}
+
+.subFieldText {
+    width: 130px;
+}
+
+.subFieldTextNarrow {
+    width: 100px;
+}
+
+.subFieldCurrency {
+    width: 200px;
+}
+
+.fullWidthLabel {
+    width: 100%;
+    display: block;
+}
+
+.labelLink {
+    color: var(--mantine-color-blue-6);
+    font-weight: 500;
+
+    @mixin dark {
+        color: var(--mantine-color-blue-3);
+    }
+}
+
+.dateExamplesRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-xs);
+}
+
+@media (max-width: 48em) {
+    .topRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .preview {
+        margin-left: 0;
+        padding-left: 0;
+        justify-content: flex-end;
+    }
+
+    .pillsGroup {
+        flex-wrap: wrap;
+    }
+
+    .subFieldInput,
+    .subFieldInputNarrow,
+    .subFieldSelect,
+    .subFieldSelectNarrow,
+    .subFieldSelectWide,
+    .subFieldSeparator,
+    .subFieldText,
+    .subFieldTextNarrow,
+    .subFieldCurrency {
+        flex: 1;
+        width: auto;
+    }
+
+    .dataTypeSelect {
+        width: 100%;
+    }
+}

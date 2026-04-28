@@ -14,31 +14,23 @@ import {
 } from '@lightdash/common';
 import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
-    Accordion,
     ActionIcon,
+    Anchor,
     Badge,
     Box,
     Button,
     Group,
     Loader,
-    SegmentedControl,
-    Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
-    type ComboboxItem,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
-    Icon123,
-    IconAbc,
-    IconCalendar,
     IconCalculator,
-    IconClockHour4,
     IconMaximize,
     IconMinimize,
-    IconToggleLeft,
     IconWand,
 } from '@tabler/icons-react';
 import {
@@ -55,8 +47,6 @@ import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { FormatForm } from '../../../components/Explorer/FormatForm';
-import { getFormatSummary } from '../../../components/Explorer/FormatForm/getFormatSummary';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -70,6 +60,7 @@ import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { getUniqueTableCalculationName } from '../utils';
+import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
@@ -106,32 +97,6 @@ enum EditMode {
     TEMPLATE = 'template',
     FORMULA = 'formula',
 }
-
-const tableCalculationTypeMeta = {
-    [TableCalculationType.NUMBER]: {
-        label: 'Number',
-        icon: Icon123,
-    },
-    [TableCalculationType.STRING]: {
-        label: 'String',
-        icon: IconAbc,
-    },
-    [TableCalculationType.DATE]: {
-        label: 'Date',
-        icon: IconCalendar,
-    },
-    [TableCalculationType.TIMESTAMP]: {
-        label: 'Timestamp',
-        icon: IconClockHour4,
-    },
-    [TableCalculationType.BOOLEAN]: {
-        label: 'Boolean',
-        icon: IconToggleLeft,
-    },
-} as const satisfies Record<
-    TableCalculationType,
-    { label: string; icon: typeof Icon123 }
->;
 
 const TableCalculationModal: FC<Props> = ({
     opened,
@@ -233,7 +198,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const validateName = useCallback(
         (label: string) => {
-            if (!label) return null;
+            if (!label || !label.trim()) return 'Name is required';
 
             if (tableCalculation && tableCalculation.displayName === label) {
                 return null;
@@ -263,6 +228,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const form = useForm<TableCalculationFormInputs>({
         initialValues,
+        validateInputOnBlur: true,
         validate: {
             name: validateName,
         },
@@ -381,13 +347,6 @@ const TableCalculationModal: FC<Props> = ({
         if (validation.hasErrors) return;
 
         const { name, sql, formula, format, type } = form.values;
-        if (name.length === 0) {
-            addToastError({
-                title: 'Name cannot be empty',
-                key: 'table-calculation-modal',
-            });
-            return;
-        }
         try {
             const isNewCalculation = !tableCalculation;
             const nameChanged =
@@ -491,88 +450,43 @@ const TableCalculationModal: FC<Props> = ({
         [],
     );
 
-    const tableCalculationTypeValues = useMemo(
-        () => Object.values(TableCalculationType),
-        [],
-    );
-
-    const tableCalculationTypeOptions = useMemo(
-        () =>
-            tableCalculationTypeValues.map((value) => ({
-                value,
-                label: tableCalculationTypeMeta[value].label,
-            })),
-        [tableCalculationTypeValues],
-    );
-
     const selectedTableCalculationType =
         form.values.type ?? TableCalculationType.NUMBER;
-    const selectedTypeMeta =
-        tableCalculationTypeMeta[selectedTableCalculationType];
 
-    const renderTypeOption = useCallback(
-        ({ option }: { option: ComboboxItem }) => {
-            const meta =
-                tableCalculationTypeMeta[option.value as TableCalculationType];
-
-            return (
-                <Group gap="xs" wrap="nowrap">
-                    <Box className={classes.typeOptionIcon}>
-                        <MantineIcon icon={meta.icon} size="sm" />
-                    </Box>
-                    <Text size="sm" fw={500}>
-                        {meta.label}
-                    </Text>
-                </Group>
-            );
-        },
-        [],
-    );
-
-    const handleTypeChange = useCallback(
-        (value: string | null) => {
-            if (
-                value &&
-                tableCalculationTypeValues.includes(
-                    value as TableCalculationType,
-                )
-            ) {
-                form.setFieldValue('type', value as TableCalculationType);
+    const handleDataTypeChange = useCallback(
+        (next: TableCalculationType) => {
+            const prev = form.values.type ?? TableCalculationType.NUMBER;
+            // Switching to a different "format family" wipes format state —
+            // a date format expression makes no sense for a number value, etc.
+            const familyOf = (t: TableCalculationType) =>
+                t === TableCalculationType.DATE ||
+                t === TableCalculationType.TIMESTAMP
+                    ? 'date'
+                    : t === TableCalculationType.NUMBER
+                      ? 'numeric'
+                      : 'plain';
+            if (familyOf(prev) !== familyOf(next)) {
+                form.setFieldValue('format', {
+                    type: CustomFormatType.DEFAULT,
+                    separator: NumberSeparator.DEFAULT,
+                });
             }
+            form.setFieldValue('type', next);
         },
-        [form, tableCalculationTypeValues],
+        [form],
     );
 
-    const editModeOptions = useMemo(
-        () => [
-            {
-                value: EditMode.FORMULA,
-                label: (
-                    <Group
-                        gap={4}
-                        wrap="nowrap"
-                        justify="center"
-                        className={classes.inputModeFormulaLabel}
-                    >
-                        <Text span inherit>
-                            Formula
-                        </Text>
-                        <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
-                            <Badge
-                                color="indigo"
-                                radius="sm"
-                                className={classes.inputModeBadge}
-                            >
-                                Beta
-                            </Badge>
-                        </Tooltip>
-                    </Group>
-                ),
-            },
-            { value: EditMode.SQL, label: 'SQL' },
-        ],
-        [],
-    );
+    const canSwitchEditMode = isNewCalculation && isFormulaSupported;
+    const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
+    const switchEditModeLabel =
+        editMode === EditMode.FORMULA
+            ? 'Use SQL instead'
+            : 'Use formula instead';
+    const handleSwitchEditMode = useCallback(() => {
+        setEditMode(
+            editMode === EditMode.FORMULA ? EditMode.SQL : EditMode.FORMULA,
+        );
+    }, [editMode]);
 
     const saveButtonLabel = tableCalculation
         ? 'Save changes'
@@ -614,69 +528,48 @@ const TableCalculationModal: FC<Props> = ({
                 </Button>
             }
             cancelLabel="Cancel"
+            bodyScrollAreaMaxHeight={
+                isExpanded ? 'calc(95vh - 140px)' : 'calc(78vh - 140px)'
+            }
             modalRootProps={{
                 closeOnClickOutside: false,
                 styles: isExpanded
                     ? {
                           content: {
                               minWidth: '90vw',
-                              height: '80vh',
-                              maxHeight: '90vh',
                           },
                       }
                     : undefined,
             }}
         >
-            <Stack gap="lg">
-                <Group gap="md" align="flex-start">
-                    <TextInput
-                        label="Name"
-                        required
-                        placeholder="E.g. Cumulative order count"
-                        data-testid="table-calculation-name-input"
-                        flex={2}
-                        {...form.getInputProps('name')}
-                    />
-                    <Select
-                        label="Data type"
-                        flex={1}
-                        {...form.getInputProps('type')}
-                        onChange={handleTypeChange}
-                        data={tableCalculationTypeOptions}
-                        allowDeselect={false}
-                        leftSection={
-                            <MantineIcon
-                                icon={selectedTypeMeta.icon}
-                                size="sm"
-                                className={classes.typeInputIcon}
-                            />
-                        }
-                        renderOption={renderTypeOption}
-                        checkIconPosition="right"
-                    />
-                </Group>
-
-                <Stack gap="xs">
+            <Stack gap="xs">
+                <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
-                        <Text fz="sm" fw={600}>
-                            Input mode
-                        </Text>
-                        {isNewCalculation && isFormulaSupported && (
-                            <SegmentedControl
-                                classNames={{
-                                    root: classes.inputModeControl,
-                                    indicator:
-                                        classes.inputModeControlIndicator,
-                                    control: classes.inputModeControlItem,
-                                    label: classes.inputModeControlLabel,
-                                }}
-                                value={editMode}
-                                onChange={(value) =>
-                                    setEditMode(value as EditMode)
-                                }
-                                data={editModeOptions}
+                        <Group gap={6} align="center">
+                            <Text fz="sm" fw={600}>
+                                {editorLabel}
+                            </Text>
+                            {editMode === EditMode.FORMULA && (
+                                <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
+                                    <Badge
+                                        color="indigo"
+                                        radius="sm"
+                                        className={classes.inputModeBadge}
+                                    >
+                                        Beta
+                                    </Badge>
+                                </Tooltip>
+                            )}
+                        </Group>
+                        {canSwitchEditMode && (
+                            <Anchor
                                 size="xs"
-                            />
+                                c="dimmed"
+                                onClick={handleSwitchEditMode}
+                                className={classes.switchEditModeLink}
+                            >
+                                {switchEditModeLabel}
+                            </Anchor>
                         )}
                         {showConvertToFormulaButton && (
                             <Tooltip
@@ -788,40 +681,21 @@ const TableCalculationModal: FC<Props> = ({
                     </Box>
                 </Stack>
 
-                <Accordion
-                    variant="default"
-                    chevronPosition="right"
-                    defaultValue={
-                        form.values.format.type !== CustomFormatType.DEFAULT
-                            ? 'format'
-                            : null
-                    }
-                    classNames={{
-                        item: classes.formatAccordionItem,
-                        control: classes.formatAccordionControl,
-                        content: classes.formatAccordionContent,
-                    }}
-                >
-                    <Accordion.Item value="format">
-                        <Accordion.Control>
-                            <Group gap="md" wrap="nowrap">
-                                <Text size="sm" fw={500}>
-                                    Formatting
-                                </Text>
-                                <Text size="xs" c="dimmed" truncate>
-                                    {getFormatSummary(form.values.format)}
-                                </Text>
-                            </Group>
-                        </Accordion.Control>
-                        <Accordion.Panel>
-                            <FormatForm
-                                formatInputProps={getFormatInputProps}
-                                setFormatFieldValue={setFormatFieldValue}
-                                format={form.values.format}
-                            />
-                        </Accordion.Panel>
-                    </Accordion.Item>
-                </Accordion>
+                <FormatRow
+                    format={form.values.format}
+                    formatInputProps={getFormatInputProps}
+                    setFormatFieldValue={setFormatFieldValue}
+                    dataType={selectedTableCalculationType}
+                    onDataTypeChange={handleDataTypeChange}
+                />
+
+                <TextInput
+                    label="Name"
+                    required
+                    placeholder="E.g. Cumulative order count"
+                    data-testid="table-calculation-name-input"
+                    {...form.getInputProps('name')}
+                />
             </Stack>
         </MantineModal>
     );
