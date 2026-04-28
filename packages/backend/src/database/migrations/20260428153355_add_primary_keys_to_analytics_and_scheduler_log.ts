@@ -88,7 +88,18 @@ async function addPrimaryKey(
         checkName,
     ]);
 
-    // 7. Build the unique index without blocking writes.
+    // 7. Build the unique index without blocking writes. If a previous run
+    //    crashed mid-build, PG may have left an INVALID index behind —
+    //    `IF NOT EXISTS` matches by name only, so drop it first if present.
+    const invalidIndex = await knex.raw<{ rowCount: number }>(
+        `SELECT 1 FROM pg_class c
+         JOIN pg_index i ON i.indexrelid = c.oid
+         WHERE c.relname = ? AND NOT i.indisvalid`,
+        [pkName],
+    );
+    if ((invalidIndex.rowCount ?? 0) > 0) {
+        await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS ??`, [pkName]);
+    }
     await knex.raw(
         `CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ?? ON ?? (??)`,
         [pkName, table, column],
