@@ -13,7 +13,6 @@ import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import cloneDeep from 'lodash/cloneDeep';
 import {
-    Activity,
     memo,
     useCallback,
     useMemo,
@@ -1047,75 +1046,61 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                       visitedTabs.has(tab.uuid),
                                                   )
                                                   .map((tab) => (
-                                                      <Activity
+                                                      <TabGridPanel
                                                           key={tab.uuid}
-                                                          mode={
+                                                          tabUuid={tab.uuid}
+                                                          tiles={
+                                                              tilesByTab.get(
+                                                                  tab.uuid,
+                                                              ) ?? []
+                                                          }
+                                                          layouts={
+                                                              layoutsByTab.get(
+                                                                  tab.uuid,
+                                                              ) ?? EMPTY_LAYOUTS
+                                                          }
+                                                          isActive={
                                                               activeTab?.uuid ===
                                                               tab.uuid
-                                                                  ? 'visible'
-                                                                  : 'hidden'
                                                           }
-                                                          name={`dashboard-tab-${tab.name}`}
-                                                      >
-                                                          <TabGridPanel
-                                                              key={tab.uuid}
-                                                              tabUuid={tab.uuid}
-                                                              tiles={
-                                                                  tilesByTab.get(
-                                                                      tab.uuid,
-                                                                  ) ?? []
-                                                              }
-                                                              layouts={
-                                                                  layoutsByTab.get(
-                                                                      tab.uuid,
-                                                                  ) ??
-                                                                  EMPTY_LAYOUTS
-                                                              }
-                                                              isActive={
-                                                                  activeTab?.uuid ===
-                                                                  tab.uuid
-                                                              }
-                                                              isEditMode={
-                                                                  isEditMode
-                                                              }
-                                                              locked={
-                                                                  hasRequiredFiltersForCurrentTab
-                                                              }
-                                                              gridProps={
-                                                                  gridProps
-                                                              }
-                                                              dashboardTabs={
-                                                                  dashboardTabs
-                                                              }
-                                                              onDragStart={
-                                                                  handleDragStart
-                                                              }
-                                                              onDragStop={
-                                                                  handleDragStop
-                                                              }
-                                                              onResizeStart={
-                                                                  handleResizeStart
-                                                              }
-                                                              onResizeStop={
-                                                                  handleResizeStop
-                                                              }
-                                                              onBreakpointChange={
-                                                                  handleBreakpointChange
-                                                              }
-                                                              onWidthChange={
-                                                                  handleWidthChange
-                                                              }
-                                                              onDeleteTile={
-                                                                  handleDeleteTile
-                                                              }
-                                                              onEditTile={
-                                                                  handleEditTile
-                                                              }
-                                                              onAddTiles={
-                                                                  handleAddTiles
-                                                              }
-                                                          />
-                                                      </Activity>
+                                                          isEditMode={
+                                                              isEditMode
+                                                          }
+                                                          locked={
+                                                              hasRequiredFiltersForCurrentTab
+                                                          }
+                                                          gridProps={gridProps}
+                                                          dashboardTabs={
+                                                              dashboardTabs
+                                                          }
+                                                          onDragStart={
+                                                              handleDragStart
+                                                          }
+                                                          onDragStop={
+                                                              handleDragStop
+                                                          }
+                                                          onResizeStart={
+                                                              handleResizeStart
+                                                          }
+                                                          onResizeStop={
+                                                              handleResizeStop
+                                                          }
+                                                          onBreakpointChange={
+                                                              handleBreakpointChange
+                                                          }
+                                                          onWidthChange={
+                                                              handleWidthChange
+                                                          }
+                                                          onDeleteTile={
+                                                              handleDeleteTile
+                                                          }
+                                                          onEditTile={
+                                                              handleEditTile
+                                                          }
+                                                          onAddTiles={
+                                                              handleAddTiles
+                                                          }
+                                                      />
                                                   ))
                                             : /* Single grid for non-tabbed dashboards */
                                               dashboardTiles && (
