@@ -77,13 +77,14 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
     const [search, setSearch] = useState('');
     const { showToastSuccess, showToastError, showToastInfo } = useToaster();
 
-    const userCanUpdateProject = user.data?.ability.can(
-        'update',
-        subject('Project', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
+    const userCanUpdateProject =
+        user.data?.ability.can(
+            'update',
+            subject('Project', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
 
     const { data: explores, isLoading: isLoadingExplores } = useExplores(
         projectUuid,
@@ -130,7 +131,7 @@ const ChangeChartExploreModal: FC<ChangeChartExploreModalProps> = ({
         e.preventDefault();
         if (!selectedExplore || isSameExplore) return;
 
-        const fixAllAllowed = fixAll && userCanUpdateProject === true;
+        const fixAllAllowed = fixAll && userCanUpdateProject;
 
         try {
             const result = await rename({
