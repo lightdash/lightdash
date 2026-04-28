@@ -1,3 +1,10 @@
+# [0.2831.0](https://github.com/lightdash/lightdash/compare/0.2830.0...0.2831.0) (2026-04-28)
+
+
+### Features
+
+* **data-apps:** improve PDF export margins in generated reports ([#22476](https://github.com/lightdash/lightdash/issues/22476)) ([90dcf07](https://github.com/lightdash/lightdash/commit/90dcf07cdd99ce522f9ee16bb72b008c26d7cf82))
+
 # [0.2830.0](https://github.com/lightdash/lightdash/compare/0.2829.0...0.2830.0) (2026-04-28)
 
 
