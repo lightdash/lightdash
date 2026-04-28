@@ -836,6 +836,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
         ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
         ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
+        ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
         ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
