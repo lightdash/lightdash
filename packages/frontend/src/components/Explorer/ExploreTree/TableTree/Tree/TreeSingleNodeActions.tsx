@@ -1,4 +1,3 @@
-import { subject } from '@casl/ability';
 import {
     DimensionType,
     FeatureFlags,
@@ -35,6 +34,7 @@ import {
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
+import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
 import {
     useClientFeatureFlag,
     useServerFeatureFlag,
@@ -64,6 +64,7 @@ const TreeSingleNodeActions: FC<Props> = ({
     onViewDescription,
 }) => {
     const projectUuid = useProjectUuid();
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
     const { addFilter } = useFilteredFields();
@@ -76,14 +77,6 @@ const TreeSingleNodeActions: FC<Props> = ({
         }
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
-
-    const cannotAuthorCustomSql = user.data?.ability.cannot(
-        'manage',
-        subject('CustomFields', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
 
     const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
         FeatureFlags.WriteBackCustomBinDimensions,
