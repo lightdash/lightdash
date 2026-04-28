@@ -1,3 +1,10 @@
+# [0.2821.0](https://github.com/lightdash/lightdash/compare/0.2820.1...0.2821.0) (2026-04-28)
+
+
+### Features
+
+* remove `LargeChartPerformance` feature flag and enable canvas renderer by default ([#22422](https://github.com/lightdash/lightdash/issues/22422)) ([6cd552b](https://github.com/lightdash/lightdash/commit/6cd552b1c2684704f4d838dd0701af0ad4f18053))
+
 ## [0.2820.1](https://github.com/lightdash/lightdash/compare/0.2820.0...0.2820.1) (2026-04-28)
 
 
