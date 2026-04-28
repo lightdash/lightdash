@@ -269,6 +269,8 @@ Each additional metric needs:
 
 ### Filters
 
+Filter syntax for the `.filters([...])` builder method. For how filters propagate across the app (global filter context, "Filter by &lt;value&gt;" interactions), see [Global filters](#global-filters).
+
 ```ts
 type Filter = {
     field: string;
@@ -332,24 +334,228 @@ export function RevenueCard() {
 
 Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. Give the spinner container the same height as the content it replaces so layout doesn't shift.
 
+### Global filters
+
+**Charts share a global filter set, scoped per explore.** When the user activates "Filter by &lt;value&gt;" from a chart's action menu (see [Data interactions](#data-interactions--action-menu) below), the filter applies to every other query in the app **that targets the same explore as the chart they clicked**.
+
+**Filters never cross-apply between explores.** Different explores have different field sets — a `status` dimension on `marketing_touchpoints` doesn't exist on `orders` or `regional_sales`. Sending `{ field: 'status' }` into a query against the wrong explore produces a `FieldReferenceError` (the SDK qualifies it to `<wrong_explore>_status`, which doesn't exist). The `explore` tag on every filter is what prevents this.
+
+> **Limitation by design:** A field that legitimately exists on multiple explores (e.g. `region` joined into both `orders` and `regional_sales`) won't cross-filter under this rule. That's the safe default. If the user explicitly asks for cross-explore linking on a shared dimension, you can call `addFilter` once per explore — but never broadcast a filter to all explores blindly.
+
+Set this up once in `src/filters/FilterContext.tsx`:
+
+```tsx
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useMemo,
+    useState,
+    type ReactNode,
+} from 'react';
+import type { Filter } from '@lightdash/query-sdk';
+
+// A scoped filter is a regular Filter tagged with the explore it was created
+// from. We never apply a scoped filter to a query against a different explore.
+export type ScopedFilter = Filter & { explore: string };
+
+type FilterContextValue = {
+    addFilter: (filter: ScopedFilter) => void;
+    removeFilter: (filter: ScopedFilter) => void;
+    clearFilters: () => void;
+    filtersFor: (explore: string) => Filter[];
+    allFilters: ScopedFilter[]; // for the active-filters bar only
+};
+
+const FilterContext = createContext<FilterContextValue | null>(null);
+
+const sameTarget = (a: ScopedFilter, b: ScopedFilter) =>
+    a.explore === b.explore &&
+    a.field === b.field &&
+    JSON.stringify(a.value) === JSON.stringify(b.value);
+
+export function FilterProvider({ children }: { children: ReactNode }) {
+    const [filters, setFilters] = useState<ScopedFilter[]>([]);
+
+    const addFilter = useCallback((filter: ScopedFilter) => {
+        setFilters((prev) => {
+            // Toggle: same explore + field + value → remove. Otherwise add.
+            const exists = prev.some((f) => sameTarget(f, filter));
+            return exists ? prev.filter((f) => !sameTarget(f, filter)) : [...prev, filter];
+        });
+    }, []);
+
+    const removeFilter = useCallback((filter: ScopedFilter) => {
+        setFilters((prev) => prev.filter((f) => !sameTarget(f, filter)));
+    }, []);
+
+    const clearFilters = useCallback(() => setFilters([]), []);
+
+    const filtersFor = useCallback(
+        (explore: string): Filter[] =>
+            filters
+                .filter((f) => f.explore === explore)
+                // Strip the explore tag — the SDK's .filters() takes plain Filter values.
+                .map(({ explore: _e, ...rest }) => rest),
+        [filters],
+    );
+
+    const value = useMemo(
+        () => ({ addFilter, removeFilter, clearFilters, filtersFor, allFilters: filters }),
+        [addFilter, removeFilter, clearFilters, filtersFor, filters],
+    );
+
+    return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
+}
+
+export function useGlobalFilters() {
+    const ctx = useContext(FilterContext);
+    if (!ctx) throw new Error('useGlobalFilters must be used inside FilterProvider');
+    return ctx;
+}
+```
+
+Wrap the entire app in `<FilterProvider>` once at the root (in `App.tsx`):
+
+```tsx
+import { FilterProvider } from '@/filters/FilterContext';
+
+export default function App() {
+    return (
+        <FilterProvider>
+            <ActiveFiltersBar />
+            <Dashboard />
+        </FilterProvider>
+    );
+}
+```
+
+**Apply global filters in every component that runs a query, scoped to that component's explore.** Use a per-file `EXPLORE` constant so the chart and its action menu agree on the explore name:
+
+```tsx
+import { useMemo } from 'react';
+import { query, useLightdash } from '@lightdash/query-sdk';
+import { useGlobalFilters } from '@/filters/FilterContext';
+
+const EXPLORE = 'orders';
+
+const baseRevenueQuery = query(EXPLORE)
+    .label('Revenue by Segment')
+    .dimensions(['customer_segment'])
+    .metrics(['total_revenue']);
+
+export function RevenueBySegment() {
+    const { filtersFor } = useGlobalFilters();
+    const q = useMemo(
+        () => baseRevenueQuery.filters(filtersFor(EXPLORE)),
+        [filtersFor],
+    );
+    const { data, format, loading } = useLightdash(q);
+    // ...
+}
+```
+
+**This applies to every `useLightdash()` call — no exceptions.** A chart that ignores `filtersFor(EXPLORE)` silently shows stale or contradictory data after the user filters.
+
+#### Active filters bar
+
+Render the active global filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Show the explore alongside the field so users can tell which chart contributed each filter:
+
+```tsx
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
+import { useGlobalFilters } from '@/filters/FilterContext';
+
+export function ActiveFiltersBar() {
+    const { allFilters, removeFilter, clearFilters } = useGlobalFilters();
+    if (allFilters.length === 0) return null;
+
+    return (
+        <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-muted/30">
+            <span className="text-sm text-muted-foreground">Filters:</span>
+            {allFilters.map((f, i) => (
+                <Badge key={i} variant="secondary" className="gap-1">
+                    <span className="text-muted-foreground">{f.explore}.</span>
+                    {f.field} {f.operator}{' '}
+                    {Array.isArray(f.value) ? f.value.join(', ') : String(f.value)}
+                    <button
+                        onClick={() => removeFilter(f)}
+                        className="ml-1 hover:text-destructive"
+                        aria-label={`Remove filter on ${f.field}`}
+                    >
+                        <X className="h-3 w-3" />
+                    </button>
+                </Badge>
+            ))}
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+                Clear all
+            </Button>
+        </div>
+    );
+}
+```
+
+### Floating surfaces — always set a background
+
+**Every floating UI surface must have an explicit, opaque background and a visible border.** This is non-negotiable — without it, dropdown menus, dialogs, and popovers render transparent over charts and tables, the underlying data bleeds through, text is unreadable, and click targets are ambiguous.
+
+The rule applies to every component that floats above page content:
+
+| Component | Required classes |
+|---|---|
+| `DropdownMenuContent` | `bg-white border shadow-md` |
+| `DialogContent` | `bg-white border shadow-lg` |
+| `PopoverContent` | `bg-white border shadow-md` |
+| `SheetContent` | `bg-white border shadow-lg` |
+| `TooltipContent` | `bg-white border shadow-sm` |
+
+```tsx
+<DropdownMenuContent className="bg-white border shadow-md">
+    {/* ... */}
+</DropdownMenuContent>
+
+<DialogContent className="bg-white border shadow-lg max-w-3xl">
+    {/* ... */}
+</DialogContent>
+
+<PopoverContent className="bg-white border shadow-md">
+    {/* ... */}
+</PopoverContent>
+```
+
+**Do not rely on shadcn defaults like `bg-popover` or `bg-background`.** Those classes resolve through CSS variables (`--popover`, `--background`) that may not be populated in the sandbox theme, leaving the surface transparent. Hard-code `bg-white` so the background renders regardless of theme state. For dark-mode support, use `bg-white dark:bg-zinc-900`.
+
+This rule covers every code example below — every floating component you render must include these classes.
+
 ### Data interactions — action menu
 
-When a user clicks a data point (bar, slice, row, cell), **show an action menu** with contextual options. This is the default interaction pattern for all charts and tables in dashboard-style apps. The menu typically offers:
+**Every chart and table powered by Lightdash data must support a "Filter by &lt;value&gt;" interaction by default.** When a user clicks a data point (bar, slice, row, cell), show an action menu that includes — at minimum — a `Filter by <value>` option. Selecting it calls `addFilter({ field, operator: 'equals', value, explore })` from `useGlobalFilters()`, where `explore` is the chart's own explore name. The filter then applies to every other query that targets the same explore (see [Global filters](#global-filters) above).
 
-1. **Filter by this value** — cross-filter other components on the dashboard
-2. **Drill down** — see this metric broken down by another dimension
+Additional contextual options can be added when useful:
 
-Use the `DropdownMenu` component for this. The menu opens on click, and each option triggers its respective action.
+- **Drill down** — see this metric broken down by another dimension
+
+Use the `DropdownMenu` component. The menu opens on click; each option triggers its respective action.
 
 ```tsx
 import { useState, useMemo, useRef } from 'react';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useGlobalFilters } from '@/filters/FilterContext';
 
-function InteractiveChart({ baseQuery, activeFilters, onFilter }) {
+const EXPLORE = 'orders';
+
+const baseQuery = query(EXPLORE)
+    .label('Revenue by Segment')
+    .dimensions(['customer_segment'])
+    .metrics(['total_revenue']);
+
+function RevenueChart() {
+    const { filtersFor, addFilter } = useGlobalFilters();
     const chartQuery = useMemo(
-        () => baseQuery.filters([...activeFilters]),
-        [activeFilters],
+        () => baseQuery.filters(filtersFor(EXPLORE)),
+        [filtersFor],
     );
     const { data, format, loading } = useLightdash(chartQuery);
     const [menuState, setMenuState] = useState(null); // { row, x, y }
@@ -380,18 +586,25 @@ function InteractiveChart({ baseQuery, activeFilters, onFilter }) {
                     <DropdownMenuTrigger asChild>
                         <div style={{ position: 'fixed', left: menuState.x, top: menuState.y, width: 1, height: 1 }} />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
+                    <DropdownMenuContent className="bg-white border shadow-md">
                         <DropdownMenuItem onClick={() => {
-                            onFilter(menuState.row);
+                            // Tagged with EXPLORE so it only applies to other queries against
+                            // the same explore — never broadcast across explores.
+                            addFilter({
+                                field: 'customer_segment',
+                                operator: 'equals',
+                                value: menuState.row['customer_segment'],
+                                explore: EXPLORE,
+                            });
                             setMenuState(null);
                         }}>
-                            Filter by this value
+                            Filter by {format(menuState.row, 'customer_segment')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
                             const row = menuState.row;
                             setDrillState({
                                 query: drillDown({
-                                    sourceQuery: baseQuery,
+                                    sourceQuery: chartQuery,
                                     metric: 'total_revenue',
                                     dimension: 'order_date',
                                     row,
@@ -408,7 +621,7 @@ function InteractiveChart({ baseQuery, activeFilters, onFilter }) {
 
             {drillState && (
                 <Dialog open onOpenChange={() => setDrillState(null)}>
-                    <DialogContent className="max-w-3xl">
+                    <DialogContent className="bg-white border shadow-lg max-w-3xl">
                         <DialogHeader><DialogTitle>{drillState.title}</DialogTitle></DialogHeader>
                         <DrillResults query={drillState.query} />
                     </DialogContent>
@@ -419,26 +632,13 @@ function InteractiveChart({ baseQuery, activeFilters, onFilter }) {
 }
 ```
 
-**This is the default.** If the user explicitly asks for a different interaction (e.g., "clicking should always filter" or "no drill-down needed"), follow their instructions. But when building dashboard-style apps without specific guidance, always use the action menu pattern.
+**This is the default for every chart and table that renders Lightdash query data.** The "Filter by &lt;value&gt;" option is mandatory; "Drill into …" and other options are encouraged where they make sense.
 
-#### Cross-filtering implementation
+If the user explicitly asks for a different interaction (e.g., "clicking should always filter without showing a menu" or "no drill-down needed"), follow their instructions. Otherwise, every data-powered chart and table gets the action menu — at minimum with the "Filter by &lt;value&gt;" option wired into the global filter context.
 
-Lift a shared `filters` state to the dashboard container. The `onFilter` callback adds/toggles a filter, and each chart query includes the active filters:
+#### Filtering from table cells
 
-```tsx
-const [activeFilters, setActiveFilters] = useState<Filter[]>([]);
-
-function handleFilter(row) {
-    const value = row['customer_segment'];
-    setActiveFilters((prev) => {
-        const exists = prev.some((f) => f.field === 'customer_segment' && f.value === value);
-        if (exists) return prev.filter((f) => !(f.field === 'customer_segment' && f.value === value));
-        return [...prev, { field: 'customer_segment', operator: 'equals', value }];
-    });
-}
-
-// Show active filters as dismissible badges above the dashboard
-```
+Tables follow the same pattern: clicking a cell opens the action menu, and "Filter by &lt;value&gt;" calls `addFilter({ field: column.name, operator: 'equals', value: row[column.name], explore: EXPLORE })`. The field is the column the user clicked, the value is the cell's raw (unformatted) value, and the explore is the table component's own explore constant. Display the formatted value in the menu label: `Filter by {format(row, column.name)}`.
 
 ### Table interactions
 
@@ -597,7 +797,15 @@ function DrillResults({ query: q }) {
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
+| Forgetting to apply global filters to a query | Chart shows unfiltered data while the rest of the page is filtered → contradictory results | Every `useLightdash()` call must pass `filtersFor(EXPLORE)` into `.filters([...])` via `useMemo` |
+| Calling `addFilter` without an `explore` tag | Filter has no explore → the `filtersFor(otherExplore)` lookup never returns it, or (worse) you broadcast it everywhere → `FieldReferenceError` like `regional_sales_status` not found | Always include `explore: EXPLORE` on every `addFilter` call |
+| Using `filters` (raw) instead of `filtersFor(EXPLORE)` | Sends filters from other explores into this query → SDK qualifies the field name to the wrong explore → `FieldReferenceError` | Always select via `filtersFor(EXPLORE)`; never pass `allFilters` into `.filters()` |
+| Hard-coding the explore string in two places | Chart and its action menu disagree → filter sets but never applies | Define `const EXPLORE = '...'` at the top of the file and reuse it for both `query(EXPLORE)` and `addFilter({ ..., explore: EXPLORE })` |
+| Building the filtered query inline (not memoized) | New query identity every render → infinite re-fetch | `useMemo(() => baseQuery.filters(filtersFor(EXPLORE)), [filtersFor])` |
+| Local `useState` for cross-filter state | Other components on the page can't see or react to it | Use `<FilterProvider>` at the app root and `useGlobalFilters()` everywhere |
+| Action menu missing "Filter by &lt;value&gt;" | Default UX requirement violated — users have no way to drill in | Every data-powered chart/table must include the option, calling `addFilter({ field, operator: 'equals', value, explore: EXPLORE })` |
+| Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
-| Transparent popover/dialog/dropdown backgrounds | Content unreadable over charts | Always add `bg-white` (or `bg-popover`) class to `DropdownMenuContent`, `DialogContent`, and popover containers |
+| Transparent popover/dialog/dropdown backgrounds | Content unreadable over charts; clicks pass through ambiguously | Hard-code `bg-white border shadow-md` (or `shadow-lg` for dialogs) on every `DropdownMenuContent`, `DialogContent`, `PopoverContent`, `SheetContent`, and `TooltipContent`. Never rely on shadcn defaults like `bg-popover` — the underlying CSS variables aren't reliably populated. See [Floating surfaces](#floating-surfaces--always-set-a-background) |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
