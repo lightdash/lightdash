@@ -1,3 +1,10 @@
+# [0.2827.0](https://github.com/lightdash/lightdash/compare/0.2826.0...0.2827.0) (2026-04-28)
+
+
+### Features
+
+* support number metrics with materializable dependencies in pre-aggregates ([#22441](https://github.com/lightdash/lightdash/issues/22441)) ([d8bff5d](https://github.com/lightdash/lightdash/commit/d8bff5d45310d83bd3f521a4d7caa343e15f025a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.2826.0](https://github.com/lightdash/lightdash/compare/0.2825.1...0.2826.0) (2026-04-28)
 
 
