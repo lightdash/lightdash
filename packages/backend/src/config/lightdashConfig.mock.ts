@@ -351,9 +351,6 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
-    userImpersonation: {
-        enabled: undefined,
-    },
     metricDashboardFilters: {
         enabled: undefined,
     },

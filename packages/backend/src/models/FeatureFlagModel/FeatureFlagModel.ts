@@ -41,8 +41,6 @@ export class FeatureFlagModel {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.UserImpersonation]:
-                this.getUserImpersonationEnabled.bind(this),
             [FeatureFlags.MetricDashboardFilters]:
                 this.getMetricDashboardFiltersEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
@@ -147,24 +145,6 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.query.showExecutionTime ?? false,
-        };
-    }
-
-    private async getUserImpersonationEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.userImpersonation.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(FeatureFlags.UserImpersonation, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
         };
     }
 

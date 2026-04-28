@@ -1258,9 +1258,6 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
-    userImpersonation: {
-        enabled: boolean | undefined;
-    };
     metricDashboardFilters: {
         enabled: boolean | undefined;
     };
@@ -1556,6 +1553,7 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // instances pick up the DB-backed flag as enabled without needing per-DB
     // bootstrapping.
     ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
+    ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -2284,12 +2282,6 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
-        },
-        userImpersonation: {
-            enabled:
-                process.env.USER_IMPERSONATION_ENABLED === 'true'
-                    ? true
-                    : undefined,
         },
         metricDashboardFilters: {
             enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
