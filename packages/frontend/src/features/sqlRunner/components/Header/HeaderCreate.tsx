@@ -252,8 +252,8 @@ export const HeaderCreate: FC = () => {
                 })}
             >
                 <Group position="apart">
-                    {hasAnyAction && (
-                        <Group spacing="two">
+                    <Group spacing="two">
+                        {hasAnyAction && (
                             <EditableText
                                 size="md"
                                 w={400}
@@ -263,8 +263,8 @@ export const HeaderCreate: FC = () => {
                                     dispatch(updateName(e.currentTarget.value))
                                 }
                             />
-                        </Group>
-                    )}
+                        )}
+                    </Group>
 
                     <Group spacing="xs">
                         {hasAnyAction && (
