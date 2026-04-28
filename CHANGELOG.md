@@ -1,3 +1,10 @@
+# [0.2826.0](https://github.com/lightdash/lightdash/compare/0.2825.1...0.2826.0) (2026-04-28)
+
+
+### Features
+
+* backfill project metrics tree from legacy UI edges migration ([#22433](https://github.com/lightdash/lightdash/issues/22433)) ([6d89f62](https://github.com/lightdash/lightdash/commit/6d89f62b8d90b2e1d3e8154d0210b01c916b00c7))
+
 ## [0.2825.1](https://github.com/lightdash/lightdash/compare/0.2825.0...0.2825.1) (2026-04-28)
 
 
