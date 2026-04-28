@@ -82,32 +82,6 @@
     text-transform: none;
 }
 
-.typeOptionIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 22px;
-    height: 22px;
-    color: var(--mantine-color-ldGray-6);
-    background-color: var(--mantine-color-ldGray-0);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-sm);
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-8);
-        background-color: var(--mantine-color-ldDark-3);
-        border-color: var(--mantine-color-ldDark-4);
-    }
-}
-
-.typeInputIcon {
-    color: var(--mantine-color-ldGray-6);
-
-    @mixin dark {
-        color: var(--mantine-color-ldDark-8);
-    }
-}
-
 .sqlEditorBorder {
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
@@ -128,62 +102,6 @@
     gap: var(--mantine-spacing-sm);
 }
 
-.calculationLayout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(300px, 340px);
-    align-items: stretch;
-    gap: var(--mantine-spacing-md);
-}
-
-.editorColumn {
-    min-width: 0;
-}
-
-.formatPanel {
-    min-width: 0;
-    padding: var(--mantine-spacing-md);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-md);
-    background-color: var(--mantine-color-ldGray-0);
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-2);
-        border-color: var(--mantine-color-ldDark-4);
-    }
-}
-
-.formatPanelIcon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    color: var(--mantine-color-blue-6);
-    background-color: var(--mantine-color-blue-0);
-    border: 1px solid var(--mantine-color-blue-1);
-    border-radius: var(--mantine-radius-sm);
-
-    @mixin dark {
-        color: var(--mantine-color-blue-3);
-        background-color: var(--mantine-color-blue-9);
-        border-color: var(--mantine-color-blue-8);
-    }
-}
-
-.formatStatusBadge {
-    flex-shrink: 0;
-    text-transform: none;
-}
-
-.formatPanelBody {
-    overflow: auto;
-    padding-right: 2px;
-}
-
-.minWidth0 {
-    min-width: 0;
-}
-
 @media (max-width: 48em) {
     .inputModeHeader {
         align-items: flex-start;
@@ -196,13 +114,5 @@
 
     .inputModeControlItem {
         min-width: 0;
-    }
-
-    .calculationLayout {
-        grid-template-columns: 1fr;
-    }
-
-    .formatPanel {
-        padding: var(--mantine-spacing-sm);
     }
 }

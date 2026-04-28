@@ -1,0 +1,231 @@
+.root {
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    margin-bottom: var(--mantine-spacing-sm);
+}
+
+.headerLabel {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    color: var(--mantine-color-ldGray-7);
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-9);
+    }
+}
+
+.dataTypeSelect {
+    width: 160px;
+}
+
+.pillRow {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+    flex-wrap: wrap;
+}
+
+.previewPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    min-height: 28px;
+    color: var(--mantine-color-ldGray-7);
+    background-color: var(--mantine-color-white);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-9);
+        background-color: var(--mantine-color-ldDark-3);
+        border-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.previewIcon {
+    color: var(--mantine-color-ldGray-5);
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-7);
+    }
+}
+
+.divider {
+    width: 1px;
+    align-self: stretch;
+    background-color: var(--mantine-color-ldGray-2);
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.pillsControl {
+    background: transparent;
+    padding: 0;
+    gap: 4px;
+}
+
+.pillsControlIndicator {
+    background-color: var(--mantine-color-blue-6);
+    box-shadow: none;
+}
+
+.pillsControlItem {
+    border-radius: 999px;
+}
+
+.pillsControlLabel {
+    padding-inline: var(--mantine-spacing-sm);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 24px;
+    color: var(--mantine-color-ldGray-7);
+    border-radius: 999px;
+
+    &[data-active] {
+        color: var(--mantine-color-white);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-9);
+    }
+}
+
+.subRow {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--mantine-spacing-md);
+    margin-top: var(--mantine-spacing-sm);
+    padding-top: var(--mantine-spacing-sm);
+    border-top: 1px dashed var(--mantine-color-ldGray-2);
+    flex-wrap: wrap;
+
+    @mixin dark {
+        border-top-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.subRowField {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+.subRowFieldLabel {
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    color: var(--mantine-color-ldGray-6);
+    white-space: nowrap;
+
+    @mixin dark {
+        color: var(--mantine-color-ldDark-8);
+    }
+}
+
+.subRowInput {
+    width: 84px;
+}
+
+.subRowSelect {
+    width: 130px;
+}
+
+.subRowCurrencySelect {
+    width: 160px;
+}
+
+.subRowText {
+    width: 110px;
+}
+
+.customExpression {
+    margin-top: var(--mantine-spacing-sm);
+    padding-top: var(--mantine-spacing-sm);
+    border-top: 1px dashed var(--mantine-color-ldGray-2);
+
+    @mixin dark {
+        border-top-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.dateBody {
+    margin-top: var(--mantine-spacing-sm);
+    padding-top: var(--mantine-spacing-sm);
+    border-top: 1px dashed var(--mantine-color-ldGray-2);
+
+    @mixin dark {
+        border-top-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.dateExamplesRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--mantine-spacing-xs);
+    margin-top: var(--mantine-spacing-xs);
+}
+
+.headerIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    color: var(--mantine-color-blue-6);
+    background-color: var(--mantine-color-blue-0);
+    border: 1px solid var(--mantine-color-blue-1);
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin dark {
+        color: var(--mantine-color-blue-3);
+        background-color: var(--mantine-color-blue-9);
+        border-color: var(--mantine-color-blue-8);
+    }
+}
+
+@media (max-width: 48em) {
+    .pillRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .divider {
+        display: none;
+    }
+
+    .subRow {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .subRowField {
+        justify-content: space-between;
+    }
+
+    .subRowInput,
+    .subRowSelect,
+    .subRowCurrencySelect,
+    .subRowText {
+        width: 100%;
+    }
+}

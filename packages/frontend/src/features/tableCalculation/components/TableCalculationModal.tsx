@@ -20,26 +20,17 @@ import {
     Button,
     Group,
     Loader,
-    Paper,
     SegmentedControl,
-    Select,
     Stack,
     Text,
     TextInput,
     Tooltip,
-    type ComboboxItem,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
-    Icon123,
-    IconAbc,
-    IconCalendar,
     IconCalculator,
-    IconClockHour4,
     IconMaximize,
     IconMinimize,
-    IconPalette,
-    IconToggleLeft,
     IconWand,
 } from '@tabler/icons-react';
 import {
@@ -56,8 +47,6 @@ import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { FormatForm } from '../../../components/Explorer/FormatForm';
-import { getFormatSummary } from '../../../components/Explorer/FormatForm/getFormatSummary';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -71,6 +60,7 @@ import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { getUniqueTableCalculationName } from '../utils';
+import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
@@ -107,32 +97,6 @@ enum EditMode {
     TEMPLATE = 'template',
     FORMULA = 'formula',
 }
-
-const tableCalculationTypeMeta = {
-    [TableCalculationType.NUMBER]: {
-        label: 'Number',
-        icon: Icon123,
-    },
-    [TableCalculationType.STRING]: {
-        label: 'String',
-        icon: IconAbc,
-    },
-    [TableCalculationType.DATE]: {
-        label: 'Date',
-        icon: IconCalendar,
-    },
-    [TableCalculationType.TIMESTAMP]: {
-        label: 'Timestamp',
-        icon: IconClockHour4,
-    },
-    [TableCalculationType.BOOLEAN]: {
-        label: 'Boolean',
-        icon: IconToggleLeft,
-    },
-} as const satisfies Record<
-    TableCalculationType,
-    { label: string; icon: typeof Icon123 }
->;
 
 const TableCalculationModal: FC<Props> = ({
     opened,
@@ -492,56 +456,30 @@ const TableCalculationModal: FC<Props> = ({
         [],
     );
 
-    const tableCalculationTypeValues = useMemo(
-        () => Object.values(TableCalculationType),
-        [],
-    );
-
-    const tableCalculationTypeOptions = useMemo(
-        () =>
-            tableCalculationTypeValues.map((value) => ({
-                value,
-                label: tableCalculationTypeMeta[value].label,
-            })),
-        [tableCalculationTypeValues],
-    );
-
     const selectedTableCalculationType =
         form.values.type ?? TableCalculationType.NUMBER;
-    const selectedTypeMeta =
-        tableCalculationTypeMeta[selectedTableCalculationType];
 
-    const renderTypeOption = useCallback(
-        ({ option }: { option: ComboboxItem }) => {
-            const meta =
-                tableCalculationTypeMeta[option.value as TableCalculationType];
-
-            return (
-                <Group gap="xs" wrap="nowrap">
-                    <Box className={classes.typeOptionIcon}>
-                        <MantineIcon icon={meta.icon} size="sm" />
-                    </Box>
-                    <Text size="sm" fw={500}>
-                        {meta.label}
-                    </Text>
-                </Group>
-            );
-        },
-        [],
-    );
-
-    const handleTypeChange = useCallback(
-        (value: string | null) => {
-            if (
-                value &&
-                tableCalculationTypeValues.includes(
-                    value as TableCalculationType,
-                )
-            ) {
-                form.setFieldValue('type', value as TableCalculationType);
+    const handleDataTypeChange = useCallback(
+        (next: TableCalculationType) => {
+            const prev = form.values.type ?? TableCalculationType.NUMBER;
+            // Switching to a different "format family" wipes format state —
+            // a date format expression makes no sense for a number value, etc.
+            const familyOf = (t: TableCalculationType) =>
+                t === TableCalculationType.DATE ||
+                t === TableCalculationType.TIMESTAMP
+                    ? 'date'
+                    : t === TableCalculationType.NUMBER
+                      ? 'numeric'
+                      : 'plain';
+            if (familyOf(prev) !== familyOf(next)) {
+                form.setFieldValue('format', {
+                    type: CustomFormatType.DEFAULT,
+                    separator: NumberSeparator.DEFAULT,
+                });
             }
+            form.setFieldValue('type', next);
         },
-        [form, tableCalculationTypeValues],
+        [form],
     );
 
     const editModeOptions = useMemo(
@@ -580,9 +518,6 @@ const TableCalculationModal: FC<Props> = ({
         : editMode === EditMode.FORMULA
           ? 'Create formula'
           : 'Create SQL calculation';
-    const formatSummary = getFormatSummary(form.values.format);
-    const hasCustomFormat =
-        form.values.format.type !== CustomFormatType.DEFAULT;
 
     return (
         <MantineModal
@@ -632,213 +567,153 @@ const TableCalculationModal: FC<Props> = ({
             }}
         >
             <Stack gap="lg">
-                <Group gap="md" align="flex-start">
-                    <TextInput
-                        label="Name"
-                        required
-                        placeholder="E.g. Cumulative order count"
-                        data-testid="table-calculation-name-input"
-                        flex={2}
-                        {...form.getInputProps('name')}
-                    />
-                    <Select
-                        label="Data type"
-                        flex={1}
-                        {...form.getInputProps('type')}
-                        onChange={handleTypeChange}
-                        data={tableCalculationTypeOptions}
-                        allowDeselect={false}
-                        leftSection={
-                            <MantineIcon
-                                icon={selectedTypeMeta.icon}
-                                size="sm"
-                                className={classes.typeInputIcon}
+                <Stack gap="xs">
+                    <Group className={classes.inputModeHeader}>
+                        <Text fz="sm" fw={600}>
+                            Input mode
+                        </Text>
+                        {isNewCalculation && isFormulaSupported && (
+                            <SegmentedControl
+                                classNames={{
+                                    root: classes.inputModeControl,
+                                    indicator:
+                                        classes.inputModeControlIndicator,
+                                    control: classes.inputModeControlItem,
+                                    label: classes.inputModeControlLabel,
+                                }}
+                                value={editMode}
+                                onChange={(value) =>
+                                    setEditMode(value as EditMode)
+                                }
+                                data={editModeOptions}
+                                size="xs"
                             />
-                        }
-                        renderOption={renderTypeOption}
-                        checkIconPosition="right"
-                    />
-                </Group>
-
-                <Box className={classes.calculationLayout}>
-                    <Stack gap="xs" className={classes.editorColumn}>
-                        <Group className={classes.inputModeHeader}>
-                            <Text fz="sm" fw={600}>
-                                Input mode
-                            </Text>
-                            {isNewCalculation && isFormulaSupported && (
-                                <SegmentedControl
-                                    classNames={{
-                                        root: classes.inputModeControl,
-                                        indicator:
-                                            classes.inputModeControlIndicator,
-                                        control: classes.inputModeControlItem,
-                                        label: classes.inputModeControlLabel,
-                                    }}
-                                    value={editMode}
-                                    onChange={(value) =>
-                                        setEditMode(value as EditMode)
-                                    }
-                                    data={editModeOptions}
+                        )}
+                        {showConvertToFormulaButton && (
+                            <Tooltip
+                                label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
+                                withArrow
+                                multiline
+                                w={260}
+                                disabled={showConversionPreview}
+                            >
+                                <Button
+                                    variant="light"
+                                    color="indigo"
                                     size="xs"
-                                />
-                            )}
-                            {showConvertToFormulaButton && (
-                                <Tooltip
-                                    label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
-                                    withArrow
-                                    multiline
-                                    w={260}
-                                    disabled={showConversionPreview}
-                                >
-                                    <Button
-                                        variant="light"
-                                        color="indigo"
-                                        size="xs"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconWand}
-                                                size="sm"
-                                            />
-                                        }
-                                        onClick={handleConvertClick}
-                                        loading={isConvertingSql}
-                                        disabled={
-                                            !form.values.sql ||
-                                            form.values.sql.trim().length === 0
-                                        }
-                                        style={{
-                                            visibility: showConversionPreview
-                                                ? 'hidden'
-                                                : 'visible',
-                                        }}
-                                    >
-                                        Convert to formula
-                                    </Button>
-                                </Tooltip>
-                            )}
-                        </Group>
-
-                        <Box
-                            key={editMode}
-                            className={
-                                isExpanded
-                                    ? classes.editorContainerExpanded
-                                    : classes.editorContainer
-                            }
-                        >
-                            {editMode === EditMode.TEMPLATE &&
-                            tableCalculation &&
-                            isTemplateTableCalculation(tableCalculation) ? (
-                                <TemplateViewer
-                                    template={editedTemplate ?? template}
-                                    readOnly={false}
-                                    onTemplateChange={handleTemplateChange}
-                                />
-                            ) : editMode === EditMode.FORMULA ? (
-                                <FormulaForm
-                                    explore={explore}
-                                    metricQuery={metricQuery}
-                                    formula={form.values.formula}
-                                    initialFormula={
-                                        form.values.formula || undefined
-                                    }
-                                    onChange={(text) =>
-                                        form.setFieldValue('formula', text)
-                                    }
-                                    onAiApply={handleFormulaAiApply}
-                                    onValidationChange={setFormulaParseError}
-                                    isFullScreen={isExpanded}
-                                />
-                            ) : (
-                                <Box className={classes.sqlEditorBorder}>
-                                    <Suspense
-                                        fallback={
-                                            <Box
-                                                className={
-                                                    classes.loadingFallback
-                                                }
-                                            >
-                                                <Loader size="sm" />
-                                                <Text c="dimmed" size="sm">
-                                                    Loading SQL editor...
-                                                </Text>
-                                            </Box>
-                                        }
-                                    >
-                                        <SqlForm
-                                            form={form}
-                                            isFullScreen={isExpanded}
-                                            focusOnRender={true}
-                                            onCmdEnter={handleConfirm}
-                                            onAiApplied={handleSqlAiApplied}
-                                            conversionState={
-                                                showConversionPreview
-                                                    ? {
-                                                          isLoading:
-                                                              isConvertingSql,
-                                                          error: conversionError,
-                                                          result: conversionResult,
-                                                          onApply:
-                                                              handleConvertApply,
-                                                          onDiscard:
-                                                              handleConvertDiscard,
-                                                          onRetry:
-                                                              handleConvertRetry,
-                                                      }
-                                                    : undefined
-                                            }
-                                        />
-                                    </Suspense>
-                                </Box>
-                            )}
-                        </Box>
-                    </Stack>
-
-                    <Paper withBorder className={classes.formatPanel}>
-                        <Stack gap="md" h="100%">
-                            <Group justify="space-between" align="flex-start">
-                                <Group gap="xs" wrap="nowrap" flex={1}>
-                                    <Box className={classes.formatPanelIcon}>
+                                    leftSection={
                                         <MantineIcon
-                                            icon={IconPalette}
+                                            icon={IconWand}
                                             size="sm"
                                         />
-                                    </Box>
-                                    <Box flex={1} className={classes.minWidth0}>
-                                        <Text size="sm" fw={600}>
-                                            Result format
-                                        </Text>
-                                        <Text size="xs" c="dimmed" truncate>
-                                            {formatSummary}
-                                        </Text>
-                                    </Box>
-                                </Group>
-                                {hasCustomFormat && (
-                                    <Badge
-                                        size="sm"
-                                        radius="sm"
-                                        color="blue"
-                                        variant="light"
-                                        className={classes.formatStatusBadge}
-                                    >
-                                        Custom
-                                    </Badge>
-                                )}
-                            </Group>
+                                    }
+                                    onClick={handleConvertClick}
+                                    loading={isConvertingSql}
+                                    disabled={
+                                        !form.values.sql ||
+                                        form.values.sql.trim().length === 0
+                                    }
+                                    style={{
+                                        visibility: showConversionPreview
+                                            ? 'hidden'
+                                            : 'visible',
+                                    }}
+                                >
+                                    Convert to formula
+                                </Button>
+                            </Tooltip>
+                        )}
+                    </Group>
 
-                            <Box className={classes.formatPanelBody}>
-                                <FormatForm
-                                    compact
-                                    itemType={selectedTableCalculationType}
-                                    formatInputProps={getFormatInputProps}
-                                    setFormatFieldValue={setFormatFieldValue}
-                                    format={form.values.format}
-                                />
+                    <Box
+                        key={editMode}
+                        className={
+                            isExpanded
+                                ? classes.editorContainerExpanded
+                                : classes.editorContainer
+                        }
+                    >
+                        {editMode === EditMode.TEMPLATE &&
+                        tableCalculation &&
+                        isTemplateTableCalculation(tableCalculation) ? (
+                            <TemplateViewer
+                                template={editedTemplate ?? template}
+                                readOnly={false}
+                                onTemplateChange={handleTemplateChange}
+                            />
+                        ) : editMode === EditMode.FORMULA ? (
+                            <FormulaForm
+                                explore={explore}
+                                metricQuery={metricQuery}
+                                formula={form.values.formula}
+                                initialFormula={
+                                    form.values.formula || undefined
+                                }
+                                onChange={(text) =>
+                                    form.setFieldValue('formula', text)
+                                }
+                                onAiApply={handleFormulaAiApply}
+                                onValidationChange={setFormulaParseError}
+                                isFullScreen={isExpanded}
+                            />
+                        ) : (
+                            <Box className={classes.sqlEditorBorder}>
+                                <Suspense
+                                    fallback={
+                                        <Box
+                                            className={classes.loadingFallback}
+                                        >
+                                            <Loader size="sm" />
+                                            <Text c="dimmed" size="sm">
+                                                Loading SQL editor...
+                                            </Text>
+                                        </Box>
+                                    }
+                                >
+                                    <SqlForm
+                                        form={form}
+                                        isFullScreen={isExpanded}
+                                        focusOnRender={true}
+                                        onCmdEnter={handleConfirm}
+                                        onAiApplied={handleSqlAiApplied}
+                                        conversionState={
+                                            showConversionPreview
+                                                ? {
+                                                      isLoading:
+                                                          isConvertingSql,
+                                                      error: conversionError,
+                                                      result: conversionResult,
+                                                      onApply:
+                                                          handleConvertApply,
+                                                      onDiscard:
+                                                          handleConvertDiscard,
+                                                      onRetry:
+                                                          handleConvertRetry,
+                                                  }
+                                                : undefined
+                                        }
+                                    />
+                                </Suspense>
                             </Box>
-                        </Stack>
-                    </Paper>
-                </Box>
+                        )}
+                    </Box>
+                </Stack>
+
+                <FormatRow
+                    format={form.values.format}
+                    formatInputProps={getFormatInputProps}
+                    setFormatFieldValue={setFormatFieldValue}
+                    dataType={selectedTableCalculationType}
+                    onDataTypeChange={handleDataTypeChange}
+                />
+
+                <TextInput
+                    label="Name"
+                    required
+                    placeholder="E.g. Cumulative order count"
+                    data-testid="table-calculation-name-input"
+                    {...form.getInputProps('name')}
+                />
             </Stack>
         </MantineModal>
     );
