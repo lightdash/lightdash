@@ -470,6 +470,12 @@ describe('derivePivotConfigurationFromChart', () => {
                     aggregation: VizAggregationOptions.ANY,
                 },
             ]);
+            expect(result?.indexColumn).toEqual([
+                {
+                    reference: 'payments_payment_method',
+                    type: VizIndexType.CATEGORY,
+                },
+            ]);
         });
 
         it('handles mixed metrics and table calculations in Table charts', () => {
