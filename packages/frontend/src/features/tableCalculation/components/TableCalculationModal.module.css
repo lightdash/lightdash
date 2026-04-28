@@ -73,15 +73,6 @@
     height: 100%;
 }
 
-.inputModeBadge {
-    height: 16px;
-    padding-inline: 5px;
-    font-size: 10px;
-    letter-spacing: 0;
-    line-height: 16px;
-    text-transform: none;
-}
-
 .sqlEditorBorder {
     border: 1px solid var(--mantine-color-ldGray-3);
     border-radius: var(--mantine-radius-md);
