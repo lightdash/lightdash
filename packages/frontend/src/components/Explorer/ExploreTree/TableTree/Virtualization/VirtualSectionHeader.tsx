@@ -47,14 +47,6 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const isWriteBackCustomBinDimensionsEnabled =
         writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
-    // Filter custom dimensions based on feature flag
-    const customDimensionsToWriteBack = useMemo(() => {
-        if (!allCustomDimensions) return [];
-        return isWriteBackCustomBinDimensionsEnabled
-            ? allCustomDimensions
-            : allCustomDimensions.filter(isCustomSqlDimension);
-    }, [allCustomDimensions, isWriteBackCustomBinDimensionsEnabled]);
-
     const canManageCustomFields = user.data?.ability?.can(
         'manage',
         subject('CustomFields', {
@@ -62,6 +54,20 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
             projectUuid,
         }),
     );
+
+    const customDimensionsToWriteBack = useMemo(() => {
+        if (!allCustomDimensions) return [];
+        const baseList = isWriteBackCustomBinDimensionsEnabled
+            ? allCustomDimensions
+            : allCustomDimensions.filter(isCustomSqlDimension);
+        return canManageCustomFields
+            ? baseList
+            : baseList.filter((dim) => !isCustomSqlDimension(dim));
+    }, [
+        allCustomDimensions,
+        isWriteBackCustomBinDimensionsEnabled,
+        canManageCustomFields,
+    ]);
 
     const handleAddCustomDimension = useCallback(() => {
         dispatch(

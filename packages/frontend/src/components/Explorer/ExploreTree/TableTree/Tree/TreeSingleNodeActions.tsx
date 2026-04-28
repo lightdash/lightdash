@@ -318,41 +318,49 @@ const TreeSingleNodeActions: FC<Props> = ({
                                 Duplicate custom dimension
                             </Menu.Item>
                         )}
-                        {(isCustomSqlDimension(item) ||
-                            isWriteBackCustomBinDimensionsEnabled) && (
-                            <Menu.Item
-                                component="button"
-                                leftSection={<MantineIcon icon={IconCode} />}
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    e.stopPropagation();
-                                    if (
-                                        projectUuid &&
-                                        user.data?.organizationUuid
-                                    ) {
-                                        track({
-                                            name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
-                                            properties: {
-                                                userId: user.data.userUuid,
-                                                projectId: projectUuid,
-                                                organizationId:
-                                                    user.data.organizationUuid,
-                                                customDimensionsCount: 1,
-                                            },
-                                        });
+                        {!(
+                            isCustomSqlDimension(item) && cannotAuthorCustomSql
+                        ) &&
+                            (isCustomSqlDimension(item) ||
+                                isWriteBackCustomBinDimensionsEnabled) && (
+                                <Menu.Item
+                                    component="button"
+                                    leftSection={
+                                        <MantineIcon icon={IconCode} />
                                     }
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.stopPropagation();
+                                        if (
+                                            projectUuid &&
+                                            user.data?.organizationUuid
+                                        ) {
+                                            track({
+                                                name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
+                                                properties: {
+                                                    userId: user.data.userUuid,
+                                                    projectId: projectUuid,
+                                                    organizationId:
+                                                        user.data
+                                                            .organizationUuid,
+                                                    customDimensionsCount: 1,
+                                                },
+                                            });
+                                        }
 
-                                    dispatch(
-                                        explorerActions.toggleWriteBackModal({
-                                            items: [item],
-                                        }),
-                                    );
-                                }}
-                            >
-                                Write back to dbt
-                            </Menu.Item>
-                        )}
+                                        dispatch(
+                                            explorerActions.toggleWriteBackModal(
+                                                {
+                                                    items: [item],
+                                                },
+                                            ),
+                                        );
+                                    }}
+                                >
+                                    Write back to dbt
+                                </Menu.Item>
+                            )}
 
                         <Menu.Item
                             color="red"
