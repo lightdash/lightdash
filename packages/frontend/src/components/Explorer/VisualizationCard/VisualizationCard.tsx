@@ -295,7 +295,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-                savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
+                savedChartUuid={savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}

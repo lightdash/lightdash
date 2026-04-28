@@ -526,6 +526,7 @@ const VisualizationProvider: FC<
                     invalidateCache={invalidateCache}
                     parameters={parameters}
                     dateZoom={dateZoom}
+                    isEditMode={isEditMode}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

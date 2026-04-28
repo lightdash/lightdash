@@ -157,6 +157,7 @@ export type VisualizationTableConfigProps =
         invalidateCache: boolean | undefined;
         parameters?: ParametersValuesMap;
         dateZoom?: DateZoom;
+        isEditMode?: boolean;
     };
 
 // Treemap
