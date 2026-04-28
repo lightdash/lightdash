@@ -14,7 +14,7 @@ import {
     PersonalAccessTokenTableName,
 } from '../../database/entities/personalAccessTokens';
 import { hash } from '../../utils/hash';
-import { PatSessionCache } from '../PatSessionCache';
+import { PatSessionCache } from '../ObjectCache/PatSessionCache';
 
 export class PersonalAccessTokenModel {
     private readonly database: Knex;
