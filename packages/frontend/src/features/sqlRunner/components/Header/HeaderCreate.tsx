@@ -232,6 +232,9 @@ export const HeaderCreate: FC = () => {
         (ctaAction === 'createVirtualView' && !canCreateVirtualView) ||
         (ctaAction === 'writeBackToDbt' && !canWriteBackToDbt);
 
+    const hasAnyAction =
+        canSaveChart || canCreateVirtualView || canWriteBackToDbt;
+
     return (
         <>
             <Paper
@@ -274,7 +277,7 @@ export const HeaderCreate: FC = () => {
                             </Button>
                             <Menu
                                 withinPortal
-                                disabled={!loadedColumns}
+                                disabled={!loadedColumns || !hasAnyAction}
                                 position="bottom-end"
                                 withArrow
                                 shadow="md"
@@ -285,7 +288,9 @@ export const HeaderCreate: FC = () => {
                                     <Button
                                         size="xs"
                                         p={4}
-                                        disabled={!loadedColumns}
+                                        disabled={
+                                            !loadedColumns || !hasAnyAction
+                                        }
                                         variant="default"
                                     >
                                         <MantineIcon
@@ -321,7 +326,9 @@ export const HeaderCreate: FC = () => {
                                                         fz="xs"
                                                         fw={600}
                                                         c={
-                                                            ctaAction === 'save'
+                                                            ctaAction ===
+                                                                'save' &&
+                                                            canSaveChart
                                                                 ? 'blue'
                                                                 : undefined
                                                         }
@@ -370,7 +377,8 @@ export const HeaderCreate: FC = () => {
                                                         fz="xs"
                                                         c={
                                                             ctaAction ===
-                                                            'createVirtualView'
+                                                                'createVirtualView' &&
+                                                            canCreateVirtualView
                                                                 ? 'blue'
                                                                 : undefined
                                                         }
@@ -434,7 +442,8 @@ export const HeaderCreate: FC = () => {
                                                         fz="xs"
                                                         c={
                                                             ctaAction ===
-                                                            'writeBackToDbt'
+                                                                'writeBackToDbt' &&
+                                                            canWriteBackToDbt
                                                                 ? 'blue'
                                                                 : undefined
                                                         }
