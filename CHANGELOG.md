@@ -1,3 +1,10 @@
+# [0.2829.0](https://github.com/lightdash/lightdash/compare/0.2828.1...0.2829.0) (2026-04-28)
+
+
+### Features
+
+* **data-apps:** improve visual quality of generated apps ([#22470](https://github.com/lightdash/lightdash/issues/22470)) ([da08caf](https://github.com/lightdash/lightdash/commit/da08cafd5141b714219cbd11be10269aa5dc9722))
+
 ## [0.2828.1](https://github.com/lightdash/lightdash/compare/0.2828.0...0.2828.1) (2026-04-28)
 
 
