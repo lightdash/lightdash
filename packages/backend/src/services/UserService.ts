@@ -1522,7 +1522,7 @@ export class UserService extends BaseService {
             emitDenied('Personal access token not recognized');
             throw new AuthorizationError();
         }
-        const { user, personalAccessToken, cacheHit } = results;
+        const { user, personalAccessToken, cacheHit, tokenHash } = results;
         if (!user.isActive) {
             emitDenied('Account is deactivated', user);
             throw new DeactivatedAccountError();
@@ -1555,6 +1555,7 @@ export class UserService extends BaseService {
             personalAccessToken.expiresAt &&
             personalAccessToken.expiresAt <= now
         ) {
+            UserModel.invalidatePatSessionCacheForTokenHash(tokenHash);
             if (personalAccessToken.uuid) {
                 await this.personalAccessTokenModel.delete(
                     personalAccessToken.uuid,
