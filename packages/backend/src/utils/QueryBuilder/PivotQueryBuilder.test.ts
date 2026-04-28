@@ -4127,6 +4127,131 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
         });
 
+        test('Metric sort orders rows by the value at the leftmost (anchor) pivot column, not aggregated across all columns (#19509)', () => {
+            // https://github.com/lightdash/lightdash/issues/19509 / GLITCH-145
+            // Repro: pivoted table with multiple value columns. Users expect
+            // rows ordered by the leftmost column's value (just like before
+            // the SQL pivot rewrite). The bug ordered rows by the row-MAX
+            // across all pivot columns, scrambling the apparent ranking.
+            // Expectation: row_anchor SQL guards the metric value with a
+            // CASE WHEN that picks ONLY the anchor column's value, joined via
+            // CROSS JOIN anchor_column. There is no MAX/MIN/SUM(metric) form
+            // that aggregates across pivot columns.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Anchor column CTE is what selects the leftmost pivot column.
+            expect(result).toContain('anchor_column AS (');
+            expect(result).toContain('CROSS JOIN anchor_column ac');
+
+            // row_anchor's metric value comes from a CASE WHEN guarded on
+            // anchor_category equality — i.e., from the leftmost column only.
+            expect(replaceWhitespace(result)).toContain(
+                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
+            );
+
+            // Negative: the bugged behavior would aggregate the metric across
+            // every pivot column. The collapsed SQL must not contain bare
+            // forms like `MAX(q."revenue_sum")` or `SUM(q."revenue_sum")` —
+            // every reference to q."revenue_sum" must be inside a CASE WHEN
+            // guarded on the anchor column.
+            const collapsed = replaceWhitespace(result);
+            const bareAggregates = [
+                'MAX(q."revenue_sum")',
+                'MIN(q."revenue_sum")',
+                'SUM(q."revenue_sum")',
+                'AVG(q."revenue_sum")',
+            ];
+            bareAggregates.forEach((expr) => {
+                expect(collapsed).not.toContain(expr);
+            });
+        });
+
+        test('Multiple value columns with metric sort produce frame clauses on every column anchor FIRST_VALUE (#18064)', () => {
+            // https://github.com/lightdash/lightdash/issues/18064 / GLITCH-90
+            // Repro: USE_SQL_PIVOT_RESULTS + sort by a value column on
+            // Redshift. Window functions with ORDER BY require explicit frame
+            // clauses; missing frames produced "Aggregate window functions
+            // with an ORDER BY clause require a frame clause".
+            // Expectation: with a multi-key sort across multiple value
+            // columns, EVERY FIRST_VALUE in the pivot SQL has an explicit
+            // ROWS BETWEEN frame clause — not just the first one.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'orders',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                    { reference: 'orders', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Both sort metrics produce a column_anchor CTE.
+            expect(result).toContain('"revenue_column_anchor" AS (');
+            expect(result).toContain('"orders_column_anchor" AS (');
+
+            // Count is the assertion: every FIRST_VALUE must be paired with a
+            // ROWS BETWEEN frame clause. A regression that leaves frames off
+            // a second/third FIRST_VALUE would make this fail on Redshift.
+            const firstValueMatches = result.match(/FIRST_VALUE/g);
+            const rowsBetweenMatches = result.match(
+                /ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING/g,
+            );
+            const firstValueCount = firstValueMatches
+                ? firstValueMatches.length
+                : 0;
+            const rowsBetweenCount = rowsBetweenMatches
+                ? rowsBetweenMatches.length
+                : 0;
+            expect(firstValueCount).toBeGreaterThanOrEqual(2);
+            expect(rowsBetweenCount).toBe(firstValueCount);
+
+            // Spot check: each metric's column anchor SQL contains the full
+            // FIRST_VALUE + frame syntax.
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("orders_count") OVER (PARTITION BY "category" ORDER BY "orders_count" ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+        });
+
         test('Multi-groupBy with no sort produces a deterministic column ordering across all groupBy fields (#9767, #11038)', () => {
             // https://github.com/lightdash/lightdash/issues/9767
             // https://github.com/lightdash/lightdash/issues/11038

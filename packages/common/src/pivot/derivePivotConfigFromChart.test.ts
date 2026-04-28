@@ -1250,5 +1250,112 @@ describe('derivePivotConfigurationFromChart', () => {
                 },
             ]);
         });
+
+        it('puts a sort-only table calculation in sortOnlyColumns and never in valuesColumns for cartesian charts (#21965)', () => {
+            // https://github.com/lightdash/lightdash/issues/21965 / PROD-6952
+            // Repro from the issue: cartesian chart with x=date Day, y=metric,
+            // group=date Year, plus a TC `y_day` used ONLY for sort. The
+            // PROD-6906 fix introduced a regression where the sort-only TC
+            // got pushed into valuesColumns, so the chart rendered the TC as
+            // an extra series group with its own pivot subseries.
+            // Expectation: the sort-only TC lives in sortOnlyColumns so the
+            // pivot SQL can build anchor CTEs for it, but valuesColumns
+            // contains exactly the y-axis metric — no extra series.
+            const sortOnlyTc: TableCalculation = {
+                name: 'y_day',
+                displayName: 'Day of year',
+                type: TableCalculationType.NUMBER,
+                sql: 'EXTRACT(DOY FROM ${orders.order_date_day})',
+            };
+
+            const itemsForRepro: ItemsMap = {
+                ...mockItems,
+                orders_unique_order_count: {
+                    sql: 'COUNT(DISTINCT ${TABLE}.order_id)',
+                    name: 'unique_order_count',
+                    type: MetricType.COUNT_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Unique order count',
+                    hidden: false,
+                    index: 0,
+                    filters: [],
+                    groups: [],
+                },
+            };
+
+            const cartesianChartConfig: CartesianChartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        // x-axis: a non-pivot dim. The y-axis carries ONLY the
+                        // metric — the TC is not on the chart.
+                        xField: 'payments_payment_method',
+                        yField: ['orders_unique_order_count'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: cartesianChartConfig,
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                metrics: ['orders_unique_order_count'],
+                tableCalculations: [sortOnlyTc],
+                // The TC drives sort order but is not visualized.
+                sorts: [{ fieldId: 'y_day', descending: false }],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsForRepro,
+            );
+
+            expect(result).toBeDefined();
+
+            // valuesColumns must contain exactly the y-axis metric. Anything
+            // else (the TC creeping back in, an additional metric, etc.)
+            // would make the rendered chart double its series count.
+            expect(result?.valuesColumns).toHaveLength(1);
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'orders_unique_order_count',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+
+            // The TC is preserved as a sort-only column so PivotQueryBuilder
+            // can still emit anchor CTEs that order rows by it.
+            expect(result?.sortOnlyColumns).toEqual([
+                {
+                    reference: 'y_day',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+
+            // sortBy still references the TC — the chart-render layer relies
+            // on the value columns / sortOnlyColumns split, not on dropping
+            // the sort entry.
+            expect(result?.sortBy).toEqual([
+                { reference: 'y_day', direction: SortByDirection.ASC },
+            ]);
+
+            // Hard guarantee: y_day must not appear as an index column
+            // either. If it did, the chart would render it on the x-axis or
+            // along a series dimension.
+            const indexRefs = Array.isArray(result?.indexColumn)
+                ? result!.indexColumn.map((c) => c.reference)
+                : [result?.indexColumn?.reference];
+            expect(indexRefs).not.toContain('y_day');
+        });
     });
 });
