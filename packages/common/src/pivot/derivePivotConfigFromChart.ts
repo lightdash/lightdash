@@ -164,37 +164,6 @@ const getIndexColumn = (
         .filter((col): col is NonNullable<typeof col> => col !== undefined);
 };
 
-const isMetricOrTableCalculation = (
-    fieldId: string,
-    metricQuery: MetricQuery,
-) =>
-    metricQuery.metrics.includes(fieldId) ||
-    (metricQuery.tableCalculations || []).some((tc) => tc.name === fieldId);
-
-const getSortOnlyColumns = (
-    metricQuery: MetricQuery,
-    displayedValuesColumns: PivotConfiguration['valuesColumns'],
-    groupByColumns: PivotConfiguration['groupByColumns'],
-    indexColumn: PivotConfiguration['indexColumn'],
-): NonNullable<PivotConfiguration['sortOnlyColumns']> => {
-    const roleFieldIds = new Set([
-        ...displayedValuesColumns.map((column) => column.reference),
-        ...(groupByColumns ?? []).map((column) => column.reference),
-        ...normalizeIndexColumns(indexColumn).map((column) => column.reference),
-    ]);
-
-    return metricQuery.sorts
-        .filter(
-            (sort) =>
-                !roleFieldIds.has(sort.fieldId) &&
-                isMetricOrTableCalculation(sort.fieldId, metricQuery),
-        )
-        .map((sort) => ({
-            reference: sort.fieldId,
-            aggregation: VizAggregationOptions.ANY,
-        }));
-};
-
 function getTablePivotConfiguration(
     savedChart: Pick<SavedChartDAO, 'chartConfig' | 'pivotConfig'>,
     metricQuery: MetricQuery,
@@ -316,15 +285,28 @@ function getCartesianPivotConfiguration(
             xField,
         );
 
-        // Include metrics/table calculations that are used in sorts but not
-        // displayed in the chart or otherwise represented by the pivot roles.
-        // Without these, PivotQueryBuilder can't generate anchor CTEs for sort keys
-        // that are not part of the chart output.
-        const sortOnlyColumns = getSortOnlyColumns(
-            metricQuery,
-            valuesColumns,
-            groupByColumns,
-            indexColumn,
+        // Metrics/table calculations used in sorts but not displayed in the
+        // chart still need anchor CTEs in PivotQueryBuilder, so list them as
+        // sort-only columns. xField TCs/metrics are already represented by
+        // indexColumn; groupBy fields are dimensions, so the metric/TC check
+        // below excludes them.
+        const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
+        const sortOnlyColumns: NonNullable<
+            PivotConfiguration['sortOnlyColumns']
+        > = metricQuery.sorts.flatMap((sort) =>
+            sort.fieldId !== xField &&
+            !valuesRefs.has(sort.fieldId) &&
+            (metricQuery.metrics.includes(sort.fieldId) ||
+                (metricQuery.tableCalculations || []).some(
+                    (tc) => tc.name === sort.fieldId,
+                ))
+                ? [
+                      {
+                          reference: sort.fieldId,
+                          aggregation: VizAggregationOptions.ANY,
+                      },
+                  ]
+                : [],
         );
 
         const partialPivotConfiguration: Omit<PivotConfiguration, 'sortBy'> = {
