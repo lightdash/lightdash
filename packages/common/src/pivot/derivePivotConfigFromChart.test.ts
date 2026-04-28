@@ -1239,16 +1239,21 @@ describe('derivePivotConfigurationFromChart', () => {
             ]);
         });
 
-        it('puts a sort-only table calculation in sortOnlyColumns and never in valuesColumns for cartesian charts (#21965)', () => {
-            // https://github.com/lightdash/lightdash/issues/21965 / PROD-6952
-            // Repro from the issue: cartesian chart with x=date Day, y=metric,
-            // group=date Year, plus a TC `y_day` used ONLY for sort. The
-            // PROD-6906 fix introduced a regression where the sort-only TC
-            // got pushed into valuesColumns, so the chart rendered the TC as
-            // an extra series group with its own pivot subseries.
-            // Expectation: the sort-only TC lives in sortOnlyColumns so the
-            // pivot SQL can build anchor CTEs for it, but valuesColumns
-            // contains exactly the y-axis metric — no extra series.
+        it('a sort-only table calculation that is not the xField stays out of indexColumn and valuesColumns', () => {
+            // Locks the invariant that a TC referenced ONLY by a sort entry
+            // (not on any chart axis) is routed exclusively to
+            // sortOnlyColumns. The two pathways that could re-break this:
+            //
+            // 1. getIndexColumn re-introducing a `sortFieldIds.has(tc.name)`
+            //    branch — that would make the TC enter indexColumn alongside
+            //    its sortOnlyColumns entry, so the chart grows a phantom
+            //    series for the sort field.
+            // 2. The sortOnlyColumns filter dropping the indexColumn-aware
+            //    exclusion — that would let an xField TC double up as both
+            //    indexColumn and sortOnlyColumns when sorted by itself.
+            //
+            // The fixture: cartesian chart, x = a non-pivot dim, y = a
+            // metric, plus a TC `y_day` used only for sort.
             const sortOnlyTc: TableCalculation = {
                 name: 'y_day',
                 displayName: 'Day of year',
