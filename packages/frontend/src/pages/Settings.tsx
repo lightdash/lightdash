@@ -3,6 +3,7 @@ import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import { Box, ScrollArea, Stack, Text, Title } from '@mantine-8/core';
 import {
     IconAppWindow,
+    IconApps,
     IconBolt,
     IconBrain,
     IconBrowser,
@@ -779,7 +780,7 @@ const Settings: FC = () => {
                                         exact
                                         to="/generalSettings/oauthClients"
                                         leftSection={
-                                            <MantineIcon icon={IconPlug} />
+                                            <MantineIcon icon={IconApps} />
                                         }
                                     />
                                 )}
