@@ -1,3 +1,15 @@
+# [0.2830.0](https://github.com/lightdash/lightdash/compare/0.2829.0...0.2830.0) (2026-04-28)
+
+
+### Bug Fixes
+
+* **pivot:** respect explicit sortBy order over groupByColumns declaration ([#22454](https://github.com/lightdash/lightdash/issues/22454)) ([910bd79](https://github.com/lightdash/lightdash/commit/910bd79e8741fc9b4a34d4753f39cab158cd782f))
+
+
+### Features
+
+* app builder UI polish updates ([#22462](https://github.com/lightdash/lightdash/issues/22462)) ([6612088](https://github.com/lightdash/lightdash/commit/66120887087243017d51d3ef3c3a302a2cb3e158))
+
 # [0.2829.0](https://github.com/lightdash/lightdash/compare/0.2828.1...0.2829.0) (2026-04-28)
 
 
