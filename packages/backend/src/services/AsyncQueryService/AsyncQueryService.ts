@@ -3578,9 +3578,17 @@ export class AsyncQueryService extends ProjectService {
                     { projectUuid },
                 );
                 savedMetricQuery = savedChart.metricQuery;
-            } catch {
-                // If the saved chart can't be loaded, treat the incoming
-                // query as fresh authoring — the gate below decides.
+            } catch (e) {
+                this.logger.warn(
+                    'Failed to load saved chart for SQL-authored fields exemption; falling back to strict gate',
+                    {
+                        savedChartUuid,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName,
+                        error: getErrorMessage(e),
+                    },
+                );
             }
         }
 
