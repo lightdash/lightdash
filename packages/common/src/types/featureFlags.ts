@@ -84,13 +84,6 @@ export enum FeatureFlags {
     ChangeChartExplore = 'change-chart-explore',
 
     /**
-     * Enable performance optimizations for charts with many series/data points.
-     * Switches to canvas renderer, hides overlapping labels, and enables
-     * data sampling for line charts when datasets are large.
-     */
-    LargeChartPerformance = 'large-chart-performance',
-
-    /**
      * Enable show/hide N rows from start/end of chart data
      */
     ShowHideRows = 'show-hide-rows',
