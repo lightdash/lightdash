@@ -31,6 +31,7 @@ import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
+import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import {
     APP_VERSION_STAGE_ORDER,
@@ -280,11 +281,9 @@ export class AppGenerateService extends BaseService {
             forcePathStyle: s3Config.forcePathStyle ?? false,
         };
 
-        if (s3Config.accessKey && s3Config.secretKey) {
-            config.credentials = {
-                accessKeyId: s3Config.accessKey,
-                secretAccessKey: s3Config.secretKey,
-            };
+        const credentials = resolveS3Credentials(s3Config);
+        if (credentials) {
+            config.credentials = credentials;
         }
 
         return {
