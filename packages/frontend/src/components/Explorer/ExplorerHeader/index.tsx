@@ -20,7 +20,7 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExp
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
@@ -130,9 +130,10 @@ const ExplorerHeader: FC = memo(() => {
         };
     }, [getHasDashboardChanges]);
 
-    const userTimeZonesEnabled = useClientFeatureFlag(
+    const { data: enableUserTimezonesFlag } = useServerFeatureFlag(
         FeatureFlags.EnableUserTimezones,
     );
+    const userTimeZonesEnabled = enableUserTimezonesFlag?.enabled ?? false;
 
     const { data: project } = useProject(projectUuid);
     const timezonePlaceholder = useMemo(() => {
