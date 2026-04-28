@@ -111,6 +111,35 @@ export class OrganizationMemberProfileModel {
         };
     }
 
+    async findOldestAdminUserUuid(
+        organizationUuid: string,
+    ): Promise<string | undefined> {
+        const row = await this.database(OrganizationMembershipsTableName)
+            .innerJoin(
+                UserTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationMembershipsTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .where(
+                `${OrganizationMembershipsTableName}.role`,
+                OrganizationMemberRole.ADMIN,
+            )
+            .orderBy(`${UserTableName}.created_at`, 'asc')
+            .orderBy(`${UserTableName}.user_uuid`, 'asc')
+            .select<{ user_uuid: string }[]>(`${UserTableName}.user_uuid`)
+            .first();
+        return row?.user_uuid;
+    }
+
     async getOrganizationMembers({
         organizationUuid,
         paginateArgs,
