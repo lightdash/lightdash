@@ -1110,4 +1110,145 @@ describe('derivePivotConfigurationFromChart', () => {
             ]);
         });
     });
+
+    describe('Regressions for resolved pivot bugs', () => {
+        it('preserves metricQuery.metrics order in valuesColumns for table charts with metricsAsRows + multiple dimensions (#19838)', () => {
+            // https://github.com/lightdash/lightdash/issues/19838
+            // Repro: select metrics in a specific order (Profit → Revenue → Sales),
+            // pivot a table chart by a date dimension, enable "metrics as rows".
+            // Bug: the metric rows came out in a different order from the user's
+            // selection — there was no UI affordance to fix it.
+            // Expectation: valuesColumns reflects metricQuery.metrics order
+            // verbatim, not alphabetical or some other implicit ordering.
+            const itemsWithThreeMetrics: ItemsMap = {
+                orders_order_date_day: {
+                    sql: '${TABLE}.order_date_day',
+                    name: 'order_date_day',
+                    type: DimensionType.DATE,
+                    index: 1,
+                    label: 'Order date day',
+                    table: 'orders',
+                    groups: [],
+                    hidden: false,
+                    fieldType: FieldType.DIMENSION,
+                    tableLabel: 'Orders',
+                },
+                orders_status: {
+                    sql: '${TABLE}.status',
+                    name: 'status',
+                    type: DimensionType.STRING,
+                    index: 2,
+                    label: 'Status',
+                    table: 'orders',
+                    groups: [],
+                    hidden: false,
+                    fieldType: FieldType.DIMENSION,
+                    tableLabel: 'Orders',
+                },
+                // Metric names are intentionally NOT in alphabetical order so a
+                // regression that re-sorts them (alphabetical, by label, by SUM
+                // before AVG, etc.) shows up clearly.
+                orders_zzz_profit: {
+                    sql: '${TABLE}.profit',
+                    name: 'zzz_profit',
+                    type: MetricType.SUM,
+                    index: 1,
+                    label: 'Profit',
+                    table: 'orders',
+                    groups: [],
+                    hidden: false,
+                    filters: [],
+                    fieldType: FieldType.METRIC,
+                    tableLabel: 'Orders',
+                },
+                orders_aaa_revenue: {
+                    sql: '${TABLE}.revenue',
+                    name: 'aaa_revenue',
+                    type: MetricType.SUM,
+                    index: 2,
+                    label: 'Revenue',
+                    table: 'orders',
+                    groups: [],
+                    hidden: false,
+                    filters: [],
+                    fieldType: FieldType.METRIC,
+                    tableLabel: 'Orders',
+                },
+                orders_mmm_sales_count: {
+                    sql: '${TABLE}.sales_count',
+                    name: 'mmm_sales_count',
+                    type: MetricType.COUNT,
+                    index: 3,
+                    label: 'Sales count',
+                    table: 'orders',
+                    groups: [],
+                    hidden: false,
+                    filters: [],
+                    fieldType: FieldType.METRIC,
+                    tableLabel: 'Orders',
+                },
+            };
+
+            const metricQuery: MetricQuery = {
+                exploreName: 'orders',
+                dimensions: ['orders_order_date_day', 'orders_status'],
+                // Selection order: Profit, Revenue, Sales count.
+                metrics: [
+                    'orders_zzz_profit',
+                    'orders_aaa_revenue',
+                    'orders_mmm_sales_count',
+                ],
+                filters: {},
+                sorts: [
+                    { fieldId: 'orders_order_date_day', descending: false },
+                ],
+                limit: 500,
+                tableCalculations: [],
+                additionalMetrics: [],
+                metricOverrides: {},
+            };
+
+            const tableChartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    metricsAsRows: true,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: tableChartConfig,
+                pivotConfig: { columns: ['orders_order_date_day'] },
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                metricQuery,
+                itemsWithThreeMetrics,
+            );
+
+            // metricsAsRows must round-trip onto the pivot configuration.
+            expect(result?.metricsAsRows).toBe(true);
+
+            // valuesColumns order is the contract: it must match the order in
+            // metricQuery.metrics. If a future change re-sorts metrics by
+            // label, by name, or by aggregation type, this test will fail.
+            expect(result?.valuesColumns).toEqual([
+                {
+                    reference: 'orders_zzz_profit',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+                {
+                    reference: 'orders_aaa_revenue',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+                {
+                    reference: 'orders_mmm_sales_count',
+                    aggregation: VizAggregationOptions.ANY,
+                },
+            ]);
+        });
+    });
 });

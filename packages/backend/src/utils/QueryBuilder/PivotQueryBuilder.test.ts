@@ -3836,4 +3836,154 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
         });
     });
+
+    describe('Regressions for resolved pivot sort bugs', () => {
+        // These tests lock the SQL shape that fixes a previously-shipped bug.
+        // Each one is anchored to a GitHub issue so a regression has a name.
+
+        test('Two groupBy columns with sort on the second groupBy column produces deterministic column ordering (#16871)', () => {
+            // https://github.com/lightdash/lightdash/issues/16871
+            // Repro: pivot on [payment_method, status], sort by status ASC.
+            // Bug: column headers came out in the wrong order with duplicate
+            // (payment_method, status) tuples appearing under one payment_method.
+            // Expectation: column_index iterates groupByColumns in declared order
+            // with the sort direction applied to the matched field, so each
+            // unique (payment_method, status) pair gets a single deterministic
+            // column_index.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'order_date_year', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'total_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'payment_method' },
+                    { reference: 'status' },
+                ],
+                sortBy: [
+                    { reference: 'status', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // column_index ORDER BY follows groupBy order with the sort direction
+            // applied to the matched field (status). The other groupBy field
+            // defaults to ASC, giving us a fully-determined column ordering.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."payment_method" ASC, g."status" ASC) AS "column_index"',
+            );
+
+            // group_by_query GROUPs on both groupBy fields → unique tuples.
+            expect(replaceWhitespace(result)).toContain(
+                'group by "payment_method", "status", "order_date_year"',
+            );
+
+            // No anchor CTEs: dimension sort path, not metric sort.
+            expect(result).not.toContain('column_ranking AS (');
+            expect(result).not.toContain('anchor_column AS (');
+        });
+
+        test('Sort direction on the groupBy field flows through to column_index even with multi-key sort (#17018)', () => {
+            // https://github.com/lightdash/lightdash/issues/17018
+            // Repro: dims=[month_name, month, year], pivot=year,
+            // sort=[year DESC, month ASC]. Results table was right but the
+            // chart series came out in alphabetical year order.
+            // Expectation: when the sort references the groupBy field, the
+            // column_index DENSE_RANK ORDER BY honors that direction so the
+            // chart series order matches the underlying sort.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'month_name', type: VizIndexType.CATEGORY },
+                    { reference: 'month', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    { reference: 'year', direction: SortByDirection.DESC },
+                    { reference: 'month', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Column ordering reflects the sort direction on the pivot field.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."year" DESC) AS "column_index"',
+            );
+
+            // Row ordering uses the index columns in sort order, with month_name
+            // (no explicit sort entry) defaulting to ASC at the end.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."month" ASC, g."month_name" ASC) AS "row_index"',
+            );
+        });
+
+        test('Multi-groupBy with no sort produces a deterministic column ordering across all groupBy fields (#9767, #11038)', () => {
+            // https://github.com/lightdash/lightdash/issues/9767
+            // https://github.com/lightdash/lightdash/issues/11038
+            // Repro: same query + same data → different column order across
+            // re-renders, leading to inconsistent chart series colors.
+            // Expectation: the column_index DENSE_RANK ORDER BY chains every
+            // groupBy field as a deterministic tiebreaker — no warehouse-row-
+            // order leakage and no alphabetical-only fallback that would tie.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'order_date_week', type: VizIndexType.TIME },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'event_count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'type_of_event' },
+                    { reference: 'region' },
+                ],
+                sortBy: undefined,
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // All groupBy fields appear in the column_index ORDER BY in their
+            // declared order, each with explicit ASC. This is what makes the
+            // pivot column order stable across runs.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."type_of_event" ASC, g."region" ASC) AS "column_index"',
+            );
+
+            // Same invariant for row_index — index columns chain deterministically.
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."order_date_week" asc) as "row_index"',
+            );
+        });
+    });
 });
