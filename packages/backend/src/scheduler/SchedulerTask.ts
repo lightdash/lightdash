@@ -134,7 +134,6 @@ import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
-import { isFeatureFlagEnabled } from '../postHog';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -1734,16 +1733,11 @@ export default class SchedulerTask {
                     organizationUuid: payload.organizationUuid,
                 });
             }
-            const canReplaceCustomMetrics = await isFeatureFlagEnabled(
-                FeatureFlags.ReplaceCustomMetricsOnCompile,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid: user.organizationUuid,
-                },
-                {
-                    throwOnTimeout: false,
-                },
-            );
+            const { enabled: canReplaceCustomMetrics } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.ReplaceCustomMetricsOnCompile,
+                });
             if (canReplaceCustomMetrics) {
                 // Don't wait for replaceCustomFields response
                 void this.schedulerClient.replaceCustomFields({
