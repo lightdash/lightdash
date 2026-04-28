@@ -1,3 +1,10 @@
+# [0.2824.0](https://github.com/lightdash/lightdash/compare/0.2823.0...0.2824.0) (2026-04-28)
+
+
+### Features
+
+* **table-calc:** drop the Beta badge from the Formula input mode ([#22436](https://github.com/lightdash/lightdash/issues/22436)) ([d75c7bf](https://github.com/lightdash/lightdash/commit/d75c7bf47bb745644d248e86f7b1f27131fa6b4c))
+
 # [0.2823.0](https://github.com/lightdash/lightdash/compare/0.2822.1...0.2823.0) (2026-04-28)
 
 
