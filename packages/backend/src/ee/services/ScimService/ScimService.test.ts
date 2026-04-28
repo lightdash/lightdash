@@ -256,6 +256,84 @@ describe('ScimService', () => {
             });
         });
 
+        test('should adopt orphan user (verified email but no organization) instead of creating', async () => {
+            const orphanUser = {
+                ...mockUser,
+                userUuid: 'orphan-uuid',
+                email: 'orphan@example.com',
+                organizationUuid: undefined, // orphan: no org membership
+            } as unknown as LightdashUser;
+            const {
+                userModel,
+                organizationMemberProfileModel,
+                openIdIdentityModel,
+            } = ScimServiceArgumentsMock;
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                orphanUser,
+            );
+
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: 'orphan@example.com',
+                name: { givenName: 'Orphan', familyName: 'User' },
+                active: true,
+                emails: [{ value: 'orphan@example.com', primary: true }],
+            };
+
+            await service.createUser({
+                user: scimUser,
+                organizationUuid: 'org-uuid',
+            });
+
+            // Adoption: existing user joined to org, no new user created,
+            // openid_identity rows are NOT wiped.
+            expect(userModel.createUser).not.toHaveBeenCalled();
+            expect(
+                openIdIdentityModel.deleteIdentitiesByEmail,
+            ).not.toHaveBeenCalled();
+            expect(
+                organizationMemberProfileModel.createOrganizationMembershipByUuid,
+            ).toHaveBeenCalledWith({
+                organizationUuid: 'org-uuid',
+                userUuid: 'orphan-uuid',
+                role: OrganizationMemberRole.MEMBER,
+            });
+        });
+
+        test('should throw 409 (and NOT wipe openid) when user already belongs to an organization', async () => {
+            const userWithOrg = {
+                ...mockUser,
+                email: 'existing@example.com',
+                organizationUuid: 'some-org-uuid',
+            } as unknown as LightdashUser;
+            const { userModel, openIdIdentityModel } = ScimServiceArgumentsMock;
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                userWithOrg,
+            );
+
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: 'existing@example.com',
+                name: { givenName: 'Existing', familyName: 'User' },
+                active: true,
+                emails: [{ value: 'existing@example.com', primary: true }],
+            };
+
+            await expect(
+                service.createUser({
+                    user: scimUser,
+                    organizationUuid: 'org-uuid',
+                }),
+            ).rejects.toThrow(/already in use/);
+
+            // The bug: previously, openid was deleted before the throw.
+            // After the fix, no deletion occurs.
+            expect(
+                openIdIdentityModel.deleteIdentitiesByEmail,
+            ).not.toHaveBeenCalled();
+            expect(userModel.createUser).not.toHaveBeenCalled();
+        });
+
         test('should throw error when invalid role is provided in extension schema', async () => {
             // Create a SCIM user with an invalid role in the extension schema
             const scimUser = {

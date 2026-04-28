@@ -464,20 +464,46 @@ export class ScimService extends BaseService {
                 ScimService.validateRolesArray(user.roles, validRoleValues);
             }
             const email = ScimService.getScimUserEmail(user);
-            // Delete any existing openid identities for this email to prevent login conflicts
-            // This handles the case where a user's email changed via SCIM and an old
-            // openid identity record exists pointing to a deactivated account
-            await this.deleteOpenIdIdentitiesForUser({ email });
 
-            const dbUser = await this.userModel.createUser(
-                {
-                    email,
-                    firstName: user.name?.givenName || '',
-                    lastName: user.name?.familyName || '',
-                    password: user.password || '',
-                },
-                user.active,
-            );
+            // If a user already exists with this email, decide whether to adopt
+            // or reject. Orphan users (verified email but no organization
+            // membership, e.g. created by OIDC JIT when auto-join conditions
+            // failed) are adopted — mirrors UserService.createPendingUserAndInviteLink.
+            // Without this, the AlreadyExistsError thrown below would also leave
+            // openid_identity rows wiped (deleteOpenIdIdentitiesForUser is not
+            // transactional with userModel.createUser), breaking the user's SSO.
+            const existingUser = await this.userModel.findUserByEmail(email);
+            if (existingUser?.organizationUuid) {
+                throw new AlreadyExistsError(`Email ${email} already in use`);
+            }
+
+            let dbUser: LightdashUser;
+            if (existingUser) {
+                this.logger.info(
+                    'SCIM: Adopting orphan user (verified email, no org)',
+                    {
+                        organizationUuid,
+                        userUuid: existingUser.userUuid,
+                        email,
+                    },
+                );
+                dbUser = existingUser;
+            } else {
+                // Delete any existing openid identities for this email to prevent login conflicts
+                // This handles the case where a user's email changed via SCIM and an old
+                // openid identity record exists pointing to a deactivated account
+                await this.deleteOpenIdIdentitiesForUser({ email });
+
+                dbUser = await this.userModel.createUser(
+                    {
+                        email,
+                        firstName: user.name?.givenName || '',
+                        lastName: user.name?.familyName || '',
+                        password: user.password || '',
+                    },
+                    user.active,
+                );
+            }
             // Extract role from extension schema if available
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
             let role = OrganizationMemberRole.MEMBER; // Default role
