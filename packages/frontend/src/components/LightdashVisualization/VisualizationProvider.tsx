@@ -36,10 +36,7 @@ import {
 } from '../../hooks/useChartColorConfig/utils';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import Context from './context';
@@ -263,9 +260,11 @@ const VisualizationProvider: FC<
         [calculateKeyColorAssignment, itemsMap],
     );
 
-    const isCalculateSeriesColorEnabled = useClientFeatureFlag(
+    const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
     );
+    const isCalculateSeriesColorEnabled =
+        calculateSeriesColorFlag?.enabled ?? false;
 
     /**
      * Gets a shared color for a given series.
