@@ -56,11 +56,11 @@ import {
     UserTableName,
 } from '../database/entities/users';
 import { deprecatedHash, hash } from '../utils/hash';
-import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import {
     CachedPatSessionUser,
     PatSessionCache,
-} from './ObjectCache/PatSessionCache';
+} from './caches/PatSessionCache';
+import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
