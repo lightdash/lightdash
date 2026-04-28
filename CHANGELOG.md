@@ -1,3 +1,24 @@
+# [0.2828.0](https://github.com/lightdash/lightdash/compare/0.2827.0...0.2828.0) (2026-04-28)
+
+
+### Bug Fixes
+
+* add legacy env var compat for `ChangeChartExplore`, `ShowHideRows`, and `ShowHideColumns` flags ([#22439](https://github.com/lightdash/lightdash/issues/22439)) ([57f4966](https://github.com/lightdash/lightdash/commit/57f496694c571370b9bef8533c14035dc5136588))
+* hide pivot table "Drill into" for non-metric cells (PROD-7179) ([#22449](https://github.com/lightdash/lightdash/issues/22449)) ([2fb80a8](https://github.com/lightdash/lightdash/commit/2fb80a8ac1bf2604d7159b36256a846cbb7284ce))
+* metric tree canvas only shows first page of metrics ([#22443](https://github.com/lightdash/lightdash/issues/22443)) ([62e9bbd](https://github.com/lightdash/lightdash/commit/62e9bbd6d13886afb72a4c6b037a09873ed1bfc5)), closes [#150](https://github.com/lightdash/lightdash/issues/150) [#22370](https://github.com/lightdash/lightdash/issues/22370)
+* **scim:** pass missing account arg in ScimService.createUser tests ([#22460](https://github.com/lightdash/lightdash/issues/22460)) ([9c23614](https://github.com/lightdash/lightdash/commit/9c23614a4af5ad2ce3a72e40936748dcde5e304e))
+
+
+### Features
+
+* add `disabledFeatureFlags` kill-switch to `FeatureFlagModel` ([#22438](https://github.com/lightdash/lightdash/issues/22438)) ([0b7f560](https://github.com/lightdash/lightdash/commit/0b7f560dbf5ed961bfaca7dee8b8256bc7d29899))
+* remove `SavedMetricsTree` feature flag and deprecate legacy metrics tree endpoints ([#22434](https://github.com/lightdash/lightdash/issues/22434)) ([4d12650](https://github.com/lightdash/lightdash/commit/4d12650e258de807efa2e94e4607baf46c718dc8)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **scim:** emit audit events for SCIM group operations [SPK-371] ([#22416](https://github.com/lightdash/lightdash/issues/22416)) ([b2b3bfd](https://github.com/lightdash/lightdash/commit/b2b3bfd3e5b406ae3a699869935de13f7b0d4b59))
+* **scim:** emit audit events for SCIM user operations [SPK-371] ([#22415](https://github.com/lightdash/lightdash/issues/22415)) ([64e1138](https://github.com/lightdash/lightdash/commit/64e1138c90b3525dcf11493411136f166af7f033))
+* **scim:** wire SCIM into Account + CASL ability system [SPK-371] ([#22414](https://github.com/lightdash/lightdash/issues/22414)) ([802fe58](https://github.com/lightdash/lightdash/commit/802fe581ed48acc8a4be6d2bf6da78cdc6d60c6d))
+* **service-account:** make fallback admin selection deterministic ([#22444](https://github.com/lightdash/lightdash/issues/22444)) ([07f165e](https://github.com/lightdash/lightdash/commit/07f165e9224d5237e5293839ce52988e9a442ce2))
+* update data apps agent with filter skills ([#22457](https://github.com/lightdash/lightdash/issues/22457)) ([d10cc00](https://github.com/lightdash/lightdash/commit/d10cc00c1f03845ef166f765bbe34e3c019f2432))
+
 # [0.2827.0](https://github.com/lightdash/lightdash/compare/0.2826.0...0.2827.0) (2026-04-28)
 
 
