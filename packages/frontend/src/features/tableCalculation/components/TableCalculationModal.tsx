@@ -198,7 +198,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const validateName = useCallback(
         (label: string) => {
-            if (!label) return null;
+            if (!label || !label.trim()) return 'Name is required';
 
             if (tableCalculation && tableCalculation.displayName === label) {
                 return null;
@@ -228,6 +228,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const form = useForm<TableCalculationFormInputs>({
         initialValues,
+        validateInputOnBlur: true,
         validate: {
             name: validateName,
         },
@@ -346,13 +347,6 @@ const TableCalculationModal: FC<Props> = ({
         if (validation.hasErrors) return;
 
         const { name, sql, formula, format, type } = form.values;
-        if (name.length === 0) {
-            addToastError({
-                title: 'Name cannot be empty',
-                key: 'table-calculation-modal',
-            });
-            return;
-        }
         try {
             const isNewCalculation = !tableCalculation;
             const nameChanged =
@@ -534,20 +528,21 @@ const TableCalculationModal: FC<Props> = ({
                 </Button>
             }
             cancelLabel="Cancel"
+            bodyScrollAreaMaxHeight={
+                isExpanded ? 'calc(95vh - 140px)' : 'calc(78vh - 140px)'
+            }
             modalRootProps={{
                 closeOnClickOutside: false,
                 styles: isExpanded
                     ? {
                           content: {
                               minWidth: '90vw',
-                              height: '92vh',
-                              maxHeight: '95vh',
                           },
                       }
                     : undefined,
             }}
         >
-            <Stack gap="lg" mih={isExpanded ? undefined : 520}>
+            <Stack gap="xs">
                 <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
                         <Group gap={6} align="center">

@@ -7,7 +7,7 @@
 .editorContainerExpanded {
     display: flex;
     flex-direction: column;
-    height: calc(85vh - 400px);
+    height: calc(95vh - 480px);
     min-height: 280px;
 }
 
