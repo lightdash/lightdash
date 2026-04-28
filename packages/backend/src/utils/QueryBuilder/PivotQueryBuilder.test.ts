@@ -3940,6 +3940,193 @@ SELECT * FROM group_by_query LIMIT 50`);
             );
         });
 
+        test('CTE names are quoted when field references contain spaces (#20683)', () => {
+            // https://github.com/lightdash/lightdash/issues/20683
+            // Repro: a metric named "AVERAGE TAX RATE 2" combined with a
+            // pivot + metric sort. The pivot pipeline derives CTE names like
+            // "events_AVERAGE TAX RATE 2_column_anchor" from field references,
+            // and an unquoted CTE name in WITH or in LEFT JOIN broke with
+            // `syntax error at or near "TAX"`.
+            // Expectation: anchor CTE names AND every JOIN target are wrapped
+            // in the warehouse quote char so spaces are tolerated.
+            const fieldWithSpaces = 'events_AVG TAX RATE';
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: fieldWithSpaces,
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: fieldWithSpaces,
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // CTE definitions in the WITH clause must be quoted.
+            expect(result).toContain(`"${fieldWithSpaces}_column_anchor" AS (`);
+            expect(result).toContain(`"${fieldWithSpaces}_row_anchor" AS (`);
+
+            // Every reference of those CTEs (LEFT JOIN, qualified column
+            // accesses) must also be quoted — the original bug was unquoted
+            // names appearing in JOIN clauses, not just CTE definitions.
+            expect(result).toContain(
+                `LEFT JOIN "${fieldWithSpaces}_row_anchor"`,
+            );
+            expect(result).toContain(
+                `LEFT JOIN "${fieldWithSpaces}_column_anchor"`,
+            );
+            expect(result).toContain(
+                `"${fieldWithSpaces}_column_anchor"."${fieldWithSpaces}_column_anchor_value"`,
+            );
+            expect(result).toContain(
+                `"${fieldWithSpaces}_row_anchor"."${fieldWithSpaces}_row_anchor_value"`,
+            );
+
+            // The bare unquoted form must not appear anywhere — that is what
+            // would produce the original `syntax error at or near "TAX"`.
+            expect(result).not.toContain(`${fieldWithSpaces}_column_anchor AS`);
+            expect(result).not.toContain(
+                `LEFT JOIN ${fieldWithSpaces}_row_anchor`,
+            );
+        });
+
+        test('Pivot SQL on Databricks emits self-contained row_ranking + column_ranking CTEs for metric sort (#20681)', () => {
+            // https://github.com/lightdash/lightdash/issues/20681
+            // Repro: pivot chart with metric-based sorting on Databricks where
+            // a dashboard filter caused the base query to return 0 rows.
+            // Spark inlines CTEs and its Window optimizer consumed anchor
+            // value columns out of the pivot_query SELECT list, so the final
+            // CROSS JOIN couldn't resolve them.
+            // Expectation: row_index/col_idx are computed in their OWN CTEs
+            // (row_ranking, column_ranking), each carrying the JOIN to the
+            // anchor CTE in its own scope. pivot_query then just JOINs the
+            // precomputed rankings — no inline DENSE_RANK referencing values
+            // from a sibling CTE that Spark could lose during inlining.
+            const mockDatabricksBuilder = {
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+                getStartOfWeek: () => WeekDay.MONDAY,
+            } as unknown as WarehouseSqlBuilder;
+
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'event_tier', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event' }],
+                sortBy: [
+                    { reference: 'count', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockDatabricksBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Both ranking CTEs must exist.
+            expect(result).toContain('row_ranking AS (');
+            expect(result).toContain('column_ranking AS (');
+
+            // row_ranking is self-contained: it owns its JOIN to row_anchor
+            // and produces row_index as a concrete output column.
+            expect(replaceWhitespace(result)).toContain(
+                'row_ranking AS (SELECT DISTINCT g.`event_tier`, DENSE_RANK() OVER (ORDER BY `count_row_anchor`.`count_row_anchor_value` DESC, g.`event_tier` ASC) AS `row_index` FROM group_by_query g LEFT JOIN `count_row_anchor` ON g.`event_tier` = `count_row_anchor`.`event_tier`)',
+            );
+
+            // pivot_query just joins precomputed rankings — no inline
+            // DENSE_RANK that would reference anchor cols across the
+            // sibling CTE Spark inlines.
+            const pivotQueryRegex = /pivot_query AS \(([^)]+)\)/;
+            const pivotQueryBody = result.match(pivotQueryRegex)?.[1] ?? '';
+            expect(pivotQueryBody).not.toContain('DENSE_RANK');
+            expect(pivotQueryBody).toContain('rr.`row_index`');
+            expect(pivotQueryBody).toContain('cr.`col_idx`');
+        });
+
+        test('nullsFirst on a value-column sort propagates through anchor CTE and row_index (#19202)', () => {
+            // https://github.com/lightdash/lightdash/issues/19202
+            // Repro: SQL pivot pipeline + sort by a metric with nullsFirst
+            // semantics + a tiebreaker dim with the opposite null treatment.
+            // Bug: the nullsFirst flag on the value-column sort was dropped
+            // somewhere between sortBy and the column anchor SQL.
+            // Expectation: NULLS FIRST/LAST flows into FIRST_VALUE inside the
+            // column anchor CTE, into the column_ranking ORDER BY, and into
+            // the row_index ORDER BY, with each sort entry getting its own
+            // nulls treatment in a multi-key sort.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        nullsFirst: true,
+                    },
+                    {
+                        reference: 'date',
+                        direction: SortByDirection.ASC,
+                        nullsFirst: false,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // FIRST_VALUE inside the column anchor CTE picks the metric value
+            // at the desired column under NULLS FIRST semantics.
+            expect(replaceWhitespace(result)).toContain(
+                'FIRST_VALUE("revenue_sum") OVER (PARTITION BY "category" ORDER BY "revenue_sum" DESC NULLS FIRST ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)',
+            );
+
+            // column_ranking ORDER BY echoes the NULLS treatment for the
+            // anchor value, then falls back to the groupBy field as tiebreaker.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC NULLS FIRST, g."category" ASC) AS "col_idx"',
+            );
+
+            // row_index ORDER BY combines BOTH sort entries with their own
+            // NULLS treatment — value column under NULLS FIRST, date under
+            // NULLS LAST. A regression that drops the per-entry nulls flag
+            // would collapse one of these.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC NULLS FIRST, g."date" ASC NULLS LAST) AS "row_index"',
+            );
+        });
+
         test('Multi-groupBy with no sort produces a deterministic column ordering across all groupBy fields (#9767, #11038)', () => {
             // https://github.com/lightdash/lightdash/issues/9767
             // https://github.com/lightdash/lightdash/issues/11038
