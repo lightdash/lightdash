@@ -6,7 +6,7 @@ import {
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
-    normalizeIndexColumns,
+    isSortedByPivot,
     StackType,
     XAxisSort,
     XAxisSortType,
@@ -1120,27 +1120,11 @@ const useCartesianChartConfig = ({
                     itemsMap,
                     columnLimit: effectiveColumnLimit,
                 });
-                // True when the user's sort drives pivot column ordering:
-                // sort field is a pivot dim, or backend acknowledged it as a
-                // non-index-column sort (a sort-only companion dim).
-                const pivotDetails = resultsData?.pivotDetails;
-                const indexColumnRefs = new Set(
-                    normalizeIndexColumns(pivotDetails?.indexColumn).map(
-                        (c) => c.reference,
-                    ),
-                );
-                const pivotSortRefs = new Set(
-                    pivotDetails?.sortBy?.map((s) => s.reference) ?? [],
-                );
-                const sortedByPivot =
-                    !!pivotKeys?.length &&
-                    !!resultsData?.metricQuery?.sorts?.some((sort) => {
-                        if (pivotKeys.includes(sort.fieldId)) return true;
-                        return (
-                            pivotSortRefs.has(sort.fieldId) &&
-                            !indexColumnRefs.has(sort.fieldId)
-                        );
-                    });
+                const sortedByPivot = isSortedByPivot({
+                    pivotDimensions: pivotKeys,
+                    sorts: resultsData?.metricQuery?.sorts,
+                    pivotDetails: resultsData?.pivotDetails,
+                });
 
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
