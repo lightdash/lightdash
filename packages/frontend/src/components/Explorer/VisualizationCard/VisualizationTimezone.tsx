@@ -2,7 +2,7 @@ import { FeatureFlags, getTimezoneLabel } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine-8/core';
 import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
@@ -17,9 +17,10 @@ const VisualizationTimezone: FC<Props> = ({
     resolvedTimezone,
     metricQueryTimezone,
 }) => {
-    const userTimeZonesEnabled = useClientFeatureFlag(
+    const { data: enableUserTimezonesFlag } = useServerFeatureFlag(
         FeatureFlags.EnableUserTimezones,
     );
+    const userTimeZonesEnabled = enableUserTimezonesFlag?.enabled ?? false;
     const timezone =
         resolvedTimezone ?? (userTimeZonesEnabled ? metricQueryTimezone : null);
     if (!timezone) return null;
