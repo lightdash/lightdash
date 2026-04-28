@@ -1522,19 +1522,33 @@ export class AppGenerateService extends BaseService {
         return order.indexOf(currentStatus) <= order.indexOf(stage);
     }
 
+    /**
+     * Advance the version to the next stage, but only if it is still
+     * in-progress. Returns false when the version has already been moved to a
+     * terminal state (typically by `cancelVersion`) — callers must bail out
+     * without continuing the pipeline, otherwise an unconditional status
+     * write here would resurrect a cancelled version and let a subsequent
+     * stage failure overwrite "Cancelled by user" with a generic error.
+     */
     private async advanceStage(
         appUuid: string,
         version: number,
         stage: AppVersionStatus,
         statusMessage: string,
-    ): Promise<void> {
-        await this.appModel.updateVersionStatus(
+    ): Promise<boolean> {
+        const updated = await this.appModel.updateVersionStatusIfInProgress(
             appUuid,
             version,
             stage,
             null,
             statusMessage,
         );
+        if (!updated) {
+            this.logger.info(
+                `App ${appUuid}: pipeline halting before stage ${stage} — version ${version} is no longer in progress (likely cancelled)`,
+            );
+        }
+        return updated;
     }
 
     /**
@@ -1594,12 +1608,15 @@ export class AppGenerateService extends BaseService {
         let sandbox: Sandbox;
         let wasResumed = false;
         if (AppGenerateService.shouldRunStage(currentStatus, 'sandbox')) {
-            await this.advanceStage(
+            const advanced = await this.advanceStage(
                 appUuid,
                 version,
                 'sandbox',
                 'Setting up build environment',
             );
+            if (!advanced) {
+                return;
+            }
             try {
                 if (isIteration) {
                     const app = await this.appModel.getApp(
@@ -1761,12 +1778,15 @@ export class AppGenerateService extends BaseService {
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
             try {
-                await this.advanceStage(
+                const advanced = await this.advanceStage(
                     appUuid,
                     version,
                     'catalog',
                     'Loading your data models',
                 );
+                if (!advanced) {
+                    return;
+                }
                 const catalogResult = await this.writeCatalogAndPrompt(
                     sandbox,
                     appUuid,
@@ -1813,12 +1833,15 @@ export class AppGenerateService extends BaseService {
         let responseText: string | null = null;
         if (shouldRun('generating')) {
             try {
-                await this.advanceStage(
+                const advanced = await this.advanceStage(
                     appUuid,
                     version,
                     'generating',
                     AppGenerateService.randomCodingPhrase(),
                 );
+                if (!advanced) {
+                    return;
+                }
                 // On retry (currentStatus === 'generating') or iteration
                 // with resumed sandbox, use --continue so Claude picks up
                 // the conversation where it left off.
@@ -1860,12 +1883,15 @@ export class AppGenerateService extends BaseService {
         // --- Stage: building ---
         if (shouldRun('building')) {
             try {
-                await this.advanceStage(
+                const advanced = await this.advanceStage(
                     appUuid,
                     version,
                     'building',
                     'Packaging your app',
                 );
+                if (!advanced) {
+                    return;
+                }
                 const buildResult = await this.runBuildWithAutoFix(
                     sandbox,
                     appUuid,
@@ -1939,12 +1965,15 @@ export class AppGenerateService extends BaseService {
         // --- Stage: packaging ---
         if (shouldRun('packaging')) {
             try {
-                await this.advanceStage(
+                const advanced = await this.advanceStage(
                     appUuid,
                     version,
                     'packaging',
                     'Deploying your app',
                 );
+                if (!advanced) {
+                    return;
+                }
                 const artifacts = await this.packageArtifacts(sandbox, appUuid);
                 durations.packageMs = artifacts.durationMs;
                 distBytes = artifacts.distTar.length;
