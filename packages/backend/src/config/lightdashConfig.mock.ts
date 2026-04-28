@@ -376,4 +376,5 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bApiKey: null,
     },
     enabledFeatureFlags: new Set<string>(),
+    disabledFeatureFlags: new Set<string>(),
 };

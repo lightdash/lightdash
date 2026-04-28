@@ -50,6 +50,47 @@ describe('FeatureFlagModel', () => {
 
             expect(result.enabled).toBe(true);
         });
+
+        it('returns disabled for any flag listed in LIGHTDASH_DISABLE_FEATURE_FLAGS', async () => {
+            const model = buildModel({
+                disabledFeatureFlags: new Set(['killed-flag']),
+            });
+
+            const result = await model.get({
+                featureFlagId: 'killed-flag',
+            });
+
+            expect(result).toEqual({ id: 'killed-flag', enabled: false });
+        });
+
+        it('disable-allowlist forces off even when a config handler would enable', async () => {
+            // Self-hoster kill switch wins over default-on flags.
+            const model = buildModel({
+                disabledFeatureFlags: new Set([FeatureFlags.EditYamlInUi]),
+                editYamlInUi: { enabled: true },
+            });
+
+            const result = await model.get({
+                featureFlagId: FeatureFlags.EditYamlInUi,
+            });
+
+            expect(result.enabled).toBe(false);
+        });
+
+        it('enable-allowlist takes precedence over disable-allowlist if both set', async () => {
+            // If a flag is in both lists (operator misconfig), enable wins —
+            // matches the order of checks in get().
+            const model = buildModel({
+                enabledFeatureFlags: new Set(['conflicting-flag']),
+                disabledFeatureFlags: new Set(['conflicting-flag']),
+            });
+
+            const result = await model.get({
+                featureFlagId: 'conflicting-flag',
+            });
+
+            expect(result.enabled).toBe(true);
+        });
     });
 
     describe('resolution priority', () => {

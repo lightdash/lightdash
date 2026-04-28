@@ -61,9 +61,14 @@ export class FeatureFlagModel {
     }
 
     public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
-        // 1. Check env var override (self-hosted escape hatch, enable-only)
+        // 1a. Check env var enable-allowlist (self-hosted escape hatch)
         if (this.lightdashConfig.enabledFeatureFlags.has(args.featureFlagId)) {
             return { id: args.featureFlagId, enabled: true };
+        }
+
+        // 1b. Check env var disable-allowlist (self-hosted kill switch)
+        if (this.lightdashConfig.disabledFeatureFlags.has(args.featureFlagId)) {
+            return { id: args.featureFlagId, enabled: false };
         }
 
         // 2. Check per-flag config handlers

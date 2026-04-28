@@ -1276,6 +1276,7 @@ export type LightdashConfig = {
     };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
+    disabledFeatureFlags: Set<string>;
 };
 
 export type SlackConfig = {
@@ -1541,6 +1542,27 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         e2bApiKey: process.env.E2B_API_KEY || null,
     };
 };
+
+/**
+ * Map of legacy per-flag env vars to their feature-flag IDs. Deprecated —
+ * operators should migrate to LIGHTDASH_ENABLE_FEATURE_FLAGS /
+ * LIGHTDASH_DISABLE_FEATURE_FLAGS. Entries here translate the legacy var into
+ * the unified allowlists for backward compatibility, so self-hosted
+ * deployments don't regress when a per-flag handler is removed during
+ * PostHog migration. Once an entry has soaked for ~6 months after the
+ * unified pattern is documented, delete it.
+ */
+const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
+    readonly [envVar: string, flagId: string]
+> = [
+    // Add per migration; truthy env value enables the flag.
+];
+
+const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
+    readonly [envVar: string, flagId: string]
+> = [
+    // Add per migration; truthy env value disables the flag.
+];
 
 export const parseConfig = (): LightdashConfig => {
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
@@ -2291,11 +2313,23 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
-        enabledFeatureFlags: new Set(
-            (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+        enabledFeatureFlags: new Set([
+            ...(process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
                 .split(',')
                 .map((s) => s.trim())
                 .filter(Boolean),
-        ),
+            ...LEGACY_ENABLE_ENV_VARS.filter(
+                ([envVar]) => process.env[envVar] === 'true',
+            ).map(([, flagId]) => flagId),
+        ]),
+        disabledFeatureFlags: new Set([
+            ...(process.env.LIGHTDASH_DISABLE_FEATURE_FLAGS ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            ...LEGACY_DISABLE_ENV_VARS.filter(
+                ([envVar]) => process.env[envVar] === 'true',
+            ).map(([, flagId]) => flagId),
+        ]),
     };
 };
