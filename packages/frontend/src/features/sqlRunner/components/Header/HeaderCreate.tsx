@@ -252,17 +252,19 @@ export const HeaderCreate: FC = () => {
                 })}
             >
                 <Group position="apart">
-                    <Group spacing="two">
-                        <EditableText
-                            size="md"
-                            w={400}
-                            placeholder={untitledName}
-                            value={name}
-                            onChange={(e) =>
-                                dispatch(updateName(e.currentTarget.value))
-                            }
-                        />
-                    </Group>
+                    {hasAnyAction && (
+                        <Group spacing="two">
+                            <EditableText
+                                size="md"
+                                w={400}
+                                placeholder={untitledName}
+                                value={name}
+                                onChange={(e) =>
+                                    dispatch(updateName(e.currentTarget.value))
+                                }
+                            />
+                        </Group>
+                    )}
 
                     <Group spacing="xs">
                         {hasAnyAction && (
