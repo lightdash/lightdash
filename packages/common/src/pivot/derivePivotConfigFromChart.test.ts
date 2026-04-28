@@ -4,6 +4,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    TableCalculationType,
     type ItemsMap,
     type TableCalculation,
 } from '../types/field';
@@ -726,6 +727,65 @@ describe('derivePivotConfigurationFromChart', () => {
                 {
                     reference: 'revenue_per_order',
                     direction: SortByDirection.DESC,
+                },
+            ]);
+        });
+
+        it('keeps x-axis table calculation as an index column when sorted by itself', () => {
+            const xAxisTableCalculation: TableCalculation = {
+                name: 'payment_method_label',
+                displayName: 'Payment method label',
+                type: TableCalculationType.STRING,
+                sql: 'upper(${payments.payment_method})',
+            };
+
+            const itemsWithTableCalculation: ItemsMap = {
+                ...mockItems,
+                payment_method_label: xAxisTableCalculation,
+            };
+
+            const cartesianChartWithTableCalculationXAxis: CartesianChartConfig =
+                {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'payment_method_label',
+                            yField: ['payments_total_revenue'],
+                        },
+                        eChartsConfig: { series: [] },
+                    },
+                };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: cartesianChartWithTableCalculationXAxis,
+                pivotConfig: { columns: ['orders_status'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                tableCalculations: [xAxisTableCalculation],
+                sorts: [{ fieldId: 'payment_method_label', descending: false }],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithTableCalculation,
+            );
+
+            expect(result).toBeDefined();
+            expect(result?.indexColumn).toContainEqual({
+                reference: 'payment_method_label',
+                type: VizIndexType.CATEGORY,
+            });
+            expect(result?.sortOnlyColumns).toBeUndefined();
+            expect(result?.sortBy).toEqual([
+                {
+                    reference: 'payment_method_label',
+                    direction: SortByDirection.ASC,
                 },
             ]);
         });
