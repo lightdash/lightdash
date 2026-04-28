@@ -1,3 +1,10 @@
+# [0.2833.0](https://github.com/lightdash/lightdash/compare/0.2832.0...0.2833.0) (2026-04-28)
+
+
+### Features
+
+* **permissions:** gate SQL-authoring affordances in the explorer UI ([#22453](https://github.com/lightdash/lightdash/issues/22453)) ([208f47a](https://github.com/lightdash/lightdash/commit/208f47abd222ff07a0c03ec09bb903202c1d8929))
+
 # [0.2832.0](https://github.com/lightdash/lightdash/compare/0.2831.0...0.2832.0) (2026-04-28)
 
 
