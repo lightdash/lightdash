@@ -6883,6 +6883,20 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DataAppTemplate: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['dashboard'] },
+                { dataType: 'enum', enums: ['slideshow'] },
+                { dataType: 'enum', enums: ['pdf'] },
+                { dataType: 'enum', enums: ['custom'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     GenerateAppRequestBody: {
         dataType: 'refAlias',
         type: {
@@ -6895,6 +6909,7 @@ const models: TsoaRoute.Models = {
                 },
                 appUuid: { dataType: 'string' },
                 imageId: { dataType: 'string' },
+                template: { ref: 'DataAppTemplate' },
                 prompt: { dataType: 'string', required: true },
             },
             validators: {},
@@ -8844,11 +8859,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9326,11 +9341,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9345,11 +9360,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9364,11 +9379,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9383,11 +9398,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9402,11 +9417,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -9472,8 +9487,8 @@ const models: TsoaRoute.Models = {
                     artifactType: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['chart'] },
                             { dataType: 'enum', enums: ['dashboard'] },
+                            { dataType: 'enum', enums: ['chart'] },
                         ],
                         required: true,
                     },
@@ -9869,8 +9884,8 @@ const models: TsoaRoute.Models = {
                     artifactType: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['chart'] },
                             { dataType: 'enum', enums: ['dashboard'] },
+                            { dataType: 'enum', enums: ['chart'] },
                         ],
                         required: true,
                     },
@@ -29549,11 +29564,11 @@ const models: TsoaRoute.Models = {
                                 dataType: 'double',
                                 required: true,
                             },
+                            chartCount: { dataType: 'double', required: true },
                             dashboardCount: {
                                 dataType: 'double',
                                 required: true,
                             },
-                            chartCount: { dataType: 'double', required: true },
                         },
                     },
                 ],

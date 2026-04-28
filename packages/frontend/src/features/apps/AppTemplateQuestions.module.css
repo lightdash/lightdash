@@ -1,0 +1,27 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xl);
+    margin: auto;
+    max-width: 560px;
+    width: 100%;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-sm);
+}
+
+.headerTitle {
+    flex: 1;
+    line-height: 1.2;
+}
+
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: var(--mantine-spacing-xs);
+}

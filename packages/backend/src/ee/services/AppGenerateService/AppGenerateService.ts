@@ -19,6 +19,7 @@ import {
     type AppVersionChartResource,
     type AppVersionResources,
     type ChartReference,
+    type DataAppTemplate,
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
@@ -50,6 +51,7 @@ import type { DashboardService } from '../../../services/DashboardService/Dashbo
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { getTemplateInstructions } from './templates';
 
 type AppGenerateServiceDeps = {
     lightdashConfig: LightdashConfig;
@@ -867,6 +869,7 @@ export class AppGenerateService extends BaseService {
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
+        template: DataAppTemplate | undefined,
     ): Promise<{
         durationMs: number;
         tableCount: number;
@@ -899,6 +902,14 @@ export class AppGenerateService extends BaseService {
                 chartReferences,
             );
             finalPrompt = referenceBlock + finalPrompt;
+        }
+
+        // Prepend starter-template instructions, when one was selected on creation
+        if (template) {
+            const templateInstructions = getTemplateInstructions(template);
+            if (templateInstructions) {
+                finalPrompt = `${templateInstructions}\n\n${finalPrompt}`;
+            }
         }
 
         // Resolve image from staging, copy to version path, and write to sandbox
@@ -1730,7 +1741,7 @@ export class AppGenerateService extends BaseService {
         imageId: string | undefined,
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
-        const { appUuid, version, projectUuid, prompt } = payload;
+        const { appUuid, version, projectUuid, prompt, template } = payload;
         const durations: Record<string, number> = { ...extraDurations };
         const shouldRun = (stage: AppVersionStatus) =>
             AppGenerateService.shouldRunStage(currentStatus, stage);
@@ -1766,6 +1777,7 @@ export class AppGenerateService extends BaseService {
                     s3Client,
                     bucket,
                     chartReferences,
+                    template,
                 );
                 durations.catalogMs = catalogResult.durationMs;
                 catalogStats = {
@@ -2123,6 +2135,7 @@ export class AppGenerateService extends BaseService {
         preGeneratedAppUuid?: string,
         chartUuids?: string[],
         dashboardUuid?: string,
+        template?: DataAppTemplate,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2196,6 +2209,7 @@ export class AppGenerateService extends BaseService {
                 version,
                 promptLength: prompt.length,
                 hasImage: imageId !== undefined,
+                template: template ?? null,
             },
         });
 
@@ -2206,6 +2220,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt,
+            template,
             imageId,
             isIteration: false,
             chartReferences:

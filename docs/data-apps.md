@@ -12,6 +12,9 @@ the hood, Claude Code runs inside an isolated sandbox, reads the project's dbt m
 builds it with Vite, and deploys the artifacts to S3. The resulting app is served in a sandboxed iframe and can query
 Lightdash metrics through a secure postMessage bridge.
 
+When creating a new app, users start from a **Starter Template** (Dashboard / Slide Show / PDF Report / Custom) and
+answer a few clarifying questions to seed the first prompt. See [Starter Templates](#starter-templates) below.
+
 The feature is enterprise-only, gated behind the `APP_RUNTIME_ENABLED` flag and the `view:DataApp` / `create:DataApp` / `manage:DataApp` permission scopes (see [Permissions](#permissions) below).
 
 ---
@@ -52,8 +55,41 @@ flowchart LR
    - `apps/{appUuid}/versions/{version}/source.tar` — source code (restored for future iterations)
 
 7. **Preview serving** — The built app is served through an Express router at `/api/apps/{appUuid}/versions/{version}/`.
-   Authentication uses short-lived JWT tokens. The iframe runs with `sandbox="allow-scripts"` (no same-origin access) and
-   strict CSP headers.
+   Authentication uses short-lived JWT tokens. The iframe runs with `sandbox="allow-scripts allow-modals"` (no
+   same-origin access) and strict CSP headers.
+
+### Starter Templates
+
+To avoid the blank-page problem, the **new-app** flow opens with a 3-stage wizard instead of an empty chat:
+
+1. **Pick a template** - `Dashboard`, `Slide Show`, `PDF Report`, or `Custom`. Each describes a layout intent.
+2. **Answer 2-3 clarifying questions** - template-specific (e.g., topic, audience, key metrics for Dashboard).
+   "Custom" skips this stage.
+3. **Review & generate** - the wizard composes a starting prompt from the answers, prefills the textarea, and
+   the user can edit it before hitting send.
+
+Templates are **only meaningful for v1**. Iteration prompts (v2+) never see the wizard.
+
+How the template flows through the stack:
+
+- The frontend sends a structured `template: 'dashboard' | 'slideshow' | 'pdf' | 'custom'` field on
+  `POST /api/v1/ee/projects/{projectUuid}/apps/`, alongside the user's prompt.
+- The backend `AppGenerateService` carries `template` into the `appGeneratePipeline` job payload.
+- During the `catalog` stage in `writeCatalogAndPrompt`, the backend prepends a template-specific instruction block
+  (from `AppGenerateService/templates.ts`) to the prompt before writing it to `/tmp/prompt.txt`. This is the same
+  prepend slot used today for chart references and image references.
+- For `template === 'custom'`, no instructions are prepended - Claude only sees the user's free-text prompt.
+- Templates are **not persisted** in `app_versions` - they only influence the first generation. If the original
+  intent matters later, it's captured by the resulting code, not the row.
+
+Where the template metadata lives:
+
+| Concern                                | Location                                                                                     |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Enum + request type                    | `packages/common/src/ee/apps/types.ts` (`DATA_APP_TEMPLATES`, `DataAppTemplate`)             |
+| Backend instructions                   | `packages/backend/src/ee/services/AppGenerateService/templates.ts`                           |
+| Frontend metadata + prompt composition | `packages/frontend/src/features/apps/templates.ts`                                           |
+| Wizard UI                              | `AppTemplatePicker.tsx`, `AppTemplateQuestions.tsx`; orchestrated by `pages/AppGenerate.tsx` |
 
 ### Iteration
 
@@ -175,11 +211,16 @@ Preview router: `packages/backend/src/routers/appPreviewRouter.ts`
 
 ### Iframe Sandboxing
 
-The preview iframe uses `sandbox="allow-scripts"` without `allow-same-origin`. This means:
+The preview iframe uses `sandbox="allow-scripts allow-modals"` without `allow-same-origin`. This means:
 
 - The iframe cannot access the parent page's cookies or storage
 - The iframe cannot make credentialed requests to the Lightdash API directly
 - All API communication goes through a `postMessage` bridge
+
+`allow-modals` is enabled so that PDF Report templates (and any generated app that wants a Print button) can call
+`window.print()`. It also enables `alert`/`confirm`/`prompt`, which are an accepted trade-off: the iframe is still
+isolated from the parent origin, the browser attributes dialog origins to the iframe, and a malicious app could
+already build an equivalent in-iframe HTML form.
 
 ### PostMessage Bridge (`useAppSdkBridge`)
 
@@ -359,15 +400,15 @@ scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 
 ### Permission matrix
 
-| Action                                       | Project admin | Space admin/editor | Space viewer | App creator (personal app) |
-| -------------------------------------------- | ------------- | ------------------ | ------------ | -------------------------- |
-| View an app in a space                       | ✓             | ✓                  | ✓            | (creator viewed via space) |
-| View own personal app                        | ✓             | —                  | —            | ✓                          |
-| View someone else's personal app             | ✓             | —                  | —            | —                          |
-| Create a new app                             | ✓             | ✓                  | ✗            | n/a                        |
-| Iterate / cancel / update / move / delete    | ✓             | ✓ (in their space) | ✗            | ✓ (own personal app)       |
-| Pin to homepage                              | ✓             | ✓ (in their space) | ✗            | — (personal apps can't be pinned) |
-| Restore / permanently delete                 | ✓             | ✗                  | ✗            | ✗                          |
+| Action                                    | Project admin | Space admin/editor | Space viewer | App creator (personal app)        |
+| ----------------------------------------- | ------------- | ------------------ | ------------ | --------------------------------- |
+| View an app in a space                    | ✓             | ✓                  | ✓            | (creator viewed via space)        |
+| View own personal app                     | ✓             | —                  | —            | ✓                                 |
+| View someone else's personal app          | ✓             | —                  | —            | —                                 |
+| Create a new app                          | ✓             | ✓                  | ✗            | n/a                               |
+| Iterate / cancel / update / move / delete | ✓             | ✓ (in their space) | ✗            | ✓ (own personal app)              |
+| Pin to homepage                           | ✓             | ✓ (in their space) | ✗            | — (personal apps can't be pinned) |
+| Restore / permanently delete              | ✓             | ✗                  | ✗            | ✗                                 |
 
 The "App creator" column applies while an app is still personal (`space_uuid IS NULL`). Once moved into a space, the
 app's permissions follow the space — the creator no longer has special rights unless they also have a space role.

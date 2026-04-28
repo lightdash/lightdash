@@ -6,6 +6,7 @@ import {
     isAppVersionInProgress,
     ResourceViewItemType,
     type ApiAppVersionSummary,
+    type DataAppTemplate,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -68,6 +69,8 @@ import {
     type SelectedChart,
     type SelectedDashboard,
 } from '../features/apps/AppResourcePicker';
+import AppTemplatePicker from '../features/apps/AppTemplatePicker';
+import AppTemplateQuestions from '../features/apps/AppTemplateQuestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -79,6 +82,7 @@ import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import QueryInspector from '../features/apps/QueryInspector';
+import { getTemplate } from '../features/apps/templates';
 import { useContentAction } from '../hooks/useContent';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -173,6 +177,19 @@ const AppGenerate: FC = () => {
     const location = useLocation();
     const queryClient = useQueryClient();
     const [prompt, setPrompt] = useState('');
+    // Starter-template wizard state (only meaningful for v1 of a new app).
+    // 'pick'      → show the 4 template cards (replaces the empty state)
+    // 'questions' → show clarifying-questions form for the selected template
+    // 'confirm'   → wizard collapses; user reviews/edits the prefilled prompt
+    //               in the existing textarea and submits as normal.
+    const [selectedTemplate, setSelectedTemplate] =
+        useState<DataAppTemplate | null>(null);
+    const [templateAnswers, setTemplateAnswers] = useState<
+        Record<string, string>
+    >({});
+    const [wizardStage, setWizardStage] = useState<
+        'pick' | 'questions' | 'confirm'
+    >('pick');
     const [imageAttachment, setImageAttachment] = useState<{
         file: File;
         previewUrl: string;
@@ -250,6 +267,9 @@ const AppGenerate: FC = () => {
         setLocalMessages([]);
         setPreviewApp(null);
         setTrackedQueries([]);
+        setSelectedTemplate(null);
+        setTemplateAnswers({});
+        setWizardStage('pick');
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
         sentImagesByPrompt.current.forEach((url) => URL.revokeObjectURL(url));
@@ -434,6 +454,19 @@ const AppGenerate: FC = () => {
         () => [...historyMessages, ...localMessages],
         [historyMessages, localMessages],
     );
+
+    // The starter-template wizard only shows for v1 of a brand-new app -
+    // before the URL has an appUuid and before any messages exist.
+    const isNewApp = !urlAppUuid && !activeAppUuid;
+    // While the wizard is in pick/questions, the chat input area is hidden
+    // - the wizard's own buttons drive the flow. When stage='confirm', the
+    // input area reappears with the composed prompt prefilled for the user
+    // to review and edit before submitting.
+    const wizardCoversInput =
+        isNewApp &&
+        messages.length === 0 &&
+        !isLoading &&
+        wizardStage !== 'confirm';
 
     // `hasNextPage` reflects the server's "more pages exist" signal, but we
     // accumulate versions across fetches in `versionCacheRef` — so even if the
@@ -723,6 +756,7 @@ const AppGenerate: FC = () => {
                 {
                     projectUuid,
                     prompt: trimmed,
+                    template: selectedTemplate ?? undefined,
                     imageId,
                     appUuid: newAppUuid,
                     chartUuids,
@@ -731,6 +765,35 @@ const AppGenerate: FC = () => {
                 callbacks,
             );
         }
+    };
+
+    const handleTemplateSelect = (template: DataAppTemplate) => {
+        setSelectedTemplate(template);
+        setTemplateAnswers({});
+        if (template === 'custom') {
+            // Skip clarifying questions - drop straight into the existing
+            // free-text input area.
+            setWizardStage('confirm');
+            setPrompt('');
+            return;
+        }
+        setWizardStage('questions');
+    };
+
+    const handleTemplateBack = () => {
+        setWizardStage('pick');
+        setTemplateAnswers({});
+    };
+
+    const handleTemplateContinue = () => {
+        if (!selectedTemplate) return;
+        const composed =
+            getTemplate(selectedTemplate).composePrompt(templateAnswers);
+        setPrompt(composed);
+        setWizardStage('confirm');
+        // Move focus to the textarea so the user can immediately tweak the
+        // composed prompt before sending.
+        setTimeout(() => textareaRef.current?.focus(), 0);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -794,24 +857,40 @@ const AppGenerate: FC = () => {
                                 </Group>
                             )}
                             {messages.length === 0 && !isLoading ? (
-                                <Box className={classes.emptyChat}>
-                                    <ThemeIcon
-                                        size="xl"
-                                        radius="xl"
-                                        variant="light"
-                                        color="gray"
-                                    >
-                                        <IconSparkles size={24} />
-                                    </ThemeIcon>
-                                    <Text fw={600} size="lg">
-                                        Build a data app
-                                    </Text>
-                                    <Text size="sm" c="dimmed" maw={280}>
-                                        Describe what you want to build and I'll
-                                        generate a data app connected to your
-                                        project.
-                                    </Text>
-                                </Box>
+                                isNewApp && wizardStage === 'pick' ? (
+                                    <AppTemplatePicker
+                                        onSelect={handleTemplateSelect}
+                                    />
+                                ) : isNewApp &&
+                                  wizardStage === 'questions' &&
+                                  selectedTemplate ? (
+                                    <AppTemplateQuestions
+                                        template={getTemplate(selectedTemplate)}
+                                        answers={templateAnswers}
+                                        onAnswersChange={setTemplateAnswers}
+                                        onBack={handleTemplateBack}
+                                        onContinue={handleTemplateContinue}
+                                    />
+                                ) : (
+                                    <Box className={classes.emptyChat}>
+                                        <ThemeIcon
+                                            size="xl"
+                                            radius="xl"
+                                            variant="light"
+                                            color="gray"
+                                        >
+                                            <IconSparkles size={24} />
+                                        </ThemeIcon>
+                                        <Text fw={600} size="lg">
+                                            Build a data app
+                                        </Text>
+                                        <Text size="sm" c="dimmed" maw={280}>
+                                            Describe what you want to build and
+                                            I'll generate a data app connected
+                                            to your project.
+                                        </Text>
+                                    </Box>
+                                )
                             ) : (
                                 <>
                                     {messages.map((msg, i) =>
@@ -1005,137 +1084,154 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         {/* Chat Input */}
-                        <Box className={classes.chatInputArea}>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept="image/png,image/jpeg,image/gif,image/webp"
-                                onChange={handleFileInputChange}
-                                hidden
-                            />
-                            <Box className={classes.inputWrapper}>
-                                <Box className={classes.textareaColumn}>
-                                    <Textarea
-                                        ref={textareaRef}
-                                        placeholder="Describe the app you want to build..."
-                                        autosize
-                                        minRows={1}
-                                        maxRows={6}
-                                        value={prompt}
-                                        onChange={(e) =>
-                                            setPrompt(e.currentTarget.value)
-                                        }
-                                        onKeyDown={handleKeyDown}
-                                        onPaste={handlePaste}
-                                        disabled={isLoading}
-                                        classNames={{
-                                            root: classes.textareaRoot,
-                                            input: classes.textarea,
-                                            wrapper: classes.textareaWrapper,
-                                        }}
-                                    />
-                                </Box>
-                                {isBuilding ? (
-                                    <ActionIcon
-                                        size="sm"
-                                        radius="xl"
-                                        variant="filled"
-                                        color="red"
-                                        onClick={handleCancel}
-                                        loading={isCancelling}
-                                        className={classes.submitButton}
-                                    >
-                                        <IconPlayerStop size={14} />
-                                    </ActionIcon>
-                                ) : (
-                                    <ActionIcon
-                                        size="sm"
-                                        radius="xl"
-                                        variant="filled"
-                                        color="violet"
-                                        onClick={() => void handleSubmit()}
-                                        disabled={!prompt.trim() || isLoading}
-                                        loading={isGenerating || isIterating}
-                                        className={classes.submitButton}
-                                    >
-                                        <IconArrowUp size={14} />
-                                    </ActionIcon>
-                                )}
-                            </Box>
-                            <Group gap="xs" pt="xs">
-                                <QueryButton
-                                    selectedCharts={selectedCharts}
-                                    onSelect={(chart) =>
-                                        setSelectedCharts((prev) => [
-                                            ...prev,
-                                            chart,
-                                        ])
-                                    }
-                                    disabled={isLoading}
+                        {!wizardCoversInput && (
+                            <Box className={classes.chatInputArea}>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/gif,image/webp"
+                                    onChange={handleFileInputChange}
+                                    hidden
                                 />
-                                <DashboardButton
-                                    selected={selectedDashboard}
-                                    onSelect={setSelectedDashboard}
-                                    disabled={isLoading}
-                                />
-                                <ImageButton
-                                    onClick={() =>
-                                        fileInputRef.current?.click()
-                                    }
-                                    disabled={isLoading || !!imageAttachment}
-                                />
-                            </Group>
-                            <Box
-                                className={classes.resourceSections}
-                                onDragOver={handleDragOver}
-                                onDrop={handleDrop}
-                            >
-                                {selectedCharts.length > 0 ||
-                                selectedDashboard ||
-                                imageAttachment ? (
-                                    <>
-                                        {selectedCharts.length > 0 && (
-                                            <SelectedQuerySection
-                                                charts={selectedCharts}
-                                                onRemove={(uuid) =>
-                                                    setSelectedCharts((prev) =>
-                                                        prev.filter(
-                                                            (c) =>
-                                                                c.uuid !== uuid,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        )}
-                                        {selectedDashboard && (
-                                            <SelectedDashboardSection
-                                                dashboard={selectedDashboard}
-                                                onRemove={() =>
-                                                    setSelectedDashboard(null)
-                                                }
-                                            />
-                                        )}
-                                        {imageAttachment && (
-                                            <SelectedImageSection
-                                                images={[
-                                                    {
-                                                        previewUrl:
-                                                            imageAttachment.previewUrl,
-                                                    },
-                                                ]}
-                                                onRemove={() => clearImage()}
-                                            />
-                                        )}
-                                    </>
-                                ) : (
-                                    <Box className={classes.resourceEmpty}>
-                                        <Text size="xs" c="dimmed">
-                                            Resources
-                                        </Text>
+                                <Box className={classes.inputWrapper}>
+                                    <Box className={classes.textareaColumn}>
+                                        <Textarea
+                                            ref={textareaRef}
+                                            placeholder="Describe the app you want to build..."
+                                            autosize
+                                            minRows={1}
+                                            maxRows={6}
+                                            value={prompt}
+                                            onChange={(e) =>
+                                                setPrompt(e.currentTarget.value)
+                                            }
+                                            onKeyDown={handleKeyDown}
+                                            onPaste={handlePaste}
+                                            disabled={isLoading}
+                                            classNames={{
+                                                root: classes.textareaRoot,
+                                                input: classes.textarea,
+                                                wrapper:
+                                                    classes.textareaWrapper,
+                                            }}
+                                        />
                                     </Box>
-                                )}
+                                    {isBuilding ? (
+                                        <ActionIcon
+                                            size="sm"
+                                            radius="xl"
+                                            variant="filled"
+                                            color="red"
+                                            onClick={handleCancel}
+                                            loading={isCancelling}
+                                            className={classes.submitButton}
+                                        >
+                                            <IconPlayerStop size={14} />
+                                        </ActionIcon>
+                                    ) : (
+                                        <ActionIcon
+                                            size="sm"
+                                            radius="xl"
+                                            variant="filled"
+                                            color="violet"
+                                            onClick={() => void handleSubmit()}
+                                            disabled={
+                                                !prompt.trim() || isLoading
+                                            }
+                                            loading={
+                                                isGenerating || isIterating
+                                            }
+                                            className={classes.submitButton}
+                                        >
+                                            <IconArrowUp size={14} />
+                                        </ActionIcon>
+                                    )}
+                                </Box>
+                                <Group gap="xs" pt="xs">
+                                    <QueryButton
+                                        selectedCharts={selectedCharts}
+                                        onSelect={(chart) =>
+                                            setSelectedCharts((prev) => [
+                                                ...prev,
+                                                chart,
+                                            ])
+                                        }
+                                        disabled={isLoading}
+                                    />
+                                    <DashboardButton
+                                        selected={selectedDashboard}
+                                        onSelect={setSelectedDashboard}
+                                        disabled={isLoading}
+                                    />
+                                    <ImageButton
+                                        onClick={() =>
+                                            fileInputRef.current?.click()
+                                        }
+                                        disabled={
+                                            isLoading || !!imageAttachment
+                                        }
+                                    />
+                                </Group>
+                                <Box
+                                    className={classes.resourceSections}
+                                    onDragOver={handleDragOver}
+                                    onDrop={handleDrop}
+                                >
+                                    {selectedCharts.length > 0 ||
+                                    selectedDashboard ||
+                                    imageAttachment ? (
+                                        <>
+                                            {selectedCharts.length > 0 && (
+                                                <SelectedQuerySection
+                                                    charts={selectedCharts}
+                                                    onRemove={(uuid) =>
+                                                        setSelectedCharts(
+                                                            (prev) =>
+                                                                prev.filter(
+                                                                    (c) =>
+                                                                        c.uuid !==
+                                                                        uuid,
+                                                                ),
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                            {selectedDashboard && (
+                                                <SelectedDashboardSection
+                                                    dashboard={
+                                                        selectedDashboard
+                                                    }
+                                                    onRemove={() =>
+                                                        setSelectedDashboard(
+                                                            null,
+                                                        )
+                                                    }
+                                                />
+                                            )}
+                                            {imageAttachment && (
+                                                <SelectedImageSection
+                                                    images={[
+                                                        {
+                                                            previewUrl:
+                                                                imageAttachment.previewUrl,
+                                                        },
+                                                    ]}
+                                                    onRemove={() =>
+                                                        clearImage()
+                                                    }
+                                                />
+                                            )}
+                                        </>
+                                    ) : (
+                                        <Box className={classes.resourceEmpty}>
+                                            <Text size="xs" c="dimmed">
+                                                Resources
+                                            </Text>
+                                        </Box>
+                                    )}
+                                </Box>
                             </Box>
-                        </Box>
+                        )}
                     </Box>
                 </Panel>
 
