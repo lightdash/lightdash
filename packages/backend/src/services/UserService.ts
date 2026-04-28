@@ -1522,7 +1522,7 @@ export class UserService extends BaseService {
             emitDenied('Personal access token not recognized');
             throw new AuthorizationError();
         }
-        const { user, personalAccessToken } = results;
+        const { user, personalAccessToken, cacheHit } = results;
         if (!user.isActive) {
             emitDenied('Account is deactivated', user);
             throw new DeactivatedAccountError();
@@ -1563,12 +1563,12 @@ export class UserService extends BaseService {
             emitDenied('Personal access token expired', user);
             throw new AuthorizationError();
         }
-        // Update last used date (throttled to once per minute)
-        if (!isSameMinute(personalAccessToken.lastUsedAt, now)) {
+        // Update last used date (throttled to once per minute).
+        // Skip on cache hits so bursts don't fire many concurrent UPDATEs.
+        if (!cacheHit && !isSameMinute(personalAccessToken.lastUsedAt, now)) {
             await this.personalAccessTokenModel.updateUsedDate(
                 personalAccessToken.uuid,
             );
-            await UserModel.invalidatePatCache(token);
         }
         return userWithOrganization;
     }
