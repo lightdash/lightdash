@@ -92,6 +92,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spacePermissionService:
                         repository.getSpacePermissionService(),
                     dashboardService: repository.getDashboardService(),
+                    projectService: repository.getProjectService(),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({

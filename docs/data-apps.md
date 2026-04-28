@@ -91,6 +91,34 @@ Where the template metadata lives:
 | Frontend metadata + prompt composition | `packages/frontend/src/features/apps/templates.ts`                                           |
 | Wizard UI                              | `AppTemplatePicker.tsx`, `AppTemplateQuestions.tsx`; orchestrated by `pages/AppGenerate.tsx` |
 
+### Sample data (opt-in)
+
+Chart and dashboard references are passed to Claude as **structure only by default** — the metric query JSON tells the
+generator what columns and metrics exist, but not what values they take. That's enough for layout and component choice
+but not for content-level decisions ("we only have 2026 data", "regions are short codes not country names"). To close
+that gap, each chart chip and the dashboard chip in the picker carry a per-resource **Include sample data** toggle.
+
+Behavior:
+
+- **Off by default.** The toggle is opt-in because rows can be sensitive (PII, revenue, etc.). The user has to flip it
+  knowingly per resource. The dashboard toggle is a shortcut that applies to every chart resolved from its tiles.
+- **Frontend wire format.** The request body sends structured refs instead of flat UUID arrays:
+  `charts: { uuid, includeSampleData }[]` and `dashboard: { uuid, includeSampleData }`.
+- **Backend resolution.** When `includeSampleData` is true for a resolved chart, `AppGenerateService.fetchChartSample()`
+  calls `ProjectService.runViewChartQuery()` (which enforces the same `view:SavedChart` permission the chart picker
+  already does) and slices the first **10 rows**. Sample fetches run concurrently with chart loads.
+- **Failure mode.** If the sample query fails (broken explore, timeout, warehouse error) the chart reference is still
+  attached without sample data and the prepended file listing notes "sample data unavailable" so Claude doesn't
+  fabricate values.
+- **Sandbox layout.** Each `/tmp/metric-queries/{slug}.json` gains an optional `sampleData` field shaped as a
+  discriminated union: `{ status: 'available', rows: Record<string,string>[], truncated: boolean }` or
+  `{ status: 'unavailable', reason: string }`. `null` when the user did not opt in. Rows hold formatted values only
+  (no raw types) — small enough to be cheap, useful enough to ground the generator.
+- **No persistence.** Sample data lives only inside the sandbox `/tmp` filesystem during a build; it is **not** written
+  into `app_versions.prompt`, the source tarball uploaded to S3, or the chart resources row. The user's intent (which
+  charts they sampled) survives implicitly via the original prompt and the chart UUIDs already persisted on
+  `AppVersionChartResource`.
+
 ### Iteration
 
 When users send follow-up prompts, the system creates a new `DbAppVersion` and either:
