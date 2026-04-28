@@ -607,7 +607,7 @@ describe('derivePivotConfigurationFromChart', () => {
     });
 
     describe('Sort by metric not in viz (PROD-6906)', () => {
-        it('puts sort-only dimensions in sortOnlyDimensions, not indexColumn (PROD-7154)', () => {
+        it('puts sort-only dimensions in sortOnlyColumns, not indexColumn (PROD-7154)', () => {
             const savedChart: Pick<
                 SavedChartDAO,
                 'chartConfig' | 'pivotConfig'
@@ -644,7 +644,7 @@ describe('derivePivotConfigurationFromChart', () => {
                     type: VizIndexType.CATEGORY,
                 },
             ]);
-            expect(result?.sortOnlyDimensions).toEqual([
+            expect(result?.sortOnlyColumns).toEqual([
                 { reference: 'customers_customer_id' },
             ]);
             expect(result?.sortBy).toEqual([

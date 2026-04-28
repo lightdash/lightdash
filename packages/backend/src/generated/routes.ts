@@ -15429,13 +15429,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                sortOnlyDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
-                },
                 sortOnlyColumns: {
                     dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'ValuesColumn' },
+                    array: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { ref: 'ValuesColumn' },
+                            { ref: 'GroupByColumn' },
+                        ],
+                    },
                 },
                 metricsAsRows: { dataType: 'boolean' },
                 sortBy: {

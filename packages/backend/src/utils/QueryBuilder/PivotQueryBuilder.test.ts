@@ -754,7 +754,7 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('ORDER BY "date" ASC, "event" DESC');
         });
 
-        test('Should drive column_index by sortOnlyDimensions when sort dim is a 1:1 companion', () => {
+        test('Should drive column_index by sort-only dimension when sort dim is a 1:1 companion', () => {
             // Frontend flagged event_priority as a sort-only dim (it's not
             // the x-axis, not a pivot column, not a metric). Backend should
             // emit it in column_index ORDER BY ahead of the group-by column.
@@ -773,7 +773,7 @@ describe('PivotQueryBuilder', () => {
                         direction: SortByDirection.DESC,
                     },
                 ],
-                sortOnlyDimensions: [{ reference: 'event_priority' }],
+                sortOnlyColumns: [{ reference: 'event_priority' }],
             };
 
             const builder = new PivotQueryBuilder(

@@ -27,19 +27,14 @@ export type PivotConfiguration = {
      */
     metricsAsRows?: boolean;
     /**
-     * Metrics/table calculations needed for sort anchor CTEs but not for display.
-     * These are merged into valuesColumns for SQL generation in PivotQueryBuilder,
-     * but excluded from pivotDetails so they don't appear as chart series.
+     * Fields referenced only via sortBy that aren't on any axis or in pivot
+     * columns. Items with `aggregation` are metrics/table calculations merged
+     * into valuesColumns for sort-anchor CTEs; items without `aggregation`
+     * are dimensions that ride through group_by_query to drive column_index
+     * ORDER BY. Both are excluded from pivotDetails so they don't appear as
+     * chart series.
      */
-    sortOnlyColumns?: ValuesColumn[];
-    /**
-     * Dimensions referenced only via sortBy. They are not row-axis columns and
-     * not pivot column dims; they exist solely to influence column ordering
-     * (e.g. grouping by `status` while sorting by a 1:1 lookup `status_priority`).
-     * The dim is already present in group_by_query via metricQuery.dimensions,
-     * so PivotQueryBuilder just references it in the column_index ORDER BY.
-     */
-    sortOnlyDimensions?: GroupByColumn[];
+    sortOnlyColumns?: Array<ValuesColumn | GroupByColumn>;
 };
 
 type Field =

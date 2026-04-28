@@ -33,13 +33,8 @@ function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
     metricQuery: MetricQuery,
 ): NonNullable<PivotConfiguration['sortBy']> | undefined {
-    const {
-        groupByColumns,
-        indexColumn,
-        valuesColumns,
-        sortOnlyColumns,
-        sortOnlyDimensions,
-    } = partialPivot;
+    const { groupByColumns, indexColumn, valuesColumns, sortOnlyColumns } =
+        partialPivot;
 
     const sortBy = metricQuery.sorts
         .map<NonNullable<PivotConfiguration['sortBy']>[number] | undefined>(
@@ -60,17 +55,12 @@ function getSortByForPivotConfiguration(
                     (col) => col.reference === sort.fieldId,
                 );
 
-                const isSortOnlyDimension = sortOnlyDimensions?.some(
-                    (col) => col.reference === sort.fieldId,
-                );
-
                 // Include sort if the field is present in any part of the pivot configuration
                 if (
                     isGroupByColumn ||
                     isIndexColumn ||
                     isValueColumn ||
-                    isSortOnlyColumn ||
-                    isSortOnlyDimension
+                    isSortOnlyColumn
                 ) {
                     return {
                         reference: sort.fieldId,
@@ -287,41 +277,60 @@ function getCartesianPivotConfiguration(
                     ),
             );
 
-        // Include metrics/table calculations that are used in sorts but not
-        // displayed in the chart. Without these in valuesColumns, the sort
-        // is silently dropped and PivotQueryBuilder can't generate anchor CTEs.
+        // Fields referenced only via sortBy that aren't on any axis or in
+        // pivot columns. Sort-only metrics (and table calcs) carry an
+        // aggregation so PivotQueryBuilder can generate anchor CTEs;
+        // sort-only dimensions ride through group_by_query to drive
+        // column_index ORDER BY. Splitting them out keeps both kinds of
+        // sort-only fields out of indexColumn, where they would conflate
+        // row-axis sort with column-ordering intent.
         const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
-        const sortOnlyMetrics = metricQuery.sorts
-            .filter(
-                (sort) =>
-                    !valuesRefs.has(sort.fieldId) &&
-                    (metricQuery.metrics.includes(sort.fieldId) ||
-                        (metricQuery.tableCalculations || []).some(
-                            (tc) => tc.name === sort.fieldId,
-                        )),
-            )
-            .map((sort) => ({
-                reference: sort.fieldId,
-                aggregation: VizAggregationOptions.ANY,
-            }));
-        // Dimensions referenced only via sortBy (not the x-axis, not a pivot
-        // column, not a metric). Treating them as index columns would conflate
-        // row-axis sort with column-ordering intent — separate them out so the
-        // backend can drive column_index ORDER BY off them instead.
         const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
-        const sortOnlyDimensions = metricQuery.sorts
-            .filter(
-                (sort) =>
-                    sort.fieldId !== xField &&
-                    !groupByRefs.has(sort.fieldId) &&
-                    metricQuery.dimensions.includes(sort.fieldId),
-            )
-            .map((sort) => ({ reference: sort.fieldId }));
+        const sortOnlyColumns: NonNullable<
+            PivotConfiguration['sortOnlyColumns']
+        > = metricQuery.sorts.flatMap((sort) => {
+            if (
+                !valuesRefs.has(sort.fieldId) &&
+                (metricQuery.metrics.includes(sort.fieldId) ||
+                    (metricQuery.tableCalculations || []).some(
+                        (tc) => tc.name === sort.fieldId,
+                    ))
+            ) {
+                return [
+                    {
+                        reference: sort.fieldId,
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ];
+            }
+            if (
+                sort.fieldId !== xField &&
+                !groupByRefs.has(sort.fieldId) &&
+                metricQuery.dimensions.includes(sort.fieldId)
+            ) {
+                return [{ reference: sort.fieldId }];
+            }
+            return [];
+        });
+
         // Find columns that are not groupBy or value columns (these become index columns)
-        // Include sortOnlyMetrics and sortOnlyDimensions in the lists passed
-        // to getIndexColumn so they aren't classified as index columns.
-        const allValuesColumns = [...valuesColumns, ...sortOnlyMetrics];
-        const allGroupByColumns = [...groupByColumns, ...sortOnlyDimensions];
+        // Include sortOnlyColumns in the lists passed to getIndexColumn so
+        // they aren't classified as index columns.
+        const allValuesColumns = [
+            ...valuesColumns,
+            ...sortOnlyColumns.filter(
+                (
+                    col,
+                ): col is {
+                    reference: string;
+                    aggregation: VizAggregationOptions;
+                } => 'aggregation' in col,
+            ),
+        ];
+        const allGroupByColumns = [
+            ...groupByColumns,
+            ...sortOnlyColumns.filter((col) => !('aggregation' in col)),
+        ];
         const indexColumn = getIndexColumn(
             allGroupByColumns,
             allValuesColumns,
@@ -334,12 +343,7 @@ function getCartesianPivotConfiguration(
             indexColumn,
             valuesColumns,
             groupByColumns,
-            ...(sortOnlyMetrics.length > 0 && {
-                sortOnlyColumns: sortOnlyMetrics,
-            }),
-            ...(sortOnlyDimensions.length > 0 && {
-                sortOnlyDimensions,
-            }),
+            ...(sortOnlyColumns.length > 0 && { sortOnlyColumns }),
         };
 
         const pivotConfiguration: PivotConfiguration = {
