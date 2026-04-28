@@ -170,7 +170,15 @@ export class RenameService extends BaseService {
         }
 
         const chart = await this.savedChartModel.get(chartUuid);
-        const { organizationUuid, spaceUuid, name: chartName } = chart;
+        if (chart.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Chart ${chartUuid} not found`);
+        }
+        const {
+            organizationUuid,
+            projectUuid: chartProjectUuid,
+            spaceUuid,
+            name: chartName,
+        } = chart;
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -183,7 +191,7 @@ export class RenameService extends BaseService {
                 'update',
                 subject('SavedChart', {
                     organizationUuid,
-                    projectUuid,
+                    projectUuid: chartProjectUuid,
                     inheritsFromOrgOrProject,
                     access,
                     metadata: {
@@ -205,7 +213,10 @@ export class RenameService extends BaseService {
             fixAll &&
             auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: chartProjectUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
