@@ -45,8 +45,6 @@ export class FeatureFlagModel {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.SavedMetricsTree]:
-                this.getSavedMetricsTreeEnabled.bind(this),
             [FeatureFlags.GoogleChatEnabled]:
                 this.getGoogleChatEnabled.bind(this),
             [FeatureFlags.UserImpersonation]:
@@ -208,24 +206,6 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.query.showExecutionTime ?? false,
-        };
-    }
-
-    private async getSavedMetricsTreeEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.savedMetricsTree.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(FeatureFlags.SavedMetricsTree, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
         };
     }
 

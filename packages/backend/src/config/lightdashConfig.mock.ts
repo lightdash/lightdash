@@ -336,9 +336,6 @@ export const lightdashConfigMock: LightdashConfig = {
     funnelBuilder: {
         enabled: false,
     },
-    savedMetricsTree: {
-        enabled: undefined,
-    },
     persistentDownloadUrls: {
         enabled: false,
         expirationSeconds: 259200,

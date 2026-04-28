@@ -1253,9 +1253,6 @@ export type LightdashConfig = {
     funnelBuilder: {
         enabled: boolean;
     };
-    savedMetricsTree: {
-        enabled: boolean | undefined;
-    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
@@ -2256,12 +2253,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
-        },
-        savedMetricsTree: {
-            enabled:
-                process.env.SAVED_METRICS_TREE_ENABLED === 'true'
-                    ? true
-                    : undefined,
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',

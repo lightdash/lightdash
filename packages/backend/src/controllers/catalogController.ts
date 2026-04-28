@@ -790,6 +790,7 @@ export class CatalogController extends BaseController {
     /**
      * Get the metrics tree structure
      * @summary Get metrics tree
+     * @deprecated Superseded by saved metrics trees (`/metrics/trees/{uuidOrSlug}`).
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -815,6 +816,7 @@ export class CatalogController extends BaseController {
     /**
      * Create an edge in the metrics tree
      * @summary Create metrics tree edge
+     * @deprecated Edges are now persisted via the saved metrics tree update endpoint (`PATCH /metrics/trees/{uuid}`).
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -843,6 +845,7 @@ export class CatalogController extends BaseController {
     /**
      * Delete an edge from the metrics tree
      * @summary Delete metrics tree edge
+     * @deprecated Edges are now persisted via the saved metrics tree update endpoint (`PATCH /metrics/trees/{uuid}`).
      */
     @Middlewares([
         allowApiKeyAuthentication,
