@@ -66,43 +66,6 @@ models:
               - customers.average_age
             time_dimension: order_date
             granularity: day
-          - name: param_dimension_rejected_daily
-            dimensions:
-              - status
-              - date_dim_param_test
-            metrics:
-              - total_order_amount
-            time_dimension: order_date
-            granularity: day
-          - name: user_attribute_email_rejected_daily
-            dimensions:
-              - status
-              - user_attribute_email_test
-            metrics:
-              - total_order_amount
-            time_dimension: order_date
-            granularity: day
-          - name: param_metric_rejected_daily
-            dimensions:
-              - status
-            metrics:
-              - parameterized_metric_test
-            time_dimension: order_date
-            granularity: day
-          - name: user_attribute_metric_rejected_daily
-            dimensions:
-              - status
-            metrics:
-              - user_attribute_email_metric_test
-            time_dimension: order_date
-            granularity: day
-          - name: param_filter_metric_rejected_daily
-            dimensions:
-              - status
-            metrics:
-              - param_filter_metric_test
-            time_dimension: order_date
-            granularity: day
         primary_key: order_id
         spotlight:
           categories:
