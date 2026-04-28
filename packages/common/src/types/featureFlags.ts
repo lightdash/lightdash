@@ -58,11 +58,6 @@ export enum FeatureFlags {
     EditYamlInUi = 'edit-yaml-in-ui',
 
     /**
-     * Enable saved metrics tree in metrics catalog
-     */
-    SavedMetricsTree = 'saved-metrics-tree',
-
-    /**
      * Enable Google Chat as a scheduled delivery destination
      */
     GoogleChatEnabled = 'google-chat-enabled',
