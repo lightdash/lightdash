@@ -157,6 +157,7 @@ export type VisualizationTableConfigProps =
         invalidateCache: boolean | undefined;
         parameters?: ParametersValuesMap;
         dateZoom?: DateZoom;
+        isEditMode?: boolean;
     };
 
 // Treemap
@@ -179,6 +180,7 @@ export type VisualizationConfigTreemapProps =
         itemsMap: ItemsMap | undefined;
         tableCalculationsMetadata?: TableCalculationMetadata[];
         parameters?: ParametersValuesMap;
+        savedChartUuid?: string;
     };
 
 // Custom

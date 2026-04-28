@@ -171,6 +171,7 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
+                savedChartUuid: body.savedChartUuid,
             });
 
         return {

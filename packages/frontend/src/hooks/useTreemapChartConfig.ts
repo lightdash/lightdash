@@ -77,6 +77,7 @@ export type TreemapChartConfigFn = (
     numericMetrics: Record<string, Metric | TableCalculation>,
     tableCalculationsMetadata?: TableCalculationMetadata[],
     parameters?: ParametersValuesMap,
+    savedChartUuid?: string,
 ) => TreemapChartConfig;
 
 const useTreemapChartConfig: TreemapChartConfigFn = (
@@ -87,6 +88,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     numericMetrics,
     tableCalculationsMetadata,
     parameters,
+    savedChartUuid,
 ) => {
     const { embedToken } = useEmbed();
 
@@ -218,6 +220,7 @@ const useTreemapChartConfig: TreemapChartConfigFn = (
     const { data: groupedSubtotals } = useCalculateSubtotals({
         metricQuery: resultsData?.metricQuery,
         explore: resultsData?.metricQuery?.exploreName,
+        savedChartUuid,
         showSubtotals: true,
         columnOrder: groupFieldIds,
         pivotDimensions: undefined,

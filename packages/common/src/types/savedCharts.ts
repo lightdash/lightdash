@@ -1188,6 +1188,8 @@ export type CalculateTotalFromQuery = {
     explore: string;
     parameters?: ParametersValuesMap;
     invalidateCache?: boolean;
+    /** UUID of the saved chart this query was loaded from, when applicable. */
+    savedChartUuid?: string;
 };
 
 export type ApiCalculateTotalResponse = {

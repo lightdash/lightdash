@@ -47,10 +47,10 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
+    hasModifiedSqlAuthoredFields,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
-    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isField,
@@ -3537,6 +3537,79 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
+    /**
+     * Throws if the incoming query contains SQL-authored fields (custom SQL
+     * dimensions or SQL table calculations) that are new or modified compared
+     * to the saved chart, and the user lacks `manage:CustomFields`.
+     *
+     * If `savedChartUuid` is provided, the saved chart's metricQuery is loaded
+     * so we only gate fields that differ from what was saved — letting users
+     * without the scope still run/explore charts that already contain SQL
+     * fields someone else authored.
+     */
+    private async assertCanRunSqlAuthoredFields({
+        auditedAbility,
+        organizationUuid,
+        projectUuid,
+        exploreName,
+        metricQuery,
+        savedChartUuid,
+    }: {
+        auditedAbility: ReturnType<AsyncQueryService['createAuditedAbility']>;
+        organizationUuid: string;
+        projectUuid: string;
+        exploreName: string;
+        metricQuery: Pick<
+            MetricQuery,
+            'customDimensions' | 'tableCalculations'
+        >;
+        savedChartUuid?: string;
+    }): Promise<void> {
+        let savedMetricQuery: Pick<
+            MetricQuery,
+            'customDimensions' | 'tableCalculations'
+        > | null = null;
+
+        if (savedChartUuid) {
+            try {
+                const savedChart = await this.savedChartModel.get(
+                    savedChartUuid,
+                    undefined,
+                    { projectUuid },
+                );
+                savedMetricQuery = savedChart.metricQuery;
+            } catch (e) {
+                this.logger.warn(
+                    'Failed to load saved chart for SQL-authored fields exemption; falling back to strict gate',
+                    {
+                        savedChartUuid,
+                        projectUuid,
+                        organizationUuid,
+                        exploreName,
+                        error: getErrorMessage(e),
+                    },
+                );
+            }
+        }
+
+        if (!hasModifiedSqlAuthoredFields(metricQuery, savedMetricQuery)) {
+            return;
+        }
+
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
+            )
+        ) {
+            throw new CustomSqlQueryForbiddenError();
+        }
+    }
+
     // execute
     async executeAsyncMetricQuery({
         account,
@@ -3550,6 +3623,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         userAttributeOverrides,
         materializationRole,
+        savedChartUuid,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -3585,21 +3659,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: {
-                        exploreName: metricQuery.exploreName,
-                    },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
+        await this.assertCanRunSqlAuthoredFields({
+            auditedAbility,
+            organizationUuid,
+            projectUuid,
+            exploreName: metricQuery.exploreName,
+            metricQuery,
+            savedChartUuid,
+        });
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
@@ -6006,21 +6073,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: {
-                        exploreName: data.explore,
-                    },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
+        await this.assertCanRunSqlAuthoredFields({
+            auditedAbility,
+            organizationUuid,
+            projectUuid,
+            exploreName: data.explore,
+            metricQuery: data.metricQuery,
+            savedChartUuid: data.savedChartUuid,
+        });
 
         const explore = await this.getExplore(
             account,
@@ -6088,21 +6148,14 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: {
-                        exploreName: data.explore,
-                    },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
+        await this.assertCanRunSqlAuthoredFields({
+            auditedAbility,
+            organizationUuid,
+            projectUuid,
+            exploreName: data.explore,
+            metricQuery: data.metricQuery,
+            savedChartUuid: data.savedChartUuid,
+        });
 
         const explore = await this.getExplore(
             account,
