@@ -56,6 +56,10 @@ import {
     UserTableName,
 } from '../database/entities/users';
 import { deprecatedHash, hash } from '../utils/hash';
+import {
+    CachedPatSessionUser,
+    PatSessionCache,
+} from './caches/PatSessionCache';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
 import Transaction = Knex.Transaction;
 
@@ -481,6 +485,9 @@ export class UserModel {
                 }
             }
         });
+        if (isActive === false) {
+            PatSessionCache.invalidate();
+        }
         return this.getUserDetailsByUuid(userUuid);
     }
 
@@ -488,6 +495,7 @@ export class UserModel {
         await this.database(UserTableName)
             .where('user_uuid', userUuid)
             .delete();
+        PatSessionCache.invalidate();
     }
 
     async getUserProjectRoles(
@@ -881,12 +889,17 @@ export class UserModel {
             .merge();
     }
 
-    async findSessionUserByPersonalAccessToken(
-        token: string,
-    ): Promise<
-        | { user: SessionUser; personalAccessToken: PersonalAccessToken }
+    async findSessionUserByPersonalAccessToken(token: string): Promise<
+        | {
+              data: CachedPatSessionUser;
+              cacheHit: boolean;
+          }
         | undefined
     > {
+        const cached = PatSessionCache.get(token);
+        if (cached) {
+            return { data: cached, cacheHit: true };
+        }
         const tokenHash = await hash(token);
         const [row] = await userDetailsQueryBuilder(this.database)
             .innerJoin(
@@ -906,7 +919,7 @@ export class UserModel {
         const { abilityBuilder, lightdashUser } =
             await this.generateUserAbilityBuilder(row);
 
-        return {
+        const data: CachedPatSessionUser = {
             user: {
                 ...lightdashUser,
                 abilityRules: abilityBuilder.rules,
@@ -916,6 +929,8 @@ export class UserModel {
             personalAccessToken:
                 PersonalAccessTokenModel.mapDbObjectToPersonalAccessToken(row),
         };
+        PatSessionCache.set(token, data);
+        return { data, cacheHit: false };
     }
 
     async createPassword(userId: number, newPassword: string): Promise<void> {
