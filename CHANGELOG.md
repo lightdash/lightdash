@@ -1,3 +1,10 @@
+## [0.2834.1](https://github.com/lightdash/lightdash/compare/0.2834.0...0.2834.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* gate "Change explore" on chart-update permission instead of project-update [PROD-7185] ([#22466](https://github.com/lightdash/lightdash/issues/22466)) ([f9dd7f1](https://github.com/lightdash/lightdash/commit/f9dd7f1e910eeaeff89316604a4557e401858950))
+
 # [0.2834.0](https://github.com/lightdash/lightdash/compare/0.2833.0...0.2834.0) (2026-04-28)
 
 
