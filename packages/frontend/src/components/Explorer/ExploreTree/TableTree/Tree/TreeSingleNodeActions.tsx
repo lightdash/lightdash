@@ -34,7 +34,10 @@ import {
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import { useClientFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -73,9 +76,11 @@ const TreeSingleNodeActions: FC<Props> = ({
         return isDimension(item) ? getCustomMetricType(item.type) : [];
     }, [item]);
 
-    const isWriteBackCustomBinDimensionsEnabled = useClientFeatureFlag(
+    const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
         FeatureFlags.WriteBackCustomBinDimensions,
     );
+    const isWriteBackCustomBinDimensionsEnabled =
+        writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
     const isCustomGroupBinsEnabled = useClientFeatureFlag(
         FeatureFlags.CustomGroupBins,

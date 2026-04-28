@@ -11,7 +11,7 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import { useClientFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -41,9 +41,11 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const allCustomDimensions = useExplorerSelector(selectCustomDimensions);
 
     // Feature flag for bin dimensions write-back
-    const isWriteBackCustomBinDimensionsEnabled = useClientFeatureFlag(
+    const { data: writeBackCustomBinDimensionsFlag } = useServerFeatureFlag(
         FeatureFlags.WriteBackCustomBinDimensions,
     );
+    const isWriteBackCustomBinDimensionsEnabled =
+        writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
     // Filter custom dimensions based on feature flag
     const customDimensionsToWriteBack = useMemo(() => {
