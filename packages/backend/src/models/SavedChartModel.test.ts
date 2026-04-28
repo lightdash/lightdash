@@ -129,3 +129,71 @@ describe('getLatestVersionSummaries', () => {
         expect(versionIds).toEqual(['now', '1_day_ago']);
     });
 });
+
+describe('convertDbSavedChartAdditionalMetricToAdditionalMetric — PoP formatOptions', () => {
+    it('preserves formatOptions when loaded as parsed jsonb object', () => {
+        const dbRow: AnyType = {
+            uuid: 'uuid-1',
+            name: 'total_revenue__pop__week_1__abc',
+            table: 'orders',
+            type: 'sum',
+            sql: '${TABLE}.amount',
+            label: 'Revenue (Previous week)',
+            hidden: true,
+            generation_type: 'periodOverPeriod',
+            base_metric_id: 'orders_total_revenue',
+            time_dimension_id: 'orders_order_date_week',
+            granularity: 'WEEK',
+            period_offset: 1,
+            // jsonb auto-parsed by node-pg
+            format_options: {
+                type: 'currency',
+                currency: 'USD',
+            },
+        };
+
+        const result =
+            SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric(
+                dbRow,
+            );
+
+        expect(result.formatOptions).toEqual({
+            type: 'currency',
+            currency: 'USD',
+        });
+        expect(result.generationType).toBe('periodOverPeriod');
+        expect(result.baseMetricId).toBe('orders_total_revenue');
+    });
+
+    it('preserves formatOptions when jsonb is returned as a JSON string', () => {
+        // Defensive: some pg/knex configurations return jsonb as a string
+        const dbRow: AnyType = {
+            uuid: 'uuid-1',
+            name: 'total_revenue__pop__week_1__abc',
+            table: 'orders',
+            type: 'sum',
+            sql: '${TABLE}.amount',
+            label: 'Revenue (Previous week)',
+            hidden: true,
+            generation_type: 'periodOverPeriod',
+            base_metric_id: 'orders_total_revenue',
+            time_dimension_id: 'orders_order_date_week',
+            granularity: 'WEEK',
+            period_offset: 1,
+            format_options: '{"type":"currency","currency":"USD"}',
+        };
+
+        const result =
+            SavedChartModel.convertDbSavedChartAdditionalMetricToAdditionalMetric(
+                dbRow,
+            );
+
+        // If this returns the raw string, the chart visualization breaks because
+        // seriesValueFormatter reads item.formatOptions.type which is undefined
+        // on a string.
+        expect(result.formatOptions).toEqual({
+            type: 'currency',
+            currency: 'USD',
+        });
+    });
+});

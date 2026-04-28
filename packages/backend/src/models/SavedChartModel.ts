@@ -555,7 +555,10 @@ export class SavedChartModel {
                 filters: additionalMetric.filters,
             }),
             ...(additionalMetric.format_options && {
-                formatOptions: additionalMetric.format_options,
+                formatOptions:
+                    typeof additionalMetric.format_options === 'string'
+                        ? JSON.parse(additionalMetric.format_options)
+                        : additionalMetric.format_options,
             }),
         };
     }
