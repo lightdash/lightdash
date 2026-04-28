@@ -1,3 +1,10 @@
+# [0.2832.0](https://github.com/lightdash/lightdash/compare/0.2831.0...0.2832.0) (2026-04-28)
+
+
+### Features
+
+* **permissions:** gate SQL table calcs and add saved-version exemption ([#22451](https://github.com/lightdash/lightdash/issues/22451)) ([eee9b61](https://github.com/lightdash/lightdash/commit/eee9b619d971ff0f2f3ffc433678469237cad609))
+
 # [0.2831.0](https://github.com/lightdash/lightdash/compare/0.2830.0...0.2831.0) (2026-04-28)
 
 
