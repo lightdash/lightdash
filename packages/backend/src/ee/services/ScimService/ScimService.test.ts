@@ -287,6 +287,7 @@ describe('ScimService', () => {
             };
 
             await service.createUser({
+                account: mockScimAccount,
                 user: scimUser,
                 organizationUuid: 'org-uuid',
             });
@@ -327,6 +328,7 @@ describe('ScimService', () => {
 
             await expect(
                 service.createUser({
+                    account: mockScimAccount,
                     user: scimUser,
                     organizationUuid: 'org-uuid',
                 }),
