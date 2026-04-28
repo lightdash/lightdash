@@ -40,8 +40,6 @@ export class FeatureFlagModel {
                 this.getUserGroupsEnabled.bind(this),
             [FeatureFlags.UseSqlPivotResults]:
                 this.getUseSqlPivotResults.bind(this),
-            [FeatureFlags.DashboardComments]:
-                this.getDashboardComments.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
@@ -158,38 +156,6 @@ export class FeatureFlagModel {
                       true,
                   )
                 : true);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getDashboardComments({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        if (!this.lightdashConfig.dashboardComments.enabled) {
-            return {
-                id: featureFlagId,
-                enabled: false,
-            };
-        }
-
-        const enabled = user
-            ? await isFeatureFlagEnabled(
-                  FeatureFlags.DashboardComments,
-                  {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  },
-                  {
-                      throwOnTimeout: false,
-                      timeoutMilliseconds: 500,
-                  },
-                  true,
-              )
-            : true;
-
         return {
             id: featureFlagId,
             enabled,

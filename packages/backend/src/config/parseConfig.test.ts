@@ -839,3 +839,39 @@ describe('getMultiProjectSetupConfig', () => {
         );
     });
 });
+
+describe('feature flag env-var allowlists', () => {
+    test('LIGHTDASH_ENABLE_FEATURE_FLAGS populates enabledFeatureFlags', () => {
+        process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS = 'foo, bar,baz';
+        const config = parseConfig();
+        expect([...config.enabledFeatureFlags].sort()).toEqual([
+            'bar',
+            'baz',
+            'foo',
+        ]);
+    });
+
+    test('LIGHTDASH_DISABLE_FEATURE_FLAGS populates disabledFeatureFlags', () => {
+        process.env.LIGHTDASH_DISABLE_FEATURE_FLAGS = 'killed-flag';
+        const config = parseConfig();
+        expect(config.disabledFeatureFlags.has('killed-flag')).toBe(true);
+    });
+
+    test('legacy DISABLE_DASHBOARD_COMMENTS=true translates to disabledFeatureFlags', () => {
+        // Backward-compat for self-hosters who set the legacy env var before
+        // the unified LIGHTDASH_DISABLE_FEATURE_FLAGS pattern was introduced.
+        process.env.DISABLE_DASHBOARD_COMMENTS = 'true';
+        const config = parseConfig();
+        expect(
+            config.disabledFeatureFlags.has('dashboard-comments-enabled'),
+        ).toBe(true);
+    });
+
+    test('legacy DISABLE_DASHBOARD_COMMENTS unset leaves the flag out of disabledFeatureFlags', () => {
+        delete process.env.DISABLE_DASHBOARD_COMMENTS;
+        const config = parseConfig();
+        expect(
+            config.disabledFeatureFlags.has('dashboard-comments-enabled'),
+        ).toBe(false);
+    });
+});

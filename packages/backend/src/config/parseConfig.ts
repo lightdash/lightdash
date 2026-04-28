@@ -1233,9 +1233,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    dashboardComments: {
-        enabled: boolean;
-    };
     echarts6: {
         enabled: boolean;
     };
@@ -1561,6 +1558,7 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     readonly [envVar: string, flagId: string]
 > = [
     // Add per migration; truthy env value disables the flag.
+    ['DISABLE_DASHBOARD_COMMENTS', 'dashboard-comments-enabled'],
 ];
 
 export const parseConfig = (): LightdashConfig => {
@@ -2259,9 +2257,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        dashboardComments: {
-            enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
-        },
         echarts6: {
             enabled: process.env.ECHARTS_V6_ENABLED === 'true',
         },
