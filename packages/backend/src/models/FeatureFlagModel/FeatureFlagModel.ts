@@ -38,8 +38,6 @@ export class FeatureFlagModel {
         this.featureFlagHandlers = {
             [FeatureFlags.UserGroupsEnabled]:
                 this.getUserGroupsEnabled.bind(this),
-            [FeatureFlags.UseSqlPivotResults]:
-                this.getUseSqlPivotResults.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
@@ -130,32 +128,6 @@ export class FeatureFlagModel {
                       },
                   )
                 : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUseSqlPivotResults({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.useSqlPivotResults ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UseSqlPivotResults,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                      true,
-                  )
-                : true);
         return {
             id: featureFlagId,
             enabled,

@@ -1033,7 +1033,6 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        useSqlPivotResults: boolean | undefined;
         showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
@@ -1555,6 +1554,11 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
     ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
     ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
+    // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
+    // translating to enabledFeatureFlags ensures both existing and new cloud
+    // instances pick up the DB-backed flag as enabled without needing per-DB
+    // bootstrapping.
+    ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -1958,9 +1962,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
-                ? process.env.USE_SQL_PIVOT_RESULTS !== 'false'
-                : undefined,
             showExecutionTime: process.env.SHOW_EXECUTION_TIME
                 ? process.env.SHOW_EXECUTION_TIME === 'true'
                 : undefined,
