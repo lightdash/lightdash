@@ -374,4 +374,5 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bTemplateName: 'lightdash-data-app',
     },
     enabledFeatureFlags: new Set<string>(),
+    disabledFeatureFlags: new Set<string>(),
 };
