@@ -4,6 +4,7 @@ import {
     getItemLabelWithoutTableName,
     getItemMap,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -38,6 +39,8 @@ import {
 } from '../../../features/tableCalculation';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { BetaBadge } from '../../common/BetaBadge';
@@ -70,6 +73,8 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
+    const projectUuid = useProjectUuid();
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
 
     // Get explore data to check if metrics return date values
     const { data: exploreData } = useExplore(tableName, {
@@ -249,20 +254,24 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => {
-                        dispatch(
-                            explorerActions.toggleCustomDimensionModal({
-                                item,
-                                isEditing: true,
-                            }),
-                        );
-                    }}
-                >
-                    Edit custom dimension
-                </Menu.Item>
-                <Menu.Divider />
+                {!(isCustomSqlDimension(item) && cannotAuthorCustomSql) && (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.toggleCustomDimensionModal({
+                                        item,
+                                        isEditing: true,
+                                    }),
+                                );
+                            }}
+                        >
+                            Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Divider />
+                    </>
+                )}
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
