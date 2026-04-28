@@ -333,11 +333,17 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
     },
-    // TODO migrate SCIM permissions to abilities
     [ServiceAccountScope.SCIM_MANAGE]: ({
-        organizationUuid: _organizationUuid,
-        builder: { can: _can },
-    }) => {},
+        organizationUuid,
+        builder: { can },
+    }) => {
+        can('manage', 'OrganizationMemberProfile', {
+            organizationUuid,
+        });
+        can('manage', 'Group', {
+            organizationUuid,
+        });
+    },
 };
 
 export const applyServiceAccountAbilities = ({

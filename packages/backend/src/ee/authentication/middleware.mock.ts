@@ -1,9 +1,32 @@
-import { SessionServiceAccount } from '@lightdash/common';
+import {
+    ServiceAccount,
+    ServiceAccountScope,
+    SessionServiceAccount,
+} from '@lightdash/common';
 import express from 'express';
 import { BaseService } from '../../services/BaseService';
 
-export const mockServiceAccount: SessionServiceAccount = {
+export const mockServiceAccount: ServiceAccount = {
+    uuid: 'test-service-account-uuid',
+    createdByUserUuid: 'admin-user-uuid',
     organizationUuid: 'test-org-uuid',
+    createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    expiresAt: null,
+    description: 'test scim token',
+    lastUsedAt: null,
+    rotatedAt: null,
+    scopes: [ServiceAccountScope.SCIM_MANAGE],
+};
+
+const mockOrganization = {
+    organizationUuid: 'test-org-uuid',
+    name: 'Test Org',
+    createdAt: new Date('2024-01-01T00:00:00.000Z'),
+};
+
+const mockAdminUser = {
+    userUuid: 'admin-user-uuid',
+    userId: 1,
 };
 
 export const mockRequest = {
@@ -18,6 +41,14 @@ export const mockRequest = {
     services: {
         getServiceAccountService: jest.fn().mockReturnValue({
             authenticateScim: jest.fn().mockResolvedValue(mockServiceAccount),
+        }),
+        getOrganizationService: jest.fn().mockReturnValue({
+            getOrganizationByUuid: jest
+                .fn()
+                .mockResolvedValue(mockOrganization),
+        }),
+        getUserService: jest.fn().mockReturnValue({
+            getAdminUser: jest.fn().mockResolvedValue(mockAdminUser),
         }),
     },
 } as unknown as express.Request;

@@ -8,7 +8,6 @@ import {
     ServiceAccount,
     ServiceAccountScope,
     ServiceAccountWithToken,
-    SessionServiceAccount,
     SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
@@ -274,7 +273,7 @@ export class ServiceAccountService extends BaseService {
             path: string;
             routePath: string;
         },
-    ): Promise<SessionServiceAccount | null> {
+    ): Promise<ServiceAccount | null> {
         // return null if token is empty
         if (token === '') return null;
 
@@ -307,10 +306,7 @@ export class ServiceAccountService extends BaseService {
                 if (!isSameMinute(dbToken.lastUsedAt, new Date())) {
                     await this.serviceAccountModel.updateUsedDate(dbToken.uuid);
                 }
-                // finally return organization uuid
-                return {
-                    organizationUuid: dbToken.organizationUuid,
-                };
+                return dbToken;
             }
         } catch (error) {
             return null;
