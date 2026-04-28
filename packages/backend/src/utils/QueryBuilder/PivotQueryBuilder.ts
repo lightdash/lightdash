@@ -459,9 +459,11 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Builds ORDER BY clause for groupBy columns with their sort directions.
-     * Respects sortBy order and uses column anchor values for value columns when available.
-     * Appends any missing group by columns at the end.
+     * Builds the ORDER BY clause used to rank pivot columns (column_index).
+     * Group-by columns referenced in sortBy lead in user-specified order; any
+     * remaining group-bys follow in declaration order. Value columns sorted
+     * by an anchor CTE are prepended or appended depending on whether the
+     * first sort entry is a value or a group-by.
      * @param groupByColumns - Group by columns to order by
      * @param valuesColumns - Value columns configuration
      * @param sortBy - Sort configuration for columns
@@ -518,12 +520,8 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Group-by parts: first, emit any group-by columns referenced in
-            // sortBy in the order the user specified them (so the user's sort
-            // intent drives column_index). Then append remaining group-by
-            // columns in declaration order with default ASC. This is what
-            // makes `group by status, status_priority` + `sort by status_priority`
-            // produce columns ordered by priority instead of alphabetical status.
+            // Group-by columns referenced in sortBy lead in user-specified
+            // order; remaining group-bys follow in declaration order.
             const sortedGroupBys = sortBy.filter(isGroupByColumn);
             const sortedGroupByRefs = new Set(
                 sortedGroupBys.map((s) => s.reference),

@@ -754,11 +754,10 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('ORDER BY "date" ASC, "event" DESC');
         });
 
-        test('Should lead column_index ORDER BY with the sorted group-by column, not declaration order (PROD-7154)', () => {
-            // Frontend sends both `status` and `status_priority` as group-by
-            // columns and a sort on `status_priority`. Without this fix the
-            // ORDER BY follows declaration order, so columns end up sorted
-            // alphabetically by `status` with priority only as tiebreaker.
+        test('Should lead column_index ORDER BY with the sorted group-by column, not declaration order', () => {
+            // Without this, DENSE_RANK orders columns by the first declared
+            // group-by alphabetically, with the user-sorted column only
+            // acting as a tiebreaker.
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
