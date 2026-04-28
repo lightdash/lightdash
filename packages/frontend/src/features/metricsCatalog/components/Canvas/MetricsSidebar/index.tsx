@@ -2,6 +2,7 @@ import { friendlyName } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
     Group,
     Paper,
     ScrollArea,
@@ -23,6 +24,9 @@ import classes from './MetricsSidebar.module.css';
 
 type MetricsSidebarProps = {
     nodes: ExpandedNodeData[];
+    hasMore?: boolean;
+    isLoadingMore?: boolean;
+    onLoadMore?: () => void;
 };
 
 type DraggableMetricItemProps = {
@@ -92,93 +96,116 @@ const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
     },
 );
 
-const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(({ nodes }) => {
-    const handleDragStart = useCallback(
-        (event: DragEvent<HTMLDivElement>, node: ExpandedNodeData) => {
-            event.dataTransfer.setData(
-                'application/reactflow',
-                JSON.stringify({
-                    catalogSearchUuid: node.id,
-                    name: node.data.label,
-                    tableName: node.data.tableName,
-                }),
-            );
-            event.dataTransfer.effectAllowed = 'move';
-        },
-        [],
-    );
+const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
+    ({ nodes, hasMore, isLoadingMore, onLoadMore }) => {
+        const handleDragStart = useCallback(
+            (event: DragEvent<HTMLDivElement>, node: ExpandedNodeData) => {
+                event.dataTransfer.setData(
+                    'application/reactflow',
+                    JSON.stringify({
+                        catalogSearchUuid: node.id,
+                        name: node.data.label,
+                        tableName: node.data.tableName,
+                    }),
+                );
+                event.dataTransfer.effectAllowed = 'move';
+            },
+            [],
+        );
 
-    return (
-        <>
-            <Panel
-                id="metrics-sidebar"
-                order={1}
-                defaultSize={20}
-                minSize={15}
-                maxSize={40}
-            >
-                <Paper
-                    h="100%"
-                    p="xs"
-                    className={classes.sidebar}
-                    radius={0}
-                    pr={0}
+        return (
+            <>
+                <Panel
+                    id="metrics-sidebar"
+                    order={1}
+                    defaultSize={20}
+                    minSize={15}
+                    maxSize={40}
                 >
-                    <Stack gap="sm" h="100%">
-                        <Group
-                            gap="sm"
-                            justify="space-between"
-                            px="xs"
-                            wrap="nowrap"
-                        >
-                            {nodes.length > 0 && (
-                                <Text fz="xs" c="dimmed">
-                                    {nodes.length} metric
-                                    {nodes.length !== 1 ? 's' : ''} not on
-                                    canvas
-                                </Text>
-                            )}
-                            <ActionIcon
-                                title="Documentation"
-                                component="a"
-                                href="https://docs.lightdash.com/guides/metrics-catalog/canvas"
-                                target="_blank"
-                                variant="transparent"
-                                size="xs"
+                    <Paper
+                        h="100%"
+                        p="xs"
+                        className={classes.sidebar}
+                        radius={0}
+                        pr={0}
+                    >
+                        <Stack gap="sm" h="100%">
+                            <Group
+                                gap="sm"
+                                justify="space-between"
+                                px="xs"
+                                wrap="nowrap"
                             >
-                                <MantineIcon icon={IconBook} color="ldGray.5" />
-                            </ActionIcon>
-                        </Group>
+                                {nodes.length > 0 && (
+                                    <Text fz="xs" c="dimmed">
+                                        {nodes.length} metric
+                                        {nodes.length !== 1 ? 's' : ''} not on
+                                        canvas
+                                    </Text>
+                                )}
+                                <ActionIcon
+                                    title="Documentation"
+                                    component="a"
+                                    href="https://docs.lightdash.com/guides/metrics-catalog/canvas"
+                                    target="_blank"
+                                    variant="transparent"
+                                    size="xs"
+                                >
+                                    <MantineIcon
+                                        icon={IconBook}
+                                        color="ldGray.5"
+                                    />
+                                </ActionIcon>
+                            </Group>
 
-                        <ScrollArea style={{ flex: 1 }} offsetScrollbars>
-                            {nodes.length > 0 ? (
+                            <ScrollArea style={{ flex: 1 }} offsetScrollbars>
                                 <Stack gap="xs">
-                                    {nodes.map((node) => (
-                                        <DraggableMetricItem
-                                            key={node.id}
-                                            node={node}
-                                            onDragStart={handleDragStart}
-                                        />
-                                    ))}
+                                    {nodes.length > 0
+                                        ? nodes.map((node) => (
+                                              <DraggableMetricItem
+                                                  key={node.id}
+                                                  node={node}
+                                                  onDragStart={handleDragStart}
+                                              />
+                                          ))
+                                        : !hasMore && (
+                                              <Text
+                                                  fz="xs"
+                                                  c="dimmed"
+                                                  ta="center"
+                                                  mt="md"
+                                              >
+                                                  All metrics are on the canvas
+                                              </Text>
+                                          )}
+                                    {hasMore && (
+                                        <Button
+                                            variant="subtle"
+                                            size="xs"
+                                            onClick={onLoadMore}
+                                            loading={isLoadingMore}
+                                        >
+                                            Load more
+                                        </Button>
+                                    )}
                                 </Stack>
-                            ) : (
-                                <Text fz="xs" c="dimmed" ta="center" mt="md">
-                                    All metrics are on the canvas
-                                </Text>
-                            )}
-                        </ScrollArea>
-                    </Stack>
-                </Paper>
-            </Panel>
-            <Box component={PanelResizeHandle} className={classes.resizeHandle}>
-                <MantineIcon
-                    icon={IconGripVertical}
-                    size={12}
-                    color="ldGray.5"
-                />
-            </Box>
-        </>
-    );
-});
+                            </ScrollArea>
+                        </Stack>
+                    </Paper>
+                </Panel>
+                <Box
+                    component={PanelResizeHandle}
+                    className={classes.resizeHandle}
+                >
+                    <MantineIcon
+                        icon={IconGripVertical}
+                        size={12}
+                        color="ldGray.5"
+                    />
+                </Box>
+            </>
+        );
+    },
+);
 
 export default MetricsSidebar;
