@@ -840,6 +840,22 @@ describe('getMultiProjectSetupConfig', () => {
     });
 });
 
+describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
+    // The change-chart-explore / show-hide-rows / show-hide-columns env-var
+    // parsers were removed when those flags were migrated to DB-backed
+    // resolution. Re-translating them via the legacy enable list preserves
+    // backward compat for self-hosted deployments that set these vars.
+    test.each([
+        ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
+        ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
+        ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
+    ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
+        process.env[envVar] = 'true';
+        const config = parseConfig();
+        expect(config.enabledFeatureFlags.has(flagId)).toBe(true);
+    });
+});
+
 describe('feature flag env-var allowlists', () => {
     test('LIGHTDASH_ENABLE_FEATURE_FLAGS populates enabledFeatureFlags', () => {
         process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS = 'foo, bar,baz';

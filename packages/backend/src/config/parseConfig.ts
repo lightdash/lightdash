@@ -1552,6 +1552,9 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     readonly [envVar: string, flagId: string]
 > = [
     // Add per migration; truthy env value enables the flag.
+    ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
+    ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
+    ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
