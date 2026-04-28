@@ -16,7 +16,6 @@ import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
     ActionIcon,
     Anchor,
-    Badge,
     Box,
     Button,
     Group,
@@ -545,22 +544,9 @@ const TableCalculationModal: FC<Props> = ({
             <Stack gap="xs">
                 <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
-                        <Group gap={6} align="center">
-                            <Text fz="sm" fw={600}>
-                                {editorLabel}
-                            </Text>
-                            {editMode === EditMode.FORMULA && (
-                                <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
-                                    <Badge
-                                        color="indigo"
-                                        radius="sm"
-                                        className={classes.inputModeBadge}
-                                    >
-                                        Beta
-                                    </Badge>
-                                </Tooltip>
-                            )}
-                        </Group>
+                        <Text fz="sm" fw={600}>
+                            {editorLabel}
+                        </Text>
                         {canSwitchEditMode && (
                             <Anchor
                                 size="xs"
