@@ -4,6 +4,7 @@ import {
     addDashboardFiltersToMetricQuery,
     AlreadyExistsError,
     AndFilterGroup,
+    AnonymousAccount,
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
@@ -1366,12 +1367,39 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError(
                 'Embedded users cannot use personal warehouse credentials',
             );
+        } else if (!organizationWarehouseCredentialsUuid) {
+            // Refresh project credentials for the embed user. Required for auth
+            // types that mint a short-lived token from project-level secrets
+            // (e.g. Databricks oauth_m2m exchanges client_id+secret for a token).
+            this.logger.debug(
+                `Refreshing warehouse credentials for embed user ${userId}`,
+            );
+            credentials = await this.refreshCredentials(credentials, userId);
         }
 
         return {
             ...credentials,
             userWarehouseCredentialsUuid,
         };
+    }
+
+    /**
+     * Resolves warehouse credentials for an embed (anonymous JWT) request.
+     * Same shape as `getWarehouseCredentials` but tailored for embed callers
+     * and exposed as a public method so EmbedService can reuse the refresh path.
+     */
+    async getWarehouseCredentialsForEmbed({
+        projectUuid,
+        account,
+    }: {
+        projectUuid: string;
+        account: AnonymousAccount;
+    }) {
+        return this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: false,
+        });
     }
 
     async _getWarehouseClient(
