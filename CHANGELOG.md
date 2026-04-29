@@ -1,3 +1,10 @@
+## [0.2835.1](https://github.com/lightdash/lightdash/compare/0.2835.0...0.2835.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **sql-runner:** gate save dropdown items by CASL permissions ([#22448](https://github.com/lightdash/lightdash/issues/22448)) ([f11d192](https://github.com/lightdash/lightdash/commit/f11d1922d433eb5bf62363f6f96a49dce680a6c8))
+
 # [0.2835.0](https://github.com/lightdash/lightdash/compare/0.2834.1...0.2835.0) (2026-04-29)
 
 
