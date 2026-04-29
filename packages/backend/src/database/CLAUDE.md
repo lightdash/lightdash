@@ -61,6 +61,7 @@ console.log(`Found ${searchResults.pagination.totalResults} results`);
 <importantToKnow>
 - All entities use composite table types (DbEntity, CreateEntity, UpdateEntity) for type safety
 - UUIDs are used for external API identifiers while internal IDs are auto-incrementing integers
+- **Every table must have a PRIMARY KEY**: PostgreSQL logical replication and CDC tools rely on it for row identity, and PG can otherwise be forced into expensive `REPLICA IDENTITY FULL`. For new tables, prefer a synthetic UUID PK (`<table>_uuid` defaulting to `uuid_generate_v4()`) — this is consistent with the external API and avoids relying on natural keys that can change. A composite natural-key PK is acceptable when every column is already `NOT NULL` and inherently stable. Append-only audit/log tables are no exception.
 - **Foreign key preference**: When referencing other tables, prefer using UUID columns (e.g., `organization_uuid`) over integer IDs (e.g., `organization_id`). This maintains consistency with the external API and simplifies joins.
 - The migration system supports both up/down functions and includes 150+ historical migrations
 - KnexPaginate uses CTEs for efficient counting and supports both paginated and unpaginated modes
