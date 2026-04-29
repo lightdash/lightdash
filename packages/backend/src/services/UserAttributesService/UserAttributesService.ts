@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     CreateUserAttribute,
     ForbiddenError,
     RequestMethod,
-    SessionUser,
     UserAttribute,
 } from '@lightdash/common';
 import {
@@ -48,11 +48,11 @@ export class UserAttributesService extends BaseService {
     }
 
     async getAll(
-        user: SessionUser,
+        account: Account,
         context: RequestMethod,
     ): Promise<UserAttribute[]> {
-        const organizationUuid = user.organizationUuid!;
-        const auditedAbility = this.createAuditedAbility(user);
+        const organizationUuid = account.organization.organizationUuid!;
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -71,7 +71,7 @@ export class UserAttributesService extends BaseService {
         if (context === RequestMethod.WEB_APP) {
             this.analytics.track({
                 event: 'user_attributes.page_viewed',
-                userId: user.userUuid,
+                userId: account.user.id,
                 properties: {
                     organizationId: organizationUuid,
                     userAttributesCount: attributes.length,
@@ -82,11 +82,11 @@ export class UserAttributesService extends BaseService {
     }
 
     async create(
-        user: SessionUser,
+        account: Account,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
-        const organizationUuid = user.organizationUuid!;
-        const auditedAbility = this.createAuditedAbility(user);
+        const organizationUuid = account.organization.organizationUuid!;
+        const auditedAbility = this.createAuditedAbility(account);
 
         if (
             auditedAbility.cannot(
@@ -108,7 +108,7 @@ export class UserAttributesService extends BaseService {
 
         this.analytics.track({
             event: 'user_attribute.created',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties:
                 UserAttributesService.getAnalyticsEventProperties(
                     createdAttribute,
@@ -119,13 +119,13 @@ export class UserAttributesService extends BaseService {
     }
 
     async update(
-        user: SessionUser,
+        account: Account,
         orgAttributeUuid: string,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         const savedAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
 
         if (
             auditedAbility.cannot(
@@ -142,14 +142,14 @@ export class UserAttributesService extends BaseService {
             throw new ForbiddenError();
         }
         const updatedAttribute = await this.userAttributesModel.update(
-            user.organizationUuid!,
+            account.organization.organizationUuid!,
             orgAttributeUuid,
             orgAttribute,
         );
 
         this.analytics.track({
             event: 'user_attribute.updated',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties:
                 UserAttributesService.getAnalyticsEventProperties(
                     updatedAttribute,
@@ -159,10 +159,10 @@ export class UserAttributesService extends BaseService {
         return updatedAttribute;
     }
 
-    async delete(user: SessionUser, orgAttributeUuid: string): Promise<void> {
+    async delete(account: Account, orgAttributeUuid: string): Promise<void> {
         const orgAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -181,7 +181,7 @@ export class UserAttributesService extends BaseService {
 
         this.analytics.track({
             event: 'user_attribute.deleted',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 organizationId: orgAttribute.organizationUuid,
                 attributeId: orgAttributeUuid,
