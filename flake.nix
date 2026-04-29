@@ -48,7 +48,7 @@
 
             buildInputs = with pkgs; [
               nodejs
-              pnpm_9
+              pnpm
 
               # for dbt
               python312
