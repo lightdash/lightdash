@@ -1033,7 +1033,6 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
     };
@@ -1558,6 +1557,7 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // from the feature flag) — keep the config field, but translate the env
     // var to the unified allowlist for the flag system too.
     ['GROUPS_ENABLED', 'user-groups-enabled'],
+    ['SHOW_EXECUTION_TIME', 'show-execution-time'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -1961,9 +1961,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            showExecutionTime: process.env.SHOW_EXECUTION_TIME
-                ? process.env.SHOW_EXECUTION_TIME === 'true'
-                : undefined,
             retryQueryOnTransientErrors: process.env
                 .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
