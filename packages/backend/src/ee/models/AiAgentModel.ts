@@ -235,7 +235,6 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
-                enableReasoning: `${AiAgentTableName}.enable_reasoning`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -369,7 +368,6 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
-                enableReasoning: `${AiAgentTableName}.enable_reasoning`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -479,7 +477,6 @@ export class AiAgentModel {
             | 'spaceAccess'
             | 'enableDataAccess'
             | 'enableSelfImprovement'
-            | 'enableReasoning'
             | 'version'
         > & {
             organizationUuid: string;
@@ -496,7 +493,6 @@ export class AiAgentModel {
                     image_url: null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
-                    enable_reasoning: args.enableReasoning,
                     version: args.version,
                 })
                 .returning('*');
@@ -588,7 +584,6 @@ export class AiAgentModel {
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
-                enableReasoning: agent.enable_reasoning,
                 version: agent.version,
             };
         });
@@ -627,9 +622,6 @@ export class AiAgentModel {
                               enable_self_improvement:
                                   args.enableSelfImprovement,
                           }
-                        : {}),
-                    ...(args.enableReasoning !== undefined
-                        ? { enable_reasoning: args.enableReasoning }
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
@@ -757,7 +749,6 @@ export class AiAgentModel {
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
-                enableReasoning: agent.enable_reasoning,
                 version: agent.version,
             };
         });

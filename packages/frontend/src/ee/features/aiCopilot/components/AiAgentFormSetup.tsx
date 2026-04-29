@@ -1,4 +1,4 @@
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
+import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Badge,
@@ -71,7 +71,6 @@ const formSchema = z.object({
     spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
-    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -135,14 +134,6 @@ export const AiAgentFormSetup = ({
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
-
-    const agentReasoningFeatureFlagQuery = useServerFeatureFlag(
-        CommercialFeatureFlags.AgentReasoning,
-    );
-
-    const isAgentReasoningEnabled =
-        agentReasoningFeatureFlagQuery.isSuccess &&
-        agentReasoningFeatureFlagQuery.data.enabled;
 
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
         {
@@ -408,42 +399,6 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
-                            {isAgentReasoningEnabled && (
-                                <Switch
-                                    variant="subtle"
-                                    label={
-                                        <Group gap="xs">
-                                            <Text fz="sm" fw={500}>
-                                                Enable Reasoning
-                                            </Text>
-                                            <Tooltip
-                                                label="When enabled, the AI agent will show its reasoning process while generating responses, helping you understand how it arrives at conclusions."
-                                                withArrow
-                                                withinPortal
-                                                multiline
-                                                position="right"
-                                                maw="300px"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconInfoCircle}
-                                                />
-                                            </Tooltip>
-                                        </Group>
-                                    }
-                                    description={
-                                        <>
-                                            Displays the agent's reasoning
-                                            process while generating responses,
-                                            helping you understand how it thinks
-                                            through problems and reaches
-                                            conclusions.
-                                        </>
-                                    }
-                                    {...form.getInputProps('enableReasoning', {
-                                        type: 'checkbox',
-                                    })}
-                                />
-                            )}
                         </Stack>
                     </Paper>
 

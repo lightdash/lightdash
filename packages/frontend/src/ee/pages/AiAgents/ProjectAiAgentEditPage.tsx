@@ -60,7 +60,6 @@ const formSchema = z.object({
     spaceAccess: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
-    enableReasoning: z.boolean(),
     version: z.number(),
 });
 
@@ -110,7 +109,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             spaceAccess: [],
             enableDataAccess: false,
             enableSelfImprovement: false,
-            enableReasoning: false,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
@@ -134,7 +132,6 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 spaceAccess: agent.spaceAccess ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
-                enableReasoning: agent.enableReasoning ?? false,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);

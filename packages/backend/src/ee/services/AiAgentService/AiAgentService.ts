@@ -1082,7 +1082,6 @@ export class AiAgentService extends BaseService {
             spaceAccess: body.spaceAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
-            enableReasoning: body.enableReasoning,
             version: body.version,
         });
 
@@ -1148,7 +1147,6 @@ export class AiAgentService extends BaseService {
             spaceAccess: body.spaceAccess,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
-            enableReasoning: body.enableReasoning,
             version: body.version,
         });
 
@@ -3106,8 +3104,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
 
         const agentSettings = await this.getAgentSettings(user, prompt);
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
-            enableReasoning:
-                prompt.modelConfig?.reasoning ?? agentSettings.enableReasoning,
+            enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
