@@ -1134,4 +1134,157 @@ describe('codegen', () => {
             );
         });
     });
+
+    describe('LEFT / RIGHT', () => {
+        const stringColumns = { domain: 'domain' };
+
+        it('emits LEFT(text, n)', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe('LEFT("domain", 5)');
+        });
+
+        it('emits RIGHT(text, n)', () => {
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe('RIGHT("domain", 3)');
+        });
+
+        it('emits the same form on BigQuery', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe('LEFT(`domain`, 5)');
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe('RIGHT(`domain`, 3)');
+        });
+    });
+
+    describe('REPLACE', () => {
+        const stringColumns = { domain: 'domain' };
+
+        it('emits REPLACE(text, search, replace) on Postgres', () => {
+            expect(
+                compile('=REPLACE(domain, "https://", "")', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe(`REPLACE("domain", 'https://', '')`);
+        });
+
+        it('emits REPLACE on BigQuery with backtick-quoted identifiers', () => {
+            expect(
+                compile('=REPLACE(domain, "https://", "")', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe("REPLACE(`domain`, 'https://', '')");
+        });
+
+        it('composes with LOWER inside REPLACE', () => {
+            expect(
+                compile('=REPLACE(LOWER(domain), "x", "y")', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe(`REPLACE(LOWER("domain"), 'x', 'y')`);
+        });
+    });
+
+    describe('SUBSTRING', () => {
+        const stringColumns = { domain: 'domain' };
+
+        it('emits SUBSTRING(text, start, length) on Postgres', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('emits SUBSTR on BigQuery (no SUBSTRING there)', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR(`domain`, 1, 5)');
+        });
+
+        it('emits SUBSTRING on Snowflake', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'snowflake',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('emits SUBSTRING on DuckDB', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'duckdb',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('emits SUBSTRING on Redshift', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'redshift',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('emits SUBSTRING on Databricks', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'databricks',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING(`domain`, 1, 5)');
+        });
+
+        it('emits SUBSTRING on ClickHouse', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'clickhouse',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('emits SUBSTRING on Trino', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'trino',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('emits SUBSTRING on Athena', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'athena',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+    });
 });

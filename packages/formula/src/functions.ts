@@ -24,6 +24,10 @@ export const SINGLE_ARG_FNS = [
 
 export const ONE_OR_TWO_ARG_FNS = ['ROUND', 'MIN', 'MAX'] as const;
 
+export const TWO_ARG_FNS = ['LEFT', 'RIGHT'] as const;
+
+export const THREE_ARG_FNS = ['REPLACE', 'SUBSTRING'] as const;
+
 export const ZERO_OR_ONE_ARG_FNS = ['COUNT'] as const;
 
 export const VARIADIC_FNS = ['CONCAT', 'COALESCE'] as const;
@@ -64,6 +68,8 @@ export const DATE_FNS = [
 export type ZeroArgFnName = (typeof ZERO_ARG_FNS)[number];
 export type SingleArgFnName = (typeof SINGLE_ARG_FNS)[number];
 export type OneOrTwoArgFnName = (typeof ONE_OR_TWO_ARG_FNS)[number];
+export type TwoArgFnName = (typeof TWO_ARG_FNS)[number];
+export type ThreeArgFnName = (typeof THREE_ARG_FNS)[number];
 export type ZeroOrOneArgFnName = (typeof ZERO_OR_ONE_ARG_FNS)[number];
 export type VariadicFnName = (typeof VARIADIC_FNS)[number];
 export type WindowFnName = (typeof WINDOW_FNS)[number];
@@ -77,6 +83,8 @@ export const ALL_FUNCTION_NAMES = [
     ...ZERO_ARG_FNS,
     ...SINGLE_ARG_FNS,
     ...ONE_OR_TWO_ARG_FNS,
+    ...TWO_ARG_FNS,
+    ...THREE_ARG_FNS,
     ...ZERO_OR_ONE_ARG_FNS,
     ...VARIADIC_FNS,
     ...WINDOW_FNS,
@@ -108,6 +116,10 @@ export const FUNCTION_DEFINITIONS = [
     { name: 'TRIM', description: 'Remove whitespace', minArgs: 1, maxArgs: 1, category: 'string' },
     { name: 'LOWER', description: 'To lowercase', minArgs: 1, maxArgs: 1, category: 'string' },
     { name: 'UPPER', description: 'To uppercase', minArgs: 1, maxArgs: 1, category: 'string' },
+    { name: 'LEFT', description: 'Leftmost N characters', minArgs: 2, maxArgs: 2, category: 'string' },
+    { name: 'RIGHT', description: 'Rightmost N characters', minArgs: 2, maxArgs: 2, category: 'string' },
+    { name: 'REPLACE', description: 'Replace all occurrences of a substring (e.g. REPLACE(text, "old", "new"))', minArgs: 3, maxArgs: 3, category: 'string' },
+    { name: 'SUBSTRING', description: 'Extract substring by 1-indexed start and length (e.g. SUBSTRING(text, 1, 5))', minArgs: 3, maxArgs: 3, category: 'string' },
     // Date
     { name: 'TODAY', description: 'Current date', minArgs: 0, maxArgs: 0, category: 'date' },
     { name: 'NOW', description: 'Current timestamp', minArgs: 0, maxArgs: 0, category: 'date' },
@@ -202,6 +214,8 @@ export function getParserOptions() {
         zeroArgFns: ZERO_ARG_FNS,
         singleArgFns: SINGLE_ARG_FNS,
         oneOrTwoArgFns: ONE_OR_TWO_ARG_FNS,
+        twoArgFns: TWO_ARG_FNS,
+        threeArgFns: THREE_ARG_FNS,
         zeroOrOneArgFns: ZERO_OR_ONE_ARG_FNS,
         variadicFns: VARIADIC_FNS,
         windowFns: WINDOW_FNS,
