@@ -61,6 +61,7 @@ import {
     TimeFrames,
     truncatableTimeFrames,
     UserAttributeValueMap,
+    VizIndexType,
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -3548,7 +3549,8 @@ export class MetricQueryBuilder {
         ctes: string[];
         finalCteName: string;
     } {
-        const { warehouseSqlBuilder, pivotConfiguration } = this.args;
+        const { warehouseSqlBuilder, pivotConfiguration, pivotDimensions } =
+            this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
         const postCalculationMetrics = this.getPostCalculationMetrics();
         const referencedMetricIds = this.getSelectedAndReferencedMetricIds();
@@ -3569,6 +3571,27 @@ export class MetricQueryBuilder {
             },
         ];
 
+        // When the SQL pivot feature flag is off we receive only `pivotDimensions`,
+        // not a full `pivotConfiguration`. Build a minimal pivotConfiguration so
+        // post-calculation metrics like percent_of_total still partition correctly.
+        const effectivePivotConfiguration: PivotConfiguration | undefined =
+            pivotConfiguration ??
+            (pivotDimensions && pivotDimensions.length > 0
+                ? {
+                      indexColumn: this.getNonPivotDimensionIds().map(
+                          (reference) => ({
+                              reference,
+                              type: VizIndexType.CATEGORY,
+                          }),
+                      ),
+                      groupByColumns: pivotDimensions.map((reference) => ({
+                          reference,
+                      })),
+                      valuesColumns: [],
+                      sortBy: undefined,
+                  }
+                : undefined);
+
         // Create a single CTE with all PostCalculation metrics
         const metricSelects = postCalculationMetrics.map((metricId) => {
             const metric = this.getMetricFromId(metricId);
@@ -3580,7 +3603,7 @@ export class MetricQueryBuilder {
             const compiledSql = compilePostCalculationMetric({
                 warehouseSqlBuilder,
                 type: metric.type,
-                pivotConfiguration,
+                pivotConfiguration: effectivePivotConfiguration,
                 sql: processedSql,
                 orderByClause: sqlOrderBy,
             });
