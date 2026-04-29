@@ -739,9 +739,7 @@ const SavedChartsHeader: FC = () => {
                                         Version history
                                     </Menu.Item>
                                 )}
-                                {changeChartExploreEnabled &&
-                                    userCanManageChart &&
-                                    !isEditMode && (
+                                {changeChartExploreEnabled && userCanManageChart && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
