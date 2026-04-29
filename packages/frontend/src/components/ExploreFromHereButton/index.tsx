@@ -9,22 +9,29 @@ import {
 } from '../../features/explorer/store';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplorerRoute';
+import { useCannotAuthorCustomSql } from '../../hooks/user/useCannotAuthorCustomSql';
 import { useCreateShareMutation } from '../../hooks/useShare';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 
 const ExploreFromHereButton = () => {
-    // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(
+        savedChart?.projectUuid,
+    );
     const exploreFromHereUrl = useMemo(() => {
         if (savedChart) {
             return getExplorerUrlFromCreateSavedChartVersion(
                 savedChart.projectUuid,
                 savedChart,
                 true,
+                {
+                    originSavedChartUuid: savedChart.uuid,
+                    cannotAuthorCustomSql,
+                },
             );
         }
-    }, [savedChart]);
+    }, [savedChart, cannotAuthorCustomSql]);
 
     const { user } = useApp();
     const navigate = useNavigate();

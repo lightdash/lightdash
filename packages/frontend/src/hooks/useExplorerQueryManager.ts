@@ -21,6 +21,7 @@ import {
 } from '../features/explorer/store';
 import { useQueryExecutor } from '../providers/Explorer/useQueryExecutor';
 import { buildQueryArgs } from './explorer/buildQueryArgs';
+import { useSourceSavedChartUuid } from './explorer/useSourceSavedChartUuid';
 import { useExplore } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
@@ -65,11 +66,15 @@ export const useExplorerQueryManager = () => {
         savedQueryUuid: string;
         projectUuid: string;
     }>();
-    const savedQueryUuid = embed?.savedQueryUuid || params.savedQueryUuid;
+    const sourceSavedChartUuid = useSourceSavedChartUuid();
+    const savedQueryUuid =
+        embed?.savedQueryUuid || params.savedQueryUuid || sourceSavedChartUuid;
     const projectUuid = embed?.projectUuid || params.projectUuid!;
     const viewModeQueryArgs = useMemo(() => {
-        return savedQueryUuid ? { chartUuid: savedQueryUuid } : undefined;
-    }, [savedQueryUuid]);
+        return params.savedQueryUuid
+            ? { chartUuid: params.savedQueryUuid }
+            : undefined;
+    }, [params.savedQueryUuid]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 

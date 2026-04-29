@@ -19,6 +19,7 @@ import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
@@ -101,19 +102,29 @@ const ExplorerHeader: FC = memo(() => {
         return null;
     }, [userCanCreateChartsInSpace, userCanCreateSpace]);
 
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
     const urlToShare = useMemo(() => {
         if (unsavedChartVersion) {
             const urlArgs = getExplorerUrlFromCreateSavedChartVersion(
                 projectUuid,
                 unsavedChartVersion,
                 true,
+                {
+                    originSavedChartUuid: savedChart?.uuid,
+                    cannotAuthorCustomSql,
+                },
             );
             return {
                 pathname: urlArgs.pathname,
                 search: `?${urlArgs.search}`,
             };
         }
-    }, [unsavedChartVersion, projectUuid]);
+    }, [
+        unsavedChartVersion,
+        projectUuid,
+        savedChart?.uuid,
+        cannotAuthorCustomSql,
+    ]);
 
     useEffect(() => {
         const checkReload = (event: BeforeUnloadEvent) => {

@@ -61,6 +61,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    mergeSavedSqlBodiesIntoMetricQuery,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
@@ -3540,14 +3541,11 @@ export class AsyncQueryService extends ProjectService {
     /**
      * Throws if the incoming query contains SQL-authored fields (custom SQL
      * dimensions or SQL table calculations) that are new or modified compared
-     * to the saved chart, and the user lacks `manage:CustomFields`.
-     *
-     * If `savedChartUuid` is provided, the saved chart's metricQuery is loaded
-     * so we only gate fields that differ from what was saved — letting users
-     * without the scope still run/explore charts that already contain SQL
-     * fields someone else authored.
+     * to the saved chart, and the user lacks `manage:CustomFields`. Returns
+     * the metricQuery with empty SQL bodies rehydrated from the saved chart,
+     * which supports stripped-on-encode share links.
      */
-    private async assertCanRunSqlAuthoredFields({
+    private async assertCanRunSqlAuthoredFields<T extends MetricQuery>({
         auditedAbility,
         organizationUuid,
         projectUuid,
@@ -3559,12 +3557,9 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid: string;
         projectUuid: string;
         exploreName: string;
-        metricQuery: Pick<
-            MetricQuery,
-            'customDimensions' | 'tableCalculations'
-        >;
+        metricQuery: T;
         savedChartUuid?: string;
-    }): Promise<void> {
+    }): Promise<T> {
         let savedMetricQuery: Pick<
             MetricQuery,
             'customDimensions' | 'tableCalculations'
@@ -3592,22 +3587,25 @@ export class AsyncQueryService extends ProjectService {
             }
         }
 
-        if (!hasModifiedSqlAuthoredFields(metricQuery, savedMetricQuery)) {
-            return;
+        if (hasModifiedSqlAuthoredFields(metricQuery, savedMetricQuery)) {
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('CustomFields', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: { exploreName },
+                    }),
+                )
+            ) {
+                throw new CustomSqlQueryForbiddenError();
+            }
         }
 
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { exploreName },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
+        return mergeSavedSqlBodiesIntoMetricQuery(
+            metricQuery,
+            savedMetricQuery,
+        );
     }
 
     // execute
@@ -3659,7 +3657,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        await this.assertCanRunSqlAuthoredFields({
+        const resolvedMetricQuery = await this.assertCanRunSqlAuthoredFields({
             auditedAbility,
             organizationUuid,
             projectUuid,
@@ -3672,7 +3670,7 @@ export class AsyncQueryService extends ProjectService {
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            explore_name: metricQuery.exploreName,
+            explore_name: resolvedMetricQuery.exploreName,
             query_context: context,
         };
 
@@ -3681,7 +3679,7 @@ export class AsyncQueryService extends ProjectService {
         const explore = await this.getExploreForMetricQueryExecution({
             account,
             projectUuid,
-            exploreName: metricQuery.exploreName,
+            exploreName: resolvedMetricQuery.exploreName,
             organizationUuid,
             materializationRole:
                 context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
@@ -3727,7 +3725,7 @@ export class AsyncQueryService extends ProjectService {
             useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
-            metricQuery,
+            metricQuery: resolvedMetricQuery,
             dateZoom,
             explore,
             warehouseSqlBuilder,
@@ -3742,19 +3740,19 @@ export class AsyncQueryService extends ProjectService {
 
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
-            query: metricQuery,
+            query: resolvedMetricQuery,
             parameters: combinedParameters,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery,
+            metricQuery: resolvedMetricQuery,
             explore,
             context,
             forceWarehouse: usePreAggregateCache === false,
         });
 
         this.logger.info(
-            `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
+            `Metric query prep for ${resolvedMetricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
         );
 
         if (routingDecision.preAggregateMetadata) {
@@ -3767,7 +3765,7 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
-                metricQuery,
+                metricQuery: resolvedMetricQuery,
                 projectUuid,
                 explore,
                 context,
@@ -6073,7 +6071,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        await this.assertCanRunSqlAuthoredFields({
+        const resolvedMetricQuery = await this.assertCanRunSqlAuthoredFields({
             auditedAbility,
             organizationUuid,
             projectUuid,
@@ -6100,7 +6098,7 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid,
-                metricQuery: data.metricQuery,
+                metricQuery: resolvedMetricQuery,
                 explore,
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
@@ -6148,7 +6146,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        await this.assertCanRunSqlAuthoredFields({
+        const resolvedMetricQuery = await this.assertCanRunSqlAuthoredFields({
             auditedAbility,
             organizationUuid,
             projectUuid,
@@ -6172,7 +6170,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { dimensionGroupsToSubtotal, analyticsData } =
             SubtotalsCalculator.prepareDimensionGroups(
-                data.metricQuery,
+                resolvedMetricQuery,
                 data.columnOrder,
                 data.pivotDimensions,
             );
@@ -6196,7 +6194,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             organizationUuid,
-            metricQuery: data.metricQuery,
+            metricQuery: resolvedMetricQuery,
             explore,
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
