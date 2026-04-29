@@ -1,3 +1,10 @@
+## [0.2836.1](https://github.com/lightdash/lightdash/compare/0.2836.0...0.2836.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* Revert "fix(pivot): respect explicit sortBy order over groupByColumns declara…" ([#22489](https://github.com/lightdash/lightdash/issues/22489)) ([ee212a0](https://github.com/lightdash/lightdash/commit/ee212a08b878cf72573a7713421234ad7e99c3e3))
+
 # [0.2836.0](https://github.com/lightdash/lightdash/compare/0.2835.1...0.2836.0) (2026-04-29)
 
 
