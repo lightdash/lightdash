@@ -2,6 +2,8 @@
   const zeroArgFns = options.zeroArgFns;
   const singleArgFns = options.singleArgFns;
   const oneOrTwoArgFns = options.oneOrTwoArgFns;
+  const twoArgFns = options.twoArgFns;
+  const threeArgFns = options.threeArgFns;
   const zeroOrOneArgFns = options.zeroOrOneArgFns;
   const variadicFns = options.variadicFns;
   const windowFns = options.windowFns;
@@ -109,6 +111,8 @@ Primary
   / ZeroArgFn
   / SingleArgFn
   / OneOrTwoArgFn
+  / TwoArgFn
+  / ThreeArgFn
   / ZeroOrOneArgFn
   / VariadicFn
   / WindowFn
@@ -221,6 +225,18 @@ OneOrTwoArgFn
     _ "(" _ first:Expression _ second:("," _ Expression)? _ ")" {
       const args = second ? [first, second[2]] : [first];
       return { type: "OneOrTwoArgFn", name: name.toUpperCase(), args };
+    }
+
+TwoArgFn
+  = name:Identifier &{ return twoArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ "," _ second:Expression _ ")" {
+      return { type: "TwoArgFn", name: name.toUpperCase(), args: [first, second] };
+    }
+
+ThreeArgFn
+  = name:Identifier &{ return threeArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ "," _ second:Expression _ "," _ third:Expression _ ")" {
+      return { type: "ThreeArgFn", name: name.toUpperCase(), args: [first, second, third] };
     }
 
 ZeroOrOneArgFn

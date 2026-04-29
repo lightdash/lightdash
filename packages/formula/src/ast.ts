@@ -32,6 +32,8 @@ export const isAggregateCall = (node: ASTNode): boolean => {
         case 'UnaryOp':
         case 'If':
         case 'ZeroArgFn':
+        case 'TwoArgFn':
+        case 'ThreeArgFn':
         case 'VariadicFn':
         case 'WindowFn':
         case 'MovingWindowFn':
@@ -79,6 +81,8 @@ export const extractColumnRefs = (node: ASTNode): string[] => {
         case 'ZeroOrOneArgFn':
             return node.arg ? extractColumnRefs(node.arg) : [];
         case 'OneOrTwoArgFn':
+        case 'TwoArgFn':
+        case 'ThreeArgFn':
         case 'VariadicFn':
         case 'DateFn':
             return node.args.flatMap(extractColumnRefs);

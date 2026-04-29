@@ -17,6 +17,8 @@ import type {
     OneOrTwoArgFnNode,
     SingleArgFnNode,
     StringLiteralNode,
+    ThreeArgFnNode,
+    TwoArgFnNode,
     UnaryOpNode,
     VariadicFnNode,
     WeekDay,
@@ -70,6 +72,10 @@ export class SqlGenerator {
                 return this.generateSingleArgFn(node);
             case 'OneOrTwoArgFn':
                 return this.generateOneOrTwoArgFn(node);
+            case 'TwoArgFn':
+                return this.generateTwoArgFn(node);
+            case 'ThreeArgFn':
+                return this.generateThreeArgFn(node);
             case 'ZeroOrOneArgFn':
                 return this.generateZeroOrOneArgFn(node);
             case 'VariadicFn':
@@ -246,6 +252,61 @@ export class SqlGenerator {
                     `Unknown one-or-two-arg function: ${node.name}`,
                 );
         }
+    }
+
+    protected generateTwoArgFn(node: TwoArgFnNode): string {
+        const [a, b] = node.args.map((x) => this.generate(x));
+        switch (node.name) {
+            case 'LEFT':
+                return this.generateLeft(a, b);
+            case 'RIGHT':
+                return this.generateRight(a, b);
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown two-arg function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateLeft(text: string, count: string): string {
+        return (
+            this.dialect.generateLeft?.(text, count) ??
+            `LEFT(${text}, ${count})`
+        );
+    }
+
+    protected generateRight(text: string, count: string): string {
+        return (
+            this.dialect.generateRight?.(text, count) ??
+            `RIGHT(${text}, ${count})`
+        );
+    }
+
+    protected generateThreeArgFn(node: ThreeArgFnNode): string {
+        const [a, b, c] = node.args.map((x) => this.generate(x));
+        switch (node.name) {
+            case 'REPLACE':
+                return `REPLACE(${a}, ${b}, ${c})`;
+            case 'SUBSTRING':
+                return this.generateSubstring(a, b, c);
+            default:
+                return assertUnreachable(
+                    node.name,
+                    `Unknown three-arg function: ${node.name}`,
+                );
+        }
+    }
+
+    protected generateSubstring(
+        text: string,
+        start: string,
+        length: string,
+    ): string {
+        return (
+            this.dialect.generateSubstring?.(text, start, length) ??
+            `SUBSTRING(${text}, ${start}, ${length})`
+        );
     }
 
     protected generateZeroOrOneArgFn(node: ZeroOrOneArgFnNode): string {

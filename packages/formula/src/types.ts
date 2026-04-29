@@ -5,6 +5,8 @@ import type {
     MovingWindowFnName,
     OneOrTwoArgFnName,
     SingleArgFnName,
+    ThreeArgFnName,
+    TwoArgFnName,
     VariadicFnName,
     WindowFnName,
     ZeroArgFnName,
@@ -73,6 +75,8 @@ export type ASTNode =
     | ZeroArgFnNode
     | SingleArgFnNode
     | OneOrTwoArgFnNode
+    | TwoArgFnNode
+    | ThreeArgFnNode
     | ZeroOrOneArgFnNode
     | VariadicFnNode
     | WindowFnNode
@@ -132,6 +136,18 @@ export interface OneOrTwoArgFnNode {
     type: 'OneOrTwoArgFn';
     name: OneOrTwoArgFnName;
     args: [ASTNode] | [ASTNode, ASTNode];
+}
+
+export interface TwoArgFnNode {
+    type: 'TwoArgFn';
+    name: TwoArgFnName;
+    args: [ASTNode, ASTNode];
+}
+
+export interface ThreeArgFnNode {
+    type: 'ThreeArgFn';
+    name: ThreeArgFnName;
+    args: [ASTNode, ASTNode, ASTNode];
 }
 
 export interface ZeroOrOneArgFnNode {

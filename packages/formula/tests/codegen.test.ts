@@ -1134,4 +1134,109 @@ describe('codegen', () => {
             );
         });
     });
+
+    describe('LEFT / RIGHT', () => {
+        const stringColumns = { domain: 'domain' };
+
+        it('emits LEFT(text, n)', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe('LEFT("domain", 5)');
+        });
+
+        it('emits RIGHT(text, n)', () => {
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe('RIGHT("domain", 3)');
+        });
+
+        it('Trino composes LEFT/RIGHT via SUBSTR (no native LEFT/RIGHT)', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'trino',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", 1, 5)');
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'trino',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", -(3))');
+        });
+
+        it('Athena uses the same SUBSTR composition as Trino', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'athena',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", 1, 5)');
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'athena',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", -(3))');
+        });
+    });
+
+    describe('REPLACE', () => {
+        const stringColumns = { domain: 'domain' };
+
+        it('emits REPLACE(text, search, replace) on Postgres', () => {
+            expect(
+                compile('=REPLACE(domain, "https://", "")', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe(`REPLACE("domain", 'https://', '')`);
+        });
+
+        it('emits REPLACE on BigQuery with backtick-quoted identifiers', () => {
+            expect(
+                compile('=REPLACE(domain, "https://", "")', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe("REPLACE(`domain`, 'https://', '')");
+        });
+
+        it('composes with LOWER inside REPLACE', () => {
+            expect(
+                compile('=REPLACE(LOWER(domain), "x", "y")', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe(`REPLACE(LOWER("domain"), 'x', 'y')`);
+        });
+    });
+
+    describe('SUBSTRING', () => {
+        const stringColumns = { domain: 'domain' };
+
+        it('emits SUBSTRING(text, start, length) by default', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTRING("domain", 1, 5)');
+        });
+
+        it('BigQuery overrides to SUBSTR (no SUBSTRING there)', () => {
+            expect(
+                compile('=SUBSTRING(domain, 1, 5)', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR(`domain`, 1, 5)');
+        });
+    });
 });

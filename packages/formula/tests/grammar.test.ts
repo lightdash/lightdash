@@ -107,6 +107,73 @@ describe('Formula Grammar', () => {
             });
         });
 
+        it('parses LEFT as a two-arg function', () => {
+            const ast = parse('=LEFT(A, 5)');
+            expect(ast).toEqual({
+                type: 'TwoArgFn',
+                name: 'LEFT',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'NumberLiteral', value: 5 },
+                ],
+            });
+        });
+
+        it('parses RIGHT as a two-arg function', () => {
+            const ast = parse('=RIGHT(A, 3)');
+            expect(ast).toEqual({
+                type: 'TwoArgFn',
+                name: 'RIGHT',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'NumberLiteral', value: 3 },
+                ],
+            });
+        });
+
+        it('parses REPLACE as a three-arg function', () => {
+            const ast = parse('=REPLACE(A, "https://", "")');
+            expect(ast).toEqual({
+                type: 'ThreeArgFn',
+                name: 'REPLACE',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'StringLiteral', value: 'https://' },
+                    { type: 'StringLiteral', value: '' },
+                ],
+            });
+        });
+
+        it('parses SUBSTRING as a three-arg function', () => {
+            const ast = parse('=SUBSTRING(A, 1, 5)');
+            expect(ast).toEqual({
+                type: 'ThreeArgFn',
+                name: 'SUBSTRING',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'NumberLiteral', value: 1 },
+                    { type: 'NumberLiteral', value: 5 },
+                ],
+            });
+        });
+
+        it('parses REPLACE wrapping a SingleArgFn', () => {
+            const ast = parse('=REPLACE(LOWER(A), "x", "y")');
+            expect(ast).toEqual({
+                type: 'ThreeArgFn',
+                name: 'REPLACE',
+                args: [
+                    {
+                        type: 'SingleArgFn',
+                        name: 'LOWER',
+                        arg: { type: 'ColumnRef', name: 'A' },
+                    },
+                    { type: 'StringLiteral', value: 'x' },
+                    { type: 'StringLiteral', value: 'y' },
+                ],
+            });
+        });
+
         it('parses nested function calls', () => {
             const ast = parse('=ABS(ROUND(A, 2))');
             expect(ast).toEqual({
@@ -660,6 +727,30 @@ describe('Formula Grammar', () => {
         it('rejects TODAY with args', () => {
             expect(() => parse('=TODAY(A)')).toThrow(
                 'TODAY called with wrong number of arguments',
+            );
+        });
+
+        it('rejects LEFT with wrong arity', () => {
+            expect(() => parse('=LEFT(A)')).toThrow(
+                'LEFT called with wrong number of arguments',
+            );
+        });
+
+        it('rejects RIGHT with wrong arity', () => {
+            expect(() => parse('=RIGHT(A, 1, 2)')).toThrow(
+                'RIGHT called with wrong number of arguments',
+            );
+        });
+
+        it('rejects REPLACE with wrong arity', () => {
+            expect(() => parse('=REPLACE(A, "x")')).toThrow(
+                'REPLACE called with wrong number of arguments',
+            );
+        });
+
+        it('rejects SUBSTRING with wrong arity', () => {
+            expect(() => parse('=SUBSTRING(A, 1)')).toThrow(
+                'SUBSTRING called with wrong number of arguments',
             );
         });
     });

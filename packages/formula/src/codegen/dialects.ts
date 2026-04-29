@@ -16,6 +16,11 @@ export interface DialectConfig {
     generateStringLiteral?: (node: StringLiteralNode) => string;
     generateModulo?: (left: string, right: string) => string;
     generateConcat?: (args: string[]) => string;
+    // SUBSTRING emission. Default `SUBSTRING(t, s, l)` works everywhere except BigQuery, which calls it `SUBSTR`.
+    generateSubstring?: (text: string, start: string, length: string) => string;
+    // LEFT / RIGHT emission. Default `LEFT(t, n)` / `RIGHT(t, n)` works everywhere except Trino / Athena, which lack both and compose via `substr`.
+    generateLeft?: (text: string, count: string) => string;
+    generateRight?: (text: string, count: string) => string;
     generateLagLead?: (ctx: LagLeadContext) => string;
     // AVG emission. Covers both the aggregate `=AVG(A)` and the windowed
     // `=MOVING_AVG(A, N, …)` (which fans out to `AVG(...) OVER (…)`).
@@ -312,6 +317,9 @@ const BIGQUERY_CONFIG: DialectConfig = {
     // every other dialect. The unit is a bare identifier.
     generateDateDiff: (unit, start, end) =>
         `DATE_DIFF(${end}, ${start}, ${SQL_DATE_UNIT_IDENTIFIERS[unit]})`,
+    // BigQuery has no `SUBSTRING`; the native function is `SUBSTR`.
+    generateSubstring: (text, start, length) =>
+        `SUBSTR(${text}, ${start}, ${length})`,
 };
 
 // Databricks (Spark SQL) has no general `DATEADD(unit, …)` across versions,
@@ -480,6 +488,10 @@ const TRINO_CONFIG: DialectConfig = {
     generateDateAdd: (unit, date, n) => `DATE_ADD('${unit}', ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>
         `DATE_DIFF('${unit}', ${start}, ${end})`,
+    // Trino / Athena have no `LEFT` / `RIGHT` — compose via `substr`.
+    // RIGHT uses negative-start semantics (Trino docs: position from end).
+    generateLeft: (text, count) => `SUBSTR(${text}, 1, ${count})`,
+    generateRight: (text, count) => `SUBSTR(${text}, -(${count}))`,
 };
 
 export const DIALECTS: Record<Dialect, DialectConfig> = {
