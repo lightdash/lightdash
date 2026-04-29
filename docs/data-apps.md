@@ -79,8 +79,12 @@ How the template flows through the stack:
   (from `AppGenerateService/templates.ts`) to the prompt before writing it to `/tmp/prompt.txt`. This is the same
   prepend slot used today for chart references and image references.
 - For `template === 'custom'`, no instructions are prepended - Claude only sees the user's free-text prompt.
-- Templates are **not persisted** in `app_versions` - they only influence the first generation. If the original
-  intent matters later, it's captured by the resulting code, not the row.
+- The chosen template is persisted on the `apps` row (`apps.template`) so the chip above the chat textarea
+  survives reload. `'custom'` is stored as `NULL` — it's the absence of a template, not a template itself, so
+  no chip is shown for custom apps. The template is set once at creation and is **not** editable afterwards:
+  once the wizard's prompt is composed, switching templates would leave the user's typed text out of sync with
+  a different instruction prepend, so we lock it in.
+- Templates only influence the first generation. Iteration prompts (v2+) never re-prepend instructions.
 
 Where the template metadata lives:
 
@@ -157,10 +161,10 @@ handle sandbox/S3 cleanup.
 
 ### Database Tables
 
-| Table          | Purpose                                                               |
-| -------------- | --------------------------------------------------------------------- |
-| `apps`         | App metadata: name, description, project, creator, sandbox ID         |
-| `app_versions` | Version history: prompt, build status, error messages, status updates |
+| Table          | Purpose                                                                  |
+| -------------- | ------------------------------------------------------------------------ |
+| `apps`         | App metadata: name, description, project, creator, sandbox ID, template  |
+| `app_versions` | Version history: prompt, build status, error messages, status updates    |
 
 Key relationships:
 
@@ -182,6 +186,7 @@ type DbApp = {
   project_uuid: string;
   space_uuid: string | null;
   sandbox_id: string | null; // E2B sandbox ID for resume
+  template: 'dashboard' | 'slideshow' | 'pdf' | null; // null = custom (or pre-persistence)
   created_at: Date;
   created_by_user_uuid: string;
   deleted_at: Date | null; // soft delete

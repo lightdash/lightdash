@@ -113,6 +113,8 @@ export type ApiGetAppResponse = ApiSuccess<{
     description: string;
     createdByUserUuid: string;
     spaceUuid: string | null;
+    // null when the user picked "Custom" or for apps that pre-date template persistence
+    template: Exclude<DataAppTemplate, 'custom'> | null;
     pinnedListUuid: string | null;
     pinnedListOrder: number | null;
     versions: ApiAppVersionSummary[];

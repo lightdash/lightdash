@@ -2405,13 +2405,17 @@ export class AppGenerateService extends BaseService {
             dashboardName,
         };
 
-        // Persist app record so we can track status immediately
+        // Persist app record so we can track status immediately. 'custom' is
+        // stored as null - it's the absence of a template, not a template itself.
+        const persistedTemplate =
+            template && template !== 'custom' ? template : null;
         try {
             await this.appModel.createWithVersion(
                 {
                     app_id: appUuid,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
+                    template: persistedTemplate,
                 },
                 { version, prompt },
                 'pending',
@@ -2637,6 +2641,7 @@ export class AppGenerateService extends BaseService {
         description: string;
         createdByUserUuid: string;
         spaceUuid: string | null;
+        template: Exclude<DataAppTemplate, 'custom'> | null;
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
         versions: {
@@ -2657,6 +2662,7 @@ export class AppGenerateService extends BaseService {
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            template,
             pinnedListUuid,
             pinnedListOrder,
             versions,
@@ -2676,6 +2682,7 @@ export class AppGenerateService extends BaseService {
             description,
             createdByUserUuid,
             spaceUuid,
+            template,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.map((v) => ({
