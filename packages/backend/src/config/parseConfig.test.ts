@@ -839,6 +839,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
         ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
+        ['GROUPS_ENABLED', 'user-groups-enabled'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
