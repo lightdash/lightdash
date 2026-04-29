@@ -1,3 +1,17 @@
+# [0.2845.0](https://github.com/lightdash/lightdash/compare/0.2844.0...0.2845.0) (2026-04-29)
+
+
+### Bug Fixes
+
+* **slack:** validate block payloads to avoid invalid_blocks errors [PROD-7209] ([#22504](https://github.com/lightdash/lightdash/issues/22504)) ([c611a59](https://github.com/lightdash/lightdash/commit/c611a59e634b7bb176f6a3e695089b883d8590b1))
+
+
+### Features
+
+* **data-apps:** persist starter template + show as static chip ([#22521](https://github.com/lightdash/lightdash/issues/22521)) ([4f2007d](https://github.com/lightdash/lightdash/commit/4f2007dee5f86bad7bc4591f779f00937197bac6))
+* **formula:** add LEFT, RIGHT, REPLACE, SUBSTRING string functions ([#22509](https://github.com/lightdash/lightdash/issues/22509)) ([a8e90c7](https://github.com/lightdash/lightdash/commit/a8e90c70909ea22a7bde5fa98e0c5d28cc18308d))
+* **permissions:** gate SQL-authored field writes ([#22507](https://github.com/lightdash/lightdash/issues/22507)) ([64232de](https://github.com/lightdash/lightdash/commit/64232de7657eee2aedd5a9ffd244c10a37cb6c69))
+
 # [0.2844.0](https://github.com/lightdash/lightdash/compare/0.2843.0...0.2844.0) (2026-04-29)
 
 
