@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
@@ -8,7 +9,6 @@ import {
     ServiceAccount,
     ServiceAccountScope,
     ServiceAccountWithToken,
-    SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
@@ -55,13 +55,13 @@ export class ServiceAccountService extends BaseService {
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
     }
 
-    private throwForbiddenErrorOnNoPermission(user: SessionUser) {
-        const auditedAbility = this.createAuditedAbility(user);
+    private throwForbiddenErrorOnNoPermission(account: Account) {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
@@ -70,18 +70,18 @@ export class ServiceAccountService extends BaseService {
     }
 
     async create({
-        user,
+        account,
         tokenDetails,
         prefix = AuthTokenPrefix.SCIM,
     }: {
-        user: SessionUser;
+        account: Account;
         tokenDetails: CreateServiceAccount;
         prefix?: string;
     }): Promise<ServiceAccount> {
         try {
-            this.throwForbiddenErrorOnNoPermission(user);
+            this.throwForbiddenErrorOnNoPermission(account);
             const token = await this.serviceAccountModel.create({
-                user,
+                createdByUserUuid: account.user.id,
                 data: {
                     organizationUuid: tokenDetails.organizationUuid,
                     expiresAt: tokenDetails.expiresAt,
@@ -92,7 +92,7 @@ export class ServiceAccountService extends BaseService {
             });
             this.analytics.track<ScimAccessTokenEvent>({
                 event: 'scim_access_token.created',
-                userId: user.userUuid,
+                userId: account.user.id,
                 properties: {
                     organizationId: token.organizationUuid,
                 },
@@ -113,15 +113,16 @@ export class ServiceAccountService extends BaseService {
     }
 
     async delete({
-        user,
+        account,
         tokenUuid,
     }: {
-        user: SessionUser;
+        account: Account;
         tokenUuid: string;
     }): Promise<void> {
         try {
-            this.throwForbiddenErrorOnNoPermission(user);
-            const organizationUuid = user.organizationUuid as string;
+            this.throwForbiddenErrorOnNoPermission(account);
+            const organizationUuid = account.organization
+                .organizationUuid as string;
             // get by uuid to check if token exists
             const token =
                 await this.serviceAccountModel.getTokenbyUuid(tokenUuid);
@@ -139,7 +140,7 @@ export class ServiceAccountService extends BaseService {
             await this.serviceAccountModel.delete(tokenUuid);
             this.analytics.track<ScimAccessTokenEvent>({
                 event: 'scim_access_token.deleted',
-                userId: user.userUuid,
+                userId: account.user.id,
                 properties: {
                     organizationId: token.organizationUuid,
                 },
@@ -161,17 +162,17 @@ export class ServiceAccountService extends BaseService {
     }
 
     async rotate({
-        user,
+        account,
         tokenUuid,
         update,
         prefix = AuthTokenPrefix.SCIM,
     }: {
-        user: SessionUser;
+        account: Account;
         tokenUuid: string;
         update: { expiresAt: Date };
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
-        this.throwForbiddenErrorOnNoPermission(user);
+        this.throwForbiddenErrorOnNoPermission(account);
 
         if (update.expiresAt.getTime() < Date.now()) {
             throw new ParameterError('Expire time must be in the future');
@@ -184,7 +185,10 @@ export class ServiceAccountService extends BaseService {
             throw new NotFoundError(`Token with UUID ${tokenUuid} not found`);
         }
         // throw forbidden if token does not belong to organization
-        if (existingToken.organizationUuid !== user.organizationUuid) {
+        if (
+            existingToken.organizationUuid !==
+            account.organization.organizationUuid
+        ) {
             throw new ForbiddenError("Token doesn't belong to organization");
         }
 
@@ -204,13 +208,13 @@ export class ServiceAccountService extends BaseService {
 
         const newToken = await this.serviceAccountModel.rotate({
             serviceAccountUuid: tokenUuid,
-            rotatedByUserUuid: user.userUuid,
+            rotatedByUserUuid: account.user.id,
             expiresAt: update.expiresAt,
             prefix,
         });
         this.analytics.track<ScimAccessTokenEvent>({
             event: 'scim_access_token.rotated',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 organizationId: existingToken.organizationUuid,
             },
@@ -219,13 +223,13 @@ export class ServiceAccountService extends BaseService {
     }
 
     async get({
-        user,
+        account,
         tokenUuid,
     }: {
-        user: SessionUser;
+        account: Account;
         tokenUuid: string;
     }): Promise<ServiceAccount> {
-        this.throwForbiddenErrorOnNoPermission(user);
+        this.throwForbiddenErrorOnNoPermission(account);
 
         // get by uuid to check if token exists
         const existingToken =
@@ -234,19 +238,23 @@ export class ServiceAccountService extends BaseService {
             throw new NotFoundError(`Token with UUID ${tokenUuid} not found`);
         }
         // throw forbidden if token does not belong to organization
-        if (existingToken.organizationUuid !== user.organizationUuid) {
+        if (
+            existingToken.organizationUuid !==
+            account.organization.organizationUuid
+        ) {
             throw new ForbiddenError("Token doesn't belong to organization");
         }
         return existingToken;
     }
 
     async list(
-        user: SessionUser,
+        account: Account,
         scopes: ServiceAccountScope[],
     ): Promise<ServiceAccount[]> {
         try {
-            this.throwForbiddenErrorOnNoPermission(user);
-            const organizationUuid = user.organizationUuid as string;
+            this.throwForbiddenErrorOnNoPermission(account);
+            const organizationUuid = account.organization
+                .organizationUuid as string;
             const tokens = await this.serviceAccountModel.getAllForOrganization(
                 organizationUuid,
                 scopes,

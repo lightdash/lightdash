@@ -219,7 +219,7 @@ export class InstanceConfigurationService extends BaseService {
             if (setup.serviceAccount && this.serviceAccountModel) {
                 this.logger.debug(`Initial setup: creating service account`);
                 await this.serviceAccountModel.save(
-                    sessionUser,
+                    sessionUser.userUuid,
                     {
                         organizationUuid,
                         expiresAt: setup.serviceAccount.expirationTime,

@@ -45,7 +45,7 @@ export class ManagedAgentController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentSettings | null }> {
         const results = await this.getManagedAgentService().getSettings(
-            req.user!,
+            req.account!,
             projectUuid,
         );
         this.setStatus(200);
@@ -61,9 +61,9 @@ export class ManagedAgentController extends BaseController {
         @Body() body: UpdateManagedAgentSettings,
     ): Promise<{ status: 'ok'; results: ManagedAgentSettings }> {
         const results = await this.getManagedAgentService().updateSettings(
-            req.user!,
+            req.account!,
             projectUuid,
-            req.user!.userUuid,
+            req.account!.user.id,
             body,
         );
         this.setStatus(200);
@@ -81,7 +81,7 @@ export class ManagedAgentController extends BaseController {
         @Query() sessionId?: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction[] }> {
         const results = await this.getManagedAgentService().getActions(
-            req.user!,
+            req.account!,
             projectUuid,
             {
                 date,
@@ -102,10 +102,10 @@ export class ManagedAgentController extends BaseController {
         @Path() actionUuid: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction }> {
         const results = await this.getManagedAgentService().reverseAction(
-            req.user!,
+            req.account!,
             projectUuid,
             actionUuid,
-            req.user!.userUuid,
+            req.account!.user.id,
         );
         this.setStatus(200);
         return { status: 'ok', results };

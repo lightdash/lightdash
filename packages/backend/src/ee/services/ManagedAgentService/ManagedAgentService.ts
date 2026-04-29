@@ -6,13 +6,13 @@ import {
     NotFoundError,
     ProjectType,
     ServiceAccountScope,
+    type Account,
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
     type ManagedAgentSettings,
     type MetricQuery,
     type SavedChart,
-    type SessionUser,
     type UpdateManagedAgentSettings,
     type ValidationResponse,
 } from '@lightdash/common';
@@ -201,12 +201,12 @@ export class ManagedAgentService extends BaseService {
     // --- Authorization ---
 
     private async assertCanViewProject(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -218,12 +218,12 @@ export class ManagedAgentService extends BaseService {
     }
 
     private async assertCanManageProject(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'update',
@@ -237,20 +237,20 @@ export class ManagedAgentService extends BaseService {
     // --- Settings API ---
 
     async getSettings(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<ManagedAgentSettings | null> {
-        await this.assertCanViewProject(user, projectUuid);
+        await this.assertCanViewProject(account, projectUuid);
         return this.managedAgentModel.getSettings(projectUuid);
     }
 
     async updateSettings(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         userUuid: string,
         update: UpdateManagedAgentSettings,
     ): Promise<ManagedAgentSettings> {
-        await this.assertCanManageProject(user, projectUuid);
+        await this.assertCanManageProject(account, projectUuid);
         const settings = await this.managedAgentModel.upsertSettings(
             projectUuid,
             userUuid,
@@ -268,7 +268,7 @@ export class ManagedAgentService extends BaseService {
                 const { organizationUuid } =
                     await this.projectModel.getSummary(projectUuid);
                 const serviceAccount = await this.serviceAccountModel.create({
-                    user,
+                    createdByUserUuid: account.user.id,
                     data: {
                         organizationUuid,
                         description: `Autopilot (${projectUuid})`,
@@ -308,21 +308,21 @@ export class ManagedAgentService extends BaseService {
     // --- Actions API ---
 
     async getActions(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         filters: ManagedAgentActionFilters = {},
     ): Promise<ManagedAgentAction[]> {
-        await this.assertCanViewProject(user, projectUuid);
+        await this.assertCanViewProject(account, projectUuid);
         return this.managedAgentModel.getActions(projectUuid, filters);
     }
 
     async reverseAction(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         actionUuid: string,
         userUuid: string,
     ): Promise<ManagedAgentAction> {
-        await this.assertCanManageProject(user, projectUuid);
+        await this.assertCanManageProject(account, projectUuid);
         const action = await this.managedAgentModel.getAction(actionUuid);
         if (!action) {
             throw new NotFoundError(`Action ${actionUuid} not found`);

@@ -4,7 +4,6 @@ import {
     ServiceAccount,
     ServiceAccountScope,
     ServiceAccountWithToken,
-    SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
@@ -43,27 +42,27 @@ export class ServiceAccountModel {
     }
 
     async create({
-        user,
+        createdByUserUuid,
         data,
         prefix = AuthTokenPrefix.SCIM,
     }: {
-        user: SessionUser;
+        createdByUserUuid: string;
         data: CreateServiceAccount;
         prefix?: string;
     }): Promise<ServiceAccountWithToken> {
         const token = ServiceAccountModel.generateToken(prefix);
-        return this.save(user, data, token);
+        return this.save(createdByUserUuid, data, token);
     }
 
     async save(
-        user: SessionUser | undefined,
+        createdByUserUuid: string | undefined,
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
         const tokenHash = await hash(token);
         const [row] = await this.database('service_accounts')
             .insert({
-                created_by_user_uuid: user?.userUuid || null,
+                created_by_user_uuid: createdByUserUuid || null,
                 organization_uuid: data.organizationUuid,
                 expires_at: data.expiresAt,
                 description: data.description,

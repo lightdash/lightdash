@@ -55,6 +55,7 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
@@ -2455,8 +2456,9 @@ export class McpService extends BaseService {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        const settings =
-            await this.aiOrganizationSettingsService.getSettings(user);
+        const settings = await this.aiOrganizationSettingsService.getSettings(
+            fromSession(user),
+        );
         if (!settings.aiAgentsVisible) {
             throw new ForbiddenError(
                 'AI Agent features are disabled for this organization',

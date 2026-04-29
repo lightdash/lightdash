@@ -92,7 +92,7 @@ export class AiAgentAdminController extends BaseController {
             : undefined;
 
         const threads = await this.getAiAgentAdminService().getAllThreads(
-            req.user!,
+            req.account!,
             paginateArgs,
             filters,
             sort,
@@ -119,7 +119,9 @@ export class AiAgentAdminController extends BaseController {
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getAiAgentAdminService().listAgents(req.user!),
+            results: await this.getAiAgentAdminService().listAgents(
+                req.account!,
+            ),
         };
     }
 
@@ -132,7 +134,7 @@ export class AiAgentAdminController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: string; results: { token: string; url: string } }> {
         const results = await this.getAiAgentAdminService().generateEmbedToken(
-            req.user!,
+            req.account!,
         );
 
         this.setStatus(200);
@@ -155,7 +157,7 @@ export class AiAgentAdminController extends BaseController {
     ): Promise<ApiAiOrganizationSettingsResponse> {
         const settings =
             await this.getAiOrganizationSettingsService().getSettings(
-                req.user!,
+                req.account!,
             );
 
         this.setStatus(200);
@@ -183,7 +185,7 @@ export class AiAgentAdminController extends BaseController {
     ): Promise<ApiUpdateAiOrganizationSettingsResponse> {
         const settings =
             await this.getAiOrganizationSettingsService().upsertSettings(
-                req.user!,
+                req.account!,
                 body,
             );
 

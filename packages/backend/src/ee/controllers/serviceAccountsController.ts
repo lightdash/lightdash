@@ -49,7 +49,7 @@ export class ServiceAccountsController extends BaseController {
             (scope) => scope !== ServiceAccountScope.SCIM_MANAGE,
         );
         const results = await this.getServiceAccountService().list(
-            req.user!,
+            req.account!,
             scopes,
         );
         this.setStatus(200);
@@ -74,10 +74,11 @@ export class ServiceAccountsController extends BaseController {
         @Body() body: ApiCreateServiceAccountRequest,
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
         const token = await this.getServiceAccountService().create({
-            user: req.user!,
+            account: req.account!,
             tokenDetails: {
                 ...body,
-                organizationUuid: req.user?.organizationUuid as string,
+                organizationUuid: req.account!.organization
+                    .organizationUuid as string,
             },
             prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
         });
@@ -103,7 +104,7 @@ export class ServiceAccountsController extends BaseController {
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
         await this.getServiceAccountService().delete({
-            user: req.user!,
+            account: req.account!,
             tokenUuid,
         });
         return {

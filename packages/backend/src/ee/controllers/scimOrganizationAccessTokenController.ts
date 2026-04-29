@@ -52,7 +52,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
         const results = await this.getServiceAccountService().list(
-            req.user!,
+            req.account!,
             SCIM_SCOPES,
         );
         this.setStatus(200);
@@ -78,10 +78,11 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Body() body: ApiCreateScimServiceAccountRequest, // Service account request without scopes
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
         const token = await this.getServiceAccountService().create({
-            user: req.user!,
+            account: req.account!,
             tokenDetails: {
                 ...body,
-                organizationUuid: req.user?.organizationUuid as string,
+                organizationUuid: req.account!.organization
+                    .organizationUuid as string,
                 scopes: SCIM_SCOPES,
             },
             prefix: AuthTokenPrefix.SCIM,
@@ -109,7 +110,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
         await this.getServiceAccountService().delete({
-            user: req.user!,
+            account: req.account!,
             tokenUuid,
         });
         return {
@@ -138,7 +139,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         return {
             status: 'ok',
             results: await this.getServiceAccountService().get({
-                user: req.user!,
+                account: req.account!,
                 tokenUuid,
             }),
         };
@@ -171,7 +172,7 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         return {
             status: 'ok',
             results: await this.getServiceAccountService().rotate({
-                user: req.user!,
+                account: req.account!,
                 tokenUuid,
                 update: body,
                 prefix: AuthTokenPrefix.SCIM,

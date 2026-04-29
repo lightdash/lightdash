@@ -7,7 +7,7 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
-    type SessionUser,
+    type Account,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
 import { type LightdashConfig } from '../../config/parseConfig';
@@ -30,13 +30,13 @@ export class AiAgentAdminService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
-    private checkOrganizationAdminAccess(user: SessionUser): void {
-        const auditedAbility = this.createAuditedAbility(user);
+    private checkOrganizationAdminAccess(account: Account): void {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
@@ -51,17 +51,17 @@ export class AiAgentAdminService extends BaseService {
      * Only accessible by organization admins
      */
     async getAllThreads(
-        user: SessionUser,
+        account: Account,
         paginateArgs?: KnexPaginateArgs,
         filters?: AiAgentAdminFilters,
         sort?: AiAgentAdminSort,
     ): Promise<KnexPaginatedData<AiAgentAdminConversationsSummary>> {
-        const { organizationUuid } = user;
+        const { organizationUuid } = account.organization;
 
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkOrganizationAdminAccess(account);
 
         // TODO: Check if filter contains userUuid and check if they exist in the organization
         // TODO: Check if filter contains agentUuid and check if they exist in the organization
@@ -75,12 +75,12 @@ export class AiAgentAdminService extends BaseService {
         });
     }
 
-    async listAgents(user: SessionUser): Promise<AiAgentSummary[]> {
-        const { organizationUuid } = user;
+    async listAgents(account: Account): Promise<AiAgentSummary[]> {
+        const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkOrganizationAdminAccess(account);
         return this.aiAgentModel.findAllAgents({
             organizationUuid,
         });
@@ -101,13 +101,13 @@ export class AiAgentAdminService extends BaseService {
      * @returns JWT token and embed URL for the analytics dashboard
      */
     async generateEmbedToken(
-        user: SessionUser,
+        account: Account,
     ): Promise<{ token: string; url: string }> {
-        const { organizationUuid } = user;
+        const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
-        this.checkOrganizationAdminAccess(user);
+        this.checkOrganizationAdminAccess(account);
 
         const { analyticsEmbedSecret } = this.lightdashConfig;
 
@@ -145,8 +145,8 @@ export class AiAgentAdminService extends BaseService {
                 canViewUnderlyingData: false,
             },
             user: {
-                externalId: `org_${organizationUuid}_user_${user.userUuid}`,
-                email: user.email,
+                externalId: `org_${organizationUuid}_user_${account.user.id}`,
+                email: account.user.email,
             },
             userAttributes,
         };

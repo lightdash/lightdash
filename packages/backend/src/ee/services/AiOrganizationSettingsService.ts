@@ -6,7 +6,7 @@ import {
     ForbiddenError,
     LightdashUser,
     UpdateAiOrganizationSettings,
-    type SessionUser,
+    type Account,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -43,13 +43,13 @@ export class AiOrganizationSettingsService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
     }
 
-    private checkManageAiAgentAccess(user: SessionUser): void {
-        const auditedAbility = this.createAuditedAbility(user);
+    private checkManageAiAgentAccess(account: Account): void {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('AiAgent', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
@@ -104,29 +104,35 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     async getSettings(
-        user: SessionUser,
+        account: Account,
     ): Promise<AiOrganizationSettings & ComputedAiOrganizationSettings> {
-        if (!user.organizationUuid) {
+        const { organizationUuid, name: organizationName } =
+            account.organization;
+        if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
 
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        const isCopilotEnabled = await this.getIsCopilotEnabled({
+            userUuid: account.user.id,
+            organizationUuid,
+            organizationName,
+        });
 
         // Check if organization qualifies for trial
         const isTrialEligible = await this.isEligibleForTrial(
             isCopilotEnabled,
-            user.organizationUuid,
+            organizationUuid,
         );
 
         const settings =
             await this.aiOrganizationSettingsModel.findByOrganizationUuid(
-                user.organizationUuid,
+                organizationUuid,
             );
 
         // Return default settings if none exist
         if (!settings) {
             return {
-                organizationUuid: user.organizationUuid,
+                organizationUuid,
                 isCopilotEnabled,
                 aiAgentsVisible: true,
                 isTrial: isTrialEligible,
@@ -141,18 +147,16 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     async upsertSettings(
-        user: SessionUser,
+        account: Account,
         data: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
-        if (!user.organizationUuid) {
+        const { organizationUuid } = account.organization;
+        if (!organizationUuid) {
             throw new ForbiddenError('User must belong to an organization');
         }
 
-        this.checkManageAiAgentAccess(user);
+        this.checkManageAiAgentAccess(account);
 
-        return this.aiOrganizationSettingsModel.upsert(
-            user.organizationUuid,
-            data,
-        );
+        return this.aiOrganizationSettingsModel.upsert(organizationUuid, data);
     }
 }
