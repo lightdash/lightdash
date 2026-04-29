@@ -68,7 +68,7 @@ export type AppDashboardReference = {
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
-    imageId?: string;
+    imageIds?: string[];
     appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
     charts?: AppChartReference[]; // saved charts to resolve, optionally with sample rows
     dashboard?: AppDashboardReference; // dashboard — resolved server-side to its chart tiles

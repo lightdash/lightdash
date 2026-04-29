@@ -1180,8 +1180,7 @@ export type DataAppCreatedEvent = BaseTrack & {
         appUuid: string;
         version: number;
         promptLength: number;
-        hasImage: boolean;
-        imageMimeType?: string;
+        imageCount: number;
     };
 };
 
@@ -1195,8 +1194,7 @@ export type DataAppIteratedEvent = BaseTrack & {
         version: number;
         iterationNumber: number;
         promptLength: number;
-        hasImage: boolean;
-        imageMimeType?: string;
+        imageCount: number;
         previousVersionStatus: string | null;
         msSinceLastVersion: number | null;
     };

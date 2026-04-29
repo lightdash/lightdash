@@ -56,7 +56,7 @@ export class AppGenerateController extends BaseController {
             req.user!,
             projectUuid,
             body.prompt,
-            body.imageId,
+            body.imageIds ?? [],
             body.appUuid,
             body.charts,
             body.dashboard,
@@ -159,7 +159,7 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             appUuid,
             body.prompt,
-            body.imageId,
+            body.imageIds ?? [],
             body.charts,
             body.dashboard,
         );

@@ -42,7 +42,7 @@ export type AppGeneratePipelineJobPayload = TraceTaskBase & {
     version: number;
     prompt: string;
     template?: DataAppTemplate; // starter template selected on creation; absent on iteration
-    imageId?: string;
+    imageIds?: string[];
     isIteration: boolean;
     chartReferences?: ChartReference[];
 };
