@@ -39,7 +39,7 @@ export class ChangesetController extends BaseController {
         const changesets = await this.services
             .getChangesetService()
             .findActiveChangesetWithChangesByProjectUuid(
-                req.user!,
+                req.account!,
                 projectUuid,
             );
 
@@ -65,7 +65,7 @@ export class ChangesetController extends BaseController {
     ): Promise<ApiGetChangeResponseTSOACompat> {
         const change = await this.services
             .getChangesetService()
-            .getChange(req.user!, projectUuid, changeUuid);
+            .getChange(req.account!, projectUuid, changeUuid);
 
         return {
             status: 'ok',
@@ -89,7 +89,7 @@ export class ChangesetController extends BaseController {
     ): Promise<ApiRevertChangeResponse> {
         await this.services
             .getChangesetService()
-            .revertChange(req.user!, projectUuid, changeUuid);
+            .revertChange(req.account!, projectUuid, changeUuid);
 
         return {
             status: 'ok',
@@ -111,7 +111,7 @@ export class ChangesetController extends BaseController {
     ): Promise<ApiRevertChangeResponse> {
         await this.services
             .getChangesetService()
-            .revertAllChanges(req.user!, projectUuid);
+            .revertAllChanges(req.account!, projectUuid);
 
         return {
             status: 'ok',

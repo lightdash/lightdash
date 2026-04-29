@@ -387,7 +387,7 @@ export class UserController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getPersonalAccessTokenService()
-                .getAllPersonalAccessTokens(req.user!),
+                .getAllPersonalAccessTokens(req.account!),
         };
     }
 
@@ -416,7 +416,7 @@ export class UserController extends BaseController {
             results: await this.services
                 .getPersonalAccessTokenService()
                 .createPersonalAccessToken(
-                    req.user!,
+                    req.account!,
                     body,
                     getRequestMethod(req.header(LightdashRequestMethodHeader)),
                 ),
@@ -438,7 +438,7 @@ export class UserController extends BaseController {
         this.setStatus(200);
         await this.services
             .getPersonalAccessTokenService()
-            .deletePersonalAccessToken(req.user!, personalAccessTokenUuid);
+            .deletePersonalAccessToken(req.account!, personalAccessTokenUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -474,7 +474,7 @@ export class UserController extends BaseController {
             results: await this.services
                 .getPersonalAccessTokenService()
                 .rotatePersonalAccessToken(
-                    req.user!,
+                    req.account!,
                     personalAccessTokenUuid,
                     body,
                 ),
