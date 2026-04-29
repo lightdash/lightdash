@@ -77,34 +77,24 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         featureFlagId,
         user,
     }: FeatureFlagLogicArgs) {
-        let enabled = false;
+        const { enabled: copilotConfigEnabled, requiresFeatureFlag } =
+            this.lightdashConfig.ai.copilot;
 
-        if (
-            this.lightdashConfig.ai.copilot.enabled &&
-            this.lightdashConfig.ai.copilot.requiresFeatureFlag
-        ) {
-            if (!user) {
-                throw new Error(
-                    'User is required to check if AI copilot is enabled',
-                );
-            }
-
-            enabled = await isFeatureFlagEnabled(
-                CommercialFeatureFlags.AiCopilot as AnyType as FeatureFlags,
-                {
-                    userUuid: user.userUuid,
-                    organizationUuid: user.organizationUuid,
-                    organizationName: user.organizationName,
-                },
-            );
-        } else {
-            enabled = this.lightdashConfig.ai.copilot.enabled;
+        // Dedicated instances (per the AI Copilot tenant docs) bypass the
+        // flag system entirely. Shared tenants (app/eu1) set
+        // requiresFeatureFlag=true and gate per-org via DB-backed overrides.
+        if (!copilotConfigEnabled || !requiresFeatureFlag) {
+            return { id: featureFlagId, enabled: copilotConfigEnabled };
         }
 
-        return {
-            id: featureFlagId,
-            enabled,
-        };
+        if (!user) {
+            throw new Error(
+                'User is required to check if AI copilot is enabled',
+            );
+        }
+
+        const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
+        return dbResult ?? { id: featureFlagId, enabled: false };
     }
 
     private static async getAgentReasoningFlag({
