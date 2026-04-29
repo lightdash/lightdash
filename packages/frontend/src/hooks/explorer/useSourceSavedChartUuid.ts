@@ -5,6 +5,15 @@ import {
     useExplorerSelector,
 } from '../../features/explorer/store';
 
+/**
+ * Extracts a saved chart UUID from the raw value of the
+ * `create_saved_chart_version` URL query parameter, which is a JSON-encoded
+ * object expected to contain a `uuid` string field.
+ *
+ * @param raw - The raw query-parameter value, or `null` when absent.
+ * @returns The extracted UUID, or `undefined` if the value is missing,
+ *   malformed, or has no string `uuid` field.
+ */
 const extractUuidFromCreateSavedChartVersionParam = (
     raw: string | null,
 ): string | undefined => {

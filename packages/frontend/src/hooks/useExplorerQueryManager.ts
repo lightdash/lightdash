@@ -66,15 +66,16 @@ export const useExplorerQueryManager = () => {
         savedQueryUuid: string;
         projectUuid: string;
     }>();
+    const routeSavedChartUuid = params.savedQueryUuid;
     const sourceSavedChartUuid = useSourceSavedChartUuid();
-    const savedQueryUuid =
-        embed?.savedQueryUuid || params.savedQueryUuid || sourceSavedChartUuid;
+    const savedChartUuidForQuery =
+        embed?.savedQueryUuid || routeSavedChartUuid || sourceSavedChartUuid;
     const projectUuid = embed?.projectUuid || params.projectUuid!;
     const viewModeQueryArgs = useMemo(() => {
-        return params.savedQueryUuid
-            ? { chartUuid: params.savedQueryUuid }
+        return routeSavedChartUuid
+            ? { chartUuid: routeSavedChartUuid }
             : undefined;
-    }, [params.savedQueryUuid]);
+    }, [routeSavedChartUuid]);
 
     const dateZoomGranularity = useDateZoomGranularitySearch();
 
@@ -174,7 +175,7 @@ export const useExplorerQueryManager = () => {
             minimal,
             usePreAggregateCache: preAggCacheEnabled,
             savedChart: chartConfigForQuery,
-            savedChartUuid: savedQueryUuid,
+            savedChartUuid: savedChartUuidForQuery,
         });
 
         if (mainQueryArgs) {
@@ -194,7 +195,7 @@ export const useExplorerQueryManager = () => {
         minimal,
         preAggCacheEnabled,
         chartConfigForQuery,
-        savedQueryUuid,
+        savedChartUuidForQuery,
         dispatch,
     ]);
 
