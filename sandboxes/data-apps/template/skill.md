@@ -355,100 +355,30 @@ Use `<Loader2 className="animate-spin" />` from `lucide-react`, not skeletons. G
 
 > **Limitation by design:** A field that legitimately exists on multiple explores (e.g. `region` joined into both `orders` and `regional_sales`) won't cross-filter under this rule. That's the safe default. If the user explicitly asks for cross-explore linking on a shared dimension, you can call `addFilter` once per explore — but never broadcast a filter to all explores blindly.
 
-Set this up once in `src/filters/FilterContext.tsx`:
+The filter context is pre-installed and wraps your app at the root. Import the hook from `@/lib/filters` — never reimplement it:
 
 ```tsx
-import {
-    createContext,
-    useCallback,
-    useContext,
-    useMemo,
-    useState,
-    type ReactNode,
-} from 'react';
-import type { Filter } from '@lightdash/query-sdk';
+import { useGlobalFilters } from '@/lib/filters';
 
-// A scoped filter is a regular Filter tagged with the explore it was created
-// from. We never apply a scoped filter to a query against a different explore.
-export type ScopedFilter = Filter & { explore: string };
-
-type FilterContextValue = {
-    addFilter: (filter: ScopedFilter) => void;
-    removeFilter: (filter: ScopedFilter) => void;
-    clearFilters: () => void;
-    filtersFor: (explore: string) => Filter[];
-    allFilters: ScopedFilter[]; // for the active-filters bar only
-};
-
-const FilterContext = createContext<FilterContextValue | null>(null);
-
-const sameTarget = (a: ScopedFilter, b: ScopedFilter) =>
-    a.explore === b.explore &&
-    a.field === b.field &&
-    JSON.stringify(a.value) === JSON.stringify(b.value);
-
-export function FilterProvider({ children }: { children: ReactNode }) {
-    const [filters, setFilters] = useState<ScopedFilter[]>([]);
-
-    const addFilter = useCallback((filter: ScopedFilter) => {
-        setFilters((prev) => {
-            // Toggle: same explore + field + value → remove. Otherwise add.
-            const exists = prev.some((f) => sameTarget(f, filter));
-            return exists ? prev.filter((f) => !sameTarget(f, filter)) : [...prev, filter];
-        });
-    }, []);
-
-    const removeFilter = useCallback((filter: ScopedFilter) => {
-        setFilters((prev) => prev.filter((f) => !sameTarget(f, filter)));
-    }, []);
-
-    const clearFilters = useCallback(() => setFilters([]), []);
-
-    const filtersFor = useCallback(
-        (explore: string): Filter[] =>
-            filters
-                .filter((f) => f.explore === explore)
-                // Strip the explore tag — the SDK's .filters() takes plain Filter values.
-                .map(({ explore: _e, ...rest }) => rest),
-        [filters],
-    );
-
-    const value = useMemo(
-        () => ({ addFilter, removeFilter, clearFilters, filtersFor, allFilters: filters }),
-        [addFilter, removeFilter, clearFilters, filtersFor, filters],
-    );
-
-    return <FilterContext.Provider value={value}>{children}</FilterContext.Provider>;
-}
-
-export function useGlobalFilters() {
-    const ctx = useContext(FilterContext);
-    if (!ctx) throw new Error('useGlobalFilters must be used inside FilterProvider');
-    return ctx;
-}
+const { filtersFor, addFilter, removeFilter, clearFilters, allFilters } = useGlobalFilters();
 ```
 
-Wrap the entire app in `<FilterProvider>` once at the root (in `App.tsx`):
+| Member | Purpose |
+|---|---|
+| `filtersFor(explore: string): Filter[]` | Returns plain SDK `Filter[]` for one explore. Pass into `.filters([...])`. |
+| `addFilter(filter: ScopedFilter)` | Adds a filter tagged with `explore`. Same-target add toggles (removes if it already exists). |
+| `removeFilter(filter: ScopedFilter)` | Removes a specific filter (matches on explore + field + value). |
+| `clearFilters()` | Removes all filters. |
+| `allFilters: ScopedFilter[]` | All active filters across explores. Use for the active-filters bar. |
 
-```tsx
-import { FilterProvider } from '@/filters/FilterContext';
-
-export default function App() {
-    return (
-        <FilterProvider>
-            <ActiveFiltersBar />
-            <Dashboard />
-        </FilterProvider>
-    );
-}
-```
+`ScopedFilter` is `Filter & { explore: string }` and is also exported from `@/lib/filters`.
 
 **Apply global filters in every component that runs a query, scoped to that component's explore.** Use a per-file `EXPLORE` constant so the chart and its action menu agree on the explore name:
 
 ```tsx
 import { useMemo } from 'react';
 import { query, useLightdash } from '@lightdash/query-sdk';
-import { useGlobalFilters } from '@/filters/FilterContext';
+import { useGlobalFilters } from '@/lib/filters';
 
 const EXPLORE = 'orders';
 
@@ -472,42 +402,7 @@ export function RevenueBySegment() {
 
 #### Active filters bar
 
-Render the active global filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Show the explore alongside the field so users can tell which chart contributed each filter:
-
-```tsx
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
-import { useGlobalFilters } from '@/filters/FilterContext';
-
-export function ActiveFiltersBar() {
-    const { allFilters, removeFilter, clearFilters } = useGlobalFilters();
-    if (allFilters.length === 0) return null;
-
-    return (
-        <div className="flex flex-wrap items-center gap-2 px-4 py-2 border-b bg-muted/30">
-            <span className="text-sm text-muted-foreground">Filters:</span>
-            {allFilters.map((f, i) => (
-                <Badge key={i} variant="secondary" className="gap-1">
-                    <span className="text-muted-foreground">{f.explore}.</span>
-                    {f.field} {f.operator}{' '}
-                    {Array.isArray(f.value) ? f.value.join(', ') : String(f.value)}
-                    <button
-                        onClick={() => removeFilter(f)}
-                        className="ml-1 hover:text-destructive"
-                        aria-label={`Remove filter on ${f.field}`}
-                    >
-                        <X className="h-3 w-3" />
-                    </button>
-                </Badge>
-            ))}
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-                Clear all
-            </Button>
-        </div>
-    );
-}
-```
+Render the active filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Read `allFilters` from `useGlobalFilters()` and design the bar to match the app's visual style — `frontend-design` drives the look. Show the explore alongside the field so users can tell which chart contributed each filter, and call `removeFilter(f)` / `clearFilters()` from your dismiss buttons.
 
 ### Floating surfaces — always set a background
 
@@ -555,7 +450,7 @@ Use the `DropdownMenu` component. The menu opens on click; each option triggers 
 import { useState, useMemo, useRef } from 'react';
 import { query, useLightdash, drillDown } from '@lightdash/query-sdk';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useGlobalFilters } from '@/filters/FilterContext';
+import { useGlobalFilters } from '@/lib/filters';
 
 const EXPLORE = 'orders';
 
@@ -815,7 +710,6 @@ function DrillResults({ query: q }) {
 | Using `filters` (raw) instead of `filtersFor(EXPLORE)` | Sends filters from other explores into this query → SDK qualifies the field name to the wrong explore → `FieldReferenceError` | Always select via `filtersFor(EXPLORE)`; never pass `allFilters` into `.filters()` |
 | Hard-coding the explore string in two places | Chart and its action menu disagree → filter sets but never applies | Define `const EXPLORE = '...'` at the top of the file and reuse it for both `query(EXPLORE)` and `addFilter({ ..., explore: EXPLORE })` |
 | Building the filtered query inline (not memoized) | New query identity every render → infinite re-fetch | `useMemo(() => baseQuery.filters(filtersFor(EXPLORE)), [filtersFor])` |
-| Local `useState` for cross-filter state | Other components on the page can't see or react to it | Use `<FilterProvider>` at the app root and `useGlobalFilters()` everywhere |
 | Action menu missing "Filter by &lt;value&gt;" | Default UX requirement violated — users have no way to drill in | Every data-powered chart/table must include the option, calling `addFilter({ field, operator: 'equals', value, explore: EXPLORE })` |
 | Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
