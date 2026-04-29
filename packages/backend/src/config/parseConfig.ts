@@ -1158,9 +1158,6 @@ export type LightdashConfig = {
     microsoftTeams: {
         enabled: boolean;
     };
-    googleChat: {
-        enabled: boolean;
-    };
     googleCloudPlatform: {
         projectId?: string;
     };
@@ -1553,6 +1550,7 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
     ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
     ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
+    ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
     // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
     // translating to enabledFeatureFlags ensures both existing and new cloud
     // instances pick up the DB-backed flag as enabled without needing per-DB
@@ -2231,9 +2229,6 @@ export const parseConfig = (): LightdashConfig => {
         },
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
-        },
-        googleChat: {
-            enabled: process.env.GOOGLE_CHAT_ENABLED === 'true',
         },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,

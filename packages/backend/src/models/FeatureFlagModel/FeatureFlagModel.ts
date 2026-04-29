@@ -41,8 +41,6 @@ export class FeatureFlagModel {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.GoogleChatEnabled]:
-                this.getGoogleChatEnabled.bind(this),
             [FeatureFlags.UserImpersonation]:
                 this.getUserImpersonationEnabled.bind(this),
             [FeatureFlags.MetricDashboardFilters]:
@@ -149,31 +147,6 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.query.showExecutionTime ?? false,
-        };
-    }
-
-    private async getGoogleChatEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.googleChat.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.GoogleChatEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
         };
     }
 
