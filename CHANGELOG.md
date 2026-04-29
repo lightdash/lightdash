@@ -1,3 +1,10 @@
+## [0.2836.2](https://github.com/lightdash/lightdash/compare/0.2836.1...0.2836.2) (2026-04-29)
+
+
+### Bug Fixes
+
+* refresh Databricks oauth_m2m credentials in embed warehouse client ([#22487](https://github.com/lightdash/lightdash/issues/22487)) ([37c9c40](https://github.com/lightdash/lightdash/commit/37c9c40a0ead6f5c7905c35b45a353630babc53f))
+
 ## [0.2836.1](https://github.com/lightdash/lightdash/compare/0.2836.0...0.2836.1) (2026-04-29)
 
 
