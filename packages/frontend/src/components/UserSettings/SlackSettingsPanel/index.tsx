@@ -10,6 +10,7 @@ import {
     Badge,
     Box,
     Button,
+    Divider,
     Flex,
     Group,
     Loader,
@@ -40,7 +41,6 @@ import {
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
-import { ComingSoonBadge } from '../../common/ComingSoonBadge';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
@@ -76,17 +76,12 @@ const SlackSettingsPanel: FC = () => {
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
-    const { data: multiAgentChannelFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.MultiAgentChannel,
-    );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
     const isAiCopilotEnabledOrTrial =
         !!aiCopilotFlag?.enabled ||
         !!aiOrganizationSettingsQuery.data?.isCopilotEnabled ||
         !!aiOrganizationSettingsQuery.data?.isTrial;
-
-    const isSlackMultiAgentChannelEnabled = !!multiAgentChannelFlag?.enabled;
 
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
@@ -242,6 +237,10 @@ const SlackSettingsPanel: FC = () => {
                             </Group>
                             {isAiCopilotEnabledOrTrial && (
                                 <Stack gap="sm">
+                                    <Divider mt="sm" />
+                                    <Title order={5} fw={600}>
+                                        AI in Slack
+                                    </Title>
                                     <Group gap="two">
                                         <Title order={6} fw={500}>
                                             AI Agents thread access consent
@@ -325,26 +324,20 @@ const SlackSettingsPanel: FC = () => {
                                                 Multi-agent channel
                                             </Title>
 
-                                            {isSlackMultiAgentChannelEnabled && (
-                                                <Tooltip
-                                                    multiline
-                                                    maw={250}
-                                                    label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconHelpCircle}
-                                                    />
-                                                </Tooltip>
-                                            )}
-                                            {!isSlackMultiAgentChannelEnabled && (
-                                                <ComingSoonBadge />
-                                            )}
+                                            <Tooltip
+                                                multiline
+                                                maw={250}
+                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
                                         </Group>
 
                                         <Text c="dimmed" fz="xs">
-                                            In this channel, users starting a
-                                            thread will see a dropdown to choose
-                                            which AI agent to chat with.
+                                            Lightdash picks the best agent
+                                            automatically.
                                         </Text>
 
                                         <SlackChannelSelect
@@ -360,14 +353,7 @@ const SlackSettingsPanel: FC = () => {
                                                     value ?? undefined,
                                                 );
                                             }}
-                                            disabled={
-                                                !isSlackMultiAgentChannelEnabled
-                                            }
-                                            placeholder={
-                                                isSlackMultiAgentChannelEnabled
-                                                    ? 'Select a channel (optional)'
-                                                    : 'Feature not available'
-                                            }
+                                            placeholder="Select a channel (optional)"
                                         />
 
                                         {form.values.aiMultiAgentChannelId && (
@@ -378,9 +364,6 @@ const SlackSettingsPanel: FC = () => {
                                                         form.values
                                                             .aiMultiAgentProjectUuids ===
                                                         null
-                                                    }
-                                                    disabled={
-                                                        !isSlackMultiAgentChannelEnabled
                                                     }
                                                     onChange={(event) => {
                                                         setFieldValue(
@@ -410,9 +393,6 @@ const SlackSettingsPanel: FC = () => {
                                                                     : [],
                                                             );
                                                         }}
-                                                        disabled={
-                                                            !isSlackMultiAgentChannelEnabled
-                                                        }
                                                     />
                                                 )}
                                             </Stack>
