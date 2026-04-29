@@ -10,6 +10,7 @@ const EmbedDashboardFilters: FC = () => {
     const [openPopoverId, setPopoverId] = useState<string>();
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const activeTab = useDashboardContext((c) => c.activeTab);
 
     const haveFiltersChanged = useDashboardContext(
         (c) =>
@@ -76,7 +77,7 @@ const EmbedDashboardFilters: FC = () => {
                     onPopoverOpen={handlePopoverOpen}
                     onPopoverClose={handlePopoverClose}
                     openPopoverId={openPopoverId}
-                    activeTabUuid={undefined}
+                    activeTabUuid={activeTab?.uuid}
                 />
             </Flex>
         </FiltersProvider>
