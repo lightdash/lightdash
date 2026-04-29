@@ -1,3 +1,16 @@
+# [0.2839.0](https://github.com/lightdash/lightdash/compare/0.2838.0...0.2839.0) (2026-04-29)
+
+
+### Bug Fixes
+
+* allow api key auth on impersonation endpoints ([#22495](https://github.com/lightdash/lightdash/issues/22495)) ([e4c68b5](https://github.com/lightdash/lightdash/commit/e4c68b5bb76a5a5be4f6223e85ed1f44bcab324f))
+* **trino:** cast DATE to TIMESTAMP for sub-day DATE_TRUNC ([#22496](https://github.com/lightdash/lightdash/issues/22496)) ([549a4a3](https://github.com/lightdash/lightdash/commit/549a4a3233278626553eb487087ee541f843a932))
+
+
+### Features
+
+* add Rename and Move-to-space actions to My Apps menu ([#22494](https://github.com/lightdash/lightdash/issues/22494)) ([4bf9aaf](https://github.com/lightdash/lightdash/commit/4bf9aafa8953d15c1b1166577f8877e99b0a3133))
+
 # [0.2838.0](https://github.com/lightdash/lightdash/compare/0.2837.0...0.2838.0) (2026-04-29)
 
 
