@@ -778,11 +778,20 @@ export class EmbedService extends BaseService {
         }
     }
 
-    private async _getWarehouseClient(projectUuid: string, explore: Explore) {
+    private async _getWarehouseClient(
+        account: AnonymousAccount,
+        projectUuid: string,
+        explore: Explore,
+    ) {
+        // Resolve via ProjectService so OAuth tokens are refreshed before use
+        // (e.g. Databricks oauth_m2m must exchange client_id+secret for an
+        // access token — fetching the raw row from the model would yield an
+        // empty `token` and crash the warehouse client).
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectService.getWarehouseCredentialsForEmbed({
                 projectUuid,
-            );
+                account,
+            });
 
         const { warehouseClient, sshTunnel } =
             await this.projectService._getWarehouseClient(
@@ -855,6 +864,7 @@ export class EmbedService extends BaseService {
         useTimezoneAwareDateTrunc: boolean;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            account,
             projectUuid,
             explore,
         );

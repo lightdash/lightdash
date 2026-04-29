@@ -125,6 +125,9 @@ jest.mock('@lightdash/warehouses', () => ({
         connect: jest.fn(() => warehouseClientMock.credentials),
         disconnect: jest.fn(),
     })),
+    exchangeDatabricksOAuthCredentials: jest.fn(),
+    refreshDatabricksOAuthToken: jest.fn(),
+    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
 }));
 
 const projectModel = {
@@ -622,6 +625,84 @@ describe('ProjectService', () => {
 
             // User credentials should NOT have been fetched
             expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getWarehouseCredentialsForEmbed', () => {
+        test('should refresh Databricks oauth_m2m credentials so the access token is populated', async () => {
+            const { exchangeDatabricksOAuthCredentials } = jest.requireMock(
+                '@lightdash/warehouses',
+            );
+
+            // Project credentials as stored in DB: m2m client id/secret but no token yet.
+            const projectCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_m2m',
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+                catalog: 'test_catalog',
+                oauthClientId: 'client-id',
+                oauthClientSecret: 'client-secret',
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockResolvedValueOnce(projectCredentials);
+
+            (
+                exchangeDatabricksOAuthCredentials as jest.Mock
+            ).mockResolvedValueOnce({
+                accessToken: 'fresh-m2m-access-token',
+                refreshToken: 'fresh-m2m-refresh-token',
+            });
+
+            const embedAccount = buildAccount({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            });
+
+            const credentials = await service.getWarehouseCredentialsForEmbed({
+                projectUuid,
+                // The mock buildAccount returns Account; AnonymousAccount is structurally compatible.
+                account: embedAccount as never,
+            });
+
+            expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledWith(
+                'test.databricks.com',
+                'client-id',
+                'client-secret',
+            );
+            // Token must be present, otherwise DatabricksWarehouseClient throws
+            // "Databricks OAuth access token is required for OAuth oauth_m2m authentication"
+            expect(credentials).toMatchObject({
+                token: 'fresh-m2m-access-token',
+                authenticationType: 'oauth_m2m',
+            });
+        });
+
+        test('should throw when project requires user credentials', async () => {
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockResolvedValueOnce({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_u2m',
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+                requireUserCredentials: true,
+            });
+
+            const embedAccount = buildAccount({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            });
+
+            await expect(
+                service.getWarehouseCredentialsForEmbed({
+                    projectUuid,
+                    account: embedAccount as never,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
         });
     });
 
