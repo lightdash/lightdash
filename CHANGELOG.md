@@ -1,3 +1,15 @@
+# [0.2837.0](https://github.com/lightdash/lightdash/compare/0.2836.2...0.2837.0) (2026-04-29)
+
+
+### Bug Fixes
+
+* **explorer:** prevent sidebar crash on invalid custom-dimension SQL refs [PROD-6838] ([#22490](https://github.com/lightdash/lightdash/issues/22490)) ([cf102bb](https://github.com/lightdash/lightdash/commit/cf102bb3f194d58e8358fc823780cbed19eb3f42))
+
+
+### Features
+
+* show clickable space name in 'My Apps' ([#22493](https://github.com/lightdash/lightdash/issues/22493)) ([58a8ad8](https://github.com/lightdash/lightdash/commit/58a8ad8914eb343993a9420ace462664123150cb))
+
 ## [0.2836.2](https://github.com/lightdash/lightdash/compare/0.2836.1...0.2836.2) (2026-04-29)
 
 
