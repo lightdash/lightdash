@@ -1,3 +1,10 @@
+# [0.2846.0](https://github.com/lightdash/lightdash/compare/0.2845.0...0.2846.0) (2026-04-29)
+
+
+### Features
+
+* **permissions:** strip or fail on SQL-authored field reads ([#22510](https://github.com/lightdash/lightdash/issues/22510)) ([f91faab](https://github.com/lightdash/lightdash/commit/f91faabcc5aafca1e12ac0e8d24ea3a29cf24ff6))
+
 # [0.2845.0](https://github.com/lightdash/lightdash/compare/0.2844.0...0.2845.0) (2026-04-29)
 
 
