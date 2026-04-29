@@ -355,9 +355,15 @@ export const selectMissingCustomDimensions = createSelector(
 
             const isCustomSqlDimensionMissing =
                 isCustomSqlDimension(customDimension) &&
-                getAllReferences(customDimension.sql)
-                    .map((ref) => convertFieldRefToFieldId(ref))
-                    .some((refFieldId) => !fieldIds.includes(refFieldId));
+                getAllReferences(customDimension.sql).some((ref) => {
+                    try {
+                        return !fieldIds.includes(
+                            convertFieldRefToFieldId(ref),
+                        );
+                    } catch {
+                        return true;
+                    }
+                });
 
             return isCustomBinDimensionMissing || isCustomSqlDimensionMissing;
         });
