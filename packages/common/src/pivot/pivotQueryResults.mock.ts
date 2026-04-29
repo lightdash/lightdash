@@ -588,7 +588,6 @@ export const SQL_PIVOT_DETAILS: NonNullable<
             reference: 'orders_order_date_year',
         },
     ],
-    sortOnlyColumns: undefined,
     originalColumns: {},
 };
 
@@ -1828,7 +1827,6 @@ export const COMPLEX_SQL_PIVOT_DETAILS: NonNullable<
             reference: 'orders_order_date_year',
         },
     ],
-    sortOnlyColumns: undefined,
     originalColumns: {},
 };
 

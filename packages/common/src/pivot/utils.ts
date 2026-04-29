@@ -47,14 +47,11 @@ export const isSortedByPivot = ({
     sorts,
     pivotDetails,
 }: {
-    pivotDimensions: string[] | undefined;
-    sorts: { fieldId: string }[] | undefined;
-    pivotDetails:
-        | {
-              sortOnlyColumns?: PivotConfiguration['sortOnlyColumns'];
-          }
-        | null
-        | undefined;
+    pivotDimensions?: string[];
+    sorts?: { fieldId: string }[];
+    pivotDetails?: {
+        sortOnlyColumns?: PivotConfiguration['sortOnlyColumns'];
+    } | null;
 }): boolean => {
     if (!pivotDimensions?.length) return false;
     if (!sorts?.length) return false;
