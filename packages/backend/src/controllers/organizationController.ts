@@ -638,7 +638,7 @@ export class OrganizationController extends BaseController {
      * @summary Get impersonation settings
      * @param req express request
      */
-    @Middlewares([isAuthenticated])
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/impersonation')
     @OperationId('GetImpersonationSettings')
     async getImpersonationSettings(
@@ -664,7 +664,11 @@ export class OrganizationController extends BaseController {
      * @param req express request
      * @param body the new impersonation settings
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Patch('/impersonation')
     @OperationId('UpdateImpersonationSettings')
     async updateImpersonationSettings(
