@@ -1,3 +1,15 @@
+# [0.2843.0](https://github.com/lightdash/lightdash/compare/0.2842.1...0.2843.0) (2026-04-29)
+
+
+### Bug Fixes
+
+* pass activeTab uuid to embed dashboard filters ([#22505](https://github.com/lightdash/lightdash/issues/22505)) ([cbaf747](https://github.com/lightdash/lightdash/commit/cbaf747a58fbf9d19dfa56758f18d8225b9e2178)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add d3 and resizable to data-apps template ([#22512](https://github.com/lightdash/lightdash/issues/22512)) ([b7a65a8](https://github.com/lightdash/lightdash/commit/b7a65a84c9432104ed9488c3ae0aa1d83eb73157))
+
 ## [0.2842.1](https://github.com/lightdash/lightdash/compare/0.2842.0...0.2842.1) (2026-04-29)
 
 
