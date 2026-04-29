@@ -976,7 +976,9 @@ export class CatalogService<
                 ownerUserUuids,
             },
             context,
-            paginateArgs,
+            // Explicit cap when caller omits paginateArgs: this is a project-wide
+            // metrics list and could otherwise grow unbounded.
+            paginateArgs: paginateArgs ?? { page: 1, pageSize: 50 },
             sortArgs,
         });
 
