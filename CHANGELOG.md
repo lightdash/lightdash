@@ -1,3 +1,10 @@
+# [0.2835.0](https://github.com/lightdash/lightdash/compare/0.2834.1...0.2835.0) (2026-04-29)
+
+
+### Features
+
+* **audit-log:** surface user attribution caveat for service accounts [SPK-391] ([#22465](https://github.com/lightdash/lightdash/issues/22465)) ([e00c5bd](https://github.com/lightdash/lightdash/commit/e00c5bd61f808d52a3654002483faa1c6832b624))
+
 ## [0.2834.1](https://github.com/lightdash/lightdash/compare/0.2834.0...0.2834.1) (2026-04-28)
 
 
