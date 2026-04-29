@@ -12,7 +12,22 @@ import {
     getModifiedSqlAuthoredFields,
     hasModifiedSqlAuthoredFields,
     hasSqlAuthoredFields,
+    mergeSavedSqlBodiesIntoMetricQuery,
+    stripSqlBodiesFromMetricQuery,
 } from './sqlAuthoredFields';
+
+const fullMq = (overrides: Partial<MetricQuery> = {}): MetricQuery => ({
+    exploreName: 'orders',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    limit: 500,
+    tableCalculations: [],
+    additionalMetrics: [],
+    customDimensions: [],
+    ...overrides,
+});
 
 const sqlDim = (id: string, sql: string, name = id): CustomSqlDimension => ({
     id,
@@ -293,5 +308,176 @@ describe('hasModifiedSqlAuthoredFields', () => {
                 mq({ customDimensions: [dim], tableCalculations: [calc] }),
             ),
         ).toBe(false);
+    });
+});
+
+describe('getModifiedSqlAuthoredFields — strip-on-encode round-trip', () => {
+    it('treats empty incoming custom dim sql as preserved when saved has a body', () => {
+        const result = getModifiedSqlAuthoredFields(
+            mq({ customDimensions: [sqlDim('d1', '')] }),
+            mq({ customDimensions: [sqlDim('d1', '${orders.amount}')] }),
+        );
+
+        expect(result.customDimensions).toEqual([]);
+    });
+
+    it('treats empty incoming table calc sql as preserved when saved has a body', () => {
+        const result = getModifiedSqlAuthoredFields(
+            mq({ tableCalculations: [sqlCalc('c1', '')] }),
+            mq({ tableCalculations: [sqlCalc('c1', 'sum(x)')] }),
+        );
+
+        expect(result.tableCalculations).toEqual([]);
+    });
+
+    it('flags empty incoming SQL custom dim as modified when there is no saved counterpart', () => {
+        // Custom SQL dims are identified by `type === SQL` regardless of body.
+        const result = getModifiedSqlAuthoredFields(
+            mq({ customDimensions: [sqlDim('d_new', '')] }),
+            mq({}),
+        );
+        expect(result.customDimensions).toHaveLength(1);
+    });
+
+    it('does not flag an empty incoming SQL table calc when no saved match exists', () => {
+        // SQL table calcs are identified by a *non-empty* sql body, so a
+        // calc with empty body falls outside the SQL variant entirely.
+        // Compile would still reject it downstream — gate stays out of it.
+        const result = getModifiedSqlAuthoredFields(
+            mq({ tableCalculations: [sqlCalc('c_new', '')] }),
+            mq({}),
+        );
+        expect(result.tableCalculations).toEqual([]);
+    });
+});
+
+describe('stripSqlBodiesFromMetricQuery', () => {
+    it('blanks the sql of every SQL custom dim while leaving bin dims untouched', () => {
+        const result = stripSqlBodiesFromMetricQuery(
+            fullMq({
+                customDimensions: [
+                    sqlDim('d1', '${orders.amount}'),
+                    binDim('b1'),
+                ],
+            }),
+        );
+
+        expect(result.customDimensions).toEqual([
+            expect.objectContaining({ id: 'd1', sql: '' }),
+            expect.objectContaining({ id: 'b1' }),
+        ]);
+        // Bin dim shape preserved
+        expect(result.customDimensions?.[1]).not.toHaveProperty('sql');
+    });
+
+    it('blanks the sql of every SQL table calc while leaving formula and template untouched', () => {
+        const result = stripSqlBodiesFromMetricQuery(
+            fullMq({
+                tableCalculations: [
+                    sqlCalc('s1', 'sum(x)'),
+                    formulaCalc('f1', '=SUM(x)'),
+                    templateCalc('t1'),
+                ],
+            }),
+        );
+
+        expect(result.tableCalculations).toEqual([
+            expect.objectContaining({ name: 's1', sql: '' }),
+            expect.objectContaining({ name: 'f1', formula: '=SUM(x)' }),
+            expect.objectContaining({ name: 't1' }),
+        ]);
+    });
+
+    it('returns an equivalent shape (idempotent) when there are no SQL fields', () => {
+        const input = fullMq({
+            customDimensions: [binDim('b1')],
+            tableCalculations: [
+                formulaCalc('f1', '=AVG(x)'),
+                templateCalc('t1'),
+            ],
+        });
+        const result = stripSqlBodiesFromMetricQuery(input);
+
+        expect(result.customDimensions).toEqual(input.customDimensions);
+        expect(result.tableCalculations).toEqual(input.tableCalculations);
+    });
+});
+
+describe('mergeSavedSqlBodiesIntoMetricQuery', () => {
+    it('rehydrates an empty SQL custom dim from the saved chart by id', () => {
+        const result = mergeSavedSqlBodiesIntoMetricQuery(
+            fullMq({ customDimensions: [sqlDim('d1', '')] }),
+            mq({ customDimensions: [sqlDim('d1', '${orders.amount}')] }),
+        );
+
+        expect(result.customDimensions).toEqual([
+            expect.objectContaining({ id: 'd1', sql: '${orders.amount}' }),
+        ]);
+    });
+
+    it('rehydrates an empty SQL table calc from the saved chart by name', () => {
+        const result = mergeSavedSqlBodiesIntoMetricQuery(
+            fullMq({ tableCalculations: [sqlCalc('c1', '')] }),
+            mq({ tableCalculations: [sqlCalc('c1', 'sum(x)')] }),
+        );
+
+        expect(result.tableCalculations).toEqual([
+            expect.objectContaining({ name: 'c1', sql: 'sum(x)' }),
+        ]);
+    });
+
+    it('leaves non-empty incoming SQL untouched (does not overwrite user edits)', () => {
+        const result = mergeSavedSqlBodiesIntoMetricQuery(
+            fullMq({ customDimensions: [sqlDim('d1', 'modified')] }),
+            mq({ customDimensions: [sqlDim('d1', 'saved')] }),
+        );
+
+        expect(result.customDimensions).toEqual([
+            expect.objectContaining({ sql: 'modified' }),
+        ]);
+    });
+
+    it('leaves empty incoming SQL untouched when there is no matching saved field', () => {
+        const result = mergeSavedSqlBodiesIntoMetricQuery(
+            fullMq({ customDimensions: [sqlDim('d_orphan', '')] }),
+            mq({ customDimensions: [sqlDim('d_other', 'sql')] }),
+        );
+
+        expect(result.customDimensions).toEqual([
+            expect.objectContaining({ id: 'd_orphan', sql: '' }),
+        ]);
+    });
+
+    it('returns the input untouched when saved is null', () => {
+        const incoming = fullMq({
+            customDimensions: [sqlDim('d1', '${orders.amount}')],
+            tableCalculations: [sqlCalc('c1', 'sum(x)')],
+        });
+        expect(mergeSavedSqlBodiesIntoMetricQuery(incoming, null)).toBe(
+            incoming,
+        );
+    });
+});
+
+describe('strip + merge round-trip', () => {
+    it('reconstructs the original metricQuery for SQL custom dims and table calcs', () => {
+        const original = fullMq({
+            customDimensions: [sqlDim('d1', '${orders.amount}'), binDim('b1')],
+            tableCalculations: [
+                sqlCalc('s1', 'sum(x)'),
+                formulaCalc('f1', '=SUM(x)'),
+            ],
+        });
+
+        const stripped = stripSqlBodiesFromMetricQuery(original);
+        const rehydrated = mergeSavedSqlBodiesIntoMetricQuery(
+            stripped,
+            original,
+        );
+
+        expect(rehydrated.customDimensions).toEqual(original.customDimensions);
+        expect(rehydrated.tableCalculations).toEqual(
+            original.tableCalculations,
+        );
     });
 });

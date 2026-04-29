@@ -1010,8 +1010,12 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 chartWithDashboardFilters.projectUuid,
                 chartWithDashboardFilters,
                 true,
+                {
+                    originSavedChartUuid: chartWithDashboardFilters.uuid,
+                    cannotAuthorCustomSql: !userCanUseCustomFields,
+                },
             );
-        }, [chartWithDashboardFilters]);
+        }, [chartWithDashboardFilters, userCanUseCustomFields]);
 
         const [isCommentsMenuOpen, setIsCommentsMenuOpen] = useState(false);
         const showComments = useDashboardContext(
