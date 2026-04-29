@@ -170,7 +170,7 @@ const onboardingModel = {
 };
 const savedChartModel = {
     getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
-    findByExploreName: jest.fn(async () => [] as ChartSummary[]),
+    find: jest.fn(async () => [] as ChartSummary[]),
 };
 const jobModel = {
     get: jest.fn(async () => job),
@@ -1767,9 +1767,9 @@ describe('ProjectService', () => {
                 lightdashConfigMock,
                 { spacePermissionService },
             );
-            (
-                savedChartModel.findByExploreName as jest.Mock
-            ).mockResolvedValueOnce([chartSummaryMock]);
+            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([
+                chartSummaryMock,
+            ]);
 
             const result = await serviceWithPermissions.getChartsByExploreName(
                 user,
@@ -1777,11 +1777,11 @@ describe('ProjectService', () => {
                 exploreName,
             );
 
-            expect(savedChartModel.findByExploreName).toHaveBeenCalledWith(
-                defaultProject.projectUuid,
-                [spaceUuid],
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+                spaceUuids: [spaceUuid],
                 exploreName,
-            );
+            });
             expect(result).toEqual([chartSummaryMock]);
         });
 
@@ -1793,9 +1793,7 @@ describe('ProjectService', () => {
                 lightdashConfigMock,
                 { spacePermissionService },
             );
-            (
-                savedChartModel.findByExploreName as jest.Mock
-            ).mockResolvedValueOnce([]);
+            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([]);
 
             const result = await serviceWithPermissions.getChartsByExploreName(
                 user,

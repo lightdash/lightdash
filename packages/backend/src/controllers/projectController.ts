@@ -161,31 +161,6 @@ export class ProjectController extends BaseController {
     }
 
     /**
-     * List chart summaries visible to the requesting user in a project that reference a given explore in their latest version
-     * @summary List charts by explore name
-     * @param projectUuid The uuid of the project
-     * @param exploreName The explore name to filter charts by
-     * @param req express request
-     */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
-    @SuccessResponse('200', 'Success')
-    @Get('{projectUuid}/charts-by-explore-name')
-    @OperationId('GetChartsByExploreName')
-    async getChartsByExploreName(
-        @Path() projectUuid: string,
-        @Query() exploreName: string,
-        @Request() req: express.Request,
-    ): Promise<ApiChartSummaryListResponse> {
-        this.setStatus(200);
-        return {
-            status: 'ok',
-            results: await this.services
-                .getProjectService()
-                .getChartsByExploreName(req.user!, projectUuid, exploreName),
-        };
-    }
-
-    /**
      * List all spaces in a project
      * @summary List spaces in project
      * @param projectUuid The uuid of the project to get spaces for

@@ -1,5 +1,6 @@
 import {
     AnyType,
+    ApiChartSummaryListResponse,
     ApiCompiledQueryResults,
     ApiErrorPayload,
     ApiExploreResults,
@@ -234,6 +235,28 @@ export class ExploreController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * List charts referencing a given explore
+     * @summary List charts by explore
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{exploreId}/charts')
+    @OperationId('GetChartsByExploreName')
+    async getChartsByExploreName(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiChartSummaryListResponse> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getChartsByExploreName(req.user!, projectUuid, exploreId),
         };
     }
 }

@@ -1753,56 +1753,6 @@ export class SavedChartModel {
         );
     }
 
-    async findByExploreName(
-        projectUuid: string,
-        spaceUuids: string[],
-        exploreName: string,
-    ): Promise<(ChartSummary & { updatedAt: Date })[]> {
-        return Sentry.startSpan(
-            {
-                op: 'SavedChartModel.findByExploreName',
-                name: 'SavedChartModel.findByExploreName',
-            },
-            async () => {
-                // Intentionally matches only the latest version of each chart.
-                // A chart's current explore is what matters — historical versions
-                // that once referenced this explore are not returned.
-                // The composite index on (saved_query_id, created_at DESC)
-                // makes this an efficient index scan rather than a full sort.
-                const latestVersionSubquery = this.database(
-                    SavedChartVersionsTableName,
-                )
-                    .distinctOn(`${SavedChartVersionsTableName}.saved_query_id`)
-                    .select([
-                        `${SavedChartVersionsTableName}.saved_query_id`,
-                        `${SavedChartVersionsTableName}.explore_name`,
-                    ])
-                    .orderBy(`${SavedChartVersionsTableName}.saved_query_id`)
-                    .orderBy(
-                        `${SavedChartVersionsTableName}.created_at`,
-                        'desc',
-                    )
-                    .as('latest_version');
-
-                const chartSummaries = await this.getChartSummaryQuery()
-                    .where('projects.project_uuid', projectUuid)
-                    .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
-                    .join(
-                        latestVersionSubquery,
-                        'latest_version.saved_query_id',
-                        `${SavedChartsTableName}.saved_query_id`,
-                    )
-                    .where('latest_version.explore_name', exploreName)
-                    .distinctOn(`${SavedChartsTableName}.saved_query_uuid`);
-
-                return chartSummaries.map((chart) => ({
-                    ...chart,
-                    chartType: getChartType(chart.chartKind),
-                }));
-            },
-        );
-    }
-
     private getChartSummaryQuery() {
         return this.database(SavedChartsTableName)
             .select({

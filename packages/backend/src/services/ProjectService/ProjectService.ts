@@ -6616,8 +6616,9 @@ export class ProjectService extends BaseService {
     ): Promise<ChartSummary[]> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', { organizationUuid, projectUuid }),
             )
@@ -6633,11 +6634,11 @@ export class ProjectService extends BaseService {
                 spaces.map((s) => s.uuid),
             );
 
-        return this.savedChartModel.findByExploreName(
+        return this.savedChartModel.find({
             projectUuid,
-            allowedSpaceUuids,
+            spaceUuids: allowedSpaceUuids,
             exploreName,
-        );
+        });
     }
 
     async getMostPopularAndRecentlyUpdated(
