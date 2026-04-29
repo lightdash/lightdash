@@ -720,6 +720,7 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         valuesColumns: PivotValuesColumn[];
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
+        sortOnlyColumns?: PivotConfiguration['sortOnlyColumns'];
         originalColumns: ResultColumns;
     } | null;
 };

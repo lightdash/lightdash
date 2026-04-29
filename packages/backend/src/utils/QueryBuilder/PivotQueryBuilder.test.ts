@@ -754,6 +754,121 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('ORDER BY "date" ASC, "event" DESC');
         });
 
+        test('Should drive column_index by sort-only dimension when sort dim is a 1:1 companion', () => {
+            // Frontend flagged event_priority as a sort-only dim (it's not
+            // the x-axis, not a pivot column, not a metric). Backend should
+            // emit it in column_index ORDER BY ahead of the group-by column.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'event_priority',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+                sortOnlyColumns: [{ reference: 'event_priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."event_priority" desc, g."event_type" asc) as "column_index"',
+            );
+            // group_by_query must carry event_priority so ORDER BY can resolve
+            expect(result).toContain('"event_priority"');
+        });
+
+        test('Should keep sort-only dim ahead of group-by sort when sortBy mixes both', () => {
+            // sortBy lists event_type's sort first, but sort-only dims are
+            // prepended and group-by parts follow groupByColumns declaration
+            // order with the requested direction applied.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'event_id',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event_type' }],
+                sortBy: [
+                    {
+                        reference: 'event_type',
+                        direction: SortByDirection.DESC,
+                    },
+                    {
+                        reference: 'event_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyColumns: [{ reference: 'event_priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            expect(result.toLowerCase()).toContain(
+                'dense_rank() over (order by g."event_priority" asc, g."event_type" desc) as "column_index"',
+            );
+        });
+
+        test('Should interleave value, sort-only dim and group-by parts in column_ranking ORDER BY', () => {
+            // Mixes all three sort kinds: a value sort drives the metric-sort
+            // path (anchor CTEs), and the column_ranking ORDER BY must contain
+            // the value anchor first, then the sort-only dim, then the group-by
+            // column. sortByValuesFirst is true because the first non-sort-only
+            // entry is a value column.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: 'revenue', direction: SortByDirection.DESC },
+                    { reference: 'priority', direction: SortByDirection.ASC },
+                ],
+                sortOnlyColumns: [{ reference: 'priority' }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Metric-sort path: column_ranking CTE drives col_idx via
+            // anchor value first, then sort-only dim, then group-by column.
+            expect(replaceWhitespace(result)).toContain(
+                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."priority" ASC, g."category" ASC) AS "col_idx"',
+            );
+            // group_by_query must select priority so the ORDER BY can resolve
+            expect(result).toContain('"priority"');
+        });
+
         test('Should use index column sort for row_index in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],

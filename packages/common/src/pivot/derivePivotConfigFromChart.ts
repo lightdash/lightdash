@@ -27,7 +27,11 @@ import {
     VizAggregationOptions,
     VizIndexType,
 } from '../visualizations/types';
-import { normalizeIndexColumns } from './utils';
+import {
+    getSortOnlyDimensionColumns,
+    getSortOnlyValuesColumns,
+    normalizeIndexColumns,
+} from './utils';
 
 function getSortByForPivotConfiguration(
     partialPivot: Omit<PivotConfiguration, 'sortBy'>,
@@ -277,29 +281,51 @@ function getCartesianPivotConfiguration(
                     ),
             );
 
-        // Include metrics/table calculations that are used in sorts but not
-        // displayed in the chart. Without these in valuesColumns, the sort
-        // is silently dropped and PivotQueryBuilder can't generate anchor CTEs.
+        // Fields referenced only via sortBy. Kept out of indexColumn so
+        // they don't conflate row-axis sort with column-ordering intent.
         const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
-        const sortOnlyMetrics = metricQuery.sorts
-            .filter(
-                (sort) =>
-                    !valuesRefs.has(sort.fieldId) &&
-                    (metricQuery.metrics.includes(sort.fieldId) ||
-                        (metricQuery.tableCalculations || []).some(
-                            (tc) => tc.name === sort.fieldId,
-                        )),
-            )
-            .map((sort) => ({
-                reference: sort.fieldId,
-                aggregation: VizAggregationOptions.ANY,
-            }));
+        const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
+        const sortOnlyColumns: NonNullable<
+            PivotConfiguration['sortOnlyColumns']
+        > = metricQuery.sorts.flatMap((sort) => {
+            if (
+                !valuesRefs.has(sort.fieldId) &&
+                (metricQuery.metrics.includes(sort.fieldId) ||
+                    (metricQuery.tableCalculations || []).some(
+                        (tc) => tc.name === sort.fieldId,
+                    ))
+            ) {
+                return [
+                    {
+                        reference: sort.fieldId,
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ];
+            }
+            if (
+                !valuesRefs.has(sort.fieldId) &&
+                sort.fieldId !== xField &&
+                !groupByRefs.has(sort.fieldId) &&
+                metricQuery.dimensions.includes(sort.fieldId)
+            ) {
+                return [{ reference: sort.fieldId }];
+            }
+            return [];
+        });
+
         // Find columns that are not groupBy or value columns (these become index columns)
-        // Include sortOnlyMetrics in the valuesColumns passed to getIndexColumn
-        // so they aren't incorrectly classified as index columns.
-        const allValuesColumns = [...valuesColumns, ...sortOnlyMetrics];
+        // Include sortOnlyColumns in the lists passed to getIndexColumn so
+        // they aren't classified as index columns.
+        const allValuesColumns = [
+            ...valuesColumns,
+            ...getSortOnlyValuesColumns(sortOnlyColumns),
+        ];
+        const allGroupByColumns = [
+            ...groupByColumns,
+            ...getSortOnlyDimensionColumns(sortOnlyColumns),
+        ];
         const indexColumn = getIndexColumn(
-            groupByColumns,
+            allGroupByColumns,
             allValuesColumns,
             fields,
             metricQuery,
@@ -310,9 +336,7 @@ function getCartesianPivotConfiguration(
             indexColumn,
             valuesColumns,
             groupByColumns,
-            ...(sortOnlyMetrics.length > 0 && {
-                sortOnlyColumns: sortOnlyMetrics,
-            }),
+            ...(sortOnlyColumns.length > 0 && { sortOnlyColumns }),
         };
 
         const pivotConfiguration: PivotConfiguration = {

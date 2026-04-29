@@ -6,6 +6,7 @@ import {
     isCompleteEchartsConfig,
     isCompleteLayout,
     isNumericItem,
+    isSortedByPivot,
     StackType,
     XAxisSort,
     XAxisSortType,
@@ -1119,12 +1120,11 @@ const useCartesianChartConfig = ({
                     itemsMap,
                     columnLimit: effectiveColumnLimit,
                 });
-                // Check if any sort field matches a pivot dimension
-                const sortedByPivot =
-                    !!pivotKeys?.length &&
-                    !!resultsData?.metricQuery?.sorts?.some((sort) =>
-                        pivotKeys.includes(sort.fieldId),
-                    );
+                const sortedByPivot = isSortedByPivot({
+                    pivotDimensions: pivotKeys,
+                    sorts: resultsData?.metricQuery?.sorts,
+                    pivotDetails: resultsData?.pivotDetails,
+                });
 
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
