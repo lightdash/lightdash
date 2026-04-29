@@ -1,3 +1,11 @@
+# [0.2836.0](https://github.com/lightdash/lightdash/compare/0.2835.1...0.2836.0) (2026-04-29)
+
+
+### Features
+
+* remove `MultiAgentChannel` feature flag and enable multi-agent channel for all ([#22463](https://github.com/lightdash/lightdash/issues/22463)) ([ef09a7d](https://github.com/lightdash/lightdash/commit/ef09a7d03b27b9c6125ae0eb46f8f652e67293e3)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* warn when multi-agent Slack channel conflicts with existing AI agent ([#22486](https://github.com/lightdash/lightdash/issues/22486)) ([af2815e](https://github.com/lightdash/lightdash/commit/af2815e59c5f3e0542368d7df4973c30a4a4373b))
+
 ## [0.2835.1](https://github.com/lightdash/lightdash/compare/0.2835.0...0.2835.1) (2026-04-29)
 
 
