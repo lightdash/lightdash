@@ -5,6 +5,7 @@ import {
     ContentType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { ContentVerificationTableName } from '../../../database/entities/contentVerification';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { ProjectTableName } from '../../../database/entities/projects';
@@ -84,6 +85,25 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
                     `updatedByUser.user_uuid`,
                 )
+                .leftJoin(
+                    ContentVerificationTableName,
+                    function verificationJoin() {
+                        this.on(
+                            `${ContentVerificationTableName}.content_uuid`,
+                            '=',
+                            `${SavedSqlTableName}.saved_sql_uuid`,
+                        ).andOn(
+                            `${ContentVerificationTableName}.content_type`,
+                            '=',
+                            knex.raw('?', [ContentType.CHART]),
+                        );
+                    },
+                )
+                .leftJoin(
+                    `${UserTableName} as verifiedByUser`,
+                    `verifiedByUser.user_uuid`,
+                    `${ContentVerificationTableName}.verified_by_user_uuid`,
+                )
                 .select<SelectSavedSql[]>([
                     knex.raw(`'${ContentType.CHART}' as content_type`),
                     knex.raw(
@@ -130,6 +150,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     knex.raw(
                         `(SELECT last_name FROM ${UserTableName} WHERE user_uuid = ${SavedSqlTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
+                    `${ContentVerificationTableName}.verified_at as verified_at`,
+                    `verifiedByUser.user_uuid as verified_by_user_uuid`,
+                    `verifiedByUser.first_name as verified_by_user_first_name`,
+                    `verifiedByUser.last_name as verified_by_user_last_name`,
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.SQL}',
                     'chart_kind', ${SavedSqlTableName}.last_version_chart_kind,
@@ -236,7 +260,20 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
-                verification: null,
+                verification:
+                    value.verified_at !== null &&
+                    value.verified_by_user_uuid !== null &&
+                    value.verified_by_user_first_name !== null &&
+                    value.verified_by_user_last_name !== null
+                        ? {
+                              verifiedBy: {
+                                  userUuid: value.verified_by_user_uuid,
+                                  firstName: value.verified_by_user_first_name,
+                                  lastName: value.verified_by_user_last_name,
+                              },
+                              verifiedAt: value.verified_at,
+                          }
+                        : null,
             };
         },
     };
