@@ -638,10 +638,15 @@ const AppGenerate: FC = () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
 
-        // Collect chart UUIDs to send as structured data (resolved server-side)
-        const chartUuids =
+        // Send structured chart refs (uuid + per-chart sample-data opt-in).
+        // The backend resolves these server-side so the client never sees
+        // chart configs or rows.
+        const charts =
             selectedCharts.length > 0
-                ? selectedCharts.map((c) => c.uuid)
+                ? selectedCharts.map((c) => ({
+                      uuid: c.uuid,
+                      includeSampleData: c.includeSampleData,
+                  }))
                 : undefined;
 
         // For new apps, pre-generate the UUID so the image upload and
@@ -684,7 +689,12 @@ const AppGenerate: FC = () => {
             sentDashboardByPrompt.current.set(trimmed, sentDashboardName);
         }
 
-        const dashboardUuid = selectedDashboard?.uuid;
+        const dashboard = selectedDashboard
+            ? {
+                  uuid: selectedDashboard.uuid,
+                  includeSampleData: selectedDashboard.includeSampleData,
+              }
+            : undefined;
 
         setLocalMessages((prev) => [
             ...prev,
@@ -746,8 +756,8 @@ const AppGenerate: FC = () => {
                     appUuid: activeAppUuid,
                     prompt: trimmed,
                     imageId,
-                    chartUuids,
-                    dashboardUuid,
+                    charts,
+                    dashboard,
                 },
                 callbacks,
             );
@@ -759,8 +769,8 @@ const AppGenerate: FC = () => {
                     template: selectedTemplate ?? undefined,
                     imageId,
                     appUuid: newAppUuid,
-                    chartUuids,
-                    dashboardUuid,
+                    charts,
+                    dashboard,
                 },
                 callbacks,
             );
@@ -1190,6 +1200,23 @@ const AppGenerate: FC = () => {
                                                                 ),
                                                         )
                                                     }
+                                                    onToggleSampleData={(
+                                                        uuid,
+                                                    ) =>
+                                                        setSelectedCharts(
+                                                            (prev) =>
+                                                                prev.map((c) =>
+                                                                    c.uuid ===
+                                                                    uuid
+                                                                        ? {
+                                                                              ...c,
+                                                                              includeSampleData:
+                                                                                  !c.includeSampleData,
+                                                                          }
+                                                                        : c,
+                                                                ),
+                                                        )
+                                                    }
                                                 />
                                             )}
                                             {selectedDashboard && (
@@ -1200,6 +1227,18 @@ const AppGenerate: FC = () => {
                                                     onRemove={() =>
                                                         setSelectedDashboard(
                                                             null,
+                                                        )
+                                                    }
+                                                    onToggleSampleData={() =>
+                                                        setSelectedDashboard(
+                                                            (prev) =>
+                                                                prev
+                                                                    ? {
+                                                                          ...prev,
+                                                                          includeSampleData:
+                                                                              !prev.includeSampleData,
+                                                                      }
+                                                                    : null,
                                                         )
                                                     }
                                                 />

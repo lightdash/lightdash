@@ -44,13 +44,34 @@ export const DATA_APP_TEMPLATES = [
 ] as const;
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 
+/**
+ * A saved-chart reference attached to a generation request.
+ * `includeSampleData` is opt-in per chart: when true the backend runs the
+ * underlying metric query and inlines a small sample of rows into the
+ * sandbox so Claude can see actual values (e.g. "season 2026 only").
+ */
+export type AppChartReference = {
+    uuid: string;
+    includeSampleData: boolean;
+};
+
+/**
+ * A dashboard reference attached to a generation request. The dashboard is
+ * expanded server-side into its chart tiles. When `includeSampleData` is
+ * true, every resolved chart in the dashboard receives a sample.
+ */
+export type AppDashboardReference = {
+    uuid: string;
+    includeSampleData: boolean;
+};
+
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
     imageId?: string;
     appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
-    chartUuids?: string[]; // saved chart UUIDs to resolve and pass as structured metric queries
-    dashboardUuid?: string; // dashboard UUID — resolved server-side to its chart tiles
+    charts?: AppChartReference[]; // saved charts to resolve, optionally with sample rows
+    dashboard?: AppDashboardReference; // dashboard — resolved server-side to its chart tiles
 };
 
 export type ApiPreviewTokenResponse = ApiSuccess<{
@@ -126,11 +147,33 @@ export type ApiAppSummary = {
     lastVersionStatus: AppVersionStatus | null;
 };
 
+/**
+ * Sample of rows from a chart's underlying query, captured at request time
+ * and inlined into the sandbox alongside the chart's metric query. Opt-in
+ * per chart via `AppChartReference.includeSampleData`.
+ *
+ * Discriminated on `status`:
+ * - `available` — query ran; up to SAMPLE_ROW_LIMIT formatted rows attached
+ * - `unavailable` — query failed or was skipped; `reason` is informational
+ *   text the prompt surfaces to Claude so it doesn't fabricate values
+ */
+export type ChartSampleData =
+    | {
+          status: 'available';
+          rows: Record<string, string>[];
+          truncated: boolean;
+      }
+    | {
+          status: 'unavailable';
+          reason: string;
+      };
+
 export type ChartReference = {
     chartName: string;
     chartDescription: string;
     exploreName: string;
     metricQuery: MetricQuery;
+    sampleData: ChartSampleData | null; // null when the user did not opt in
 };
 
 export type ApiMyAppsResponse = ApiSuccess<{

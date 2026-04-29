@@ -15,10 +15,14 @@ import {
     isDashboardChartTileType,
     MissingConfigError,
     ParameterError,
+    QueryExecutionContext,
+    type AppChartReference,
+    type AppDashboardReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionResources,
     type ChartReference,
+    type ChartSampleData,
     type DataAppTemplate,
     type SessionUser,
     type TogglePinnedItemInfo,
@@ -49,6 +53,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { mintPreviewToken } from '../../../routers/appPreviewToken';
 import { BaseService } from '../../../services/BaseService';
 import type { DashboardService } from '../../../services/DashboardService/DashboardService';
+import type { ProjectService } from '../../../services/ProjectService/ProjectService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -67,6 +72,7 @@ type AppGenerateServiceDeps = {
     savedChartService: SavedChartService;
     spacePermissionService: SpacePermissionService;
     dashboardService: DashboardService;
+    projectService: ProjectService;
 };
 
 type GenerateAppResult = {
@@ -104,6 +110,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly dashboardService: DashboardService;
 
+    private readonly projectService: ProjectService;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -117,6 +125,7 @@ export class AppGenerateService extends BaseService {
         savedChartService,
         spacePermissionService,
         dashboardService,
+        projectService,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -131,6 +140,7 @@ export class AppGenerateService extends BaseService {
         this.savedChartService = savedChartService;
         this.spacePermissionService = spacePermissionService;
         this.dashboardService = dashboardService;
+        this.projectService = projectService;
     }
 
     /**
@@ -825,6 +835,7 @@ export class AppGenerateService extends BaseService {
 
         const slugCounts = new Map<string, number>();
         const fileEntries: string[] = [];
+        let sampleCount = 0;
 
         for (const ref of chartReferences) {
             // Generate slug from chart name
@@ -846,17 +857,35 @@ export class AppGenerateService extends BaseService {
             // eslint-disable-next-line no-await-in-loop
             await sandbox.files.write(`/tmp/metric-queries/${filename}`, json);
 
+            // Surface sample-data status per file so Claude knows to look —
+            // a "data sample" annotation on the listing is more discoverable
+            // than expecting the model to spot the field inside each JSON.
+            let sampleSuffix = '';
+            if (ref.sampleData?.status === 'available') {
+                const truncatedNote = ref.sampleData.truncated
+                    ? ' (truncated)'
+                    : '';
+                sampleSuffix = ` — includes ${ref.sampleData.rows.length}-row data sample${truncatedNote}`;
+                sampleCount += 1;
+            } else if (ref.sampleData?.status === 'unavailable') {
+                sampleSuffix = ` — sample data unavailable (${ref.sampleData.reason})`;
+            }
             fileEntries.push(
-                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})`,
+                `- ${filename} ("${ref.chartName}", explore: ${ref.exploreName})${sampleSuffix}`,
             );
         }
 
         this.logger.info(
-            `App ${appUuid}: wrote ${chartReferences.length} chart reference(s) to /tmp/metric-queries/`,
+            `App ${appUuid}: wrote ${chartReferences.length} chart reference(s) to /tmp/metric-queries/ (${sampleCount} with sample data)`,
         );
 
+        const sampleHint =
+            sampleCount > 0
+                ? ` Some files include a "sampleData" field with up to ${AppGenerateService.SAMPLE_ROW_LIMIT} formatted rows from the actual query — useful when you need to know what real values look like (date ranges, category labels, magnitudes). Treat sample data as illustrative, not exhaustive.`
+                : '';
+
         return (
-            `[Referenced saved charts — metric queries available at /tmp/metric-queries/]\n` +
+            `[Referenced saved charts — metric queries available at /tmp/metric-queries/]${sampleHint}\n` +
             `${fileEntries.join('\n')}\n\n`
         );
     }
@@ -2113,25 +2142,156 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /**
+     * Merge explicit chart picks with charts inherited from a dashboard
+     * tile. The dashboard's `includeSampleData` flag applies to every chart
+     * it contributes; if a chart appears in both lists, the explicit and
+     * inherited flags are OR'd so the user gets every sample they opted
+     * into, no matter which chip they toggled.
+     */
+    private async collectChartReferences(
+        charts: AppChartReference[] | undefined,
+        dashboard: AppDashboardReference | undefined,
+        user: SessionUser,
+    ): Promise<{
+        refs: AppChartReference[];
+        dashboardName: string | null;
+    }> {
+        const flagByUuid = new Map<string, boolean>();
+        for (const c of charts ?? []) {
+            flagByUuid.set(
+                c.uuid,
+                (flagByUuid.get(c.uuid) ?? false) || c.includeSampleData,
+            );
+        }
+        let dashboardName: string | null = null;
+        if (dashboard) {
+            const result = await this.resolveDashboardToChartUuids(
+                dashboard.uuid,
+                user,
+            );
+            dashboardName = result.dashboardName;
+            for (const uuid of result.chartUuids) {
+                flagByUuid.set(
+                    uuid,
+                    (flagByUuid.get(uuid) ?? false) ||
+                        dashboard.includeSampleData,
+                );
+            }
+        }
+        const refs: AppChartReference[] = [...flagByUuid.entries()].map(
+            ([uuid, includeSampleData]) => ({ uuid, includeSampleData }),
+        );
+        return { refs, dashboardName };
+    }
+
+    /**
+     * Hard cap on rows returned per chart sample. Sample data is opt-in but
+     * still potentially sensitive — keeping this small bounds both the
+     * exposure surface and the prompt token cost.
+     */
+    private static readonly SAMPLE_ROW_LIMIT = 10;
+
+    /**
+     * Run a saved chart's metric query and return at most SAMPLE_ROW_LIMIT
+     * formatted rows. Returns `unavailable` (with a short reason string) on
+     * any failure — sample data is best-effort by design.
+     */
+    private async fetchChartSample(
+        chartUuid: string,
+        user: SessionUser,
+    ): Promise<ChartSampleData> {
+        const account = fromSession(user);
+        try {
+            const result = await this.projectService.runViewChartQuery({
+                account,
+                chartUuid,
+                context: QueryExecutionContext.DATA_APP_SAMPLE,
+            });
+            const truncated =
+                result.rows.length > AppGenerateService.SAMPLE_ROW_LIMIT;
+            const rows = result.rows
+                .slice(0, AppGenerateService.SAMPLE_ROW_LIMIT)
+                .map((row) => {
+                    const flat: Record<string, string> = {};
+                    for (const [field, cell] of Object.entries(row)) {
+                        flat[field] = cell.value.formatted;
+                    }
+                    return flat;
+                });
+            return { status: 'available', rows, truncated };
+        } catch (error) {
+            this.logger.warn(
+                `Sample query failed for chart ${chartUuid}: ${getErrorMessage(error)}`,
+            );
+            return {
+                status: 'unavailable',
+                reason: 'Sample query failed.',
+            };
+        }
+    }
+
+    /**
+     * Resolve a list of (uuid, includeSampleData) refs into ChartReferences.
+     * Charts the user can't view, can't load, or that are deleted are
+     * skipped silently — same forgiving behavior as before.
+     *
+     * When `includeSampleData` is set on a ref, the chart's metric query is
+     * executed and a small row sample is attached to the reference. Sample
+     * fetches are concurrent with chart loads so they don't serialise.
+     */
     private async resolveChartReferences(
-        chartUuids: string[],
+        chartRefs: AppChartReference[],
         user: SessionUser,
     ): Promise<{
         references: ChartReference[];
         chartResources: AppVersionChartResource[];
+        sampleStats: { requested: number; available: number };
     }> {
-        const uuids = [...new Set(chartUuids)];
-        if (uuids.length === 0) return { references: [], chartResources: [] };
+        // Dedupe by uuid; if any duplicate asks for sample data, the union
+        // wins so the user gets the data they opted into.
+        const dedup = new Map<string, boolean>();
+        for (const ref of chartRefs) {
+            dedup.set(
+                ref.uuid,
+                (dedup.get(ref.uuid) ?? false) || ref.includeSampleData,
+            );
+        }
+        if (dedup.size === 0) {
+            return {
+                references: [],
+                chartResources: [],
+                sampleStats: { requested: 0, available: 0 },
+            };
+        }
 
+        const uuids = [...dedup.keys()];
         const account = fromSession(user);
 
-        const results = await Promise.allSettled(
+        const chartResults = await Promise.allSettled(
             uuids.map((uuid) => this.savedChartService.get(uuid, account)),
         );
 
+        // Kick off sample fetches in parallel, only for charts that resolved
+        // and were opted-in. Track which uuids actually requested a sample
+        // so we can attach the result back to the right reference.
+        const sampleUuids: string[] = [];
+        chartResults.forEach((result, i) => {
+            if (result.status === 'fulfilled' && dedup.get(uuids[i])) {
+                sampleUuids.push(uuids[i]);
+            }
+        });
+        const sampleResults = await Promise.all(
+            sampleUuids.map((uuid) => this.fetchChartSample(uuid, user)),
+        );
+        const sampleByUuid = new Map<string, ChartSampleData>();
+        sampleUuids.forEach((uuid, i) => {
+            sampleByUuid.set(uuid, sampleResults[i]);
+        });
+
         const references: ChartReference[] = [];
         const chartResources: AppVersionChartResource[] = [];
-        results.forEach((result, i) => {
+        chartResults.forEach((result, i) => {
             if (result.status === 'fulfilled') {
                 const chart = result.value;
                 references.push({
@@ -2139,6 +2299,7 @@ export class AppGenerateService extends BaseService {
                     chartDescription: chart.description ?? '',
                     exploreName: chart.tableName,
                     metricQuery: chart.metricQuery,
+                    sampleData: sampleByUuid.get(uuids[i]) ?? null,
                 });
                 chartResources.push({
                     chartUuid: uuids[i],
@@ -2149,13 +2310,24 @@ export class AppGenerateService extends BaseService {
             // Rejected = not a chart UUID, no access, or deleted — skip silently
         });
 
+        const availableSamples = [...sampleByUuid.values()].filter(
+            (s) => s.status === 'available',
+        ).length;
         if (references.length > 0) {
             this.logger.info(
-                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s)`,
+                `Resolved ${references.length} chart reference(s) from ${uuids.length} UUID(s); ` +
+                    `${availableSamples}/${sampleUuids.length} sample(s) attached`,
             );
         }
 
-        return { references, chartResources };
+        return {
+            references,
+            chartResources,
+            sampleStats: {
+                requested: sampleUuids.length,
+                available: availableSamples,
+            },
+        };
     }
 
     async generateApp(
@@ -2164,8 +2336,8 @@ export class AppGenerateService extends BaseService {
         prompt: string,
         imageId?: string,
         preGeneratedAppUuid?: string,
-        chartUuids?: string[],
-        dashboardUuid?: string,
+        charts?: AppChartReference[],
+        dashboard?: AppDashboardReference,
         template?: DataAppTemplate,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
@@ -2189,20 +2361,16 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: generation started (promptLength=${prompt.length})`,
         );
 
-        let allChartUuids = [...(chartUuids ?? [])];
-        let dashboardName: string | null = null;
-        if (dashboardUuid) {
-            const result = await this.resolveDashboardToChartUuids(
-                dashboardUuid,
-                user,
-            );
-            allChartUuids = [
-                ...new Set([...allChartUuids, ...result.chartUuids]),
-            ];
-            dashboardName = result.dashboardName;
-        }
-        const { references: chartReferences, chartResources } =
-            await this.resolveChartReferences(allChartUuids, user);
+        const { refs, dashboardName } = await this.collectChartReferences(
+            charts,
+            dashboard,
+            user,
+        );
+        const {
+            references: chartReferences,
+            chartResources,
+            sampleStats,
+        } = await this.resolveChartReferences(refs, user);
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
@@ -2241,6 +2409,8 @@ export class AppGenerateService extends BaseService {
                 promptLength: prompt.length,
                 hasImage: imageId !== undefined,
                 template: template ?? null,
+                samplesRequested: sampleStats.requested,
+                samplesAvailable: sampleStats.available,
             },
         });
 
@@ -2267,8 +2437,8 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         prompt: string,
         imageId?: string,
-        chartUuids?: string[],
-        dashboardUuid?: string,
+        charts?: AppChartReference[],
+        dashboard?: AppDashboardReference,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
@@ -2299,20 +2469,16 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: iteration started (version=${newVersion}, promptLength=${prompt.length})`,
         );
 
-        let allChartUuids = [...(chartUuids ?? [])];
-        let dashboardName: string | null = null;
-        if (dashboardUuid) {
-            const result = await this.resolveDashboardToChartUuids(
-                dashboardUuid,
-                user,
-            );
-            allChartUuids = [
-                ...new Set([...allChartUuids, ...result.chartUuids]),
-            ];
-            dashboardName = result.dashboardName;
-        }
-        const { references: chartReferences, chartResources } =
-            await this.resolveChartReferences(allChartUuids, user);
+        const { refs, dashboardName } = await this.collectChartReferences(
+            charts,
+            dashboard,
+            user,
+        );
+        const {
+            references: chartReferences,
+            chartResources,
+            sampleStats,
+        } = await this.resolveChartReferences(refs, user);
 
         const resources: AppVersionResources = {
             images: imageId ? [{ imageId }] : [],
@@ -2343,6 +2509,8 @@ export class AppGenerateService extends BaseService {
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
                     : null,
+                samplesRequested: sampleStats.requested,
+                samplesAvailable: sampleStats.available,
             },
         });
 

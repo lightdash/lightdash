@@ -58,8 +58,8 @@ export class AppGenerateController extends BaseController {
             body.prompt,
             body.imageId,
             body.appUuid,
-            body.chartUuids,
-            body.dashboardUuid,
+            body.charts,
+            body.dashboard,
             body.template,
         );
         return {
@@ -160,8 +160,8 @@ export class AppGenerateController extends BaseController {
             appUuid,
             body.prompt,
             body.imageId,
-            body.chartUuids,
-            body.dashboardUuid,
+            body.charts,
+            body.dashboard,
         );
         return {
             status: 'ok',

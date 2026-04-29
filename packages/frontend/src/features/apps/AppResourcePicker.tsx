@@ -11,9 +11,12 @@ import {
     ScrollArea,
     Text,
     TextInput,
+    Tooltip,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconDatabase,
+    IconDatabaseOff,
     IconLayoutDashboard,
     IconPlus,
     IconSearch,
@@ -32,12 +35,25 @@ export type SelectedChart = {
     uuid: string;
     name: string;
     chartKind?: ChartKind;
+    /**
+     * Opt-in: when true, the backend runs this chart's query and inlines up
+     * to 10 sample rows alongside the metric query so the generator can see
+     * actual values. Default false because rows can be sensitive.
+     */
+    includeSampleData: boolean;
 };
 
 export type SelectedDashboard = {
     uuid: string;
     name: string;
+    /**
+     * Opt-in: applies to every chart resolved from this dashboard's tiles.
+     */
+    includeSampleData: boolean;
 };
+
+const SAMPLE_DATA_TOOLTIP =
+    'Include sample data - runs this query and shares up to 10 rows with the app generator so it can see actual values (date ranges, labels, magnitudes). Off by default because rows can be sensitive.';
 
 /**
  * Button that triggers the file input for image upload.
@@ -122,6 +138,7 @@ export const QueryButton: FC<{
                 uuid: chart.uuid,
                 name: chart.name,
                 chartKind: chart.chartKind ?? ChartKind.VERTICAL_BAR,
+                includeSampleData: false,
             });
         },
         [onSelect],
@@ -274,11 +291,14 @@ export const SelectedImageSection: FC<{
 
 /**
  * Renders selected queries as a list using the same visual as the picker.
+ * Each row carries a per-chart sample-data toggle; off by default because
+ * sample rows can include sensitive values.
  */
 export const SelectedQuerySection: FC<{
     charts: SelectedChart[];
     onRemove: (uuid: string) => void;
-}> = ({ charts, onRemove }) => {
+    onToggleSampleData: (uuid: string) => void;
+}> = ({ charts, onRemove, onToggleSampleData }) => {
     if (charts.length === 0) return null;
 
     return (
@@ -291,6 +311,35 @@ export const SelectedQuerySection: FC<{
                     <Text size="xs" fw={500} truncate flex={1}>
                         {chart.name}
                     </Text>
+                    <Tooltip
+                        label={SAMPLE_DATA_TOOLTIP}
+                        multiline
+                        w={260}
+                        withArrow
+                    >
+                        <ActionIcon
+                            size="xs"
+                            variant={
+                                chart.includeSampleData ? 'filled' : 'default'
+                            }
+                            color={chart.includeSampleData ? 'blue' : 'gray'}
+                            onClick={() => onToggleSampleData(chart.uuid)}
+                            aria-label={
+                                chart.includeSampleData
+                                    ? 'Sample data: on'
+                                    : 'Sample data: off'
+                            }
+                        >
+                            <MantineIcon
+                                icon={
+                                    chart.includeSampleData
+                                        ? IconDatabase
+                                        : IconDatabaseOff
+                                }
+                                size={12}
+                            />
+                        </ActionIcon>
+                    </Tooltip>
                     <ActionIcon
                         size="xs"
                         variant="subtle"
@@ -331,7 +380,11 @@ export const DashboardButton: FC<{
 
     const handleSelect = useCallback(
         (dashboard: { uuid: string; name: string }) => {
-            onSelect({ uuid: dashboard.uuid, name: dashboard.name });
+            onSelect({
+                uuid: dashboard.uuid,
+                name: dashboard.name,
+                includeSampleData: false,
+            });
             setOpened(false);
             setSearchQuery('');
         },
@@ -412,18 +465,47 @@ export const DashboardButton: FC<{
 };
 
 /**
- * Renders the selected dashboard with a remove button.
+ * Renders the selected dashboard with a remove button. The sample-data
+ * toggle here applies to every chart resolved from this dashboard's tiles.
  */
 export const SelectedDashboardSection: FC<{
     dashboard: SelectedDashboard;
     onRemove: () => void;
-}> = ({ dashboard, onRemove }) => (
+    onToggleSampleData: () => void;
+}> = ({ dashboard, onRemove, onToggleSampleData }) => (
     <Box className={classes.selectedQueryList}>
         <Box className={classes.selectedQueryItem}>
             <IconBox icon={IconLayoutDashboard} color="green.6" />
             <Text size="xs" fw={500} truncate flex={1}>
                 {dashboard.name}
             </Text>
+            <Tooltip
+                label={`${SAMPLE_DATA_TOOLTIP} Applies to every chart in this dashboard.`}
+                multiline
+                w={260}
+                withArrow
+            >
+                <ActionIcon
+                    size="xs"
+                    variant={dashboard.includeSampleData ? 'filled' : 'default'}
+                    color={dashboard.includeSampleData ? 'blue' : 'gray'}
+                    onClick={onToggleSampleData}
+                    aria-label={
+                        dashboard.includeSampleData
+                            ? 'Sample data: on'
+                            : 'Sample data: off'
+                    }
+                >
+                    <MantineIcon
+                        icon={
+                            dashboard.includeSampleData
+                                ? IconDatabase
+                                : IconDatabaseOff
+                        }
+                        size={12}
+                    />
+                </ActionIcon>
+            </Tooltip>
             <ActionIcon
                 size="xs"
                 variant="subtle"
