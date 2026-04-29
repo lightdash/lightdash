@@ -243,15 +243,12 @@ export class AiService {
         }[];
         currentVizConfig: string;
     }) {
-        const isAICustomVizEnabled = await isFeatureFlagEnabled(
-            FeatureFlags.AiCustomViz,
+        const aiCustomVizFlag = await this.featureFlagService.get({
             user,
-            {
-                throwOnTimeout: true,
-            },
-        );
+            featureFlagId: FeatureFlags.AiCustomViz,
+        });
 
-        if (!isAICustomVizEnabled) {
+        if (!aiCustomVizFlag.enabled) {
             throw new Error('AI Custom viz feature not enabled!');
         }
         let openAiResponse: {
