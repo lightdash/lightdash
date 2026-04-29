@@ -1986,6 +1986,11 @@ export const GenericDashboardChartTile: FC<
         return (
             <TileBase
                 title={tileTitle}
+                titleHref={
+                    tile.properties.savedChartUuid
+                        ? `/projects/${projectUuid}/saved/${tile.properties.savedChartUuid}/`
+                        : undefined
+                }
                 isEditMode={isEditMode}
                 tile={tile}
                 hasError
