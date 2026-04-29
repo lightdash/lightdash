@@ -359,40 +359,66 @@ export class AppGenerateService extends BaseService {
 
     private static readonly SIGNATURE_PREFIX_SIZE = 12;
 
+    private static readonly MAX_IMAGES_PER_VERSION = 4;
+
+    private static validateImageIds(imageIds: string[]): void {
+        if (imageIds.length > AppGenerateService.MAX_IMAGES_PER_VERSION) {
+            throw new ParameterError(
+                `Too many images: ${imageIds.length}. Maximum: ${AppGenerateService.MAX_IMAGES_PER_VERSION}`,
+            );
+        }
+        for (const id of imageIds) {
+            if (!isValidUuid(id)) {
+                throw new ParameterError(
+                    'Invalid imageId: must be a valid UUID',
+                );
+            }
+        }
+    }
+
     /**
      * Read the first few bytes of a stream, validate image magic bytes,
      * then return a new Readable that replays those bytes followed by
      * the rest of the original stream.
      */
-    private static async validateAndPrependMagicBytes(
+    /**
+     * Buffer the full upload body (capped at maxBytes), then validate that
+     * its leading bytes match the declared MIME type. Returns the buffer.
+     * Buffering up-front avoids stream pause/pipe state-machine pitfalls
+     * and gives us a Buffer ready for signed S3 PutObject.
+     */
+    private static async bufferAndValidate(
         stream: Readable,
         mimeType: string,
-    ): Promise<Readable> {
-        const prefix = await new Promise<Buffer>((resolve, reject) => {
-            const chunks: Buffer[] = [];
-            let collected = 0;
-            const onData = (chunk: Buffer) => {
-                chunks.push(chunk);
-                collected += chunk.length;
-                if (collected >= AppGenerateService.SIGNATURE_PREFIX_SIZE) {
-                    stream.removeListener('data', onData);
-                    stream.pause();
-                    resolve(Buffer.concat(chunks));
-                }
-            };
-            stream.on('data', onData);
-            stream.on('error', reject);
-            stream.on('end', () => resolve(Buffer.concat(chunks)));
-        });
+        maxBytes: number,
+    ): Promise<Buffer> {
+        const chunks: Buffer[] = [];
+        let total = 0;
+        for await (const chunk of stream) {
+            const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+            total += buf.length;
+            if (total > maxBytes) {
+                throw new ParameterError(
+                    `Image too large: exceeded ${maxBytes} bytes`,
+                );
+            }
+            chunks.push(buf);
+        }
+        const body = Buffer.concat(chunks);
 
-        if (prefix.length === 0) {
+        if (body.length === 0) {
             throw new ParameterError('Upload body is empty');
+        }
+        if (body.length < AppGenerateService.SIGNATURE_PREFIX_SIZE) {
+            throw new ParameterError(
+                'Upload body too small to be a valid image',
+            );
         }
 
         const signatures = AppGenerateService.IMAGE_SIGNATURES[mimeType];
         if (signatures) {
             const matchesAll = signatures.every((sig) =>
-                sig.bytes.every((byte, i) => prefix[sig.offset + i] === byte),
+                sig.bytes.every((byte, i) => body[sig.offset + i] === byte),
             );
             if (!matchesAll) {
                 throw new ParameterError(
@@ -401,11 +427,7 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Rebuild a stream: prefix bytes first, then the remainder
-        const rebuilt = new PassThrough();
-        rebuilt.write(prefix);
-        stream.pipe(rebuilt);
-        return rebuilt;
+        return body;
     }
 
     async uploadImage(
@@ -460,21 +482,15 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        const validatedBody =
-            await AppGenerateService.validateAndPrependMagicBytes(
-                body,
-                mimeType,
-            );
-
-        // Buffer the stream so the AWS SDK can compute a content hash for
-        // S3v4 signing. Streaming bodies use chunked signing which GCS's
-        // S3-compatible API doesn't handle reliably. Safe here because
-        // images are capped at 10 MB above.
-        const chunks: Buffer[] = [];
-        for await (const chunk of validatedBody) {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        }
-        const bufferedBody = Buffer.concat(chunks);
+        // Buffer the whole body and validate its MIME signature. We need the
+        // full Buffer anyway so the AWS SDK can use standard S3v4 signing —
+        // streaming bodies cause chunked signing which MinIO/GCS reject with
+        // RequestTimeout.
+        const bufferedBody = await AppGenerateService.bufferAndValidate(
+            body,
+            mimeType,
+            maxSize,
+        );
 
         const { client: s3Client, bucket } = this.getS3Client();
         const imageId = uuidv4();
@@ -896,7 +912,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         projectUuid: string,
         prompt: string,
-        imageId: string | undefined,
+        imageIds: string[] | undefined,
         s3Client: S3Client,
         bucket: string,
         chartReferences: ChartReference[] | undefined,
@@ -943,17 +959,29 @@ export class AppGenerateService extends BaseService {
             }
         }
 
-        // Resolve image from staging, copy to version path, and write to sandbox
-        if (imageId) {
-            const imagePath = await this.writeImageToSandbox(
-                sandbox,
-                appUuid,
-                version,
-                imageId,
-                s3Client,
-                bucket,
+        // Resolve images from staging, copy to version paths, and write to sandbox
+        if (imageIds && imageIds.length > 0) {
+            const imagePaths = await Promise.all(
+                imageIds.map((id) =>
+                    this.writeImageToSandbox(
+                        sandbox,
+                        appUuid,
+                        version,
+                        id,
+                        s3Client,
+                        bucket,
+                    ),
+                ),
             );
-            finalPrompt = `[Design reference image at ${imagePath} — use the Read tool to view it]\n\n${finalPrompt}`;
+            const referenceLines = imagePaths
+                .map(
+                    (p, i) =>
+                        `[Design reference image ${
+                            i + 1
+                        } at ${p} — use the Read tool to view it]`,
+                )
+                .join('\n');
+            finalPrompt = `${referenceLines}\n\n${finalPrompt}`;
         }
 
         // Write only the latest prompt — Claude is stateless between runs, but
@@ -1020,7 +1048,7 @@ export class AppGenerateService extends BaseService {
 
         const mimeType = response.ContentType ?? 'image/png';
         const ext = AppGenerateService.mimeToExt(mimeType);
-        const sandboxPath = `/tmp/images/reference.${ext}`;
+        const sandboxPath = `/tmp/images/${imageId}.${ext}`;
 
         // Read the image bytes
         const chunks: Uint8Array[] = [];
@@ -1592,7 +1620,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             version,
             projectUuid,
-            imageId,
+            imageIds,
             isIteration,
             chartReferences,
         } = payload;
@@ -1767,7 +1795,7 @@ export class AppGenerateService extends BaseService {
                 currentStatus,
                 wasResumed,
                 anthropicApiKey,
-                imageId,
+                imageIds,
                 chartReferences,
             );
         } finally {
@@ -1786,7 +1814,7 @@ export class AppGenerateService extends BaseService {
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
         anthropicApiKey: string,
-        imageId: string | undefined,
+        imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt, template } = payload;
@@ -1824,7 +1852,7 @@ export class AppGenerateService extends BaseService {
                     version,
                     projectUuid,
                     prompt,
-                    imageId,
+                    imageIds,
                     s3Client,
                     bucket,
                     chartReferences,
@@ -2334,7 +2362,7 @@ export class AppGenerateService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         prompt: string,
-        imageId?: string,
+        imageIds: string[],
         preGeneratedAppUuid?: string,
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
@@ -2350,9 +2378,7 @@ export class AppGenerateService extends BaseService {
             'Insufficient permissions to create data apps',
         );
 
-        if (imageId !== undefined && !isValidUuid(imageId)) {
-            throw new ParameterError('Invalid imageId: must be a valid UUID');
-        }
+        AppGenerateService.validateImageIds(imageIds);
 
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
@@ -2374,7 +2400,7 @@ export class AppGenerateService extends BaseService {
 
         // Build resources metadata to persist with the version
         const resources: AppVersionResources = {
-            images: imageId ? [{ imageId }] : [],
+            images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
         };
@@ -2407,7 +2433,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 promptLength: prompt.length,
-                hasImage: imageId !== undefined,
+                imageCount: imageIds.length,
                 template: template ?? null,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
@@ -2422,7 +2448,7 @@ export class AppGenerateService extends BaseService {
             userUuid: user.userUuid,
             prompt,
             template,
-            imageId,
+            imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: false,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,
@@ -2436,15 +2462,13 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         appUuid: string,
         prompt: string,
-        imageId?: string,
+        imageIds: string[],
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
 
-        if (imageId !== undefined && !isValidUuid(imageId)) {
-            throw new ParameterError('Invalid imageId: must be a valid UUID');
-        }
+        AppGenerateService.validateImageIds(imageIds);
 
         const app = await this.appModel.getApp(appUuid, projectUuid);
         await this.assertCanManageApp(
@@ -2481,7 +2505,7 @@ export class AppGenerateService extends BaseService {
         } = await this.resolveChartReferences(refs, user);
 
         const resources: AppVersionResources = {
-            images: imageId ? [{ imageId }] : [],
+            images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
         };
@@ -2504,7 +2528,7 @@ export class AppGenerateService extends BaseService {
                 version: newVersion,
                 iterationNumber: newVersion - 1,
                 promptLength: prompt.length,
-                hasImage: imageId !== undefined,
+                imageCount: imageIds.length,
                 previousVersionStatus: latestVersion?.status ?? null,
                 msSinceLastVersion: latestVersion?.created_at
                     ? Date.now() - latestVersion.created_at.getTime()
@@ -2521,7 +2545,7 @@ export class AppGenerateService extends BaseService {
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
             prompt,
-            imageId,
+            imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: true,
             chartReferences:
                 chartReferences.length > 0 ? chartReferences : undefined,

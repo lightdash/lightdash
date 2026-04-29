@@ -11,7 +11,7 @@ type IterateAppParams = {
     projectUuid: string;
     appUuid: string;
     prompt: string;
-    imageId?: string;
+    imageIds?: string[];
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
 };
@@ -22,14 +22,14 @@ const iterateApp = async ({
     projectUuid,
     appUuid,
     prompt,
-    imageId,
+    imageIds,
     charts,
     dashboard,
 }: IterateAppParams): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
-        body: JSON.stringify({ prompt, imageId, charts, dashboard }),
+        body: JSON.stringify({ prompt, imageIds, charts, dashboard }),
     });
     return data;
 };

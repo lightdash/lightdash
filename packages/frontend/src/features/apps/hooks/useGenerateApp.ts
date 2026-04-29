@@ -12,7 +12,7 @@ type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
     template?: DataAppTemplate;
-    imageId?: string;
+    imageIds?: string[];
     appUuid?: string; // pre-generated UUID so images are scoped to the app in S3
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
@@ -24,7 +24,7 @@ const generateApp = async ({
     projectUuid,
     prompt,
     template,
-    imageId,
+    imageIds,
     appUuid,
     charts,
     dashboard,
@@ -35,7 +35,7 @@ const generateApp = async ({
         body: JSON.stringify({
             prompt,
             template,
-            imageId,
+            imageIds,
             appUuid,
             charts,
             dashboard,

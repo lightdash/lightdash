@@ -83,6 +83,7 @@ import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
+import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
@@ -99,8 +100,8 @@ type ChatChart = {
 type ChatMessage = {
     role: 'user' | 'assistant';
     content: string;
-    imagePreviewUrl: string | null;
-    imageResourceId: string | null;
+    imagePreviewUrls: string[];
+    imageResourceIds: string[];
     charts: ChatChart[];
     dashboardName: string | null;
     appUuid: string | null;
@@ -190,11 +191,14 @@ const AppGenerate: FC = () => {
     const [wizardStage, setWizardStage] = useState<
         'pick' | 'questions' | 'confirm'
     >('pick');
-    const [imageAttachment, setImageAttachment] = useState<{
-        file: File;
-        previewUrl: string;
-    } | null>(null);
+    const [imageAttachments, setImageAttachments] = useState<
+        Array<{
+            file: File;
+            previewUrl: string;
+        }>
+    >([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const MAX_IMAGES_PER_VERSION = 4;
     const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [selectedDashboard, setSelectedDashboard] =
         useState<SelectedDashboard | null>(null);
@@ -246,7 +250,7 @@ const AppGenerate: FC = () => {
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
-    const sentImagesByPrompt = useRef(new Map<string, string>());
+    const sentImagesByPrompt = useRef(new Map<string, string[]>());
     // Maps prompt text → chart names so they survive the local→server transition
     const sentChartsByPrompt = useRef(new Map<string, ChatChart[]>());
     // Maps prompt text → dashboard name so it survives the local→server transition
@@ -263,7 +267,7 @@ const AppGenerate: FC = () => {
         setPrompt('');
         setSelectedCharts([]);
         setSelectedDashboard(null);
-        setImageAttachment(null);
+        setImageAttachments([]);
         setLocalMessages([]);
         setPreviewApp(null);
         setTrackedQueries([]);
@@ -272,7 +276,9 @@ const AppGenerate: FC = () => {
         setWizardStage('pick');
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
-        sentImagesByPrompt.current.forEach((url) => URL.revokeObjectURL(url));
+        sentImagesByPrompt.current.forEach((urls) =>
+            urls.forEach((url) => URL.revokeObjectURL(url)),
+        );
         sentImagesByPrompt.current.clear();
     }, []);
     useEffect(() => {
@@ -299,6 +305,7 @@ const AppGenerate: FC = () => {
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
     const { mutateAsync: uploadImage } = useAppImageUpload();
+    const { showToastError, showToastWarning } = useToaster();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const { user } = useApp();
     const ability = useAbilityContext();
@@ -395,9 +402,10 @@ const AppGenerate: FC = () => {
                 serverCharts.length > 0
                     ? serverCharts
                     : (sentChartsByPrompt.current.get(v.prompt) ?? []);
-            const imageResourceId = v.resources?.images[0]?.imageId ?? null;
-            const imagePreviewUrl =
-                sentImagesByPrompt.current.get(v.prompt) ?? null;
+            const imageResourceIds =
+                v.resources?.images.map((img) => img.imageId) ?? [];
+            const imagePreviewUrls =
+                sentImagesByPrompt.current.get(v.prompt) ?? [];
             const dashboardName =
                 v.resources?.dashboardName ??
                 sentDashboardByPrompt.current.get(v.prompt) ??
@@ -406,8 +414,8 @@ const AppGenerate: FC = () => {
                 {
                     role: 'user',
                     content: v.prompt,
-                    imagePreviewUrl,
-                    imageResourceId,
+                    imagePreviewUrls,
+                    imageResourceIds,
                     charts,
                     dashboardName,
                     appUuid: null,
@@ -422,8 +430,8 @@ const AppGenerate: FC = () => {
                         (v.version === 1
                             ? 'Your app is ready!'
                             : `Version ${v.version} is ready!`),
-                    imagePreviewUrl: null,
-                    imageResourceId: null,
+                    imagePreviewUrls: [],
+                    imageResourceIds: [],
                     charts: [],
                     dashboardName: null,
                     appUuid: activeAppUuid ?? null,
@@ -435,8 +443,8 @@ const AppGenerate: FC = () => {
                     content:
                         v.statusMessage ??
                         'Generation failed. Please try again.',
-                    imagePreviewUrl: null,
-                    imageResourceId: null,
+                    imagePreviewUrls: [],
+                    imageResourceIds: [],
                     charts: [],
                     dashboardName: null,
                     appUuid: null,
@@ -507,12 +515,14 @@ const AppGenerate: FC = () => {
     }, [messages, isLoading, scrollToBottom]);
 
     // Revoke all sent image blob URLs on unmount to prevent memory leaks.
-    // We don't revoke on imageAttachment change because the URL may have
+    // We don't revoke on imageAttachments change because the URLs may have
     // been transferred to a sent message for display.
     useEffect(() => {
         const ref = sentImagesByPrompt.current;
         return () => {
-            ref.forEach((url) => URL.revokeObjectURL(url));
+            ref.forEach((urls) =>
+                urls.forEach((url) => URL.revokeObjectURL(url)),
+            );
         };
     }, []);
 
@@ -585,41 +595,57 @@ const AppGenerate: FC = () => {
 
     const handleImageAttach = (file: File) => {
         if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+            showToastError({
+                title: 'Unsupported image type',
+                subtitle: `${file.name}: only PNG, JPEG, GIF, and WEBP are supported.`,
+            });
             return;
         }
         if (file.size > MAX_IMAGE_SIZE) {
+            showToastError({
+                title: 'Image too large',
+                subtitle: `${file.name} exceeds the 10MB limit.`,
+            });
             return;
         }
-        setImageAttachment({
-            file,
-            previewUrl: URL.createObjectURL(file),
+        setImageAttachments((prev) => {
+            if (prev.length >= MAX_IMAGES_PER_VERSION) {
+                showToastWarning({
+                    title: `Image limit reached`,
+                    subtitle: `You can attach up to ${MAX_IMAGES_PER_VERSION} images per message.`,
+                });
+                return prev;
+            }
+            return [...prev, { file, previewUrl: URL.createObjectURL(file) }];
         });
     };
 
     const handlePaste = (e: React.ClipboardEvent) => {
         const items = e.clipboardData?.files;
         if (items && items.length > 0) {
-            const file = items[0];
-            if (file.type.startsWith('image/')) {
+            const imageFiles = Array.from(items).filter((f) =>
+                f.type.startsWith('image/'),
+            );
+            if (imageFiles.length > 0) {
                 e.preventDefault();
-                handleImageAttach(file);
+                imageFiles.forEach(handleImageAttach);
             }
         }
     };
 
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            handleImageAttach(file);
+        const files = e.target.files;
+        if (files) {
+            Array.from(files).forEach(handleImageAttach);
         }
         e.target.value = '';
     };
 
-    const clearImage = () => {
-        if (imageAttachment?.previewUrl) {
-            URL.revokeObjectURL(imageAttachment.previewUrl);
-        }
-        setImageAttachment(null);
+    const clearImage = (previewUrl: string) => {
+        URL.revokeObjectURL(previewUrl);
+        setImageAttachments((prev) =>
+            prev.filter((img) => img.previewUrl !== previewUrl),
+        );
     };
 
     const handleDragOver = (e: React.DragEvent) => {
@@ -628,10 +654,9 @@ const AppGenerate: FC = () => {
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        if (file && file.type.startsWith('image/')) {
-            handleImageAttach(file);
-        }
+        Array.from(e.dataTransfer.files)
+            .filter((f) => f.type.startsWith('image/'))
+            .forEach(handleImageAttach);
     };
 
     const handleSubmit = async () => {
@@ -654,27 +679,45 @@ const AppGenerate: FC = () => {
         const newAppUuid = activeAppUuid ? undefined : uuid4();
         const targetAppUuid = activeAppUuid ?? newAppUuid;
 
-        // Upload image via backend proxy, then reference by opaque imageId
-        let imageId: string | undefined;
-        if (imageAttachment) {
-            try {
-                const result = await uploadImage({
-                    projectUuid: projectUuid!,
-                    file: imageAttachment.file,
-                    appUuid: targetAppUuid!,
-                });
-                imageId = result.imageId;
-            } catch {
-                // If upload fails, proceed without the image
-                // rather than blocking the entire submission
+        // Upload images sequentially. Two reasons we can't run these in parallel:
+        // 1. The backend buffers each body to avoid AWS SDK chunked signing,
+        //    which MinIO/GCS handle unreliably (RequestTimeout).
+        // 2. Concurrent PUTs to the same staging prefix
+        //    (apps/{appUuid}/uploads/) hit MinIO's per-prefix lock and fail
+        //    with "A timeout occurred while trying to lock a resource".
+        // Surface individual failures via toast rather than silently dropping them.
+        let imageIds: string[] | undefined;
+        if (imageAttachments.length > 0) {
+            const ids: string[] = [];
+            for (const att of imageAttachments) {
+                try {
+                    const result = await uploadImage({
+                        projectUuid: projectUuid!,
+                        file: att.file,
+                        appUuid: targetAppUuid!,
+                    });
+                    ids.push(result.imageId);
+                } catch (err) {
+                    showToastError({
+                        title: 'Image upload failed',
+                        subtitle:
+                            err instanceof Error
+                                ? err.message
+                                : 'Unknown error',
+                    });
+                }
+            }
+            imageIds = ids.length > 0 ? ids : undefined;
+            if (ids.length === 0) {
+                return;
             }
         }
 
-        // Capture the preview URL before clearing — it stays in the message bubble.
-        // Also store in the ref so it survives the local→server transition.
-        const sentImageUrl = imageAttachment?.previewUrl ?? null;
-        if (sentImageUrl) {
-            sentImagesByPrompt.current.set(trimmed, sentImageUrl);
+        // Capture preview URLs before clearing — they stay in the message bubble.
+        // Also store in the ref so they survive the local→server transition.
+        const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
+        if (sentImageUrls.length > 0) {
+            sentImagesByPrompt.current.set(trimmed, sentImageUrls);
         }
         const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
             name: c.name,
@@ -701,8 +744,8 @@ const AppGenerate: FC = () => {
             {
                 role: 'user',
                 content: trimmed,
-                imagePreviewUrl: sentImageUrl,
-                imageResourceId: null,
+                imagePreviewUrls: sentImageUrls,
+                imageResourceIds: [],
                 charts: sentCharts,
                 dashboardName: sentDashboardName,
                 appUuid: null,
@@ -710,7 +753,7 @@ const AppGenerate: FC = () => {
             },
         ]);
         setPrompt('');
-        setImageAttachment(null);
+        setImageAttachments([]);
         setSelectedCharts([]);
         setSelectedDashboard(null);
         resetGenerate();
@@ -738,8 +781,8 @@ const AppGenerate: FC = () => {
                             err instanceof Error
                                 ? err.message
                                 : 'Failed to generate app',
-                        imagePreviewUrl: null,
-                        imageResourceId: null,
+                        imagePreviewUrls: [],
+                        imageResourceIds: [],
                         charts: [],
                         dashboardName: null,
                         appUuid: null,
@@ -755,7 +798,7 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     appUuid: activeAppUuid,
                     prompt: trimmed,
-                    imageId,
+                    imageIds,
                     charts,
                     dashboard,
                 },
@@ -767,7 +810,7 @@ const AppGenerate: FC = () => {
                     projectUuid,
                     prompt: trimmed,
                     template: selectedTemplate ?? undefined,
-                    imageId,
+                    imageIds,
                     appUuid: newAppUuid,
                     charts,
                     dashboard,
@@ -988,36 +1031,41 @@ const AppGenerate: FC = () => {
                                                             </Group>
                                                         </Box>
                                                     )}
-                                                    {msg.imagePreviewUrl ? (
-                                                        <Image
-                                                            src={
-                                                                msg.imagePreviewUrl
-                                                            }
-                                                            className={
-                                                                classes.sentImageThumbnail
-                                                            }
-                                                            alt="Attached"
-                                                        />
-                                                    ) : (
-                                                        msg.imageResourceId &&
-                                                        activeAppUuid &&
-                                                        projectUuid && (
-                                                            <AppResourceImage
-                                                                projectUuid={
-                                                                    projectUuid
-                                                                }
-                                                                appUuid={
-                                                                    activeAppUuid
-                                                                }
-                                                                imageId={
-                                                                    msg.imageResourceId
-                                                                }
-                                                                className={
-                                                                    classes.sentImageThumbnail
-                                                                }
-                                                            />
-                                                        )
-                                                    )}
+                                                    {msg.imagePreviewUrls
+                                                        .length > 0
+                                                        ? msg.imagePreviewUrls.map(
+                                                              (url) => (
+                                                                  <Image
+                                                                      key={url}
+                                                                      src={url}
+                                                                      className={
+                                                                          classes.sentImageThumbnail
+                                                                      }
+                                                                      alt="Attached"
+                                                                  />
+                                                              ),
+                                                          )
+                                                        : activeAppUuid &&
+                                                          projectUuid &&
+                                                          msg.imageResourceIds.map(
+                                                              (id) => (
+                                                                  <AppResourceImage
+                                                                      key={id}
+                                                                      projectUuid={
+                                                                          projectUuid
+                                                                      }
+                                                                      appUuid={
+                                                                          activeAppUuid
+                                                                      }
+                                                                      imageId={
+                                                                          id
+                                                                      }
+                                                                      className={
+                                                                          classes.sentImageThumbnail
+                                                                      }
+                                                                  />
+                                                              ),
+                                                          )}
                                                 </Box>
                                             </Box>
                                         ) : (
@@ -1095,6 +1143,7 @@ const AppGenerate: FC = () => {
                                     ref={fileInputRef}
                                     type="file"
                                     accept="image/png,image/jpeg,image/gif,image/webp"
+                                    multiple
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
@@ -1174,7 +1223,9 @@ const AppGenerate: FC = () => {
                                             fileInputRef.current?.click()
                                         }
                                         disabled={
-                                            isLoading || !!imageAttachment
+                                            isLoading ||
+                                            imageAttachments.length >=
+                                                MAX_IMAGES_PER_VERSION
                                         }
                                     />
                                 </Group>
@@ -1185,7 +1236,7 @@ const AppGenerate: FC = () => {
                                 >
                                     {selectedCharts.length > 0 ||
                                     selectedDashboard ||
-                                    imageAttachment ? (
+                                    imageAttachments.length > 0 ? (
                                         <>
                                             {selectedCharts.length > 0 && (
                                                 <SelectedQuerySection
@@ -1243,16 +1294,16 @@ const AppGenerate: FC = () => {
                                                     }
                                                 />
                                             )}
-                                            {imageAttachment && (
+                                            {imageAttachments.length > 0 && (
                                                 <SelectedImageSection
-                                                    images={[
-                                                        {
+                                                    images={imageAttachments.map(
+                                                        (att) => ({
                                                             previewUrl:
-                                                                imageAttachment.previewUrl,
-                                                        },
-                                                    ]}
-                                                    onRemove={() =>
-                                                        clearImage()
+                                                                att.previewUrl,
+                                                        }),
+                                                    )}
+                                                    onRemove={(previewUrl) =>
+                                                        clearImage(previewUrl)
                                                     }
                                                 />
                                             )}
