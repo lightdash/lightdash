@@ -546,7 +546,17 @@ describe('CaslAuditWrapper', () => {
             withImpersonation: boolean;
         }): Account =>
             ({
-                authentication: { type: overrides.authType, source: 'src' },
+                authentication:
+                    overrides.authType === 'service-account'
+                        ? {
+                              type: 'service-account',
+                              source: 'src',
+                              serviceAccountUuid: 'sa-uuid',
+                              serviceAccountDescription: 'ci-deploy',
+                              attributedUserUuid: 'user-789',
+                              attributedUserEmail: 'user@example.com',
+                          }
+                        : { type: overrides.authType, source: 'src' },
                 organization: { organizationUuid: 'org-uuid' },
                 user: {
                     id: 'user-789',
@@ -615,6 +625,23 @@ describe('CaslAuditWrapper', () => {
             expect(actor.type).toBe('oauth');
             if (actor.type !== 'oauth') return;
             expect(actor.impersonatedBy).toBeUndefined();
+        });
+
+        it('should map service-account UUID, description and attributed user from authentication', () => {
+            const account = buildSessionAccount({
+                authType: 'service-account',
+                withImpersonation: false,
+            });
+            const actor = createActorFromAccount(account);
+
+            expect(actor.type).toBe('service-account');
+            if (actor.type !== 'service-account') return;
+            expect(actor.uuid).toBe('sa-uuid');
+            expect(actor.description).toBe('ci-deploy');
+            expect(actor.attributedUserUuid).toBe('user-789');
+            expect(actor.attributedUserEmail).toBe('user@example.com');
+            expect(actor.organizationUuid).toBe('org-uuid');
+            expect(actor.organizationRole).toBe(OrganizationMemberRole.VIEWER);
         });
     });
 });

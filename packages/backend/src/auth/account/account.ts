@@ -125,12 +125,22 @@ export const fromServiceAccount = (
     sessionUser: SessionUser,
     source: string,
 ): ServiceAcctAccount => {
+    if (!sessionUser.serviceAccount) {
+        throw new ForbiddenError(
+            'SessionUser is missing serviceAccount context; the service-account auth middleware must run first.',
+        );
+    }
     const [organization, user] = extractOrganizationFromUser(sessionUser);
 
     return createAccount({
         authentication: {
             type: 'service-account',
             source,
+            serviceAccountUuid: sessionUser.serviceAccount.uuid,
+            serviceAccountDescription:
+                sessionUser.serviceAccount.description ?? '',
+            attributedUserUuid: sessionUser.userUuid,
+            attributedUserEmail: sessionUser.serviceAccount.attributedUserEmail,
         },
         organization,
         user: {

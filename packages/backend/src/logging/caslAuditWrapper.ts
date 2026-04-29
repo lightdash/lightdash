@@ -6,6 +6,7 @@ import {
     type Account,
     type AnonymousAccount,
     type ImpersonationContext,
+    type ServiceAcctAccount,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -34,6 +35,7 @@ export type AuditableUser = Pick<
     | 'organizationUuid'
     | 'role'
     | 'impersonation'
+    | 'serviceAccount'
 >;
 
 type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
@@ -70,16 +72,22 @@ export const createActorFromAccount = (account: Account): AuditActor => {
     }
 
     if (account.isServiceAccount()) {
+        const svcAccount = account as ServiceAcctAccount;
+        const {
+            serviceAccountUuid,
+            serviceAccountDescription,
+            attributedUserUuid,
+            attributedUserEmail,
+        } = svcAccount.authentication;
         return {
-            type: 'service-account' as const,
-            uuid: account.user.id,
-            email: account.user.email || '',
+            type: 'service-account',
+            uuid: serviceAccountUuid,
+            description: serviceAccountDescription || undefined,
             organizationUuid:
-                account.organization.organizationUuid || 'unknown',
-            organizationRole:
-                'role' in account.user
-                    ? (account.user as { role?: string }).role || 'unknown'
-                    : 'unknown',
+                svcAccount.organization.organizationUuid || 'unknown',
+            organizationRole: svcAccount.user.role || 'unknown',
+            attributedUserUuid,
+            attributedUserEmail,
         };
     }
 
@@ -132,6 +140,21 @@ export const createActorFromAccount = (account: Account): AuditActor => {
  * @deprecated Prefer createActorFromAccount with Account type
  */
 export const createActorFromUser = (user: AuditableUser): AuditActor => {
+    // Service-account requests stamp `req.user.serviceAccount` alongside the
+    // attributed admin user, so the legacy SessionUser path can still produce
+    // a service-account audit actor.
+    if (user.serviceAccount) {
+        return {
+            type: 'service-account',
+            uuid: user.serviceAccount.uuid,
+            description: user.serviceAccount.description || undefined,
+            organizationUuid: user.organizationUuid || 'unknown',
+            organizationRole: user.role || 'unknown',
+            attributedUserUuid: user.userUuid,
+            attributedUserEmail: user.serviceAccount.attributedUserEmail,
+        };
+    }
+
     // Impersonation is only attached to session users; PAT/OAuth/service-account
     // sessions cannot be impersonated.
     const impersonatedBy = user.impersonation

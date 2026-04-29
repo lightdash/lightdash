@@ -113,7 +113,11 @@ const createMockAccount = (
             ? {
                   type: 'service-account' as const,
                   source: 'mock-service-account-token',
-                  description: overrides.serviceAccountDescription,
+                  serviceAccountUuid: 'mock-service-account-uuid',
+                  serviceAccountDescription:
+                      overrides.serviceAccountDescription ?? '',
+                  attributedUserUuid: overrides.userUuid ?? 'changer-uuid',
+                  attributedUserEmail: overrides.email ?? 'changer@example.com',
               }
             : { type: 'session' as const, source: 'mock-session-cookie' },
         user: {

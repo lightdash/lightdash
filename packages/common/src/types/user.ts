@@ -89,6 +89,28 @@ export interface SessionUser extends LightdashUserWithAbilityRules {
     };
     /* Set only when an admin is impersonating this user via session auth */
     impersonation?: ImpersonationContext;
+    /**
+     * Set only when the request was authenticated via a service-account token.
+     * `req.user` is the admin user the action is recorded against (FK
+     * constraint on `users`), and this field carries the actual service-account
+     * identity so audit logging can attribute correctly even when call sites
+     * receive SessionUser rather than Account.
+     *
+     * `attributedUserEmail` holds the *real* admin user's email. We can't read
+     * it from `email` on this SessionUser because the service-account auth
+     * middleware overwrites `email` with the placeholder
+     * `service-account@lightdash.com` (and `firstName`/`lastName` similarly) so
+     * downstream code that surfaces the actor sees a service-account label
+     * rather than leaking the admin user's identity. The audit log still needs
+     * the real admin email to flag the FK attribution caveat, so we stash it
+     * here at middleware time.
+     * @see https://github.com/lightdash/lightdash/issues/15466
+     */
+    serviceAccount?: {
+        uuid: string;
+        description?: string;
+        attributedUserEmail?: string;
+    };
 }
 
 export interface ImpersonationContext {
