@@ -875,12 +875,6 @@ describe('Lightdash catalog filter / segment dimensions', () => {
         admin = await login();
     });
 
-    // Regression for PROD-7206: CatalogModel.search defaulted paginateArgs
-    // to pageSize 50, so callers that wanted the full per-table dim list
-    // silently lost any rows past position 50. The events explore is the
-    // only seed explore wide enough (> 50 indexable dimensions) to expose
-    // the truncation. Compute the expected set from the explore directly
-    // so this test stays correct as the YAML evolves.
     const expectedFilterableDimNames = (explore: {
         baseTable: string;
         tables: Record<
@@ -898,16 +892,15 @@ describe('Lightdash catalog filter / segment dimensions', () => {
         >;
     }) => {
         const baseDims = explore.tables[explore.baseTable]?.dimensions ?? {};
-        return new Set(
-            Object.entries(baseDims)
-                .filter(
-                    ([, d]) =>
-                        (d.type === 'string' || d.type === 'boolean') &&
-                        !d.hidden &&
-                        !d.timeIntervalBaseDimensionName,
-                )
-                .map(([name]) => name),
-        );
+        return Object.entries(baseDims)
+            .filter(
+                ([, d]) =>
+                    (d.type === 'string' || d.type === 'boolean') &&
+                    !d.hidden &&
+                    !d.timeIntervalBaseDimensionName,
+            )
+            .map(([name]) => name)
+            .sort();
     };
 
     it('filter-dimensions returns every same-table filterable dimension on a wide explore', async () => {
@@ -918,7 +911,6 @@ describe('Lightdash catalog filter / segment dimensions', () => {
         }>(`${apiUrl}/projects/${projectUuid}/explores/events`);
         expect(exploreResp.status).toBe(200);
         const expected = expectedFilterableDimNames(exploreResp.body.results);
-        // Must exceed the historical 50-row default to actually exercise the regression.
         const totalIndexable = Object.values(
             exploreResp.body.results.tables[exploreResp.body.results.baseTable]
                 ?.dimensions ?? {},
@@ -931,7 +923,7 @@ describe('Lightdash catalog filter / segment dimensions', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog/events/filter-dimensions`,
         );
         expect(dimsResp.status).toBe(200);
-        const actual = new Set(dimsResp.body.results.map((d) => d.name));
+        const actual = dimsResp.body.results.map((d) => d.name).sort();
 
         expect(actual).toEqual(expected);
         dimsResp.body.results.forEach((d) => {
@@ -955,7 +947,7 @@ describe('Lightdash catalog filter / segment dimensions', () => {
             `${apiUrl}/projects/${projectUuid}/dataCatalog/events/segment-dimensions`,
         );
         expect(dimsResp.status).toBe(200);
-        const actual = new Set(dimsResp.body.results.map((d) => d.name));
+        const actual = dimsResp.body.results.map((d) => d.name).sort();
 
         expect(actual).toEqual(expected);
     });
@@ -968,10 +960,6 @@ describe('Lightdash catalog metrics list pagination', () => {
         admin = await login();
     });
 
-    // Regression for PROD-7206 follow-up: getMetricsCatalog falls back to
-    // pageSize: 50 at the service layer when the controller doesn't pass
-    // page/pageSize. Without the fallback the endpoint would return every
-    // metric in the project unbounded.
     it('Should cap at 50 metrics when caller omits page/pageSize', async () => {
         const projectUuid = SEED_PROJECT.project_uuid;
         const resp = await admin.get<{
