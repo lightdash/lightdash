@@ -5822,7 +5822,7 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('SqlRunner', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -5875,7 +5875,7 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('SqlRunner', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -5929,7 +5929,7 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', { organizationUuid, projectUuid }),
+                subject('SqlRunner', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
