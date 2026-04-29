@@ -596,7 +596,9 @@ export default class SchedulerTask {
                         csvUrl = {
                             filename: ExcelService.generateFileId(chart.name),
                             path: downloadResult.fileUrl,
-                            localPath: downloadResult.fileUrl,
+                            localPath:
+                                downloadResult.s3FileUrl ??
+                                downloadResult.fileUrl,
                             truncated: false,
                         };
                         this.analytics.trackAccount(account, {
@@ -737,7 +739,9 @@ export default class SchedulerTask {
                                     chartName: chart.name,
                                     filename: chart.name,
                                     path: downloadResult.fileUrl,
-                                    localPath: downloadResult.fileUrl,
+                                    localPath:
+                                        downloadResult.s3FileUrl ??
+                                        downloadResult.fileUrl,
                                     truncated: false,
                                 };
                             },
@@ -814,7 +818,9 @@ export default class SchedulerTask {
                                     chartName: chart.name,
                                     filename: chart.name,
                                     path: downloadResult.fileUrl,
-                                    localPath: downloadResult.fileUrl,
+                                    localPath:
+                                        downloadResult.s3FileUrl ??
+                                        downloadResult.fileUrl,
                                     truncated: false,
                                 };
                             },
@@ -3891,6 +3897,7 @@ export default class SchedulerTask {
                         chartName: string;
                         filename: string;
                         fileUrl: string;
+                        s3FileUrl?: string;
                     }> => result.status === 'fulfilled',
                 );
 
@@ -3928,10 +3935,10 @@ export default class SchedulerTask {
                     // Fetch all CSVs from presigned URLs in parallel
                     const csvStreams = await Promise.all(
                         successfulResults.map(async (r) => {
+                            const csvFetchUrl =
+                                r.value.s3FileUrl ?? r.value.fileUrl;
                             try {
-                                const csvResponse = await fetch(
-                                    r.value.fileUrl,
-                                );
+                                const csvResponse = await fetch(csvFetchUrl);
                                 if (!csvResponse.ok || !csvResponse.body) {
                                     Logger.warn(
                                         `Failed to fetch CSV for ${r.value.chartName} from presigned URL: HTTP ${csvResponse.status} ${csvResponse.statusText}`,
@@ -3956,7 +3963,7 @@ export default class SchedulerTask {
                                     {
                                         chartName: r.value.chartName,
                                         // Strip query params — they contain auth signatures
-                                        fileUrl: r.value.fileUrl.split('?')[0],
+                                        fileUrl: csvFetchUrl.split('?')[0],
                                         cause:
                                             cause instanceof Error
                                                 ? {
@@ -4071,7 +4078,12 @@ export default class SchedulerTask {
         pivotResultsFlag: { enabled: boolean };
         chartUuid: string;
         tileUuid: string;
-    }): Promise<{ chartName: string; filename: string; fileUrl: string }> {
+    }): Promise<{
+        chartName: string;
+        filename: string;
+        fileUrl: string;
+        s3FileUrl?: string;
+    }> {
         const query =
             await this.asyncQueryService.executeAsyncDashboardChartQuery({
                 account,
@@ -4113,6 +4125,7 @@ export default class SchedulerTask {
             chartName: chart.name,
             filename: chart.name,
             fileUrl: downloadResult.fileUrl,
+            s3FileUrl: downloadResult.s3FileUrl,
         };
     }
 
@@ -4130,7 +4143,12 @@ export default class SchedulerTask {
         dashboardFilters: DashboardFilters;
         chartUuid: string;
         tileUuid: string;
-    }): Promise<{ chartName: string; filename: string; fileUrl: string }> {
+    }): Promise<{
+        chartName: string;
+        filename: string;
+        fileUrl: string;
+        s3FileUrl?: string;
+    }> {
         const query =
             await this.asyncQueryService.executeAsyncDashboardSqlChartQuery({
                 account,
@@ -4184,6 +4202,7 @@ export default class SchedulerTask {
             chartName: chart.name,
             filename: chart.name,
             fileUrl: downloadResult.fileUrl,
+            s3FileUrl: downloadResult.s3FileUrl,
         };
     }
 

@@ -122,7 +122,7 @@ export class PivotTableService extends BaseService {
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
         timezone?: string;
-    }): Promise<{ fileUrl: string; truncated: boolean }> {
+    }): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
 
@@ -180,6 +180,7 @@ export class PivotTableService extends BaseService {
 
         return {
             fileUrl: attachmentUrl.path,
+            s3FileUrl: attachmentUrl.localPath,
             truncated: finalTruncated,
         };
     }
@@ -307,7 +308,10 @@ export class PivotTableService extends BaseService {
         await fsPromise.writeFile(filePath, csvWithBOM);
 
         if (this.fileStorageClient.isEnabled()) {
-            await this.fileStorageClient.uploadCsv(csvContent, fileId);
+            const s3FileUrl = await this.fileStorageClient.uploadCsv(
+                csvContent,
+                fileId,
+            );
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(
@@ -335,7 +339,7 @@ export class PivotTableService extends BaseService {
             return {
                 filename: fileName,
                 path: url,
-                localPath: filePath,
+                localPath: s3FileUrl,
                 truncated,
             };
         }

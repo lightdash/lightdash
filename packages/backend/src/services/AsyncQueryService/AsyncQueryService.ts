@@ -200,6 +200,16 @@ const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
+// Internal-only download result. Adds `s3FileUrl` (the underlying S3
+// presigned URL) so the scheduler can hand it to nodemailer for fetching
+// attachments — the persistent Lightdash URL in `fileUrl` may not be
+// resolvable from the scheduler container. `s3FileUrl` must be stripped
+// before returning to public API consumers.
+type DownloadAsyncQueryResultsInternal =
+    | (ApiDownloadAsyncQueryResults & { s3FileUrl?: string })
+    | (ApiDownloadAsyncQueryResultsAsCsv & { s3FileUrl?: string })
+    | (ApiDownloadAsyncQueryResultsAsXlsx & { s3FileUrl?: string });
+
 type AsyncQueryExecutionPlan =
     | {
           target: 'warehouse';
@@ -1022,7 +1032,13 @@ export class AsyncQueryService extends ProjectService {
         return this.downloadAsyncQueryResults(args);
     }
 
-    async download(args: DownloadAsyncQueryResultsArgs) {
+    async download(
+        args: DownloadAsyncQueryResultsArgs,
+    ): Promise<
+        | ApiDownloadAsyncQueryResults
+        | ApiDownloadAsyncQueryResultsAsCsv
+        | ApiDownloadAsyncQueryResultsAsXlsx
+    > {
         const { account, projectUuid, onlyRaw, type } = args;
         const baseAnalyticsProperties: DownloadCsv['properties'] = {
             organizationId: account.organization.organizationUuid,
@@ -1040,7 +1056,8 @@ export class AsyncQueryService extends ProjectService {
             properties: baseAnalyticsProperties,
         });
         try {
-            const downloadResult = await this.downloadAsyncQueryResults(args);
+            const { s3FileUrl, ...downloadResult } =
+                await this.downloadAsyncQueryResults(args);
             this.analytics.trackAccount(account, {
                 event: 'download_results.completed',
                 userId: account.user.id,
@@ -1112,11 +1129,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfig,
         attachmentDownloadName,
         expirationSecondsOverride,
-    }: DownloadAsyncQueryResultsArgs): Promise<
-        | ApiDownloadAsyncQueryResults
-        | ApiDownloadAsyncQueryResultsAsCsv
-        | ApiDownloadAsyncQueryResultsAsXlsx
-    > {
+    }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
         assertIsAccountWithOrg(account);
 
         const { organizationUuid } =
@@ -1365,6 +1378,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 return {
                     fileUrl: xlsxPersistentUrl,
+                    s3FileUrl: xlsxResult.fileUrl,
                     truncated: xlsxResult.truncated,
                 };
             }
@@ -1420,7 +1434,7 @@ export class AsyncQueryService extends ProjectService {
             expirationSecondsOverride?: number;
         },
         timezone?: string,
-    ): Promise<{ fileUrl: string; truncated: boolean }> {
+    ): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
 
@@ -1494,7 +1508,11 @@ export class AsyncQueryService extends ProjectService {
                     expirationSeconds:
                         persistentUrlContext.expirationSecondsOverride,
                 });
-            return { fileUrl: persistentUrl, truncated: result.truncated };
+            return {
+                fileUrl: persistentUrl,
+                s3FileUrl: result.fileUrl,
+                truncated: result.truncated,
+            };
         }
 
         return result;
