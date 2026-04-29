@@ -1,3 +1,10 @@
+## [0.2839.1](https://github.com/lightdash/lightdash/compare/0.2839.0...0.2839.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **scheduler:** use S3 URL for CSV email attachments [PROD-7186] ([#22491](https://github.com/lightdash/lightdash/issues/22491)) ([4ee980b](https://github.com/lightdash/lightdash/commit/4ee980b203b92aa2ee51ff9a60f594dc91fe32a3))
+
 # [0.2839.0](https://github.com/lightdash/lightdash/compare/0.2838.0...0.2839.0) (2026-04-29)
 
 
