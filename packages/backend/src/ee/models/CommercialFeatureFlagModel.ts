@@ -104,5 +104,4 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             enabled,
         };
     }
-
 }
