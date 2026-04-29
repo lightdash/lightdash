@@ -401,6 +401,7 @@ const APP_ROUTES: RouteObject[] = [
                     </ProjectRoute>
                 ),
                 children: [
+                    { index: true, element: <Navigate to="home" replace /> },
                     // Legacy sqlRunner redirect (no layout needed)
                     {
                         path: 'sqlRunner',
