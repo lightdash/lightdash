@@ -2,11 +2,13 @@ import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartSummary,
+    CustomSqlQueryForbiddenError,
     DashboardDAO,
     DashboardTileTypes,
     ForbiddenError,
     getDeepestPaths,
     getErrorMessage,
+    hasSqlAuthoredFields,
     isDashboardChartTileType,
     isSubPath,
     NotFoundError,
@@ -772,6 +774,32 @@ export class PromoteService extends BaseService {
         promotedDashboardUuid?: string, // dashboard uuid if chart belongs to dashboard
     ): Promise<PromotionChanges> {
         const { charts } = promotionChanges;
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const blockedCharts = charts
+            .filter(
+                (change) =>
+                    change.action === PromotionAction.CREATE ||
+                    change.action === PromotionAction.UPDATE,
+            )
+            .map((change) => change.data)
+            .filter(
+                (chart) =>
+                    hasSqlAuthoredFields(chart.metricQuery) &&
+                    auditedAbility.cannot(
+                        'manage',
+                        subject('CustomFields', {
+                            organizationUuid: chart.organizationUuid,
+                            projectUuid: chart.projectUuid,
+                        }),
+                    ),
+            );
+        if (blockedCharts.length > 0) {
+            const names = blockedCharts.map((chart) => chart.name).join(', ');
+            throw new CustomSqlQueryForbiddenError(
+                `User cannot promote charts containing custom SQL fields: ${names}`,
+            );
+        }
 
         const existingCharts = charts.filter(
             (change) => change.action === PromotionAction.NO_CHANGES,
