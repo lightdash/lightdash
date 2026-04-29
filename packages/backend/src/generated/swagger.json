@@ -10321,19 +10321,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -29368,9 +29355,6 @@
             },
             "ApiDownloadAsyncQueryResults": {
                 "properties": {
-                    "s3FileUrl": {
-                        "type": "string"
-                    },
                     "fileUrl": {
                         "type": "string"
                     }
@@ -29383,9 +29367,6 @@
                     "truncated": {
                         "type": "boolean"
                     },
-                    "s3FileUrl": {
-                        "type": "string"
-                    },
                     "fileUrl": {
                         "type": "string"
                     }
@@ -29397,9 +29378,6 @@
                 "properties": {
                     "truncated": {
                         "type": "boolean"
-                    },
-                    "s3FileUrl": {
-                        "type": "string"
                     },
                     "fileUrl": {
                         "type": "string"
