@@ -3,6 +3,7 @@ import { Knex } from 'knex';
 export const PreAggregateDailyStatsTableName = 'pre_aggregate_daily_stats';
 
 export type DbPreAggregateDailyStat = {
+    pre_aggregate_daily_stat_uuid: string;
     project_uuid: string;
     explore_name: string;
     date: Date;
@@ -19,7 +20,7 @@ export type DbPreAggregateDailyStat = {
 
 export type DbPreAggregateDailyStatIn = Omit<
     DbPreAggregateDailyStat,
-    'created_at' | 'updated_at'
+    'pre_aggregate_daily_stat_uuid' | 'created_at' | 'updated_at'
 >;
 
 export type PreAggregateDailyStatsTable = Knex.CompositeTableType<
