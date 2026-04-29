@@ -36,8 +36,6 @@ export class FeatureFlagModel {
         this.lightdashConfig = args.lightdashConfig;
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
-            [FeatureFlags.UserGroupsEnabled]:
-                this.getUserGroupsEnabled.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
             [FeatureFlags.ShowExecutionTime]:
                 this.getShowExecutionTimeEnabled.bind(this),
@@ -97,33 +95,6 @@ export class FeatureFlagModel {
             userUuid: user.userUuid,
             organizationUuid: user.organizationUuid,
         });
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUserGroupsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.groups.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UserGroupsEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          // because we are checking this in the health check, we don't want to throw an error
-                          // nor do we want to wait too long
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
         return {
             id: featureFlagId,
             enabled,

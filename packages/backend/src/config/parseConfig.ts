@@ -1554,6 +1554,10 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // bootstrapping.
     ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
+    // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
+    // from the feature flag) — keep the config field, but translate the env
+    // var to the unified allowlist for the flag system too.
+    ['GROUPS_ENABLED', 'user-groups-enabled'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
