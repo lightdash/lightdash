@@ -10,12 +10,12 @@ import { IconAppWindow } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { z } from 'zod';
 import { useUpdateApp } from '../../../features/apps/hooks/useUpdateApp';
-import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import MantineModal from '../MantineModal';
 
 interface AppUpdateModalProps {
     opened: ModalProps['opened'];
     onClose: ModalProps['onClose'];
+    projectUuid: string;
     uuid: string;
     initialName: string;
     initialDescription: string;
@@ -30,13 +30,13 @@ const updateAppSchema = z.object({
 type FormState = z.infer<typeof updateAppSchema>;
 
 const AppUpdateModal: FC<AppUpdateModalProps> = ({
+    projectUuid,
     uuid,
     initialName,
     initialDescription,
     onConfirm,
     ...modalProps
 }) => {
-    const projectUuid = useProjectUuid();
     const { mutateAsync, isLoading: isUpdating } = useUpdateApp();
 
     const form = useForm<FormState>({
@@ -47,10 +47,6 @@ const AppUpdateModal: FC<AppUpdateModalProps> = ({
         validate: zodResolver(updateAppSchema),
         validateInputOnChange: true,
     });
-
-    if (!projectUuid) {
-        return null;
-    }
 
     const handleConfirm = form.onSubmit(async (data) => {
         const trimmedName = data.name.trim();

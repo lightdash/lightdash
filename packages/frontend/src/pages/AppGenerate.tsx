@@ -1311,7 +1311,7 @@ const AppGenerate: FC = () => {
                                             }
                                         >
                                             {appSpaceUuid
-                                                ? 'Move'
+                                                ? 'Move to space'
                                                 : 'Add to space'}
                                         </Menu.Item>
                                         <Menu.Divider />
@@ -1384,6 +1384,7 @@ const AppGenerate: FC = () => {
                         {isUpdateModalOpen && activeAppUuid && (
                             <AppUpdateModal
                                 opened
+                                projectUuid={projectUuid}
                                 uuid={activeAppUuid}
                                 initialName={appName}
                                 initialDescription={appDescription}

@@ -1,4 +1,8 @@
-import { type ApiAppSummary } from '@lightdash/common';
+import {
+    ContentType,
+    ResourceViewItemType,
+    type ApiAppSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -11,15 +15,19 @@ import {
 } from '@mantine-8/core';
 import {
     IconClock,
+    IconCode,
     IconDots,
     IconExternalLink,
     IconFolder,
+    IconFolderPlus,
+    IconFolderSymlink,
     IconLayoutDashboard,
     IconPencil,
     IconRadar,
     IconTextCaption,
     IconTrash,
 } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
     MantineReactTable,
     useMantineReactTable,
@@ -35,11 +43,64 @@ import {
 } from 'react';
 import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
+import { useContentAction } from '../../../hooks/useContent';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
+import AppUpdateModal from '../../common/modal/AppUpdateModal';
+import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 
 const hasReadyVersion = (app: ApiAppSummary) =>
     app.lastVersionStatus === 'ready' && !!app.lastVersionNumber;
+
+const MoveAppToSpaceModal: FC<{
+    app: ApiAppSummary;
+    onClose: () => void;
+}> = ({ app, onClose }) => {
+    const queryClient = useQueryClient();
+    const { mutateAsync: contentAction, isLoading } = useContentAction(
+        app.projectUuid,
+    );
+    return (
+        <TransferItemsModal
+            projectUuid={app.projectUuid}
+            opened
+            onClose={onClose}
+            items={[
+                {
+                    type: ResourceViewItemType.DATA_APP,
+                    data: {
+                        uuid: app.appUuid,
+                        name: app.name,
+                        description: app.description || undefined,
+                        spaceUuid: app.spaceUuid,
+                        createdByUserUuid: null,
+                        updatedAt: new Date(),
+                        updatedByUser: null,
+                        views: 0,
+                        firstViewedAt: null,
+                        latestVersionNumber: app.lastVersionNumber,
+                        latestVersionStatus: app.lastVersionStatus,
+                        pinnedListUuid: null,
+                        pinnedListOrder: null,
+                    },
+                },
+            ]}
+            isLoading={isLoading}
+            onConfirm={async (targetSpaceUuid) => {
+                if (!targetSpaceUuid) return;
+                await contentAction({
+                    action: { type: 'move', targetSpaceUuid },
+                    item: {
+                        uuid: app.appUuid,
+                        contentType: ContentType.DATA_APP,
+                    },
+                });
+                await queryClient.invalidateQueries({ queryKey: ['myApps'] });
+                onClose();
+            }}
+        />
+    );
+};
 
 const statusColor = (status: string | null) => {
     switch (status) {
@@ -58,6 +119,8 @@ const MyAppsPanel: FC = () => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const { data, fetchNextPage, isFetching, isLoading, isError } = useMyApps();
     const [appToDelete, setAppToDelete] = useState<ApiAppSummary | null>(null);
+    const [appToMove, setAppToMove] = useState<ApiAppSummary | null>(null);
+    const [appToRename, setAppToRename] = useState<ApiAppSummary | null>(null);
 
     const flatData = useMemo<ApiAppSummary[]>(
         () => data?.pages.flatMap((page) => page.data) ?? [],
@@ -270,9 +333,30 @@ const MyAppsPanel: FC = () => {
                                 <Menu.Item
                                     component={Link}
                                     to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
-                                    leftSection={<IconPencil size={14} />}
+                                    leftSection={<IconCode size={14} />}
                                 >
                                     Continue building
+                                </Menu.Item>
+                                <Menu.Divider />
+                                <Menu.Item
+                                    leftSection={<IconPencil size={14} />}
+                                    onClick={() => setAppToRename(app)}
+                                >
+                                    Rename
+                                </Menu.Item>
+                                <Menu.Item
+                                    leftSection={
+                                        app.spaceUuid ? (
+                                            <IconFolderSymlink size={14} />
+                                        ) : (
+                                            <IconFolderPlus size={14} />
+                                        )
+                                    }
+                                    onClick={() => setAppToMove(app)}
+                                >
+                                    {app.spaceUuid
+                                        ? 'Move to space'
+                                        : 'Add to space'}
                                 </Menu.Item>
                                 <Menu.Divider />
                                 <Menu.Item
@@ -348,6 +432,23 @@ const MyAppsPanel: FC = () => {
                     name={appToDelete.name}
                     onClose={() => setAppToDelete(null)}
                     onConfirm={() => setAppToDelete(null)}
+                />
+            )}
+            {appToMove && (
+                <MoveAppToSpaceModal
+                    app={appToMove}
+                    onClose={() => setAppToMove(null)}
+                />
+            )}
+            {appToRename && (
+                <AppUpdateModal
+                    opened
+                    projectUuid={appToRename.projectUuid}
+                    uuid={appToRename.appUuid}
+                    initialName={appToRename.name}
+                    initialDescription={appToRename.description}
+                    onClose={() => setAppToRename(null)}
+                    onConfirm={() => setAppToRename(null)}
                 />
             )}
         </Stack>
