@@ -117,3 +117,79 @@ describe('PromoteService.upsertCharts — SQL-authored field gate', () => {
         ).rejects.toThrow(/Naughty chart/);
     });
 });
+
+describe('PromoteService.getPromoteChartDiff — SQL-authored field gate', () => {
+    const upstreamProjectUuid = 'upstream-project-uuid';
+    const chartWithSqlFields = {
+        ...promotedChart.chart,
+        name: 'Naughty chart',
+        metricQuery: {
+            ...promotedChart.chart.metricQuery,
+            customDimensions: [sqlCustomDim],
+        },
+    };
+
+    const savedChartModel = {
+        getSummary: jest.fn(async () => ({
+            projectUuid: promotedChart.chart.projectUuid,
+        })),
+        get: jest.fn(async () => chartWithSqlFields),
+        find: jest.fn(async () => []),
+    };
+    const projectModel = {
+        getSummary: jest.fn(async () => ({ upstreamProjectUuid })),
+    };
+    const spaceModel = {
+        getSpaceSummary: jest.fn(async () => promotedChart.space),
+        getSpaceAncestors: jest.fn(async () => []),
+        find: jest.fn(async () => []),
+    };
+    const spacePermissionService = {
+        getSpaceAccessContext: jest.fn(async () => ({
+            organizationUuid: promotedChart.chart.organizationUuid,
+            projectUuid: promotedChart.chart.projectUuid,
+            inheritsFromOrgOrProject: true,
+            access: [],
+        })),
+    };
+
+    const service = new PromoteService({
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        projectModel: projectModel as unknown as ProjectModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: {} as unknown as SavedSqlModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        dashboardModel: {} as unknown as DashboardModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('throws CustomSqlQueryForbiddenError when source chart contains SQL fields and user lacks manage:CustomFields at destination', async () => {
+        await expect(
+            service.getPromoteChartDiff(
+                userWithoutCustomFields,
+                promotedChart.chart.uuid,
+            ),
+        ).rejects.toThrow(CustomSqlQueryForbiddenError);
+    });
+
+    it('does not throw when user has manage:CustomFields', async () => {
+        const userWithCustomFields = {
+            ...userWithoutCustomFields,
+            ability: new Ability<PossibleAbilities>([
+                { subject: 'CustomFields', action: 'manage' },
+            ]),
+        };
+        await expect(
+            service.getPromoteChartDiff(
+                userWithCustomFields,
+                promotedChart.chart.uuid,
+            ),
+        ).resolves.toBeDefined();
+    });
+});

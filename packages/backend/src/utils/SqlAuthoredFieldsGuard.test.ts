@@ -9,7 +9,10 @@ import {
     type SqlTableCalculation,
 } from '@lightdash/common';
 import { type CaslAuditWrapper } from '../logging/caslAuditWrapper';
-import { assertCanWriteSqlAuthoredFields } from './SqlAuthoredFieldsGuard';
+import {
+    assertCanAccessSqlAuthoredFields,
+    stripSqlBodiesIfForbidden,
+} from './SqlAuthoredFieldsGuard';
 
 const baseMetricQuery: Pick<
     MetricQuery,
@@ -37,10 +40,11 @@ const sqlTableCalc: SqlTableCalculation = {
 
 const buildAbility = (allowed: boolean): CaslAuditWrapper<Ability> =>
     ({
+        can: jest.fn(() => allowed),
         cannot: jest.fn(() => !allowed),
     }) as unknown as CaslAuditWrapper<Ability>;
 
-describe('assertCanWriteSqlAuthoredFields', () => {
+describe('assertCanAccessSqlAuthoredFields', () => {
     const args = {
         organizationUuid: 'org-uuid',
         projectUuid: 'project-uuid',
@@ -48,7 +52,7 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('does not throw when metricQuery has no SQL-authored fields', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(false),
                 metricQuery: baseMetricQuery,
@@ -58,14 +62,14 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('does not throw when metricQuery is null or undefined', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(false),
                 metricQuery: null,
             }),
         ).not.toThrow();
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(false),
                 metricQuery: undefined,
@@ -75,7 +79,7 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('throws when metricQuery has a SQL custom dimension and user lacks scope', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(false),
                 metricQuery: {
@@ -88,7 +92,7 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('does not throw when metricQuery has a SQL custom dimension and user has scope', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(true),
                 metricQuery: {
@@ -101,7 +105,7 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('throws when metricQuery has a SQL table calculation and user lacks scope', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(false),
                 metricQuery: {
@@ -114,7 +118,7 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('does not throw when metricQuery has a SQL table calculation and user has scope', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(true),
                 metricQuery: {
@@ -127,7 +131,7 @@ describe('assertCanWriteSqlAuthoredFields', () => {
 
     it('uses the supplied error message when provided', () => {
         expect(() =>
-            assertCanWriteSqlAuthoredFields({
+            assertCanAccessSqlAuthoredFields({
                 ...args,
                 ability: buildAbility(false),
                 metricQuery: {
@@ -137,5 +141,51 @@ describe('assertCanWriteSqlAuthoredFields', () => {
                 errorMessage: 'custom write-context message',
             }),
         ).toThrow('custom write-context message');
+    });
+});
+
+describe('stripSqlBodiesIfForbidden', () => {
+    const args = {
+        organizationUuid: 'org-uuid',
+        projectUuid: 'project-uuid',
+    };
+
+    const fullMetricQuery: MetricQuery = {
+        exploreName: 'orders',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [sqlTableCalc],
+        customDimensions: [sqlCustomDim],
+    };
+
+    it('returns the metricQuery unchanged when user has scope', () => {
+        const result = stripSqlBodiesIfForbidden({
+            ...args,
+            ability: buildAbility(true),
+            metricQuery: fullMetricQuery,
+        });
+        expect(result.customDimensions?.[0]).toEqual(
+            expect.objectContaining({ sql: sqlCustomDim.sql }),
+        );
+        expect(result.tableCalculations[0]).toEqual(
+            expect.objectContaining({ sql: sqlTableCalc.sql }),
+        );
+    });
+
+    it('strips SQL bodies from custom dimensions and table calculations when user lacks scope', () => {
+        const result = stripSqlBodiesIfForbidden({
+            ...args,
+            ability: buildAbility(false),
+            metricQuery: fullMetricQuery,
+        });
+        expect(result.customDimensions?.[0]).toEqual(
+            expect.objectContaining({ sql: '' }),
+        );
+        expect(result.tableCalculations[0]).toEqual(
+            expect.objectContaining({ sql: '' }),
+        );
     });
 });

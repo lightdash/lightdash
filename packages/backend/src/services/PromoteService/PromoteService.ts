@@ -8,7 +8,6 @@ import {
     ForbiddenError,
     getDeepestPaths,
     getErrorMessage,
-    hasSqlAuthoredFields,
     isDashboardChartTileType,
     isSubPath,
     NotFoundError,
@@ -36,6 +35,10 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import {
+    assertCanAccessSqlAuthoredFields,
+    hasForbiddenSqlAuthoredFields,
+} from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import type {
     SpaceAccessContextForCasl,
@@ -783,16 +786,13 @@ export class PromoteService extends BaseService {
                     change.action === PromotionAction.UPDATE,
             )
             .map((change) => change.data)
-            .filter(
-                (chart) =>
-                    hasSqlAuthoredFields(chart.metricQuery) &&
-                    auditedAbility.cannot(
-                        'manage',
-                        subject('CustomFields', {
-                            organizationUuid: chart.organizationUuid,
-                            projectUuid: chart.projectUuid,
-                        }),
-                    ),
+            .filter((chart) =>
+                hasForbiddenSqlAuthoredFields({
+                    ability: auditedAbility,
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    metricQuery: chart.metricQuery,
+                }),
             );
         if (blockedCharts.length > 0) {
             const names = blockedCharts.map((chart) => chart.name).join(', ');
@@ -1155,6 +1155,16 @@ export class PromoteService extends BaseService {
             chartUuid,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
+        assertCanAccessSqlAuthoredFields({
+            ability: auditedAbility,
+            organizationUuid: promotedChart.chart.organizationUuid,
+            projectUuid: upstreamProjectUuid,
+            metricQuery: promotedChart.chart.metricQuery,
+            errorMessage:
+                'User cannot view promotion diff for charts containing custom SQL fields',
+        });
+
         const promotionChanges = await this.getChartChanges(
             promotedChart,
             upstreamChart,
@@ -1300,6 +1310,24 @@ export class PromoteService extends BaseService {
                 promotedDashboard,
                 upstreamDashboard,
             );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        const blockedCharts = promotionChanges.charts
+            .map((change) => change.data)
+            .filter((chart) =>
+                hasForbiddenSqlAuthoredFields({
+                    ability: auditedAbility,
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: upstreamProjectUuid,
+                    metricQuery: chart.metricQuery,
+                }),
+            );
+        if (blockedCharts.length > 0) {
+            const names = blockedCharts.map((chart) => chart.name).join(', ');
+            throw new CustomSqlQueryForbiddenError(
+                `User cannot view promotion diff for dashboard charts containing custom SQL fields: ${names}`,
+            );
+        }
 
         return {
             ...promotionChanges,
