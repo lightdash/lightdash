@@ -59,8 +59,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
         context = getTestContext();
         const services = getServices(context.app);
 
-        const enableReasoning = process.env.OPENAI_REASONING_ENABLED === 'true';
-
         // Create specialized agent with tags
         const specialized = await services.aiAgentService.createAgent(
             context.testUser,
@@ -77,7 +75,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 imageUrl: null,
                 enableDataAccess: true,
                 enableSelfImprovement: false,
-                enableReasoning,
                 version: 2,
             },
         );
@@ -98,7 +95,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 imageUrl: null,
                 enableDataAccess: true,
                 enableSelfImprovement: false,
-                enableReasoning,
                 version: 2,
                 description: null,
             },

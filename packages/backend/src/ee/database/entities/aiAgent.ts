@@ -12,7 +12,13 @@ export type DbAiAgent = {
     tags: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;
-    enable_reasoning: boolean;
+    /**
+     * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
+     * `agent-reasoning` was never enabled in PostHog so this column was effectively
+     * unused. Reasoning is now controlled per-prompt via `ai_prompt.model_config.reasoning`.
+     * Column kept temporarily (made nullable) for safe rollback; drop in a follow-up migration.
+     */
+    enable_reasoning: boolean | null;
     version: number;
     created_at: Date;
     updated_at: Date;
@@ -21,10 +27,18 @@ export type DbAiAgent = {
 export type AiAgentTable = Knex.CompositeTableType<
     // base
     DbAiAgent,
-    // insert
-    Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>,
+    // insert — `enable_reasoning` is deprecated and no longer written; column is nullable so DB defaults to NULL
+    Omit<
+        DbAiAgent,
+        'ai_agent_uuid' | 'created_at' | 'updated_at' | 'enable_reasoning'
+    >,
     // update
-    Partial<Omit<DbAiAgent, 'ai_agent_uuid' | 'created_at' | 'updated_at'>> & {
+    Partial<
+        Omit<
+            DbAiAgent,
+            'ai_agent_uuid' | 'created_at' | 'updated_at' | 'enable_reasoning'
+        >
+    > & {
         updated_at: Knex.Raw;
     }
 >;
