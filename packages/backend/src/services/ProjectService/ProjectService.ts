@@ -6524,13 +6524,13 @@ export class ProjectService extends BaseService {
     }
 
     async getProjectGroupAccesses(
-        actor: SessionUser,
+        user: SessionUser,
         projectUuid: string,
     ): Promise<ProjectGroupAccess[]> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
                 'manage',
