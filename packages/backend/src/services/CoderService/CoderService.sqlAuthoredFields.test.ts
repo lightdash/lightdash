@@ -6,8 +6,10 @@ import {
     DimensionType,
     OrganizationMemberRole,
     PossibleAbilities,
+    TableCalculationType,
     type ChartAsCode,
     type CustomSqlDimension,
+    type SqlTableCalculation,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
@@ -120,5 +122,118 @@ describe('CoderService.upsertChart — SQL-authored field gate', () => {
             ),
         ).rejects.toThrow(CustomSqlQueryForbiddenError);
         expect(savedChartModel.find).not.toHaveBeenCalled();
+    });
+});
+
+const sqlTableCalc: SqlTableCalculation = {
+    name: 'doubled',
+    displayName: 'doubled',
+    sql: '${orders.amount} * 2',
+    type: TableCalculationType.NUMBER,
+};
+
+const buildSavedChart = (
+    overrides: {
+        customDimensions?: CustomSqlDimension[];
+        tableCalculations?: SqlTableCalculation[];
+    } = {},
+) => ({
+    uuid: 'saved-chart-uuid',
+    organizationUuid,
+    projectUuid,
+    spaceUuid: 'space-uuid',
+    spaceName: 'space',
+    name: 'Naughty chart',
+    description: '',
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: overrides.tableCalculations ?? [],
+        customDimensions: overrides.customDimensions ?? [],
+    },
+    chartConfig: { type: ChartType.CARTESIAN, config: undefined },
+    tableConfig: { columnOrder: [] },
+    pinnedListUuid: null,
+    pinnedListOrder: null,
+    dashboardUuid: null,
+    dashboardName: null,
+    colorPalette: [],
+    slug: 'naughty-chart',
+    verification: null,
+    updatedAt: new Date(),
+});
+
+const adminUserWithoutCustomFields = {
+    ...baseUser,
+    ability: new Ability<PossibleAbilities>([
+        { subject: 'ContentAsCode', action: 'manage' },
+        { subject: 'Project', action: 'manage' },
+    ]),
+};
+
+describe('CoderService.getCharts — SQL-authored field gate', () => {
+    const savedChartModelGetCharts = {
+        find: jest.fn(async () => [
+            { uuid: 'saved-chart-uuid', spaceUuid: 'space-uuid' },
+        ]),
+        get: jest.fn(async () =>
+            buildSavedChart({
+                customDimensions: [sqlCustomDim],
+                tableCalculations: [sqlTableCalc],
+            }),
+        ),
+        getSlugsForUuids: jest.fn(async () => ['naughty-chart']),
+    };
+
+    const dashboardModelMock = {
+        getSlugsForUuids: jest.fn(async () => ({})),
+    };
+
+    const spaceModelMock = {
+        find: jest.fn(async () => [
+            {
+                uuid: 'space-uuid',
+                projectUuid,
+                organizationUuid,
+                path: 'jaffle_shop',
+            },
+        ]),
+    };
+
+    const contentVerificationModelMock = {
+        getByContentUuids: jest.fn(async () => new Map()),
+    };
+
+    const service = new CoderService({
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        projectModel: projectModel as unknown as ProjectModel,
+        savedChartModel: savedChartModelGetCharts as unknown as SavedChartModel,
+        savedSqlModel: {} as unknown as SavedSqlModel,
+        dashboardModel: dashboardModelMock as unknown as DashboardModel,
+        spaceModel: spaceModelMock as unknown as SpaceModel,
+        schedulerClient: {} as unknown as SchedulerClient,
+        promoteService: {} as unknown as PromoteService,
+        spacePermissionService: {} as unknown as SpacePermissionService,
+        contentVerificationModel:
+            contentVerificationModelMock as unknown as ContentVerificationModel,
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('throws CustomSqlQueryForbiddenError listing offending chart names when user lacks manage:CustomFields', async () => {
+        await expect(
+            service.getCharts(adminUserWithoutCustomFields, projectUuid),
+        ).rejects.toThrow(/Naughty chart/);
+        expect(
+            contentVerificationModelMock.getByContentUuids,
+        ).not.toHaveBeenCalled();
     });
 });

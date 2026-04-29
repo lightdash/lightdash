@@ -79,7 +79,10 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { assertCanWriteSqlAuthoredFields } from '../../utils/SqlAuthoredFieldsGuard';
+import {
+    assertCanAccessSqlAuthoredFields,
+    stripSqlBodiesIfForbidden,
+} from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -1084,8 +1087,17 @@ export class SavedChartService
             },
         });
 
+        const auditedAbility = this.createAuditedAbility(account);
+        const metricQuery = stripSqlBodiesIfForbidden({
+            ability: auditedAbility,
+            organizationUuid: savedChart.organizationUuid,
+            projectUuid: savedChart.projectUuid,
+            metricQuery: savedChart.metricQuery,
+        });
+
         return {
             ...savedChart,
+            metricQuery,
             inheritsFromOrgOrProject,
             access,
         };
@@ -1240,11 +1252,12 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        assertCanWriteSqlAuthoredFields({
+        assertCanAccessSqlAuthoredFields({
             ability: auditedAbility,
             organizationUuid,
             projectUuid,
             metricQuery: savedChart.metricQuery,
+            errorMessage: 'User cannot save queries with custom SQL fields',
         });
 
         if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {

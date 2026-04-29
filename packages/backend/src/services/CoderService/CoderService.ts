@@ -9,6 +9,7 @@ import {
     ContentType,
     CreateSavedChart,
     currentVersion,
+    CustomSqlQueryForbiddenError,
     DashboardAsCode,
     DashboardAsCodeInternalization,
     DashboardDAO,
@@ -20,6 +21,7 @@ import {
     friendlyName,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
+    hasSqlAuthoredFields,
     NotFoundError,
     Project,
     PromotionAction,
@@ -52,7 +54,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { assertCanWriteSqlAuthoredFields } from '../../utils/SqlAuthoredFieldsGuard';
+import { assertCanAccessSqlAuthoredFields } from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -813,6 +815,24 @@ export class CoderService extends BaseService {
         );
         const charts = await Promise.all(chartPromises);
 
+        const blockedCharts = charts.filter(
+            (chart) =>
+                hasSqlAuthoredFields(chart.metricQuery) &&
+                auditedAbility.cannot(
+                    'manage',
+                    subject('CustomFields', {
+                        organizationUuid: chart.organizationUuid,
+                        projectUuid: chart.projectUuid,
+                    }),
+                ),
+        );
+        if (blockedCharts.length > 0) {
+            const names = blockedCharts.map((chart) => chart.name).join(', ');
+            throw new CustomSqlQueryForbiddenError(
+                `User cannot download charts containing custom SQL fields: ${names}`,
+            );
+        }
+
         // get all spaces to map  dashboardSlug
         const dashboardUuids = charts.reduce<string[]>((acc, chart) => {
             if (chart.dashboardUuid) {
@@ -1098,7 +1118,7 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
 
-        assertCanWriteSqlAuthoredFields({
+        assertCanAccessSqlAuthoredFields({
             ability: auditedAbility,
             organizationUuid: project.organizationUuid,
             projectUuid: project.projectUuid,
