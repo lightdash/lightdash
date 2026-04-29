@@ -13,6 +13,7 @@ import {
     IconClock,
     IconDots,
     IconExternalLink,
+    IconFolder,
     IconLayoutDashboard,
     IconPencil,
     IconRadar,
@@ -148,6 +149,40 @@ const MyAppsPanel: FC = () => {
                         {row.original.projectName}
                     </Text>
                 ),
+            },
+            {
+                accessorKey: 'spaceName',
+                header: 'Space',
+                enableSorting: false,
+                size: 150,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconFolder} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const { spaceUuid, spaceName, projectUuid } = row.original;
+                    if (!spaceUuid || !spaceName) {
+                        return (
+                            <Text fz="sm" c="dimmed">
+                                -
+                            </Text>
+                        );
+                    }
+                    return (
+                        <Anchor
+                            component={Link}
+                            to={`/projects/${projectUuid}/spaces/${spaceUuid}`}
+                            fz="sm"
+                            c="inherit"
+                            underline="hover"
+                            truncate="end"
+                        >
+                            {spaceName}
+                        </Anchor>
+                    );
+                },
             },
             {
                 accessorKey: 'lastVersionStatus',
