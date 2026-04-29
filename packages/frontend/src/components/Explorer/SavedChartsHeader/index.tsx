@@ -740,8 +740,7 @@ const SavedChartsHeader: FC = () => {
                                     </Menu.Item>
                                 )}
                                 {changeChartExploreEnabled &&
-                                    userCanManageChart &&
-                                    !isEditMode && (
+                                    userCanManageChart && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
