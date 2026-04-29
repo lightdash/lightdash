@@ -575,16 +575,16 @@ export class OrganizationService extends BaseService {
     }
 
     async addGroupToOrganization(
-        actor: SessionUser,
+        user: SessionUser,
         createGroup: CreateGroup,
     ): Promise<GroupWithMembers> {
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            actor.organizationUuid === undefined ||
+            user.organizationUuid === undefined ||
             auditedAbility.cannot(
                 'create',
                 subject('Group', {
-                    organizationUuid: actor.organizationUuid,
+                    organizationUuid: user.organizationUuid,
                 }),
             )
         ) {
@@ -592,15 +592,15 @@ export class OrganizationService extends BaseService {
         }
 
         const groupWithMembers = await this.groupsModel.createGroup({
-            createdByUserUuid: actor.userUuid,
+            createdByUserUuid: user.userUuid,
             createGroup: {
-                organizationUuid: actor.organizationUuid,
+                organizationUuid: user.organizationUuid,
                 ...createGroup,
             },
         });
 
         this.analytics.track({
-            userId: actor.userUuid,
+            userId: user.userUuid,
             event: 'group.created',
             properties: {
                 organizationId: groupWithMembers.organizationUuid,
@@ -615,23 +615,23 @@ export class OrganizationService extends BaseService {
     }
 
     async listGroupsInOrganization(
-        actor: SessionUser,
+        user: SessionUser,
         includeMembers?: number,
         paginateArgs?: KnexPaginateArgs,
         searchQuery?: string,
     ): Promise<KnexPaginatedData<Group[] | GroupWithMembers[]>> {
-        if (actor.organizationUuid === undefined) {
+        if (user.organizationUuid === undefined) {
             throw new ForbiddenError();
         }
         const { pagination, data: groups } = await this.groupsModel.find(
             {
-                organizationUuid: actor.organizationUuid,
+                organizationUuid: user.organizationUuid,
                 searchQuery,
             },
             paginateArgs,
         );
 
-        const auditedAbility = this.createAuditedAbility(actor);
+        const auditedAbility = this.createAuditedAbility(user);
         const allowedGroups = groups.filter((group) =>
             auditedAbility.can('view', subject('Group', group)),
         );
@@ -645,7 +645,7 @@ export class OrganizationService extends BaseService {
 
         // fetch members for each group
         const { data: groupMembers } = await this.groupsModel.findGroupMembers({
-            organizationUuid: actor.organizationUuid,
+            organizationUuid: user.organizationUuid,
             groupUuids: allowedGroups.map((group) => group.uuid),
         });
         const groupMembersMap = groupBy(groupMembers, 'groupUuid');
