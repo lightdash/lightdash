@@ -2,11 +2,39 @@ import { subject, type Ability } from '@casl/ability';
 import {
     CustomSqlQueryForbiddenError,
     hasSqlAuthoredFields,
+    stripSqlBodiesFromMetricQuery,
     type MetricQuery,
 } from '@lightdash/common';
 import { type CaslAuditWrapper } from '../logging/caslAuditWrapper';
 
-export const assertCanWriteSqlAuthoredFields = ({
+const canManageCustomFields = (
+    ability: CaslAuditWrapper<Ability>,
+    organizationUuid: string,
+    projectUuid: string,
+): boolean =>
+    ability.can(
+        'manage',
+        subject('CustomFields', { organizationUuid, projectUuid }),
+    );
+
+export const hasForbiddenSqlAuthoredFields = ({
+    ability,
+    organizationUuid,
+    projectUuid,
+    metricQuery,
+}: {
+    ability: CaslAuditWrapper<Ability>;
+    organizationUuid: string;
+    projectUuid: string;
+    metricQuery:
+        | Pick<MetricQuery, 'customDimensions' | 'tableCalculations'>
+        | null
+        | undefined;
+}): boolean =>
+    hasSqlAuthoredFields(metricQuery) &&
+    !canManageCustomFields(ability, organizationUuid, projectUuid);
+
+export const assertCanAccessSqlAuthoredFields = ({
     ability,
     organizationUuid,
     projectUuid,
@@ -23,14 +51,24 @@ export const assertCanWriteSqlAuthoredFields = ({
     errorMessage?: string;
 }): void => {
     if (!hasSqlAuthoredFields(metricQuery)) return;
-    if (
-        ability.cannot(
-            'manage',
-            subject('CustomFields', { organizationUuid, projectUuid }),
-        )
-    ) {
+    if (!canManageCustomFields(ability, organizationUuid, projectUuid)) {
         throw new CustomSqlQueryForbiddenError(
-            errorMessage ?? 'User cannot save queries with custom SQL fields',
+            errorMessage ?? 'User cannot access custom SQL fields',
         );
     }
 };
+
+export const stripSqlBodiesIfForbidden = <T extends MetricQuery>({
+    ability,
+    organizationUuid,
+    projectUuid,
+    metricQuery,
+}: {
+    ability: CaslAuditWrapper<Ability>;
+    organizationUuid: string;
+    projectUuid: string;
+    metricQuery: T;
+}): T =>
+    canManageCustomFields(ability, organizationUuid, projectUuid)
+        ? metricQuery
+        : stripSqlBodiesFromMetricQuery(metricQuery);
