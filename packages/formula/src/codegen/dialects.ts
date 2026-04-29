@@ -16,10 +16,7 @@ export interface DialectConfig {
     generateStringLiteral?: (node: StringLiteralNode) => string;
     generateModulo?: (left: string, right: string) => string;
     generateConcat?: (args: string[]) => string;
-    // SUBSTRING emission. Default `SUBSTRING(text, start, length)` works on
-    // Postgres, Redshift, Snowflake, DuckDB, Databricks, ClickHouse, Trino
-    // and Athena. BigQuery overrides with `SUBSTR(...)` since `SUBSTRING`
-    // does not exist there.
+    // SUBSTRING emission. Default `SUBSTRING(t, s, l)` works everywhere except BigQuery, which calls it `SUBSTR`.
     generateSubstring?: (text: string, start: string, length: string) => string;
     generateLagLead?: (ctx: LagLeadContext) => string;
     // AVG emission. Covers both the aggregate `=AVG(A)` and the windowed
