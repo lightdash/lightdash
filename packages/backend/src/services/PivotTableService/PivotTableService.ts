@@ -180,7 +180,7 @@ export class PivotTableService extends BaseService {
 
         return {
             fileUrl: attachmentUrl.path,
-            s3FileUrl: attachmentUrl.s3FileUrl,
+            s3FileUrl: attachmentUrl.localPath,
             truncated: finalTruncated,
         };
     }
@@ -339,8 +339,7 @@ export class PivotTableService extends BaseService {
             return {
                 filename: fileName,
                 path: url,
-                localPath: filePath,
-                s3FileUrl,
+                localPath: s3FileUrl,
                 truncated,
             };
         }
