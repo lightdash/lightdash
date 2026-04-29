@@ -33,7 +33,9 @@ export class AppModel {
 
     async createWithVersion(
         app: Pick<DbApp, 'project_uuid' | 'created_by_user_uuid'> &
-            Partial<Pick<DbApp, 'app_id' | 'name' | 'description'>>,
+            Partial<
+                Pick<DbApp, 'app_id' | 'name' | 'description' | 'template'>
+            >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
         resources?: AppVersionResources,
@@ -274,6 +276,7 @@ export class AppModel {
         createdByUserUuid: string;
         organizationUuid: string;
         spaceUuid: string | null;
+        template: DbApp['template'];
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
         versions: DbAppVersion[];
@@ -310,6 +313,7 @@ export class AppModel {
                 `${AppsTableName}.description`,
                 `${AppsTableName}.created_by_user_uuid`,
                 `${AppsTableName}.space_uuid`,
+                `${AppsTableName}.template`,
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
@@ -330,6 +334,7 @@ export class AppModel {
             description: string;
             created_by_user_uuid: string;
             space_uuid: string | null;
+            template: DbApp['template'];
             organization_uuid: string;
             pinned_list_uuid: string | null;
             pinned_list_order: number | null;
@@ -346,6 +351,7 @@ export class AppModel {
             description,
             created_by_user_uuid: createdByUserUuid,
             space_uuid: spaceUuid,
+            template,
             organization_uuid: organizationUuid,
             pinned_list_uuid: pinnedListUuid,
             pinned_list_order: pinnedListOrder,
@@ -360,6 +366,7 @@ export class AppModel {
                 description: string;
                 created_by_user_uuid: string;
                 space_uuid: string | null;
+                template: DbApp['template'];
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
@@ -372,6 +379,7 @@ export class AppModel {
             createdByUserUuid,
             organizationUuid,
             spaceUuid,
+            template,
             pinnedListUuid,
             pinnedListOrder,
             versions: versions.slice(0, limit),

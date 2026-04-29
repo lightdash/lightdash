@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Group,
     Image,
@@ -53,6 +54,7 @@ import {
     useParams,
 } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import MantineIcon from '../components/common/MantineIcon';
 import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../components/common/modal/AppUpdateModal';
 import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
@@ -168,6 +170,22 @@ const LoadingDots: FC = () => (
         <span className={classes.loadingDot} />
     </span>
 );
+
+const TemplateChip: FC<{ template: DataAppTemplate }> = ({ template }) => {
+    const t = getTemplate(template);
+    return (
+        <Group gap="xs" pb="xs">
+            <Badge
+                variant="light"
+                color="gray"
+                size="md"
+                leftSection={<MantineIcon icon={t.icon} size={12} />}
+            >
+                {t.title}
+            </Badge>
+        </Group>
+    );
+};
 
 const AppGenerate: FC = () => {
     const { projectUuid, appUuid: urlAppUuid } = useParams<{
@@ -327,6 +345,7 @@ const AppGenerate: FC = () => {
     const appDescription = appData?.pages?.[0]?.description ?? '';
     const appSpaceUuid = appData?.pages?.[0]?.spaceUuid ?? null;
     const appCreatedByUserUuid = appData?.pages?.[0]?.createdByUserUuid ?? null;
+    const appPersistedTemplate = appData?.pages?.[0]?.template ?? null;
 
     // Used to resolve the user's space role when checking manage rights for
     // an existing app — space editors/admins inherit manage on its data app.
@@ -466,6 +485,16 @@ const AppGenerate: FC = () => {
     // The starter-template wizard only shows for v1 of a brand-new app -
     // before the URL has an appUuid and before any messages exist.
     const isNewApp = !urlAppUuid && !activeAppUuid;
+    // Template chip: in-flight selection for new apps; persisted value for
+    // existing apps so it survives reload. 'custom' is the absence of a
+    // template, so we don't render a chip for it in either case.
+    const candidateTemplate = isNewApp
+        ? selectedTemplate
+        : appPersistedTemplate;
+    const displayTemplate: DataAppTemplate | null =
+        candidateTemplate && candidateTemplate !== 'custom'
+            ? candidateTemplate
+            : null;
     // While the wizard is in pick/questions, the chat input area is hidden
     // - the wizard's own buttons drive the flow. When stage='confirm', the
     // input area reappears with the composed prompt prefilled for the user
@@ -1147,6 +1176,9 @@ const AppGenerate: FC = () => {
                                     onChange={handleFileInputChange}
                                     hidden
                                 />
+                                {displayTemplate && (
+                                    <TemplateChip template={displayTemplate} />
+                                )}
                                 <Box className={classes.inputWrapper}>
                                     <Box className={classes.textareaColumn}>
                                         <Textarea
