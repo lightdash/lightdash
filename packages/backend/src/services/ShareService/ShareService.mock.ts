@@ -3,9 +3,11 @@ import {
     LightdashMode,
     OrganizationMemberRole,
     PossibleAbilities,
+    SessionAccount,
     SessionUser,
     ShareUrl,
 } from '@lightdash/common';
+import { fromSession } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 
 export const Config = {
@@ -50,6 +52,10 @@ export const UserFromAnotherOrg: SessionUser = {
         },
     ]),
 };
+
+export const Account: SessionAccount = fromSession(User);
+export const AccountFromAnotherOrg: SessionAccount =
+    fromSession(UserFromAnotherOrg);
 
 export const SampleShareUrl: ShareUrl = {
     nanoid: 'abc123',

@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
+    assertIsAccountWithOrg,
     ForbiddenError,
     isUserWithOrg,
     NotFoundError,
@@ -42,16 +44,14 @@ export class ShareService extends BaseService {
         };
     }
 
-    async getShareUrl(user: SessionUser, nanoid: string): Promise<ShareUrl> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+    async getShareUrl(account: Account, nanoid: string): Promise<ShareUrl> {
+        assertIsAccountWithOrg(account);
         const shareUrl = await this.shareModel.getSharedUrl(nanoid);
         if (!shareUrl.organizationUuid) {
             throw new NotFoundError('Shared link does not exist');
         }
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -64,11 +64,11 @@ export class ShareService extends BaseService {
             throw new ForbiddenError();
         }
         this.analytics.track({
-            userId: user.userUuid,
+            userId: account.user.id,
             event: 'share_url.used',
             properties: {
                 path: shareUrl.path,
-                organizationId: user.organizationUuid,
+                organizationId: account.organization.organizationUuid,
             },
         });
         return this.shareUrlWithHost(shareUrl);

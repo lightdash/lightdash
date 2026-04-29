@@ -1,13 +1,12 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     CustomSqlQueryForbiddenError,
     ForbiddenError,
     hasSqlAuthoredFields,
-    SessionUser,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
 } from '@lightdash/common';
-import { fromSession } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -62,13 +61,13 @@ export class GdriveService extends BaseService {
     }
 
     async scheduleUploadGsheet(
-        user: SessionUser,
+        account: Account,
         gsheetOptions: UploadMetricGsheet,
     ) {
         const projectSummary = await this.projectModel.getSummary(
             gsheetOptions.projectUuid,
         );
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         const projectMetadata = {
             projectUuid: projectSummary.projectUuid,
             projectName: projectSummary.name,
@@ -115,12 +114,12 @@ export class GdriveService extends BaseService {
 
         const { organizationUuid } = await this.projectService.getProject(
             gsheetOptions.projectUuid,
-            fromSession(user),
+            account,
         );
 
         const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             organizationUuid,
         };
 

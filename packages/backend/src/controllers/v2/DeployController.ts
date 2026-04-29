@@ -49,7 +49,7 @@ export class DeployController extends BaseController {
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
-            .startDeploySession(req.user!, projectUuid);
+            .startDeploySession(req.account!, projectUuid);
         return {
             status: 'ok',
             results: result,

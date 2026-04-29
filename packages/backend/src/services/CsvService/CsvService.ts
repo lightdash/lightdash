@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AnyType,
     ApiSqlQueryResults,
     DashboardFilters,
@@ -620,7 +621,7 @@ export class CsvService extends BaseService {
      * This method is used to schedule a CSV download for a dashboard.
      */
     async scheduleExportCsvDashboard(
-        user: SessionUser,
+        account: Account,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
         selectedTabs: string[] | null,
@@ -628,7 +629,7 @@ export class CsvService extends BaseService {
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -653,7 +654,7 @@ export class CsvService extends BaseService {
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             schedulerUuid: undefined,
         };
         const { jobId } = await this.schedulerClient.scheduleTask(

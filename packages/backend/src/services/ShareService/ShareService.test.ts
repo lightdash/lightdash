@@ -3,13 +3,14 @@ import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { ShareModel } from '../../models/ShareModel';
 import { ShareService } from './ShareService';
 import {
+    Account,
+    AccountFromAnotherOrg,
     Config,
     FullShareUrl,
     FullShareUrlWithoutParams,
     SampleShareUrl,
     ShareUrlWithoutParams,
     User,
-    UserFromAnotherOrg,
 } from './ShareService.mock';
 
 const shareModel = {
@@ -39,7 +40,7 @@ describe('share', () => {
     });
     it('Should get saved sharedUrl', async () => {
         expect(
-            await shareService.getShareUrl(User, SampleShareUrl.nanoid),
+            await shareService.getShareUrl(Account, SampleShareUrl.nanoid),
         ).toEqual(FullShareUrl);
     });
 
@@ -49,13 +50,19 @@ describe('share', () => {
         );
 
         expect(
-            await shareService.getShareUrl(User, ShareUrlWithoutParams.nanoid),
+            await shareService.getShareUrl(
+                Account,
+                ShareUrlWithoutParams.nanoid,
+            ),
         ).toEqual(FullShareUrlWithoutParams);
     });
 
     it('Should throw error if user does not have access to the organization', async () => {
         await expect(
-            shareService.getShareUrl(UserFromAnotherOrg, SampleShareUrl.nanoid),
+            shareService.getShareUrl(
+                AccountFromAnotherOrg,
+                SampleShareUrl.nanoid,
+            ),
         ).rejects.toThrowError(ForbiddenError);
     });
 });

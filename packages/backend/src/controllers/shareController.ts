@@ -42,7 +42,7 @@ export class ShareController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getShareService()
-                .getShareUrl(req.user!, nanoId),
+                .getShareUrl(req.account!, nanoId),
         };
     }
 

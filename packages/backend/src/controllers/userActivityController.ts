@@ -56,7 +56,7 @@ export class UserActivityController extends BaseController {
         this.setStatus(200);
         const userActivity = await req.services
             .getAnalyticsService()
-            .getUserActivity(projectUuid, req.user!);
+            .getUserActivity(projectUuid, req.account!);
         return {
             status: 'ok',
             results: userActivity,
@@ -82,7 +82,7 @@ export class UserActivityController extends BaseController {
         this.setStatus(200);
         const userActivity = await req.services
             .getAnalyticsService()
-            .exportUserActivityRawCsv(projectUuid, req.user!);
+            .exportUserActivityRawCsv(projectUuid, req.account!);
         return {
             status: 'ok',
             results: userActivity,

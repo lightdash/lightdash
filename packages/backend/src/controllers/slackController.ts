@@ -282,7 +282,7 @@ export class SlackController extends BaseController {
     ): Promise<ApiSuccessEmpty> {
         await this.services
             .getSlackIntegrationService()
-            .deleteInstallationFromOrganizationUuid(req.user!);
+            .deleteInstallationFromOrganizationUuid(req.account!);
 
         return {
             status: 'ok',

@@ -64,7 +64,7 @@ export class GoogleDriveController extends BaseController {
             status: 'ok',
             results: await req.services
                 .getGdriveService()
-                .scheduleUploadGsheet(req.user!, body),
+                .scheduleUploadGsheet(req.account!, body),
         };
     }
 }
