@@ -92,9 +92,12 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             chartConfig: chartConfig.config,
             pivotDimensions: dirtyPivotDimensions,
             queryDimensions: resultsData?.metricQuery?.dimensions ?? [],
+            queryTableCalculations:
+                resultsData?.metricQuery?.tableCalculations ?? [],
         });
     }, [
         resultsData?.metricQuery?.dimensions,
+        resultsData?.metricQuery?.tableCalculations,
         chartConfig?.type,
         chartConfig.config,
         dirtyPivotDimensions,

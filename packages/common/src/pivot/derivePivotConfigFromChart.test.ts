@@ -1044,4 +1044,137 @@ describe('derivePivotConfigurationFromChart', () => {
             ]);
         });
     });
+
+    // Regression for bug-B: when pivotConfig.columns references a TC name (not
+    // a real dimension), the line-293 filter
+    //   .filter((col) => metricQuery.dimensions.includes(col.reference))
+    // silently drops it from groupByColumns. The chart then runs as a flat
+    // long-format query — no group_by_query / pivot_query CTEs — and the user
+    // sees an un-pivoted result with no warning. Same shape as PROD-6906: the
+    // user's stated configuration is silently no-op'd. The fix should either
+    // route TCs/metrics into groupByColumns explicitly or surface a clear
+    // CompileError so this suite goes green.
+    describe('Pivot column references that are not raw dimensions (bug-B)', () => {
+        it('admits a table calculation referenced as a pivot column', () => {
+            const tableCalcAsPivotCol: TableCalculation = {
+                name: 'status_label',
+                displayName: 'Status label',
+                sql: 'upper(${orders_status})',
+            };
+
+            const itemsWithExtraDim: ItemsMap = {
+                ...mockItems,
+                customers_first_name: {
+                    sql: '${TABLE}.first_name',
+                    name: 'first_name',
+                    type: DimensionType.STRING,
+                    index: 5,
+                    label: 'First name',
+                    table: 'customers',
+                    groups: [],
+                    hidden: false,
+                    fieldType: FieldType.DIMENSION,
+                    tableLabel: 'Customers',
+                    description: 'First name',
+                },
+            };
+
+            const cartesianConfig: CartesianChartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'customers_first_name',
+                        yField: ['payments_total_revenue'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: cartesianConfig,
+                pivotConfig: { columns: ['status_label'] }, // TC as pivot column
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'orders_status',
+                    'payments_payment_method',
+                    'customers_first_name',
+                ],
+                tableCalculations: [tableCalcAsPivotCol],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithExtraDim,
+            );
+
+            // Today, groupByColumns is silently empty because of the line-293
+            // dimension-existence filter. After the fix, the TC must either be
+            // retained in groupByColumns OR the deriver must throw — but it
+            // must NOT silently produce a non-pivoted query.
+            expect(result?.groupByColumns).toEqual([
+                { reference: 'status_label' },
+            ]);
+        });
+
+        it('admits a metric referenced as a pivot column', () => {
+            const itemsWithExtraMetric: ItemsMap = {
+                ...mockItems,
+                orders_count: {
+                    sql: 'COUNT(${TABLE}.order_id)',
+                    name: 'count',
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    label: 'Order Count',
+                    hidden: false,
+                    index: 0,
+                    filters: [],
+                    groups: [],
+                },
+            };
+
+            const cartesianConfig: CartesianChartConfig = {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'payments_payment_method',
+                        yField: ['payments_total_revenue'],
+                    },
+                    eChartsConfig: { series: [] },
+                },
+            };
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig: cartesianConfig,
+                pivotConfig: { columns: ['orders_count'] }, // metric as pivot column
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                metrics: ['payments_total_revenue', 'orders_count'],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithExtraMetric,
+            );
+
+            // Same expectation: don't silently drop the pivot column.
+            expect(result?.groupByColumns).toEqual([
+                { reference: 'orders_count' },
+            ]);
+        });
+    });
 });

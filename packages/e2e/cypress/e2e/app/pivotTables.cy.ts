@@ -1,5 +1,91 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { SEED_PROJECT } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    SEED_PROJECT,
+    TableCalculationType,
+} from '@lightdash/common';
+
+const buildExploreUrl = (chartState: Record<string, unknown>) =>
+    `/projects/${SEED_PROJECT.project_uuid}/tables/orders?create_saved_chart_version=${encodeURIComponent(
+        JSON.stringify(chartState),
+    )}`;
+
+const fieldReference = (fieldId: string) => `\${${fieldId}}`;
+
+const xAxisTableCalculationChartState = {
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: [
+            'customers_first_name',
+            'customers_last_name',
+            'orders_order_date_week',
+        ],
+        metrics: ['orders_total_order_amount'],
+        filters: {},
+        sorts: [{ fieldId: 'customer_label', descending: false }],
+        limit: 500,
+        tableCalculations: [
+            {
+                name: 'customer_label',
+                displayName: 'Customer label',
+                type: TableCalculationType.STRING,
+                sql: `concat(${fieldReference(
+                    'customers.first_name',
+                )}, ' ', ${fieldReference('customers.last_name')})`,
+            },
+        ],
+        additionalMetrics: [],
+        metricOverrides: {},
+    },
+    pivotConfig: { columns: ['orders_order_date_week'] },
+    tableConfig: {
+        columnOrder: [
+            'customers_first_name',
+            'customers_last_name',
+            'orders_order_date_week',
+            'orders_total_order_amount',
+            'customer_label',
+        ],
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'customer_label',
+                yField: ['orders_total_order_amount'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        encode: {
+                            xRef: { field: 'customer_label' },
+                            yRef: { field: 'orders_total_order_amount' },
+                        },
+                    },
+                ],
+            },
+        },
+    },
+};
+
+const waitForReadyPivotRows = (
+    assertRows: (rows: Record<string, any>[]) => void,
+) => {
+    cy.wait('@pivotQueryResults', { timeout: 60000 }).then((interception) => {
+        const results = interception.response?.body?.results;
+
+        if (results?.status !== 'ready') {
+            waitForReadyPivotRows(assertRows);
+            return;
+        }
+
+        assertRows(results.rows);
+    });
+};
 
 describe('Pivot Tables', () => {
     beforeEach(() => {
@@ -45,6 +131,32 @@ describe('Pivot Tables', () => {
 
         cy.get('@chartArea').findByText('Loading chart').should('not.exist');
         cy.get('@chartArea').contains('Is completed'); // Check that the chart updated successfully with the pivot table(containing 'is completed' column)
+    });
+
+    it('Can render a pivoted cartesian chart with x-axis table calculation sorted by itself', () => {
+        cy.intercept('GET', '**/api/v2/projects/*/query/*').as(
+            'pivotQueryResults',
+        );
+
+        cy.visit(buildExploreUrl(xAxisTableCalculationChartState));
+
+        cy.get('button').contains('Run query').click();
+
+        waitForReadyPivotRows((rows) => {
+            const customerLabels = rows
+                .map((row) => row.customer_label?.value.raw)
+                .filter((value) => value !== undefined && value !== null);
+
+            expect(customerLabels.length).to.be.greaterThan(1);
+            expect(new Set(customerLabels).size).to.be.greaterThan(1);
+        });
+
+        cy.get('[data-testid="visualization"]').as('chartArea');
+        cy.get('@chartArea').findByText('Loading chart').should('not.exist');
+        cy.get('@chartArea')
+            .find('.echarts-for-react canvas, .echarts-for-react svg')
+            .should('exist');
+        cy.findByText('Results may be incorrect').should('not.exist');
     });
 
     // todo: remove

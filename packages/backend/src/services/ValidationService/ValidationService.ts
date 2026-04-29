@@ -15,6 +15,7 @@ import {
     ForbiddenError,
     getFilterRules,
     getItemId,
+    getTableCalculationReferencedFieldIds,
     getUnusedDimensions,
     getUnusedTableCalculations,
     InlineErrorType,
@@ -22,9 +23,7 @@ import {
     isDashboardFieldTarget,
     isDashboardValidationError,
     isExploreError,
-    isSqlTableCalculation,
     isTableValidationError,
-    isTemplateTableCalculation,
     isValidationTargetValid,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -187,46 +186,7 @@ export class ValidationService extends BaseService {
     static getTableCalculationFieldIds(
         tableCalculations: TableCalculation[],
     ): string[] {
-        const parseTableField = (field: string) =>
-            // Transform ${table.field} references on table calculation to table_field
-            field.replace('${', '').replace('}', '').replace('.', '_');
-
-        const tableCalculationFieldsInSql: string[] = tableCalculations.reduce<
-            string[]
-        >((acc, tc) => {
-            const regex = /\$\{([^}]+)\}/g;
-
-            if (isSqlTableCalculation(tc)) {
-                const fieldsInSql = tc.sql.match(regex);
-                if (fieldsInSql != null) {
-                    return [...acc, ...fieldsInSql.map(parseTableField)];
-                }
-            }
-
-            if (isTemplateTableCalculation(tc)) {
-                const fieldIdPart =
-                    'fieldId' in tc.template && tc.template.fieldId !== null
-                        ? [tc.template.fieldId]
-                        : [];
-                const orderByPart =
-                    'orderBy' in tc.template
-                        ? tc.template.orderBy.map((o) => o.fieldId)
-                        : [];
-                const partitionByPart =
-                    'partitionBy' in tc.template && tc.template.partitionBy
-                        ? tc.template.partitionBy
-                        : [];
-                const fieldsInTemplate = [
-                    ...fieldIdPart,
-                    ...orderByPart,
-                    ...partitionByPart,
-                ];
-                return [...acc, ...fieldsInTemplate];
-            }
-
-            return acc;
-        }, []);
-        return tableCalculationFieldsInSql;
+        return tableCalculations.flatMap(getTableCalculationReferencedFieldIds);
     }
 
     private async validateTables(
@@ -368,6 +328,7 @@ export class ValidationService extends BaseService {
                     customMetricsBaseDimensions,
                     customMetricsFilters,
                     tableCalculations,
+                    tableCalculationDefinitions,
                     chartType,
                     chartConfig,
                     pivotDimensions,
@@ -552,6 +513,7 @@ export class ValidationService extends BaseService {
                         chartConfig,
                         pivotDimensions,
                         queryDimensions: existingDimensions,
+                        queryTableCalculations: tableCalculationDefinitions,
                     });
 
                     const unusedDimensionErrors: CreateChartValidation[] =

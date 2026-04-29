@@ -470,6 +470,58 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('CROSS JOIN anchor_column ac');
         });
 
+        test('Sort-only value columns should be execution-only, not display columns', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                sortOnlyColumns: [
+                    {
+                        reference: 'orders_count',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'orders_count',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql({ columnLimit: 100 });
+            const normalized = replaceWhitespace(result);
+
+            expect(normalized).toContain(
+                'group_by_query AS (SELECT "category", "date", sum("revenue") AS "revenue_sum", (ARRAY_AGG("orders_count"))[1] AS "orders_count_any" FROM original_query group by "category", "date")',
+            );
+            expect(result).toContain('"orders_count_row_anchor" AS (');
+            expect(result).toContain('"orders_count_column_anchor" AS (');
+            expect(normalized).toContain(
+                'pivot_query AS (SELECT g."date", g."category", g."revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index"',
+            );
+            expect(normalized).not.toContain('g."orders_count_any", rr.');
+            expect(result).toContain('"column_index" <= 100');
+            expect(result).not.toContain('"column_index" <= 50');
+            expect(normalized).toContain(
+                'SELECT COUNT(*) AS total_columns FROM',
+            );
+            expect(normalized).not.toContain(
+                'SELECT COUNT(*) * 2 AS total_columns',
+            );
+        });
+
         test('Should include anchor CTEs and joins when sorting by a value column in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
@@ -3871,6 +3923,109 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(warnSpy).toHaveBeenCalledWith(
                 expect.stringContaining('missing_table_missing_metric'),
             );
+        });
+    });
+
+    // Regression for bug-C: sorting by a pivot-aware table calculation (e.g.
+    // pivot_offset, pivot_offset_list, pivot_index, pivot_column) used to
+    // silently degrade to alphabetical row order. The TC's value is computed
+    // in the pivot_table_calculations CTE that runs AFTER row_index has been
+    // assigned by pivot_query, so the anchor pipeline that powers metric
+    // sorting cannot consume the value without circularity. The fix throws
+    // a clear ParameterError so the user gets a meaningful message instead
+    // of mysterious alphabetic ordering.
+    describe('Sort by pivot-aware table calculation (bug-C)', () => {
+        test('Should reject sortBy that targets a pivot-aware table calculation', () => {
+            const itemsMap: ItemsMap = {
+                prev_revenue: {
+                    name: 'prev_revenue',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Previous revenue',
+                    sql: 'pivot_offset(${events.revenue}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'prev_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    {
+                        reference: 'prev_revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS prev_revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            expect(() => builder.toSql()).toThrow(ParameterError);
+            expect(() => builder.toSql()).toThrow(/prev_revenue/);
+            expect(() => builder.toSql()).toThrow(/pivot functions/);
+        });
+
+        test('Should still allow sort by a non-pivot value column when a pivot TC is also displayed', () => {
+            const itemsMap: ItemsMap = {
+                prev_revenue: {
+                    name: 'prev_revenue',
+                    table: 'events',
+                    tableLabel: 'Events',
+                    type: TableCalculationType.NUMBER,
+                    displayName: 'Previous revenue',
+                    sql: 'pivot_offset(${events.revenue}, -1)',
+                },
+            };
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'events_revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'prev_revenue',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                // Sort by the regular metric — the pivot TC is displayed but
+                // not the sort key. This must still work.
+                sortBy: [
+                    {
+                        reference: 'events_revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT date, category, events_revenue, null AS prev_revenue FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                500,
+                itemsMap,
+            );
+
+            // Should not throw; the offending sort target is allowed.
+            expect(() => builder.toSql()).not.toThrow();
         });
     });
 });

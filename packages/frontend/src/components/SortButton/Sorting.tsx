@@ -98,7 +98,8 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                 label: item
                     ? isField(item)
                         ? item.label || item.name
-                        : item.name
+                        : ('displayName' in item && item.displayName) ||
+                          item.name
                     : c.id,
             };
         })
