@@ -37,6 +37,7 @@ export const useUpdateApp = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['app', variables.projectUuid, variables.appUuid],
             });
+            void queryClient.invalidateQueries({ queryKey: ['myApps'] });
             void invalidateContent(queryClient, variables.projectUuid);
             const field = variables.name
                 ? 'name'
