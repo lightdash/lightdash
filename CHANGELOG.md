@@ -1,3 +1,10 @@
+# [0.2838.0](https://github.com/lightdash/lightdash/compare/0.2837.0...0.2838.0) (2026-04-29)
+
+
+### Features
+
+* **permissions:** hide "Edit calculation" in column header for SQL table calcs ([#22492](https://github.com/lightdash/lightdash/issues/22492)) ([906ce02](https://github.com/lightdash/lightdash/commit/906ce026c91c8e9ffd0f66840b7356d4fc2016d3))
+
 # [0.2837.0](https://github.com/lightdash/lightdash/compare/0.2836.2...0.2837.0) (2026-04-29)
 
 
