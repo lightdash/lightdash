@@ -4,6 +4,7 @@ import {
     DimensionType,
     FieldType,
     MetricType,
+    TableCalculationType,
     type ItemsMap,
     type TableCalculation,
 } from '../types/field';
