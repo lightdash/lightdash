@@ -1,3 +1,11 @@
+# [0.2841.0](https://github.com/lightdash/lightdash/compare/0.2840.0...0.2841.0) (2026-04-29)
+
+
+### Features
+
+* **data-apps:** opt-in chart sample data in generation prompts (GLITCH-366) ([#22472](https://github.com/lightdash/lightdash/issues/22472)) ([a8b4229](https://github.com/lightdash/lightdash/commit/a8b4229f0f3a6638efcca71712188d8c3fdc5729))
+* **permissions:** strip SQL bodies from explore-from-here URLs ([#22488](https://github.com/lightdash/lightdash/issues/22488)) ([c10b853](https://github.com/lightdash/lightdash/commit/c10b85386b63b410607b383c2c8cd04a42728b24))
+
 # [0.2840.0](https://github.com/lightdash/lightdash/compare/0.2839.1...0.2840.0) (2026-04-29)
 
 
