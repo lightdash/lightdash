@@ -52,6 +52,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { assertCanWriteSqlAuthoredFields } from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -1096,6 +1097,15 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+
+        assertCanWriteSqlAuthoredFields({
+            ability: auditedAbility,
+            organizationUuid: project.organizationUuid,
+            projectUuid: project.projectUuid,
+            metricQuery: chartAsCode.metricQuery,
+            errorMessage:
+                'User cannot upload charts containing custom SQL fields',
+        });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {

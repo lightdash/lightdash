@@ -79,6 +79,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { assertCanWriteSqlAuthoredFields } from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -1239,22 +1240,12 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        if (
-            savedChart.metricQuery.tableCalculations.some(
-                isSqlTableCalculation,
-            ) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with custom SQL table calculations',
-            );
-        }
+        assertCanWriteSqlAuthoredFields({
+            ability: auditedAbility,
+            organizationUuid,
+            projectUuid,
+            metricQuery: savedChart.metricQuery,
+        });
 
         if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
             throw new Error(
