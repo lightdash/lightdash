@@ -1,3 +1,10 @@
+# [0.2840.0](https://github.com/lightdash/lightdash/compare/0.2839.1...0.2840.0) (2026-04-29)
+
+
+### Features
+
+* **db:** add primary keys to all tables that lacked one ([#22452](https://github.com/lightdash/lightdash/issues/22452)) ([2de2b09](https://github.com/lightdash/lightdash/commit/2de2b09d607ad85832e9f7017628b79775b68374))
+
 ## [0.2839.1](https://github.com/lightdash/lightdash/compare/0.2839.0...0.2839.1) (2026-04-29)
 
 
