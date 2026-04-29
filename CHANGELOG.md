@@ -1,3 +1,10 @@
+# [0.2842.0](https://github.com/lightdash/lightdash/compare/0.2841.0...0.2842.0) (2026-04-29)
+
+
+### Features
+
+* upload multiple images ([#22499](https://github.com/lightdash/lightdash/issues/22499)) ([4fc4abf](https://github.com/lightdash/lightdash/commit/4fc4abfa58c260567887125bdd2de22b200f1bc9))
+
 # [0.2841.0](https://github.com/lightdash/lightdash/compare/0.2840.0...0.2841.0) (2026-04-29)
 
 
