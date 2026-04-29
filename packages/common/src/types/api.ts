@@ -743,15 +743,18 @@ export type ApiGetAsyncQueryResults =
 
 export type ApiDownloadAsyncQueryResults = {
     fileUrl: string;
+    s3FileUrl?: string;
 };
 
 export type ApiDownloadAsyncQueryResultsAsCsv = {
     fileUrl: string;
+    s3FileUrl?: string;
     truncated: boolean;
 };
 
 export type ApiDownloadAsyncQueryResultsAsXlsx = {
     fileUrl: string;
+    s3FileUrl?: string;
     truncated: boolean;
 };
 

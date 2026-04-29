@@ -1365,6 +1365,7 @@ export class AsyncQueryService extends ProjectService {
                     );
                 return {
                     fileUrl: xlsxPersistentUrl,
+                    s3FileUrl: xlsxResult.fileUrl,
                     truncated: xlsxResult.truncated,
                 };
             }
@@ -1420,7 +1421,7 @@ export class AsyncQueryService extends ProjectService {
             expirationSecondsOverride?: number;
         },
         timezone?: string,
-    ): Promise<{ fileUrl: string; truncated: boolean }> {
+    ): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
         // Generate a unique filename
         const formattedFileName = service.generateFileId(resultsFileName);
 
@@ -1494,7 +1495,11 @@ export class AsyncQueryService extends ProjectService {
                     expirationSeconds:
                         persistentUrlContext.expirationSecondsOverride,
                 });
-            return { fileUrl: persistentUrl, truncated: result.truncated };
+            return {
+                fileUrl: persistentUrl,
+                s3FileUrl: result.fileUrl,
+                truncated: result.truncated,
+            };
         }
 
         return result;

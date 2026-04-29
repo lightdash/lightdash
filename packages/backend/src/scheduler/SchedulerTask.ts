@@ -596,7 +596,9 @@ export default class SchedulerTask {
                         csvUrl = {
                             filename: ExcelService.generateFileId(chart.name),
                             path: downloadResult.fileUrl,
-                            localPath: downloadResult.fileUrl,
+                            localPath:
+                                downloadResult.s3FileUrl ??
+                                downloadResult.fileUrl,
                             truncated: false,
                         };
                         this.analytics.trackAccount(account, {
@@ -737,7 +739,9 @@ export default class SchedulerTask {
                                     chartName: chart.name,
                                     filename: chart.name,
                                     path: downloadResult.fileUrl,
-                                    localPath: downloadResult.fileUrl,
+                                    localPath:
+                                        downloadResult.s3FileUrl ??
+                                        downloadResult.fileUrl,
                                     truncated: false,
                                 };
                             },
@@ -814,7 +818,9 @@ export default class SchedulerTask {
                                     chartName: chart.name,
                                     filename: chart.name,
                                     path: downloadResult.fileUrl,
-                                    localPath: downloadResult.fileUrl,
+                                    localPath:
+                                        downloadResult.s3FileUrl ??
+                                        downloadResult.fileUrl,
                                     truncated: false,
                                 };
                             },

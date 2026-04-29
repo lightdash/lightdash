@@ -44,6 +44,7 @@ export type AttachmentUrl = {
     path: string;
     filename: string;
     localPath: string;
+    s3FileUrl?: string;
     truncated: boolean;
 };
 type EmailClientArguments = {
