@@ -8640,6 +8640,14 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "spaceName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "spaceUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "projectName": {
                         "type": "string"
                     },
@@ -8660,6 +8668,8 @@
                     "lastVersionStatus",
                     "lastVersionNumber",
                     "createdAt",
+                    "spaceName",
+                    "spaceUuid",
                     "projectName",
                     "projectUuid",
                     "description",
@@ -10311,19 +10321,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -15607,6 +15604,18 @@
             },
             "ServiceAccountAuth": {
                 "properties": {
+                    "attributedUserEmail": {
+                        "type": "string"
+                    },
+                    "attributedUserUuid": {
+                        "type": "string"
+                    },
+                    "serviceAccountDescription": {
+                        "type": "string"
+                    },
+                    "serviceAccountUuid": {
+                        "type": "string"
+                    },
                     "source": {
                         "type": "string"
                     },
@@ -15616,7 +15625,13 @@
                         "nullable": false
                     }
                 },
-                "required": ["source", "type"],
+                "required": [
+                    "attributedUserUuid",
+                    "serviceAccountDescription",
+                    "serviceAccountUuid",
+                    "source",
+                    "type"
+                ],
                 "type": "object"
             },
             "PersonalAccessTokenAuth": {
@@ -31206,7 +31221,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2828.1",
+        "version": "0.2836.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

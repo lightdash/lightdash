@@ -470,6 +470,7 @@ export class AppModel {
             {
                 app: DbApp;
                 projectName: string;
+                spaceName: string | null;
                 lastVersion: Pick<DbAppVersion, 'version' | 'status'> | null;
             }[]
         >
@@ -493,11 +494,18 @@ export class AppModel {
                 `${AppsTableName}.project_uuid`,
                 `${ProjectTableName}.project_uuid`,
             )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${AppsTableName}.space_uuid`,
+                    `${SpaceTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             .select(
                 `${AppsTableName}.*`,
                 `${ProjectTableName}.name as project_name`,
+                `${SpaceTableName}.name as space_name`,
                 `${AppVersionsTableName}.version as last_version`,
                 `${AppVersionsTableName}.status as last_version_status`,
             )
@@ -507,6 +515,7 @@ export class AppModel {
 
         type RowWithVersion = DbApp & {
             project_name: string;
+            space_name: string | null;
             last_version: number | null;
             last_version_status: string | null;
         };
@@ -517,12 +526,14 @@ export class AppModel {
             data: rows.map(
                 ({
                     project_name,
+                    space_name,
                     last_version,
                     last_version_status,
                     ...app
                 }) => ({
                     app,
                     projectName: project_name,
+                    spaceName: space_name,
                     lastVersion: last_version
                         ? {
                               version: last_version,

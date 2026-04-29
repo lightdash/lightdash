@@ -119,6 +119,8 @@ export type ApiAppSummary = {
     description: string;
     projectUuid: string;
     projectName: string;
+    spaceUuid: string | null;
+    spaceName: string | null;
     createdAt: Date;
     lastVersionNumber: number | null;
     lastVersionStatus: AppVersionStatus | null;

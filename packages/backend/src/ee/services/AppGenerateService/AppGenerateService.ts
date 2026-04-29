@@ -2508,6 +2508,8 @@ export class AppGenerateService extends BaseService {
             description: string;
             projectUuid: string;
             projectName: string;
+            spaceUuid: string | null;
+            spaceName: string | null;
             createdAt: Date;
             lastVersionNumber: number | null;
             lastVersionStatus: AppVersionStatus | null;
@@ -2537,6 +2539,8 @@ export class AppGenerateService extends BaseService {
                 description: row.app.description,
                 projectUuid: row.app.project_uuid,
                 projectName: row.projectName,
+                spaceUuid: row.app.space_uuid,
+                spaceName: row.spaceName,
                 createdAt: row.app.created_at,
                 lastVersionNumber: row.lastVersion?.version ?? null,
                 lastVersionStatus: row.lastVersion?.status ?? null,
