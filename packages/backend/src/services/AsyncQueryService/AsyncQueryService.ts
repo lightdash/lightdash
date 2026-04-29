@@ -146,6 +146,7 @@ import {
     applyLimitToSqlQuery,
     replaceUserAttributesAsStrings,
 } from '../../utils/QueryBuilder/utils';
+import { assertCanAccessSqlAuthoredFields } from '../../utils/SqlAuthoredFieldsGuard';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
@@ -4606,6 +4607,15 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 account,
             );
+
+        assertCanAccessSqlAuthoredFields({
+            ability: auditedAbility,
+            organizationUuid,
+            projectUuid,
+            metricQuery,
+            errorMessage:
+                'User cannot drill into queries with custom SQL fields',
+        });
 
         const { exploreName } = metricQuery;
 

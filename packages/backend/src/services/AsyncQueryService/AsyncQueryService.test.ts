@@ -2377,4 +2377,54 @@ describe('AsyncQueryService', () => {
             });
         });
     });
+
+    describe('executeAsyncUnderlyingDataQuery — SQL-authored field gate', () => {
+        const service = getMockedAsyncQueryService(lightdashConfigMock);
+
+        const sqlCustomDim = {
+            id: 'dim-1',
+            name: 'Bucketed amount',
+            type: 'sql',
+            table: 'orders',
+            sql: 'CASE WHEN x > 0 THEN 1 ELSE 0 END',
+            dimensionType: DimensionType.NUMBER,
+        };
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+            (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                metricQuery: {
+                    exploreName: validExplore.name,
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    limit: 500,
+                    tableCalculations: [],
+                    customDimensions: [sqlCustomDim],
+                },
+                fields: {},
+            });
+        });
+
+        const accountWithoutCustomFields = buildAccount();
+        accountWithoutCustomFields.user.ability =
+            new Ability<PossibleAbilities>([
+                { subject: 'UnderlyingData', action: ['view'] },
+            ]);
+
+        it('throws CustomSqlQueryForbiddenError when historical query contains SQL fields and user lacks manage:CustomFields', async () => {
+            await expect(
+                service.executeAsyncUnderlyingDataQuery({
+                    account: accountWithoutCustomFields,
+                    projectUuid,
+                    underlyingDataSourceQueryUuid: 'history-uuid',
+                    filters: {},
+                    context: QueryExecutionContext.EXPLORE,
+                }),
+            ).rejects.toThrow(
+                'User cannot drill into queries with custom SQL fields',
+            );
+        });
+    });
 });
