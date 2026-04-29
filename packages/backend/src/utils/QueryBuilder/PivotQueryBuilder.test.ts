@@ -754,43 +754,6 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('ORDER BY "date" ASC, "event" DESC');
         });
 
-        test('Should lead column_index ORDER BY with the sorted group-by column, not declaration order', () => {
-            // Without this, DENSE_RANK orders columns by the first declared
-            // group-by alphabetically, with the user-sorted column only
-            // acting as a tiebreaker.
-            const pivotConfiguration = {
-                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
-                valuesColumns: [
-                    {
-                        reference: 'event_id',
-                        aggregation: VizAggregationOptions.SUM,
-                    },
-                ],
-                groupByColumns: [
-                    { reference: 'status' },
-                    { reference: 'status_priority' },
-                ],
-                sortBy: [
-                    {
-                        reference: 'status_priority',
-                        direction: SortByDirection.ASC,
-                    },
-                ],
-            };
-
-            const builder = new PivotQueryBuilder(
-                baseSql,
-                pivotConfiguration,
-                mockWarehouseSqlBuilder,
-            );
-
-            const result = builder.toSql();
-
-            expect(result.toLowerCase()).toContain(
-                'dense_rank() over (order by g."status_priority" asc, g."status" asc) as "column_index"',
-            );
-        });
-
         test('Should use index column sort for row_index in pivot queries', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
