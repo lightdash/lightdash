@@ -18,6 +18,7 @@ import {
 } from '@tabler/icons-react';
 import { Link } from 'react-router';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import MantineIcon from '../MantineIcon';
 import { ResourceIcon, ResourceIndicator } from '../ResourceIcon';
 import { ResourceInfoPopup } from '../ResourceInfoPopup/ResourceInfoPopup';
 import AttributeCount from './ResourceAttributeCount';
@@ -94,47 +95,40 @@ const ResourceValidationErrorIndicator = ({
     );
 };
 
-type ResourceVerifiedIndicatorProps = {
+type ResourceVerifiedInlineBadgeProps = {
     verification: ContentVerificationInfo | null;
-    children: React.ReactNode;
 };
 
 /**
- * Wraps the provided children with a verified indicator if the resource is verified.
- * Should NOT be used when validation errors are present (errors take precedence).
+ * Inline verified badge rendered next to the resource title (Instagram-style).
+ * Renders nothing when the resource is not verified.
  */
-const ResourceVerifiedIndicator = ({
+const ResourceVerifiedInlineBadge = ({
     verification,
-    children,
-}: ResourceVerifiedIndicatorProps) => {
+}: ResourceVerifiedInlineBadgeProps) => {
     if (!verification) {
-        return children;
+        return null;
     }
 
     const verifiedDate = new Date(verification.verifiedAt).toLocaleDateString();
 
     return (
-        <ResourceIndicator
-            iconProps={{
-                icon: IconCircleCheckFilled,
-                color: 'green.6',
-            }}
-            tooltipProps={{
-                maw: 300,
-                withinPortal: true,
-                multiline: true,
-                offset: -2,
-                position: 'bottom',
-            }}
-            tooltipLabel={
+        <Tooltip
+            withinPortal
+            multiline
+            maw={300}
+            position="bottom"
+            label={
                 <>
                     Verified by {verification.verifiedBy.firstName}{' '}
                     {verification.verifiedBy.lastName} on {verifiedDate}
                 </>
             }
         >
-            {children}
-        </ResourceIndicator>
+            <Box component="span" lh={0} c="green.6">
+                <MantineIcon icon={IconCircleCheckFilled} size={16} />
+            </Box>
+        </Tooltip>
     );
 };
 
@@ -188,9 +182,7 @@ const InfiniteResourceTableColumnName = ({
                     canUserManageValidation={canUserManageValidation}
                     validationId={validationId}
                 >
-                    <ResourceVerifiedIndicator verification={verification}>
-                        <ResourceIcon item={item} />
-                    </ResourceVerifiedIndicator>
+                    <ResourceIcon item={item} />
                 </ResourceValidationErrorIndicator>
 
                 <Stack gap={2}>
@@ -202,6 +194,9 @@ const InfiniteResourceTableColumnName = ({
                         >
                             {item.data.name}
                         </Text>
+                        <ResourceVerifiedInlineBadge
+                            verification={verification}
+                        />
                         {!isSpace &&
                             // If there is no description, don't show the info icon on dashboards.
                             // For charts we still show it for the dashboard list
