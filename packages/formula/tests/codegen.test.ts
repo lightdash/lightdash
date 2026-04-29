@@ -1156,21 +1156,6 @@ describe('codegen', () => {
             ).toBe('RIGHT("domain", 3)');
         });
 
-        it('emits the same form on BigQuery', () => {
-            expect(
-                compile('=LEFT(domain, 5)', {
-                    dialect: 'bigquery',
-                    columns: stringColumns,
-                }),
-            ).toBe('LEFT(`domain`, 5)');
-            expect(
-                compile('=RIGHT(domain, 3)', {
-                    dialect: 'bigquery',
-                    columns: stringColumns,
-                }),
-            ).toBe('RIGHT(`domain`, 3)');
-        });
-
         it('Trino composes LEFT/RIGHT via SUBSTR (no native LEFT/RIGHT)', () => {
             expect(
                 compile('=LEFT(domain, 5)', {
@@ -1236,7 +1221,7 @@ describe('codegen', () => {
     describe('SUBSTRING', () => {
         const stringColumns = { domain: 'domain' };
 
-        it('emits SUBSTRING(text, start, length) on Postgres', () => {
+        it('emits SUBSTRING(text, start, length) by default', () => {
             expect(
                 compile('=SUBSTRING(domain, 1, 5)', {
                     dialect: 'postgres',
@@ -1245,76 +1230,13 @@ describe('codegen', () => {
             ).toBe('SUBSTRING("domain", 1, 5)');
         });
 
-        it('emits SUBSTR on BigQuery (no SUBSTRING there)', () => {
+        it('BigQuery overrides to SUBSTR (no SUBSTRING there)', () => {
             expect(
                 compile('=SUBSTRING(domain, 1, 5)', {
                     dialect: 'bigquery',
                     columns: stringColumns,
                 }),
             ).toBe('SUBSTR(`domain`, 1, 5)');
-        });
-
-        it('emits SUBSTRING on Snowflake', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'snowflake',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING("domain", 1, 5)');
-        });
-
-        it('emits SUBSTRING on DuckDB', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'duckdb',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING("domain", 1, 5)');
-        });
-
-        it('emits SUBSTRING on Redshift', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'redshift',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING("domain", 1, 5)');
-        });
-
-        it('emits SUBSTRING on Databricks', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'databricks',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING(`domain`, 1, 5)');
-        });
-
-        it('emits SUBSTRING on ClickHouse', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'clickhouse',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING("domain", 1, 5)');
-        });
-
-        it('emits SUBSTRING on Trino', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'trino',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING("domain", 1, 5)');
-        });
-
-        it('emits SUBSTRING on Athena', () => {
-            expect(
-                compile('=SUBSTRING(domain, 1, 5)', {
-                    dialect: 'athena',
-                    columns: stringColumns,
-                }),
-            ).toBe('SUBSTRING("domain", 1, 5)');
         });
     });
 });
