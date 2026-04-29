@@ -12,6 +12,7 @@ import {
     isMetricWithDateValue,
     isNumericItem,
     isPeriodOverPeriodAdditionalMetric,
+    isSqlTableCalculation,
     isTableCalculation,
     isTimeBasedDimension,
     type TableCalculation,
@@ -306,20 +307,24 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 <Menu.Divider />
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => {
-                        track({
-                            name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
-                        });
+                {!(isSqlTableCalculation(item) && cannotAuthorCustomSql) && (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                track({
+                                    name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
+                                });
 
-                        onToggleCalculationEditModal(true);
-                    }}
-                >
-                    Edit calculation
-                </Menu.Item>
+                                onToggleCalculationEditModal(true);
+                            }}
+                        >
+                            Edit calculation
+                        </Menu.Item>
 
-                <Menu.Divider />
+                        <Menu.Divider />
+                    </>
+                )}
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
