@@ -728,6 +728,9 @@ export class CatalogService<
                 userAttributes,
                 catalogSearch,
                 context,
+                // Explicit cap: this is a project-wide browse search and the result
+                // can otherwise grow unbounded. Preserves the historical 50-row behaviour.
+                paginateArgs: { page: 1, pageSize: 50 },
             });
         }
 
@@ -1469,6 +1472,9 @@ export class CatalogService<
             tablesConfiguration:
                 await this.projectModel.getTablesConfiguration(projectUuid),
             hasTimeDimension: true,
+            // Explicit cap: this v1 endpoint is project-wide when tableName is omitted
+            // and could otherwise grow unbounded. Use the v2 paginated endpoint for full results.
+            paginateArgs: { page: 1, pageSize: 50 },
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(

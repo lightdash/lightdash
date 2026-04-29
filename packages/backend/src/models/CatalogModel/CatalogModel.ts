@@ -1226,10 +1226,7 @@ export class CatalogModel {
             catalogItemsQuery.select<
                 (DbCatalog & { explore: Explore; search_rank: number })[]
             >(),
-            {
-                page: paginateArgs?.page ?? 1,
-                pageSize: paginateArgs?.pageSize ?? 50,
-            },
+            paginateArgs,
         );
 
         const tagsPerItem = await this.getTagsPerItem(
