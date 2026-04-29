@@ -1,3 +1,10 @@
+## [0.2842.1](https://github.com/lightdash/lightdash/compare/0.2842.0...0.2842.1) (2026-04-29)
+
+
+### Bug Fixes
+
+* **pivot:** respect sort-only dimensions ([#22458](https://github.com/lightdash/lightdash/issues/22458)) ([1169afb](https://github.com/lightdash/lightdash/commit/1169afbfebc8a9425c54eea9ed068c34afcd8602))
+
 # [0.2842.0](https://github.com/lightdash/lightdash/compare/0.2841.0...0.2842.0) (2026-04-29)
 
 
