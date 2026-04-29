@@ -1,9 +1,11 @@
 import { subject } from '@casl/ability';
 import {
     getHighestSpaceRole,
+    isAccount,
     NotFoundError,
     resolveSpaceAccess,
     type AbilityAction,
+    type Account,
     type OrganizationSpaceAccess,
     type ProjectSpaceAccess,
     type SessionUser,
@@ -31,15 +33,15 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Checks if the user has access to all the space uuids
+     * Checks if the actor has access to all the space uuids
      * @param action - The action to check permissions for
-     * @param user - The session user to check permissions for
+     * @param actor - The account or session user to check permissions for
      * @param spaceUuids - The space uuids to check permissions for
      * @returns The access context for the given space uuids
      */
     async can(
         action: AbilityAction,
-        user: SessionUser,
+        actor: Account | SessionUser,
         spaceUuids: string[] | string,
     ): Promise<boolean> {
         const spaceUuidsArray = Array.isArray(spaceUuids)
@@ -47,32 +49,32 @@ export class SpacePermissionService extends BaseService {
             : [spaceUuids];
 
         const accessContext = await this.getSpacesCaslContext(spaceUuidsArray, {
-            userUuid: user.userUuid,
+            userUuid: isAccount(actor) ? actor.user.id : actor.userUuid,
         });
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(actor);
         return Object.values(accessContext).every((access) =>
             auditedAbility.can(action, subject('Space', access)),
         );
     }
 
     /**
-     * Gets the accessible space uuids for a given action and user
+     * Gets the accessible space uuids for a given action and actor
      * @param action - The action to check permissions for
-     * @param user - The session user to check permissions for
+     * @param actor - The account or session user to check permissions for
      * @param spaceUuids - The space uuids to get the accessible space uuids for
      * @returns The accessible space uuids
      */
     async getAccessibleSpaceUuids(
         action: AbilityAction,
-        user: SessionUser,
+        actor: Account | SessionUser,
         spaceUuids: string[],
     ): Promise<string[]> {
         const accessContext = await this.getSpacesCaslContext(spaceUuids, {
-            userUuid: user.userUuid,
+            userUuid: isAccount(actor) ? actor.user.id : actor.userUuid,
         });
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(actor);
         return Object.entries(accessContext)
             .filter(([_, access]) =>
                 auditedAbility.can(action, subject('Space', access)),
@@ -256,18 +258,18 @@ export class SpacePermissionService extends BaseService {
     }
 
     /**
-     * Returns the UUID of the first root space the user can view in the project.
+     * Returns the UUID of the first root space the actor can view in the project.
      * Uses CASL-based permission checking via getAccessibleSpaceUuids.
      */
     async getFirstViewableSpaceUuid(
-        user: SessionUser,
+        actor: Account | SessionUser,
         projectUuid: string,
     ): Promise<string> {
         const allRootSpaceUuids =
             await this.spaceModel.getRootSpaceUuidsForProject(projectUuid);
         const accessible = await this.getAccessibleSpaceUuids(
             'view',
-            user,
+            actor,
             allRootSpaceUuids,
         );
         if (accessible.length === 0) {
