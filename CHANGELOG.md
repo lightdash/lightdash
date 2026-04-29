@@ -1,3 +1,10 @@
+# [0.2844.0](https://github.com/lightdash/lightdash/compare/0.2843.0...0.2844.0) (2026-04-29)
+
+
+### Features
+
+* add YAML drivers indicator and "add drivers" affordance to canvas ([#22508](https://github.com/lightdash/lightdash/issues/22508)) ([fc09bb7](https://github.com/lightdash/lightdash/commit/fc09bb7d18c7003f3af23346e72f1cf146d5c796))
+
 # [0.2843.0](https://github.com/lightdash/lightdash/compare/0.2842.1...0.2843.0) (2026-04-29)
 
 
