@@ -143,6 +143,16 @@ export const dateTruncTimezoneConversions: Record<
     },
 };
 
+export const SUB_DAY_TIME_FRAMES: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.MILLISECOND,
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+]);
+
+export const isSubDayTimeFrame = (tf: TimeFrames): boolean =>
+    SUB_DAY_TIME_FRAMES.has(tf);
+
 const bigqueryStartOfWeekMap: Record<WeekDay, string> = {
     [WeekDay.MONDAY]: 'MONDAY',
     [WeekDay.TUESDAY]: 'TUESDAY',
@@ -380,12 +390,18 @@ const databricksConfig: WarehouseConfig = {
 };
 
 const trinoConfig: WarehouseConfig = {
+    // Trino rejects sub-day DATE_TRUNC on DATE columns ('SECOND' is not a
+    // valid DATE field). Cast to TIMESTAMP for sub-day grains; no-op when the
+    // input is already a TIMESTAMP.
     getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
+        const sql = isSubDayTimeFrame(timeFrame)
+            ? `CAST(${originalSql} AS TIMESTAMP)`
+            : originalSql;
         if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
             const intervalDiff = `'${startOfWeek}' day`;
-            return `(DATE_TRUNC('${timeFrame}', (${originalSql} - interval ${intervalDiff})) + interval ${intervalDiff})`;
+            return `(DATE_TRUNC('${timeFrame}', (${sql} - interval ${intervalDiff})) + interval ${intervalDiff})`;
         }
-        return `DATE_TRUNC('${timeFrame}', ${originalSql})`;
+        return `DATE_TRUNC('${timeFrame}', ${sql})`;
     },
     getSqlForDatePart: (
         timeFrame: TimeFrames,
