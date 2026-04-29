@@ -30,7 +30,6 @@ import {
     ScimUpsertUser,
     ScimUser,
     ScimUserRole,
-    SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
@@ -121,13 +120,13 @@ export class ScimService extends BaseService {
         this.openIdIdentityModel = openIdIdentityModel;
     }
 
-    private throwForbiddenErrorOnNoPermission(user: SessionUser) {
-        const auditedAbility = this.createAuditedAbility(user);
+    private throwForbiddenErrorOnNoPermission(account: Account) {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid!,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {

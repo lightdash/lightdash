@@ -45,7 +45,6 @@ import {
     isFilterableDimension,
     isFilterInteractivityEnabled,
     isParameterInteractivityEnabled,
-    LightdashSessionUser,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
@@ -194,10 +193,11 @@ export class EmbedService extends BaseService {
     }
 
     async getConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -226,11 +226,12 @@ export class EmbedService extends BaseService {
     }
 
     async createConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -261,7 +262,7 @@ export class EmbedService extends BaseService {
             this.lightdashConfig.embedding.allowAll.charts,
         );
 
-        return this.getConfig(user, projectUuid);
+        return this.getConfig(account, projectUuid);
     }
 
     async updateDashboards(
