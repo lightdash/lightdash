@@ -480,7 +480,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         defaultLimit: 500,
         csvCellsLimit: 100,
         timezone: undefined,
-        showExecutionTime: false,
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
     },

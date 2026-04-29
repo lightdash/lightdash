@@ -37,8 +37,6 @@ export class FeatureFlagModel {
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.ShowExecutionTime]:
-                this.getShowExecutionTimeEnabled.bind(this),
             [FeatureFlags.MetricDashboardFilters]:
                 this.getMetricDashboardFiltersEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
@@ -107,15 +105,6 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.editYamlInUi.enabled,
-        };
-    }
-
-    private async getShowExecutionTimeEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.query.showExecutionTime ?? false,
         };
     }
 

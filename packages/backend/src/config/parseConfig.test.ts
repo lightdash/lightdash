@@ -840,6 +840,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
+        ['SHOW_EXECUTION_TIME', 'show-execution-time'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
