@@ -314,7 +314,7 @@ const MyAppsPanel: FC = () => {
                                     color="gray"
                                     size="sm"
                                 >
-                                    <IconDots size={16} />
+                                    <MantineIcon icon={IconDots} size={16} />
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
@@ -324,7 +324,10 @@ const MyAppsPanel: FC = () => {
                                         to={`/projects/${app.projectUuid}/apps/${app.appUuid}/preview`}
                                         target="_blank"
                                         leftSection={
-                                            <IconExternalLink size={14} />
+                                            <MantineIcon
+                                                icon={IconExternalLink}
+                                                size={14}
+                                            />
                                         }
                                     >
                                         Preview latest
@@ -333,13 +336,23 @@ const MyAppsPanel: FC = () => {
                                 <Menu.Item
                                     component={Link}
                                     to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
-                                    leftSection={<IconCode size={14} />}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconCode}
+                                            size={14}
+                                        />
+                                    }
                                 >
                                     Continue building
                                 </Menu.Item>
                                 <Menu.Divider />
                                 <Menu.Item
-                                    leftSection={<IconPencil size={14} />}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconPencil}
+                                            size={14}
+                                        />
+                                    }
                                     onClick={() => setAppToRename(app)}
                                 >
                                     Rename
@@ -347,9 +360,15 @@ const MyAppsPanel: FC = () => {
                                 <Menu.Item
                                     leftSection={
                                         app.spaceUuid ? (
-                                            <IconFolderSymlink size={14} />
+                                            <MantineIcon
+                                                icon={IconFolderSymlink}
+                                                size={14}
+                                            />
                                         ) : (
-                                            <IconFolderPlus size={14} />
+                                            <MantineIcon
+                                                icon={IconFolderPlus}
+                                                size={14}
+                                            />
                                         )
                                     }
                                     onClick={() => setAppToMove(app)}
