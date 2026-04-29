@@ -10,13 +10,13 @@ You are building a React data app that queries the Lightdash semantic layer. Thi
 
 ### Approved packages
 
-`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `date-fns`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
+`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
 
 ### Pre-installed shadcn/ui components
 
 Available at `@/components/ui/<name>`:
 
-`Button`, `Badge`, `Card` (+ `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`), `Table` (+ `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), `Dialog`, `Tabs`, `Select`, `Input`, `Label`, `Popover`, `Tooltip`, `Separator`, `Skeleton`, `DropdownMenu`, `Sheet`, `ScrollArea`, `Switch`, `Checkbox`, `Avatar`, `Alert`, `Progress`
+`Button`, `Badge`, `Card` (+ `CardHeader`, `CardTitle`, `CardDescription`, `CardContent`, `CardFooter`), `Table` (+ `TableHeader`, `TableBody`, `TableRow`, `TableHead`, `TableCell`), `Dialog`, `Tabs`, `Select`, `Input`, `Label`, `Popover`, `Tooltip`, `Separator`, `Skeleton`, `DropdownMenu`, `Sheet`, `ScrollArea`, `Switch`, `Checkbox`, `Avatar`, `Alert`, `Progress`, `Resizable` (+ `ResizablePanelGroup`, `ResizablePanel`, `ResizableHandle`)
 
 `cn()` is available from `@/lib/utils` for merging Tailwind classes.
 
@@ -606,6 +606,64 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     </Table>
 </ScrollArea>
 ```
+
+### Resizable panels
+
+Use the pre-installed shadcn `Resizable` component (built on `react-resizable-panels`) when the layout has **two or more sibling areas the user benefits from rebalancing in-place** — typical cases:
+
+- A chart next to a detail/inspector panel ("see the bar I clicked").
+- A dashboard split between filters/sidebar and the main grid.
+- A table beside a chart that visualizes the same query.
+- A document/explanation panel next to a live data view.
+
+**Don't reach for it by default.** If panels have a fixed information ratio (KPI row above a grid, header above content), use plain Tailwind flex/grid. Resizable is for layouts where the user has a real preference between "give me more chart" and "give me more detail."
+
+```tsx
+import {
+    ResizablePanelGroup,
+    ResizablePanel,
+    ResizableHandle,
+} from '@/components/ui/resizable';
+
+export function SplitDashboard() {
+    return (
+        <ResizablePanelGroup
+            direction="horizontal"
+            className="h-[calc(100vh-3rem)] rounded-md border"
+            autoSaveId="dashboard-split"   // remembers user sizing in localStorage
+        >
+            <ResizablePanel defaultSize={65} minSize={35}>
+                <RevenueByMonth />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={35} minSize={20}>
+                <SegmentBreakdown />
+            </ResizablePanel>
+        </ResizablePanelGroup>
+    );
+}
+```
+
+Rules:
+
+- **Set `autoSaveId`** so user sizing persists across reloads. The id is the localStorage key — keep it stable per layout.
+- **Always set `minSize`** on every panel. Without it, users can collapse a panel to zero and lose the chart inside.
+- **Use `withHandle` on `ResizableHandle`** for visible drag affordance. Without it, the divider is a 1-pixel hover target.
+- **Nest groups for grid layouts.** A 3-pane "filters | chart | detail" goes one `ResizablePanelGroup direction="horizontal"`. A "chart over table" goes `direction="vertical"`. Combine by nesting.
+- **Don't use it inside a card.** Resizable wants a parent with a definite height (`h-screen`, `h-[600px]`, etc.). Inside a `Card` with content-sized height it collapses.
+- **Charts inside resizable panels must use `viewBox` or Recharts' `<ResponsiveContainer>`.** Hard-coded pixel widths won't reflow on resize.
+
+When users explicitly ask for "drag to resize" or "let me adjust the panel sizes," that's the trigger. Otherwise prefer fixed proportions.
+
+## When to drop into D3
+
+**Recharts is the default.** Bars, lines, areas, scatter, pie/donut, treemap, radar — use Recharts. It composes with the action menu, color palette, and tooltip patterns above with almost no friction.
+
+**Reach for D3 only when Recharts can't express the chart** — sankey/flow, sunburst/icicle/pack, force-directed networks, chord, arc, hexbin/contour density, geographic projections (`d3-geo`), word clouds (`d3-cloud`), or pixel-precise custom encodings.
+
+If a Recharts component covers it, **use Recharts** — even if a D3 version would be marginally prettier. The cost of D3 is more code, more chances for memory leaks, and harder integration with the action menu.
+
+When you do need D3, **read `/app/d3-reference.md` first.** It contains the React-19 + D3 integration pattern, four worked examples (bar, sankey, sunburst, word cloud), the cross-cutting rules (`CHART_COLORS`, `filtersFor`, action menu, no-cross-refetch animation), and a common-mistakes table. Don't try to wire D3 from memory — load the reference.
 
 ## `drillDown()` Reference
 
