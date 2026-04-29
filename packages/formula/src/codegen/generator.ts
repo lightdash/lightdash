@@ -258,15 +258,29 @@ export class SqlGenerator {
         const [a, b] = node.args.map((x) => this.generate(x));
         switch (node.name) {
             case 'LEFT':
-                return `LEFT(${a}, ${b})`;
+                return this.generateLeft(a, b);
             case 'RIGHT':
-                return `RIGHT(${a}, ${b})`;
+                return this.generateRight(a, b);
             default:
                 return assertUnreachable(
                     node.name,
                     `Unknown two-arg function: ${node.name}`,
                 );
         }
+    }
+
+    protected generateLeft(text: string, count: string): string {
+        return (
+            this.dialect.generateLeft?.(text, count) ??
+            `LEFT(${text}, ${count})`
+        );
+    }
+
+    protected generateRight(text: string, count: string): string {
+        return (
+            this.dialect.generateRight?.(text, count) ??
+            `RIGHT(${text}, ${count})`
+        );
     }
 
     protected generateThreeArgFn(node: ThreeArgFnNode): string {

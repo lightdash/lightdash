@@ -1170,6 +1170,36 @@ describe('codegen', () => {
                 }),
             ).toBe('RIGHT(`domain`, 3)');
         });
+
+        it('Trino composes LEFT/RIGHT via SUBSTR (no native LEFT/RIGHT)', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'trino',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", 1, 5)');
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'trino',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", -(3))');
+        });
+
+        it('Athena uses the same SUBSTR composition as Trino', () => {
+            expect(
+                compile('=LEFT(domain, 5)', {
+                    dialect: 'athena',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", 1, 5)');
+            expect(
+                compile('=RIGHT(domain, 3)', {
+                    dialect: 'athena',
+                    columns: stringColumns,
+                }),
+            ).toBe('SUBSTR("domain", -(3))');
+        });
     });
 
     describe('REPLACE', () => {
