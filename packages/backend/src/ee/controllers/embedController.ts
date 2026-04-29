@@ -122,7 +122,7 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results: await this.getEmbedService().getConfig(
-                req.account.user,
+                req.account,
                 projectUuid,
             ),
         };
@@ -142,7 +142,7 @@ export class EmbedController extends BaseController {
         return {
             status: 'ok',
             results: await this.getEmbedService().createConfig(
-                req.account.user,
+                req.account,
                 projectUuid,
                 body,
             ),
