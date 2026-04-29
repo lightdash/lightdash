@@ -29,9 +29,10 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useDeleteSlack,
@@ -41,6 +42,7 @@ import {
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
+import Callout from '../../common/Callout';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
@@ -87,6 +89,10 @@ const SlackSettingsPanel: FC = () => {
     const { mutate: updateCustomSettings } =
         useUpdateSlackAppCustomSettingsMutation();
 
+    const { data: aiAgents } = useAiAgentAdminAgents({
+        enabled: organizationHasSlack && isAiCopilotEnabledOrTrial,
+    });
+
     const form = useForm<SlackAppCustomSettings>({
         initialValues: {
             notificationChannel: null,
@@ -127,6 +133,18 @@ const SlackSettingsPanel: FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [slackInstallation]);
+
+    const conflictingAgents = useMemo(() => {
+        const channelId = form.values.aiMultiAgentChannelId;
+        if (!channelId || !aiAgents) return [];
+        return aiAgents.filter((agent) =>
+            agent.integrations.some(
+                (integration) =>
+                    integration.type === 'slack' &&
+                    integration.channelId === channelId,
+            ),
+        );
+    }, [form.values.aiMultiAgentChannelId, aiAgents]);
 
     if (isInitialLoading || (organizationHasSlack && !form.initialized)) {
         return <Loader />;
@@ -355,6 +373,40 @@ const SlackSettingsPanel: FC = () => {
                                             }}
                                             placeholder="Select a channel (optional)"
                                         />
+
+                                        {conflictingAgents.length > 0 && (
+                                            <Callout
+                                                variant="warning"
+                                                title="Channel already in use by an AI agent"
+                                            >
+                                                <Text fz="xs">
+                                                    Setting this as the
+                                                    multi-agent channel will
+                                                    override the channel
+                                                    configuration on the
+                                                    following{' '}
+                                                    {conflictingAgents.length >
+                                                    1
+                                                        ? 'agents'
+                                                        : 'agent'}
+                                                    :
+                                                </Text>
+                                                <Stack gap={2} mt="xs">
+                                                    {conflictingAgents.map(
+                                                        (agent) => (
+                                                            <Anchor
+                                                                key={agent.uuid}
+                                                                component={Link}
+                                                                to={`/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`}
+                                                                fz="xs"
+                                                            >
+                                                                {agent.name}
+                                                            </Anchor>
+                                                        ),
+                                                    )}
+                                                </Stack>
+                                            </Callout>
+                                        )}
 
                                         {form.values.aiMultiAgentChannelId && (
                                             <Stack gap="xs">
