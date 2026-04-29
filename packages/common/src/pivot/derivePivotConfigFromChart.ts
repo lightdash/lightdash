@@ -281,13 +281,8 @@ function getCartesianPivotConfiguration(
                     ),
             );
 
-        // Fields referenced only via sortBy that aren't on any axis or in
-        // pivot columns. Sort-only metrics (and table calcs) carry an
-        // aggregation so PivotQueryBuilder can generate anchor CTEs;
-        // sort-only dimensions ride through group_by_query to drive
-        // column_index ORDER BY. Splitting them out keeps both kinds of
-        // sort-only fields out of indexColumn, where they would conflate
-        // row-axis sort with column-ordering intent.
+        // Fields referenced only via sortBy. Kept out of indexColumn so
+        // they don't conflate row-axis sort with column-ordering intent.
         const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
         const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
         const sortOnlyColumns: NonNullable<
@@ -308,6 +303,7 @@ function getCartesianPivotConfiguration(
                 ];
             }
             if (
+                !valuesRefs.has(sort.fieldId) &&
                 sort.fieldId !== xField &&
                 !groupByRefs.has(sort.fieldId) &&
                 metricQuery.dimensions.includes(sort.fieldId)
