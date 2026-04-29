@@ -1,3 +1,11 @@
+# [0.2847.0](https://github.com/lightdash/lightdash/compare/0.2846.0...0.2847.0) (2026-04-29)
+
+
+### Features
+
+* **content:** inline verified badge on space overview (PROD-7194) ([#22480](https://github.com/lightdash/lightdash/issues/22480)) ([5bfbd94](https://github.com/lightdash/lightdash/commit/5bfbd94f998012bb276908c2f67ac9cc1c526f82))
+* **content:** surface verification on Space overview ([#22321](https://github.com/lightdash/lightdash/issues/22321)) ([050f8db](https://github.com/lightdash/lightdash/commit/050f8db8845c5a06e541afaf2087fba3c8464a35))
+
 # [0.2846.0](https://github.com/lightdash/lightdash/compare/0.2845.0...0.2846.0) (2026-04-29)
 
 
