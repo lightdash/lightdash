@@ -61,7 +61,7 @@ export class ParametersController extends BaseController {
         const results = await this.services
             .getProjectParametersService()
             .findProjectParametersPaginated(
-                req.user!,
+                req.account!,
                 projectUuid,
                 paginateArgs,
                 { search, sortBy, sortOrder },

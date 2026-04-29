@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     calculateExploreWarningReport,
     DeploySessionStatus,
     Explore,
@@ -59,7 +60,7 @@ export class DeployService extends BaseService {
     }
 
     async startDeploySession(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<{ deploySessionUuid: string }> {
         // Check deploy permission
@@ -68,7 +69,7 @@ export class DeployService extends BaseService {
 
         // manage:DeployProject for non-preview projects (restrictable via custom roles)
         // manage:DeployProject@self for preview projects created by the user
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -92,7 +93,7 @@ export class DeployService extends BaseService {
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
-            user.userUuid,
+            account.user.id,
         );
 
         this.logger.info(

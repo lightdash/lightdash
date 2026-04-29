@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     AnyType,
+    assertIsAccountWithOrg,
     ForbiddenError,
-    isUserWithOrg,
     NotFoundError,
     SchedulerJobStatus,
-    SessionUser,
     UserActivity,
+    type Account,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
@@ -46,15 +46,13 @@ export class AnalyticsService extends BaseService {
 
     async getUserActivity(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
     ): Promise<UserActivity> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         const { organizationUuid, name: projectName } =
             await this.projectModel.get(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -70,30 +68,28 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.dashboard_viewed',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
-                organizationId: user.organizationUuid,
+                organizationId: account.organization.organizationUuid,
                 dashboardType: 'user_activity',
             },
         });
 
         return this.analyticsModel.getUserActivity(
             projectUuid,
-            user.organizationUuid,
+            account.organization.organizationUuid,
         );
     }
 
     async exportUserActivityRawCsv(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
     ): Promise<string> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         const { organizationUuid, name: projectName } =
             await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -109,10 +105,10 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.csv_download',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
-                organizationId: user.organizationUuid,
+                organizationId: account.organization.organizationUuid,
                 dashboardType: 'user_activity',
             },
         });
@@ -135,7 +131,7 @@ export class AnalyticsService extends BaseService {
             fileName,
             projectUuid,
             organizationUuid,
-            createdByUserUuid: user.userUuid,
+            createdByUserUuid: account.user.id,
         });
         return upload.path;
     }
