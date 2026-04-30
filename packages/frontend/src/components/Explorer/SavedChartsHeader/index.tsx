@@ -740,8 +740,7 @@ const SavedChartsHeader: FC = () => {
                                     </Menu.Item>
                                 )}
                                 {changeChartExploreEnabled &&
-                                    userCanManageChart &&
-                                    !isEditMode && (
+                                    userCanManageChart && (
                                         <Menu.Item
                                             leftSection={
                                                 <MantineIcon
@@ -1069,6 +1068,7 @@ const SavedChartsHeader: FC = () => {
                         projectUuid={projectUuid}
                         chartUuid={savedChart.uuid}
                         currentExploreName={savedChart.tableName}
+                        hasUnsavedChanges={hasUnsavedChanges && isEditMode}
                     />
                 )}
         </TrackSection>
