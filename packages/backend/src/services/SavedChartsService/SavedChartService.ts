@@ -1237,23 +1237,6 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        if (
-            savedChart.metricQuery.customDimensions?.some(
-                isCustomSqlDimension,
-            ) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'User cannot create charts with custom SQL dimensions',
-            );
-        }
-
         if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',

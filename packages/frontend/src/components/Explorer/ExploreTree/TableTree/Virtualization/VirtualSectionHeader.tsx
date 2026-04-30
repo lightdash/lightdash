@@ -11,7 +11,6 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -48,7 +47,6 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const isWriteBackCustomBinDimensionsEnabled =
         writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
     const canManageCustomFields = user.data?.ability?.can(
         'manage',
         subject('CustomFields', {
@@ -62,13 +60,13 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
         const baseList = isWriteBackCustomBinDimensionsEnabled
             ? allCustomDimensions
             : allCustomDimensions.filter(isCustomSqlDimension);
-        return cannotAuthorCustomSql
-            ? baseList.filter((dim) => !isCustomSqlDimension(dim))
-            : baseList;
+        return canManageCustomFields
+            ? baseList
+            : baseList.filter((dim) => !isCustomSqlDimension(dim));
     }, [
         allCustomDimensions,
         isWriteBackCustomBinDimensionsEnabled,
-        cannotAuthorCustomSql,
+        canManageCustomFields,
     ]);
 
     const handleAddCustomDimension = useCallback(() => {
