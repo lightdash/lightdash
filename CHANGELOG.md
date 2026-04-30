@@ -1,3 +1,10 @@
+# [0.2852.0](https://github.com/lightdash/lightdash/compare/0.2851.1...0.2852.0) (2026-04-30)
+
+
+### Features
+
+* **table-calc:** formula onboarding empty state + dropdown polish ([#22534](https://github.com/lightdash/lightdash/issues/22534)) ([22e325f](https://github.com/lightdash/lightdash/commit/22e325fb25f8f007fc6eea2ce3f9467db8e0a5d5))
+
 ## [0.2851.1](https://github.com/lightdash/lightdash/compare/0.2851.0...0.2851.1) (2026-04-30)
 
 
