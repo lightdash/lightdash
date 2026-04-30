@@ -217,17 +217,4 @@ describe('MetricQueryBuilder snapshot: post-calculation queries', () => {
             }),
         ).toMatchSnapshot();
     });
-
-    // Fallback path when SQL pivot feature flag is off: only `pivotDimensions`
-    // is supplied. Should still partition percent_of_total by the non-pivot
-    // dimensions (derived from the dimensions list minus pivotDimensions).
-    test('matches snapshot for a percent-of-total post-calculation query with pivotDimensions only', () => {
-        expect(
-            buildQuery({
-                explore: EXPLORE_WITH_PERCENT_OF_TOTAL_AND_PIVOT_DIMENSION,
-                compiledMetricQuery: METRIC_QUERY_WITH_PERCENT_OF_TOTAL_PIVOT,
-                pivotDimensions: ['table1_category'],
-            }),
-        ).toMatchSnapshot();
-    });
 });

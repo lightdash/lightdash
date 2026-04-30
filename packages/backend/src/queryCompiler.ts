@@ -332,24 +332,6 @@ export function compilePostCalculationMetric({
                   .join(', ')}`
             : undefined;
 
-    const rawIndexColumn = pivotConfiguration?.indexColumn;
-    let indexColumns: { reference: string }[] = [];
-    if (rawIndexColumn) {
-        indexColumns = Array.isArray(rawIndexColumn)
-            ? rawIndexColumn
-            : [rawIndexColumn];
-    }
-    // Only emit a row-total partition for percent_of_total when the data is
-    // actually pivoted (groupByColumns non-empty). Otherwise partitioning by
-    // the row dimensions would make every row equal 100% of itself.
-    const isPivoted = groupByColumns.length > 0;
-    const indexPartitionByClause: string | undefined =
-        isPivoted && indexColumns.length > 0
-            ? `PARTITION BY ${indexColumns
-                  .map((col) => `${q}${col.reference}${q}`)
-                  .join(', ')}`
-            : undefined;
-
     const finalOrderByClause = orderByClause ?? `ORDER BY (SELECT NULL)`;
 
     if (type === MetricType.RUNNING_TOTAL) {
@@ -368,6 +350,24 @@ export function compilePostCalculationMetric({
     }
 
     if (type === MetricType.PERCENT_OF_TOTAL) {
+        // Only emit a row-total partition when the data is actually pivoted
+        // (groupByColumns non-empty). For a regular table view (row dims, no
+        // pivot) we want the grand total — partitioning by the row dim there
+        // would make every row equal 100% of itself.
+        const rawIndexColumn = pivotConfiguration?.indexColumn;
+        let indexColumns: { reference: string }[] = [];
+        if (rawIndexColumn) {
+            indexColumns = Array.isArray(rawIndexColumn)
+                ? rawIndexColumn
+                : [rawIndexColumn];
+        }
+        const isPivoted = groupByColumns.length > 0;
+        const indexPartitionByClause: string | undefined =
+            isPivoted && indexColumns.length > 0
+                ? `PARTITION BY ${indexColumns
+                      .map((col) => `${q}${col.reference}${q}`)
+                      .join(', ')}`
+                : undefined;
         return (
             `(CAST(${sql} AS ${floatType}) / ` +
             `CAST(NULLIF(SUM(${sql}) OVER(${
