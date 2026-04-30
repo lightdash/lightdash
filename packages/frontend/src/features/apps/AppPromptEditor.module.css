@@ -1,0 +1,68 @@
+/* AppPromptEditor — TipTap-based replacement for the data-app prompt
+ * textarea. Mention nodes (element refs from the iframe inspector) render
+ * as inline pills; everything else is plain text. */
+
+.editorContent {
+    min-height: 24px;
+    max-height: 144px;
+    overflow-y: auto;
+    font-size: var(--mantine-font-size-sm);
+    padding: 0;
+
+    /* TipTap wraps content in <p> — strip its default margins so the editor
+     * matches the old textarea's vertical rhythm. */
+    & :global(.ProseMirror) {
+        outline: none;
+        min-height: 24px;
+    }
+    & :global(.ProseMirror p) {
+        margin: 0;
+        padding: 0;
+        line-height: 1.4;
+    }
+
+    /* Placeholder shown when the editor is empty. */
+    & :global(p.is-empty.is-editor-empty:first-child::before) {
+        content: attr(data-placeholder);
+        float: left;
+        height: 0;
+        pointer-events: none;
+        @mixin light {
+            color: var(--mantine-color-ldGray-6);
+        }
+        @mixin dark {
+            color: var(--mantine-color-ldDark-2);
+        }
+    }
+}
+
+/* Pill shown both inside the editor (mention node) and inside the chat
+ * bubble (parsed reference). Same class in both contexts so input and
+ * post-submit display look identical. Styled as a neutral gray "chip" —
+ * visible but quiet, won't compete with the user's prose. */
+.elementPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 6px;
+    margin: 0 1px;
+    border-radius: var(--mantine-radius-sm);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 1.4;
+    vertical-align: baseline;
+    white-space: nowrap;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--mantine-color-foreground-0);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+        border: 1px solid var(--mantine-color-ldDark-5);
+    }
+}

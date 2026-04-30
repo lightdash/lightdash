@@ -66,9 +66,14 @@ import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
 import AppIframePreview from '../features/apps/AppIframePreview';
+import AppPromptEditor, {
+    type AppPromptEditorHandle,
+    type ElementRef,
+} from '../features/apps/AppPromptEditor';
 import {
     DashboardButton,
     ImageButton,
+    InspectButton,
     QueryButton,
     SelectedDashboardSection,
     SelectedImageSection,
@@ -77,6 +82,7 @@ import {
     type SelectedDashboard,
 } from '../features/apps/AppResourcePicker';
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
+import ChatMessageContent from '../features/apps/ChatMessageContent';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -97,6 +103,24 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
+
+/**
+ * Parse `[tag "text" @loc]` (or `[tag @loc]`, `[tag "text"]`, `[tag]`) from
+ * the iframe inspector's `lightdash:inspect:selected` payload into the
+ * structured attrs the editor's mention node expects. Returns null if the
+ * label doesn't match the expected shape — defensive against future SDK
+ * versions that might emit a different format.
+ */
+function parseElementRefLabel(label: string): ElementRef | null {
+    // Loc allows any char except `]` (which terminates the reference) so
+    // paths with spaces (e.g. `My Component/App.tsx:42`) round-trip cleanly.
+    const m =
+        /^\[([A-Za-z][A-Za-z0-9-]*)(?:\s+"([^"]*)")?(?:\s+@([^\]]+))?\]$/.exec(
+            label,
+        );
+    if (!m) return null;
+    return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
+}
 
 type ChatChart = {
     name: string;
@@ -132,7 +156,20 @@ const AppPreview: FC<{
     appUuid: string;
     version: number;
     onQueryEvent?: (event: QueryEvent) => void;
-}> = ({ projectUuid, appUuid, version, onQueryEvent }) => {
+    inspectorEnabled?: boolean;
+    onElementSelected?: (event: { label: string }) => void;
+    onInspectorAvailabilityChange?: (available: boolean) => void;
+    onInspectorCancelled?: () => void;
+}> = ({
+    projectUuid,
+    appUuid,
+    version,
+    onQueryEvent,
+    inspectorEnabled,
+    onElementSelected,
+    onInspectorAvailabilityChange,
+    onInspectorCancelled,
+}) => {
     const {
         data: token,
         isLoading,
@@ -166,7 +203,16 @@ const AppPreview: FC<{
 
     if (!previewUrl) return null;
 
-    return <AppIframePreview src={previewUrl} onQueryEvent={onQueryEvent} />;
+    return (
+        <AppIframePreview
+            src={previewUrl}
+            onQueryEvent={onQueryEvent}
+            inspectorEnabled={inspectorEnabled}
+            onElementSelected={onElementSelected}
+            onInspectorAvailabilityChange={onInspectorAvailabilityChange}
+            onInspectorCancelled={onInspectorCancelled}
+        />
+    );
 };
 
 const LoadingDots: FC = () => (
@@ -201,7 +247,12 @@ const AppGenerate: FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
-    const [prompt, setPrompt] = useState('');
+    // Editor handle (TipTap-based) — replaces the previous controlled
+    // textarea + `prompt` state. The editor owns its content; the parent
+    // reads on submit via `getText()` and tracks emptiness via the
+    // `onEmptyChange` callback for the submit button's disabled state.
+    const promptEditorRef = useRef<AppPromptEditorHandle | null>(null);
+    const [isPromptEmpty, setIsPromptEmpty] = useState(true);
     // Starter-template wizard state (only meaningful for v1 of a new app).
     // 'pick'    → show the 4 template cards (replaces the empty state)
     // 'confirm' → wizard collapses; the textarea takes over. Picking any
@@ -222,7 +273,32 @@ const AppGenerate: FC = () => {
     const [selectedCharts, setSelectedCharts] = useState<SelectedChart[]>([]);
     const [selectedDashboard, setSelectedDashboard] =
         useState<SelectedDashboard | null>(null);
+    // Click-to-edit ("Inspect") mode. While on, the iframe overlays a hover
+    // outline and intercepts clicks; each click inserts an element-reference
+    // pill at the editor cursor so the user can compose targeted edits.
+    // Stays on across multiple clicks; the user toggles off when done.
+    const [inspectorEnabled, setInspectorEnabled] = useState(false);
+    // Capability flag — flipped to true when the iframe SDK announces the
+    // inspector. Existing apps in resumed sandboxes may have an older SDK
+    // that never announces, in which case the toggle stays hidden.
+    const [inspectorAvailable, setInspectorAvailable] = useState(false);
     const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
+    const handleElementSelected = useCallback((event: { label: string }) => {
+        const ref = parseElementRefLabel(event.label);
+        if (!ref) {
+            console.warn(
+                '[apps] Ignoring unrecognized inspector label:',
+                event.label,
+            );
+            return;
+        }
+        promptEditorRef.current?.insertElementRef(ref);
+    }, []);
+    // Stable so AppIframePreview's keydown listener doesn't re-attach on
+    // every render of this page.
+    const handleInspectorCancelled = useCallback(() => {
+        setInspectorEnabled(false);
+    }, []);
     const handleQueryEvent = useCallback((event: QueryEvent) => {
         setTrackedQueries((prev) => {
             // If this event has a queryUuid, merge it with an existing entry
@@ -300,13 +376,16 @@ const AppGenerate: FC = () => {
     // vs. the post-submit URL update (undefined → newUuid).
     const prevUrlAppUuid = useRef(urlAppUuid);
     const resetSessionState = useCallback(() => {
-        setPrompt('');
+        promptEditorRef.current?.clear();
+        setIsPromptEmpty(true);
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setImageAttachments([]);
         setLocalMessages([]);
         setPreviewApp(null);
         setTrackedQueries([]);
+        setInspectorEnabled(false);
+        setInspectorAvailable(false);
         setSelectedTemplate(null);
         setWizardStage('pick');
         setPendingClarification(null);
@@ -349,7 +428,6 @@ const AppGenerate: FC = () => {
     const { user } = useApp();
     const ability = useAbilityContext();
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     // Fetch version history (polling is handled by the Web Worker below)
     const {
@@ -756,7 +834,7 @@ const AppGenerate: FC = () => {
     });
 
     const handleSubmit = async () => {
-        const trimmed = prompt.trim();
+        const trimmed = (promptEditorRef.current?.getText() ?? '').trim();
         if (!trimmed || isLoading) return;
 
         // Send structured chart refs (uuid + per-chart sample-data opt-in).
@@ -849,7 +927,8 @@ const AppGenerate: FC = () => {
                 version: null,
             },
         ]);
-        setPrompt('');
+        promptEditorRef.current?.clear();
+        setIsPromptEmpty(true);
         setImageAttachments([]);
         setSelectedCharts([]);
         setSelectedDashboard(null);
@@ -996,16 +1075,11 @@ const AppGenerate: FC = () => {
         // clarifier produces those dynamically on submit.
         setSelectedTemplate(template);
         setWizardStage('confirm');
-        setPrompt('');
-        // Focus the textarea so the user can immediately type.
-        setTimeout(() => textareaRef.current?.focus(), 0);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void handleSubmit();
-        }
+        promptEditorRef.current?.clear();
+        setIsPromptEmpty(true);
+        // Focus the editor so the user can immediately type. The setTimeout
+        // gives the editor a tick to mount when the input area first appears.
+        setTimeout(() => promptEditorRef.current?.focus(), 0);
     };
 
     const handleCancel = () => {
@@ -1108,7 +1182,11 @@ const AppGenerate: FC = () => {
                                                             classes.userBubble
                                                         }
                                                     >
-                                                        {msg.content}
+                                                        <ChatMessageContent
+                                                            content={
+                                                                msg.content
+                                                            }
+                                                        />
                                                         {msg.charts.length >
                                                             0 && (
                                                             <Box
@@ -1453,26 +1531,14 @@ const AppGenerate: FC = () => {
                                 )}
                                 <Box className={classes.inputWrapper}>
                                     <Box className={classes.textareaColumn}>
-                                        <Textarea
-                                            ref={textareaRef}
+                                        <AppPromptEditor
+                                            ref={promptEditorRef}
                                             placeholder="Describe the app you want to build..."
-                                            autosize
                                             autoFocus
-                                            minRows={1}
-                                            maxRows={6}
-                                            value={prompt}
-                                            onChange={(e) =>
-                                                setPrompt(e.currentTarget.value)
-                                            }
-                                            onKeyDown={handleKeyDown}
-                                            onPaste={handlePaste}
                                             disabled={isLoading}
-                                            classNames={{
-                                                root: classes.textareaRoot,
-                                                input: classes.textarea,
-                                                wrapper:
-                                                    classes.textareaWrapper,
-                                            }}
+                                            onEmptyChange={setIsPromptEmpty}
+                                            onSubmit={() => void handleSubmit()}
+                                            onPaste={handlePaste}
                                         />
                                     </Box>
                                     {isBuilding ? (
@@ -1495,7 +1561,7 @@ const AppGenerate: FC = () => {
                                             color="violet"
                                             onClick={() => void handleSubmit()}
                                             disabled={
-                                                !prompt.trim() || isLoading
+                                                isPromptEmpty || isLoading
                                             }
                                             loading={
                                                 isGenerating || isIterating
@@ -1532,6 +1598,14 @@ const AppGenerate: FC = () => {
                                                 MAX_IMAGES_PER_VERSION
                                         }
                                     />
+                                    {inspectorAvailable && (
+                                        <InspectButton
+                                            enabled={inspectorEnabled}
+                                            onToggle={() =>
+                                                setInspectorEnabled((v) => !v)
+                                            }
+                                        />
+                                    )}
                                 </Group>
                                 <Box
                                     className={classes.resourceSections}
@@ -1809,6 +1883,14 @@ const AppGenerate: FC = () => {
                                     appUuid={previewApp.appUuid}
                                     version={previewApp.version}
                                     onQueryEvent={handleQueryEvent}
+                                    inspectorEnabled={inspectorEnabled}
+                                    onElementSelected={handleElementSelected}
+                                    onInspectorAvailabilityChange={
+                                        setInspectorAvailable
+                                    }
+                                    onInspectorCancelled={
+                                        handleInspectorCancelled
+                                    }
                                 />
                             ) : (
                                 <Box className={classes.previewEmpty}>
