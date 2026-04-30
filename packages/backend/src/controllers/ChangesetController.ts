@@ -3,6 +3,7 @@ import {
     ApiErrorPayload,
     ApiGetChangeResponseTSOACompat,
     ApiRevertChangeResponse,
+    assertRegisteredAccount,
 } from '@lightdash/common';
 import {
     Get,
@@ -36,10 +37,11 @@ export class ChangesetController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiChangesetsResponseTSOACompat> {
+        assertRegisteredAccount(req.account);
         const changesets = await this.services
             .getChangesetService()
             .findActiveChangesetWithChangesByProjectUuid(
-                req.account!,
+                req.account,
                 projectUuid,
             );
 
@@ -63,9 +65,10 @@ export class ChangesetController extends BaseController {
         @Path() changeUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetChangeResponseTSOACompat> {
+        assertRegisteredAccount(req.account);
         const change = await this.services
             .getChangesetService()
-            .getChange(req.account!, projectUuid, changeUuid);
+            .getChange(req.account, projectUuid, changeUuid);
 
         return {
             status: 'ok',
@@ -87,9 +90,10 @@ export class ChangesetController extends BaseController {
         @Path() changeUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRevertChangeResponse> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getChangesetService()
-            .revertChange(req.account!, projectUuid, changeUuid);
+            .revertChange(req.account, projectUuid, changeUuid);
 
         return {
             status: 'ok',
@@ -109,9 +113,10 @@ export class ChangesetController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRevertChangeResponse> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getChangesetService()
-            .revertAllChanges(req.account!, projectUuid);
+            .revertAllChanges(req.account, projectUuid);
 
         return {
             status: 'ok',

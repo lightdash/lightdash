@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     AllowedEmailDomains,
     assertIsAccountWithOrg,
     convertProjectRoleToOrganizationRole,
@@ -26,6 +25,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    RegisteredAccount,
     SessionUser,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
@@ -107,7 +107,7 @@ export class OrganizationService extends BaseService {
         this.featureFlagModel = featureFlagModel;
     }
 
-    async get(account: Account): Promise<Organization> {
+    async get(account: RegisteredAccount): Promise<Organization> {
         assertIsAccountWithOrg(account);
 
         const needsProject = !(await this.projectModel.hasProjects(
@@ -301,7 +301,9 @@ export class OrganizationService extends BaseService {
         };
     }
 
-    async getProjects(account: Account): Promise<OrganizationProject[]> {
+    async getProjects(
+        account: RegisteredAccount,
+    ): Promise<OrganizationProject[]> {
         const { organizationUuid } = account.organization;
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
@@ -693,7 +695,7 @@ export class OrganizationService extends BaseService {
     }
 
     async getColorPalettes(
-        account: Account,
+        account: RegisteredAccount,
     ): Promise<OrganizationColorPaletteWithIsActive[]> {
         const { organizationUuid } = account.organization;
 
