@@ -1,14 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { AnyType } from '@lightdash/common';
+import { ParameterError } from '@lightdash/common/src';
+import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { CUSTOM_TOOL_DEFINITIONS } from '../services/ManagedAgentService/managedAgentTools';
 
 type ManagedAgentClientConfig = {
-    anthropicApiKey: string;
-    siteUrl: string;
+    lightdashConfig: LightdashConfig;
+};
+
+export type ManagedAgentSessionConfig = {
     serviceAccountPat: string;
-    sessionTimeoutMs: number;
-    agentId: string | null;
+    resourceName: string;
     persistedEnvironmentId: string | null;
     persistedVaultId: string | null;
     onResourcesCreated: (
@@ -25,33 +27,31 @@ type CustomToolHandler = (
 export class ManagedAgentClient {
     private readonly config: ManagedAgentClientConfig;
 
-    private client: Anthropic;
-
-    private agentId: string | null = null;
-
-    private environmentId: string | null = null;
-
-    private vaultId: string | null = null;
-
     constructor(config: ManagedAgentClientConfig) {
         this.config = config;
-        this.client = new Anthropic({ apiKey: config.anthropicApiKey });
     }
 
-    private async ensureAgentAndEnvironment(): Promise<{
+    private getAnthropicClient(): Anthropic {
+        const { anthropicApiKey } = this.config.lightdashConfig.managedAgent;
+        if (!anthropicApiKey) {
+            throw new ParameterError(
+                'ANTHROPIC_API_KEY is required for managed agent',
+            );
+        }
+
+        return new Anthropic({ apiKey: anthropicApiKey });
+    }
+
+    private async ensureAgentAndEnvironment(
+        client: Anthropic,
+        sessionConfig: ManagedAgentSessionConfig,
+    ): Promise<{
         agentId: string;
         environmentId: string;
         vaultId: string;
     }> {
-        if (this.agentId && this.environmentId && this.vaultId) {
-            return {
-                agentId: this.agentId,
-                environmentId: this.environmentId,
-                vaultId: this.vaultId,
-            };
-        }
-
-        const { agentId: configAgentId } = this.config;
+        const { agentId: configAgentId } =
+            this.config.lightdashConfig.managedAgent;
         if (!configAgentId) {
             throw new Error(
                 'MANAGED_AGENT_AGENT_ID is required. Create an agent at https://platform.claude.com and set the ID.',
@@ -62,15 +62,12 @@ export class ManagedAgentClient {
 
         // Reuse persisted Anthropic resource IDs when available to avoid
         // creating duplicate environments and vaults on every restart.
-        const { persistedEnvironmentId, persistedVaultId } = this.config;
+        const { persistedEnvironmentId, persistedVaultId } = sessionConfig;
 
         if (persistedEnvironmentId && persistedVaultId) {
             Logger.info(
                 `[ManagedAgent] Reusing persisted resources: env=${persistedEnvironmentId}, vault=${persistedVaultId}`,
             );
-            this.agentId = configAgentId;
-            this.environmentId = persistedEnvironmentId;
-            this.vaultId = persistedVaultId;
             return {
                 agentId: configAgentId,
                 environmentId: persistedEnvironmentId,
@@ -78,20 +75,17 @@ export class ManagedAgentClient {
             };
         }
 
-        const betaAny = this.client.beta as AnyType;
-
         // Reuse existing environment if one exists, otherwise create
-        const environment = await this.findOrCreateEnvironment(betaAny);
+        const environment = await this.findOrCreateEnvironment(
+            client.beta,
+            sessionConfig.resourceName,
+        );
 
         // Reuse existing vault if one exists, otherwise create with credentials
-        const vault = await this.findOrCreateVault(betaAny);
-
-        this.agentId = configAgentId;
-        this.environmentId = environment.id;
-        this.vaultId = vault.id;
+        const vault = await this.createVault(client.beta, sessionConfig);
 
         // Persist the IDs so they survive service restarts
-        await this.config.onResourcesCreated(environment.id, vault.id);
+        await sessionConfig.onResourcesCreated(environment.id, vault.id);
 
         Logger.info(
             `Managed agent ready: agentId=${configAgentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
@@ -106,13 +100,14 @@ export class ManagedAgentClient {
 
     // eslint-disable-next-line class-methods-use-this
     private async findOrCreateEnvironment(
-        betaAny: AnyType,
+        beta: Anthropic.Beta,
+        resourceName: string,
     ): Promise<{ id: string }> {
-        const ENV_NAME = 'lightdash-agent-env';
+        const envName = `Env ${resourceName}`;
         try {
-            const list = await betaAny.environments.list();
+            const list = await beta.environments.list();
             const existing = list?.data?.find(
-                (e: { name: string }) => e.name === ENV_NAME,
+                (e: { name: string }) => e.name === envName,
             );
             if (existing) {
                 Logger.info(
@@ -127,8 +122,8 @@ export class ManagedAgentClient {
         }
 
         Logger.info('[ManagedAgent] Creating new environment');
-        return betaAny.environments.create({
-            name: ENV_NAME,
+        return beta.environments.create({
+            name: envName,
             config: {
                 type: 'cloud',
                 networking: { type: 'limited', allow_mcp_servers: true },
@@ -136,14 +131,20 @@ export class ManagedAgentClient {
         });
     }
 
-    private async findOrCreateVault(betaAny: AnyType): Promise<{ id: string }> {
-        const VAULT_NAME = 'Lightdash MCP Auth';
+    private async createVault(
+        beta: Anthropic.Beta,
+        sessionConfig: Pick<
+            ManagedAgentSessionConfig,
+            'resourceName' | 'serviceAccountPat'
+        >,
+    ): Promise<{ id: string }> {
+        const vaultName = `Vault ${sessionConfig.resourceName}`;
         const credPayload = {
             display_name: 'Lightdash PAT',
             auth: {
-                type: 'static_bearer',
-                mcp_server_url: `${this.config.siteUrl}/api/v1/mcp`,
-                token: this.config.serviceAccountPat,
+                type: 'static_bearer' as const,
+                mcp_server_url: `${this.config.lightdashConfig.siteUrl}/api/v1/mcp`,
+                token: sessionConfig.serviceAccountPat,
             },
         };
 
@@ -152,26 +153,26 @@ export class ManagedAgentClient {
         // delete+recreate, so we create a new vault each time
         // instead of trying to update an existing one's credentials.
         Logger.info('[ManagedAgent] Creating new vault');
-        const vault = await betaAny.vaults.create({
-            display_name: VAULT_NAME,
+        const vault = await beta.vaults.create({
+            display_name: vaultName,
         });
 
-        await betaAny.vaults.credentials.create(vault.id, credPayload);
+        await beta.vaults.credentials.create(vault.id, credPayload);
 
         return vault;
     }
 
     async runSession(
+        sessionConfig: ManagedAgentSessionConfig,
         projectName: string,
         onCustomToolUse: CustomToolHandler,
         onSessionCreated?: (sessionId: string) => void,
     ): Promise<{ sessionId: string; summary: string }> {
+        const client = this.getAnthropicClient();
         const { agentId, environmentId, vaultId } =
-            await this.ensureAgentAndEnvironment();
+            await this.ensureAgentAndEnvironment(client, sessionConfig);
 
-        const betaAny = this.client.beta as AnyType;
-
-        const session = await betaAny.sessions.create({
+        const session = await client.beta.sessions.create({
             agent: agentId,
             environment_id: environmentId,
             vault_ids: [vaultId],
@@ -181,9 +182,9 @@ export class ManagedAgentClient {
         Logger.info(`[ManagedAgent] Session created: ${session.id}`);
         onSessionCreated?.(session.id);
 
-        const stream = await betaAny.sessions.events.stream(session.id);
+        const stream = await client.beta.sessions.events.stream(session.id);
 
-        await betaAny.sessions.events.send(session.id, {
+        await client.beta.sessions.events.send(session.id, {
             events: [
                 {
                     type: 'user.message',
@@ -197,7 +198,7 @@ export class ManagedAgentClient {
             ],
         });
 
-        const { sessionTimeoutMs } = this.config;
+        const { sessionTimeoutMs } = this.config.lightdashConfig.managedAgent;
 
         // Wrap the event loop in a timeout to prevent the scheduler from
         // blocking indefinitely if the agent stalls or loops.
@@ -241,7 +242,7 @@ export class ManagedAgentClient {
                         Logger.info(
                             `[ManagedAgent] Sending result for: ${event.name} (event_id: ${event.id})`,
                         );
-                        await betaAny.sessions.events.send(session.id, {
+                        await client.beta.sessions.events.send(session.id, {
                             events: [
                                 {
                                     type: 'user.custom_tool_result',
@@ -258,7 +259,7 @@ export class ManagedAgentClient {
                         Logger.error(
                             `[ManagedAgent] Tool error: ${event.name}: ${errorMessage}`,
                         );
-                        await betaAny.sessions.events.send(session.id, {
+                        await client.beta.sessions.events.send(session.id, {
                             events: [
                                 {
                                     type: 'user.custom_tool_result',
@@ -278,7 +279,10 @@ export class ManagedAgentClient {
                     }
                 } else if (event.type === 'session.status_idle') {
                     const stopReason = event.stop_reason?.type;
-                    const eventIds = event.stop_reason?.event_ids ?? [];
+                    const eventIds =
+                        event.stop_reason?.type === 'requires_action'
+                            ? event.stop_reason.event_ids
+                            : [];
                     if (stopReason === 'end_turn') {
                         Logger.info(
                             '[ManagedAgent] Session complete (end_turn)',

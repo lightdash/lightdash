@@ -12,6 +12,7 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import LicenseClient from './clients/License/LicenseClient';
+import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
 import { AiAgentModel } from './models/AiAgentModel';
@@ -420,6 +421,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     serviceAccountModel: models.getServiceAccountModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     slackClient: clients.getSlackClient(),
+                    managedAgentClient: new ManagedAgentClient({
+                        lightdashConfig: context.lightdashConfig,
+                    }),
                 }),
             deployService: ({ models, clients, repository, context }) =>
                 new DeployService({
