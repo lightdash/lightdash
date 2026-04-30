@@ -1,3 +1,15 @@
+# [0.2848.0](https://github.com/lightdash/lightdash/compare/0.2847.0...0.2848.0) (2026-04-30)
+
+
+### Bug Fixes
+
+* use RFC 5987 encoding for Content-Disposition to handle non-ASCII filenames (PROD-7227) ([#22531](https://github.com/lightdash/lightdash/issues/22531)) ([e091790](https://github.com/lightdash/lightdash/commit/e091790c9d34f7c7bce1b6a1dda80b4938b82c86))
+
+
+### Features
+
+* **api:** add endpoint to list charts by explore name ([#22325](https://github.com/lightdash/lightdash/issues/22325)) ([61886fe](https://github.com/lightdash/lightdash/commit/61886fe695a3b02ea6804a1fff19f490da8075f1))
+
 # [0.2847.0](https://github.com/lightdash/lightdash/compare/0.2846.0...0.2847.0) (2026-04-29)
 
 
