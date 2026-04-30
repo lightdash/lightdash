@@ -285,6 +285,7 @@ const APP_ROUTES: RouteObject[] = [
                     </ProjectRoute>
                 ),
                 children: [
+                    { index: true, element: <Navigate to="home" replace /> },
                     {
                         path: '/projects/:projectUuid/home',
                         element: (
