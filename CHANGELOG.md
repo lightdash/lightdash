@@ -1,3 +1,10 @@
+## [0.2848.2](https://github.com/lightdash/lightdash/compare/0.2848.1...0.2848.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* **permissions:** relax SQL-authored gates breaking editor flows ([#22536](https://github.com/lightdash/lightdash/issues/22536)) ([8c1f1d7](https://github.com/lightdash/lightdash/commit/8c1f1d78a9dba4b89cae9ae83ece8fda67c84c74)), closes [#22451](https://github.com/lightdash/lightdash/issues/22451)
+
 ## [0.2848.1](https://github.com/lightdash/lightdash/compare/0.2848.0...0.2848.1) (2026-04-30)
 
 
