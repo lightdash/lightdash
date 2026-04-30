@@ -1558,6 +1558,10 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // var to the unified allowlist for the flag system too.
     ['GROUPS_ENABLED', 'user-groups-enabled'],
     ['SHOW_EXECUTION_TIME', 'show-execution-time'],
+    // EMBEDDING_ENABLED is also read by HealthService (exposed via the health
+    // endpoint) and EmbedService (allowAll config). Keep the config field, but
+    // translate the env var to the unified allowlist for the flag system.
+    ['EMBEDDING_ENABLED', 'embedding'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
