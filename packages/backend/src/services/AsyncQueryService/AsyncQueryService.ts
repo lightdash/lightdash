@@ -50,7 +50,6 @@ import {
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
-    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isField,

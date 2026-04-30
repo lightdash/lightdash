@@ -1,7 +1,12 @@
 import { subject } from '@casl/ability';
-import { formatSql } from '@lightdash/common';
+import {
+    formatSql,
+    isCustomSqlDimension,
+    isSqlTableCalculation,
+} from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     CopyButton,
     Group,
     SegmentedControl,
@@ -22,15 +27,18 @@ import {
 import {
     explorerActions,
     selectIsSqlExpanded,
+    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useProject } from '../../../hooks/useProject';
+import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
+import Callout from '../../common/Callout';
 import CollapsableCard from '../../common/CollapsableCard/CollapsableCard';
 import MantineIcon from '../../common/MantineIcon';
 import { type SqlViewType } from '../../RenderedSql';
@@ -55,6 +63,8 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const dispatch = useExplorerDispatch();
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
+    const metricQuery = useExplorerSelector(selectMetricQuery);
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -65,8 +75,14 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const { user } = useApp();
     const { data: project } = useProject(projectUuid);
 
+    const hasSqlAuthoredFields =
+        !!metricQuery.customDimensions?.some(isCustomSqlDimension) ||
+        !!metricQuery.tableCalculations?.some(isSqlTableCalculation);
+    const cannotViewSqlAuthoredFields =
+        hasSqlAuthoredFields && cannotAuthorCustomSql;
+
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
-        enabled: !!unsavedChartVersionTableName,
+        enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
     });
 
     const hasPivotQuery = !!data?.pivotQuery;
@@ -90,7 +106,10 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             onToggle={() => toggleExpandedSection(ExplorerSection.SQL)}
             disabled={!unsavedChartVersionTableName}
             headerElement={
-                (hovered || sqlIsOpen) && data && isSuccess ? (
+                !cannotViewSqlAuthoredFields &&
+                (hovered || sqlIsOpen) &&
+                data &&
+                isSuccess ? (
                     <CopyButton value={formattedSql} timeout={2000}>
                         {({ copied, copy }) => (
                             <Tooltip
@@ -123,7 +142,8 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 ) : undefined
             }
             rightHeaderElement={
-                sqlIsOpen && (
+                sqlIsOpen &&
+                !cannotViewSqlAuthoredFields && (
                     <Group spacing="xs">
                         {hasPivotQuery && (
                             <SegmentedControl
@@ -158,9 +178,19 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 )
             }
         >
-            <Suspense fallback={<Skeleton height={60} radius="sm" />}>
-                <LazyRenderedSql selectedView={selectedView} />
-            </Suspense>
+            {cannotViewSqlAuthoredFields ? (
+                <Box p="sm">
+                    <Callout variant="info" title="SQL preview unavailable">
+                        This chart contains custom SQL fields. You need the{' '}
+                        <strong>Manage custom fields</strong> permission to view
+                        the compiled SQL.
+                    </Callout>
+                </Box>
+            ) : (
+                <Suspense fallback={<Skeleton height={60} radius="sm" />}>
+                    <LazyRenderedSql selectedView={selectedView} />
+                </Suspense>
+            )}
         </CollapsableCard>
     );
 });
