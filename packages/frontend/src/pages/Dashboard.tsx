@@ -137,6 +137,14 @@ const Dashboard: FC = () => {
     const setPinnedParameters = useDashboardContext(
         (c) => c.setPinnedParameters,
     );
+    const parameterOrder = useDashboardContext((c) => c.parameterOrder);
+    const setParameterOrder = useDashboardContext((c) => c.setParameterOrder);
+    const hasParameterOrderChanged = useDashboardContext(
+        (c) => c.hasParameterOrderChanged,
+    );
+    const setHasParameterOrderChanged = useDashboardContext(
+        (c) => c.setHasParameterOrderChanged,
+    );
     const dateZoomGranularities = useDashboardContext(
         (c) => c.dateZoomGranularities,
     );
@@ -497,6 +505,7 @@ const Dashboard: FC = () => {
         setSavedParameters(dashboard.parameters ?? {});
         setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
         setHavePinnedParametersChanged(false);
+        setHasParameterOrderChanged(false);
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
                 Object.values(DateGranularity),
@@ -538,6 +547,7 @@ const Dashboard: FC = () => {
         setHaveDateZoomGranularitiesChanged,
         setDefaultDateZoomGranularity,
         setHasDefaultDateZoomGranularityChanged,
+        setHasParameterOrderChanged,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -676,6 +686,9 @@ const Dashboard: FC = () => {
                 isDateZoomDisabled,
                 isAddFilterDisabled,
                 pinnedParameters,
+                parameterOrder: hasParameterOrderChanged
+                    ? parameterOrder
+                    : dashboard.config?.parameterOrder,
                 dateZoomGranularities: haveDateZoomGranularitiesChanged
                     ? dateZoomGranularities
                     : dashboard.config?.dateZoomGranularities,
@@ -710,6 +723,7 @@ const Dashboard: FC = () => {
             hasAddFilterDisabledChanged ||
             parametersHaveChanged ||
             havePinnedParametersChanged ||
+            hasParameterOrderChanged ||
             haveDateZoomGranularitiesChanged ||
             hasDefaultDateZoomGranularityChanged,
         onAddTiles: handleAddTiles,
@@ -777,6 +791,8 @@ const Dashboard: FC = () => {
                         missingRequiredParameters={missingRequiredParameters}
                         pinnedParameters={pinnedParameters}
                         onParameterPin={toggleParameterPin}
+                        parameterOrder={parameterOrder}
+                        onParameterReorder={setParameterOrder}
                         // tabs
                         activeTab={activeTab}
                         addingTab={addingTab}
