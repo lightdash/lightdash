@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     Change,
     ChangesetWithChanges,
     ForbiddenError,
+    RegisteredAccount,
 } from '@lightdash/common';
 import { CatalogModel } from '../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../models/ChangesetModel';
@@ -31,7 +31,7 @@ export class ChangesetService extends BaseService {
     }
 
     async findActiveChangesetWithChangesByProjectUuid(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
     ): Promise<ChangesetWithChanges | undefined> {
         const auditedAbility = this.createAuditedAbility(account);
@@ -55,7 +55,7 @@ export class ChangesetService extends BaseService {
     }
 
     async getChange(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
         changeUuid: string,
     ): Promise<Change> {
@@ -79,7 +79,7 @@ export class ChangesetService extends BaseService {
     }
 
     async revertChange(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
         changeUuid: string,
     ): Promise<void> {
@@ -132,7 +132,7 @@ export class ChangesetService extends BaseService {
     }
 
     async revertAllChanges(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
     ): Promise<void> {
         const auditedAbility = this.createAuditedAbility(account);

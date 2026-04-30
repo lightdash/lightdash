@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    assertRegisteredAccount,
     NotFoundError,
     type ApiGetSpotlightTableConfig,
     type ApiSuccessEmpty,
@@ -48,9 +49,10 @@ export class SpotlightController extends BaseController {
         @Body() body: Pick<SpotlightTableConfig, 'columnConfig'>,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getSpotlightService()
-            .createSpotlightTableConfig(req.account!, projectUuid, body);
+            .createSpotlightTableConfig(req.account, projectUuid, body);
 
         this.setStatus(201);
         return {
@@ -71,9 +73,10 @@ export class SpotlightController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetSpotlightTableConfig> {
+        assertRegisteredAccount(req.account);
         const { columnConfig } = await this.services
             .getSpotlightService()
-            .getSpotlightTableConfig(req.account!, projectUuid);
+            .getSpotlightTableConfig(req.account, projectUuid);
 
         this.setStatus(200);
         return {
@@ -100,9 +103,10 @@ export class SpotlightController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getSpotlightService()
-            .resetSpotlightTableConfig(req.account!, projectUuid);
+            .resetSpotlightTableConfig(req.account, projectUuid);
 
         this.setStatus(200);
         return {

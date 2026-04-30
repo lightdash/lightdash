@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     calculateExploreWarningReport,
     DeploySessionStatus,
     Explore,
@@ -8,6 +7,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ProjectType,
+    RegisteredAccount,
     SessionUser,
     type ApiDeployExploresResults,
 } from '@lightdash/common';
@@ -60,7 +60,7 @@ export class DeployService extends BaseService {
     }
 
     async startDeploySession(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
     ): Promise<{ deploySessionUuid: string }> {
         // Check deploy permission
@@ -93,7 +93,7 @@ export class DeployService extends BaseService {
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
-            account.user.id,
+            account.user.userUuid,
         );
 
         this.logger.info(

@@ -5,6 +5,7 @@ import {
     ApiErrorPayload,
     ApiFinalizeDeployResponse,
     ApiStartDeploySessionResponse,
+    assertRegisteredAccount,
 } from '@lightdash/common';
 import {
     Body,
@@ -47,9 +48,10 @@ export class DeployController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<ApiStartDeploySessionResponse> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         const result = await this.services
             .getDeployService()
-            .startDeploySession(req.account!, projectUuid);
+            .startDeploySession(req.account, projectUuid);
         return {
             status: 'ok',
             results: result,

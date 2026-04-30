@@ -14,6 +14,7 @@ import {
     ApiReassignUserSchedulersResponse,
     ApiSuccessEmpty,
     ApiUserSchedulersSummaryResponse,
+    assertRegisteredAccount,
     AuthorizationError,
     CreateColorPalette,
     CreateGroup,
@@ -72,11 +73,12 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiOrganization> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .get(req.account!),
+                .get(req.account),
         };
     }
 
@@ -179,11 +181,12 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiOrganizationProjects> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getProjects(req.account!),
+                .getProjects(req.account),
         };
     }
 
@@ -534,11 +537,12 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiColorPalettesResponse> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getColorPalettes(req.account!),
+                .getColorPalettes(req.account),
         };
     }
 

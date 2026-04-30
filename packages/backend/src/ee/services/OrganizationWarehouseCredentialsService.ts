@@ -1,6 +1,5 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     CreateOrganizationWarehouseCredentials,
     CreateWarehouseCredentials,
     ForbiddenError,
@@ -8,6 +7,7 @@ import {
     OpenIdIdentityIssuerType,
     OrganizationWarehouseCredentials,
     OrganizationWarehouseCredentialsSummary,
+    RegisteredAccount,
     SnowflakeAuthenticationType,
     UpdateOrganizationWarehouseCredentials,
     WarehouseTypes,
@@ -43,7 +43,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         this.userModel = userModel;
     }
 
-    private canManage(account: Account) {
+    private canManage(account: RegisteredAccount) {
         const auditedAbility = this.createAuditedAbility(account);
         const { organizationUuid } = account.organization;
         if (!organizationUuid) {
@@ -64,7 +64,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     }
 
     async getAll(
-        account: Account,
+        account: RegisteredAccount,
     ): Promise<OrganizationWarehouseCredentials[]> {
         this.canManage(account);
         const organizationUuid = account.organization.organizationUuid!;
@@ -79,7 +79,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
      * Returns only non-sensitive information: name, description, and warehouse type
      */
     async getAllSummaries(
-        account: Account,
+        account: RegisteredAccount,
     ): Promise<OrganizationWarehouseCredentialsSummary[]> {
         const auditedAbility = this.createAuditedAbility(account);
         const { organizationUuid } = account.organization;
@@ -116,7 +116,7 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     }
 
     async get(
-        account: Account,
+        account: RegisteredAccount,
         credentialsUuid: string,
     ): Promise<OrganizationWarehouseCredentials> {
         this.canManage(account);
@@ -172,12 +172,12 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     }
 
     async create(
-        account: Account,
+        account: RegisteredAccount,
         data: CreateOrganizationWarehouseCredentials,
     ): Promise<OrganizationWarehouseCredentials> {
         this.canManage(account);
         const organizationUuid = account.organization.organizationUuid!;
-        const userUuid = account.user.id;
+        const { userUuid } = account.user;
         const credentialsWithTokens = await this.updateCredentialTokens(
             userUuid,
             data,
@@ -204,13 +204,13 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
     }
 
     async update(
-        account: Account,
+        account: RegisteredAccount,
         credentialsUuid: string,
         data: UpdateOrganizationWarehouseCredentials,
     ): Promise<OrganizationWarehouseCredentials> {
         this.canManage(account);
         const organizationUuid = account.organization.organizationUuid!;
-        const userUuid = account.user.id;
+        const { userUuid } = account.user;
 
         // Verify ownership before update
         const existing =
@@ -249,10 +249,13 @@ export class OrganizationWarehouseCredentialsService extends BaseService {
         return updated;
     }
 
-    async delete(account: Account, credentialsUuid: string): Promise<void> {
+    async delete(
+        account: RegisteredAccount,
+        credentialsUuid: string,
+    ): Promise<void> {
         this.canManage(account);
         const organizationUuid = account.organization.organizationUuid!;
-        const userUuid = account.user.id;
+        const { userUuid } = account.user;
 
         // Verify ownership before delete
         const existing =

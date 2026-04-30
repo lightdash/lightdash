@@ -4,6 +4,7 @@ import {
     ApiOrganizationWarehouseCredentialsResponse,
     ApiOrganizationWarehouseCredentialsSummaryListResponse,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     CreateOrganizationWarehouseCredentials,
     UpdateOrganizationWarehouseCredentials,
 } from '@lightdash/common';
@@ -52,13 +53,14 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
         | ApiOrganizationWarehouseCredentialsSummaryListResponse
     > {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
 
         if (summary) {
             return {
                 status: 'ok',
                 results:
                     await this.getOrganizationWarehouseCredentialsService().getAllSummaries(
-                        req.account!,
+                        req.account,
                     ),
             };
         }
@@ -67,7 +69,7 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
             status: 'ok',
             results:
                 await this.getOrganizationWarehouseCredentialsService().getAll(
-                    req.account!,
+                    req.account,
                 ),
         };
     }
@@ -86,11 +88,12 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
         @Path() credentialsUuid: string,
     ): Promise<ApiOrganizationWarehouseCredentialsResponse> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results:
                 await this.getOrganizationWarehouseCredentialsService().get(
-                    req.account!,
+                    req.account,
                     credentialsUuid,
                 ),
         };
@@ -114,11 +117,12 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
         @Body() body: CreateOrganizationWarehouseCredentials,
     ): Promise<ApiOrganizationWarehouseCredentialsResponse> {
         this.setStatus(201);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results:
                 await this.getOrganizationWarehouseCredentialsService().create(
-                    req.account!,
+                    req.account,
                     body,
                 ),
         };
@@ -144,11 +148,12 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
         @Body() body: UpdateOrganizationWarehouseCredentials,
     ): Promise<ApiOrganizationWarehouseCredentialsResponse> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results:
                 await this.getOrganizationWarehouseCredentialsService().update(
-                    req.account!,
+                    req.account,
                     credentialsUuid,
                     body,
                 ),
@@ -172,8 +177,9 @@ export class OrganizationWarehouseCredentialsController extends BaseController {
         @Request() req: express.Request,
         @Path() credentialsUuid: string,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.getOrganizationWarehouseCredentialsService().delete(
-            req.account!,
+            req.account,
             credentialsUuid,
         );
         this.setStatus(200);
