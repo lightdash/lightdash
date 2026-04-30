@@ -122,7 +122,6 @@ export type CreateDashboard = {
     >;
     filters?: DashboardFilters;
     parameters?: DashboardParameters;
-    pinnedParameters?: string[];
     updatedByUser?: Pick<UpdatedByUser, 'userUuid'>;
     spaceUuid?: string;
     tabs: DashboardTab[];
@@ -176,7 +175,6 @@ export type DashboardDAO = Omit<
 export type DashboardConfig = {
     isDateZoomDisabled: boolean;
     isAddFilterDisabled?: boolean;
-    pinnedParameters?: string[];
     parameterOrder?: string[];
     dateZoomGranularities?: (DateGranularity | string)[];
     defaultDateZoomGranularity?: DateGranularity | string;

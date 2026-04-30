@@ -126,17 +126,6 @@ const Dashboard: FC = () => {
     const dashboardParameters = useDashboardContext(
         (c) => c.dashboardParameters,
     );
-    const pinnedParameters = useDashboardContext((c) => c.pinnedParameters);
-    const toggleParameterPin = useDashboardContext((c) => c.toggleParameterPin);
-    const havePinnedParametersChanged = useDashboardContext(
-        (c) => c.havePinnedParametersChanged,
-    );
-    const setHavePinnedParametersChanged = useDashboardContext(
-        (c) => c.setHavePinnedParametersChanged,
-    );
-    const setPinnedParameters = useDashboardContext(
-        (c) => c.setPinnedParameters,
-    );
     const parameterOrder = useDashboardContext((c) => c.parameterOrder);
     const setParameterOrder = useDashboardContext((c) => c.setParameterOrder);
     const hasParameterOrderChanged = useDashboardContext(
@@ -323,7 +312,6 @@ const Dashboard: FC = () => {
         if (isSuccess) {
             setHaveTilesChanged(false);
             setHaveFiltersChanged(false);
-            setHavePinnedParametersChanged(false);
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setDashboardTemporaryFilters({
@@ -353,7 +341,6 @@ const Dashboard: FC = () => {
         setDashboardTemporaryFilters,
         setHaveFiltersChanged,
         setHaveTilesChanged,
-        setHavePinnedParametersChanged,
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
         dashboardTabs,
@@ -503,8 +490,6 @@ const Dashboard: FC = () => {
         setHaveTabsChanged(false);
         setDashboardTabs(dashboard.tabs);
         setSavedParameters(dashboard.parameters ?? {});
-        setPinnedParameters(dashboard.config?.pinnedParameters ?? []);
-        setHavePinnedParametersChanged(false);
         setHasParameterOrderChanged(false);
         setDateZoomGranularities(
             dashboard.config?.dateZoomGranularities ??
@@ -541,8 +526,6 @@ const Dashboard: FC = () => {
         dashboardTabs,
         activeTab,
         setSavedParameters,
-        setPinnedParameters,
-        setHavePinnedParametersChanged,
         setDateZoomGranularities,
         setHaveDateZoomGranularitiesChanged,
         setDefaultDateZoomGranularity,
@@ -685,7 +668,6 @@ const Dashboard: FC = () => {
             config: {
                 isDateZoomDisabled,
                 isAddFilterDisabled,
-                pinnedParameters,
                 parameterOrder: hasParameterOrderChanged
                     ? parameterOrder
                     : dashboard.config?.parameterOrder,
@@ -722,7 +704,6 @@ const Dashboard: FC = () => {
             hasDateZoomDisabledChanged ||
             hasAddFilterDisabledChanged ||
             parametersHaveChanged ||
-            havePinnedParametersChanged ||
             hasParameterOrderChanged ||
             haveDateZoomGranularitiesChanged ||
             hasDefaultDateZoomGranularityChanged,
@@ -789,8 +770,6 @@ const Dashboard: FC = () => {
                         onParameterClearAll={clearAllParameters}
                         isParameterLoading={!areAllChartsLoaded}
                         missingRequiredParameters={missingRequiredParameters}
-                        pinnedParameters={pinnedParameters}
-                        onParameterPin={toggleParameterPin}
                         parameterOrder={parameterOrder}
                         onParameterReorder={setParameterOrder}
                         // tabs
