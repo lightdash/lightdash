@@ -464,8 +464,7 @@ describe('PivotQueryBuilder', () => {
             );
 
             // Metric sort: row anchor should use CROSS JOIN with anchor_column
-            // (gets metric value at first pivot column only, not MIN/MAX across all columns).
-            // Match condition is null-safe so a NULL anchor still matches NULL rows.
+            // (gets metric value at first pivot column only, not MIN/MAX across all columns)
             expect(result).toContain('"revenue_row_anchor" AS (');
             expect(replaceWhitespace(result)).toContain(
                 'MAX(CASE WHEN (q."category" = ac."anchor_category" OR (q."category" IS NULL AND ac."anchor_category" IS NULL)) THEN q."revenue_sum" END)',
@@ -500,8 +499,7 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('"revenue_row_anchor" AS (');
             expect(result).toContain('"revenue_column_anchor" AS (');
 
-            // row_ranking CTE should join with row_anchor and compute DENSE_RANK.
-            // The join uses null-safe equality so NULL index values still match.
+            // row_ranking CTE should join with row_anchor and compute DENSE_RANK
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
                 'JOIN "revenue_row_anchor" ON (g."date" = "revenue_row_anchor"."date" OR (g."date" IS NULL AND "revenue_row_anchor"."date" IS NULL))',
@@ -522,7 +520,7 @@ describe('PivotQueryBuilder', () => {
                 'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."category" ASC) AS "col_idx"',
             );
 
-            // pivot_query should JOIN with precomputed rankings using null-safe equality
+            // pivot_query should JOIN with precomputed rankings
             expect(replaceWhitespace(result)).toContain(
                 'LEFT JOIN row_ranking rr ON (g."date" = rr."date" OR (g."date" IS NULL AND rr."date" IS NULL))',
             );
@@ -595,8 +593,8 @@ describe('PivotQueryBuilder', () => {
                 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
             );
 
-            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery).
-            // Match condition is null-safe so a NULL anchor still matches NULL rows.
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
+            // (gets value at first pivot column, not MIN/MAX across all columns)
             expect(replaceWhitespace(result)).toContain(
                 'MAX(CASE WHEN (q."category" = ac."anchor_category" OR (q."category" IS NULL AND ac."anchor_category" IS NULL)) THEN q."revenue_sum" END)',
             );
@@ -631,8 +629,7 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE.
-            // Joins use null-safe equality so NULL index/groupBy values still match.
+            // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
                 'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_row_anchor" ON (g."date" = "revenue_row_anchor"."date" OR (g."date" IS NULL AND "revenue_row_anchor"."date" IS NULL)))',
@@ -1631,9 +1628,8 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery).
-            // The NULLS LAST is applied in the row_index ORDER BY, not the anchor CTE.
-            // Match condition is null-safe so a NULL anchor still matches NULL rows.
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
+            // The NULLS LAST is applied in the row_index ORDER BY, not the anchor CTE
             expect(replaceWhitespace(result)).toContain(
                 'MAX(CASE WHEN (q."category" = ac."anchor_category" OR (q."category" IS NULL AND ac."anchor_category" IS NULL)) THEN q."revenue_sum" END)',
             );

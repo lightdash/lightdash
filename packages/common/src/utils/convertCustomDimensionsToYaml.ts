@@ -21,7 +21,7 @@ import {
     getCustomRangeSelectSql,
     getFixedWidthBinSelectSql,
 } from './customDimensions';
-import { defaultNullSafeEqualSql } from './warehouseSql';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 export const convertCustomSqlDimensionToDbt = (
     field: CustomSqlDimension,

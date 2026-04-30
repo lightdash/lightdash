@@ -15,7 +15,7 @@ import {
 } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
-import { defaultNullSafeEqualSql } from './warehouseSql';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 export const createVirtualView = (
     virtualViewName: string,

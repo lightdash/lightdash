@@ -7,7 +7,7 @@ import type { WarehouseClient } from '../types/warehouse';
 import type { VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
 import { createVirtualView } from './virtualView';
-import { defaultNullSafeEqualSql } from './warehouseSql';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 const fakeWarehouseClient: WarehouseClient = {
     credentials: {

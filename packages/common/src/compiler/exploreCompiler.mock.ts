@@ -19,7 +19,7 @@ import {
     type WarehouseClient,
     type WarehouseTables,
 } from '../types/warehouse';
-import { defaultNullSafeEqualSql } from '../utils/warehouseSql';
+import { defaultNullSafeEqualSql } from '../utils/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {

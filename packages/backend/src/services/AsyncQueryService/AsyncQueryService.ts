@@ -197,13 +197,10 @@ import {
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 
-// Sentinel used when building the suffix on pivoted value-column references for
-// NULL groupBy values. `[null].join('_')` collapses to '' and would collide with
-// the unsuffixed base column key. Angle brackets keep the marker out of real
-// categorical data; if it surfaces in a label fallback (e.g. SQL Runner viz
-// passing `pivotColumnName` through `friendlyName`), it renders as "null" — the
-// punctuation is stripped, the word survives.
-const PIVOT_NULL_KEY = '<null>';
+// NULL pivot keys collide with the unsuffixed base column when joined
+// (`[null].join('_') === ''`). Wrapped in `<>` so it strips cleanly via
+// friendlyName if it ever surfaces in a label fallback.
+const NULL_PIVOT_KEY = '<null>';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
@@ -1680,16 +1677,13 @@ export class AsyncQueryService extends ProjectService {
                       // Suffix the value column with the group by columns to avoid collisions.
                       // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
                       // then the value column will be 'value_1_a_b'.
-                      // NULL pivot values are mapped to a sentinel so that
-                      // `[null].join('_')` doesn't collapse to '' and collide with the
-                      // unsuffixed base column.
                       const valueSuffix =
                           pivotValues.length > 0
                               ? pivotValues
                                     .map((p) =>
                                         p.value === null ||
                                         p.value === undefined
-                                            ? PIVOT_NULL_KEY
+                                            ? NULL_PIVOT_KEY
                                             : p.value,
                                     )
                                     .join('_')
@@ -1702,11 +1696,8 @@ export class AsyncQueryService extends ProjectService {
                                   col.reference,
                                   col.aggregation,
                               );
-                          // Keep the truthy check on valueSuffix (not pivotValues.length)
-                          // so an all-empty-string groupBy still resolves to the unsuffixed
-                          // column name. This preserves saved-chart `display.series` keys
-                          // for empty-string pivot values. NULL/undefined are mapped through
-                          // PIVOT_NULL_KEY above, so they always produce a non-empty suffix.
+                          // Truthy check on valueSuffix preserves backwards-compat for
+                          // empty-string pivot values (unsuffixed column).
                           const valueColumnReference = valueSuffix
                               ? `${valueColumnField}_${valueSuffix}`
                               : valueColumnField;

@@ -828,8 +828,6 @@ export class PivotQueryBuilder {
             .join(', ');
 
         // Build condition to match anchor column using CROSS JOIN alias.
-        // Null-safe equality so a NULL anchor value (i.e. the NULL group is the
-        // leftmost pivot column) still matches NULL rows in q.
         const anchorMatchConditions = groupByColumns
             .map((col) =>
                 this.warehouseSqlBuilder.getNullSafeEqualSql(

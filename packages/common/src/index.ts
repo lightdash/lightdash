@@ -224,7 +224,6 @@ export * from './utils/timeFrames';
 export * from './utils/resolveQueryTimezone';
 export * from './utils/virtualView';
 export * from './utils/warehouse';
-export * from './utils/warehouseSql';
 export * from './visualizations/CartesianChartDataModel';
 export * from './visualizations/helpers/getCartesianAxisFormatterConfig';
 export * from './visualizations/helpers/styles/axisStyles';
