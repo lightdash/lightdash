@@ -1,3 +1,10 @@
+## [0.2848.3](https://github.com/lightdash/lightdash/compare/0.2848.2...0.2848.3) (2026-04-30)
+
+
+### Bug Fixes
+
+* drop silent 50-row default in CatalogModel.search ([#22523](https://github.com/lightdash/lightdash/issues/22523)) ([9a5f042](https://github.com/lightdash/lightdash/commit/9a5f0427a1c07f396bbe366820c7b1294c6ac1fb))
+
 ## [0.2848.2](https://github.com/lightdash/lightdash/compare/0.2848.1...0.2848.2) (2026-04-30)
 
 
