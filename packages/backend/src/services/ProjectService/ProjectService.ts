@@ -6609,6 +6609,38 @@ export class ProjectService extends BaseService {
         });
     }
 
+    async getChartsByExploreName(
+        user: SessionUser,
+        projectUuid: string,
+        exploreName: string,
+    ): Promise<ChartSummary[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const allowedSpaceUuids =
+            await this.spacePermissionService.getAccessibleSpaceUuids(
+                'view',
+                user,
+                spaces.map((s) => s.uuid),
+            );
+
+        return this.savedChartModel.find({
+            projectUuid,
+            spaceUuids: allowedSpaceUuids,
+            exploreName,
+        });
+    }
+
     async getMostPopularAndRecentlyUpdated(
         user: SessionUser,
         projectUuid: string,

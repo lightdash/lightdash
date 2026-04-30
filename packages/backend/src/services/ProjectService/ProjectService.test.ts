@@ -11,6 +11,7 @@ import {
     ProjectType,
     SessionUser,
     WarehouseTypes,
+    type ChartSummary,
     type Explore,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -169,12 +170,14 @@ const onboardingModel = {
 };
 const savedChartModel = {
     getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+    find: jest.fn(async () => [] as ChartSummary[]),
 };
 const jobModel = {
     get: jest.fn(async () => job),
 };
 const spaceModel = {
     getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+    find: jest.fn(async () => spacesWithSavedCharts),
 };
 
 const userAttributesModel = {
@@ -201,7 +204,10 @@ const projectCompileLogModel = {
     insert: jest.fn(async () => undefined),
 };
 
-const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
+const getMockedProjectService = (
+    lightdashConfig: LightdashConfig,
+    overrides: { spacePermissionService?: SpacePermissionService } = {},
+) =>
     new ProjectService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -254,7 +260,8 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         adminNotificationService: {
             notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
-        spacePermissionService: {} as SpacePermissionService,
+        spacePermissionService:
+            overrides.spacePermissionService ?? ({} as SpacePermissionService),
     });
 
 const account = buildAccount({
@@ -1727,6 +1734,89 @@ describe('ProjectService', () => {
             expect(result.order_status).toBe('pending');
             // Saved param without request override is still included
             expect(result.region).toBe('US');
+        });
+    });
+
+    describe('getChartsByExploreName', () => {
+        const exploreName = 'orders';
+        const spaceUuid = 'uuid';
+        const chartSummaryMock: ChartSummary = {
+            uuid: 'chart-uuid',
+            name: 'Orders chart',
+            description: undefined,
+            spaceUuid,
+            spaceName: 'space',
+            projectUuid: defaultProject.projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            pinnedListUuid: null,
+            chartKind: undefined,
+            dashboardUuid: null,
+            dashboardName: null,
+            slug: 'orders-chart',
+        };
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+        });
+
+        test('returns charts from accessible spaces for a valid explore name', async () => {
+            const spacePermissionService = {
+                getAccessibleSpaceUuids: jest.fn(async () => [spaceUuid]),
+            } as unknown as SpacePermissionService;
+            const serviceWithPermissions = getMockedProjectService(
+                lightdashConfigMock,
+                { spacePermissionService },
+            );
+            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([
+                chartSummaryMock,
+            ]);
+
+            const result = await serviceWithPermissions.getChartsByExploreName(
+                user,
+                defaultProject.projectUuid,
+                exploreName,
+            );
+
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+                spaceUuids: [spaceUuid],
+                exploreName,
+            });
+            expect(result).toEqual([chartSummaryMock]);
+        });
+
+        test('returns empty array when no charts use the given explore', async () => {
+            const spacePermissionService = {
+                getAccessibleSpaceUuids: jest.fn(async () => [spaceUuid]),
+            } as unknown as SpacePermissionService;
+            const serviceWithPermissions = getMockedProjectService(
+                lightdashConfigMock,
+                { spacePermissionService },
+            );
+            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([]);
+
+            const result = await serviceWithPermissions.getChartsByExploreName(
+                user,
+                defaultProject.projectUuid,
+                'nonexistent_explore',
+            );
+
+            expect(result).toEqual([]);
+        });
+
+        test('throws ForbiddenError when user cannot view the project', async () => {
+            const restrictedUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getChartsByExploreName(
+                    restrictedUser,
+                    defaultProject.projectUuid,
+                    exploreName,
+                ),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 });
