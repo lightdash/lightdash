@@ -1,4 +1,5 @@
 import { type ContentType } from './content';
+import { type ChartKind } from './savedCharts';
 
 export type ContentVerificationInfo = {
     verifiedBy: {
@@ -9,13 +10,15 @@ export type ContentVerificationInfo = {
     verifiedAt: Date;
 };
 
-export type VerifiedContentListItem = {
+type VerifiedContentListItemBase = {
     uuid: string;
-    contentType: ContentType;
     contentUuid: string;
     name: string;
+    description: string | null;
     spaceUuid: string;
     spaceName: string;
+    lastUpdatedAt: Date;
+    views: number;
     verifiedBy: {
         userUuid: string;
         firstName: string;
@@ -23,6 +26,20 @@ export type VerifiedContentListItem = {
     };
     verifiedAt: Date;
 };
+
+export type VerifiedChartListItem = VerifiedContentListItemBase & {
+    contentType: ContentType.CHART;
+    chartKind: ChartKind | null;
+    exploreName: string | null;
+};
+
+export type VerifiedDashboardListItem = VerifiedContentListItemBase & {
+    contentType: ContentType.DASHBOARD;
+};
+
+export type VerifiedContentListItem =
+    | VerifiedChartListItem
+    | VerifiedDashboardListItem;
 
 export type ApiContentVerificationResponse = {
     status: 'ok';

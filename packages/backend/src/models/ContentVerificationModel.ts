@@ -1,5 +1,6 @@
 import {
     ContentType,
+    type ChartKind,
     type ContentVerificationInfo,
     type VerifiedContentListItem,
 } from '@lightdash/common';
@@ -8,8 +9,14 @@ import {
     ContentVerificationTableName,
     type CreateDbContentVerification,
 } from '../database/entities/contentVerification';
-import { DashboardsTableName } from '../database/entities/dashboards';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 
@@ -160,6 +167,15 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                `${SavedChartsTableName}.last_version_chart_kind`,
+                `${SavedChartsTableName}.last_version_updated_at`,
+                `${SavedChartsTableName}.views_count`,
+                this.database.raw(
+                    `(SELECT explore_name FROM ${SavedChartVersionsTableName} sqv
+                      WHERE sqv.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                      ORDER BY sqv.created_at DESC LIMIT 1) as explore_name`,
+                ),
                 `${SpaceTableName}.space_uuid`,
                 this.database.ref(`${SpaceTableName}.name`).as('space_name'),
                 `${UserTableName}.user_uuid`,
@@ -196,6 +212,16 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.description`,
+                `${DashboardsTableName}.views_count`,
+                this.database.raw(
+                    `COALESCE(
+                        (SELECT created_at FROM ${DashboardVersionsTableName} dv
+                          WHERE dv.dashboard_id = ${DashboardsTableName}.dashboard_id
+                          ORDER BY dv.created_at DESC LIMIT 1),
+                        ${DashboardsTableName}.created_at
+                    ) as last_updated_at`,
+                ),
                 `${SpaceTableName}.space_uuid`,
                 this.database.ref(`${SpaceTableName}.name`).as('space_name'),
                 `${UserTableName}.user_uuid`,
@@ -204,11 +230,16 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.verified_at`,
             );
 
-        return [...chartRows, ...dashboardRows].map((row) => ({
+        const chartItems: VerifiedContentListItem[] = chartRows.map((row) => ({
             uuid: row.content_verification_uuid,
-            contentType: row.content_type as ContentType,
+            contentType: ContentType.CHART,
             contentUuid: row.content_uuid,
             name: row.name,
+            description: row.description ?? null,
+            chartKind: (row.last_version_chart_kind as ChartKind) ?? null,
+            exploreName: row.explore_name ?? null,
+            lastUpdatedAt: row.last_version_updated_at,
+            views: row.views_count,
             spaceUuid: row.space_uuid,
             spaceName: row.space_name,
             verifiedBy: {
@@ -218,5 +249,27 @@ export class ContentVerificationModel {
             },
             verifiedAt: row.verified_at,
         }));
+
+        const dashboardItems: VerifiedContentListItem[] = dashboardRows.map(
+            (row) => ({
+                uuid: row.content_verification_uuid,
+                contentType: ContentType.DASHBOARD,
+                contentUuid: row.content_uuid,
+                name: row.name,
+                description: row.description ?? null,
+                lastUpdatedAt: row.last_updated_at,
+                views: row.views_count,
+                spaceUuid: row.space_uuid,
+                spaceName: row.space_name,
+                verifiedBy: {
+                    userUuid: row.user_uuid,
+                    firstName: row.first_name,
+                    lastName: row.last_name,
+                },
+                verifiedAt: row.verified_at,
+            }),
+        );
+
+        return [...chartItems, ...dashboardItems];
     }
 }

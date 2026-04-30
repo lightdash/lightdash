@@ -1537,7 +1537,7 @@ export class McpService extends BaseService {
             McpToolName.LIST_VERIFIED_CONTENT,
             {
                 description:
-                    'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
+                    'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, lastUpdatedAt, views, and verification metadata (who verified it and when). Charts also include chartKind and exploreName so you can filter to the relevant explore before drilling in with find_fields or find_content.',
                 inputSchema: {},
                 annotations: {
                     readOnlyHint: true,
