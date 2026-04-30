@@ -82,6 +82,7 @@ import {
     ThresholdOperator,
     ThresholdOptions,
     TimeZone,
+    translateSlackError,
     UnexpectedGoogleSheetsError,
     UnexpectedServerError,
     UploadMetricGsheetPayload,
@@ -1282,6 +1283,7 @@ export default class SchedulerTask {
                 },
             });
 
+            const translatedSlackError = translateSlackError(e);
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.SEND_SLACK_NOTIFICATION,
                 schedulerUuid,
@@ -1292,7 +1294,10 @@ export default class SchedulerTask {
                 targetType: 'slack',
                 status: SchedulerJobStatus.ERROR,
                 details: {
-                    error: getErrorMessage(e),
+                    error: translatedSlackError?.error ?? getErrorMessage(e),
+                    ...(translatedSlackError && {
+                        slackErrorCode: translatedSlackError.slackErrorCode,
+                    }),
                     projectUuid: notification.projectUuid,
                     organizationUuid: notification.organizationUuid,
                     createdByUserUuid: notification.userUuid,
@@ -3636,6 +3641,7 @@ export default class SchedulerTask {
                     error: `${e}`,
                 },
             });
+            const translatedSlackError = translateSlackError(e);
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
                 schedulerUuid,
@@ -3644,7 +3650,10 @@ export default class SchedulerTask {
                 scheduledTime,
                 status: SchedulerJobStatus.ERROR,
                 details: {
-                    error: getErrorMessage(e),
+                    error: translatedSlackError?.error ?? getErrorMessage(e),
+                    ...(translatedSlackError && {
+                        slackErrorCode: translatedSlackError.slackErrorCode,
+                    }),
                     projectUuid: schedulerPayload.projectUuid,
                     organizationUuid: schedulerPayload.organizationUuid,
                     createdByUserUuid: schedulerPayload.userUuid,
@@ -4491,6 +4500,20 @@ export default class SchedulerTask {
             });
         } else if (succeeded === 0) {
             // All failed - total failure
+            const translatedByCode = new Map<string, string>();
+            for (const r of settledResults) {
+                if (r.status === 'rejected') {
+                    const t = translateSlackError(r.reason);
+                    if (t) translatedByCode.set(t.slackErrorCode, t.error);
+                }
+            }
+            const batchErrorMessage =
+                translatedByCode.size > 0
+                    ? `All Slack deliveries failed: ${[
+                          ...translatedByCode.values(),
+                      ].join(' ')}`
+                    : 'All Slack deliveries failed';
+            const slackErrorCodes = [...translatedByCode.keys()];
             this.analytics.track({
                 event: 'scheduler_notification_job.failed',
                 anonymousId: LightdashAnalytics.anonymousId,
@@ -4507,7 +4530,7 @@ export default class SchedulerTask {
                     failed,
                     sendNow: false,
                     isThresholdAlert: scheduler.thresholds !== undefined,
-                    error: 'All Slack deliveries failed',
+                    error: batchErrorMessage,
                 },
             });
             await this.schedulerService.logSchedulerJob({
@@ -4522,7 +4545,8 @@ export default class SchedulerTask {
                     projectUuid: notification.projectUuid,
                     organizationUuid: notification.organizationUuid,
                     createdByUserUuid: notification.userUuid,
-                    error: 'All Slack deliveries failed',
+                    error: batchErrorMessage,
+                    ...(slackErrorCodes.length > 0 && { slackErrorCodes }),
                     batchResult,
                 },
             });
