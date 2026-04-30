@@ -196,6 +196,12 @@ import {
 } from './types';
 
 const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
+
+// Sentinel used when building the suffix on pivoted value-column references for
+// NULL groupBy values. `[null].join('_')` collapses to '' and would collide with
+// the unsuffixed base column key. The sentinel is only used in internal column
+// keys — the frontend reads `pivotValues[].value === null` for label rendering.
+const PIVOT_NULL_KEY = '__lightdash_null__';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
@@ -1671,10 +1677,20 @@ export class AsyncQueryService extends ProjectService {
 
                       // Suffix the value column with the group by columns to avoid collisions.
                       // E.g. if we have a row with the value 1 and the group by columns are ['a', 'b'],
-                      // then the value column will be 'value_1_a_b'
+                      // then the value column will be 'value_1_a_b'.
+                      // NULL pivot values are mapped to a sentinel so that
+                      // `[null].join('_')` doesn't collapse to '' and collide with the
+                      // unsuffixed base column.
                       const valueSuffix =
                           pivotValues.length > 0
-                              ? pivotValues.map((p) => p.value).join('_')
+                              ? pivotValues
+                                    .map((p) =>
+                                        p.value === null ||
+                                        p.value === undefined
+                                            ? PIVOT_NULL_KEY
+                                            : p.value,
+                                    )
+                                    .join('_')
                               : '';
 
                       // eslint-disable-next-line @typescript-eslint/no-loop-func -- forEach is synchronous, executes within current loop iteration
@@ -1684,9 +1700,10 @@ export class AsyncQueryService extends ProjectService {
                                   col.reference,
                                   col.aggregation,
                               );
-                          const valueColumnReference = valueSuffix
-                              ? `${valueColumnField}_${valueSuffix}`
-                              : valueColumnField;
+                          const valueColumnReference =
+                              pivotValues.length > 0
+                                  ? `${valueColumnField}_${valueSuffix}`
+                                  : valueColumnField;
 
                           valuesColumnData.set(valueColumnReference, {
                               referenceField: col.reference, // The original y field name

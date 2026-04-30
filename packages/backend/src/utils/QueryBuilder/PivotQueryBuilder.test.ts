@@ -3,6 +3,7 @@ import {
     CompiledDimension,
     CustomBinDimension,
     CustomDimensionType,
+    defaultNullSafeEqualSql,
     DimensionType,
     FieldType,
     ItemsMap,
@@ -25,6 +26,7 @@ const mockWarehouseSqlBuilder = {
     getFieldQuoteChar: () => '"',
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getStartOfWeek: () => WeekDay.MONDAY,
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
 } as unknown as WarehouseSqlBuilder;
 
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
@@ -497,15 +499,16 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('"revenue_row_anchor" AS (');
             expect(result).toContain('"revenue_column_anchor" AS (');
 
-            // row_ranking CTE should join with row_anchor and compute DENSE_RANK
+            // row_ranking CTE should join with row_anchor and compute DENSE_RANK.
+            // The join uses null-safe equality so NULL index values still match.
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
-                'JOIN "revenue_row_anchor" ON g."date" = "revenue_row_anchor"."date"',
+                'JOIN "revenue_row_anchor" ON (g."date" = "revenue_row_anchor"."date" OR (g."date" IS NULL AND "revenue_row_anchor"."date" IS NULL))',
             );
 
             // column_ranking CTE should join with column_anchor and compute DENSE_RANK
             expect(replaceWhitespace(result)).toContain(
-                'JOIN "revenue_column_anchor" ON g."category" = "revenue_column_anchor"."category"',
+                'JOIN "revenue_column_anchor" ON (g."category" = "revenue_column_anchor"."category" OR (g."category" IS NULL AND "revenue_column_anchor"."category" IS NULL))',
             );
 
             // Row index should be computed in row_ranking CTE (not in pivot_query)
@@ -518,12 +521,12 @@ describe('PivotQueryBuilder', () => {
                 'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."category" ASC) AS "col_idx"',
             );
 
-            // pivot_query should JOIN with precomputed rankings
+            // pivot_query should JOIN with precomputed rankings using null-safe equality
             expect(replaceWhitespace(result)).toContain(
-                'LEFT JOIN row_ranking rr ON g."date" = rr."date"',
+                'LEFT JOIN row_ranking rr ON (g."date" = rr."date" OR (g."date" IS NULL AND rr."date" IS NULL))',
             );
             expect(replaceWhitespace(result)).toContain(
-                'LEFT JOIN column_ranking cr ON g."category" = cr."category"',
+                'LEFT JOIN column_ranking cr ON (g."category" = cr."category" OR (g."category" IS NULL AND cr."category" IS NULL))',
             );
         });
 
@@ -627,15 +630,16 @@ describe('PivotQueryBuilder', () => {
 
             const result = builder.toSql();
 
-            // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE
+            // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE.
+            // Joins use null-safe equality so NULL index/groupBy values still match.
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
-                'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_row_anchor" ON g."date" = "revenue_row_anchor"."date")',
+                'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_row_anchor" ON (g."date" = "revenue_row_anchor"."date" OR (g."date" IS NULL AND "revenue_row_anchor"."date" IS NULL)))',
             );
 
             // pivot_query should JOIN with precomputed rankings instead of computing Window functions
             expect(replaceWhitespace(result)).toContain(
-                'pivot_query AS (SELECT g."date", g."category", g."revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index" FROM group_by_query g LEFT JOIN row_ranking rr ON g."date" = rr."date" LEFT JOIN column_ranking cr ON g."category" = cr."category")',
+                'pivot_query AS (SELECT g."date", g."category", g."revenue_sum", rr."row_index" AS "row_index", cr."col_idx" AS "column_index" FROM group_by_query g LEFT JOIN row_ranking rr ON (g."date" = rr."date" OR (g."date" IS NULL AND rr."date" IS NULL)) LEFT JOIN column_ranking cr ON (g."category" = cr."category" OR (g."category" IS NULL AND cr."category" IS NULL)))',
             );
 
             // pivot_query should NOT contain DENSE_RANK (rankings are precomputed)
@@ -1225,6 +1229,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockBigQueryBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
+                getNullSafeEqualSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const pivotConfiguration = {
@@ -1256,6 +1261,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             const mockDatabricksBuilder = {
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+                getNullSafeEqualSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const pivotConfiguration = {
@@ -3075,6 +3081,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
                 getStartOfWeek: () => WeekDay.MONDAY,
+                getNullSafeEqualSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const itemsMap: ItemsMap = {
@@ -3532,6 +3539,7 @@ SELECT * FROM group_by_query LIMIT 50`);
                 getFieldQuoteChar: () => '`',
                 getAdapterType: () => SupportedDbtAdapter.BIGQUERY,
                 getStartOfWeek: () => WeekDay.MONDAY,
+                getNullSafeEqualSql: defaultNullSafeEqualSql,
             } as unknown as WarehouseSqlBuilder;
 
             const itemsMapWithTc: ItemsMap = {

@@ -101,6 +101,7 @@ export interface WarehouseSqlBuilder {
     getEscapeStringQuoteChar: () => string;
     getFieldQuoteChar: () => string;
     getFloatingType: () => string;
+    getNullSafeEqualSql: (left: string, right: string) => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
     escapeString: (value: string) => string;
