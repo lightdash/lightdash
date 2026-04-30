@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
+    FeatureFlags,
     ResourceViewItemType,
     type Dashboard,
-    type FeatureFlags,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -65,7 +65,7 @@ import {
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
 import { useProject } from '../../../hooks/useProject';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -150,9 +150,11 @@ const DashboardHeader = memo(
             dashboardTiles,
             dashboardTabs,
         );
-        const isDashboardSummariesEnabled = useClientFeatureFlag(
-            'ai-dashboard-summary' as FeatureFlags,
+        const { data: aiDashboardSummaryFlag } = useServerFeatureFlag(
+            FeatureFlags.AiDashboardSummary,
         );
+        const isDashboardSummariesEnabled =
+            aiDashboardSummaryFlag?.enabled ?? false;
 
         const { search, pathname } = useLocation();
         const navigate = useNavigate();

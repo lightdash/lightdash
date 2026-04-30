@@ -109,6 +109,12 @@ export enum FeatureFlags {
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
+
+    /**
+     * Enable AI Dashboard Summary feature (generates summaries of dashboard
+     * contents using the AI Copilot).
+     */
+    AiDashboardSummary = 'ai-dashboard-summary',
 }
 
 export type FeatureFlag = {
