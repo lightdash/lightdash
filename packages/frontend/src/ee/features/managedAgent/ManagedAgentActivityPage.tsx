@@ -1,10 +1,9 @@
 import {
-    ActionIcon,
     Box,
+    Button,
     Group,
     Loader,
     Menu,
-    Popover,
     Select,
     Stack,
     Switch,
@@ -21,17 +20,18 @@ import {
     IconDots,
     IconExternalLink,
     IconLayoutDashboard,
+    IconSettings,
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useCallback, type FC, useState } from 'react';
+import { useCallback, useEffect, type FC, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
-import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useGetSlack } from '../../../hooks/slack/useSlack';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
@@ -69,74 +69,11 @@ const SCHEDULE_OPTIONS = [
 ];
 
 const SetupSection: FC<{
-    projectUuid: string;
     enabled: boolean;
     schedule: string;
-    slackChannelId: string | null;
-    isLoading: boolean;
-}> = ({
-    projectUuid,
-    enabled,
-    schedule: initialSchedule,
-    slackChannelId: initialSlackChannelId,
-    isLoading,
-}) => {
-    const queryClient = useQueryClient();
-    const { data: slackInstallation } = useGetSlack();
-    const organizationHasSlack = !!slackInstallation?.organizationUuid;
-
-    const { data: resolvedChannels } = useSlackChannels(
-        '',
-        {
-            includeChannelIds: initialSlackChannelId
-                ? [initialSlackChannelId]
-                : undefined,
-        },
-        { enabled: !!initialSlackChannelId && organizationHasSlack },
-    );
-    const slackChannelName =
-        resolvedChannels?.find((c) => c.id === initialSlackChannelId)?.name ??
-        initialSlackChannelId;
-
-    const mutation = useMutation({
-        mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
-            updateSettings(projectUuid, body),
-        onSuccess: () => {
-            void queryClient.invalidateQueries({
-                queryKey: ['managed-agent-settings', projectUuid],
-            });
-        },
-    });
-
-    const handleToggle = (val: boolean) => {
-        mutation.mutate({ enabled: val });
-    };
-
-    const [slackPopoverOpen, setSlackPopoverOpen] = useState(false);
-    const [schedulePopoverOpen, setSchedulePopoverOpen] = useState(false);
-
-    const handleSlackChannelChange = useCallback(
-        (channelId: string | null) => {
-            mutation.mutate({ slackChannelId: channelId });
-            setSlackPopoverOpen(false);
-        },
-        [mutation],
-    );
-
-    const handleScheduleChange = useCallback(
-        (value: string | null) => {
-            if (value) {
-                mutation.mutate({ scheduleCron: value });
-                setSchedulePopoverOpen(false);
-            }
-        },
-        [mutation],
-    );
-
-    const handleClearSlack = useCallback(() => {
-        mutation.mutate({ slackChannelId: null });
-    }, [mutation]);
-
+    settingsOpen: boolean;
+    onOpenSettings: () => void;
+}> = ({ enabled, schedule: initialSchedule, settingsOpen, onOpenSettings }) => {
     const scheduleLabel =
         SCHEDULE_OPTIONS.find(
             (o) => o.value === initialSchedule,
@@ -153,112 +90,34 @@ const SetupSection: FC<{
                         <Title order={4} fw={700}>
                             Autopilot
                         </Title>
-                        {enabled && (
-                            <Popover
-                                opened={schedulePopoverOpen}
-                                onChange={setSchedulePopoverOpen}
-                                position="bottom-start"
-                                width={220}
-                                shadow="md"
-                            >
-                                <Popover.Target>
-                                    <UnstyledButton
-                                        className={classes.activeBadge}
-                                        onClick={() =>
-                                            setSchedulePopoverOpen((o) => !o)
-                                        }
-                                    >
-                                        <Box
-                                            className={classes.activeDotInline}
-                                        />
-                                        Active &middot; {scheduleLabel}
-                                    </UnstyledButton>
-                                </Popover.Target>
-                                <Popover.Dropdown>
-                                    <Text fz="xs" fw={500} mb="xs">
-                                        Run frequency
-                                    </Text>
-                                    <Select
-                                        data={SCHEDULE_OPTIONS}
-                                        value={initialSchedule}
-                                        onChange={handleScheduleChange}
-                                        size="xs"
-                                    />
-                                </Popover.Dropdown>
-                            </Popover>
-                        )}
+                        <Box className={classes.activeBadge}>
+                            <Box
+                                className={
+                                    enabled
+                                        ? classes.activeDotInline
+                                        : classes.disabledDotInline
+                                }
+                            />
+                            {enabled ? (
+                                <>Active &middot; {scheduleLabel}</>
+                            ) : (
+                                'Disabled'
+                            )}
+                        </Box>
                     </Group>
                     <Text fz="xs" c="dimmed" ml={46}>
                         Your project health agent
                     </Text>
                 </Stack>
-                <Group gap="sm" align="center">
-                    {organizationHasSlack && enabled && (
-                        <>
-                            {initialSlackChannelId ? (
-                                <Group
-                                    gap={6}
-                                    px="sm"
-                                    py={4}
-                                    bg="white"
-                                    className={classes.slackBadge}
-                                >
-                                    <IconBrandSlack size={14} />
-                                    <Text fz="xs" fw={500}>
-                                        {slackChannelName}
-                                    </Text>
-                                    <ActionIcon
-                                        variant="transparent"
-                                        size="xs"
-                                        color="gray"
-                                        onClick={handleClearSlack}
-                                    >
-                                        <IconX size={12} />
-                                    </ActionIcon>
-                                </Group>
-                            ) : (
-                                <Popover
-                                    opened={slackPopoverOpen}
-                                    onChange={setSlackPopoverOpen}
-                                    position="bottom-end"
-                                    width={280}
-                                    shadow="md"
-                                >
-                                    <Popover.Target>
-                                        <ActionIcon
-                                            variant="subtle"
-                                            color="gray"
-                                            size="md"
-                                            onClick={() =>
-                                                setSlackPopoverOpen((o) => !o)
-                                            }
-                                        >
-                                            <IconBrandSlack size={18} />
-                                        </ActionIcon>
-                                    </Popover.Target>
-                                    <Popover.Dropdown>
-                                        <Text fz="xs" fw={500} mb="xs">
-                                            Post summaries to Slack
-                                        </Text>
-                                        <SlackChannelSelect
-                                            placeholder="Search channels..."
-                                            size="xs"
-                                            value={null}
-                                            onChange={handleSlackChannelChange}
-                                        />
-                                    </Popover.Dropdown>
-                                </Popover>
-                            )}
-                        </>
-                    )}
-                    <Switch
-                        checked={enabled}
-                        onChange={(e) => handleToggle(e.currentTarget.checked)}
-                        disabled={isLoading || mutation.isLoading}
-                        size="sm"
-                        color="dark"
-                    />
-                </Group>
+                <Button
+                    variant={settingsOpen ? 'light' : 'default'}
+                    color="dark"
+                    size="xs"
+                    leftSection={<IconSettings size={14} />}
+                    onClick={onOpenSettings}
+                >
+                    Settings
+                </Button>
             </Group>
             <Box className={classes.headerDivider} />
         </Stack>
@@ -579,6 +438,202 @@ const DetailSidebar: FC<{
     );
 };
 
+const SettingsSidebar: FC<{
+    projectUuid: string;
+    enabled: boolean;
+    schedule: string;
+    slackChannelId: string | null;
+    isLoading: boolean;
+    onClose: () => void;
+}> = ({
+    projectUuid,
+    enabled,
+    schedule,
+    slackChannelId,
+    isLoading,
+    onClose,
+}) => {
+    const queryClient = useQueryClient();
+    const { data: slackInstallation } = useGetSlack();
+    const organizationHasSlack = !!slackInstallation?.organizationUuid;
+    const [slackNotificationsEnabled, setSlackNotificationsEnabled] =
+        useState(!!slackChannelId);
+
+    useEffect(() => {
+        setSlackNotificationsEnabled(!!slackChannelId);
+    }, [slackChannelId]);
+
+    const mutation = useMutation({
+        mutationFn: (body: Parameters<typeof updateSettings>[1]) =>
+            updateSettings(projectUuid, body),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-settings', projectUuid],
+            });
+        },
+    });
+
+    const handleSlackChannelChange = useCallback(
+        (channelId: string | null) => {
+            setSlackNotificationsEnabled(!!channelId);
+            mutation.mutate({ slackChannelId: channelId });
+        },
+        [mutation],
+    );
+
+    const handleScheduleChange = useCallback(
+        (value: string | null) => {
+            if (value) {
+                mutation.mutate({ scheduleCron: value });
+            }
+        },
+        [mutation],
+    );
+
+    const handleSlackPostingToggle = useCallback(
+        (checked: boolean) => {
+            setSlackNotificationsEnabled(checked);
+            if (!checked) {
+                mutation.mutate({ slackChannelId: null });
+            }
+        },
+        [mutation],
+    );
+
+    return (
+        <Stack gap={0} h="100%" className={classes.sidebar}>
+            <Stack gap={2} className={classes.sidebarHeader}>
+                <Group justify="space-between" align="center">
+                    <Group gap={6}>
+                        <IconSettings
+                            size={16}
+                            color="var(--mantine-color-dimmed)"
+                        />
+                        <Text fz="sm" fw={600}>
+                            Autopilot settings
+                        </Text>
+                    </Group>
+                    <UnstyledButton
+                        onClick={onClose}
+                        className={classes.closeBtn}
+                    >
+                        <IconX size={14} />
+                    </UnstyledButton>
+                </Group>
+                <Text fz="xs" c="dimmed">
+                    Configure how Autopilot monitors this project.
+                </Text>
+            </Stack>
+
+            <Stack gap="lg" p="md" style={{ overflow: 'auto', flex: 1 }}>
+                <Group
+                    justify="space-between"
+                    align="flex-start"
+                    className={classes.settingsRow}
+                >
+                    <Stack gap={4}>
+                        <Text fz="sm" fw={500}>
+                            Enable Autopilot
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            Turn scheduled project health checks on or off.
+                        </Text>
+                    </Stack>
+                    <Switch
+                        checked={enabled}
+                        onChange={(e) =>
+                            mutation.mutate({
+                                enabled: e.currentTarget.checked,
+                            })
+                        }
+                        disabled={isLoading || mutation.isLoading}
+                        size="xs"
+                        color="dark"
+                    />
+                </Group>
+
+                {enabled && (
+                    <>
+                        <Stack gap={6} className={classes.settingsRow}>
+                            <Text fz="sm" fw={500}>
+                                Schedule
+                            </Text>
+                            <Select
+                                data={SCHEDULE_OPTIONS}
+                                value={schedule}
+                                onChange={handleScheduleChange}
+                                size="sm"
+                                disabled={isLoading || mutation.isLoading}
+                            />
+                        </Stack>
+
+                        <Stack gap={8} className={classes.settingsRow}>
+                            <Group justify="space-between" align="flex-start">
+                                <Stack gap={4}>
+                                    <Group gap={6}>
+                                        <IconBrandSlack
+                                            size={16}
+                                            color="var(--mantine-color-dimmed)"
+                                        />
+                                        <Text fz="sm" fw={500}>
+                                            Send updates to Slack
+                                        </Text>
+                                    </Group>
+                                    <Text fz="xs" c="dimmed">
+                                        Post Autopilot health check summaries to
+                                        a Slack channel after each run.
+                                    </Text>
+                                </Stack>
+                                {organizationHasSlack && (
+                                    <Switch
+                                        checked={slackNotificationsEnabled}
+                                        onChange={(e) =>
+                                            handleSlackPostingToggle(
+                                                e.currentTarget.checked,
+                                            )
+                                        }
+                                        disabled={mutation.isLoading}
+                                        size="xs"
+                                        color="dark"
+                                    />
+                                )}
+                            </Group>
+                            {organizationHasSlack ? (
+                                slackNotificationsEnabled && (
+                                    <SlackChannelSelect
+                                        placeholder="Search channels..."
+                                        size="sm"
+                                        value={slackChannelId}
+                                        onChange={handleSlackChannelChange}
+                                    />
+                                )
+                            ) : (
+                                <Stack gap="xs">
+                                    <Text fz="xs" c="dimmed">
+                                        Connect Slack to post Autopilot
+                                        summaries to a channel.
+                                    </Text>
+                                    <Button
+                                        component="a"
+                                        href="/generalSettings/integrations"
+                                        variant="default"
+                                        size="xs"
+                                        leftSection={
+                                            <IconExternalLink size={14} />
+                                        }
+                                    >
+                                        Open integrations
+                                    </Button>
+                                </Stack>
+                            )}
+                        </Stack>
+                    </>
+                )}
+            </Stack>
+        </Stack>
+    );
+};
+
 // --- Table Row ---
 
 const ActionRow: FC<{
@@ -638,6 +693,7 @@ export const ManagedAgentActivityPage: FC = () => {
     const { data: settings, isLoading: settingsLoading } =
         useManagedAgentSettings();
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
+    const [settingsOpen, setSettingsOpen] = useState(false);
     const filtered = actions ?? [];
 
     if (isLoading || settingsLoading) {
@@ -657,21 +713,21 @@ export const ManagedAgentActivityPage: FC = () => {
             <PanelGroup direction="horizontal">
                 <Panel
                     id="activity-table"
-                    defaultSize={selected ? 65 : 100}
+                    defaultSize={selected || settingsOpen ? 65 : 100}
                     minSize={40}
                 >
                     <Box className={classes.page}>
                         <Stack gap="lg">
                             <SetupSection
-                                projectUuid={projectUuid!}
                                 enabled={settings?.enabled ?? false}
                                 schedule={
                                     settings?.scheduleCron ?? '*/30 * * * *'
                                 }
-                                slackChannelId={
-                                    settings?.slackChannelId ?? null
-                                }
-                                isLoading={settingsLoading}
+                                settingsOpen={settingsOpen}
+                                onOpenSettings={() => {
+                                    setSelected(null);
+                                    setSettingsOpen(true);
+                                }}
                             />
 
                             {filtered.length === 0 ? (
@@ -704,7 +760,10 @@ export const ManagedAgentActivityPage: FC = () => {
                                                         selected?.actionUuid ===
                                                         action.actionUuid
                                                     }
-                                                    onSelect={setSelected}
+                                                    onSelect={(action) => {
+                                                        setSettingsOpen(false);
+                                                        setSelected(action);
+                                                    }}
                                                 />
                                             ))}
                                         </Table.Tbody>
@@ -715,19 +774,36 @@ export const ManagedAgentActivityPage: FC = () => {
                     </Box>
                 </Panel>
 
-                {selected && (
+                {(selected || settingsOpen) && (
                     <>
                         <PanelResizeHandle className={classes.resizeHandle} />
                         <Panel
-                            id="detail-sidebar"
+                            id={
+                                selected ? 'detail-sidebar' : 'settings-sidebar'
+                            }
                             defaultSize={35}
                             minSize={25}
                             maxSize={50}
                         >
-                            <DetailSidebar
-                                action={selected}
-                                onClose={() => setSelected(null)}
-                            />
+                            {selected ? (
+                                <DetailSidebar
+                                    action={selected}
+                                    onClose={() => setSelected(null)}
+                                />
+                            ) : (
+                                <SettingsSidebar
+                                    projectUuid={projectUuid!}
+                                    enabled={settings?.enabled ?? false}
+                                    schedule={
+                                        settings?.scheduleCron ?? '*/30 * * * *'
+                                    }
+                                    slackChannelId={
+                                        settings?.slackChannelId ?? null
+                                    }
+                                    isLoading={settingsLoading}
+                                    onClose={() => setSettingsOpen(false)}
+                                />
+                            )}
                         </Panel>
                     </>
                 )}
