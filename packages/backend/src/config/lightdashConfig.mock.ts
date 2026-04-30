@@ -252,9 +252,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         events: undefined,
     },
-    scim: {
-        enabled: false,
-    },
     security: {
         contentSecurityPolicy: {
             reportOnly: false,

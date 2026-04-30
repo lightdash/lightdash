@@ -1127,9 +1127,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    scim: {
-        enabled: boolean;
-    };
     serviceAccount: {
         enabled: boolean;
     };
@@ -1566,6 +1563,7 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // health endpoint). Keep the config field, but translate the env var to
     // the unified allowlist for the flag system.
     ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
+    ['SCIM_ENABLED', 'scim-token-management'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -2191,9 +2189,6 @@ export const parseConfig = (): LightdashConfig => {
                     process.env.EMBED_EVENT_SYSTEM_POST_MESSAGE_ENABLED ===
                     'true',
             },
-        },
-        scim: {
-            enabled: process.env.SCIM_ENABLED === 'true',
         },
         serviceAccount: {
             enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
