@@ -1254,9 +1254,6 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
-    metricDashboardFilters: {
-        enabled: boolean | undefined;
-    };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
     disabledFeatureFlags: Set<string>;
@@ -1571,6 +1568,7 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
         'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
         'organization-warehouse-credentials',
     ],
+    ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
@@ -2298,11 +2296,6 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
-        },
-        metricDashboardFilters: {
-            enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
-                ? process.env.METRIC_DASHBOARD_FILTERS_ENABLED === 'true'
-                : undefined,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
         enabledFeatureFlags: new Set([

@@ -347,9 +347,6 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
-    metricDashboardFilters: {
-        enabled: undefined,
-    },
     appRuntime: {
         enabled: false,
         lightdashOrigin: 'https://test.lightdash.cloud',

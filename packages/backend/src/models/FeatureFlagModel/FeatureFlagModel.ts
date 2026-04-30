@@ -37,8 +37,6 @@ export class FeatureFlagModel {
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.MetricDashboardFilters]:
-                this.getMetricDashboardFiltersEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.EnableDataApps]:
@@ -105,31 +103,6 @@ export class FeatureFlagModel {
         return {
             id: featureFlagId,
             enabled: this.lightdashConfig.editYamlInUi.enabled,
-        };
-    }
-
-    private async getMetricDashboardFiltersEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.metricDashboardFilters.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.MetricDashboardFilters,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
         };
     }
 
