@@ -29,7 +29,9 @@ import { useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
     explorerActions,
+    selectSavedChart,
     useExplorerDispatch,
+    useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
@@ -65,6 +67,7 @@ const TreeSingleNodeActions: FC<Props> = ({
 }) => {
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
+    const savedChart = useExplorerSelector(selectSavedChart);
     const { user } = useApp();
     const { showToastSuccess } = useToaster();
     const { addFilter } = useFilteredFields();
@@ -264,87 +267,102 @@ const TreeSingleNodeActions: FC<Props> = ({
                     </Menu.Item>
                 )}
 
-                {isCustomDimension(item) &&
-                    !(isCustomSqlDimension(item) && cannotAuthorCustomSql) && (
-                        <>
-                            <Menu.Item
-                                component="button"
-                                leftSection={<MantineIcon icon={IconEdit} />}
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    e.stopPropagation();
-                                    dispatch(
-                                        explorerActions.toggleCustomDimensionModal(
-                                            {
-                                                item,
-                                                isEditing: true,
-                                            },
-                                        ),
-                                    );
-                                }}
-                            >
-                                Edit custom dimension
-                            </Menu.Item>
-                            <Menu.Item
-                                component="button"
-                                leftSection={<MantineIcon icon={IconCopy} />}
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    e.stopPropagation();
-                                    duplicateCustomDimension(item);
-                                    track({
-                                        name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
-                                    });
-                                    showToastSuccess({
-                                        title: 'Copy of Custom Dimension added successfully',
-                                    });
-                                }}
-                            >
-                                Duplicate custom dimension
-                            </Menu.Item>
-                            {(isCustomSqlDimension(item) ||
-                                isWriteBackCustomBinDimensionsEnabled) && (
+                {isCustomDimension(item) && (
+                    <>
+                        {!(
+                            isCustomSqlDimension(item) && cannotAuthorCustomSql
+                        ) && (
+                            <>
                                 <Menu.Item
                                     component="button"
                                     leftSection={
-                                        <MantineIcon icon={IconCode} />
+                                        <MantineIcon icon={IconEdit} />
                                     }
                                     onClick={(
                                         e: React.MouseEvent<HTMLButtonElement>,
                                     ) => {
                                         e.stopPropagation();
-                                        if (
-                                            projectUuid &&
-                                            user.data?.organizationUuid
-                                        ) {
-                                            track({
-                                                name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
-                                                properties: {
-                                                    userId: user.data.userUuid,
-                                                    projectId: projectUuid,
-                                                    organizationId:
-                                                        user.data
-                                                            .organizationUuid,
-                                                    customDimensionsCount: 1,
-                                                },
-                                            });
-                                        }
-
                                         dispatch(
-                                            explorerActions.toggleWriteBackModal(
+                                            explorerActions.toggleCustomDimensionModal(
                                                 {
-                                                    items: [item],
+                                                    item,
+                                                    isEditing: true,
                                                 },
                                             ),
                                         );
                                     }}
                                 >
-                                    Write back to dbt
+                                    Edit custom dimension
                                 </Menu.Item>
-                            )}
+                                <Menu.Item
+                                    component="button"
+                                    leftSection={
+                                        <MantineIcon icon={IconCopy} />
+                                    }
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.stopPropagation();
+                                        duplicateCustomDimension(item);
+                                        track({
+                                            name: EventName.ADD_CUSTOM_DIMENSION_CLICKED,
+                                        });
+                                        showToastSuccess({
+                                            title: 'Copy of Custom Dimension added successfully',
+                                        });
+                                    }}
+                                >
+                                    Duplicate custom dimension
+                                </Menu.Item>
+                                {(isCustomSqlDimension(item) ||
+                                    isWriteBackCustomBinDimensionsEnabled) && (
+                                    <Menu.Item
+                                        component="button"
+                                        leftSection={
+                                            <MantineIcon icon={IconCode} />
+                                        }
+                                        onClick={(
+                                            e: React.MouseEvent<HTMLButtonElement>,
+                                        ) => {
+                                            e.stopPropagation();
+                                            if (
+                                                projectUuid &&
+                                                user.data?.organizationUuid
+                                            ) {
+                                                track({
+                                                    name: EventName.WRITE_BACK_FROM_CUSTOM_DIMENSION_CLICKED,
+                                                    properties: {
+                                                        userId: user.data
+                                                            .userUuid,
+                                                        projectId: projectUuid,
+                                                        organizationId:
+                                                            user.data
+                                                                .organizationUuid,
+                                                        customDimensionsCount: 1,
+                                                    },
+                                                });
+                                            }
 
+                                            dispatch(
+                                                explorerActions.toggleWriteBackModal(
+                                                    {
+                                                        items: [item],
+                                                    },
+                                                ),
+                                            );
+                                        }}
+                                    >
+                                        Write back to dbt
+                                    </Menu.Item>
+                                )}
+                            </>
+                        )}
+
+                        {!(
+                            isCustomSqlDimension(item) &&
+                            cannotAuthorCustomSql &&
+                            !!savedChart
+                        ) && (
                             <Menu.Item
                                 color="red"
                                 component="button"
@@ -362,8 +380,9 @@ const TreeSingleNodeActions: FC<Props> = ({
                             >
                                 Remove custom dimension
                             </Menu.Item>
-                        </>
-                    )}
+                        )}
+                    </>
+                )}
 
                 {customMetrics.length > 0 &&
                 (isDimension(item) || isCustomSqlDimension(item)) ? (

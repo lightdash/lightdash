@@ -28,6 +28,7 @@ import { useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectSavedChart,
     selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
@@ -75,6 +76,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const dispatch = useExplorerDispatch();
     const projectUuid = useProjectUuid();
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
+    const savedChart = useExplorerSelector(selectSavedChart);
 
     // Get explore data to check if metrics return date values
     const { data: exploreData } = useExplore(tableName, {
@@ -235,6 +237,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
     } else if (item && isCustomDimension(item)) {
         const hideSqlAuthoringActions =
             isCustomSqlDimension(item) && cannotAuthorCustomSql;
+        const hideRemove = hideSqlAuthoringActions && !!savedChart;
         return (
             <>
                 {isFilterableField(item) && (
@@ -277,7 +280,7 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
-                {!hideSqlAuthoringActions && (
+                {!hideRemove && (
                     <>
                         <Menu.Divider />
 
