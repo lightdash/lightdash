@@ -1,3 +1,10 @@
+## [0.2851.1](https://github.com/lightdash/lightdash/compare/0.2851.0...0.2851.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* use package name instead of direct path for `ParameterError` import ([#22573](https://github.com/lightdash/lightdash/issues/22573)) ([c9cb6a0](https://github.com/lightdash/lightdash/commit/c9cb6a0149e21c774c5f9fb0c21aa6237958b23a))
+
 # [0.2851.0](https://github.com/lightdash/lightdash/compare/0.2850.0...0.2851.0) (2026-04-30)
 
 
