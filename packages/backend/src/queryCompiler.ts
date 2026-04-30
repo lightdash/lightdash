@@ -350,10 +350,28 @@ export function compilePostCalculationMetric({
     }
 
     if (type === MetricType.PERCENT_OF_TOTAL) {
+        // Only emit a row-total partition when the data is actually pivoted
+        // (groupByColumns non-empty). For a regular table view (row dims, no
+        // pivot) we want the grand total — partitioning by the row dim there
+        // would make every row equal 100% of itself.
+        const rawIndexColumn = pivotConfiguration?.indexColumn;
+        let indexColumns: { reference: string }[] = [];
+        if (rawIndexColumn) {
+            indexColumns = Array.isArray(rawIndexColumn)
+                ? rawIndexColumn
+                : [rawIndexColumn];
+        }
+        const isPivoted = groupByColumns.length > 0;
+        const indexPartitionByClause: string | undefined =
+            isPivoted && indexColumns.length > 0
+                ? `PARTITION BY ${indexColumns
+                      .map((col) => `${q}${col.reference}${q}`)
+                      .join(', ')}`
+                : undefined;
         return (
             `(CAST(${sql} AS ${floatType}) / ` +
             `CAST(NULLIF(SUM(${sql}) OVER(${
-                partitionByClause ?? ''
+                indexPartitionByClause ?? ''
             }), 0) AS ${floatType}))`
         );
     }
