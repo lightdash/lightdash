@@ -1,9 +1,18 @@
 .container {
     border-radius: var(--mantine-radius-md);
-    min-width: 200px;
-    max-height: 250px;
-    overflow-y: auto;
+    min-width: 240px;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
     overscroll-behavior: contain;
+    overflow: hidden;
+}
+
+.list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-block: var(--mantine-spacing-xxs);
 }
 
 .suggestionItem {
@@ -29,5 +38,64 @@
 
     @mixin dark {
         color: var(--mantine-color-ldGray-7);
+    }
+}
+
+.groupHeader {
+    padding: var(--mantine-spacing-xxs) var(--mantine-spacing-sm);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mantine-color-dimmed);
+    user-select: none;
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
+}
+
+.groupHeader:not(:first-child) {
+    margin-top: var(--mantine-spacing-xxs);
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    padding-top: 6px;
+
+    @mixin dark {
+        border-top-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.footer {
+    flex-shrink: 0;
+    padding: 6px var(--mantine-spacing-sm);
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+    background-color: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-dimmed);
+    font-size: var(--mantine-font-size-xs);
+
+    @mixin dark {
+        border-top-color: var(--mantine-color-ldDark-4);
+        background-color: var(--mantine-color-ldDark-2);
+        color: var(--mantine-color-ldGray-6);
+    }
+}
+
+.kbd {
+    font-family: var(--mantine-font-family);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.4;
+    padding: 0 5px;
+    border-radius: 3px;
+    background-color: var(--mantine-color-body);
+    color: var(--mantine-color-ldDark-9);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    box-shadow: 0 1px 0 0 var(--mantine-color-ldGray-3);
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-3);
+        color: var(--mantine-color-ldGray-7);
+        border-color: var(--mantine-color-ldDark-5);
+        box-shadow: 0 1px 0 0 var(--mantine-color-ldDark-5);
     }
 }

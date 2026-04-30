@@ -20,6 +20,7 @@ import {
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
+import { FormulaEmptyState } from './FormulaEmptyState';
 import {
     generateFunctionSuggestion,
     type FunctionSuggestionItem,
@@ -392,6 +393,17 @@ export const FormulaEditor: FC<Props> = ({
         placeholder,
     ]);
 
+    const isEmpty = currentText.trim().length === 0;
+
+    const insertExample = (text: string) => {
+        if (!editor) return;
+        editor
+            .chain()
+            .focus()
+            .setContent(buildInitialContent(text, fieldSuggestions))
+            .run();
+    };
+
     return (
         <Box className={styles.container}>
             <RichTextEditor
@@ -410,6 +422,12 @@ export const FormulaEditor: FC<Props> = ({
                     />
                 </Box>
             </RichTextEditor>
+            {isEmpty && (
+                <FormulaEmptyState
+                    aiEnabled={aiEnabled}
+                    onInsertExample={insertExample}
+                />
+            )}
         </Box>
     );
 };

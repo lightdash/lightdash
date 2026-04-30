@@ -14,11 +14,49 @@ export type FunctionSuggestionItem = {
     definition: FunctionDefinition;
 };
 
+const CATEGORY_LABELS: Record<FunctionDefinition['category'], string> = {
+    aggregate: 'Aggregate',
+    logical: 'Logic',
+    math: 'Math',
+    string: 'Text',
+    date: 'Date',
+    window: 'Window',
+    null: 'Null handling',
+    type: 'Type',
+};
+
+const CATEGORY_ORDER: FunctionDefinition['category'][] = [
+    'aggregate',
+    'logical',
+    'math',
+    'string',
+    'date',
+    'window',
+    'null',
+    'type',
+];
+
+const sortByCategory = (
+    items: FunctionSuggestionItem[],
+): FunctionSuggestionItem[] => {
+    const orderIndex = (cat: FunctionDefinition['category']) => {
+        const idx = CATEGORY_ORDER.indexOf(cat);
+        return idx === -1 ? CATEGORY_ORDER.length : idx;
+    };
+    return [...items].sort((a, b) => {
+        const diff =
+            orderIndex(a.definition.category) -
+            orderIndex(b.definition.category);
+        if (diff !== 0) return diff;
+        return a.label.localeCompare(b.label);
+    });
+};
+
 export const generateFunctionSuggestion = (
     functions: FunctionSuggestionItem[],
 ): MentionOptions['suggestion'] => ({
     ...generateSuggestion({
-        items: functions,
+        items: sortByCategory(functions),
         command: ({ editor, range, props }) => {
             const fn = props as FunctionSuggestionItem;
             editor
@@ -27,6 +65,9 @@ export const generateFunctionSuggestion = (
                 .insertContentAt(range, [{ type: 'text', text: `${fn.id}(` }])
                 .run();
         },
+        getGroupKey: (item) =>
+            (item as FunctionSuggestionItem).definition.category,
+        groupLabels: CATEGORY_LABELS,
         renderItem: (item, isSelected, onClick) => (
             <PolymorphicGroupButton
                 onClick={onClick}
@@ -37,7 +78,7 @@ export const generateFunctionSuggestion = (
                     <MantineIcon
                         icon={IconMathFunction}
                         size="sm"
-                        color="violet"
+                        color="indigo.4"
                     />
                     <Text size="xs" fw={500}>
                         {item.label}
