@@ -432,6 +432,19 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
+    async startHeartbeat(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        await this.assertCanManageProject(user, projectUuid);
+
+        void this.runHeartbeat(projectUuid).catch((error) => {
+            this.logger.error(
+                `Manual heartbeat failed for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
+            );
+        });
+    }
+
     private async postHeartbeatSummaryToSlack(
         projectUuid: string,
         sessionId: string,

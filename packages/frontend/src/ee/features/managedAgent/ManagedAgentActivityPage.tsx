@@ -1,4 +1,6 @@
+import { type ApiError } from '@lightdash/common';
 import {
+    ActionIcon,
     Box,
     Button,
     Group,
@@ -10,6 +12,7 @@ import {
     Table,
     Text,
     Title,
+    Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
 import {
@@ -20,6 +23,7 @@ import {
     IconDots,
     IconExternalLink,
     IconLayoutDashboard,
+    IconPlayerPlay,
     IconSettings,
     IconX,
 } from '@tabler/icons-react';
@@ -28,10 +32,12 @@ import { useCallback, useEffect, type FC, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
+import MantineIcon from '../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
@@ -59,6 +65,13 @@ const updateSettings = async (
         body: JSON.stringify(body),
     });
 
+const runHeartbeat = async (projectUuid: string) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/managed-agent/run`,
+        method: 'POST',
+        body: undefined,
+    });
+
 const SCHEDULE_OPTIONS = [
     { value: '*/5 * * * *', label: 'Every 5 min' },
     { value: '*/15 * * * *', label: 'Every 15 min' },
@@ -73,7 +86,16 @@ const SetupSection: FC<{
     schedule: string;
     settingsOpen: boolean;
     onOpenSettings: () => void;
-}> = ({ enabled, schedule: initialSchedule, settingsOpen, onOpenSettings }) => {
+    onRunNow: () => void;
+    isRunNowLoading: boolean;
+}> = ({
+    enabled,
+    schedule: initialSchedule,
+    settingsOpen,
+    onOpenSettings,
+    onRunNow,
+    isRunNowLoading,
+}) => {
     const scheduleLabel =
         SCHEDULE_OPTIONS.find(
             (o) => o.value === initialSchedule,
@@ -109,15 +131,37 @@ const SetupSection: FC<{
                         Your project health agent
                     </Text>
                 </Stack>
-                <Button
-                    variant={settingsOpen ? 'light' : 'default'}
-                    color="dark"
-                    size="xs"
-                    leftSection={<IconSettings size={14} />}
-                    onClick={onOpenSettings}
-                >
-                    Settings
-                </Button>
+                <Group gap="xs">
+                    <Tooltip
+                        label={
+                            enabled
+                                ? 'Run Autopilot now'
+                                : 'Enable Autopilot to run now'
+                        }
+                    >
+                        <ActionIcon
+                            aria-label="Run Autopilot now"
+                            variant="default"
+                            color="dark"
+                            size="md"
+                            radius="md"
+                            onClick={onRunNow}
+                            disabled={!enabled || isRunNowLoading}
+                            loading={isRunNowLoading}
+                        >
+                            <MantineIcon icon={IconPlayerPlay} size="sm" />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Button
+                        variant={settingsOpen ? 'light' : 'default'}
+                        color="dark"
+                        size="xs"
+                        leftSection={<IconSettings size={14} />}
+                        onClick={onOpenSettings}
+                    >
+                        Settings
+                    </Button>
+                </Group>
             </Group>
             <Box className={classes.headerDivider} />
         </Stack>
@@ -689,12 +733,33 @@ const ActionRow: FC<{
 // ts-unused-exports:disable-next-line
 export const ManagedAgentActivityPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
     const { data: actions, isLoading } = useManagedAgentActions();
     const { data: settings, isLoading: settingsLoading } =
         useManagedAgentSettings();
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const filtered = actions ?? [];
+    const runNowMutation = useMutation<undefined, ApiError>({
+        mutationFn: () => runHeartbeat(projectUuid!),
+        onSuccess: () => {
+            showToastSuccess({
+                title: 'Autopilot run started',
+                subtitle:
+                    'Project health checks are running in the background.',
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-actions', projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to start Autopilot',
+                apiError: error,
+            });
+        },
+    });
 
     if (isLoading || settingsLoading) {
         return (
@@ -724,6 +789,8 @@ export const ManagedAgentActivityPage: FC = () => {
                                     settings?.scheduleCron ?? '*/30 * * * *'
                                 }
                                 settingsOpen={settingsOpen}
+                                isRunNowLoading={runNowMutation.isLoading}
+                                onRunNow={() => runNowMutation.mutate()}
                                 onOpenSettings={() => {
                                     setSelected(null);
                                     setSettingsOpen(true);
