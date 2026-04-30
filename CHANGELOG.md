@@ -1,3 +1,17 @@
+# [0.2849.0](https://github.com/lightdash/lightdash/compare/0.2848.3...0.2849.0) (2026-04-30)
+
+
+### Bug Fixes
+
+* big number compact style respects metric round (PROD-7229) ([#22540](https://github.com/lightdash/lightdash/issues/22540)) ([9921733](https://github.com/lightdash/lightdash/commit/99217337c01ccc8cce4ecab38237d50160ff2f8a))
+* **permissions:** roll back the SQL-authored permissions wave ([#22541](https://github.com/lightdash/lightdash/issues/22541)) ([1885673](https://github.com/lightdash/lightdash/commit/1885673d1c7e9968309f702698866dfd13cf730b)), closes [#22451](https://github.com/lightdash/lightdash/issues/22451) [#22453](https://github.com/lightdash/lightdash/issues/22453) [#22456](https://github.com/lightdash/lightdash/issues/22456) [#22488](https://github.com/lightdash/lightdash/issues/22488) [#22492](https://github.com/lightdash/lightdash/issues/22492) [#22507](https://github.com/lightdash/lightdash/issues/22507) [#22510](https://github.com/lightdash/lightdash/issues/22510) [#22535](https://github.com/lightdash/lightdash/issues/22535) [#22536](https://github.com/lightdash/lightdash/issues/22536) [#22506](https://github.com/lightdash/lightdash/issues/22506) [pre-#22451](https://github.com/pre-/issues/22451) [pre-#22451](https://github.com/pre-/issues/22451)
+* **scheduler:** translate Slack errors to actionable messages in scheduler log [PROD-7211] ([#22539](https://github.com/lightdash/lightdash/issues/22539)) ([9bc88c1](https://github.com/lightdash/lightdash/commit/9bc88c1ac0578325f2b91427c378ff56cdcd094c))
+
+
+### Features
+
+* introduce slug column to ai agents ([#22538](https://github.com/lightdash/lightdash/issues/22538)) ([68a4664](https://github.com/lightdash/lightdash/commit/68a466448eb881065ff856b43ef629b06b035ff7))
+
 ## [0.2848.3](https://github.com/lightdash/lightdash/compare/0.2848.2...0.2848.3) (2026-04-30)
 
 
