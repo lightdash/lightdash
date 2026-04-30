@@ -1562,6 +1562,10 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // endpoint) and EmbedService (allowAll config). Keep the config field, but
     // translate the env var to the unified allowlist for the flag system.
     ['EMBEDDING_ENABLED', 'embedding'],
+    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
+    // health endpoint). Keep the config field, but translate the env var to
+    // the unified allowlist for the flag system.
+    ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
