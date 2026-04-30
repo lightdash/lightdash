@@ -1,5 +1,5 @@
 import { subject } from '@casl/ability';
-import { formatSql, hasSqlAuthoredFields } from '@lightdash/common';
+import { formatSql } from '@lightdash/common';
 import {
     ActionIcon,
     CopyButton,
@@ -22,14 +22,12 @@ import {
 import {
     explorerActions,
     selectIsSqlExpanded,
-    selectMetricQuery,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useCompiledSql } from '../../../hooks/useCompiledSql';
 import { useProject } from '../../../hooks/useProject';
-import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -57,9 +55,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
     const dispatch = useExplorerDispatch();
 
     const unsavedChartVersionTableName = useExplorerSelector(selectTableName);
-    const metricQuery = useExplorerSelector(selectMetricQuery);
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
-    const { user } = useApp();
 
     const toggleExpandedSection = useCallback(
         (section: ExplorerSection) => {
@@ -67,17 +62,11 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
         },
         [dispatch],
     );
+    const { user } = useApp();
     const { data: project } = useProject(projectUuid);
 
-    // Hide the SQL panel when the chart contains SQL-authored fields and the
-    // user lacks `manage:CustomFields`. The compiled SQL would inline the
-    // body of those fields, leaking authored SQL the user has no permission
-    // to see — and the legacy compileQuery endpoint also 403s on this path.
-    const cannotViewSqlAuthoredFields =
-        hasSqlAuthoredFields(metricQuery) && cannotAuthorCustomSql;
-
     const { data, isSuccess, isInitialLoading, error } = useCompiledSql({
-        enabled: !!unsavedChartVersionTableName && !cannotViewSqlAuthoredFields,
+        enabled: !!unsavedChartVersionTableName,
     });
 
     const hasPivotQuery = !!data?.pivotQuery;
@@ -91,10 +80,6 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                 : '',
         [selectedSql, project?.warehouseConnection?.type],
     );
-
-    if (cannotViewSqlAuthoredFields) {
-        return null;
-    }
 
     return (
         <CollapsableCard

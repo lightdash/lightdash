@@ -24,7 +24,6 @@ const calculateSubtotalsFromQuery = async (
     parameters?: ParametersValuesMap,
     dateZoom?: DateZoom,
     invalidateCache?: boolean,
-    savedChartUuid?: string,
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore: explore,
@@ -37,7 +36,6 @@ const calculateSubtotalsFromQuery = async (
         parameters,
         dateZoom,
         invalidateCache,
-        savedChartUuid,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/projects/${projectUuid}/calculate-subtotals`,
@@ -190,7 +188,6 @@ export const useCalculateSubtotals = ({
                           parameters,
                           dateZoom,
                           invalidateCache,
-                          savedChartUuid,
                       )
                     : Promise.reject(),
         {

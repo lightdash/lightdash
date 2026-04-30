@@ -9,7 +9,6 @@ import {
     ContentType,
     CreateSavedChart,
     currentVersion,
-    CustomSqlQueryForbiddenError,
     DashboardAsCode,
     DashboardAsCodeInternalization,
     DashboardDAO,
@@ -53,10 +52,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import {
-    assertCanAccessSqlAuthoredFields,
-    hasForbiddenSqlAuthoredFields,
-} from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -817,21 +812,6 @@ export class CoderService extends BaseService {
         );
         const charts = await Promise.all(chartPromises);
 
-        const blockedCharts = charts.filter((chart) =>
-            hasForbiddenSqlAuthoredFields({
-                ability: auditedAbility,
-                organizationUuid: chart.organizationUuid,
-                projectUuid: chart.projectUuid,
-                metricQuery: chart.metricQuery,
-            }),
-        );
-        if (blockedCharts.length > 0) {
-            const names = blockedCharts.map((chart) => chart.name).join(', ');
-            throw new CustomSqlQueryForbiddenError(
-                `User cannot download charts containing custom SQL fields: ${names}`,
-            );
-        }
-
         // get all spaces to map  dashboardSlug
         const dashboardUuids = charts.reduce<string[]>((acc, chart) => {
             if (chart.dashboardUuid) {
@@ -1116,15 +1096,6 @@ export class CoderService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-
-        assertCanAccessSqlAuthoredFields({
-            ability: auditedAbility,
-            organizationUuid: project.organizationUuid,
-            projectUuid: project.projectUuid,
-            metricQuery: chartAsCode.metricQuery,
-            errorMessage:
-                'User cannot upload charts containing custom SQL fields',
-        });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {

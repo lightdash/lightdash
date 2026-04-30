@@ -464,7 +464,6 @@ const VisualizationProvider: FC<
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     parameters={parameters}
-                    savedChartUuid={savedChartUuid}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider
@@ -526,7 +525,6 @@ const VisualizationProvider: FC<
                     invalidateCache={invalidateCache}
                     parameters={parameters}
                     dateZoom={dateZoom}
-                    isEditMode={isEditMode}
                 >
                     {({ visualizationConfig }) => (
                         <Context.Provider

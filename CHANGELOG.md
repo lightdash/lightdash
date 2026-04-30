@@ -1,3 +1,31 @@
+## [0.2849.2](https://github.com/lightdash/lightdash/compare/0.2849.1...0.2849.2) (2026-04-30)
+
+
+### Bug Fixes
+
+* percent_of_total partitions by row dim when pivoted [PROD-6905] ([#22519](https://github.com/lightdash/lightdash/issues/22519)) ([a19164f](https://github.com/lightdash/lightdash/commit/a19164fc16b508c4324c21e6e65b4adbe4a3713b))
+
+## [0.2849.1](https://github.com/lightdash/lightdash/compare/0.2849.0...0.2849.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* preserve pivot x-axis sort fields ([#22479](https://github.com/lightdash/lightdash/issues/22479)) ([654a693](https://github.com/lightdash/lightdash/commit/654a693e9346f0ecf0aa5d15ab8e90a244cb40a6)), closes [#16871](https://github.com/lightdash/lightdash/issues/16871) [#17018](https://github.com/lightdash/lightdash/issues/17018) [#9767](https://github.com/lightdash/lightdash/issues/9767) [#11038](https://github.com/lightdash/lightdash/issues/11038) [#19838](https://github.com/lightdash/lightdash/issues/19838) [#20683](https://github.com/lightdash/lightdash/issues/20683) [#20681](https://github.com/lightdash/lightdash/issues/20681) [#19202](https://github.com/lightdash/lightdash/issues/19202) [#19509](https://github.com/lightdash/lightdash/issues/19509) [#21965](https://github.com/lightdash/lightdash/issues/21965) [#18064](https://github.com/lightdash/lightdash/issues/18064) [#16871](https://github.com/lightdash/lightdash/issues/16871) [#19767](https://github.com/lightdash/lightdash/issues/19767) [#18245](https://github.com/lightdash/lightdash/issues/18245) [#20566](https://github.com/lightdash/lightdash/issues/20566) [#19509](https://github.com/lightdash/lightdash/issues/19509) [#16866](https://github.com/lightdash/lightdash/issues/16866) [#20435](https://github.com/lightdash/lightdash/issues/20435) [#20435](https://github.com/lightdash/lightdash/issues/20435) [#19117](https://github.com/lightdash/lightdash/issues/19117) [#19252](https://github.com/lightdash/lightdash/issues/19252) [#19838](https://github.com/lightdash/lightdash/issues/19838) [#14187](https://github.com/lightdash/lightdash/issues/14187) [#12560](https://github.com/lightdash/lightdash/issues/12560) [#21965](https://github.com/lightdash/lightdash/issues/21965) [#21965](https://github.com/lightdash/lightdash/issues/21965)
+
+# [0.2849.0](https://github.com/lightdash/lightdash/compare/0.2848.3...0.2849.0) (2026-04-30)
+
+
+### Bug Fixes
+
+* big number compact style respects metric round (PROD-7229) ([#22540](https://github.com/lightdash/lightdash/issues/22540)) ([9921733](https://github.com/lightdash/lightdash/commit/99217337c01ccc8cce4ecab38237d50160ff2f8a))
+* **permissions:** roll back the SQL-authored permissions wave ([#22541](https://github.com/lightdash/lightdash/issues/22541)) ([1885673](https://github.com/lightdash/lightdash/commit/1885673d1c7e9968309f702698866dfd13cf730b)), closes [#22451](https://github.com/lightdash/lightdash/issues/22451) [#22453](https://github.com/lightdash/lightdash/issues/22453) [#22456](https://github.com/lightdash/lightdash/issues/22456) [#22488](https://github.com/lightdash/lightdash/issues/22488) [#22492](https://github.com/lightdash/lightdash/issues/22492) [#22507](https://github.com/lightdash/lightdash/issues/22507) [#22510](https://github.com/lightdash/lightdash/issues/22510) [#22535](https://github.com/lightdash/lightdash/issues/22535) [#22536](https://github.com/lightdash/lightdash/issues/22536) [#22506](https://github.com/lightdash/lightdash/issues/22506) [pre-#22451](https://github.com/pre-/issues/22451) [pre-#22451](https://github.com/pre-/issues/22451)
+* **scheduler:** translate Slack errors to actionable messages in scheduler log [PROD-7211] ([#22539](https://github.com/lightdash/lightdash/issues/22539)) ([9bc88c1](https://github.com/lightdash/lightdash/commit/9bc88c1ac0578325f2b91427c378ff56cdcd094c))
+
+
+### Features
+
+* introduce slug column to ai agents ([#22538](https://github.com/lightdash/lightdash/issues/22538)) ([68a4664](https://github.com/lightdash/lightdash/commit/68a466448eb881065ff856b43ef629b06b035ff7))
+
 ## [0.2848.3](https://github.com/lightdash/lightdash/compare/0.2848.2...0.2848.3) (2026-04-30)
 
 
