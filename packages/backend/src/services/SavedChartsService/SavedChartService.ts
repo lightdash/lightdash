@@ -20,16 +20,15 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
+    getModifiedSqlAuthoredFields,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
-    isCustomSqlDimension,
     isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
-    isSqlTableCalculation,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -485,11 +484,10 @@ export class SavedChartService
             organizationUuid,
             projectUuid,
             spaceUuid,
-            metricQuery: {
-                metrics: oldChartMetrics,
-                dimensions: oldChartDimensions,
-            },
+            metricQuery: oldMetricQuery,
         } = await this.savedChartModel.get(savedChartUuid);
+        const { metrics: oldChartMetrics, dimensions: oldChartDimensions } =
+            oldMetricQuery;
 
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -513,16 +511,22 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        const modifiedSqlFields = getModifiedSqlAuthoredFields(
+            data.metricQuery,
+            oldMetricQuery,
+        );
+        const cannotManageCustomFields = auditedAbility.cannot(
+            'manage',
+            subject('CustomFields', {
+                organizationUuid,
+                projectUuid,
+                metadata: { savedChartUuid },
+            }),
+        );
+
         if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedChartUuid },
-                }),
-            )
+            modifiedSqlFields.customDimensions.length > 0 &&
+            cannotManageCustomFields
         ) {
             throw new ForbiddenError(
                 'User cannot save queries with custom SQL dimensions',
@@ -530,15 +534,8 @@ export class SavedChartService
         }
 
         if (
-            data.metricQuery.tableCalculations.some(isSqlTableCalculation) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { savedChartUuid },
-                }),
-            )
+            modifiedSqlFields.tableCalculations.length > 0 &&
+            cannotManageCustomFields
         ) {
             throw new ForbiddenError(
                 'User cannot save queries with custom SQL table calculations',
