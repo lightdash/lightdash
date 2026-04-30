@@ -1163,6 +1163,7 @@ export type LightdashConfig = {
     managedAgent: {
         enabled: boolean;
         anthropicApiKey: string | null;
+        skillIds: string[];
         schedule: string;
         sessionTimeoutMs: number;
     };
@@ -2241,6 +2242,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
                 process.env.ANTHROPIC_API_KEY ||
                 null,
+            skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
+                .split(',')
+                .map((skillId) => skillId.trim())
+                .filter(Boolean),
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '*/30 * * * *',
             sessionTimeoutMs: parseInt(
                 process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',

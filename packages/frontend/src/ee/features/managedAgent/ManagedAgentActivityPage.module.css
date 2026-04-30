@@ -421,6 +421,42 @@
     padding-bottom: 0;
 }
 
+.toolTogglePanel {
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        border-color: var(--mantine-color-ldGray-2);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+        border-color: var(--mantine-color-dark-4);
+    }
+}
+
+.toolToggleRow {
+    min-height: 42px;
+    padding: 10px 12px;
+}
+
+.toolToggleRow + .toolToggleRow {
+    border-top: 1px solid;
+
+    @mixin light {
+        border-color: var(--mantine-color-ldGray-2);
+    }
+
+    @mixin dark {
+        border-color: var(--mantine-color-dark-4);
+    }
+}
+
+.permissionSwitch {
+    flex-shrink: 0;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .page,
