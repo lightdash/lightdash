@@ -1700,10 +1700,14 @@ export class AsyncQueryService extends ProjectService {
                                   col.reference,
                                   col.aggregation,
                               );
-                          const valueColumnReference =
-                              pivotValues.length > 0
-                                  ? `${valueColumnField}_${valueSuffix}`
-                                  : valueColumnField;
+                          // Keep the truthy check on valueSuffix (not pivotValues.length)
+                          // so an all-empty-string groupBy still resolves to the unsuffixed
+                          // column name. This preserves saved-chart `display.series` keys
+                          // for empty-string pivot values. NULL/undefined are mapped through
+                          // PIVOT_NULL_KEY above, so they always produce a non-empty suffix.
+                          const valueColumnReference = valueSuffix
+                              ? `${valueColumnField}_${valueSuffix}`
+                              : valueColumnField;
 
                           valuesColumnData.set(valueColumnReference, {
                               referenceField: col.reference, // The original y field name
