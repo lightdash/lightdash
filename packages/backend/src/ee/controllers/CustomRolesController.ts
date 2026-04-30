@@ -4,6 +4,7 @@ import {
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
     ApiUnassignRoleFromUserResponse,
+    assertRegisteredAccount,
     CreateRole,
     UpdateRole,
 } from '@lightdash/common';
@@ -71,8 +72,9 @@ export class CustomRolesController extends BaseController {
         @Path() orgUuid: string,
         @Body() body: CreateRole,
     ): Promise<ApiDefaultRoleResponse> {
+        assertRegisteredAccount(req.account);
         const role = await this.getRolesService().createRole(
-            req.account!,
+            req.account,
             orgUuid,
             body,
         );
@@ -102,8 +104,9 @@ export class CustomRolesController extends BaseController {
         @Path() roleUuid: string,
         @Body() body: UpdateRole,
     ): Promise<ApiDefaultRoleResponse> {
+        assertRegisteredAccount(req.account);
         const role = await this.getRolesService().updateRole(
-            req.account!,
+            req.account,
             orgUuid,
             roleUuid,
             body,
@@ -133,7 +136,8 @@ export class CustomRolesController extends BaseController {
         @Path() orgUuid: string,
         @Path() roleUuid: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        await this.getRolesService().deleteRole(req.account!, roleUuid);
+        assertRegisteredAccount(req.account);
+        await this.getRolesService().deleteRole(req.account, roleUuid);
 
         this.setStatus(200);
         return {
@@ -160,8 +164,9 @@ export class CustomRolesController extends BaseController {
         @Path() roleUuid: string,
         @Body() body: AddScopesToRole,
     ): Promise<ApiUnassignRoleFromUserResponse> {
+        assertRegisteredAccount(req.account);
         await this.getRolesService().addScopesToRole(
-            req.account!,
+            req.account,
             roleUuid,
             body,
         );
@@ -191,8 +196,9 @@ export class CustomRolesController extends BaseController {
         @Path() roleUuid: string,
         @Path() scopeName: string,
     ): Promise<ApiRemoveScopeFromRoleResponse> {
+        assertRegisteredAccount(req.account);
         await this.getRolesService().removeScopeFromRole(
-            req.account!,
+            req.account,
             roleUuid,
             scopeName,
         );

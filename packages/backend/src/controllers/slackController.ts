@@ -5,6 +5,7 @@ import {
     ApiSlackCustomSettingsResponse,
     ApiSlackGetInstallationResponse,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     getErrorMessage,
     NotFoundError,
     OpenIdIdentityIssuerType,
@@ -280,9 +281,10 @@ export class SlackController extends BaseController {
     async deleteInstallation(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getSlackIntegrationService()
-            .deleteInstallationFromOrganizationUuid(req.account!);
+            .deleteInstallationFromOrganizationUuid(req.account);
 
         return {
             status: 'ok',

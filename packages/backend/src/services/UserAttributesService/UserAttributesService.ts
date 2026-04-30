@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     CreateUserAttribute,
     ForbiddenError,
+    RegisteredAccount,
     RequestMethod,
     UserAttribute,
 } from '@lightdash/common';
@@ -48,7 +48,7 @@ export class UserAttributesService extends BaseService {
     }
 
     async getAll(
-        account: Account,
+        account: RegisteredAccount,
         context: RequestMethod,
     ): Promise<UserAttribute[]> {
         const organizationUuid = account.organization.organizationUuid!;
@@ -71,7 +71,7 @@ export class UserAttributesService extends BaseService {
         if (context === RequestMethod.WEB_APP) {
             this.analytics.track({
                 event: 'user_attributes.page_viewed',
-                userId: account.user.id,
+                userId: account.user.userUuid,
                 properties: {
                     organizationId: organizationUuid,
                     userAttributesCount: attributes.length,
@@ -82,7 +82,7 @@ export class UserAttributesService extends BaseService {
     }
 
     async create(
-        account: Account,
+        account: RegisteredAccount,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
         const organizationUuid = account.organization.organizationUuid!;
@@ -108,7 +108,7 @@ export class UserAttributesService extends BaseService {
 
         this.analytics.track({
             event: 'user_attribute.created',
-            userId: account.user.id,
+            userId: account.user.userUuid,
             properties:
                 UserAttributesService.getAnalyticsEventProperties(
                     createdAttribute,
@@ -119,7 +119,7 @@ export class UserAttributesService extends BaseService {
     }
 
     async update(
-        account: Account,
+        account: RegisteredAccount,
         orgAttributeUuid: string,
         orgAttribute: CreateUserAttribute,
     ): Promise<UserAttribute> {
@@ -149,7 +149,7 @@ export class UserAttributesService extends BaseService {
 
         this.analytics.track({
             event: 'user_attribute.updated',
-            userId: account.user.id,
+            userId: account.user.userUuid,
             properties:
                 UserAttributesService.getAnalyticsEventProperties(
                     updatedAttribute,
@@ -159,7 +159,10 @@ export class UserAttributesService extends BaseService {
         return updatedAttribute;
     }
 
-    async delete(account: Account, orgAttributeUuid: string): Promise<void> {
+    async delete(
+        account: RegisteredAccount,
+        orgAttributeUuid: string,
+    ): Promise<void> {
         const orgAttribute =
             await this.userAttributesModel.get(orgAttributeUuid);
         const auditedAbility = this.createAuditedAbility(account);
@@ -181,7 +184,7 @@ export class UserAttributesService extends BaseService {
 
         this.analytics.track({
             event: 'user_attribute.deleted',
-            userId: account.user.id,
+            userId: account.user.userUuid,
             properties: {
                 organizationId: orgAttribute.organizationUuid,
                 attributeId: orgAttributeUuid,

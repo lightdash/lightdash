@@ -1,6 +1,5 @@
 import { Ability, subject } from '@casl/ability';
 import {
-    Account,
     AddScopesToRole,
     CreateRole,
     ForbiddenError,
@@ -9,6 +8,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
+    RegisteredAccount,
     Role,
     RoleAssignment,
     RoleWithScopes,
@@ -92,7 +92,7 @@ export class RolesService extends BaseService {
      * @private
      */
     private async validateRolesViewAccess(
-        account: Account,
+        account: RegisteredAccount,
         organizationUuid: string,
     ) {
         const auditedAbility = this.createAuditedAbility(account);
@@ -136,7 +136,7 @@ export class RolesService extends BaseService {
     }
 
     private static validateOrganizationAccess(
-        account: Account,
+        account: RegisteredAccount,
         auditedAbility: CaslAuditWrapper<Ability>,
         organizationUuid?: string,
     ): void {
@@ -163,7 +163,7 @@ export class RolesService extends BaseService {
     }
 
     private static validateRoleOwnership(
-        account: Account,
+        account: RegisteredAccount,
         auditedAbility: CaslAuditWrapper<Ability>,
         role: Role,
     ): void {
@@ -192,7 +192,7 @@ export class RolesService extends BaseService {
     }
 
     private async validateProjectAccess(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid?: string,
     ) {
         if (projectUuid) {
@@ -233,7 +233,7 @@ export class RolesService extends BaseService {
     }
 
     async getRolesByOrganizationUuid(
-        account: Account,
+        account: RegisteredAccount,
         organizationUuid: string,
         loadScopes?: boolean,
         roleTypeFilter?: string,
@@ -260,7 +260,7 @@ export class RolesService extends BaseService {
     }
 
     async createRole(
-        account: Account,
+        account: RegisteredAccount,
         organizationUuid: string,
         createRoleData: CreateRole,
     ): Promise<Role> {
@@ -318,7 +318,7 @@ export class RolesService extends BaseService {
     }
 
     async updateRole(
-        account: Account,
+        account: RegisteredAccount,
         organizationUuid: string,
         roleUuid: string,
         updateRoleData: UpdateRole,
@@ -382,7 +382,7 @@ export class RolesService extends BaseService {
     }
 
     async getRoleByUuid(
-        account: Account,
+        account: RegisteredAccount,
         roleUuid: string,
     ): Promise<RoleWithScopes> {
         const role = await this.rolesModel.getRoleWithScopesByUuid(roleUuid);
@@ -400,7 +400,7 @@ export class RolesService extends BaseService {
     At the organization level, we only support system role assignments
     */
     async getOrganizationRoleAssignments(
-        account: Account,
+        account: RegisteredAccount,
         orgUuid: string,
     ): Promise<RoleAssignment[]> {
         await this.validateRolesViewAccess(account, orgUuid);
@@ -420,7 +420,7 @@ export class RolesService extends BaseService {
      * Only system roles are allowed at organization level
      */
     async upsertOrganizationUserRoleAssignment(
-        account: Account,
+        account: RegisteredAccount,
         orgUuid: string,
         userUuid: string,
         request: { roleId: string },
@@ -512,7 +512,7 @@ export class RolesService extends BaseService {
     // =====================================
 
     async getProjectRoleAssignments(
-        account: Account,
+        account: RegisteredAccount,
         projectId: string,
     ): Promise<RoleAssignment[]> {
         await this.validateProjectAccess(account, projectId);
@@ -559,7 +559,7 @@ export class RolesService extends BaseService {
     }
 
     async updateProjectRoleAssignment(
-        account: Account,
+        account: RegisteredAccount,
         projectId: string,
         assigneeId: string,
         assigneeType: 'user' | 'group',
@@ -587,7 +587,7 @@ export class RolesService extends BaseService {
     }
 
     private async updateProjectGroupRoleAssignment(
-        account: Account,
+        account: RegisteredAccount,
         projectId: string,
         groupId: string,
         request: UpdateRoleAssignmentRequest,
@@ -602,7 +602,7 @@ export class RolesService extends BaseService {
     }
 
     async deleteProjectRoleAssignment(
-        account: Account,
+        account: RegisteredAccount,
         projectId: string,
         assigneeId: string,
         assigneeType: 'user' | 'group',
@@ -621,7 +621,7 @@ export class RolesService extends BaseService {
     // =====================================
 
     async upsertProjectUserRoleAssignment(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
         userUuid: string,
         request: UpsertUserRoleAssignmentRequest,
@@ -734,7 +734,7 @@ export class RolesService extends BaseService {
     }
 
     async upsertProjectGroupRoleAssignment(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
         groupUuid: string,
         request: UpsertUserRoleAssignmentRequest, // Reusing the same request type
@@ -797,7 +797,10 @@ export class RolesService extends BaseService {
         };
     }
 
-    async deleteRole(account: Account, roleUuid: string): Promise<void> {
+    async deleteRole(
+        account: RegisteredAccount,
+        roleUuid: string,
+    ): Promise<void> {
         if (isSystemRole(roleUuid)) {
             throw new ParameterError('Cannot remove system roles');
         }
@@ -837,7 +840,7 @@ export class RolesService extends BaseService {
     }
 
     async unassignRoleFromUser(
-        account: Account,
+        account: RegisteredAccount,
         userUuid: string,
         organizationUuid: string,
         projectUuid: string,
@@ -864,7 +867,7 @@ export class RolesService extends BaseService {
     }
 
     async assignRoleToGroup(
-        account: Account,
+        account: RegisteredAccount,
         groupUuid: string,
         roleUuid: string,
         projectUuid: string,
@@ -893,7 +896,7 @@ export class RolesService extends BaseService {
     }
 
     async unassignRoleFromGroup(
-        account: Account,
+        account: RegisteredAccount,
         groupUuid: string,
         projectUuid: string,
     ): Promise<void> {
@@ -917,7 +920,10 @@ export class RolesService extends BaseService {
         });
     }
 
-    private async getProjectAccess(account: Account, projectUuid: string) {
+    private async getProjectAccess(
+        account: RegisteredAccount,
+        projectUuid: string,
+    ) {
         await this.validateProjectAccess(account, projectUuid);
 
         const userAccess = await this.rolesModel.getProjectAccess(projectUuid);
@@ -932,7 +938,7 @@ export class RolesService extends BaseService {
     }
 
     async removeUserProjectAccess(
-        account: Account,
+        account: RegisteredAccount,
         projectUuid: string,
         userUuid: string,
     ): Promise<void> {
@@ -958,7 +964,7 @@ export class RolesService extends BaseService {
     }
 
     async addScopesToRole(
-        account: Account,
+        account: RegisteredAccount,
         roleUuid: string,
         scopeData: AddScopesToRole,
         { tx, role }: { tx?: Knex.Transaction; role?: Role } = {},
@@ -991,7 +997,7 @@ export class RolesService extends BaseService {
     }
 
     async removeScopeFromRole(
-        account: Account,
+        account: RegisteredAccount,
         roleUuid: string,
         scopeName: string,
     ): Promise<void> {
@@ -1017,7 +1023,7 @@ export class RolesService extends BaseService {
     }
 
     async removeScopesFromRole(
-        account: Account,
+        account: RegisteredAccount,
         organizationUuid: string,
         roleUuid: string,
         scopeNames: string[],
@@ -1052,7 +1058,7 @@ export class RolesService extends BaseService {
     }
 
     async duplicateRole(
-        account: Account,
+        account: RegisteredAccount,
         organizationUuid: string,
         roleUuid: string,
         duplicateRoleData: CreateRole,

@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    assertRegisteredAccount,
     KnexPaginateArgs,
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -50,7 +51,7 @@ export class ProjectCompileLogController extends BaseController {
         @Query() source?: 'cli_deploy' | 'refresh_dbt' | 'create_project',
     ): Promise<ApiProjectCompileLogsResponse> {
         this.setStatus(200);
-
+        assertRegisteredAccount(req.account);
         let paginateArgs: KnexPaginateArgs | undefined;
         if (pageSize && page) {
             paginateArgs = {
@@ -73,7 +74,7 @@ export class ProjectCompileLogController extends BaseController {
             results: await this.services
                 .getProjectCompileLogService()
                 .getProjectCompileLogs(
-                    req.account!,
+                    req.account,
                     projectUuid,
                     paginateArgs,
                     sort,
@@ -99,14 +100,14 @@ export class ProjectCompileLogController extends BaseController {
         @Path() jobUuid: string,
     ): Promise<ApiProjectCompileLogResponse> {
         this.setStatus(200);
-
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: {
                 log: await this.services
                     .getProjectCompileLogService()
                     .getProjectCompileLogByJob(
-                        req.account!,
+                        req.account,
                         projectUuid,
                         jobUuid,
                     ),

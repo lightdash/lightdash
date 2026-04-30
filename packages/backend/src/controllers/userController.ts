@@ -7,6 +7,7 @@ import {
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    assertRegisteredAccount,
     AuthorizationError,
     CreatePersonalAccessToken,
     getRequestMethod,
@@ -383,11 +384,12 @@ export class UserController extends BaseController {
         results: PersonalAccessToken[];
     }> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getPersonalAccessTokenService()
-                .getAllPersonalAccessTokens(req.account!),
+                .getAllPersonalAccessTokens(req.account),
         };
     }
 
@@ -411,12 +413,13 @@ export class UserController extends BaseController {
         results: PersonalAccessTokenWithToken;
     }> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getPersonalAccessTokenService()
                 .createPersonalAccessToken(
-                    req.account!,
+                    req.account,
                     body,
                     getRequestMethod(req.header(LightdashRequestMethodHeader)),
                 ),
@@ -436,9 +439,10 @@ export class UserController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         await this.services
             .getPersonalAccessTokenService()
-            .deletePersonalAccessToken(req.account!, personalAccessTokenUuid);
+            .deletePersonalAccessToken(req.account, personalAccessTokenUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -469,12 +473,13 @@ export class UserController extends BaseController {
         results: PersonalAccessTokenWithToken;
     }> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getPersonalAccessTokenService()
                 .rotatePersonalAccessToken(
-                    req.account!,
+                    req.account,
                     personalAccessTokenUuid,
                     body,
                 ),

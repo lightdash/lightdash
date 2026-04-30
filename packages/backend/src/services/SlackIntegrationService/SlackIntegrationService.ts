@@ -1,8 +1,8 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     ForbiddenError,
     NotFoundError,
+    RegisteredAccount,
     SessionUser,
     SlackAppCustomSettings,
     SlackChannel,
@@ -105,7 +105,7 @@ export class SlackIntegrationService<
         return response;
     }
 
-    async deleteInstallationFromOrganizationUuid(account: Account) {
+    async deleteInstallationFromOrganizationUuid(account: RegisteredAccount) {
         const { organizationUuid } = account.organization;
         if (!organizationUuid) throw new ForbiddenError();
 
@@ -125,7 +125,7 @@ export class SlackIntegrationService<
 
         this.analytics.track({
             event: 'share_slack.delete',
-            userId: account.user.id,
+            userId: account.user.userUuid,
             properties: {
                 organizationId: organizationUuid,
             },
