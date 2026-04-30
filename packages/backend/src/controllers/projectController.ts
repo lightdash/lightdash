@@ -100,12 +100,11 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiProjectResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getProject(projectUuid, req.account),
+                .getProject(projectUuid, req.account!),
         };
     }
 
@@ -123,8 +122,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiChartListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -150,8 +149,8 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
         @Query() excludeChartsSavedInDashboard?: boolean,
     ): Promise<ApiChartSummaryListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -202,8 +201,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiProjectAccessListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         const results = await this.services
             .getProjectService()
             .getProjectAccess(toSessionUser(req.account), projectUuid);
@@ -265,8 +264,8 @@ export class ProjectController extends BaseController {
         @Body() body: CreateProjectMember,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         await this.services
             .getProjectService()
             .createProjectAccess(toSessionUser(req.account), projectUuid, body);
@@ -296,8 +295,8 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateProjectMember,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         await this.services
             .getProjectService()
             .updateProjectAccess(
@@ -331,8 +330,8 @@ export class ProjectController extends BaseController {
         @Path() userUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         await this.services
             .getProjectService()
             .deleteProjectAccess(
@@ -358,8 +357,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetProjectGroupAccesses> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         const results = await this.services
             .getProjectService()
             .getProjectGroupAccesses(toSessionUser(req.account), projectUuid);
@@ -392,8 +391,8 @@ export class ProjectController extends BaseController {
         @Body() body: { sql: string },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiSqlQueryResults }> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -419,10 +418,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         const totalResult = await this.services
             .getAsyncQueryService()
-            .calculateTotalFromQuery(req.account, projectUuid, body);
+            .calculateTotalFromQuery(req.account!, projectUuid, body);
         return {
             status: 'ok',
             results: totalResult,
@@ -443,10 +441,9 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiCalculateSubtotalsResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         const subtotalsResult = await this.services
             .getAsyncQueryService()
-            .calculateSubtotalsFromQuery(req.account, projectUuid, body);
+            .calculateSubtotalsFromQuery(req.account!, projectUuid, body);
         return {
             status: 'ok',
             results: subtotalsResult,
@@ -466,8 +463,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: Record<string, DbtExposure> }> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         const exposures = await this.services
             .getProjectService()
             .getDbtExposures(toSessionUser(req.account), projectUuid);
@@ -492,8 +489,8 @@ export class ProjectController extends BaseController {
         status: 'ok';
         results: UserWarehouseCredentials | undefined;
     }> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -520,8 +517,8 @@ export class ProjectController extends BaseController {
         status: 'ok';
         results: UserWarehouseCredentials[];
     }> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -546,8 +543,8 @@ export class ProjectController extends BaseController {
         @Path() userWarehouseCredentialsUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         await this.services
             .getProjectService()
             .upsertProjectCredentialsPreference(
@@ -583,8 +580,8 @@ export class ProjectController extends BaseController {
             chartUrl: string;
         }[];
     }> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -611,8 +608,8 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateMetadata,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         await this.services
             .getProjectService()
             .updateMetadata(toSessionUser(req.account), projectUuid, body);
@@ -640,8 +637,8 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateDefaultUserSpaces,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         await this.services
             .getProjectService()
             .updateDefaultUserSpaces(
@@ -667,8 +664,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardsResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
 
         const chartUuid: string | undefined =
             typeof req.query.chartUuid === 'string'
@@ -711,8 +708,8 @@ export class ProjectController extends BaseController {
         @Query() duplicateFrom?: string,
     ): Promise<ApiCreateDashboardResponse> {
         const dashboardService = this.services.getDashboardService();
-        this.setStatus(201);
         assertRegisteredAccount(req.account);
+        this.setStatus(201);
 
         let results: ApiCreateDashboardResponse['results'];
 
@@ -767,8 +764,8 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiCreateDashboardWithChartsResponse> {
         const dashboardService = this.services.getDashboardService();
-        this.setStatus(201);
         assertRegisteredAccount(req.account);
+        this.setStatus(201);
 
         const results = await dashboardService.createDashboardWithCharts(
             toSessionUser(req.account),
@@ -799,8 +796,8 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateMultipleDashboards[],
         @Request() req: express.Request,
     ): Promise<ApiUpdateDashboardsResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
 
         const results = await this.services
             .getDashboardService()
@@ -839,8 +836,8 @@ export class ProjectController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiCreatePreviewResults }> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
 
         const results = await this.services
             .getProjectService()
@@ -874,8 +871,8 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateSchedulerSettings,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
 
         const { schedulerTimezone: oldDefaultProjectTimezone } =
             await this.services
@@ -937,8 +934,8 @@ export class ProjectController extends BaseController {
         @Body() body: UpdateQueryTimezoneSettings,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
 
         await this.services
             .getProjectService()
@@ -1089,8 +1086,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetTagsResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
 
         const results = await this.services
             .getProjectService()
@@ -1117,8 +1114,8 @@ export class ProjectController extends BaseController {
         @Query() offset?: number,
         @Query() languageMap?: boolean,
     ): Promise<ApiChartAsCodeListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -1148,8 +1145,8 @@ export class ProjectController extends BaseController {
         @Query() offset?: number,
         @Query() languageMap?: boolean,
     ): Promise<ApiDashboardAsCodeListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -1186,8 +1183,8 @@ export class ProjectController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<ApiChartAsCodeUpsertResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services.getCoderService().upsertChart(
@@ -1220,8 +1217,8 @@ export class ProjectController extends BaseController {
         @Query() ids?: string[],
         @Query() offset?: number,
     ): Promise<ApiSqlChartAsCodeListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -1257,8 +1254,8 @@ export class ProjectController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<ApiSqlChartAsCodeUpsertResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services.getCoderService().upsertSqlChart(
@@ -1299,8 +1296,8 @@ export class ProjectController extends BaseController {
         }, // Simplify filter type for tsoa
         @Request() req: express.Request,
     ): Promise<ApiDashboardAsCodeUpsertResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services.getCoderService().upsertDashboard(
@@ -1365,8 +1362,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<ApiRefreshResults>> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         const context = getRequestMethod(
             req.header(LightdashRequestMethodHeader),
         );
@@ -1399,8 +1396,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<{ jobIds: string[] }>> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -1428,8 +1425,8 @@ export class ProjectController extends BaseController {
         @Path() preAggregateDefinitionName: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<{ jobIds: string[] }>> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
@@ -1454,8 +1451,8 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiVerifiedContentListResponse> {
-        this.setStatus(200);
         assertRegisteredAccount(req.account);
+        this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services

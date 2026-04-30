@@ -172,19 +172,21 @@ export const fromApiKey = (
     });
 };
 
-/**
- * Reconstruct a SessionUser from a RegisteredAccount without re-fetching from
- * the database. Reuses the ability already built at request authentication
- * time, so downstream code authorizes against the same set of rules the
- * controller checked. Carries `requestContext` from the account so audit log
- * entries written by downstream services keep IP/userAgent/requestId.
- */
 export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
     ...account.user,
     organizationUuid: account.organization.organizationUuid,
     organizationName: account.organization.name,
     organizationCreatedAt: account.organization.createdAt,
     requestContext: account.requestContext,
+    serviceAccount:
+        account.authentication.type === 'service-account'
+            ? {
+                  uuid: account.authentication.serviceAccountUuid,
+                  description: account.authentication.serviceAccountDescription,
+                  attributedUserEmail:
+                      account.authentication.attributedUserEmail,
+              }
+            : undefined,
 });
 
 export const fromSession = (
