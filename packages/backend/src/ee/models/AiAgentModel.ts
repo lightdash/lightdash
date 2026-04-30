@@ -38,6 +38,7 @@ import {
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    generateSlug,
     isThreadPrompt,
     isToolName,
     KnexPaginateArgs,
@@ -465,6 +466,26 @@ export class AiAgentModel {
         return agent;
     }
 
+    private static async generateUniqueSlug(
+        trx: Knex,
+        projectUuid: string,
+        name: string,
+    ): Promise<string> {
+        const baseSlug = generateSlug(name);
+        const matchingSlugs: string[] = await trx(AiAgentTableName)
+            .where({ project_uuid: projectUuid })
+            .where('slug', 'like', `${baseSlug}%`)
+            .pluck('slug');
+
+        let slug = baseSlug;
+        let inc = 0;
+        while (matchingSlugs.includes(slug)) {
+            inc += 1;
+            slug = `${baseSlug}-${inc}`;
+        }
+        return slug;
+    }
+
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
@@ -486,9 +507,16 @@ export class AiAgentModel {
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            const slug = await AiAgentModel.generateUniqueSlug(
+                trx,
+                args.projectUuid,
+                args.name,
+            );
+
             const [agent] = await trx(AiAgentTableName)
                 .insert({
                     name: args.name,
+                    slug,
                     project_uuid: args.projectUuid,
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,

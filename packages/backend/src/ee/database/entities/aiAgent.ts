@@ -7,6 +7,7 @@ export type DbAiAgent = {
     organization_uuid: string;
     project_uuid: string;
     name: string;
+    slug: string;
     description: string | null;
     image_url: string | null;
     tags: string[] | null;
