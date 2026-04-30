@@ -5,6 +5,10 @@ import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
 
 export type AccountUser = {
+    /**
+     * @deprecated Use `userUuid` for registered users. This field should only
+     * be used for anonymous users (where no `userUuid` exists).
+     */
     id: string;
     email: string | undefined;
     /* Whether the user can login */
