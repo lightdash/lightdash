@@ -1,3 +1,10 @@
+# [0.2850.0](https://github.com/lightdash/lightdash/compare/0.2849.2...0.2850.0) (2026-04-30)
+
+
+### Features
+
+* **data-apps:** ask AI clarifying questions before build (GLITCH-357) ([#22557](https://github.com/lightdash/lightdash/issues/22557)) ([1bcbace](https://github.com/lightdash/lightdash/commit/1bcbace79bd2572a07d1cae9e70f6bd7186177e3))
+
 ## [0.2849.2](https://github.com/lightdash/lightdash/compare/0.2849.1...0.2849.2) (2026-04-30)
 
 
