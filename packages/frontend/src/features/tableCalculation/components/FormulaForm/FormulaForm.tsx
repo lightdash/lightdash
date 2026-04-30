@@ -249,7 +249,6 @@ export const FormulaForm: FC<Props> = ({
                         />
                     )}
             </Box>
-            {error && <Text className={classes.errorText}>{error}</Text>}
             {aiError && !error && (
                 <Text className={classes.errorText}>{aiError}</Text>
             )}

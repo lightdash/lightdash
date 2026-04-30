@@ -15,12 +15,13 @@ import { useEditor, type Editor } from '@tiptap/react';
 import type { JSONContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect, useMemo, useRef, useState, type FC } from 'react';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import {
     generateFieldSuggestion,
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
-import { FormulaReference } from './FormulaReference';
+import { FormulaReferenceBar, FormulaReferencePanel } from './FormulaReference';
 import {
     generateFunctionSuggestion,
     type FunctionSuggestionItem,
@@ -400,37 +401,78 @@ export const FormulaEditor: FC<Props> = ({
 
     const insertFunction = (text: string) => {
         if (!editor) return;
-        editor.chain().focus().insertContent(text).run();
+        if (text.endsWith('(')) {
+            // Auto-close the parens and drop the cursor between them so the
+            // user can start typing args immediately without having to type ')'.
+            editor
+                .chain()
+                .focus()
+                .insertContent(text + ')')
+                .run();
+            const pos = editor.state.selection.from;
+            editor
+                .chain()
+                .setTextSelection(pos - 1)
+                .run();
+        } else {
+            editor.chain().focus().insertContent(text).run();
+        }
     };
 
     return (
         <Box className={styles.container}>
-            <RichTextEditor
-                editor={editor}
-                classNames={{
-                    root: styles.editorRoot,
-                    content: styles.editorContent,
-                }}
+            <PanelGroup
+                direction="vertical"
+                className={styles.panelGroup}
+                autoSaveId="formula-editor-split"
             >
-                <Box
-                    className={`${styles.editorContentWrapper} ${
-                        isFullScreen
-                            ? styles.editorContentWrapperFullScreen
-                            : ''
-                    }`}
+                <Panel
+                    id="formula-editor"
+                    order={1}
+                    defaultSize={referenceOpened ? 55 : 100}
+                    minSize={20}
                 >
-                    <RichTextEditor.Content
-                        className={styles.editorContentInner}
-                        style={{
-                            minHeight: isFullScreen ? '300px' : '60px',
+                    <RichTextEditor
+                        editor={editor}
+                        classNames={{
+                            root: styles.editorRoot,
+                            content: styles.editorContent,
                         }}
-                    />
-                </Box>
-            </RichTextEditor>
-            <FormulaReference
+                    >
+                        <Box className={styles.editorContentWrapper}>
+                            <RichTextEditor.Content
+                                className={styles.editorContentInner}
+                                style={{
+                                    minHeight: isFullScreen ? '300px' : '60px',
+                                }}
+                            />
+                        </Box>
+                    </RichTextEditor>
+                </Panel>
+                {referenceOpened && (
+                    <>
+                        <PanelResizeHandle
+                            className={styles.resizeHandle}
+                            aria-label="Resize formula reference"
+                        />
+                        <Panel
+                            id="formula-reference"
+                            order={2}
+                            defaultSize={45}
+                            minSize={20}
+                        >
+                            <FormulaReferencePanel
+                                opened={referenceOpened}
+                                onToggle={onReferenceToggle}
+                                onInsert={insertFunction}
+                            />
+                        </Panel>
+                    </>
+                )}
+            </PanelGroup>
+            <FormulaReferenceBar
                 opened={referenceOpened}
                 onToggle={onReferenceToggle}
-                onInsert={insertFunction}
             />
         </Box>
     );

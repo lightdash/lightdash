@@ -27,6 +27,7 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    IconAlertTriangle,
     IconCalculator,
     IconMaximize,
     IconMinimize,
@@ -544,9 +545,27 @@ const TableCalculationModal: FC<Props> = ({
             <Stack gap="xs">
                 <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
-                        <Text fz="sm" fw={600}>
-                            {editorLabel}
-                        </Text>
+                        <Group gap={6} wrap="nowrap">
+                            <Text fz="sm" fw={600}>
+                                {editorLabel}
+                            </Text>
+                            {editMode === EditMode.FORMULA &&
+                                formulaParseError && (
+                                    <Tooltip
+                                        label={formulaParseError}
+                                        withArrow
+                                        multiline
+                                        w={320}
+                                        position="bottom-start"
+                                    >
+                                        <MantineIcon
+                                            icon={IconAlertTriangle}
+                                            color="red.6"
+                                            size="sm"
+                                        />
+                                    </Tooltip>
+                                )}
+                        </Group>
                         {canSwitchEditMode && (
                             <Anchor
                                 size="xs"

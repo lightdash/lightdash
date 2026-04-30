@@ -5,7 +5,6 @@ import {
     Anchor,
     Box,
     Button,
-    Collapse,
     Divider,
     Group,
     ScrollArea,
@@ -23,13 +22,8 @@ import {
 } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import TruncatedText from '../../../../components/common/TruncatedText';
 import classes from './FormulaReference.module.css';
-
-type Props = {
-    opened: boolean;
-    onToggle: (next: boolean) => void;
-    onInsert: (text: string) => void;
-};
 
 type Category = FunctionDefinition['category'];
 
@@ -55,7 +49,6 @@ const CATEGORY_ORDER: Category[] = [
     'type',
 ];
 
-// Inlined to avoid pulling internal helpers from the formula package.
 // Mirrors `formatFunctionArgs` in packages/formula/src/functions.ts.
 const formatSignature = (fn: FunctionDefinition): string => {
     if (fn.maxArgs === 0) return '()';
@@ -74,7 +67,17 @@ const formatSignature = (fn: FunctionDefinition): string => {
     return `(${required}${optional})`;
 };
 
-export const FormulaReference: FC<Props> = ({ opened, onToggle, onInsert }) => {
+type PanelProps = {
+    opened: boolean;
+    onToggle: (next: boolean) => void;
+    onInsert: (text: string) => void;
+};
+
+export const FormulaReferencePanel: FC<PanelProps> = ({
+    opened,
+    onToggle,
+    onInsert,
+}) => {
     const [query, setQuery] = useState('');
     const [expandedCategories, setExpandedCategories] = useState<Set<Category>>(
         new Set(),
@@ -125,212 +128,199 @@ export const FormulaReference: FC<Props> = ({ opened, onToggle, onInsert }) => {
         onInsert(insertText);
     };
 
+    return (
+        <Box className={classes.panel}>
+            <Group gap="xs" wrap="nowrap" className={classes.searchWrapper}>
+                <TextInput
+                    size="xs"
+                    value={query}
+                    onChange={(e) => setQuery(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            onToggle(false);
+                        }
+                    }}
+                    placeholder="Search functions"
+                    leftSection={<MantineIcon icon={IconSearch} size="xs" />}
+                    autoFocus={opened}
+                    flex={1}
+                />
+                <Tooltip
+                    label="Close (Esc)"
+                    withArrow
+                    position="top"
+                    openDelay={300}
+                >
+                    <ActionIcon
+                        variant="subtle"
+                        size="sm"
+                        color="gray"
+                        onClick={() => onToggle(false)}
+                        aria-label="Close function reference"
+                    >
+                        <MantineIcon icon={IconX} size="sm" />
+                    </ActionIcon>
+                </Tooltip>
+            </Group>
+            <ScrollArea
+                className={classes.scrollArea}
+                type="auto"
+                offsetScrollbars
+                scrollbars="y"
+            >
+                {grouped.length === 0 ? (
+                    <Text size="xs" className={classes.empty}>
+                        No functions match &ldquo;{query}&rdquo;
+                    </Text>
+                ) : (
+                    grouped.map(({ category, functions }) => {
+                        const expanded = isCategoryExpanded(category);
+                        return (
+                            <div
+                                key={category}
+                                className={classes.categoryGroup}
+                            >
+                                <button
+                                    type="button"
+                                    className={classes.categoryHeader}
+                                    onClick={() => toggleCategory(category)}
+                                    aria-expanded={expanded}
+                                >
+                                    <MantineIcon
+                                        icon={
+                                            expanded
+                                                ? IconChevronDown
+                                                : IconChevronRight
+                                        }
+                                        size="xs"
+                                        className={classes.categoryChevron}
+                                    />
+                                    <Text
+                                        size="xs"
+                                        fw={600}
+                                        className={classes.categoryLabel}
+                                        span
+                                    >
+                                        {CATEGORY_LABELS[category]}
+                                    </Text>
+                                    <Text
+                                        size="xs"
+                                        c="dimmed"
+                                        className={classes.categoryCount}
+                                        span
+                                    >
+                                        {functions.length}
+                                    </Text>
+                                </button>
+                                {expanded &&
+                                    functions.map((fn) => (
+                                        <button
+                                            key={fn.name}
+                                            type="button"
+                                            className={classes.functionRow}
+                                            onClick={() => handleInsert(fn)}
+                                        >
+                                            <Text
+                                                size="xs"
+                                                className={
+                                                    classes.functionSignature
+                                                }
+                                                span
+                                            >
+                                                {fn.name}
+                                                {formatSignature(fn)}
+                                            </Text>
+                                            <TruncatedText
+                                                size="xs"
+                                                className={
+                                                    classes.functionDescription
+                                                }
+                                                maxWidth="400px"
+                                            >
+                                                {fn.description}
+                                            </TruncatedText>
+                                        </button>
+                                    ))}
+                            </div>
+                        );
+                    })
+                )}
+            </ScrollArea>
+        </Box>
+    );
+};
+
+type BarProps = {
+    opened: boolean;
+    onToggle: (next: boolean) => void;
+};
+
+export const FormulaReferenceBar: FC<BarProps> = ({ opened, onToggle }) => {
     const toggle = () => onToggle(!opened);
 
-    return (
-        <Box className={classes.root} data-opened={opened || undefined}>
-            <Collapse in={opened} className={classes.collapse}>
-                <Box className={classes.panel}>
-                    <Group
-                        gap="xs"
-                        wrap="nowrap"
-                        className={classes.searchWrapper}
-                    >
-                        <TextInput
-                            size="xs"
-                            value={query}
-                            onChange={(e) => setQuery(e.currentTarget.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Escape') {
-                                    e.preventDefault();
-                                    onToggle(false);
-                                }
-                            }}
-                            placeholder="Search functions"
-                            leftSection={
-                                <MantineIcon icon={IconSearch} size="xs" />
-                            }
-                            autoFocus={opened}
-                            flex={1}
-                        />
-                        <Tooltip
-                            label="Close (Esc)"
-                            withArrow
-                            position="top"
-                            openDelay={300}
-                        >
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                color="gray"
-                                onClick={() => onToggle(false)}
-                                aria-label="Close function reference"
-                            >
-                                <MantineIcon icon={IconX} size="sm" />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
-                    <ScrollArea
-                        className={classes.scrollArea}
-                        type="auto"
-                        offsetScrollbars
-                        scrollbars="y"
-                    >
-                        {grouped.length === 0 ? (
-                            <Text size="xs" className={classes.empty}>
-                                No functions match &ldquo;{query}&rdquo;
-                            </Text>
-                        ) : (
-                            grouped.map(({ category, functions }) => {
-                                const expanded = isCategoryExpanded(category);
-                                return (
-                                    <div
-                                        key={category}
-                                        className={classes.categoryGroup}
-                                    >
-                                        <button
-                                            type="button"
-                                            className={classes.categoryHeader}
-                                            onClick={() =>
-                                                toggleCategory(category)
-                                            }
-                                            aria-expanded={expanded}
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    expanded
-                                                        ? IconChevronDown
-                                                        : IconChevronRight
-                                                }
-                                                size="xs"
-                                                className={
-                                                    classes.categoryChevron
-                                                }
-                                            />
-                                            <Text
-                                                size="xs"
-                                                fw={600}
-                                                className={
-                                                    classes.categoryLabel
-                                                }
-                                                span
-                                            >
-                                                {CATEGORY_LABELS[category]}
-                                            </Text>
-                                            <Text
-                                                size="xs"
-                                                c="dimmed"
-                                                className={
-                                                    classes.categoryCount
-                                                }
-                                                span
-                                            >
-                                                {functions.length}
-                                            </Text>
-                                        </button>
-                                        {expanded &&
-                                            functions.map((fn) => (
-                                                <button
-                                                    key={fn.name}
-                                                    type="button"
-                                                    className={
-                                                        classes.functionRow
-                                                    }
-                                                    onClick={() =>
-                                                        handleInsert(fn)
-                                                    }
-                                                >
-                                                    <Text
-                                                        size="xs"
-                                                        className={
-                                                            classes.functionSignature
-                                                        }
-                                                        span
-                                                    >
-                                                        {fn.name}
-                                                        {formatSignature(fn)}
-                                                    </Text>
-                                                    <Text
-                                                        size="xs"
-                                                        className={
-                                                            classes.functionDescription
-                                                        }
-                                                        span
-                                                    >
-                                                        {fn.description}
-                                                    </Text>
-                                                </button>
-                                            ))}
-                                    </div>
-                                );
-                            })
-                        )}
-                    </ScrollArea>
-                </Box>
-            </Collapse>
-
-            <Group
-                className={classes.bar}
-                gap="xs"
-                wrap="nowrap"
-                justify="space-between"
-            >
-                {opened ? (
-                    <Tooltip
-                        label="Close (Esc)"
-                        withArrow
-                        position="top"
-                        openDelay={300}
-                    >
-                        <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            color="gray"
-                            onClick={toggle}
-                            aria-label="Hide function reference"
-                            aria-expanded={opened}
-                        >
-                            <MantineIcon icon={IconX} size="sm" />
-                        </ActionIcon>
-                    </Tooltip>
-                ) : (
-                    <Button
-                        variant="subtle"
-                        color="gray"
-                        size="compact-xs"
-                        onClick={toggle}
-                        leftSection={
-                            <MantineIcon icon={IconMathFunction} size="sm" />
-                        }
-                        className={classes.helperButton}
-                        aria-expanded={opened}
-                    >
-                        Need help?
-                    </Button>
-                )}
-
-                {opened && (
-                    <Group gap="sm" wrap="nowrap">
-                        <Divider orientation="vertical" />
-                        <Anchor
-                            href="https://docs.lightdash.com/guides/formula-table-calculations"
-                            target="_blank"
-                            rel="noreferrer"
-                            size="xs"
-                            underline="hover"
-                            className={classes.docsLink}
-                        >
-                            <Group gap={2} wrap="nowrap">
-                                Docs
-                                <MantineIcon
-                                    icon={IconArrowUpRight}
-                                    size="xs"
-                                />
-                            </Group>
-                        </Anchor>
-                    </Group>
-                )}
+    const kbdHints = (
+        <Group gap="md" wrap="nowrap" className={classes.kbdHints}>
+            <Group gap={6} wrap="nowrap">
+                <kbd className={classes.kbd}>@</kbd>
+                <Text size="xs" inherit>
+                    field
+                </Text>
             </Group>
-        </Box>
+            <Group gap={6} wrap="nowrap">
+                <kbd className={classes.kbd}>#</kbd>
+                <Text size="xs" inherit>
+                    function
+                </Text>
+            </Group>
+        </Group>
+    );
+
+    return (
+        <Group
+            className={classes.bar}
+            gap="xs"
+            wrap="nowrap"
+            justify="space-between"
+        >
+            {opened ? (
+                kbdHints
+            ) : (
+                <Button
+                    variant="subtle"
+                    color="gray"
+                    size="compact-xs"
+                    onClick={toggle}
+                    leftSection={
+                        <MantineIcon icon={IconMathFunction} size="sm" />
+                    }
+                    className={classes.helperButton}
+                    aria-expanded={opened}
+                >
+                    Need help?
+                </Button>
+            )}
+
+            {opened ? (
+                <Group gap="sm" wrap="nowrap">
+                    <Divider orientation="vertical" />
+                    <Anchor
+                        href="https://docs.lightdash.com/guides/formula-table-calculations"
+                        target="_blank"
+                        rel="noreferrer"
+                        size="xs"
+                        underline="hover"
+                        className={classes.docsLink}
+                    >
+                        <Group gap={2} wrap="nowrap">
+                            Docs
+                            <MantineIcon icon={IconArrowUpRight} size="xs" />
+                        </Group>
+                    </Anchor>
+                </Group>
+            ) : (
+                kbdHints
+            )}
+        </Group>
     );
 };
