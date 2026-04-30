@@ -17,30 +17,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
         this.featureFlagHandlers = {
             ...this.featureFlagHandlers, // Inherit parent handlers
             // Add new commercial handlers
-            [CommercialFeatureFlags.Scim]: this.getScimFlag.bind(this),
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
-        };
-    }
-
-    private async getScimFlag({ user, featureFlagId }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.scim.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      CommercialFeatureFlags.Scim as AnyType as FeatureFlags,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
         };
     }
 
