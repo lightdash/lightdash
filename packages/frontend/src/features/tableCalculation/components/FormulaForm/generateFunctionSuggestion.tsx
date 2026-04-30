@@ -6,6 +6,11 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
 import { generateSuggestion } from '../../../../components/common/SuggestionList';
 import suggestionStyles from '../../../../components/common/SuggestionList/SuggestionList.module.css';
+import {
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    type FunctionCategory,
+} from './functionCategories';
 
 export type FunctionSuggestionItem = {
     id: string;
@@ -14,11 +19,27 @@ export type FunctionSuggestionItem = {
     definition: FunctionDefinition;
 };
 
+const sortByCategory = (
+    items: FunctionSuggestionItem[],
+): FunctionSuggestionItem[] => {
+    const orderIndex = (cat: FunctionCategory) => {
+        const idx = CATEGORY_ORDER.indexOf(cat);
+        return idx === -1 ? CATEGORY_ORDER.length : idx;
+    };
+    return [...items].sort((a, b) => {
+        const diff =
+            orderIndex(a.definition.category) -
+            orderIndex(b.definition.category);
+        if (diff !== 0) return diff;
+        return a.label.localeCompare(b.label);
+    });
+};
+
 export const generateFunctionSuggestion = (
     functions: FunctionSuggestionItem[],
 ): MentionOptions['suggestion'] => ({
     ...generateSuggestion({
-        items: functions,
+        items: sortByCategory(functions),
         command: ({ editor, range, props }) => {
             const fn = props as FunctionSuggestionItem;
             editor
@@ -27,6 +48,9 @@ export const generateFunctionSuggestion = (
                 .insertContentAt(range, [{ type: 'text', text: `${fn.id}(` }])
                 .run();
         },
+        getGroupKey: (item) =>
+            (item as FunctionSuggestionItem).definition.category,
+        groupLabels: CATEGORY_LABELS,
         renderItem: (item, isSelected, onClick) => (
             <PolymorphicGroupButton
                 onClick={onClick}
@@ -37,7 +61,7 @@ export const generateFunctionSuggestion = (
                     <MantineIcon
                         icon={IconMathFunction}
                         size="sm"
-                        color="violet"
+                        color="indigo.4"
                     />
                     <Text size="xs" fw={500}>
                         {item.label}

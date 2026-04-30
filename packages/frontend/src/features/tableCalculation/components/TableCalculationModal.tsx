@@ -19,6 +19,7 @@ import {
     Box,
     Button,
     Group,
+    HoverCard,
     Loader,
     Stack,
     Text,
@@ -27,9 +28,11 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    IconAlertTriangle,
     IconCalculator,
     IconMaximize,
     IconMinimize,
+    IconSparkles,
     IconWand,
 } from '@tabler/icons-react';
 import {
@@ -38,6 +41,7 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
 } from 'react';
@@ -60,7 +64,7 @@ import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
-import { FormulaForm } from './FormulaForm/FormulaForm';
+import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
@@ -236,6 +240,7 @@ const TableCalculationModal: FC<Props> = ({
     const [formulaParseError, setFormulaParseError] = useState<string | null>(
         null,
     );
+    const formulaFormRef = useRef<FormulaFormHandle>(null);
 
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
     const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
@@ -544,9 +549,69 @@ const TableCalculationModal: FC<Props> = ({
             <Stack gap="xs">
                 <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
-                        <Text fz="sm" fw={600}>
-                            {editorLabel}
-                        </Text>
+                        <Group gap={6} wrap="nowrap">
+                            <Text fz="sm" fw={600}>
+                                {editorLabel}
+                            </Text>
+                            {editMode === EditMode.FORMULA &&
+                                formulaParseError && (
+                                    <HoverCard
+                                        withArrow
+                                        width={320}
+                                        position="bottom-start"
+                                        shadow="md"
+                                        openDelay={100}
+                                        closeDelay={150}
+                                    >
+                                        <HoverCard.Target>
+                                            <Box style={{ display: 'flex' }}>
+                                                <MantineIcon
+                                                    icon={IconAlertTriangle}
+                                                    color="red.6"
+                                                    size="sm"
+                                                />
+                                            </Box>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown>
+                                            <Stack gap="xs">
+                                                <Text
+                                                    size="xs"
+                                                    c="red.7"
+                                                    style={{
+                                                        wordBreak: 'break-word',
+                                                        whiteSpace: 'pre-wrap',
+                                                    }}
+                                                >
+                                                    {formulaParseError}
+                                                </Text>
+                                                {isAmbientAiEnabled && (
+                                                    <Group justify="flex-end">
+                                                        <Button
+                                                            size="compact-xs"
+                                                            variant="default"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconSparkles
+                                                                    }
+                                                                    size="sm"
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                formulaFormRef.current?.fixWithAi(
+                                                                    formulaParseError,
+                                                                )
+                                                            }
+                                                        >
+                                                            Fix with AI
+                                                        </Button>
+                                                    </Group>
+                                                )}
+                                            </Stack>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
+                                )}
+                        </Group>
                         {canSwitchEditMode && (
                             <Anchor
                                 size="xs"
@@ -611,6 +676,7 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
+                                ref={formulaFormRef}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
