@@ -6,6 +6,11 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
 import { generateSuggestion } from '../../../../components/common/SuggestionList';
 import suggestionStyles from '../../../../components/common/SuggestionList/SuggestionList.module.css';
+import {
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    type FunctionCategory,
+} from './functionCategories';
 
 export type FunctionSuggestionItem = {
     id: string;
@@ -14,32 +19,10 @@ export type FunctionSuggestionItem = {
     definition: FunctionDefinition;
 };
 
-const CATEGORY_LABELS: Record<FunctionDefinition['category'], string> = {
-    aggregate: 'Aggregate',
-    logical: 'Logic',
-    math: 'Math',
-    string: 'Text',
-    date: 'Date',
-    window: 'Window',
-    null: 'Null handling',
-    type: 'Type',
-};
-
-const CATEGORY_ORDER: FunctionDefinition['category'][] = [
-    'aggregate',
-    'logical',
-    'math',
-    'string',
-    'date',
-    'window',
-    'null',
-    'type',
-];
-
 const sortByCategory = (
     items: FunctionSuggestionItem[],
 ): FunctionSuggestionItem[] => {
-    const orderIndex = (cat: FunctionDefinition['category']) => {
+    const orderIndex = (cat: FunctionCategory) => {
         const idx = CATEGORY_ORDER.indexOf(cat);
         return idx === -1 ? CATEGORY_ORDER.length : idx;
     };

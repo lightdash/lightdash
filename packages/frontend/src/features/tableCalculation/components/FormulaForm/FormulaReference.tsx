@@ -24,30 +24,11 @@ import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../components/common/TruncatedText';
 import classes from './FormulaReference.module.css';
-
-type Category = FunctionDefinition['category'];
-
-const CATEGORY_LABELS: Record<Category, string> = {
-    aggregate: 'Aggregate',
-    logical: 'Logic',
-    math: 'Math',
-    string: 'Text',
-    date: 'Date',
-    window: 'Window',
-    null: 'Null handling',
-    type: 'Type',
-};
-
-const CATEGORY_ORDER: Category[] = [
-    'aggregate',
-    'logical',
-    'math',
-    'string',
-    'date',
-    'window',
-    'null',
-    'type',
-];
+import {
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    type FunctionCategory,
+} from './functionCategories';
 
 // Mirrors `formatFunctionArgs` in packages/formula/src/functions.ts.
 const formatSignature = (fn: FunctionDefinition): string => {
@@ -79,14 +60,14 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
     onInsert,
 }) => {
     const [query, setQuery] = useState('');
-    const [expandedCategories, setExpandedCategories] = useState<Set<Category>>(
-        new Set(),
-    );
+    const [expandedCategories, setExpandedCategories] = useState<
+        Set<FunctionCategory>
+    >(new Set());
 
     const isSearching = query.trim().length > 0;
-    const isCategoryExpanded = (cat: Category) =>
+    const isCategoryExpanded = (cat: FunctionCategory) =>
         isSearching || expandedCategories.has(cat);
-    const toggleCategory = (cat: Category) => {
+    const toggleCategory = (cat: FunctionCategory) => {
         setExpandedCategories((prev) => {
             const next = new Set(prev);
             if (next.has(cat)) next.delete(cat);
@@ -106,7 +87,7 @@ export const FormulaReferencePanel: FC<PanelProps> = ({
               )
             : all;
 
-        const byCategory = new Map<Category, FunctionDefinition[]>();
+        const byCategory = new Map<FunctionCategory, FunctionDefinition[]>();
         for (const fn of filtered) {
             const list = byCategory.get(fn.category) ?? [];
             list.push(fn);
