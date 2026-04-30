@@ -61,3 +61,44 @@ export const isSlackRateLimitedError = (error: unknown): boolean =>
     error instanceof Error &&
     'code' in error &&
     error.code === 'slack_webapi_rate_limited_error';
+
+/**
+ * User-facing translations for common Slack API error codes. Surfaced in
+ * scheduler logs so the delivery recipient gets an actionable explanation
+ * instead of a raw API code. The raw code is also recorded as
+ * `details.slackErrorCode` for debugging.
+ */
+export const SLACK_USER_FACING_ERROR_MESSAGES: Record<string, string> = {
+    invalid_blocks:
+        "Slack rejected this message because it exceeds Slack's size or formatting limits (e.g. dashboard has too many charts, or very long names/descriptions). Please reach out to support if the issue persists.",
+    channel_not_found:
+        'The Slack channel for this delivery no longer exists. Edit this delivery to choose another channel.',
+    not_in_channel:
+        "The Lightdash Slack app isn't a member of this channel. Invite the app to the channel or choose a different one.",
+    is_archived:
+        'This Slack channel has been archived. Edit this delivery to choose another channel.',
+    account_inactive:
+        'The Lightdash Slack app has been deactivated for your workspace. Ask your admin to reconnect Slack in organization settings, or contact support.',
+    invalid_auth:
+        'Slack authentication is invalid for your workspace. Ask your admin to reconnect Slack in organization settings, or contact support.',
+    missing_scope:
+        'The Lightdash Slack app is missing required permissions. Ask your admin to reconnect Slack to grant the new scopes, or contact support.',
+};
+
+/**
+ * Translates a Slack error into an actionable, user-facing message.
+ * Returns null when no translation applies — callers should fall back to their
+ * default error message in that case.
+ */
+export const translateSlackError = (
+    error: unknown,
+): { error: string; slackErrorCode: string } | null => {
+    const slackErrorCode = getSlackErrorCode(error);
+    if (slackErrorCode && slackErrorCode in SLACK_USER_FACING_ERROR_MESSAGES) {
+        return {
+            error: SLACK_USER_FACING_ERROR_MESSAGES[slackErrorCode],
+            slackErrorCode,
+        };
+    }
+    return null;
+};
