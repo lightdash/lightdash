@@ -21,6 +21,7 @@ import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import type { OrganizationModel } from '../../../models/OrganizationModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
 import type { SpaceModel } from '../../../models/SpaceModel';
@@ -39,6 +40,7 @@ type ManagedAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
     managedAgentModel: ManagedAgentModel;
     analyticsModel: AnalyticsModel;
+    organizationModel: OrganizationModel;
     projectModel: ProjectModel;
     validationModel: ValidationModel;
     savedChartModel: SavedChartModel;
@@ -57,6 +59,8 @@ export class ManagedAgentService extends BaseService {
     private readonly managedAgentModel: ManagedAgentModel;
 
     private readonly analyticsModel: AnalyticsModel;
+
+    private readonly organizationModel: OrganizationModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -83,6 +87,7 @@ export class ManagedAgentService extends BaseService {
         this.lightdashConfig = deps.lightdashConfig;
         this.managedAgentModel = deps.managedAgentModel;
         this.analyticsModel = deps.analyticsModel;
+        this.organizationModel = deps.organizationModel;
         this.projectModel = deps.projectModel;
         this.validationModel = deps.validationModel;
         this.savedChartModel = deps.savedChartModel;
@@ -173,15 +178,38 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
         serviceAccountToken: string,
     ): Promise<ManagedAgentSessionConfig> {
-        const { environmentId, vaultId } =
-            await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
+        const {
+            agentId,
+            agentConfigHash,
+            agentVersion,
+            environmentId,
+            vaultId,
+        } = await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
         const project = await this.projectModel.getSummary(projectUuid);
+        const organization = await this.organizationModel.get(
+            project.organizationUuid,
+        );
 
         return {
             serviceAccountPat: serviceAccountToken,
-            resourceName: `${project.organizationUuid}:${project.name}:${project.projectUuid}`,
+            resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
+            persistedAgentId: agentId,
+            persistedAgentConfigHash: agentConfigHash,
+            persistedAgentVersion: agentVersion,
             persistedEnvironmentId: environmentId,
             persistedVaultId: vaultId,
+            onAgentSynced: async (
+                newAgentId,
+                newAgentConfigHash,
+                newAgentVersion,
+            ) => {
+                await this.managedAgentModel.setAnthropicAgentState(
+                    projectUuid,
+                    newAgentId,
+                    newAgentConfigHash,
+                    newAgentVersion,
+                );
+            },
             onResourcesCreated: async (newEnvId, newVaultId) => {
                 await this.managedAgentModel.setAnthropicResourceIds(
                     projectUuid,

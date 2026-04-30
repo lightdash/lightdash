@@ -9,6 +9,9 @@ export type DbManagedAgentSettings = {
     schedule_cron: string;
     enabled_by_user_uuid: string | null;
     service_account_token: Buffer | null;
+    anthropic_agent_id: string | null;
+    anthropic_agent_config_hash: string | null;
+    anthropic_agent_version: number | null;
     anthropic_environment_id: string | null;
     anthropic_vault_id: string | null;
     slack_channel_id: string | null;
@@ -27,9 +30,13 @@ export type DbManagedAgentSettingsCreate = Pick<
             | 'schedule_cron'
             | 'enabled_by_user_uuid'
             | 'service_account_token'
+            | 'anthropic_agent_id'
+            | 'anthropic_agent_config_hash'
+            | 'anthropic_agent_version'
             | 'anthropic_environment_id'
             | 'anthropic_vault_id'
             | 'slack_channel_id'
+            | 'updated_at'
         >
     >;
 
@@ -40,6 +47,9 @@ export type DbManagedAgentSettingsUpdate = Partial<
         | 'schedule_cron'
         | 'enabled_by_user_uuid'
         | 'service_account_token'
+        | 'anthropic_agent_id'
+        | 'anthropic_agent_config_hash'
+        | 'anthropic_agent_version'
         | 'anthropic_environment_id'
         | 'anthropic_vault_id'
         | 'slack_channel_id'
@@ -73,7 +83,12 @@ export type DbManagedAgentActionCreate = Omit<
     'action_uuid' | 'reversed_at' | 'reversed_by_user_uuid' | 'created_at'
 >;
 
+export type DbManagedAgentActionUpdate = Partial<
+    Pick<DbManagedAgentAction, 'reversed_at' | 'reversed_by_user_uuid'>
+>;
+
 export type ManagedAgentActionsTable = Knex.CompositeTableType<
     DbManagedAgentAction,
-    DbManagedAgentActionCreate
+    DbManagedAgentActionCreate,
+    DbManagedAgentActionUpdate
 >;

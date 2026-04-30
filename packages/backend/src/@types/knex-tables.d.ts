@@ -349,6 +349,12 @@ import {
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
 import {
+    ManagedAgentActionsTable,
+    ManagedAgentActionsTableName,
+    ManagedAgentSettingsTable,
+    ManagedAgentSettingsTableName,
+} from '../ee/database/entities/managedAgent';
+import {
     PreAggregateDailyStatsTable,
     PreAggregateDailyStatsTableName,
 } from '../ee/database/entities/preAggregateDailyStats';
@@ -493,6 +499,8 @@ declare module 'knex/types/tables' {
         [AiEvalRunResultAssessmentTableName]: AiEvalRunResultAssessmentTable;
         [ChangesetsTableName]: ChangesetsTable;
         [ChangesTableName]: ChangesTable;
+        [ManagedAgentSettingsTableName]: ManagedAgentSettingsTable;
+        [ManagedAgentActionsTableName]: ManagedAgentActionsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
