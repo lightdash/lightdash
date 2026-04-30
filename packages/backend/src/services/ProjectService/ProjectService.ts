@@ -83,7 +83,6 @@ import {
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
     isCartesianChartConfig,
-    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isFilterableDimension,
