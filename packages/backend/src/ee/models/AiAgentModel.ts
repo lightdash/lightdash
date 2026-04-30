@@ -212,6 +212,7 @@ export class AiAgentModel {
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
+                slug: `${AiAgentTableName}.slug`,
                 name: `${AiAgentTableName}.name`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
@@ -345,6 +346,7 @@ export class AiAgentModel {
                 uuid: `${AiAgentTableName}.ai_agent_uuid`,
                 organizationUuid: `${AiAgentTableName}.organization_uuid`,
                 projectUuid: `${AiAgentTableName}.project_uuid`,
+                slug: `${AiAgentTableName}.slug`,
                 name: `${AiAgentTableName}.name`,
                 description: `${AiAgentTableName}.description`,
                 tags: `${AiAgentTableName}.tags`,
@@ -424,6 +426,82 @@ export class AiAgentModel {
         return rows;
     }
 
+    async findAgentsForCode({
+        organizationUuid,
+        projectUuid,
+        slugs,
+        agentUuids,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        slugs?: string[];
+        agentUuids?: string[];
+    }): Promise<
+        Pick<
+            AiAgentSummary,
+            | 'uuid'
+            | 'slug'
+            | 'name'
+            | 'description'
+            | 'imageUrl'
+            | 'instruction'
+            | 'tags'
+            | 'enableDataAccess'
+            | 'enableSelfImprovement'
+            | 'updatedAt'
+        >[]
+    > {
+        const latestInstruction = this.database
+            .from(AiAgentInstructionVersionsTableName)
+            .select(
+                'ai_agent_uuid',
+                this.database.raw('instruction'),
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY ai_agent_uuid ORDER BY created_at DESC) as rn',
+                ),
+            );
+
+        const query = this.database
+            .with('latest_instruction', latestInstruction)
+            .from(AiAgentTableName)
+            .select({
+                uuid: `${AiAgentTableName}.ai_agent_uuid`,
+                slug: `${AiAgentTableName}.slug`,
+                name: `${AiAgentTableName}.name`,
+                description: `${AiAgentTableName}.description`,
+                imageUrl: `${AiAgentTableName}.image_url`,
+                tags: `${AiAgentTableName}.tags`,
+                enableDataAccess: `${AiAgentTableName}.enable_data_access`,
+                enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
+                updatedAt: `${AiAgentTableName}.updated_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM latest_instruction
+                     WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
+                `),
+            })
+            .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
+            .where(`${AiAgentTableName}.project_uuid`, projectUuid);
+
+        if (
+            (slugs && slugs.length > 0) ||
+            (agentUuids && agentUuids.length > 0)
+        ) {
+            void query.where((builder) => {
+                if (slugs && slugs.length > 0) {
+                    void builder.whereIn(`${AiAgentTableName}.slug`, slugs);
+                }
+                if (agentUuids && agentUuids.length > 0) {
+                    void builder.orWhereIn(
+                        `${AiAgentTableName}.ai_agent_uuid`,
+                        agentUuids,
+                    );
+                }
+            });
+        }
+
+        return query;
+    }
+
     async getAgentBySlackChannelId({
         organizationUuid,
         slackChannelId,
@@ -464,6 +542,20 @@ export class AiAgentModel {
         return agent;
     }
 
+    async findAgentsBySlugs({
+        projectUuid,
+        slugs,
+    }: {
+        projectUuid: string;
+        slugs: string[];
+    }): Promise<Array<{ ai_agent_uuid: string; slug: string }>> {
+        if (slugs.length === 0) return [];
+        return this.database(AiAgentTableName)
+            .select('ai_agent_uuid', 'slug')
+            .where({ project_uuid: projectUuid })
+            .whereIn('slug', slugs);
+    }
+
     private static async generateUniqueSlug(
         trx: Knex,
         projectUuid: string,
@@ -493,6 +585,7 @@ export class AiAgentModel {
             | 'tags'
             | 'integrations'
             | 'instruction'
+            | 'imageUrl'
             | 'groupAccess'
             | 'userAccess'
             | 'spaceAccess'
@@ -501,14 +594,17 @@ export class AiAgentModel {
             | 'version'
         > & {
             organizationUuid: string;
+            slug?: string;
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
-            const slug = await AiAgentModel.generateUniqueSlug(
-                trx,
-                args.projectUuid,
-                args.name,
-            );
+            const slug =
+                args.slug ??
+                (await AiAgentModel.generateUniqueSlug(
+                    trx,
+                    args.projectUuid,
+                    args.name,
+                ));
 
             const [agent] = await trx(AiAgentTableName)
                 .insert({
@@ -518,7 +614,7 @@ export class AiAgentModel {
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,
                     description: args.description ?? null,
-                    image_url: null,
+                    image_url: args.imageUrl ?? null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
                     version: args.version,
@@ -597,6 +693,7 @@ export class AiAgentModel {
 
             return {
                 uuid: agent.ai_agent_uuid,
+                slug: agent.slug,
                 name: agent.name,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
@@ -657,28 +754,30 @@ export class AiAgentModel {
                 })
                 .returning('*');
 
-            // Reset all integrations
+            // Reset integrations only when caller passes an explicit array.
+            // undefined = preserve existing (matches groupAccess/userAccess/spaceAccess).
             // we cannot relay on cascade deletes because might run into race condition
             // delete child records first to avoid unique constraint violations
-            const integrationUuids = await trx(AiAgentIntegrationTableName)
-                .select('ai_agent_integration_uuid')
-                .where('ai_agent_uuid', args.agentUuid);
+            if (args.integrations !== undefined) {
+                const integrationUuids = await trx(AiAgentIntegrationTableName)
+                    .select('ai_agent_integration_uuid')
+                    .where('ai_agent_uuid', args.agentUuid);
 
-            if (integrationUuids.length > 0) {
-                await trx(AiAgentSlackIntegrationTableName)
-                    .whereIn(
-                        'ai_agent_integration_uuid',
-                        integrationUuids.map(
-                            (i) => i.ai_agent_integration_uuid,
-                        ),
-                    )
+                if (integrationUuids.length > 0) {
+                    await trx(AiAgentSlackIntegrationTableName)
+                        .whereIn(
+                            'ai_agent_integration_uuid',
+                            integrationUuids.map(
+                                (i) => i.ai_agent_integration_uuid,
+                            ),
+                        )
+                        .delete();
+                }
+
+                await trx(AiAgentIntegrationTableName)
+                    .where('ai_agent_uuid', args.agentUuid)
                     .delete();
             }
-
-            // Then delete parent integration records
-            await trx(AiAgentIntegrationTableName)
-                .where('ai_agent_uuid', args.agentUuid)
-                .delete();
 
             const integrationPromises =
                 args.integrations?.map(async (integration) => {
@@ -722,7 +821,10 @@ export class AiAgentModel {
                             );
                     }
                 }) || [];
-            const integrations = await Promise.all(integrationPromises);
+            const integrations =
+                args.integrations !== undefined
+                    ? await Promise.all(integrationPromises)
+                    : await this.getIntegrations(args.agentUuid, { trx });
 
             let instruction = await this.getAgentLastInstruction(
                 {
@@ -762,6 +864,7 @@ export class AiAgentModel {
 
             return {
                 uuid: agent.ai_agent_uuid,
+                slug: agent.slug,
                 name: agent.name,
                 description: agent.description,
                 projectUuid: agent.project_uuid,
@@ -780,6 +883,33 @@ export class AiAgentModel {
                 version: agent.version,
             };
         });
+    }
+
+    private async getIntegrations(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiAgent['integrations']> {
+        const rows = await trx(AiAgentIntegrationTableName)
+            .leftJoin(
+                AiAgentSlackIntegrationTableName,
+                `${AiAgentIntegrationTableName}.ai_agent_integration_uuid`,
+                `${AiAgentSlackIntegrationTableName}.ai_agent_integration_uuid`,
+            )
+            .select<
+                {
+                    integration_type: 'slack';
+                    slack_channel_id: string;
+                }[]
+            >(
+                `${AiAgentIntegrationTableName}.integration_type`,
+                `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+            )
+            .where(`${AiAgentIntegrationTableName}.ai_agent_uuid`, agentUuid);
+
+        return rows.map((row) => ({
+            type: row.integration_type,
+            channelId: row.slack_channel_id,
+        }));
     }
 
     private async getGroupAccess(

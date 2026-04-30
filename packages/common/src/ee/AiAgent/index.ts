@@ -39,6 +39,7 @@ export const baseAgentSchema = z.object({
     projectUuid: z.string(),
     organizationUuid: z.string(),
 
+    slug: z.string(),
     name: z.string(),
     description: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
@@ -82,6 +83,7 @@ export type AiAgent = Pick<
     | 'uuid'
     | 'projectUuid'
     | 'organizationUuid'
+    | 'slug'
     | 'integrations'
     | 'tags'
     | 'name'
@@ -101,6 +103,7 @@ export type AiAgent = Pick<
 export type AiAgentSummary = Pick<
     AiAgent,
     | 'uuid'
+    | 'slug'
     | 'name'
     | 'description'
     | 'integrations'

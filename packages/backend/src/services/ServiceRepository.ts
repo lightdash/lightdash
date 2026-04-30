@@ -126,6 +126,7 @@ interface ServiceManifest {
     aiService: unknown;
     aiAgentService: unknown;
     aiAgentAdminService: unknown;
+    aiAgentCoderService: unknown;
     aiOrganizationSettingsService: unknown;
     scimService: unknown;
     supportService: unknown;
@@ -1153,6 +1154,12 @@ export class ServiceRepository
         AiAgentAdminServiceImplT,
     >(): AiAgentAdminServiceImplT {
         return this.getService('aiAgentAdminService');
+    }
+
+    public getAiAgentCoderService<
+        AiAgentCoderServiceImplT,
+    >(): AiAgentCoderServiceImplT {
+        return this.getService('aiAgentCoderService');
     }
 
     public getAiOrganizationSettingsService<
