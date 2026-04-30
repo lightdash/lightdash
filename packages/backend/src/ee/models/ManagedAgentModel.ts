@@ -65,17 +65,45 @@ export class ManagedAgentModel {
             .update({ service_account_token: encrypted });
     }
 
-    async getAnthropicResourceIds(
-        projectUuid: string,
-    ): Promise<{ environmentId: string | null; vaultId: string | null }> {
+    async getAnthropicResourceIds(projectUuid: string): Promise<{
+        agentId: string | null;
+        agentConfigHash: string | null;
+        agentVersion: number | null;
+        environmentId: string | null;
+        vaultId: string | null;
+    }> {
         const row = await this.database(ManagedAgentSettingsTableName)
             .where({ project_uuid: projectUuid })
-            .select('anthropic_environment_id', 'anthropic_vault_id')
+            .select(
+                'anthropic_agent_id',
+                'anthropic_agent_config_hash',
+                'anthropic_agent_version',
+                'anthropic_environment_id',
+                'anthropic_vault_id',
+            )
             .first();
         return {
+            agentId: row?.anthropic_agent_id ?? null,
+            agentConfigHash: row?.anthropic_agent_config_hash ?? null,
+            agentVersion: row?.anthropic_agent_version ?? null,
             environmentId: row?.anthropic_environment_id ?? null,
             vaultId: row?.anthropic_vault_id ?? null,
         };
+    }
+
+    async setAnthropicAgentState(
+        projectUuid: string,
+        agentId: string,
+        agentConfigHash: string,
+        agentVersion: number,
+    ): Promise<void> {
+        await this.database(ManagedAgentSettingsTableName)
+            .where({ project_uuid: projectUuid })
+            .update({
+                anthropic_agent_id: agentId,
+                anthropic_agent_config_hash: agentConfigHash,
+                anthropic_agent_version: agentVersion,
+            });
     }
 
     async setAnthropicResourceIds(
@@ -168,7 +196,7 @@ export class ManagedAgentModel {
                 target_uuid: action.targetUuid,
                 target_name: action.targetName,
                 description: action.description,
-                metadata: JSON.stringify(action.metadata),
+                metadata: action.metadata,
             })
             .returning('*');
         return ManagedAgentModel.mapDbAction(row);

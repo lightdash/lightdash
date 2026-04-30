@@ -1,8 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk';
+import type {
+    AgentCreateParams,
+    AgentUpdateParams,
+    BetaManagedAgentsAgent,
+} from '@anthropic-ai/sdk/resources/beta/agents';
 import { ParameterError } from '@lightdash/common/src';
+import { produce } from 'immer';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
-import { CUSTOM_TOOL_DEFINITIONS } from '../services/ManagedAgentService/managedAgentTools';
+import {
+    agentConfigHash,
+    managedAgentConfig,
+} from '../services/ManagedAgentService/config/agent';
 
 type ManagedAgentClientConfig = {
     lightdashConfig: LightdashConfig;
@@ -11,8 +20,16 @@ type ManagedAgentClientConfig = {
 export type ManagedAgentSessionConfig = {
     serviceAccountPat: string;
     resourceName: string;
+    persistedAgentId: string | null;
+    persistedAgentConfigHash: string | null;
+    persistedAgentVersion: number | null;
     persistedEnvironmentId: string | null;
     persistedVaultId: string | null;
+    onAgentSynced: (
+        agentId: string,
+        agentConfigHash: string,
+        agentVersion: number,
+    ) => Promise<void>;
     onResourcesCreated: (
         environmentId: string,
         vaultId: string,
@@ -27,8 +44,11 @@ type CustomToolHandler = (
 export class ManagedAgentClient {
     private readonly config: ManagedAgentClientConfig;
 
+    private readonly renderedAgentConfig: AgentCreateParams;
+
     constructor(config: ManagedAgentClientConfig) {
         this.config = config;
+        this.renderedAgentConfig = this.renderAgentConfigTemplate();
     }
 
     private getAnthropicClient(): Anthropic {
@@ -42,6 +62,106 @@ export class ManagedAgentClient {
         return new Anthropic({ apiKey: anthropicApiKey });
     }
 
+    private renderAgentConfigTemplate(): AgentCreateParams {
+        return produce(managedAgentConfig, (draft) => {
+            // eslint-disable-next-line no-param-reassign
+            draft.mcp_servers[0].url = draft.mcp_servers[0].url.replace(
+                '{{LIGHTDASH_SITE_URL}}',
+                this.config.lightdashConfig.siteUrl,
+            );
+        });
+    }
+
+    private getRenderedAgentConfig(resourceName: string): AgentCreateParams {
+        return {
+            ...this.renderedAgentConfig,
+            name: `${this.renderedAgentConfig.name} (${resourceName})`,
+            metadata: {
+                ...this.renderedAgentConfig.metadata,
+                lightdash_resource: resourceName,
+            },
+        };
+    }
+
+    private async ensureAgent(
+        beta: Anthropic.Beta,
+        sessionConfig: ManagedAgentSessionConfig,
+    ): Promise<string> {
+        const desiredAgent = this.getRenderedAgentConfig(
+            sessionConfig.resourceName,
+        );
+        const desiredHash = agentConfigHash;
+
+        if (
+            sessionConfig.persistedAgentId &&
+            sessionConfig.persistedAgentConfigHash === desiredHash &&
+            sessionConfig.persistedAgentVersion
+        ) {
+            Logger.info(
+                `[ManagedAgent] Reusing persisted agent: ${sessionConfig.persistedAgentId}`,
+            );
+            return sessionConfig.persistedAgentId;
+        }
+
+        if (sessionConfig.persistedAgentId) {
+            try {
+                const current = await beta.agents.retrieve(
+                    sessionConfig.persistedAgentId,
+                );
+                const updated = await this.updateAgent(
+                    beta,
+                    current,
+                    desiredAgent,
+                );
+                await sessionConfig.onAgentSynced(
+                    updated.id,
+                    desiredHash,
+                    updated.version,
+                );
+                Logger.info(
+                    `[ManagedAgent] Updated agent ${updated.id} to version ${updated.version}`,
+                );
+                return updated.id;
+            } catch (error) {
+                Logger.warn(
+                    `[ManagedAgent] Could not update persisted agent ${sessionConfig.persistedAgentId}, creating a new one: ${error instanceof Error ? error.message : 'Unknown'}`,
+                );
+            }
+        }
+
+        const created = await beta.agents.create(desiredAgent);
+        await sessionConfig.onAgentSynced(
+            created.id,
+            desiredHash,
+            created.version,
+        );
+        Logger.info(
+            `[ManagedAgent] Created agent ${created.id} at version ${created.version}`,
+        );
+        return created.id;
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async updateAgent(
+        beta: Anthropic.Beta,
+        current: BetaManagedAgentsAgent,
+        desiredAgent: AgentCreateParams,
+    ): Promise<BetaManagedAgentsAgent> {
+        const update: AgentUpdateParams = {
+            version: current.version,
+            description: desiredAgent.description,
+            mcp_servers: desiredAgent.mcp_servers ?? [],
+            metadata: desiredAgent.metadata ?? {},
+            model: desiredAgent.model,
+            name: desiredAgent.name,
+            skills: desiredAgent.skills ?? [],
+            system: desiredAgent.system,
+            tools: desiredAgent.tools ?? [],
+        };
+
+        return beta.agents.update(current.id, update);
+    }
+
     private async ensureAgentAndEnvironment(
         client: Anthropic,
         sessionConfig: ManagedAgentSessionConfig,
@@ -50,15 +170,7 @@ export class ManagedAgentClient {
         environmentId: string;
         vaultId: string;
     }> {
-        const { agentId: configAgentId } =
-            this.config.lightdashConfig.managedAgent;
-        if (!configAgentId) {
-            throw new Error(
-                'MANAGED_AGENT_AGENT_ID is required. Create an agent at https://platform.claude.com and set the ID.',
-            );
-        }
-
-        Logger.info(`[ManagedAgent] Using agent: ${configAgentId}`);
+        const agentId = await this.ensureAgent(client.beta, sessionConfig);
 
         // Reuse persisted Anthropic resource IDs when available to avoid
         // creating duplicate environments and vaults on every restart.
@@ -69,7 +181,7 @@ export class ManagedAgentClient {
                 `[ManagedAgent] Reusing persisted resources: env=${persistedEnvironmentId}, vault=${persistedVaultId}`,
             );
             return {
-                agentId: configAgentId,
+                agentId,
                 environmentId: persistedEnvironmentId,
                 vaultId: persistedVaultId,
             };
@@ -88,11 +200,11 @@ export class ManagedAgentClient {
         await sessionConfig.onResourcesCreated(environment.id, vault.id);
 
         Logger.info(
-            `Managed agent ready: agentId=${configAgentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
+            `Managed agent ready: agentId=${agentId}, environmentId=${environment.id}, vaultId=${vault.id}`,
         );
 
         return {
-            agentId: configAgentId,
+            agentId,
             environmentId: environment.id,
             vaultId: vault.id,
         };

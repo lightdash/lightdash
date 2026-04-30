@@ -412,6 +412,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     managedAgentModel: models.getManagedAgentModel(),
                     analyticsModel: models.getAnalyticsModel(),
+                    organizationModel: models.getOrganizationModel(),
                     projectModel: models.getProjectModel(),
                     validationModel: models.getValidationModel(),
                     savedChartModel: models.getSavedChartModel(),
