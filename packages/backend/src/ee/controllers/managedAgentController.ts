@@ -71,6 +71,21 @@ export class ManagedAgentController extends BaseController {
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/run')
+    @OperationId('runManagedAgentHeartbeat')
+    async runHeartbeat(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        await this.getManagedAgentService().startHeartbeat(
+            req.user!,
+            projectUuid,
+        );
+        this.setStatus(202);
+        return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/actions')
     @OperationId('getManagedAgentActions')
     async getActions(
