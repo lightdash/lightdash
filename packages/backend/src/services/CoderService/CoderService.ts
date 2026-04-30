@@ -20,6 +20,7 @@ import {
     friendlyName,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
+    isCustomSqlDimension,
     NotFoundError,
     Project,
     PromotionAction,
@@ -1095,6 +1096,23 @@ export class CoderService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
+        }
+
+        if (
+            chartAsCode.metricQuery.customDimensions?.some(
+                isCustomSqlDimension,
+            ) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot upload charts with custom SQL dimensions',
+            );
         }
 
         // Default optional fields when missing (e.g. user-authored YAML)
