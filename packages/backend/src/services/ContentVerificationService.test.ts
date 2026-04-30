@@ -53,6 +53,11 @@ const mockVerifiedItems: VerifiedContentListItem[] = [
         contentType: ContentType.CHART,
         contentUuid: 'chart-uuid',
         name: 'Test Chart',
+        description: null,
+        chartKind: null,
+        exploreName: null,
+        lastUpdatedAt: new Date(),
+        views: 0,
         spaceUuid: 'space-uuid',
         spaceName: 'Test Space',
         verifiedBy: {
