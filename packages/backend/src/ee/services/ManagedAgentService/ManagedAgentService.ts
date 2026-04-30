@@ -28,7 +28,10 @@ import type { UserModel } from '../../../models/UserModel';
 import type { ValidationModel } from '../../../models/ValidationModel/ValidationModel';
 import { SchedulerClient } from '../../../scheduler/SchedulerClient';
 import { BaseService } from '../../../services/BaseService';
-import { ManagedAgentClient } from '../../clients/ManagedAgentClient';
+import {
+    ManagedAgentClient,
+    type ManagedAgentSessionConfig,
+} from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
@@ -45,6 +48,7 @@ type ManagedAgentServiceDependencies = {
     serviceAccountModel: ServiceAccountModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    managedAgentClient: ManagedAgentClient;
 };
 
 export class ManagedAgentService extends BaseService {
@@ -72,7 +76,7 @@ export class ManagedAgentService extends BaseService {
 
     private readonly slackClient: SlackClient;
 
-    private client: ManagedAgentClient | null = null;
+    private readonly managedAgentClient: ManagedAgentClient;
 
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
@@ -88,6 +92,7 @@ export class ManagedAgentService extends BaseService {
         this.serviceAccountModel = deps.serviceAccountModel;
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
+        this.managedAgentClient = deps.managedAgentClient;
     }
 
     // --- Validation helpers ---
@@ -164,27 +169,17 @@ export class ManagedAgentService extends BaseService {
         }
     }
 
-    private async getClient(
+    private async getSessionConfig(
         projectUuid: string,
         serviceAccountToken: string,
-    ): Promise<ManagedAgentClient> {
-        // Always create a fresh client per heartbeat run — persisted resource
-        // IDs are loaded from the DB each time so they stay in sync.
-        const { anthropicApiKey, sessionTimeoutMs, agentId } =
-            this.lightdashConfig.managedAgent;
-        if (!anthropicApiKey) {
-            throw new Error('ANTHROPIC_API_KEY is required for managed agent');
-        }
-
+    ): Promise<ManagedAgentSessionConfig> {
         const { environmentId, vaultId } =
             await this.managedAgentModel.getAnthropicResourceIds(projectUuid);
+        const project = await this.projectModel.getSummary(projectUuid);
 
-        this.client = new ManagedAgentClient({
-            anthropicApiKey,
-            siteUrl: this.lightdashConfig.siteUrl,
+        return {
             serviceAccountPat: serviceAccountToken,
-            sessionTimeoutMs,
-            agentId,
+            resourceName: `${project.organizationUuid}:${project.name}:${project.projectUuid}`,
             persistedEnvironmentId: environmentId,
             persistedVaultId: vaultId,
             onResourcesCreated: async (newEnvId, newVaultId) => {
@@ -194,8 +189,7 @@ export class ManagedAgentService extends BaseService {
                     newVaultId,
                 );
             },
-        });
-        return this.client;
+        };
     }
 
     // --- Authorization ---
@@ -390,7 +384,10 @@ export class ManagedAgentService extends BaseService {
 
         this.logger.info(`Running heartbeat for project: ${projectUuid}`);
 
-        const client = await this.getClient(projectUuid, serviceAccountToken);
+        const sessionConfig = await this.getSessionConfig(
+            projectUuid,
+            serviceAccountToken,
+        );
         let sessionId = '';
         let agentSummary = '';
 
@@ -405,7 +402,8 @@ export class ManagedAgentService extends BaseService {
         };
 
         try {
-            const result = await client.runSession(
+            const result = await this.managedAgentClient.runSession(
+                sessionConfig,
                 projectUuid,
                 onToolCall,
                 onSessionCreated,
