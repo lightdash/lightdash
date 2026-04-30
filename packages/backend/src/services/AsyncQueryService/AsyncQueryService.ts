@@ -199,9 +199,11 @@ const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 
 // Sentinel used when building the suffix on pivoted value-column references for
 // NULL groupBy values. `[null].join('_')` collapses to '' and would collide with
-// the unsuffixed base column key. The sentinel is only used in internal column
-// keys — the frontend reads `pivotValues[].value === null` for label rendering.
-const PIVOT_NULL_KEY = '__lightdash_null__';
+// the unsuffixed base column key. Angle brackets keep the marker out of real
+// categorical data; if it surfaces in a label fallback (e.g. SQL Runner viz
+// passing `pivotColumnName` through `friendlyName`), it renders as "null" — the
+// punctuation is stripped, the word survives.
+const PIVOT_NULL_KEY = '<null>';
 export const QUEUED_QUERY_EXPIRED_MESSAGE =
     'Your query expired while waiting in the queue. Please try again.';
 
