@@ -20,7 +20,7 @@ import {
     type FieldSuggestionItem,
 } from '../../../../components/common/SuggestionList';
 import styles from './FormulaEditor.module.css';
-import { FormulaEmptyState } from './FormulaEmptyState';
+import { FormulaReference } from './FormulaReference';
 import {
     generateFunctionSuggestion,
     type FunctionSuggestionItem,
@@ -163,6 +163,9 @@ type Props = {
     previewSuffix?: string | null;
     /** Preview request in flight; shows a subtle loading indicator inline. */
     isPreviewing?: boolean;
+    /** Function reference drawer state (lifted to FormulaForm for AI/drawer mutual exclusion). */
+    referenceOpened: boolean;
+    onReferenceToggle: (next: boolean) => void;
 };
 
 const PLACEHOLDER_FORMULA =
@@ -184,6 +187,8 @@ export const FormulaEditor: FC<Props> = ({
     hasAiError = false,
     previewSuffix = null,
     isPreviewing = false,
+    referenceOpened,
+    onReferenceToggle,
 }) => {
     const [currentText, setCurrentText] = useState(initialContent ?? '');
     const mode = getInputMode(currentText);
@@ -393,15 +398,9 @@ export const FormulaEditor: FC<Props> = ({
         placeholder,
     ]);
 
-    const isEmpty = currentText.trim().length === 0;
-
-    const insertExample = (text: string) => {
+    const insertFunction = (text: string) => {
         if (!editor) return;
-        editor
-            .chain()
-            .focus()
-            .setContent(buildInitialContent(text, fieldSuggestions))
-            .run();
+        editor.chain().focus().insertContent(text).run();
     };
 
     return (
@@ -413,21 +412,26 @@ export const FormulaEditor: FC<Props> = ({
                     content: styles.editorContent,
                 }}
             >
-                <Box className={styles.editorContentWrapper}>
+                <Box
+                    className={`${styles.editorContentWrapper} ${
+                        isFullScreen
+                            ? styles.editorContentWrapperFullScreen
+                            : ''
+                    }`}
+                >
                     <RichTextEditor.Content
                         className={styles.editorContentInner}
                         style={{
-                            minHeight: isFullScreen ? '300px' : '120px',
+                            minHeight: isFullScreen ? '300px' : '60px',
                         }}
                     />
                 </Box>
             </RichTextEditor>
-            {isEmpty && (
-                <FormulaEmptyState
-                    aiEnabled={aiEnabled}
-                    onInsertExample={insertExample}
-                />
-            )}
+            <FormulaReference
+                opened={referenceOpened}
+                onToggle={onReferenceToggle}
+                onInsert={insertFunction}
+            />
         </Box>
     );
 };

@@ -65,6 +65,7 @@ export const FormulaForm: FC<Props> = ({
     );
     const [aiError, setAiError] = useState<string | null>(null);
     const [previewSuffix, setPreviewSuffix] = useState<string | null>(null);
+    const [referenceOpened, setReferenceOpened] = useState(false);
     const previewCache = useRef<Map<string, GeneratedFormulaTableCalculation>>(
         new Map(),
     );
@@ -230,17 +231,23 @@ export const FormulaForm: FC<Props> = ({
                         isPreviewing={isPreviewing}
                         hasAiError={!!aiError}
                         previewSuffix={previewSuffix}
+                        referenceOpened={referenceOpened}
+                        onReferenceToggle={setReferenceOpened}
                     />
                 </Box>
-                {aiEnabled && getInputMode(formula) === 'formula' && (
-                    <ImproveWithAiSlot
-                        explore={explore}
-                        metricQuery={metricQuery}
-                        currentFormula={formula}
-                        isGenerating={isGenerating}
-                        onSubmit={(prompt) => generateFromPrompt(prompt, true)}
-                    />
-                )}
+                {aiEnabled &&
+                    getInputMode(formula) === 'formula' &&
+                    !referenceOpened && (
+                        <ImproveWithAiSlot
+                            explore={explore}
+                            metricQuery={metricQuery}
+                            currentFormula={formula}
+                            isGenerating={isGenerating}
+                            onSubmit={(prompt) =>
+                                generateFromPrompt(prompt, true)
+                            }
+                        />
+                    )}
             </Box>
             {error && <Text className={classes.errorText}>{error}</Text>}
             {aiError && !error && (

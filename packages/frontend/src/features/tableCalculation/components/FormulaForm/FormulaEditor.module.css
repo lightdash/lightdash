@@ -21,10 +21,15 @@
 .editorContentWrapper {
     display: flex;
     align-items: flex-start;
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 auto;
+    min-height: 60px;
+    max-height: 220px;
     overflow-y: auto;
     padding-left: var(--mantine-spacing-md);
+}
+
+.editorContentWrapperFullScreen {
+    max-height: none;
 }
 
 .editorContentInner {
