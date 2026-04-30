@@ -464,10 +464,11 @@ describe('PivotQueryBuilder', () => {
             );
 
             // Metric sort: row anchor should use CROSS JOIN with anchor_column
-            // (gets metric value at first pivot column only, not MIN/MAX across all columns)
+            // (gets metric value at first pivot column only, not MIN/MAX across all columns).
+            // Match condition is null-safe so a NULL anchor still matches NULL rows.
             expect(result).toContain('"revenue_row_anchor" AS (');
             expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
+                'MAX(CASE WHEN (q."category" = ac."anchor_category" OR (q."category" IS NULL AND ac."anchor_category" IS NULL)) THEN q."revenue_sum" END)',
             );
             expect(result).toContain('CROSS JOIN anchor_column ac');
         });
@@ -594,10 +595,10 @@ describe('PivotQueryBuilder', () => {
                 'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
             );
 
-            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
-            // (gets value at first pivot column, not MIN/MAX across all columns)
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery).
+            // Match condition is null-safe so a NULL anchor still matches NULL rows.
             expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
+                'MAX(CASE WHEN (q."category" = ac."anchor_category" OR (q."category" IS NULL AND ac."anchor_category" IS NULL)) THEN q."revenue_sum" END)',
             );
             expect(result).toContain('CROSS JOIN anchor_column ac');
 
@@ -1630,10 +1631,11 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             const result = builder.toSql();
 
-            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery)
-            // The NULLS LAST is applied in the row_index ORDER BY, not the anchor CTE
+            // Row anchor uses CROSS JOIN with anchor_column (cleaner than scalar subquery).
+            // The NULLS LAST is applied in the row_index ORDER BY, not the anchor CTE.
+            // Match condition is null-safe so a NULL anchor still matches NULL rows.
             expect(replaceWhitespace(result)).toContain(
-                'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
+                'MAX(CASE WHEN (q."category" = ac."anchor_category" OR (q."category" IS NULL AND ac."anchor_category" IS NULL)) THEN q."revenue_sum" END)',
             );
             expect(result).toContain('CROSS JOIN anchor_column ac');
 

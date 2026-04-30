@@ -827,11 +827,15 @@ export class PivotQueryBuilder {
             .map((col) => `q.${q}${col.reference}${q}`)
             .join(', ');
 
-        // Build condition to match anchor column using CROSS JOIN alias
+        // Build condition to match anchor column using CROSS JOIN alias.
+        // Null-safe equality so a NULL anchor value (i.e. the NULL group is the
+        // leftmost pivot column) still matches NULL rows in q.
         const anchorMatchConditions = groupByColumns
-            .map(
-                (col) =>
-                    `q.${q}${col.reference}${q} = ac.${q}anchor_${col.reference}${q}`,
+            .map((col) =>
+                this.warehouseSqlBuilder.getNullSafeEqualSql(
+                    `q.${q}${col.reference}${q}`,
+                    `ac.${q}anchor_${col.reference}${q}`,
+                ),
             )
             .join(' AND ');
 
