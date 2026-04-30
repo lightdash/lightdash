@@ -842,6 +842,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
         ['EMBEDDING_ENABLED', 'embedding'],
+        ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();

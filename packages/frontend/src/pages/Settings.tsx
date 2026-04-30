@@ -105,9 +105,11 @@ const Settings: FC = () => {
         (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
             aiOrganizationSettingsQuery.data.isTrial);
 
-    const isServiceAccountFeatureFlagEnabled = useClientFeatureFlag(
+    const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
     );
+    const isServiceAccountFeatureFlagEnabled =
+        serviceAccountsFlag?.enabled ?? false;
 
     const {
         health: {
