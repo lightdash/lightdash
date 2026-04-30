@@ -155,7 +155,7 @@ export class FeatureFlagModel {
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
-    private async tryGetFromDatabase(
+    protected async tryGetFromDatabase(
         args: FeatureFlagLogicArgs,
     ): Promise<FeatureFlag | null> {
         try {
