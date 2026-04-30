@@ -1,3 +1,10 @@
+## [0.2852.1](https://github.com/lightdash/lightdash/compare/0.2852.0...0.2852.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* **preview:** force-enable embedding flag in preview env to unblock e2e ([#22581](https://github.com/lightdash/lightdash/issues/22581)) ([0d2bea2](https://github.com/lightdash/lightdash/commit/0d2bea2f35d5cd8328c0845712b1d34051600b3e))
+
 # [0.2852.0](https://github.com/lightdash/lightdash/compare/0.2851.1...0.2852.0) (2026-04-30)
 
 
