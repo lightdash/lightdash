@@ -47,10 +47,10 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
-    hasModifiedSqlAuthoredFields,
     isCartesianChartConfig,
     isCustomBinDimension,
     isCustomDimension,
+    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isField,
@@ -61,7 +61,6 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
-    mergeSavedSqlBodiesIntoMetricQuery,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
@@ -3557,76 +3556,6 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    /**
-     * Throws if the incoming query contains SQL-authored fields (custom SQL
-     * dimensions or SQL table calculations) that are new or modified compared
-     * to the saved chart, and the user lacks `manage:CustomFields`. Returns
-     * the metricQuery with empty SQL bodies rehydrated from the saved chart,
-     * which supports stripped-on-encode share links.
-     */
-    private async assertCanRunSqlAuthoredFields<T extends MetricQuery>({
-        auditedAbility,
-        organizationUuid,
-        projectUuid,
-        exploreName,
-        metricQuery,
-        savedChartUuid,
-    }: {
-        auditedAbility: ReturnType<AsyncQueryService['createAuditedAbility']>;
-        organizationUuid: string;
-        projectUuid: string;
-        exploreName: string;
-        metricQuery: T;
-        savedChartUuid?: string;
-    }): Promise<T> {
-        let savedMetricQuery: Pick<
-            MetricQuery,
-            'customDimensions' | 'tableCalculations'
-        > | null = null;
-
-        if (savedChartUuid) {
-            try {
-                const savedChart = await this.savedChartModel.get(
-                    savedChartUuid,
-                    undefined,
-                    { projectUuid },
-                );
-                savedMetricQuery = savedChart.metricQuery;
-            } catch (e) {
-                this.logger.warn(
-                    'Failed to load saved chart for SQL-authored fields exemption; falling back to strict gate',
-                    {
-                        savedChartUuid,
-                        projectUuid,
-                        organizationUuid,
-                        exploreName,
-                        error: getErrorMessage(e),
-                    },
-                );
-            }
-        }
-
-        if (hasModifiedSqlAuthoredFields(metricQuery, savedMetricQuery)) {
-            if (
-                auditedAbility.cannot(
-                    'manage',
-                    subject('CustomFields', {
-                        organizationUuid,
-                        projectUuid,
-                        metadata: { exploreName },
-                    }),
-                )
-            ) {
-                throw new CustomSqlQueryForbiddenError();
-            }
-        }
-
-        return mergeSavedSqlBodiesIntoMetricQuery(
-            metricQuery,
-            savedMetricQuery,
-        );
-    }
-
     // execute
     async executeAsyncMetricQuery({
         account,
@@ -3640,7 +3569,6 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         userAttributeOverrides,
         materializationRole,
-        savedChartUuid,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -3676,20 +3604,27 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const resolvedMetricQuery = await this.assertCanRunSqlAuthoredFields({
-            auditedAbility,
-            organizationUuid,
-            projectUuid,
-            exploreName: metricQuery.exploreName,
-            metricQuery,
-            savedChartUuid,
-        });
+        if (
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        exploreName: metricQuery.exploreName,
+                    },
+                }),
+            )
+        ) {
+            throw new CustomSqlQueryForbiddenError();
+        }
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            explore_name: resolvedMetricQuery.exploreName,
+            explore_name: metricQuery.exploreName,
             query_context: context,
         };
 
@@ -3698,7 +3633,7 @@ export class AsyncQueryService extends ProjectService {
         const explore = await this.getExploreForMetricQueryExecution({
             account,
             projectUuid,
-            exploreName: resolvedMetricQuery.exploreName,
+            exploreName: metricQuery.exploreName,
             organizationUuid,
             materializationRole:
                 context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
@@ -3744,7 +3679,7 @@ export class AsyncQueryService extends ProjectService {
             useTimezoneAwareDateTrunc,
         } = await this.prepareMetricQueryAsyncQueryArgs({
             account,
-            metricQuery: resolvedMetricQuery,
+            metricQuery,
             dateZoom,
             explore,
             warehouseSqlBuilder,
@@ -3759,19 +3694,19 @@ export class AsyncQueryService extends ProjectService {
 
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
-            query: resolvedMetricQuery,
+            query: metricQuery,
             parameters: combinedParameters,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery: resolvedMetricQuery,
+            metricQuery,
             explore,
             context,
             forceWarehouse: usePreAggregateCache === false,
         });
 
         this.logger.info(
-            `Metric query prep for ${resolvedMetricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
+            `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
         );
 
         if (routingDecision.preAggregateMetadata) {
@@ -3784,7 +3719,7 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
-                metricQuery: resolvedMetricQuery,
+                metricQuery,
                 projectUuid,
                 explore,
                 context,
@@ -6090,14 +6025,21 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const resolvedMetricQuery = await this.assertCanRunSqlAuthoredFields({
-            auditedAbility,
-            organizationUuid,
-            projectUuid,
-            exploreName: data.explore,
-            metricQuery: data.metricQuery,
-            savedChartUuid: data.savedChartUuid,
-        });
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        exploreName: data.explore,
+                    },
+                }),
+            )
+        ) {
+            throw new CustomSqlQueryForbiddenError();
+        }
 
         const explore = await this.getExplore(
             account,
@@ -6117,7 +6059,7 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid,
-                metricQuery: resolvedMetricQuery,
+                metricQuery: data.metricQuery,
                 explore,
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
@@ -6165,14 +6107,21 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const resolvedMetricQuery = await this.assertCanRunSqlAuthoredFields({
-            auditedAbility,
-            organizationUuid,
-            projectUuid,
-            exploreName: data.explore,
-            metricQuery: data.metricQuery,
-            savedChartUuid: data.savedChartUuid,
-        });
+        if (
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        exploreName: data.explore,
+                    },
+                }),
+            )
+        ) {
+            throw new CustomSqlQueryForbiddenError();
+        }
 
         const explore = await this.getExplore(
             account,
@@ -6189,7 +6138,7 @@ export class AsyncQueryService extends ProjectService {
 
         const { dimensionGroupsToSubtotal, analyticsData } =
             SubtotalsCalculator.prepareDimensionGroups(
-                resolvedMetricQuery,
+                data.metricQuery,
                 data.columnOrder,
                 data.pivotDimensions,
             );
@@ -6213,7 +6162,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             organizationUuid,
-            metricQuery: resolvedMetricQuery,
+            metricQuery: data.metricQuery,
             explore,
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {

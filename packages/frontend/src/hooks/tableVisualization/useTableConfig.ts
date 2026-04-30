@@ -52,7 +52,6 @@ const useTableConfig = (
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
     dateZoom?: DateZoom,
-    isEditMode?: boolean,
 ) => {
     const { embedToken } = useEmbed();
 
@@ -214,19 +213,31 @@ const useTableConfig = (
             setShowSubtotals(false);
     }, [dimensions.length, numUnpivotedDimensions]);
 
-    const { data: totalCalculations } = useCalculateTotal({
-        metricQuery: resultsData?.metricQuery,
-        explore: resultsData?.metricQuery?.exploreName,
-        savedChartUuid,
-        isEditMode,
-        fieldIds: selectedItemIds,
-        dashboardFilters,
-        invalidateCache,
-        itemsMap,
-        showColumnCalculation: tableChartConfig?.showColumnCalculation,
-        embedToken,
-        parameters,
-    });
+    const { data: totalCalculations } = useCalculateTotal(
+        savedChartUuid
+            ? {
+                  savedChartUuid,
+                  fieldIds: selectedItemIds,
+                  dashboardFilters,
+                  invalidateCache,
+                  itemsMap,
+                  showColumnCalculation:
+                      tableChartConfig?.showColumnCalculation,
+                  embedToken,
+                  parameters,
+              }
+            : {
+                  metricQuery: resultsData?.metricQuery,
+                  explore: resultsData?.metricQuery?.exploreName,
+                  fieldIds: selectedItemIds,
+                  itemsMap,
+                  invalidateCache,
+                  showColumnCalculation:
+                      tableChartConfig?.showColumnCalculation,
+                  embedToken,
+                  parameters,
+              },
+    );
 
     const { data: groupedSubtotals } = useCalculateSubtotals(
         embedToken && savedChartUuid
@@ -243,7 +254,6 @@ const useTableConfig = (
             : {
                   metricQuery: resultsData?.metricQuery,
                   explore: resultsData?.metricQuery?.exploreName,
-                  savedChartUuid,
                   showSubtotals,
                   columnOrder,
                   pivotDimensions,

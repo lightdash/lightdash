@@ -80,10 +80,10 @@ import {
     getTimezoneLabel,
     hasConnectionChanges,
     hasIntersection,
-    hasSqlAuthoredFields,
     hasWarehouseCredentials,
     IntrinsicUserAttributes,
     isCartesianChartConfig,
+    isCustomSqlDimension,
     isDateItem,
     isExploreError,
     isFilterableDimension,
@@ -3183,7 +3183,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         if (
-            hasSqlAuthoredFields(metricQuery) &&
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', { organizationUuid, projectUuid }),
@@ -3513,7 +3513,7 @@ export class ProjectService extends BaseService {
         }
 
         if (
-            hasSqlAuthoredFields(metricQuery) &&
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', { organizationUuid, projectUuid }),
@@ -3836,7 +3836,7 @@ export class ProjectService extends BaseService {
         }
 
         if (
-            hasSqlAuthoredFields(metricQuery) &&
+            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', { organizationUuid, projectUuid }),
