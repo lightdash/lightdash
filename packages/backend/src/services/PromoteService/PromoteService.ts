@@ -362,9 +362,22 @@ export class PromoteService extends BaseService {
             UpstreamChart | UpstreamDashboard | UpstreamSqlChart,
             'space' | 'projectUuid' | 'spaceAccessContext'
         >,
+        promotedSpace: Pick<PromotedSpace, 'name'> | undefined,
     ) {
         if (upstreamContent.space) {
-            // If upstreamContent has a matching space, we check if we have access
+            // The only space-level mutation promotion performs on an existing
+            // upstream space is a rename (see isSpaceUpdated). When the source
+            // and upstream space match, the entity-level checks above already
+            // gate the actual operation — no `manage Space` required.
+            const willRenameSpace =
+                promotedSpace !== undefined &&
+                PromoteService.isSpaceUpdated(
+                    promotedSpace,
+                    upstreamContent.space,
+                );
+            if (!willRenameSpace) {
+                return;
+            }
             if (
                 auditedAbility.cannot(
                     'manage',
@@ -520,6 +533,7 @@ export class PromoteService extends BaseService {
             auditedAbility,
             organizationUuid,
             upstreamChart,
+            promotedChart.space,
         );
     }
 
@@ -621,6 +635,7 @@ export class PromoteService extends BaseService {
             auditedAbility,
             organizationUuid,
             upstreamSqlChart,
+            promotedSqlChart.space,
         );
     }
 
@@ -715,6 +730,7 @@ export class PromoteService extends BaseService {
             auditedAbility,
             organizationUuid,
             upstreamDashboard,
+            promotedDashboard.space,
         );
     }
 
