@@ -409,6 +409,18 @@
     flex-shrink: 0;
 }
 
+.disabledDotInline {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-gray-5);
+    flex-shrink: 0;
+}
+
+.settingsRow {
+    padding-bottom: 0;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .page,
