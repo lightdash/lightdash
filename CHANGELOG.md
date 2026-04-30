@@ -1,3 +1,20 @@
+# [0.2851.0](https://github.com/lightdash/lightdash/compare/0.2850.0...0.2851.0) (2026-04-30)
+
+
+### Bug Fixes
+
+* fallback to `ANTHROPIC_API_KEY` for managed agent config ([#22561](https://github.com/lightdash/lightdash/issues/22561)) ([07a72be](https://github.com/lightdash/lightdash/commit/07a72bebe933230f0645025d801315e2b30d9fb6))
+* show "Change explore" menu in edit mode with unsaved-changes warning ([#22559](https://github.com/lightdash/lightdash/issues/22559)) ([63fa04d](https://github.com/lightdash/lightdash/commit/63fa04d98621713fda0441588e4abdf92cdd661e))
+
+
+### Features
+
+* add configurable tool permissions for managed agent ([#22566](https://github.com/lightdash/lightdash/issues/22566)) ([fb26558](https://github.com/lightdash/lightdash/commit/fb265586fc9e46ce51a7aa542e52155ec6e8055f))
+* add drag-and-drop reordering for dashboard parameters ([#21957](https://github.com/lightdash/lightdash/issues/21957)) ([2d08633](https://github.com/lightdash/lightdash/commit/2d08633c512ab25a892095f0a29baac494afecc6))
+* add manual run now button for managed agent autopilot ([#22564](https://github.com/lightdash/lightdash/issues/22564)) ([8a2b005](https://github.com/lightdash/lightdash/commit/8a2b005b3c412aa8d17668e2c6056719ee7cf80a))
+* auto-provision and sync Anthropic agent from config instead of requiring manual agent ID ([#22565](https://github.com/lightdash/lightdash/issues/22565)) ([71dc6ae](https://github.com/lightdash/lightdash/commit/71dc6ae554f5dc6529fd2becc2846648825035d8))
+* move autopilot settings into dedicated sidebar panel ([#22563](https://github.com/lightdash/lightdash/issues/22563)) ([b3d38a4](https://github.com/lightdash/lightdash/commit/b3d38a41c5915659e28f9e44757384e3431db82b))
+
 # [0.2850.0](https://github.com/lightdash/lightdash/compare/0.2849.2...0.2850.0) (2026-04-30)
 
 
