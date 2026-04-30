@@ -42,7 +42,12 @@ export const generateFunctionSuggestion = (
                     <Text size="xs" fw={500}>
                         {item.label}
                     </Text>
-                    <Text size="xs" c="dimmed" truncate maw={200}>
+                    <Text
+                        size="xs"
+                        truncate
+                        maw={200}
+                        className={suggestionStyles.itemDescription}
+                    >
                         {(item as FunctionSuggestionItem).description}
                     </Text>
                 </Group>

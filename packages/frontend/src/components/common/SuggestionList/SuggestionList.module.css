@@ -20,6 +20,14 @@
     }
 
     @mixin dark {
-        background-color: var(--mantine-color-ldDark-5);
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.itemDescription {
+    color: var(--mantine-color-dimmed);
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-7);
     }
 }
