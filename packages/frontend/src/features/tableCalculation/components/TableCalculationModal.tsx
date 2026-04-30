@@ -58,7 +58,6 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
-import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm } from './FormulaForm/FormulaForm';
@@ -109,8 +108,6 @@ const TableCalculationModal: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
-
     // Formula support is pinned to what the formula package can compile for
     // this warehouse — `SUPPORTED_DIALECTS` is the single source of truth
     // shared with the backend mapper.
@@ -477,8 +474,7 @@ const TableCalculationModal: FC<Props> = ({
         [form],
     );
 
-    const canSwitchEditMode =
-        isNewCalculation && isFormulaSupported && !cannotAuthorCustomSql;
+    const canSwitchEditMode = isNewCalculation && isFormulaSupported;
 
     const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
     const switchEditModeLabel =
@@ -496,14 +492,6 @@ const TableCalculationModal: FC<Props> = ({
         : editMode === EditMode.FORMULA
           ? 'Create formula'
           : 'Create SQL calculation';
-
-    // Refuse to render the modal when it would force the user into the SQL
-    // editor without `manage:CustomFields`: editing an existing SQL calc, or
-    // creating a new calc on a warehouse without formula support. The
-    // backend rejects on save in either case; this prevents wasted work.
-    if (cannotAuthorCustomSql && editMode === EditMode.SQL) {
-        return null;
-    }
 
     return (
         <MantineModal

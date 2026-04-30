@@ -515,30 +515,20 @@ export class SavedChartService
             data.metricQuery,
             oldMetricQuery,
         );
-        const cannotManageCustomFields = auditedAbility.cannot(
-            'manage',
-            subject('CustomFields', {
-                organizationUuid,
-                projectUuid,
-                metadata: { savedChartUuid },
-            }),
-        );
 
         if (
             modifiedSqlFields.customDimensions.length > 0 &&
-            cannotManageCustomFields
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomFields', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
+            )
         ) {
             throw new ForbiddenError(
                 'User cannot save queries with custom SQL dimensions',
-            );
-        }
-
-        if (
-            modifiedSqlFields.tableCalculations.length > 0 &&
-            cannotManageCustomFields
-        ) {
-            throw new ForbiddenError(
-                'User cannot save queries with custom SQL table calculations',
             );
         }
 
