@@ -192,18 +192,9 @@ const useCartesianChartConfig = ({
     cartesianType,
     tableCalculationsMetadata,
 }: Args) => {
-    const { data: showHideColumnsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideColumns,
-    );
-    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
-
     const [columnLimit, setColumnLimit] = useState<number | undefined>(
         initialChartConfig?.columnLimit,
     );
-
-    const effectiveColumnLimit = isShowHideColumnsEnabled
-        ? columnLimit
-        : undefined;
 
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
@@ -1118,7 +1109,7 @@ const useCartesianChartConfig = ({
                     yFields: dirtyLayout.yField,
                     defaultLabel,
                     itemsMap,
-                    columnLimit: effectiveColumnLimit,
+                    columnLimit,
                 });
                 const sortedByPivot = isSortedByPivot({
                     pivotDimensions: pivotKeys,
@@ -1159,7 +1150,7 @@ const useCartesianChartConfig = ({
         referenceLines,
         itemsMap,
         seriesHiddenStatesKey, // Re-run when series hidden states change
-        effectiveColumnLimit,
+        columnLimit,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
@@ -1266,9 +1257,7 @@ const useCartesianChartConfig = ({
             conditionalFormattings,
             metadata: dirtyMetadata,
             rowLimit,
-            columnLimit: isShowHideColumnsEnabled
-                ? columnLimit
-                : initialChartConfig?.columnLimit,
+            columnLimit,
         };
     }, [
         dirtyLayout,
@@ -1278,9 +1267,7 @@ const useCartesianChartConfig = ({
         tooltip,
         tooltipSort,
         rowLimit,
-        isShowHideColumnsEnabled,
         columnLimit,
-        initialChartConfig?.columnLimit,
     ]);
 
     const updateMetadata = useCallback(
@@ -1345,7 +1332,7 @@ const useCartesianChartConfig = ({
         updateMetadata,
         rowLimit,
         setRowLimit,
-        columnLimit: effectiveColumnLimit,
+        columnLimit,
         setColumnLimit,
     };
 };

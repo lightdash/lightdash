@@ -828,14 +828,12 @@ describe('getMultiProjectSetupConfig', () => {
 });
 
 describe('legacy feature-flag env vars (compat repair for trivial-batch)', () => {
-    // The change-chart-explore / show-hide-rows / show-hide-columns env-var
-    // parsers were removed when those flags were migrated to DB-backed
-    // resolution. Re-translating them via the legacy enable list preserves
-    // backward compat for self-hosted deployments that set these vars.
+    // The change-chart-explore env-var parser was removed when that flag was
+    // migrated to DB-backed resolution. Re-translating it via the legacy
+    // enable list preserves backward compat for self-hosted deployments that
+    // set the var.
     test.each([
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
-        ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
-        ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
         ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
         ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],

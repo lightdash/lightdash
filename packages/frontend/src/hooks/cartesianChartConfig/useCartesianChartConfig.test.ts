@@ -198,7 +198,7 @@ describe('getExpectedSeriesMap', () => {
             expect(Object.keys(result)).toStrictEqual(Object.keys(allResult));
         });
 
-        test('should return identical result when columnLimit is undefined (flag-off path)', () => {
+        test('should return identical result when columnLimit is undefined', () => {
             const withoutLimit = getExpectedSeriesMap(pivotSeriesMapArgs);
             const withUndefinedLimit = getExpectedSeriesMap({
                 ...pivotSeriesMapArgs,
@@ -788,7 +788,7 @@ describe('useCartesianChartConfig', () => {
         expect(result.current.columnLimit).toBeUndefined();
     });
 
-    test('should preserve saved columnLimit in validConfig when feature flag is off', () => {
+    test('should preserve saved columnLimit in validConfig', () => {
         const { result } = renderHook(() =>
             // @ts-expect-error partially mock params for hook
             useCartesianChartConfig({
