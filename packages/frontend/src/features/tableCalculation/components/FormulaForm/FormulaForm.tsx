@@ -5,7 +5,14 @@ import {
 } from '@lightdash/common';
 import { Box, Flex, Group, Loader, Text } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
-import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useRef,
+    useState,
+} from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useAmbientAiEnabled } from '../../../../ee/features/ambientAi/hooks/useAmbientAiEnabled';
@@ -31,243 +38,272 @@ type Props = {
     isFullScreen?: boolean;
 };
 
+export type FormulaFormHandle = {
+    /** Triggers an AI fix using the current formula and the supplied error message. */
+    fixWithAi: (errorMessage: string) => void;
+};
+
 const AI_GENERIC_ERROR =
     "Couldn't generate a formula — try rephrasing or write it yourself.";
 
 const PREVIEW_DEBOUNCE_MS = 800;
 const PREVIEW_MIN_LENGTH = 5;
 
-export const FormulaForm: FC<Props> = ({
-    explore,
-    metricQuery,
-    formula,
-    initialFormula,
-    onChange,
-    onValidationChange,
-    onAiApply,
-    isFullScreen,
-}) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: project } = useProject(projectUuid);
-    const { user } = useApp();
-    const { track } = useTracking();
-
-    const { error, validate } = useFormulaValidation(formula, metricQuery);
-    const isAmbientAiEnabled = useAmbientAiEnabled();
-    const aiEnabled = isAmbientAiEnabled && !!onAiApply;
-
-    const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
-    const [provenancePrompt, setProvenancePrompt] = useState<string | null>(
-        null,
-    );
-    const [generatedFormula, setGeneratedFormula] = useState<string | null>(
-        null,
-    );
-    const [aiError, setAiError] = useState<string | null>(null);
-    const [previewSuffix, setPreviewSuffix] = useState<string | null>(null);
-    const [referenceOpened, setReferenceOpened] = useState(false);
-    const previewCache = useRef<Map<string, GeneratedFormulaTableCalculation>>(
-        new Map(),
-    );
-    const pendingPreviewPrompt = useRef<string | null>(null);
-    const currentFormulaRef = useRef(formula);
-    currentFormulaRef.current = formula;
-
-    useEffect(() => {
-        onValidationChange(error);
-    }, [error, onValidationChange]);
-
-    const trackGenerate = useCallback(
-        (isEdit: boolean) => {
-            if (
-                !projectUuid ||
-                !project?.organizationUuid ||
-                !user?.data?.userUuid
-            ) {
-                return;
-            }
-            track({
-                name: EventName.FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED,
-                properties: {
-                    userId: user.data.userUuid,
-                    organizationId: project.organizationUuid,
-                    projectId: projectUuid,
-                    isEdit,
-                },
-            });
+export const FormulaForm = forwardRef<FormulaFormHandle, Props>(
+    function FormulaForm(
+        {
+            explore,
+            metricQuery,
+            formula,
+            initialFormula,
+            onChange,
+            onValidationChange,
+            onAiApply,
+            isFullScreen,
         },
-        [track, projectUuid, project?.organizationUuid, user?.data?.userUuid],
-    );
+        ref,
+    ) {
+        const { projectUuid } = useParams<{ projectUuid: string }>();
+        const { data: project } = useProject(projectUuid);
+        const { user } = useApp();
+        const { track } = useTracking();
 
-    const {
-        generate: runGenerate,
-        isLoading: isGenerating,
-        error: generationError,
-    } = useGenerateFormulaTableCalculation({
-        projectUuid,
-        explore,
-        metricQuery,
-        onSuccess: (result) => {
-            onAiApply?.(result);
-            if (pendingPrompt) setProvenancePrompt(pendingPrompt);
-            setGeneratedFormula(result.formula);
-            setAiError(null);
-            setPendingPrompt(null);
-        },
-    });
+        const { error, validate } = useFormulaValidation(formula, metricQuery);
+        const isAmbientAiEnabled = useAmbientAiEnabled();
+        const aiEnabled = isAmbientAiEnabled && !!onAiApply;
 
-    const { generate: runPreview, isLoading: isPreviewing } =
-        useGenerateFormulaTableCalculation({
+        const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
+        const [provenancePrompt, setProvenancePrompt] = useState<string | null>(
+            null,
+        );
+        const [generatedFormula, setGeneratedFormula] = useState<string | null>(
+            null,
+        );
+        const [aiError, setAiError] = useState<string | null>(null);
+        const [previewSuffix, setPreviewSuffix] = useState<string | null>(null);
+        const [referenceOpened, setReferenceOpened] = useState(false);
+        const previewCache = useRef<
+            Map<string, GeneratedFormulaTableCalculation>
+        >(new Map());
+        const pendingPreviewPrompt = useRef<string | null>(null);
+        const currentFormulaRef = useRef(formula);
+        currentFormulaRef.current = formula;
+
+        useEffect(() => {
+            onValidationChange(error);
+        }, [error, onValidationChange]);
+
+        const trackGenerate = useCallback(
+            (isEdit: boolean) => {
+                if (
+                    !projectUuid ||
+                    !project?.organizationUuid ||
+                    !user?.data?.userUuid
+                ) {
+                    return;
+                }
+                track({
+                    name: EventName.FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED,
+                    properties: {
+                        userId: user.data.userUuid,
+                        organizationId: project.organizationUuid,
+                        projectId: projectUuid,
+                        isEdit,
+                    },
+                });
+            },
+            [
+                track,
+                projectUuid,
+                project?.organizationUuid,
+                user?.data?.userUuid,
+            ],
+        );
+
+        const {
+            generate: runGenerate,
+            isLoading: isGenerating,
+            error: generationError,
+        } = useGenerateFormulaTableCalculation({
             projectUuid,
             explore,
             metricQuery,
             onSuccess: (result) => {
-                const expected = pendingPreviewPrompt.current;
-                if (!expected) return;
-                previewCache.current.set(expected, result);
-                const currentTrimmed = currentFormulaRef.current.trim();
-                if (currentTrimmed === expected) {
-                    setPreviewSuffix(result.formula);
-                }
-                pendingPreviewPrompt.current = null;
+                onAiApply?.(result);
+                if (pendingPrompt) setProvenancePrompt(pendingPrompt);
+                setGeneratedFormula(result.formula);
+                setAiError(null);
+                setPendingPrompt(null);
             },
         });
 
-    const runPreviewRef = useRef(runPreview);
-    runPreviewRef.current = runPreview;
+        const { generate: runPreview, isLoading: isPreviewing } =
+            useGenerateFormulaTableCalculation({
+                projectUuid,
+                explore,
+                metricQuery,
+                onSuccess: (result) => {
+                    const expected = pendingPreviewPrompt.current;
+                    if (!expected) return;
+                    previewCache.current.set(expected, result);
+                    const currentTrimmed = currentFormulaRef.current.trim();
+                    if (currentTrimmed === expected) {
+                        setPreviewSuffix(result.formula);
+                    }
+                    pendingPreviewPrompt.current = null;
+                },
+            });
 
-    useEffect(() => {
-        if (generationError) {
-            setAiError(AI_GENERIC_ERROR);
-            setPendingPrompt(null);
-        }
-    }, [generationError]);
+        const runPreviewRef = useRef(runPreview);
+        runPreviewRef.current = runPreview;
 
-    useEffect(() => {
-        if (!aiEnabled) {
-            setPreviewSuffix(null);
-            return;
-        }
-        const mode = getInputMode(formula);
-        if (mode !== 'prompt') {
-            setPreviewSuffix(null);
-            pendingPreviewPrompt.current = null;
-            return;
-        }
-        const trimmed = formula.trim();
-        if (trimmed.length < PREVIEW_MIN_LENGTH) {
-            setPreviewSuffix(null);
-            return;
-        }
+        useEffect(() => {
+            if (generationError) {
+                setAiError(AI_GENERIC_ERROR);
+                setPendingPrompt(null);
+            }
+        }, [generationError]);
 
-        const cached = previewCache.current.get(trimmed);
-        if (cached) {
-            setPreviewSuffix(cached.formula);
-            return;
-        }
-
-        setPreviewSuffix(null);
-
-        const timer = setTimeout(() => {
-            pendingPreviewPrompt.current = trimmed;
-            runPreviewRef.current(trimmed);
-        }, PREVIEW_DEBOUNCE_MS);
-
-        return () => {
-            clearTimeout(timer);
-        };
-    }, [formula, aiEnabled]);
-
-    const generateFromPrompt = useCallback(
-        (prompt: string, isEdit: boolean) => {
-            if (!prompt.trim()) return;
-            setPendingPrompt(prompt);
-            setAiError(null);
-            trackGenerate(isEdit);
-            runGenerate(prompt, isEdit ? formula : undefined);
-        },
-        [runGenerate, trackGenerate, formula],
-    );
-
-    const handleTab = useCallback(
-        (promptText: string) => {
-            const trimmed = promptText.trim();
-            const cached = previewCache.current.get(trimmed);
-            if (cached) {
-                onAiApply?.(cached);
-                setProvenancePrompt(trimmed);
-                setGeneratedFormula(cached.formula);
+        useEffect(() => {
+            if (!aiEnabled) {
                 setPreviewSuffix(null);
-                setAiError(null);
-                trackGenerate(false);
                 return;
             }
-            generateFromPrompt(promptText, false);
-        },
-        [generateFromPrompt, onAiApply, trackGenerate],
-    );
+            const mode = getInputMode(formula);
+            if (mode !== 'prompt') {
+                setPreviewSuffix(null);
+                pendingPreviewPrompt.current = null;
+                return;
+            }
+            const trimmed = formula.trim();
+            if (trimmed.length < PREVIEW_MIN_LENGTH) {
+                setPreviewSuffix(null);
+                return;
+            }
 
-    const showProvenance =
-        provenancePrompt !== null && formula === generatedFormula && !aiError;
+            const cached = previewCache.current.get(trimmed);
+            if (cached) {
+                setPreviewSuffix(cached.formula);
+                return;
+            }
 
-    return (
-        <Flex direction="column" h="100%">
-            <Box
-                className={`${classes.container} ${
-                    error || aiError ? classes.containerError : ''
-                }`}
-            >
-                <Box className={classes.editorArea}>
-                    <FormulaEditor
-                        explore={explore}
-                        metricQuery={metricQuery}
-                        initialContent={initialFormula}
-                        onTextChange={onChange}
-                        onBlur={validate}
-                        isFullScreen={isFullScreen}
-                        aiEnabled={aiEnabled}
-                        onTabInPromptMode={handleTab}
-                        isGenerating={isGenerating}
-                        isPreviewing={isPreviewing}
-                        hasAiError={!!aiError}
-                        previewSuffix={previewSuffix}
-                        referenceOpened={referenceOpened}
-                        onReferenceToggle={setReferenceOpened}
-                    />
-                </Box>
-                {aiEnabled &&
-                    getInputMode(formula) === 'formula' &&
-                    !referenceOpened && (
-                        <ImproveWithAiSlot
+            setPreviewSuffix(null);
+
+            const timer = setTimeout(() => {
+                pendingPreviewPrompt.current = trimmed;
+                runPreviewRef.current(trimmed);
+            }, PREVIEW_DEBOUNCE_MS);
+
+            return () => {
+                clearTimeout(timer);
+            };
+        }, [formula, aiEnabled]);
+
+        const generateFromPrompt = useCallback(
+            (prompt: string, isEdit: boolean) => {
+                if (!prompt.trim()) return;
+                setPendingPrompt(prompt);
+                setAiError(null);
+                trackGenerate(isEdit);
+                runGenerate(prompt, isEdit ? formula : undefined);
+            },
+            [runGenerate, trackGenerate, formula],
+        );
+
+        useImperativeHandle(
+            ref,
+            () => ({
+                fixWithAi: (errorMessage: string) => {
+                    if (!aiEnabled) return;
+                    const prompt = `Fix this formula error: "${errorMessage}". Return a corrected formula.`;
+                    generateFromPrompt(prompt, true);
+                },
+            }),
+            [aiEnabled, generateFromPrompt],
+        );
+
+        const handleTab = useCallback(
+            (promptText: string) => {
+                const trimmed = promptText.trim();
+                const cached = previewCache.current.get(trimmed);
+                if (cached) {
+                    onAiApply?.(cached);
+                    setProvenancePrompt(trimmed);
+                    setGeneratedFormula(cached.formula);
+                    setPreviewSuffix(null);
+                    setAiError(null);
+                    trackGenerate(false);
+                    return;
+                }
+                generateFromPrompt(promptText, false);
+            },
+            [generateFromPrompt, onAiApply, trackGenerate],
+        );
+
+        const showProvenance =
+            provenancePrompt !== null &&
+            formula === generatedFormula &&
+            !aiError;
+
+        return (
+            <Flex direction="column" h="100%">
+                <Box
+                    className={`${classes.container} ${
+                        error || aiError ? classes.containerError : ''
+                    }`}
+                >
+                    <Box className={classes.editorArea}>
+                        <FormulaEditor
                             explore={explore}
                             metricQuery={metricQuery}
-                            currentFormula={formula}
+                            initialContent={initialFormula}
+                            onTextChange={onChange}
+                            onBlur={validate}
+                            isFullScreen={isFullScreen}
+                            aiEnabled={aiEnabled}
+                            onTabInPromptMode={handleTab}
                             isGenerating={isGenerating}
-                            onSubmit={(prompt) =>
-                                generateFromPrompt(prompt, true)
-                            }
+                            isPreviewing={isPreviewing}
+                            hasAiError={!!aiError}
+                            previewSuffix={previewSuffix}
+                            referenceOpened={referenceOpened}
+                            onReferenceToggle={setReferenceOpened}
                         />
-                    )}
-            </Box>
-            {aiError && !error && (
-                <Text className={classes.errorText}>{aiError}</Text>
-            )}
-            {isGenerating && pendingPrompt && (
-                <Group gap={6} wrap="nowrap" className={classes.generating}>
-                    <Loader size="xs" color="indigo.4" />
-                    <Text span inherit>
-                        Generating from &ldquo;{pendingPrompt}&rdquo;…
-                    </Text>
-                </Group>
-            )}
-            {showProvenance && (
-                <Group gap={6} wrap="nowrap" className={classes.provenance}>
-                    <MantineIcon icon={IconSparkles} size="xs" />
-                    <Text span inherit>
-                        Generated from &ldquo;{provenancePrompt}&rdquo;
-                    </Text>
-                </Group>
-            )}
-        </Flex>
-    );
-};
+                    </Box>
+                    {aiEnabled &&
+                        getInputMode(formula) === 'formula' &&
+                        !referenceOpened && (
+                            <ImproveWithAiSlot
+                                explore={explore}
+                                metricQuery={metricQuery}
+                                currentFormula={formula}
+                                isGenerating={isGenerating}
+                                onSubmit={(prompt) =>
+                                    generateFromPrompt(prompt, true)
+                                }
+                            />
+                        )}
+                </Box>
+                {aiError && !error && (
+                    <Text className={classes.errorText}>{aiError}</Text>
+                )}
+                {isGenerating && pendingPrompt && (
+                    <Group gap={6} wrap="nowrap" className={classes.generating}>
+                        <Loader size="xs" color="indigo.4" />
+                        <Text span inherit>
+                            Generating from &ldquo;{pendingPrompt}&rdquo;…
+                        </Text>
+                    </Group>
+                )}
+                {showProvenance && (
+                    <Group gap={6} wrap="nowrap" className={classes.provenance}>
+                        <MantineIcon icon={IconSparkles} size="xs" />
+                        <Text span inherit>
+                            Generated from &ldquo;{provenancePrompt}&rdquo;
+                        </Text>
+                    </Group>
+                )}
+            </Flex>
+        );
+    },
+);
