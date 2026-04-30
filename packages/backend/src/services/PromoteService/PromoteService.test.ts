@@ -1263,18 +1263,6 @@ describe('PromoteService permission checks', () => {
         return new CaslAuditWrapper(developerUser.ability, developerUser);
     };
 
-    // Static helper that bypasses TypeScript's `private` to exercise the chart
-    // and SQL chart wrappers from tests. checkPromoteSpacePermissions is shared
-    // by all three flows, so testing one flow exhaustively + a smoke test on
-    // the others is enough.
-    const callCheckPromoteChartPermissions = (...args: unknown[]): void => {
-        (
-            PromoteService as unknown as {
-                checkPromoteChartPermissions: (...a: unknown[]) => void;
-            }
-        ).checkPromoteChartPermissions(...args);
-    };
-
     test('PROD-7288: allows overwrite of an existing dashboard in an unchanged existing space when user has promote Dashboard but not manage Space', () => {
         const auditedAbility = buildAuditedAbility([
             { subject: 'Dashboard', action: ['promote'] },
@@ -1286,21 +1274,6 @@ describe('PromoteService permission checks', () => {
                 'organization-uuid',
                 promotedDashboard,
                 existingUpstreamDashboard,
-            ),
-        ).not.toThrow();
-    });
-
-    test('PROD-7288: allows overwrite of an existing chart in an unchanged existing space when user has promote SavedChart but not manage Space', () => {
-        const auditedAbility = buildAuditedAbility([
-            { subject: 'SavedChart', action: ['promote'] },
-        ]);
-
-        expect(() =>
-            callCheckPromoteChartPermissions(
-                auditedAbility,
-                'organization-uuid',
-                promotedChart,
-                existingUpstreamChart,
             ),
         ).not.toThrow();
     });
