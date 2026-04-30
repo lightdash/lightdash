@@ -19,7 +19,7 @@ function getGitHubRawBase(repo: string): string {
     return `https://raw.githubusercontent.com/${repo}/${CLI_VERSION}`;
 }
 
-type AgentType = 'claude' | 'cursor' | 'codex';
+type AgentType = 'claude' | 'cursor' | 'codex' | 'cortex';
 
 type InstallSkillsOptions = {
     verbose: boolean;
@@ -52,6 +52,23 @@ function getAgentSkillsDir(agent: AgentType): string {
             return '.cursor/skills';
         case 'codex':
             return '.codex/skills';
+        case 'cortex':
+            return '.cortex/skills';
+        default:
+            throw new Error(`Unknown agent type: ${agent}`);
+    }
+}
+
+function getAgentGlobalSkillsDir(agent: AgentType): string {
+    switch (agent) {
+        case 'claude':
+            return '.claude/skills';
+        case 'cursor':
+            return '.cursor/skills';
+        case 'codex':
+            return '.codex/skills';
+        case 'cortex':
+            return '.snowflake/cortex/skills';
         default:
             throw new Error(`Unknown agent type: ${agent}`);
     }
@@ -73,16 +90,17 @@ function findGitRoot(startDir: string): string | null {
 }
 
 function getInstallPath(options: InstallSkillsOptions): string {
-    const skillsDir = getAgentSkillsDir(options.agent);
-
     // If explicit path provided, use it
     if (options.path) {
-        return path.join(options.path, skillsDir);
+        return path.join(options.path, getAgentSkillsDir(options.agent));
     }
 
-    // If global, use home directory
+    // If global, use home directory with agent-specific global path
     if (options.global) {
-        return path.join(os.homedir(), skillsDir);
+        return path.join(
+            os.homedir(),
+            getAgentGlobalSkillsDir(options.agent),
+        );
     }
 
     // Project install: find git root
@@ -91,12 +109,12 @@ function getInstallPath(options: InstallSkillsOptions): string {
 
     if (gitRoot) {
         GlobalState.debug(`> Found git root at: ${gitRoot}`);
-        return path.join(gitRoot, skillsDir);
+        return path.join(gitRoot, getAgentSkillsDir(options.agent));
     }
 
     // No git root found, use current directory
     GlobalState.debug(`> No git root found, using current directory: ${cwd}`);
-    return path.join(cwd, skillsDir);
+    return path.join(cwd, getAgentSkillsDir(options.agent));
 }
 
 async function fetchGitHubDirectory(
@@ -284,7 +302,7 @@ type InstalledSkillInfo = {
 };
 
 function findInstalledSkills(): InstalledSkillInfo[] {
-    const agents: AgentType[] = ['claude', 'cursor', 'codex'];
+    const agents: AgentType[] = ['claude', 'cursor', 'codex', 'cortex'];
     const results: InstalledSkillInfo[] = [];
 
     const roots: Array<{ path: string; scope: 'global' | 'project' }> = [
@@ -297,7 +315,11 @@ function findInstalledSkills(): InstalledSkillInfo[] {
 
     for (const root of roots) {
         for (const agent of agents) {
-            const skillsDir = path.join(root.path, getAgentSkillsDir(agent));
+            const agentDir =
+                root.scope === 'global'
+                    ? getAgentGlobalSkillsDir(agent)
+                    : getAgentSkillsDir(agent);
+            const skillsDir = path.join(root.path, agentDir);
             if (!fs.existsSync(skillsDir)) {
                 // eslint-disable-next-line no-continue
                 continue;

@@ -1333,7 +1333,7 @@ program
 program
     .command('install-skills')
     .description(
-        'Installs Lightdash skills for AI coding assistants (Claude, Cursor, Codex)',
+        'Installs Lightdash skills for AI coding assistants (Claude, Cursor, Codex, Snowflake Cortex)',
     )
     .addHelpText(
         'after',
@@ -1347,6 +1347,11 @@ ${styles.bold('Examples:')}
   )} --agent cursor ${styles.secondary('-- installs skills for Cursor')}
   ${styles.title('⚡')}️lightdash ${styles.bold(
       'install-skills',
+  )} --agent cortex ${styles.secondary(
+      '-- installs skills for Snowflake Cortex',
+  )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'install-skills',
   )} --global ${styles.secondary(
       '-- installs skills globally to ~/.claude/skills/',
   )}
@@ -1354,6 +1359,11 @@ ${styles.bold('Examples:')}
       'install-skills',
   )} --agent codex --global ${styles.secondary(
       '-- installs skills globally for Codex',
+  )}
+  ${styles.title('⚡')}️lightdash ${styles.bold(
+      'install-skills',
+  )} --agent cortex --global ${styles.secondary(
+      '-- installs skills globally for Snowflake Cortex (~/.snowflake/cortex/skills/)',
   )}
   ${styles.title('⚡')}️lightdash ${styles.bold(
       'install-skills',
@@ -1371,17 +1381,19 @@ ${styles.bold('Installation paths:')}
     .claude/skills/    (Claude)
     .cursor/skills/    (Cursor)
     .codex/skills/     (Codex)
+    .cortex/skills/    (Snowflake Cortex)
 
   ${styles.secondary('Global (--global):')}
-    ~/.claude/skills/  (Claude)
-    ~/.cursor/skills/  (Cursor)
-    ~/.codex/skills/   (Codex)
+    ~/.claude/skills/              (Claude)
+    ~/.cursor/skills/              (Cursor)
+    ~/.codex/skills/               (Codex)
+    ~/.snowflake/cortex/skills/    (Snowflake Cortex)
 `,
     )
     .option('--verbose', 'Show detailed output', false)
     .addOption(
         new Option('--agent <agent>', 'Target agent for skill installation')
-            .choices(['claude', 'cursor', 'codex'])
+            .choices(['claude', 'cursor', 'codex', 'cortex'])
             .default('claude'),
     )
     .option(
