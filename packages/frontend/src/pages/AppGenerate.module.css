@@ -351,6 +351,104 @@
     }
 }
 
+/* Full-width framed panel that hosts the clarifying questions. Sits on the
+ * chat-panel bg with a slight tint + border so the user's eye is anchored
+ * here (paired with `.dimmedHistory` on the messages above). */
+.clarifyContainer {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-sm);
+    width: 100%;
+    padding: var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+        border-color: var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+        border-color: var(--mantine-color-dark-4);
+    }
+}
+
+/* Wraps the rendered chat history. Reproduces `.chatMessages` flex-column
+ * gap so layout is identical with or without the wrapper, and lets us dim
+ * the whole group via a sibling class. */
+.chatMessageGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-lg);
+}
+
+.dimmedHistory {
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+}
+
+.clarifyCard {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: var(--mantine-radius-sm);
+    transition: background-color 100ms ease;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+    }
+
+    &:focus-within {
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-0);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-dark-5);
+        }
+    }
+}
+
+/* Strip the default Mantine Textarea framing so the answer reads as flowing
+ * chat text inside the card instead of an embedded form field. */
+.clarifyCardInput {
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: var(--mantine-font-size-sm) !important;
+    line-height: 1.5 !important;
+}
+
+.bubbleClarificationList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bubbleClarificationItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-5);
+    }
+}
+
+.bubbleClarificationQuestion {
+    color: var(--mantine-color-dimmed);
+}
+
 .sentImageThumbnail {
     max-height: 40px;
     max-width: 80px;

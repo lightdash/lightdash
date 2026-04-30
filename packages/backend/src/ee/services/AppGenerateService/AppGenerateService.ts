@@ -11,12 +11,14 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    formatPromptWithClarifications,
     getErrorMessage,
     isDashboardChartTileType,
     MissingConfigError,
     ParameterError,
     QueryExecutionContext,
     type AppChartReference,
+    type AppClarification,
     type AppDashboardReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
@@ -27,12 +29,14 @@ import {
     type SessionUser,
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
+import { generateObject } from 'ai';
 import { ALL_TRAFFIC, Sandbox } from 'e2b';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
+import { z } from 'zod';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
@@ -57,6 +61,8 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { getAnthropicModel } from '../ai/models/anthropic-claude';
+import { getModelPreset } from '../ai/models/presets';
 import { getTemplateInstructions } from './templates';
 
 type AppGenerateServiceDeps = {
@@ -2358,6 +2364,204 @@ export class AppGenerateService extends BaseService {
         };
     }
 
+    /**
+     * Pre-build clarifying questions. Run as a separate step before
+     * `generateApp` so the user can pin down ambiguous intent in 1–3s
+     * (a direct LLM call) instead of waiting for an E2B sandbox spin-up
+     * just to ask. Stateless: nothing is persisted; the answers are sent
+     * back inside the eventual `generateApp` request as `clarifications`.
+     *
+     * Always resolves with 200 + `{ questions }` rather than throwing on
+     * LLM errors — the build flow should proceed without clarification
+     * rather than fail. Returns an empty array when:
+     * - the prompt is already specific enough (model judgment),
+     * - the Anthropic model is not configured,
+     * - the LLM call times out or errors.
+     */
+    async clarifyApp(
+        user: SessionUser,
+        projectUuid: string,
+        prompt: string,
+        template?: DataAppTemplate,
+    ): Promise<{ questions: string[] }> {
+        await this.assertDataAppsEnabled(user);
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+        this.assertDataAppAbility(
+            user,
+            'create',
+            organizationUuid,
+            projectUuid,
+            'Insufficient permissions to create data apps',
+        );
+
+        const trimmed = prompt.trim();
+        if (!trimmed) {
+            throw new ParameterError('Prompt is required');
+        }
+
+        const anthropicConfig =
+            this.lightdashConfig.ai.copilot.providers.anthropic;
+        if (!anthropicConfig?.apiKey) {
+            this.logger.info(
+                'Skipping app clarification: Anthropic API key not configured',
+            );
+            return { questions: [] };
+        }
+        const preset = getModelPreset('anthropic', 'claude-sonnet-4-5');
+        if (!preset) {
+            this.logger.warn(
+                'Skipping app clarification: claude-sonnet-4-5 preset not found',
+            );
+            return { questions: [] };
+        }
+        const modelOptions = getAnthropicModel(anthropicConfig, preset, {
+            enableReasoning: false,
+        });
+
+        const catalogSummary =
+            await this.buildCatalogSummaryForClarifier(projectUuid);
+
+        // No `.max()` on the array — Anthropic's structured-output mode
+        // rejects `maxItems` in the schema. The prompt already pins the
+        // 1–4 cap and we slice client-side after the response.
+        const clarifySchema = z.object({
+            questions: z
+                .array(z.string())
+                .describe(
+                    '0–4 short clarifying questions, each a single sentence (5–15 words). Default to empty — only include questions whose answers would materially change the app.',
+                ),
+        });
+
+        // Cap the LLM call so a stalled provider can't pin the chat input
+        // open indefinitely. The frontend disables the input while clarify
+        // is in flight; on timeout we fall through to a no-questions build.
+        const CLARIFY_TIMEOUT_MS = 15_000;
+
+        const start = performance.now();
+        let result;
+        try {
+            result = await generateObject({
+                model: modelOptions.model,
+                ...modelOptions.callOptions,
+                providerOptions: modelOptions.providerOptions,
+                schema: clarifySchema,
+                abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
+                messages: [
+                    {
+                        role: 'system',
+                        content: `You help a user scope a React data app on top of their semantic layer before any code is written. Given the user's prompt, the kind of app they're building, and a summary of the available tables, decide whether 0–4 short clarifying questions would materially change what gets built.
+
+DEFAULT TO ASKING NOTHING. Empty is the right answer for most well-formed prompts. Only ask when the answer would meaningfully change the app's structure, content, or scope — never to fine-tune cosmetics or pick between two equally reasonable defaults. If you're unsure whether to ask, don't. Reasonable defaults during the build beat slowing the user down.
+
+Worth asking about (only when the prompt is silent on them):
+- Which tables or metrics to query, when several plausible options exist
+- Default time range, when the prompt doesn't imply one
+- Audience, when it would change the level of detail (executive vs analyst)
+- The shape of the app (single-page vs tabs, drill-down vs flat) when truly ambiguous
+
+App kind context (use to prioritize, not as a checklist):
+- dashboard: audience, key metrics/KPIs, default time range, layout density.
+- slideshow: number of slides, narrative arc, takeaway per slide.
+- pdf: page orientation, audience, what gets exported vs interactive.
+- custom: focus on the most impactful unknowns.
+
+Do NOT ask about:
+- Cosmetic details with reasonable defaults (date format, exact colors, number formatting, axis labels, column widths).
+- Anything already stated in the prompt — even partially.
+- Things you can look up in the catalog (table names, field names).
+- Picking between two readings of a phrase when one is the obvious interpretation.
+- Multi-part or open-ended — each question must be answerable in one short line.
+
+Each question, when asked, must be a single sentence, 5–15 words.`,
+                    },
+                    {
+                        role: 'user',
+                        content: `App kind: ${template ?? 'custom'}\n\nUser prompt:\n${trimmed}\n\nAvailable tables and key fields:\n${
+                            catalogSummary || '(no catalog available)'
+                        }`,
+                    },
+                ],
+            });
+        } catch (err) {
+            this.logger.warn(
+                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}): ${getErrorMessage(err)}`,
+            );
+            return { questions: [] };
+        }
+        const elapsedMs = AppGenerateService.elapsed(start);
+
+        const questions = result.object.questions
+            .map((q) => q.trim())
+            .filter((q) => q.length > 0)
+            .slice(0, 4);
+
+        this.logger.info(
+            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid})`,
+        );
+
+        return { questions };
+    }
+
+    /**
+     * Compact, model-readable summary of the project catalog used by
+     * `clarifyApp`. Lists tables with up to 5 dimensions and 5 metrics
+     * each, capped at 30 tables. Aim is to ground the LLM in what data
+     * exists without sending the full schema YAML — keeps the call fast.
+     */
+    private async buildCatalogSummaryForClarifier(
+        projectUuid: string,
+    ): Promise<string> {
+        const items =
+            await this.catalogModel.getCatalogItemsSummary(projectUuid);
+        const byTable = new Map<
+            string,
+            { dimensions: string[]; metrics: string[] }
+        >();
+        for (const item of items) {
+            if (item.type === 'field') {
+                let entry = byTable.get(item.tableName);
+                if (!entry) {
+                    entry = { dimensions: [], metrics: [] };
+                    byTable.set(item.tableName, entry);
+                }
+                if (item.fieldType === 'metric') {
+                    entry.metrics.push(item.name);
+                } else {
+                    entry.dimensions.push(item.name);
+                }
+            }
+        }
+
+        const MAX_TABLES = 30;
+        const MAX_FIELDS = 5;
+        const lines: string[] = [];
+        let i = 0;
+        for (const [tableName, fields] of byTable) {
+            if (i >= MAX_TABLES) break;
+            i += 1;
+            const fmt = (label: string, list: string[]) => {
+                if (list.length === 0) return `${label}: —`;
+                const head = list.slice(0, MAX_FIELDS).join(', ');
+                const extra = list.length > MAX_FIELDS;
+                return extra
+                    ? `${label}: ${head} (+${list.length - MAX_FIELDS} more)`
+                    : `${label}: ${head}`;
+            };
+            lines.push(
+                `- ${tableName} | ${fmt('dims', fields.dimensions)} | ${fmt(
+                    'metrics',
+                    fields.metrics,
+                )}`,
+            );
+        }
+        if (byTable.size > MAX_TABLES) {
+            lines.push(
+                `(... ${byTable.size - MAX_TABLES} more tables not shown)`,
+            );
+        }
+        return lines.join('\n');
+    }
+
     async generateApp(
         user: SessionUser,
         projectUuid: string,
@@ -2367,6 +2571,7 @@ export class AppGenerateService extends BaseService {
         charts?: AppChartReference[],
         dashboard?: AppDashboardReference,
         template?: DataAppTemplate,
+        clarifications?: AppClarification[],
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2383,8 +2588,19 @@ export class AppGenerateService extends BaseService {
         const appUuid = preGeneratedAppUuid ?? uuidv4();
         const version = 1;
 
+        // The pipeline gets the augmented prompt so Claude in the sandbox
+        // sees the resolved intent. The version row keeps the original
+        // prompt — clarifications travel separately on `resources` so the
+        // chat can render the Q&A as a structured card.
+        const pipelinePrompt = formatPromptWithClarifications(
+            prompt,
+            clarifications,
+        );
+
         this.logger.info(
-            `App ${appUuid}: generation started (promptLength=${prompt.length})`,
+            `App ${appUuid}: generation started (promptLength=${prompt.length}, clarifications=${
+                clarifications?.length ?? 0
+            })`,
         );
 
         const { refs, dashboardName } = await this.collectChartReferences(
@@ -2403,6 +2619,7 @@ export class AppGenerateService extends BaseService {
             images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
+            clarifications: clarifications ?? [],
         };
 
         // Persist app record so we can track status immediately. 'custom' is
@@ -2441,6 +2658,7 @@ export class AppGenerateService extends BaseService {
                 template: template ?? null,
                 samplesRequested: sampleStats.requested,
                 samplesAvailable: sampleStats.available,
+                clarificationCount: clarifications?.length ?? 0,
             },
         });
 
@@ -2450,7 +2668,7 @@ export class AppGenerateService extends BaseService {
             projectUuid,
             organizationUuid: user.organizationUuid!,
             userUuid: user.userUuid,
-            prompt,
+            prompt: pipelinePrompt,
             template,
             imageIds: imageIds.length > 0 ? imageIds : undefined,
             isIteration: false,
@@ -2512,6 +2730,7 @@ export class AppGenerateService extends BaseService {
             images: imageIds.map((id) => ({ imageId: id })),
             charts: chartResources,
             dashboardName,
+            clarifications: [],
         };
 
         await this.appModel.createVersion(
@@ -2690,7 +2909,14 @@ export class AppGenerateService extends BaseService {
                 prompt: v.prompt,
                 status: v.status,
                 statusMessage: v.status_message,
-                resources: v.resources,
+                // Backfill `clarifications` for rows persisted before the
+                // field existed on `resources`.
+                resources: v.resources
+                    ? {
+                          ...v.resources,
+                          clarifications: v.resources.clarifications ?? [],
+                      }
+                    : null,
                 createdAt: v.created_at,
             })),
             hasMore,

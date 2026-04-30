@@ -8301,8 +8301,27 @@
                 "type": "object",
                 "description": "A dashboard reference attached to a generation request. The dashboard is\nexpanded server-side into its chart tiles. When `includeSampleData` is\ntrue, every resolved chart in the dashboard receives a sample."
             },
+            "AppClarification": {
+                "properties": {
+                    "answer": {
+                        "type": "string"
+                    },
+                    "question": {
+                        "type": "string"
+                    }
+                },
+                "required": ["answer", "question"],
+                "type": "object",
+                "description": "A clarifying question the backend posed to the user before the build, paired\nwith the user's answer. Persisted on the version's `resources.clarifications`\nso the chat can render them as a structured Q&A card on the user message."
+            },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "clarifications": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppClarification"
+                        },
+                        "type": "array"
+                    },
                     "dashboard": {
                         "$ref": "#/components/schemas/AppDashboardReference"
                     },
@@ -8321,6 +8340,44 @@
                         },
                         "type": "array"
                     },
+                    "template": {
+                        "$ref": "#/components/schemas/DataAppTemplate"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
+                "type": "object"
+            },
+            "ApiSuccess__questions-string-Array__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "questions": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["questions"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiClarifyAppResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__questions-string-Array__"
+            },
+            "ApiClarifyAppRequest": {
+                "properties": {
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
                     },
@@ -8399,6 +8456,12 @@
             },
             "AppVersionResources": {
                 "properties": {
+                    "clarifications": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppClarification"
+                        },
+                        "type": "array"
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -8416,7 +8479,12 @@
                         "type": "array"
                     }
                 },
-                "required": ["dashboardName", "charts", "images"],
+                "required": [
+                    "clarifications",
+                    "dashboardName",
+                    "charts",
+                    "images"
+                ],
                 "type": "object"
             },
             "ApiAppVersionSummary": {
@@ -31285,7 +31353,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2848.3",
+        "version": "0.2849.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

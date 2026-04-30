@@ -6,16 +6,21 @@ import {
     isAppVersionInProgress,
     ResourceViewItemType,
     type ApiAppVersionSummary,
+    type AppChartReference,
+    type AppClarification,
+    type AppDashboardReference,
     type DataAppTemplate,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Badge,
     Box,
+    Button,
     Group,
     Image,
     Loader,
     Menu,
+    Stack,
     Text,
     Textarea,
     ThemeIcon,
@@ -72,7 +77,6 @@ import {
     type SelectedDashboard,
 } from '../features/apps/AppResourcePicker';
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
-import AppTemplateQuestions from '../features/apps/AppTemplateQuestions';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
 import { useAppImageUrl } from '../features/apps/hooks/useAppImageUrl';
@@ -80,6 +84,7 @@ import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import type { QueryEvent } from '../features/apps/hooks/useAppSdkBridge';
 import { useBuildNotification } from '../features/apps/hooks/useBuildNotification';
 import { useCancelAppVersion } from '../features/apps/hooks/useCancelAppVersion';
+import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
@@ -106,6 +111,7 @@ type ChatMessage = {
     imageResourceIds: string[];
     charts: ChatChart[];
     dashboardName: string | null;
+    clarifications: AppClarification[];
     appUuid: string | null;
     version: number | null;
 };
@@ -197,18 +203,14 @@ const AppGenerate: FC = () => {
     const queryClient = useQueryClient();
     const [prompt, setPrompt] = useState('');
     // Starter-template wizard state (only meaningful for v1 of a new app).
-    // 'pick'      → show the 4 template cards (replaces the empty state)
-    // 'questions' → show clarifying-questions form for the selected template
-    // 'confirm'   → wizard collapses; user reviews/edits the prefilled prompt
-    //               in the existing textarea and submits as normal.
+    // 'pick'    → show the 4 template cards (replaces the empty state)
+    // 'confirm' → wizard collapses; the textarea takes over. Picking any
+    //             template lands here directly — clarifying questions
+    //             are now produced by the AI clarifier on submit, so the
+    //             wizard no longer asks any questions of its own.
     const [selectedTemplate, setSelectedTemplate] =
         useState<DataAppTemplate | null>(null);
-    const [templateAnswers, setTemplateAnswers] = useState<
-        Record<string, string>
-    >({});
-    const [wizardStage, setWizardStage] = useState<
-        'pick' | 'questions' | 'confirm'
-    >('pick');
+    const [wizardStage, setWizardStage] = useState<'pick' | 'confirm'>('pick');
     const [imageAttachments, setImageAttachments] = useState<
         Array<{
             file: File;
@@ -265,6 +267,22 @@ const AppGenerate: FC = () => {
         });
     }, []);
     const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
+    // Pre-build clarification round: captured submission args that we need
+    // to fire the actual generate call once the user answers the questions.
+    // Non-null only between "user submitted prompt" and "user clicked Build
+    // on the questions bubble". Always cleared once generate fires.
+    const [pendingClarification, setPendingClarification] = useState<{
+        questions: string[];
+        prompt: string;
+        template: DataAppTemplate | undefined;
+        imageIds: string[] | undefined;
+        appUuid: string;
+        charts: AppChartReference[] | undefined;
+        dashboard: AppDashboardReference | undefined;
+    } | null>(null);
+    const [clarificationAnswers, setClarificationAnswers] = useState<string[]>(
+        [],
+    );
     // Maps prompt text → image preview URL so the thumbnail survives the
     // local→server message transition (localMessages get cleared when server
     // version data arrives, but the ref persists).
@@ -290,8 +308,9 @@ const AppGenerate: FC = () => {
         setPreviewApp(null);
         setTrackedQueries([]);
         setSelectedTemplate(null);
-        setTemplateAnswers({});
         setWizardStage('pick');
+        setPendingClarification(null);
+        setClarificationAnswers([]);
         versionCacheRef.current.clear();
         versionCacheAppRef.current = undefined;
         sentImagesByPrompt.current.forEach((urls) =>
@@ -320,6 +339,8 @@ const AppGenerate: FC = () => {
         isLoading: isIterating,
         reset: resetIterate,
     } = useIterateApp();
+    const { mutateAsync: clarifyMutateAsync, isLoading: isClarifying } =
+        useClarifyApp();
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
     const { mutateAsync: uploadImage } = useAppImageUpload();
@@ -387,7 +408,16 @@ const AppGenerate: FC = () => {
         return null;
     }, [appData]);
     const isBuilding = latestBuildingVersion !== null;
-    const isLoading = isGenerating || isIterating || isBuilding;
+    // Clarifying counts as loading for the chat input (disable typing/send),
+    // and a pending unanswered clarification keeps the input area disabled
+    // until the user clicks "Build" on the question bubble.
+    const hasPendingClarification = pendingClarification !== null;
+    const isLoading =
+        isGenerating ||
+        isIterating ||
+        isBuilding ||
+        isClarifying ||
+        hasPendingClarification;
 
     // OS notification when a build finishes (only fires when tab is in background)
     const notifyBuildDone = useBuildNotification(appName, isLoading);
@@ -429,6 +459,7 @@ const AppGenerate: FC = () => {
                 v.resources?.dashboardName ??
                 sentDashboardByPrompt.current.get(v.prompt) ??
                 null;
+            const clarifications = v.resources?.clarifications ?? [];
             const msgs: ChatMessage[] = [
                 {
                     role: 'user',
@@ -437,6 +468,7 @@ const AppGenerate: FC = () => {
                     imageResourceIds,
                     charts,
                     dashboardName,
+                    clarifications,
                     appUuid: null,
                     version: null,
                 },
@@ -453,6 +485,7 @@ const AppGenerate: FC = () => {
                     imageResourceIds: [],
                     charts: [],
                     dashboardName: null,
+                    clarifications: [],
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
                 });
@@ -466,6 +499,7 @@ const AppGenerate: FC = () => {
                     imageResourceIds: [],
                     charts: [],
                     dashboardName: null,
+                    clarifications: [],
                     appUuid: null,
                     version: null,
                 });
@@ -688,6 +722,39 @@ const AppGenerate: FC = () => {
             .forEach(handleImageAttach);
     };
 
+    const buildSubmitCallbacks = () => ({
+        onSuccess: (data: { appUuid: string; version: number }) => {
+            setActiveAppUuid(data.appUuid);
+            void queryClient.invalidateQueries({
+                queryKey: ['app', projectUuid, data.appUuid],
+            });
+            if (!urlAppUuid) {
+                void navigate(`/projects/${projectUuid}/apps/${data.appUuid}`, {
+                    replace: true,
+                });
+            }
+        },
+        onError: (err: unknown) => {
+            setLocalMessages((prev) => [
+                ...prev,
+                {
+                    role: 'assistant' as const,
+                    content:
+                        err instanceof Error
+                            ? err.message
+                            : 'Failed to generate app',
+                    imagePreviewUrls: [],
+                    imageResourceIds: [],
+                    charts: [],
+                    dashboardName: null,
+                    clarifications: [],
+                    appUuid: null,
+                    version: null,
+                },
+            ]);
+        },
+    });
+
     const handleSubmit = async () => {
         const trimmed = prompt.trim();
         if (!trimmed || isLoading) return;
@@ -777,6 +844,7 @@ const AppGenerate: FC = () => {
                 imageResourceIds: [],
                 charts: sentCharts,
                 dashboardName: sentDashboardName,
+                clarifications: [],
                 appUuid: null,
                 version: null,
             },
@@ -788,38 +856,48 @@ const AppGenerate: FC = () => {
         resetGenerate();
         resetIterate();
 
-        const callbacks = {
-            onSuccess: (data: { appUuid: string; version: number }) => {
-                setActiveAppUuid(data.appUuid);
-                void queryClient.invalidateQueries({
-                    queryKey: ['app', projectUuid, data.appUuid],
+        // Pre-build clarification: first-build only. The clarifier runs for
+        // every template — the questions adapt to the kind of app being
+        // built (template is passed through). Iteration prompts skip
+        // clarification entirely — by then intent is already grounded in
+        // the existing version.
+        const isFirstBuild = !activeAppUuid;
+        if (isFirstBuild && newAppUuid) {
+            try {
+                const { questions } = await clarifyMutateAsync({
+                    projectUuid: projectUuid!,
+                    prompt: trimmed,
+                    template: selectedTemplate ?? undefined,
                 });
-                if (!urlAppUuid) {
-                    void navigate(
-                        `/projects/${projectUuid}/apps/${data.appUuid}`,
-                        { replace: true },
+                if (questions.length > 0) {
+                    setPendingClarification({
+                        questions,
+                        prompt: trimmed,
+                        template: selectedTemplate ?? undefined,
+                        imageIds,
+                        appUuid: newAppUuid,
+                        charts,
+                        dashboard,
+                    });
+                    setClarificationAnswers(
+                        new Array(questions.length).fill(''),
                     );
+                    return;
                 }
-            },
-            onError: (err: unknown) => {
-                setLocalMessages((prev) => [
-                    ...prev,
-                    {
-                        role: 'assistant' as const,
-                        content:
-                            err instanceof Error
-                                ? err.message
-                                : 'Failed to generate app',
-                        imagePreviewUrls: [],
-                        imageResourceIds: [],
-                        charts: [],
-                        dashboardName: null,
-                        appUuid: null,
-                        version: null,
-                    },
-                ]);
-            },
-        };
+                // No questions returned — fall through and build immediately.
+            } catch (err) {
+                // Clarify failed (model not configured, network, etc.) — fall
+                // back to the original behavior and just build. We don't want
+                // a clarifier outage to block the actual feature.
+                // eslint-disable-next-line no-console
+                console.warn(
+                    'App clarification failed; proceeding to build',
+                    err,
+                );
+            }
+        }
+
+        const callbacks = buildSubmitCallbacks();
 
         if (activeAppUuid) {
             iterateMutate(
@@ -849,32 +927,77 @@ const AppGenerate: FC = () => {
         }
     };
 
-    const handleTemplateSelect = (template: DataAppTemplate) => {
-        setSelectedTemplate(template);
-        setTemplateAnswers({});
-        if (template === 'custom') {
-            // Skip clarifying questions - drop straight into the existing
-            // free-text input area.
-            setWizardStage('confirm');
-            setPrompt('');
-            return;
+    /**
+     * Submit the user's answers to the clarification questions and start the
+     * actual build. Called by both the "Build" button (which folds answers
+     * into the generate request as `clarifications`) and the "Skip" link
+     * (which fires generate without any clarifications, as if the questions
+     * had never been asked).
+     */
+    const handleSubmitClarification = (skip: boolean) => {
+        if (!pendingClarification) return;
+
+        const clarifications: AppClarification[] = skip
+            ? []
+            : pendingClarification.questions
+                  .map((question, i) => ({
+                      question,
+                      answer: (clarificationAnswers[i] ?? '').trim(),
+                  }))
+                  // Drop empty answers — they don't help the model and just
+                  // make the prompt noisier. Same effect as "Skip" for that
+                  // particular question.
+                  .filter((c) => c.answer.length > 0);
+
+        // Attach the Q&A to the user bubble that handleSubmit just added.
+        // The backend persists the same array on `resources.clarifications`
+        // so the local→server transition is seamless.
+        if (clarifications.length > 0) {
+            setLocalMessages((prev) => {
+                const lastUserIdx = prev.findLastIndex(
+                    (m) => m.role === 'user',
+                );
+                if (lastUserIdx === -1) return prev;
+                const next = [...prev];
+                next[lastUserIdx] = {
+                    ...next[lastUserIdx],
+                    clarifications,
+                };
+                return next;
+            });
         }
-        setWizardStage('questions');
+
+        const captured = pendingClarification;
+        setPendingClarification(null);
+        setClarificationAnswers([]);
+        resetGenerate();
+
+        generateMutate(
+            {
+                projectUuid: projectUuid!,
+                prompt: captured.prompt,
+                template: captured.template,
+                imageIds: captured.imageIds,
+                appUuid: captured.appUuid,
+                charts: captured.charts,
+                dashboard: captured.dashboard,
+                clarifications:
+                    clarifications.length > 0 ? clarifications : undefined,
+            },
+            buildSubmitCallbacks(),
+        );
     };
 
-    const handleTemplateBack = () => {
-        setWizardStage('pick');
-        setTemplateAnswers({});
-    };
-
-    const handleTemplateContinue = () => {
-        if (!selectedTemplate) return;
-        const composed =
-            getTemplate(selectedTemplate).composePrompt(templateAnswers);
-        setPrompt(composed);
+    const handleTemplateSelect = (template: DataAppTemplate) => {
+        // Picking any template drops the user straight into the textarea.
+        // The template still propagates through to the build (it informs
+        // backend-side build instructions and the AI clarifier's questions),
+        // but we no longer ask hand-rolled questions per template — the AI
+        // clarifier produces those dynamically on submit.
+        setSelectedTemplate(template);
         setWizardStage('confirm');
-        // Move focus to the textarea so the user can immediately tweak the
-        // composed prompt before sending.
+        setPrompt('');
+        // Focus the textarea so the user can immediately type.
         setTimeout(() => textareaRef.current?.focus(), 0);
     };
 
@@ -943,16 +1066,6 @@ const AppGenerate: FC = () => {
                                     <AppTemplatePicker
                                         onSelect={handleTemplateSelect}
                                     />
-                                ) : isNewApp &&
-                                  wizardStage === 'questions' &&
-                                  selectedTemplate ? (
-                                    <AppTemplateQuestions
-                                        template={getTemplate(selectedTemplate)}
-                                        answers={templateAnswers}
-                                        onAnswersChange={setTemplateAnswers}
-                                        onBack={handleTemplateBack}
-                                        onContinue={handleTemplateContinue}
-                                    />
                                 ) : (
                                     <Box className={classes.emptyChat}>
                                         <ThemeIcon
@@ -975,131 +1088,321 @@ const AppGenerate: FC = () => {
                                 )
                             ) : (
                                 <>
-                                    {messages.map((msg, i) =>
-                                        msg.role === 'user' ? (
-                                            <Box
-                                                key={i}
-                                                className={classes.userMessage}
-                                            >
+                                    <Box
+                                        className={`${classes.chatMessageGroup}${
+                                            pendingClarification
+                                                ? ` ${classes.dimmedHistory}`
+                                                : ''
+                                        }`}
+                                    >
+                                        {messages.map((msg, i) =>
+                                            msg.role === 'user' ? (
                                                 <Box
+                                                    key={i}
                                                     className={
-                                                        classes.userBubble
+                                                        classes.userMessage
                                                     }
                                                 >
-                                                    {msg.content}
-                                                    {msg.charts.length > 0 && (
-                                                        <Box
-                                                            mt="xs"
-                                                            className={
-                                                                classes.bubbleQueryList
-                                                            }
-                                                        >
-                                                            {msg.charts.map(
-                                                                (chart) => (
-                                                                    <Group
-                                                                        key={
-                                                                            chart.uuid
-                                                                        }
-                                                                        gap="xs"
-                                                                        wrap="nowrap"
-                                                                        className={
-                                                                            classes.bubbleQueryItem
-                                                                        }
-                                                                    >
-                                                                        <ChartIcon
-                                                                            chartKind={
-                                                                                chart.chartKind ??
-                                                                                ChartKind.VERTICAL_BAR
-                                                                            }
-                                                                        />
-                                                                        <Text
-                                                                            size="xs"
-                                                                            fw={
-                                                                                500
-                                                                            }
-                                                                            truncate
-                                                                        >
-                                                                            {
-                                                                                chart.name
-                                                                            }
-                                                                        </Text>
-                                                                    </Group>
-                                                                ),
-                                                            )}
-                                                        </Box>
-                                                    )}
-                                                    {msg.dashboardName && (
-                                                        <Box
-                                                            mt="xs"
-                                                            className={
-                                                                classes.bubbleQueryList
-                                                            }
-                                                        >
-                                                            <Group
-                                                                gap="xs"
-                                                                wrap="nowrap"
+                                                    <Box
+                                                        className={
+                                                            classes.userBubble
+                                                        }
+                                                    >
+                                                        {msg.content}
+                                                        {msg.charts.length >
+                                                            0 && (
+                                                            <Box
+                                                                mt="xs"
                                                                 className={
-                                                                    classes.bubbleQueryItem
+                                                                    classes.bubbleQueryList
                                                                 }
                                                             >
-                                                                <IconBox
-                                                                    icon={
-                                                                        IconLayoutDashboard
+                                                                {msg.charts.map(
+                                                                    (chart) => (
+                                                                        <Group
+                                                                            key={
+                                                                                chart.uuid
+                                                                            }
+                                                                            gap="xs"
+                                                                            wrap="nowrap"
+                                                                            className={
+                                                                                classes.bubbleQueryItem
+                                                                            }
+                                                                        >
+                                                                            <ChartIcon
+                                                                                chartKind={
+                                                                                    chart.chartKind ??
+                                                                                    ChartKind.VERTICAL_BAR
+                                                                                }
+                                                                            />
+                                                                            <Text
+                                                                                size="xs"
+                                                                                fw={
+                                                                                    500
+                                                                                }
+                                                                                truncate
+                                                                            >
+                                                                                {
+                                                                                    chart.name
+                                                                                }
+                                                                            </Text>
+                                                                        </Group>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        )}
+                                                        {msg.dashboardName && (
+                                                            <Box
+                                                                mt="xs"
+                                                                className={
+                                                                    classes.bubbleQueryList
+                                                                }
+                                                            >
+                                                                <Group
+                                                                    gap="xs"
+                                                                    wrap="nowrap"
+                                                                    className={
+                                                                        classes.bubbleQueryItem
                                                                     }
-                                                                    color="green.6"
-                                                                />
-                                                                <Text
-                                                                    size="xs"
-                                                                    fw={500}
-                                                                    truncate
                                                                 >
-                                                                    {
-                                                                        msg.dashboardName
-                                                                    }
-                                                                </Text>
-                                                            </Group>
-                                                        </Box>
-                                                    )}
-                                                    {msg.imagePreviewUrls
-                                                        .length > 0
-                                                        ? msg.imagePreviewUrls.map(
-                                                              (url) => (
-                                                                  <Image
-                                                                      key={url}
-                                                                      src={url}
-                                                                      className={
-                                                                          classes.sentImageThumbnail
-                                                                      }
-                                                                      alt="Attached"
-                                                                  />
-                                                              ),
-                                                          )
-                                                        : activeAppUuid &&
-                                                          projectUuid &&
-                                                          msg.imageResourceIds.map(
-                                                              (id) => (
-                                                                  <AppResourceImage
-                                                                      key={id}
-                                                                      projectUuid={
-                                                                          projectUuid
-                                                                      }
-                                                                      appUuid={
-                                                                          activeAppUuid
-                                                                      }
-                                                                      imageId={
-                                                                          id
-                                                                      }
-                                                                      className={
-                                                                          classes.sentImageThumbnail
-                                                                      }
-                                                                  />
-                                                              ),
-                                                          )}
+                                                                    <IconBox
+                                                                        icon={
+                                                                            IconLayoutDashboard
+                                                                        }
+                                                                        color="green.6"
+                                                                    />
+                                                                    <Text
+                                                                        size="xs"
+                                                                        fw={500}
+                                                                        truncate
+                                                                    >
+                                                                        {
+                                                                            msg.dashboardName
+                                                                        }
+                                                                    </Text>
+                                                                </Group>
+                                                            </Box>
+                                                        )}
+                                                        {msg.clarifications
+                                                            .length > 0 && (
+                                                            <Box
+                                                                mt="xs"
+                                                                className={
+                                                                    classes.bubbleClarificationList
+                                                                }
+                                                            >
+                                                                {msg.clarifications.map(
+                                                                    (c, ci) => (
+                                                                        <Box
+                                                                            key={
+                                                                                ci
+                                                                            }
+                                                                            className={
+                                                                                classes.bubbleClarificationItem
+                                                                            }
+                                                                        >
+                                                                            <Text
+                                                                                size="xs"
+                                                                                className={
+                                                                                    classes.bubbleClarificationQuestion
+                                                                                }
+                                                                            >
+                                                                                {
+                                                                                    c.question
+                                                                                }
+                                                                            </Text>
+                                                                            <Text size="sm">
+                                                                                {
+                                                                                    c.answer
+                                                                                }
+                                                                            </Text>
+                                                                        </Box>
+                                                                    ),
+                                                                )}
+                                                            </Box>
+                                                        )}
+                                                        {msg.imagePreviewUrls
+                                                            .length > 0
+                                                            ? msg.imagePreviewUrls.map(
+                                                                  (url) => (
+                                                                      <Image
+                                                                          key={
+                                                                              url
+                                                                          }
+                                                                          src={
+                                                                              url
+                                                                          }
+                                                                          className={
+                                                                              classes.sentImageThumbnail
+                                                                          }
+                                                                          alt="Attached"
+                                                                      />
+                                                                  ),
+                                                              )
+                                                            : activeAppUuid &&
+                                                              projectUuid &&
+                                                              msg.imageResourceIds.map(
+                                                                  (id) => (
+                                                                      <AppResourceImage
+                                                                          key={
+                                                                              id
+                                                                          }
+                                                                          projectUuid={
+                                                                              projectUuid
+                                                                          }
+                                                                          appUuid={
+                                                                              activeAppUuid
+                                                                          }
+                                                                          imageId={
+                                                                              id
+                                                                          }
+                                                                          className={
+                                                                              classes.sentImageThumbnail
+                                                                          }
+                                                                      />
+                                                                  ),
+                                                              )}
+                                                    </Box>
                                                 </Box>
-                                            </Box>
-                                        ) : (
+                                            ) : (
+                                                <Box
+                                                    key={i}
+                                                    className={
+                                                        classes.assistantMessage
+                                                    }
+                                                >
+                                                    <ThemeIcon
+                                                        size="sm"
+                                                        radius="xl"
+                                                        variant="light"
+                                                        color="gray"
+                                                        mt={2}
+                                                    >
+                                                        <IconSparkles
+                                                            size={12}
+                                                        />
+                                                    </ThemeIcon>
+                                                    <Box
+                                                        className={
+                                                            classes.assistantBubble
+                                                        }
+                                                    >
+                                                        {msg.appUuid ? (
+                                                            <ReactMarkdownPreview
+                                                                source={
+                                                                    msg.content
+                                                                }
+                                                                className={
+                                                                    classes.markdown
+                                                                }
+                                                            />
+                                                        ) : (
+                                                            <Text
+                                                                size="sm"
+                                                                c="red"
+                                                            >
+                                                                {msg.content}
+                                                            </Text>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            ),
+                                        )}
+                                    </Box>
+                                    {pendingClarification ? (
+                                        <Box
+                                            className={classes.clarifyContainer}
+                                        >
+                                            <Group gap="xs">
+                                                <ThemeIcon
+                                                    size="sm"
+                                                    radius="xl"
+                                                    variant="light"
+                                                    color="gray"
+                                                >
+                                                    <IconSparkles size={12} />
+                                                </ThemeIcon>
+                                                <Text size="sm">
+                                                    A few quick questions:
+                                                </Text>
+                                            </Group>
+                                            <Stack gap={6}>
+                                                {pendingClarification.questions.map(
+                                                    (question, qi) => (
+                                                        <Box
+                                                            key={qi}
+                                                            className={
+                                                                classes.clarifyCard
+                                                            }
+                                                        >
+                                                            <Text
+                                                                size="sm"
+                                                                c="dimmed"
+                                                            >
+                                                                {question}
+                                                            </Text>
+                                                            <Textarea
+                                                                variant="unstyled"
+                                                                autosize
+                                                                minRows={1}
+                                                                maxRows={4}
+                                                                placeholder="Your answer"
+                                                                value={
+                                                                    clarificationAnswers[
+                                                                        qi
+                                                                    ] ?? ''
+                                                                }
+                                                                onChange={(
+                                                                    e,
+                                                                ) => {
+                                                                    const next =
+                                                                        [
+                                                                            ...clarificationAnswers,
+                                                                        ];
+                                                                    next[qi] =
+                                                                        e.currentTarget.value;
+                                                                    setClarificationAnswers(
+                                                                        next,
+                                                                    );
+                                                                }}
+                                                                autoFocus={
+                                                                    qi === 0
+                                                                }
+                                                                classNames={{
+                                                                    input: classes.clarifyCardInput,
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                    ),
+                                                )}
+                                            </Stack>
+                                            <Group gap="xs" justify="flex-end">
+                                                <Button
+                                                    variant="subtle"
+                                                    size="xs"
+                                                    onClick={() =>
+                                                        handleSubmitClarification(
+                                                            true,
+                                                        )
+                                                    }
+                                                >
+                                                    Skip
+                                                </Button>
+                                                <Button
+                                                    size="xs"
+                                                    onClick={() =>
+                                                        handleSubmitClarification(
+                                                            false,
+                                                        )
+                                                    }
+                                                >
+                                                    Build
+                                                </Button>
+                                            </Group>
+                                        </Box>
+                                    ) : (
+                                        isLoading && (
                                             <Box
-                                                key={i}
                                                 className={
                                                     classes.assistantMessage
                                                 }
@@ -1118,47 +1421,16 @@ const AppGenerate: FC = () => {
                                                         classes.assistantBubble
                                                     }
                                                 >
-                                                    {msg.appUuid ? (
-                                                        <ReactMarkdownPreview
-                                                            source={msg.content}
-                                                            className={
-                                                                classes.markdown
-                                                            }
-                                                        />
-                                                    ) : (
-                                                        <Text size="sm" c="red">
-                                                            {msg.content}
-                                                        </Text>
-                                                    )}
+                                                    <Text size="sm" c="dimmed">
+                                                        {isClarifying
+                                                            ? 'Hold tight, I may have some questions before starting'
+                                                            : (latestBuildingVersion?.statusMessage ??
+                                                              'Generating your app')}{' '}
+                                                        <LoadingDots />
+                                                    </Text>
                                                 </Box>
                                             </Box>
-                                        ),
-                                    )}
-                                    {isLoading && (
-                                        <Box
-                                            className={classes.assistantMessage}
-                                        >
-                                            <ThemeIcon
-                                                size="sm"
-                                                radius="xl"
-                                                variant="light"
-                                                color="gray"
-                                                mt={2}
-                                            >
-                                                <IconSparkles size={12} />
-                                            </ThemeIcon>
-                                            <Box
-                                                className={
-                                                    classes.assistantBubble
-                                                }
-                                            >
-                                                <Text size="sm" c="dimmed">
-                                                    {latestBuildingVersion?.statusMessage ??
-                                                        'Generating your app'}{' '}
-                                                    <LoadingDots />
-                                                </Text>
-                                            </Box>
-                                        </Box>
+                                        )
                                     )}
                                 </>
                             )}

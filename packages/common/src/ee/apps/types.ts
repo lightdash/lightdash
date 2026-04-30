@@ -65,6 +65,35 @@ export type AppDashboardReference = {
     includeSampleData: boolean;
 };
 
+/**
+ * A clarifying question the backend posed to the user before the build, paired
+ * with the user's answer. Persisted on the version's `resources.clarifications`
+ * so the chat can render them as a structured Q&A card on the user message.
+ */
+export type AppClarification = {
+    question: string;
+    answer: string;
+};
+
+/**
+ * Fold clarifications into the prompt sent to the sandbox. The persisted
+ * prompt stays as the user's original words — clarifications travel
+ * separately on `resources.clarifications` for chat rendering.
+ */
+export const formatPromptWithClarifications = (
+    prompt: string,
+    clarifications: AppClarification[] | undefined,
+): string => {
+    if (!clarifications || clarifications.length === 0) return prompt;
+    const qa = clarifications
+        .map(
+            (c, i) =>
+                `${i + 1}. Q: ${c.question.trim()}\n   A: ${c.answer.trim()}`,
+        )
+        .join('\n');
+    return `${prompt}\n\nClarifications:\n${qa}`;
+};
+
 export type GenerateAppRequestBody = {
     prompt: string;
     template?: DataAppTemplate; // starter template selected on app creation; ignored on iteration
@@ -72,7 +101,17 @@ export type GenerateAppRequestBody = {
     appUuid?: string; // pre-generated UUID so images can be scoped to the app in S3
     charts?: AppChartReference[]; // saved charts to resolve, optionally with sample rows
     dashboard?: AppDashboardReference; // dashboard — resolved server-side to its chart tiles
+    clarifications?: AppClarification[]; // pre-build Q&A folded into the prompt server-side
 };
+
+export type ApiClarifyAppRequest = {
+    prompt: string;
+    template?: DataAppTemplate;
+};
+
+export type ApiClarifyAppResponse = ApiSuccess<{
+    questions: string[];
+}>;
 
 export type ApiPreviewTokenResponse = ApiSuccess<{
     token: string;
@@ -92,6 +131,11 @@ export type AppVersionResources = {
     images: AppVersionImageResource[];
     charts: AppVersionChartResource[];
     dashboardName: string | null;
+    // Pre-build Q&A captured at the time of generation. Persisted alongside
+    // the prompt so the chat history can render the clarifications as their
+    // own card on the user message — rather than mashing them into the
+    // prompt text. Empty array when the user skipped or wasn't asked.
+    clarifications: AppClarification[];
 };
 
 export type ApiAppImageUrlResponse = ApiSuccess<{
