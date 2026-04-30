@@ -867,3 +867,118 @@ describe('Lightdash analytics - space access filtering', () => {
         expect(chartUuids).not.toContain(privateChartUuid);
     });
 });
+
+describe('Lightdash catalog filter / segment dimensions', () => {
+    let admin: ApiClient;
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    const expectedFilterableDimNames = (explore: {
+        baseTable: string;
+        tables: Record<
+            string,
+            {
+                dimensions: Record<
+                    string,
+                    {
+                        type?: string;
+                        hidden?: boolean;
+                        timeIntervalBaseDimensionName?: string;
+                    }
+                >;
+            }
+        >;
+    }) => {
+        const baseDims = explore.tables[explore.baseTable]?.dimensions ?? {};
+        return Object.entries(baseDims)
+            .filter(
+                ([, d]) =>
+                    (d.type === 'string' || d.type === 'boolean') &&
+                    !d.hidden &&
+                    !d.timeIntervalBaseDimensionName,
+            )
+            .map(([name]) => name)
+            .sort();
+    };
+
+    it('filter-dimensions returns every same-table filterable dimension on a wide explore', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const exploreResp = await admin.get<{
+            results: Parameters<typeof expectedFilterableDimNames>[0];
+        }>(`${apiUrl}/projects/${projectUuid}/explores/events`);
+        expect(exploreResp.status).toBe(200);
+        const expected = expectedFilterableDimNames(exploreResp.body.results);
+        const totalIndexable = Object.values(
+            exploreResp.body.results.tables[exploreResp.body.results.baseTable]
+                ?.dimensions ?? {},
+        ).filter((d) => !d.hidden).length;
+        expect(totalIndexable).toBeGreaterThan(50);
+
+        const dimsResp = await admin.get<{
+            results: Array<{ name: string; type: string; table: string }>;
+        }>(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/events/filter-dimensions`,
+        );
+        expect(dimsResp.status).toBe(200);
+        const actual = dimsResp.body.results.map((d) => d.name).sort();
+
+        expect(actual).toEqual(expected);
+        dimsResp.body.results.forEach((d) => {
+            expect(['string', 'boolean']).toContain(d.type);
+            expect(d.table).toBe('events');
+        });
+    });
+
+    it('segment-dimensions returns every same-table filterable dimension on a wide explore', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+
+        const exploreResp = await admin.get<{
+            results: Parameters<typeof expectedFilterableDimNames>[0];
+        }>(`${apiUrl}/projects/${projectUuid}/explores/events`);
+        expect(exploreResp.status).toBe(200);
+        const expected = expectedFilterableDimNames(exploreResp.body.results);
+
+        const dimsResp = await admin.get<{
+            results: Array<{ name: string; type: string; table: string }>;
+        }>(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/events/segment-dimensions`,
+        );
+        expect(dimsResp.status).toBe(200);
+        const actual = dimsResp.body.results.map((d) => d.name).sort();
+
+        expect(actual).toEqual(expected);
+    });
+});
+
+describe('Lightdash catalog metrics list pagination', () => {
+    let admin: ApiClient;
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    it('Should cap at 50 metrics when caller omits page/pageSize', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const resp = await admin.get<{
+            results: { data: CatalogField[]; pagination: { pageSize: number } };
+        }>(`${apiUrl}/projects/${projectUuid}/dataCatalog/metrics`);
+        expect(resp.status).toBe(200);
+        expect(resp.body.results.pagination.pageSize).toBe(50);
+        expect(resp.body.results.data.length).toBeLessThanOrEqual(50);
+    });
+
+    it('Should respect explicit pageSize when caller provides it', async () => {
+        const projectUuid = SEED_PROJECT.project_uuid;
+        const resp = await admin.get<{
+            results: { data: CatalogField[]; pagination: { pageSize: number } };
+        }>(
+            `${apiUrl}/projects/${projectUuid}/dataCatalog/metrics?page=1&pageSize=10`,
+        );
+        expect(resp.status).toBe(200);
+        expect(resp.body.results.pagination.pageSize).toBe(10);
+        expect(resp.body.results.data.length).toBe(10);
+    });
+});
