@@ -4,6 +4,8 @@ import {
     type ApiAppImageUploadResponse,
     type ApiAppImageUrlResponse,
     type ApiCancelAppVersionResponse,
+    type ApiClarifyAppRequest,
+    type ApiClarifyAppResponse,
     type ApiDeleteAppResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
@@ -60,6 +62,36 @@ export class AppGenerateController extends BaseController {
             body.appUuid,
             body.charts,
             body.dashboard,
+            body.template,
+            body.clarifications,
+        );
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Pre-build clarifying questions. Returns 0–4 short questions whose
+     * answers will materially refine the prompt before the (slow) build
+     * pipeline starts. Stateless — answers are sent back as
+     * `clarifications` on the eventual generate request.
+     * @summary Get clarifying questions for a new app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/clarify')
+    @OperationId('clarifyApp')
+    async clarifyApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiClarifyAppRequest,
+    ): Promise<ApiClarifyAppResponse> {
+        this.setStatus(200);
+        const result = await this.getAppGenerateService().clarifyApp(
+            req.user!,
+            projectUuid,
+            body.prompt,
             body.template,
         );
         return {

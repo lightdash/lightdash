@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ApiGenerateAppResponse,
     type AppChartReference,
+    type AppClarification,
     type AppDashboardReference,
     type DataAppTemplate,
 } from '@lightdash/common';
@@ -16,6 +17,7 @@ type GenerateAppParams = {
     appUuid?: string; // pre-generated UUID so images are scoped to the app in S3
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
+    clarifications?: AppClarification[];
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -28,6 +30,7 @@ const generateApp = async ({
     appUuid,
     charts,
     dashboard,
+    clarifications,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
@@ -39,6 +42,7 @@ const generateApp = async ({
             appUuid,
             charts,
             dashboard,
+            clarifications,
         }),
     });
     return data;
