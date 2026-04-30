@@ -4,7 +4,7 @@ import type {
     AgentUpdateParams,
     BetaManagedAgentsAgent,
 } from '@anthropic-ai/sdk/resources/beta/agents';
-import { ParameterError } from '@lightdash/common/src';
+import { ParameterError } from '@lightdash/common';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import {
