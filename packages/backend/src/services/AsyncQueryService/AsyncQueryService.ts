@@ -3604,22 +3604,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: {
-                        exploreName: metricQuery.exploreName,
-                    },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
@@ -6025,22 +6009,6 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: {
-                        exploreName: data.explore,
-                    },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
         const explore = await this.getExplore(
             account,
             projectUuid,
@@ -6105,22 +6073,6 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: {
-                        exploreName: data.explore,
-                    },
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
         }
 
         const explore = await this.getExplore(

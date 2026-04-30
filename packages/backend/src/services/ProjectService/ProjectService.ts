@@ -3182,15 +3182,6 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        if (
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
 
         const sourceExplore =
             'explore' in args
@@ -3512,16 +3503,6 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             organization_uuid: organizationUuid,
@@ -3833,16 +3814,6 @@ export class ProjectService extends BaseService {
             )
         ) {
             throw new ForbiddenError();
-        }
-
-        if (
-            metricQuery.customDimensions?.some(isCustomSqlDimension) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
         }
 
         const queryTags: RunQueryTags = {

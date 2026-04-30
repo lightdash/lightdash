@@ -98,22 +98,6 @@ export class GdriveService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (
-            gsheetOptions.metricQuery.customDimensions?.some(
-                isCustomSqlDimension,
-            ) &&
-            auditedAbility.cannot(
-                'manage',
-                subject('CustomFields', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid: projectSummary.projectUuid,
-                    metadata: projectMetadata,
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
         const { organizationUuid } = await this.projectService.getProject(
             gsheetOptions.projectUuid,
             account,
