@@ -6,6 +6,7 @@ import {
     ApiUserActivityDownloadCsv,
     ApiValidateResponse,
     ApiValidationDismissResponse,
+    assertRegisteredAccount,
     getRequestMethod,
     LightdashRequestMethodHeader,
     ValidationTarget,
@@ -54,9 +55,10 @@ export class UserActivityController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<ApiUserActivity> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         const userActivity = await req.services
             .getAnalyticsService()
-            .getUserActivity(projectUuid, req.account!);
+            .getUserActivity(projectUuid, req.account);
         return {
             status: 'ok',
             results: userActivity,
@@ -80,9 +82,10 @@ export class UserActivityController extends BaseController {
         @Path() projectUuid: string,
     ): Promise<ApiUserActivityDownloadCsv> {
         this.setStatus(200);
+        assertRegisteredAccount(req.account);
         const userActivity = await req.services
             .getAnalyticsService()
-            .exportUserActivityRawCsv(projectUuid, req.account!);
+            .exportUserActivityRawCsv(projectUuid, req.account);
         return {
             status: 'ok',
             results: userActivity,
