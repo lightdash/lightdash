@@ -175,9 +175,11 @@ const Settings: FC = () => {
     const isServiceAccountsEnabled =
         health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
 
-    const isWarehouseCredentialsFeatureFlagEnabled = useClientFeatureFlag(
+    const { data: warehouseCredentialsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.OrganizationWarehouseCredentials,
     );
+    const isWarehouseCredentialsFeatureFlagEnabled =
+        warehouseCredentialsFlag?.enabled ?? false;
 
     // This allows us to enable organization warehouse credentials in the UI for on-premise installations
     const isWarehouseCredentialsEnabled =

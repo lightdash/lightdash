@@ -844,6 +844,10 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
         ['EMBEDDING_ENABLED', 'embedding'],
         ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
         ['SCIM_ENABLED', 'scim-token-management'],
+        [
+            'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
+            'organization-warehouse-credentials',
+        ],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();

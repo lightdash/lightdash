@@ -1564,6 +1564,13 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // the unified allowlist for the flag system.
     ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
     ['SCIM_ENABLED', 'scim-token-management'],
+    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
+    // (exposed via the health endpoint). Keep the config field, but translate
+    // the env var to the unified allowlist for the flag system.
+    [
+        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
+        'organization-warehouse-credentials',
+    ],
 ];
 
 const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
