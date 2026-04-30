@@ -2239,7 +2239,9 @@ export const parseConfig = (): LightdashConfig => {
         managedAgent: {
             enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
             anthropicApiKey:
-                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY || null,
+                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
+                process.env.ANTHROPIC_API_KEY ||
+                null,
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '*/30 * * * *',
             sessionTimeoutMs: parseInt(
                 process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
