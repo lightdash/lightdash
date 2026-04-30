@@ -5,12 +5,11 @@ import type {
     BetaManagedAgentsAgent,
 } from '@anthropic-ai/sdk/resources/beta/agents';
 import { ParameterError } from '@lightdash/common/src';
-import { produce } from 'immer';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import {
-    agentConfigHash,
-    managedAgentConfig,
+    getManagedAgentConfigHash,
+    renderManagedAgentConfig,
 } from '../services/ManagedAgentService/config/agent';
 
 type ManagedAgentClientConfig = {
@@ -20,6 +19,8 @@ type ManagedAgentClientConfig = {
 export type ManagedAgentSessionConfig = {
     serviceAccountPat: string;
     resourceName: string;
+    skillIds: string[];
+    toolSettings: Record<string, boolean>;
     persistedAgentId: string | null;
     persistedAgentConfigHash: string | null;
     persistedAgentVersion: number | null;
@@ -44,11 +45,8 @@ type CustomToolHandler = (
 export class ManagedAgentClient {
     private readonly config: ManagedAgentClientConfig;
 
-    private readonly renderedAgentConfig: AgentCreateParams;
-
     constructor(config: ManagedAgentClientConfig) {
         this.config = config;
-        this.renderedAgentConfig = this.renderAgentConfigTemplate();
     }
 
     private getAnthropicClient(): Anthropic {
@@ -62,22 +60,21 @@ export class ManagedAgentClient {
         return new Anthropic({ apiKey: anthropicApiKey });
     }
 
-    private renderAgentConfigTemplate(): AgentCreateParams {
-        return produce(managedAgentConfig, (draft) => {
-            // eslint-disable-next-line no-param-reassign
-            draft.mcp_servers[0].url = draft.mcp_servers[0].url.replace(
-                '{{LIGHTDASH_SITE_URL}}',
-                this.config.lightdashConfig.siteUrl,
-            );
+    private getRenderedAgentConfig(
+        resourceName: string,
+        skillIds: string[],
+        toolSettings: Record<string, boolean>,
+    ): AgentCreateParams {
+        const renderedAgentConfig = renderManagedAgentConfig({
+            lightdashSiteUrl: this.config.lightdashConfig.siteUrl,
+            skillIds,
+            toolSettings,
         });
-    }
-
-    private getRenderedAgentConfig(resourceName: string): AgentCreateParams {
         return {
-            ...this.renderedAgentConfig,
-            name: `${this.renderedAgentConfig.name} (${resourceName})`,
+            ...renderedAgentConfig,
+            name: `${renderedAgentConfig.name} (${resourceName})`,
             metadata: {
-                ...this.renderedAgentConfig.metadata,
+                ...renderedAgentConfig.metadata,
                 lightdash_resource: resourceName,
             },
         };
@@ -89,8 +86,10 @@ export class ManagedAgentClient {
     ): Promise<string> {
         const desiredAgent = this.getRenderedAgentConfig(
             sessionConfig.resourceName,
+            sessionConfig.skillIds,
+            sessionConfig.toolSettings,
         );
-        const desiredHash = agentConfigHash;
+        const desiredHash = getManagedAgentConfigHash(desiredAgent);
 
         if (
             sessionConfig.persistedAgentId &&
@@ -139,6 +138,11 @@ export class ManagedAgentClient {
             `[ManagedAgent] Created agent ${created.id} at version ${created.version}`,
         );
         return created.id;
+    }
+
+    async syncAgent(sessionConfig: ManagedAgentSessionConfig): Promise<string> {
+        const client = this.getAnthropicClient();
+        return this.ensureAgent(client.beta, sessionConfig);
     }
 
     // eslint-disable-next-line class-methods-use-this

@@ -189,10 +189,13 @@ export class ManagedAgentService extends BaseService {
         const organization = await this.organizationModel.get(
             project.organizationUuid,
         );
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
 
         return {
             serviceAccountPat: serviceAccountToken,
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
+            skillIds: this.lightdashConfig.managedAgent.skillIds,
+            toolSettings: settings?.toolSettings ?? {},
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -218,6 +221,22 @@ export class ManagedAgentService extends BaseService {
                 );
             },
         };
+    }
+
+    private async syncProjectAgentConfig(projectUuid: string): Promise<void> {
+        const serviceAccountToken =
+            await this.managedAgentModel.getServiceAccountToken(projectUuid);
+
+        if (!serviceAccountToken) {
+            return;
+        }
+
+        const sessionConfig = await this.getSessionConfig(
+            projectUuid,
+            serviceAccountToken,
+        );
+
+        await this.managedAgentClient.syncAgent(sessionConfig);
     }
 
     // --- Authorization ---
@@ -318,6 +337,10 @@ export class ManagedAgentService extends BaseService {
         } else if (update.enabled === false) {
             // Cancel pending heartbeat for this specific project
             await this.schedulerClient.cancelManagedAgentHeartbeat(projectUuid);
+        }
+
+        if (update.enabled || update.toolSettings !== undefined) {
+            await this.syncProjectAgentConfig(projectUuid);
         }
 
         return settings;

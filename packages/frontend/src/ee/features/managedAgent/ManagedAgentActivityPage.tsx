@@ -25,6 +25,7 @@ import {
     IconLayoutDashboard,
     IconPlayerPlay,
     IconSettings,
+    IconTool,
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -57,6 +58,7 @@ const updateSettings = async (
         enabled?: boolean;
         scheduleCron?: string;
         slackChannelId?: string | null;
+        toolSettings?: Record<string, boolean>;
     },
 ) =>
     lightdashApi({
@@ -79,6 +81,30 @@ const SCHEDULE_OPTIONS = [
     { value: '0 * * * *', label: 'Hourly' },
     { value: '0 */6 * * *', label: 'Every 6 hours' },
     { value: '0 0 * * *', label: 'Daily' },
+];
+
+const CAPABILITY_GROUPS = [
+    {
+        key: 'readOnly',
+        label: 'Read content',
+        description:
+            'Reads project health signals, recent Autopilot actions, stale charts and dashboards, broken content, chart definitions, user questions, popular content, preview projects, and slow query history.',
+        locked: true,
+    },
+    {
+        key: 'createContent',
+        label: 'Create content',
+        description:
+            'Allows Autopilot to create net new suggested charts in the Agent Suggestions space from chart-as-code definitions.',
+        locked: false,
+    },
+    {
+        key: 'modifyExistingContent',
+        label: 'Modify existing content',
+        description:
+            'Allows Autopilot to soft-delete stale charts or dashboards, update broken chart definitions, and reverse its own previous content changes.',
+        locked: false,
+    },
 ];
 
 const SetupSection: FC<{
@@ -128,7 +154,8 @@ const SetupSection: FC<{
                         </Box>
                     </Group>
                     <Text fz="xs" c="dimmed" ml={46}>
-                        Your project health agent
+                        Fixes broken charts, flags stale content, suggests new
+                        ones
                     </Text>
                 </Stack>
                 <Group gap="xs">
@@ -487,6 +514,7 @@ const SettingsSidebar: FC<{
     enabled: boolean;
     schedule: string;
     slackChannelId: string | null;
+    toolSettings: Record<string, boolean>;
     isLoading: boolean;
     onClose: () => void;
 }> = ({
@@ -494,6 +522,7 @@ const SettingsSidebar: FC<{
     enabled,
     schedule,
     slackChannelId,
+    toolSettings,
     isLoading,
     onClose,
 }) => {
@@ -544,6 +573,18 @@ const SettingsSidebar: FC<{
         [mutation],
     );
 
+    const handleCapabilityToggle = useCallback(
+        (capabilityName: string, checked: boolean) => {
+            mutation.mutate({
+                toolSettings: {
+                    ...toolSettings,
+                    [capabilityName]: checked,
+                },
+            });
+        },
+        [mutation, toolSettings],
+    );
+
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
             <Stack gap={2} className={classes.sidebarHeader}>
@@ -592,7 +633,7 @@ const SettingsSidebar: FC<{
                         }
                         disabled={isLoading || mutation.isLoading}
                         size="xs"
-                        color="dark"
+                        color="ldDark"
                     />
                 </Group>
 
@@ -638,7 +679,7 @@ const SettingsSidebar: FC<{
                                         }
                                         disabled={mutation.isLoading}
                                         size="xs"
-                                        color="dark"
+                                        color="ldDark"
                                     />
                                 )}
                             </Group>
@@ -670,6 +711,80 @@ const SettingsSidebar: FC<{
                                     </Button>
                                 </Stack>
                             )}
+                        </Stack>
+
+                        <Stack gap="md" className={classes.settingsRow}>
+                            <Stack gap={4}>
+                                <Group gap={6}>
+                                    <IconTool
+                                        size={16}
+                                        color="var(--mantine-color-dimmed)"
+                                    />
+                                    <Text fz="sm" fw={500}>
+                                        Permissions
+                                    </Text>
+                                </Group>
+                                <Text fz="xs" c="dimmed">
+                                    Choose what Autopilot can do.
+                                </Text>
+                            </Stack>
+                            <Stack gap={0} className={classes.toolTogglePanel}>
+                                {CAPABILITY_GROUPS.map((capability) => (
+                                    <Group
+                                        key={capability.key}
+                                        justify="space-between"
+                                        align="flex-start"
+                                        wrap="nowrap"
+                                        className={classes.toolToggleRow}
+                                    >
+                                        <Stack gap={3}>
+                                            <Text fz="xs" fw={500}>
+                                                {capability.label}
+                                            </Text>
+                                            <Text fz={11} c="dimmed">
+                                                {capability.description}
+                                            </Text>
+                                        </Stack>
+                                        {capability.locked ? (
+                                            <Tooltip label="Always disabled">
+                                                <Box
+                                                    component="span"
+                                                    className={
+                                                        classes.permissionSwitch
+                                                    }
+                                                >
+                                                    <Switch
+                                                        checked
+                                                        disabled
+                                                        size="xs"
+                                                        color="ldDark"
+                                                    />
+                                                </Box>
+                                            </Tooltip>
+                                        ) : (
+                                            <Switch
+                                                checked={
+                                                    toolSettings[
+                                                        capability.key
+                                                    ] ?? true
+                                                }
+                                                onChange={(e) =>
+                                                    handleCapabilityToggle(
+                                                        capability.key,
+                                                        e.currentTarget.checked,
+                                                    )
+                                                }
+                                                disabled={mutation.isLoading}
+                                                size="xs"
+                                                color="ldDark"
+                                                className={
+                                                    classes.permissionSwitch
+                                                }
+                                            />
+                                        )}
+                                    </Group>
+                                ))}
+                            </Stack>
                         </Stack>
                     </>
                 )}
@@ -867,6 +982,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                     slackChannelId={
                                         settings?.slackChannelId ?? null
                                     }
+                                    toolSettings={settings?.toolSettings ?? {}}
                                     isLoading={settingsLoading}
                                     onClose={() => setSettingsOpen(false)}
                                 />

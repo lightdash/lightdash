@@ -39,6 +39,7 @@ export class ManagedAgentModel {
             scheduleCron: row.schedule_cron,
             enabledByUserUuid: row.enabled_by_user_uuid,
             slackChannelId: row.slack_channel_id,
+            toolSettings: row.tool_settings ?? {},
             createdAt: row.created_at,
             updatedAt: row.updated_at,
         };
@@ -140,6 +141,7 @@ export class ManagedAgentModel {
                 schedule_cron: update.scheduleCron ?? '*/30 * * * *',
                 enabled_by_user_uuid: update.enabled ? userUuid : null,
                 slack_channel_id: update.slackChannelId ?? null,
+                tool_settings: update.toolSettings ?? {},
                 updated_at: new Date(),
             })
             .onConflict('project_uuid')
@@ -150,6 +152,9 @@ export class ManagedAgentModel {
                 }),
                 ...(update.slackChannelId !== undefined && {
                     slack_channel_id: update.slackChannelId,
+                }),
+                ...(update.toolSettings !== undefined && {
+                    tool_settings: update.toolSettings,
                 }),
                 enabled_by_user_uuid: update.enabled ? userUuid : undefined,
                 updated_at: new Date(),
