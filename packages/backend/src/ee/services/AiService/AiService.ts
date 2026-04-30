@@ -27,7 +27,6 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import { isFeatureFlagEnabled } from '../../../postHog';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
@@ -149,16 +148,13 @@ export class AiService {
         });
     }
 
-    private static async throwOnFeatureDisabled(user: SessionUser) {
-        const isAIDashboardSummaryEnabled = await isFeatureFlagEnabled(
-            'ai-dashboard-summary' as FeatureFlags,
+    private async throwOnFeatureDisabled(user: SessionUser) {
+        const { enabled } = await this.featureFlagService.get({
             user,
-            {
-                throwOnTimeout: true,
-            },
-        );
+            featureFlagId: FeatureFlags.AiDashboardSummary,
+        });
 
-        if (!isAIDashboardSummaryEnabled) {
+        if (!enabled) {
             throw new Error('AI Dashboard summary feature not enabled!');
         }
     }
@@ -315,7 +311,7 @@ export class AiService {
         dashboardUuid: string,
         opts: Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>,
     ) {
-        await AiService.throwOnFeatureDisabled(user);
+        await this.throwOnFeatureDisabled(user);
         const startTime = new Date().getTime();
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -424,7 +420,7 @@ export class AiService {
         projectUuid: string,
         dashboardUuidOrSlug: string,
     ) {
-        await AiService.throwOnFeatureDisabled(user);
+        await this.throwOnFeatureDisabled(user);
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
