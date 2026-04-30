@@ -19,7 +19,7 @@ function getGitHubRawBase(repo: string): string {
     return `https://raw.githubusercontent.com/${repo}/${CLI_VERSION}`;
 }
 
-type AgentType = 'claude' | 'cursor' | 'codex';
+type AgentType = 'claude' | 'cursor' | 'codex' | 'cortex';
 
 type InstallSkillsOptions = {
     verbose: boolean;
@@ -44,7 +44,7 @@ type GitHubContentItem = {
     size: number;
 };
 
-function getAgentSkillsDir(agent: AgentType): string {
+function getAgentProjectSkillsDir(agent: AgentType): string {
     switch (agent) {
         case 'claude':
             return '.claude/skills';
@@ -52,6 +52,23 @@ function getAgentSkillsDir(agent: AgentType): string {
             return '.cursor/skills';
         case 'codex':
             return '.codex/skills';
+        case 'cortex':
+            return '.cortex/skills';
+        default:
+            throw new Error(`Unknown agent type: ${agent}`);
+    }
+}
+
+function getAgentGlobalSkillsDir(agent: AgentType): string {
+    switch (agent) {
+        case 'claude':
+            return '.claude/skills';
+        case 'cursor':
+            return '.cursor/skills';
+        case 'codex':
+            return '.codex/skills';
+        case 'cortex':
+            return '.snowflake/cortex/skills';
         default:
             throw new Error(`Unknown agent type: ${agent}`);
     }
@@ -73,19 +90,20 @@ function findGitRoot(startDir: string): string | null {
 }
 
 function getInstallPath(options: InstallSkillsOptions): string {
-    const skillsDir = getAgentSkillsDir(options.agent);
-
-    // If explicit path provided, use it
+    // If explicit path provided, use it with project-level directory structure
     if (options.path) {
+        const skillsDir = getAgentProjectSkillsDir(options.agent);
         return path.join(options.path, skillsDir);
     }
 
-    // If global, use home directory
+    // If global, use home directory with global directory structure
     if (options.global) {
+        const skillsDir = getAgentGlobalSkillsDir(options.agent);
         return path.join(os.homedir(), skillsDir);
     }
 
     // Project install: find git root
+    const skillsDir = getAgentProjectSkillsDir(options.agent);
     const cwd = process.cwd();
     const gitRoot = findGitRoot(cwd);
 
@@ -284,51 +302,74 @@ type InstalledSkillInfo = {
 };
 
 function findInstalledSkills(): InstalledSkillInfo[] {
-    const agents: AgentType[] = ['claude', 'cursor', 'codex'];
+    const agents: AgentType[] = ['claude', 'cursor', 'codex', 'cortex'];
     const results: InstalledSkillInfo[] = [];
-
-    const roots: Array<{ path: string; scope: 'global' | 'project' }> = [
-        { path: os.homedir(), scope: 'global' },
-    ];
 
     const cwd = process.cwd();
     const gitRoot = findGitRoot(cwd);
-    roots.push({ path: gitRoot || cwd, scope: 'project' });
+    const projectRoot = gitRoot || cwd;
 
-    for (const root of roots) {
-        for (const agent of agents) {
-            const skillsDir = path.join(root.path, getAgentSkillsDir(agent));
-            if (!fs.existsSync(skillsDir)) {
-                // eslint-disable-next-line no-continue
-                continue;
-            }
-
-            let entries: string[];
+    for (const agent of agents) {
+        // Check global path
+        const globalSkillsDir = path.join(
+            os.homedir(),
+            getAgentGlobalSkillsDir(agent),
+        );
+        if (fs.existsSync(globalSkillsDir)) {
             try {
-                entries = fs.readdirSync(skillsDir);
+                const entries = fs.readdirSync(globalSkillsDir);
+                entries
+                    .filter((e) =>
+                        fs.statSync(path.join(globalSkillsDir, e)).isDirectory(),
+                    )
+                    .forEach((entry) => {
+                        const manifest = readSkillManifest(
+                            path.join(globalSkillsDir, entry),
+                        );
+                        if (manifest) {
+                            results.push({
+                                name: entry,
+                                version: manifest.version,
+                                agent,
+                                scope: 'global',
+                                isOutdated: manifest.version !== CLI_VERSION,
+                            });
+                        }
+                    });
             } catch {
-                // eslint-disable-next-line no-continue
-                continue;
+                // Ignore read errors
             }
+        }
 
-            entries
-                .filter((e) =>
-                    fs.statSync(path.join(skillsDir, e)).isDirectory(),
-                )
-                .forEach((entry) => {
-                    const manifest = readSkillManifest(
-                        path.join(skillsDir, entry),
-                    );
-                    if (manifest) {
-                        results.push({
-                            name: entry,
-                            version: manifest.version,
-                            agent,
-                            scope: root.scope,
-                            isOutdated: manifest.version !== CLI_VERSION,
-                        });
-                    }
-                });
+        // Check project path
+        const projectSkillsDir = path.join(
+            projectRoot,
+            getAgentProjectSkillsDir(agent),
+        );
+        if (fs.existsSync(projectSkillsDir)) {
+            try {
+                const entries = fs.readdirSync(projectSkillsDir);
+                entries
+                    .filter((e) =>
+                        fs.statSync(path.join(projectSkillsDir, e)).isDirectory(),
+                    )
+                    .forEach((entry) => {
+                        const manifest = readSkillManifest(
+                            path.join(projectSkillsDir, entry),
+                        );
+                        if (manifest) {
+                            results.push({
+                                name: entry,
+                                version: manifest.version,
+                                agent,
+                                scope: 'project',
+                                isOutdated: manifest.version !== CLI_VERSION,
+                            });
+                        }
+                    });
+            } catch {
+                // Ignore read errors
+            }
         }
     }
 
