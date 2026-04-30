@@ -848,6 +848,7 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
             'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
             'organization-warehouse-credentials',
         ],
+        ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
     ])('legacy %s=true translates to enabledFeatureFlags', (envVar, flagId) => {
         process.env[envVar] = 'true';
         const config = parseConfig();
