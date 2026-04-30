@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     ForbiddenError,
+    RegisteredAccount,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
 } from '@lightdash/common';
@@ -59,7 +59,7 @@ export class GdriveService extends BaseService {
     }
 
     async scheduleUploadGsheet(
-        account: Account,
+        account: RegisteredAccount,
         gsheetOptions: UploadMetricGsheet,
     ) {
         const projectSummary = await this.projectModel.getSummary(
@@ -103,7 +103,7 @@ export class GdriveService extends BaseService {
 
         const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
-            userUuid: account.user.id,
+            userUuid: account.user.userUuid,
             organizationUuid,
         };
 
