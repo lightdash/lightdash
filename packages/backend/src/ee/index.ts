@@ -27,6 +27,7 @@ import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
+import { AiAgentCoderService } from './services/AiAgentCoderService/AiAgentCoderService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiService } from './services/AiService/AiService';
@@ -158,6 +159,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             aiAgentAdminService: ({ models, context }) =>
                 new AiAgentAdminService({
                     aiAgentModel: models.getAiAgentModel(),
+                    lightdashConfig: context.lightdashConfig,
+                }),
+            aiAgentCoderService: ({ models, context }) =>
+                new AiAgentCoderService({
+                    aiAgentModel: models.getAiAgentModel(),
+                    projectModel: models.getProjectModel(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>

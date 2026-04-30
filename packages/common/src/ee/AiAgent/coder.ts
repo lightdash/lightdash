@@ -3,6 +3,7 @@ import type { AiAgent } from './index';
 
 export type AgentAsCode = Pick<
     AiAgent,
+    | 'slug'
     | 'name'
     | 'description'
     | 'imageUrl'
@@ -11,8 +12,6 @@ export type AgentAsCode = Pick<
     | 'enableDataAccess'
     | 'enableSelfImprovement'
 > & {
-    /** Slug used as identity within a project. Stable across renames. */
-    slug: string;
     /** Schema version for this agent configuration */
     version: number;
     /** Content type discriminator */

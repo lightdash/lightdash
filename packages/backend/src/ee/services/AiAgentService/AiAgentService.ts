@@ -1077,6 +1077,7 @@ export class AiAgentService extends BaseService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+            imageUrl: body.imageUrl,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             spaceAccess: body.spaceAccess,
