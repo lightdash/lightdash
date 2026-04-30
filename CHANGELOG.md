@@ -1,3 +1,11 @@
+## [0.2848.1](https://github.com/lightdash/lightdash/compare/0.2848.0...0.2848.1) (2026-04-30)
+
+
+### Bug Fixes
+
+* redirect bare /projects/:projectUuid to /home ([#22518](https://github.com/lightdash/lightdash/issues/22518)) ([33119b1](https://github.com/lightdash/lightdash/commit/33119b160bf175e2a9c8a5d58a1f8214e3f2740b))
+* **saved-charts:** allow saving chart edits when SQL TC/dim is unchanged ([#22535](https://github.com/lightdash/lightdash/issues/22535)) ([8f78a17](https://github.com/lightdash/lightdash/commit/8f78a1756aaa0087abc13b8dbf966ae8d779a7aa))
+
 # [0.2848.0](https://github.com/lightdash/lightdash/compare/0.2847.0...0.2848.0) (2026-04-30)
 
 
