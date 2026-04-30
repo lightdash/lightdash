@@ -207,6 +207,6 @@ jobs:
 
             - name: Destroy preview
               if: always()
-              uses: okteto/destroy-preview@b3b2db89ea11724de3edddf8d4591173fbede9c7 # latest
+              uses: okteto/destroy-preview@42eae1abadc9f22f9e48f077f99e1574f031bec9 # latest
               with:
                   name: ${{ steps.resolve.outputs.name }}
