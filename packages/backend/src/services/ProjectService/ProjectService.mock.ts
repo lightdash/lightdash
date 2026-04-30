@@ -58,7 +58,6 @@ export const user: SessionUser = {
         { subject: 'Job', action: ['view'] },
         { subject: 'SqlRunner', action: ['manage'] },
         { subject: 'Explore', action: ['manage'] },
-        { subject: 'CustomFields', action: ['manage'] },
     ]),
     isActive: true,
     abilityRules: [],

@@ -20,12 +20,12 @@ import {
     ExploreType,
     ForbiddenError,
     generateSlug,
-    getModifiedSqlAuthoredFields,
     getSchedulerResourceTypeAndId,
     getTimezoneLabel,
     GoogleSheetsTransientError,
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isCustomSqlDimension,
     isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
@@ -78,10 +78,6 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import {
-    assertCanAccessSqlAuthoredFields,
-    stripSqlBodiesIfForbidden,
-} from '../../utils/SqlAuthoredFieldsGuard';
 import { BaseService } from '../BaseService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
@@ -484,10 +480,11 @@ export class SavedChartService
             organizationUuid,
             projectUuid,
             spaceUuid,
-            metricQuery: oldMetricQuery,
+            metricQuery: {
+                metrics: oldChartMetrics,
+                dimensions: oldChartDimensions,
+            },
         } = await this.savedChartModel.get(savedChartUuid);
-        const { metrics: oldChartMetrics, dimensions: oldChartDimensions } =
-            oldMetricQuery;
 
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -511,13 +508,8 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const modifiedSqlFields = getModifiedSqlAuthoredFields(
-            data.metricQuery,
-            oldMetricQuery,
-        );
-
         if (
-            modifiedSqlFields.customDimensions.length > 0 &&
+            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', {
@@ -1074,17 +1066,8 @@ export class SavedChartService
             },
         });
 
-        const auditedAbility = this.createAuditedAbility(account);
-        const metricQuery = stripSqlBodiesIfForbidden({
-            ability: auditedAbility,
-            organizationUuid: savedChart.organizationUuid,
-            projectUuid: savedChart.projectUuid,
-            metricQuery: savedChart.metricQuery,
-        });
-
         return {
             ...savedChart,
-            metricQuery,
             inheritsFromOrgOrProject,
             access,
         };
@@ -1238,14 +1221,6 @@ export class SavedChartService
         ) {
             throw new ForbiddenError();
         }
-
-        assertCanAccessSqlAuthoredFields({
-            ability: auditedAbility,
-            organizationUuid,
-            projectUuid,
-            metricQuery: savedChart.metricQuery,
-            errorMessage: 'User cannot save queries with custom SQL fields',
-        });
 
         if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
             throw new Error(

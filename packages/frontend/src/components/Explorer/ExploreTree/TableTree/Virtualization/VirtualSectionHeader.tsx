@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
 import { ActionIcon, Button, Group, Text, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
@@ -10,7 +11,6 @@ import {
     useExplorerSelector,
 } from '../../../../../features/explorer/store';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
-import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
@@ -47,22 +47,21 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     const isWriteBackCustomBinDimensionsEnabled =
         writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
-    const canManageCustomFields = !cannotAuthorCustomSql;
-
+    // Filter custom dimensions based on feature flag
     const customDimensionsToWriteBack = useMemo(() => {
         if (!allCustomDimensions) return [];
-        const baseList = isWriteBackCustomBinDimensionsEnabled
+        return isWriteBackCustomBinDimensionsEnabled
             ? allCustomDimensions
             : allCustomDimensions.filter(isCustomSqlDimension);
-        return canManageCustomFields
-            ? baseList
-            : baseList.filter((dim) => !isCustomSqlDimension(dim));
-    }, [
-        allCustomDimensions,
-        isWriteBackCustomBinDimensionsEnabled,
-        canManageCustomFields,
-    ]);
+    }, [allCustomDimensions, isWriteBackCustomBinDimensionsEnabled]);
+
+    const canManageCustomFields = user.data?.ability?.can(
+        'manage',
+        subject('CustomFields', {
+            organizationUuid: user.data.organizationUuid,
+            projectUuid,
+        }),
+    );
 
     const handleAddCustomDimension = useCallback(() => {
         dispatch(

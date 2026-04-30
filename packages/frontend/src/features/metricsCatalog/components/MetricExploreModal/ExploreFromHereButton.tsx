@@ -4,7 +4,6 @@ import { IconExternalLink } from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../../hooks/useExplorerRoute';
-import { useCannotAuthorCustomSql } from '../../../../hooks/user/useCannotAuthorCustomSql';
 import { useCreateShareMutation } from '../../../../hooks/useShare';
 
 type Props = {
@@ -18,16 +17,14 @@ export const ExploreFromHereButton: FC<Props> = ({
     unsavedChartVersion,
     canExplore,
 }) => {
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
     const openInExploreUrl = useMemo(() => {
         if (!unsavedChartVersion) return undefined;
         return getExplorerUrlFromCreateSavedChartVersion(
             projectUuid,
             unsavedChartVersion,
             true, // preserves series config in the url
-            { cannotAuthorCustomSql },
         );
-    }, [projectUuid, unsavedChartVersion, cannotAuthorCustomSql]);
+    }, [projectUuid, unsavedChartVersion]);
 
     const { mutateAsync: createShareUrl, isLoading: isCreatingShareUrl } =
         useCreateShareMutation();

@@ -39,7 +39,6 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import { useSourceSavedChartUuid } from '../../../hooks/explorer/useSourceSavedChartUuid';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
@@ -91,8 +90,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
         return org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
     }, [colorScheme, org?.chartColors, org?.chartDarkColors]);
 
+    // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
-    const sourceSavedChartUuid = useSourceSavedChartUuid();
 
     const {
         query,
@@ -296,7 +295,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
                 pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
-                savedChartUuid={sourceSavedChartUuid}
+                savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
                 onPivotDimensionsChange={handleSetPivotFields}

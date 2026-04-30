@@ -23,12 +23,6 @@ export type ExecuteAsyncMetricQueryRequestParams =
         query: Omit<MetricQueryRequest, 'csvLimit'>;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
-        /**
-         * UUID of the saved chart this query was loaded from, when applicable.
-         * Used by permission checks to exempt unchanged SQL-authored fields
-         * from the `manage:CustomFields` gate.
-         */
-        savedChartUuid?: string;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =

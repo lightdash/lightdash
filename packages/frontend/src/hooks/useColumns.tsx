@@ -52,7 +52,6 @@ import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
-    selectIsEditMode,
     selectMetricOverrides,
     selectParameters,
     selectSorts,
@@ -61,7 +60,6 @@ import {
     useExplorerSelector,
 } from '../features/explorer/store';
 import { getFieldColors } from '../utils/fieldColors';
-import { useSourceSavedChartUuid } from './explorer/useSourceSavedChartUuid';
 import { TableCellBar } from './TableCellBar';
 import { useCalculateTotal } from './useCalculateTotal';
 import { useExplore } from './useExplore';
@@ -397,8 +395,6 @@ export const useColumns = (): TableColumn[] => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
-    const sourceSavedChartUuid = useSourceSavedChartUuid();
-    const isEditMode = useExplorerSelector(selectIsEditMode);
 
     const { activeFields, query, validQueryArgs } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
@@ -512,8 +508,6 @@ export const useColumns = (): TableColumn[] => {
     const { data: totals } = useCalculateTotal({
         metricQuery: resultsMetricQuery,
         explore: exploreData?.baseTable,
-        savedChartUuid: sourceSavedChartUuid,
-        isEditMode,
         fieldIds: resultsMetricQuery
             ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,

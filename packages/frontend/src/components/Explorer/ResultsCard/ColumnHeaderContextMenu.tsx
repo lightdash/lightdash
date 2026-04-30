@@ -4,7 +4,6 @@ import {
     getItemLabelWithoutTableName,
     getItemMap,
     isCustomDimension,
-    isCustomSqlDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -12,7 +11,6 @@ import {
     isMetricWithDateValue,
     isNumericItem,
     isPeriodOverPeriodAdditionalMetric,
-    isSqlTableCalculation,
     isTableCalculation,
     isTimeBasedDimension,
     type TableCalculation,
@@ -40,8 +38,6 @@ import {
 } from '../../../features/tableCalculation';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
-import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { BetaBadge } from '../../common/BetaBadge';
@@ -74,8 +70,6 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
-    const projectUuid = useProjectUuid();
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
 
     // Get explore data to check if metrics return date values
     const { data: exploreData } = useExplore(tableName, {
@@ -255,24 +249,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                {!(isCustomSqlDimension(item) && cannotAuthorCustomSql) && (
-                    <>
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconPencil} />}
-                            onClick={() => {
-                                dispatch(
-                                    explorerActions.toggleCustomDimensionModal({
-                                        item,
-                                        isEditing: true,
-                                    }),
-                                );
-                            }}
-                        >
-                            Edit custom dimension
-                        </Menu.Item>
-                        <Menu.Divider />
-                    </>
-                )}
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconPencil} />}
+                    onClick={() => {
+                        dispatch(
+                            explorerActions.toggleCustomDimensionModal({
+                                item,
+                                isEditing: true,
+                            }),
+                        );
+                    }}
+                >
+                    Edit custom dimension
+                </Menu.Item>
+                <Menu.Divider />
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
@@ -307,24 +297,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 <Menu.Divider />
 
-                {!(isSqlTableCalculation(item) && cannotAuthorCustomSql) && (
-                    <>
-                        <Menu.Item
-                            leftSection={<MantineIcon icon={IconPencil} />}
-                            onClick={() => {
-                                track({
-                                    name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
-                                });
+                <Menu.Item
+                    leftSection={<MantineIcon icon={IconPencil} />}
+                    onClick={() => {
+                        track({
+                            name: EventName.EDIT_TABLE_CALCULATION_BUTTON_CLICKED,
+                        });
 
-                                onToggleCalculationEditModal(true);
-                            }}
-                        >
-                            Edit calculation
-                        </Menu.Item>
+                        onToggleCalculationEditModal(true);
+                    }}
+                >
+                    Edit calculation
+                </Menu.Item>
 
-                        <Menu.Divider />
-                    </>
-                )}
+                <Menu.Divider />
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 

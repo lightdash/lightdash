@@ -108,6 +108,7 @@ const TableCalculationModal: FC<Props> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
+
     // Formula support is pinned to what the formula package can compile for
     // this warehouse — `SUPPORTED_DIALECTS` is the single source of truth
     // shared with the backend mapper.
@@ -475,7 +476,6 @@ const TableCalculationModal: FC<Props> = ({
     );
 
     const canSwitchEditMode = isNewCalculation && isFormulaSupported;
-
     const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
     const switchEditModeLabel =
         editMode === EditMode.FORMULA

@@ -5,7 +5,6 @@ import {
     DateGranularity,
     getItemId,
     isCartesianChartConfig,
-    stripSqlBodiesFromMetricQuery,
     type BinRange,
     type ChartConfig,
     type CreateSavedChartVersion,
@@ -38,7 +37,6 @@ import {
     type ExplorerReduceState,
 } from '../providers/Explorer/types';
 import useToaster from './toaster/useToaster';
-import { useCannotAuthorCustomSql } from './user/useCannotAuthorCustomSql';
 
 export const DEFAULT_EMPTY_EXPLORE_CONFIG: CreateSavedChartVersion = {
     tableName: '',
@@ -71,10 +69,6 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     // For example, the explore from here button uses the entire URL to create
     // shareable, shortened links.
     preserveLongUrl?: boolean,
-    options?: {
-        originSavedChartUuid?: string;
-        cannotAuthorCustomSql?: boolean;
-    },
 ): { pathname: string; search: string } => {
     if (!projectUuid) {
         return { pathname: '', search: '' };
@@ -82,31 +76,22 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     // Preserve existing search params (like fromSpace, fromDashboard, etc)
     const newParams = new URLSearchParams(window.location.search);
 
-    const chartForUrl = options?.cannotAuthorCustomSql
-        ? {
-              ...createSavedChart,
-              metricQuery: stripSqlBodiesFromMetricQuery(
-                  createSavedChart.metricQuery,
-              ),
-          }
-        : createSavedChart;
-
-    let stringifiedChart = JSON.stringify(chartForUrl);
+    let stringifiedChart = JSON.stringify(createSavedChart);
     const stringifiedChartSize = stringifiedChart.length;
     if (
         stringifiedChartSize > 3000 &&
         !preserveLongUrl &&
-        isCartesianChartConfig(chartForUrl.chartConfig.config)
+        isCartesianChartConfig(createSavedChart.chartConfig.config)
     ) {
         console.warn(
             `Chart config is too large to store in url "${stringifiedChartSize}", removing series to reduce size`,
         );
         const reducedCreateSavedChart = {
-            ...chartForUrl,
+            ...createSavedChart,
             chartConfig: {
-                ...chartForUrl.chartConfig,
+                ...createSavedChart.chartConfig,
                 config: {
-                    ...chartForUrl.chartConfig.config,
+                    ...createSavedChart.chartConfig.config,
                     eChartsConfig: {},
                 },
             },
@@ -121,12 +106,8 @@ export const getExplorerUrlFromCreateSavedChartVersion = (
     // Always set isExploreFromHere to true when creating the url for shareable links this ensures the query is executed when the url is loaded
     newParams.set('isExploreFromHere', 'true');
 
-    if (options?.originSavedChartUuid) {
-        newParams.set('savedChartUuid', options.originSavedChartUuid);
-    }
-
     return {
-        pathname: `/projects/${projectUuid}/tables/${chartForUrl.tableName}`,
+        pathname: `/projects/${projectUuid}/tables/${createSavedChart.tableName}`,
         search: newParams.toString(),
     };
 };
@@ -239,9 +220,6 @@ export const useExplorerRoute = () => {
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     const metricQuery = useExplorerSelector(selectMetricQuery);
     const tableName = useExplorerSelector(selectTableName);
-    const cannotAuthorCustomSql = useCannotAuthorCustomSql(
-        pathParams.projectUuid,
-    );
 
     // Update url params based on pristine state
     // Only sync URL when we're actually on a table page (pathParams.tableId exists)
@@ -251,8 +229,6 @@ export const useExplorerRoute = () => {
                 getExplorerUrlFromCreateSavedChartVersion(
                     pathParams.projectUuid,
                     unsavedChartVersion,
-                    false,
-                    { cannotAuthorCustomSql },
                 ),
                 { replace: true },
             );
@@ -264,7 +240,6 @@ export const useExplorerRoute = () => {
         pathParams.tableId,
         unsavedChartVersion,
         tableName,
-        cannotAuthorCustomSql,
     ]);
 
     useEffect(() => {

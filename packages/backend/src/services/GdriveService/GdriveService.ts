@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     Account,
+    CustomSqlQueryForbiddenError,
     ForbiddenError,
+    isCustomSqlDimension,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
 } from '@lightdash/common';
