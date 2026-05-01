@@ -6,6 +6,7 @@ import {
     ApiJobScheduledResponse,
     ApiValidateResponse,
     ApiValidationDismissResponse,
+    assertRegisteredAccount,
     getRequestMethod,
     LightdashRequestMethodHeader,
     ValidationTarget,
@@ -26,6 +27,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -57,6 +59,7 @@ export class ValidationController extends BaseController {
             validationTargets?: ValidationTarget[];
         }, // TODO: This should be (Explore| ExploreError)[] but using this type will not process metrics/dimensions
     ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const context = getRequestMethod(
             req.header(LightdashRequestMethodHeader),
@@ -68,7 +71,7 @@ export class ValidationController extends BaseController {
                 jobId: await this.services
                     .getValidationService()
                     .validate(
-                        req.user!,
+                        toSessionUser(req.account),
                         projectUuid,
                         context,
                         body.explores,
@@ -98,12 +101,18 @@ export class ValidationController extends BaseController {
         @Query() fromSettings?: boolean,
         @Query() jobId?: string,
     ): Promise<ApiValidateResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getValidationService()
-                .get(req.user!, projectUuid, fromSettings, jobId),
+                .get(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    fromSettings,
+                    jobId,
+                ),
         };
     }
 
@@ -123,10 +132,11 @@ export class ValidationController extends BaseController {
         @Path() validationId: number,
         @Request() req: express.Request,
     ): Promise<ApiValidationDismissResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getValidationService()
-            .delete(req.user!, validationId);
+            .delete(toSessionUser(req.account), validationId);
         return {
             status: 'ok',
         };
@@ -148,10 +158,15 @@ export class ValidationController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiChartValidationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const validationErrors = await this.services
             .getValidationService()
-            .validateAndUpdateChart(req.user!, projectUuid, chartUuid);
+            .validateAndUpdateChart(
+                toSessionUser(req.account),
+                projectUuid,
+                chartUuid,
+            );
         return {
             status: 'ok',
             results: {
@@ -176,10 +191,15 @@ export class ValidationController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiDashboardValidationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const validationErrors = await this.services
             .getValidationService()
-            .validateAndUpdateDashboard(req.user!, projectUuid, dashboardUuid);
+            .validateAndUpdateDashboard(
+                toSessionUser(req.account),
+                projectUuid,
+                dashboardUuid,
+            );
         return {
             status: 'ok',
             results: {

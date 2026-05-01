@@ -32,6 +32,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
+import { toSessionUser } from '../auth/account';
 import Logger from '../logging/logger';
 import {
     allowApiKeyAuthentication,
@@ -62,12 +63,13 @@ export class SlackController extends BaseController {
         @Query() forceRefresh?: boolean,
         @Query() includeChannelIds?: string,
     ): Promise<ApiSlackChannelsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSlackIntegrationService()
-                .getChannels(req.user!, {
+                .getChannels(toSessionUser(req.account), {
                     search,
                     excludeArchived,
                     excludeDms,
@@ -95,12 +97,13 @@ export class SlackController extends BaseController {
         @Request() req: express.Request,
         @Path() channelId: string,
     ): Promise<ApiSlackChannelResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSlackIntegrationService()
-                .lookupChannelById(req.user!, channelId),
+                .lookupChannelById(toSessionUser(req.account), channelId),
         };
     }
 
@@ -121,9 +124,10 @@ export class SlackController extends BaseController {
         @Request() req: express.Request,
         @Body() body: SlackAppCustomSettings,
     ): Promise<ApiSlackCustomSettingsResponse> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getSlackIntegrationService()
-            .updateAppCustomSettings(req.user!, body);
+            .updateAppCustomSettings(toSessionUser(req.account), body);
 
         this.setStatus(200);
         return {
@@ -170,11 +174,14 @@ export class SlackController extends BaseController {
     async getInstallation(
         @Request() req: express.Request,
     ): Promise<ApiSlackGetInstallationResponse> {
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getSlackIntegrationService()
-                .getInstallationFromOrganizationUuid(req.user!),
+                .getInstallationFromOrganizationUuid(
+                    toSessionUser(req.account),
+                ),
         };
     }
 
@@ -301,10 +308,11 @@ export class SlackController extends BaseController {
     @Get('/install')
     @OperationId('installSlack')
     async installSlack(@Request() req: express.Request): Promise<void> {
+        assertRegisteredAccount(req.account);
         try {
             const { slackOptions, metadata } = await this.services
                 .getSlackIntegrationService()
-                .getSlackInstallOptions(req.user!);
+                .getSlackInstallOptions(toSessionUser(req.account));
 
             const slackReceiver = new ExpressReceiver(slackOptions);
             await slackReceiver.installer?.handleInstallPath(
@@ -321,7 +329,7 @@ export class SlackController extends BaseController {
         } catch (error) {
             await this.services
                 .getSlackIntegrationService()
-                .trackInstallError(req.user!, error);
+                .trackInstallError(toSessionUser(req.account), error);
             throw error;
         }
     }
