@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import {
+    assertRegisteredAccount,
     generateOAuthAuthorizePage,
     generateOAuthRedirectPage,
     getClientName,
@@ -368,8 +369,9 @@ oauthRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            assertRegisteredAccount(req.account);
             const oauthService = getOAuthService(req);
-            const clients = await oauthService.listClients(req.account!);
+            const clients = await oauthService.listClients(req.account);
             return res.json({ status: 'ok', results: clients });
         } catch (error) {
             return next(error);
@@ -384,9 +386,10 @@ oauthRouter.post(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
+            assertRegisteredAccount(req.account);
             const { clientName, redirectUris } = req.body;
             const oauthService = getOAuthService(req);
-            const client = await oauthService.createAdminClient(req.account!, {
+            const client = await oauthService.createAdminClient(req.account, {
                 clientName,
                 redirectUris,
             });
@@ -404,11 +407,12 @@ oauthRouter.patch(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
+            assertRegisteredAccount(req.account);
             const { clientId } = req.params;
             const { clientName, redirectUris } = req.body;
             const oauthService = getOAuthService(req);
             const client = await oauthService.updateClient(
-                req.account!,
+                req.account,
                 clientId,
                 { clientName, redirectUris },
             );
@@ -426,9 +430,10 @@ oauthRouter.delete(
     unauthorisedInDemo,
     async (req, res, next) => {
         try {
+            assertRegisteredAccount(req.account);
             const { clientId } = req.params;
             const oauthService = getOAuthService(req);
-            await oauthService.deleteClient(req.account!, clientId);
+            await oauthService.deleteClient(req.account, clientId);
             return res.json({ status: 'ok', results: undefined });
         } catch (error) {
             return next(error);

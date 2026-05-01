@@ -1,3 +1,4 @@
+import { assertRegisteredAccount } from '@lightdash/common';
 import express, { type Router } from 'express';
 import {
     allowApiKeyAuthentication,
@@ -162,6 +163,7 @@ dashboardRouter.post(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            assertRegisteredAccount(req.account);
             const { selectedTabs } = req.body;
             const validatedSelectedTabs =
                 Array.isArray(selectedTabs) &&
@@ -173,7 +175,7 @@ dashboardRouter.post(
             const results = await req.services
                 .getCsvService()
                 .scheduleExportCsvDashboard(
-                    req.account!,
+                    req.account,
                     req.params.dashboardUuid,
                     req.body.filters,
                     validatedSelectedTabs,
