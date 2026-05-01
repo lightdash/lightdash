@@ -22,8 +22,6 @@ type Props = {
     onClearAll: () => void;
     parameters?: ParameterDefinitions;
     missingRequiredParameters?: string[];
-    pinnedParameters?: string[];
-    onParameterPin?: (paramKey: string) => void;
     isLoading?: boolean;
     isError?: boolean;
     parameterOrder?: string[];

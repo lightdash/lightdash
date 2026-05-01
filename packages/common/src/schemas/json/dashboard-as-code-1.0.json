@@ -512,7 +512,8 @@
                 },
                 "pinnedParameters": {
                     "type": "array",
-                    "description": "List of pinned parameter names",
+                    "deprecated": true,
+                    "description": "DEPRECATED: pinned parameters are no longer rendered. Field is accepted for backward compatibility with existing YAML files but has no effect.",
                     "items": {
                         "type": "string"
                     }

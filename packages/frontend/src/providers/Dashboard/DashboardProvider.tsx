@@ -242,11 +242,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const [parametersHaveChanged, setParametersHaveChanged] =
         useState<boolean>(false);
 
-    // Pinned parameters state
-    const [pinnedParameters, setPinnedParametersState] = useState<string[]>([]);
-    const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
-        useState<boolean>(false);
-
     // Parameter order state
     const [parameterOrder, setParameterOrderState] = useState<string[]>([]);
     const [hasParameterOrderChanged, setHasParameterOrderChanged] =
@@ -279,16 +274,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             setParameters(savedParameters);
         }
     }, [savedParameters]);
-
-    // Set pinned parameters when dashboard is loaded
-    useEffect(() => {
-        if (dashboard?.config?.pinnedParameters !== undefined) {
-            setPinnedParametersState(dashboard.config.pinnedParameters);
-        } else if (dashboard?.config !== undefined) {
-            // Initialize empty array if dashboard has config but no pinnedParameters
-            setPinnedParametersState([]);
-        }
-    }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
 
     // Set parameter order when dashboard is loaded
     useEffect(() => {
@@ -381,22 +366,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const clearAllParameters = useCallback(() => {
         setParameters({});
-    }, []);
-
-    const setPinnedParameters = useCallback((pinnedParams: string[]) => {
-        setPinnedParametersState(pinnedParams);
-        setHavePinnedParametersChanged(true);
-    }, []);
-
-    const toggleParameterPin = useCallback((parameterKey: string) => {
-        setPinnedParametersState((prev) => {
-            const isCurrentlyPinned = prev.includes(parameterKey);
-            const newPinnedParams = isCurrentlyPinned
-                ? prev.filter((key) => key !== parameterKey)
-                : [...prev, parameterKey];
-            return newPinnedParams;
-        });
-        setHavePinnedParametersChanged(true);
     }, []);
 
     const setParameterOrder = useCallback((order: string[]) => {
@@ -1415,11 +1384,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         addParameterReferences,
         tileParameterReferences,
         missingRequiredParameters,
-        pinnedParameters,
-        setPinnedParameters,
-        toggleParameterPin,
-        havePinnedParametersChanged,
-        setHavePinnedParametersChanged,
         parameterOrder,
         setParameterOrder,
         hasParameterOrderChanged,

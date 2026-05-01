@@ -4,7 +4,6 @@ import {
     type ParameterValue,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Button,
     Flex,
@@ -14,7 +13,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { IconInfoCircle, IconPin, IconPinFilled } from '@tabler/icons-react';
+import { IconInfoCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ParameterInput } from './ParameterInput';
@@ -33,9 +32,6 @@ type ParameterSelectionProps = {
     projectUuid?: string;
     loadingMessage?: string;
     disabled?: boolean;
-    isEditMode?: boolean;
-    pinnedParameters?: string[];
-    onParameterPin?: (paramKey: string) => void;
 };
 
 export const ParameterSelection: FC<ParameterSelectionProps> = ({
@@ -51,9 +47,6 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
     projectUuid,
     disabled = false,
     missingRequiredParameters,
-    isEditMode = false,
-    pinnedParameters = [],
-    onParameterPin,
 }) => {
     const parameterKeys = parameters ? Object.keys(parameters) : [];
     const selectedParametersCount = Object.values(parameterValues).filter(
@@ -120,48 +113,6 @@ export const ParameterSelection: FC<ParameterSelectionProps> = ({
                                         </Tooltip>
                                     )}
                                 </Group>
-                                {isEditMode && onParameterPin && (
-                                    <Tooltip
-                                        label={
-                                            pinnedParameters.includes(paramKey)
-                                                ? 'Unpin parameter'
-                                                : 'Pin parameter'
-                                        }
-                                        position="left"
-                                    >
-                                        <ActionIcon
-                                            size="xs"
-                                            variant={
-                                                pinnedParameters.includes(
-                                                    paramKey,
-                                                )
-                                                    ? 'filled'
-                                                    : 'subtle'
-                                            }
-                                            color={
-                                                pinnedParameters.includes(
-                                                    paramKey,
-                                                )
-                                                    ? 'blue'
-                                                    : 'gray'
-                                            }
-                                            onClick={() =>
-                                                onParameterPin(paramKey)
-                                            }
-                                        >
-                                            <MantineIcon
-                                                icon={
-                                                    pinnedParameters.includes(
-                                                        paramKey,
-                                                    )
-                                                        ? IconPinFilled
-                                                        : IconPin
-                                                }
-                                                size="sm"
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
-                                )}
                             </Group>
                             <ParameterInput
                                 paramKey={paramKey}

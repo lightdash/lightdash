@@ -204,10 +204,8 @@ type DashboardTabsProps = {
     };
     isParameterLoading: boolean;
     missingRequiredParameters: string[];
-    pinnedParameters: string[];
     onParameterChange: (key: string, value: ParameterValue | null) => void;
     onParameterClearAll: () => void;
-    onParameterPin: (parameterKey: string) => void;
     parameterOrder: string[];
     onParameterReorder: (order: string[]) => void;
 };
@@ -230,10 +228,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     parameters,
     isParameterLoading,
     missingRequiredParameters,
-    pinnedParameters,
     onParameterChange,
     onParameterClearAll,
-    onParameterPin,
     parameterOrder,
     onParameterReorder,
 }) => {
@@ -1005,12 +1001,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                     }
                                                     missingRequiredParameters={
                                                         missingRequiredParameters
-                                                    }
-                                                    pinnedParameters={
-                                                        pinnedParameters
-                                                    }
-                                                    onParameterPin={
-                                                        onParameterPin
                                                     }
                                                     parameterOrder={
                                                         parameterOrder

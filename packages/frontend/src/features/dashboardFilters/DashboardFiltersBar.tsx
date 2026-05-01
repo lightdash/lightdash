@@ -12,7 +12,6 @@ import {
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
-import PinnedParameters from '../../components/PinnedParameters';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
@@ -30,8 +29,6 @@ type Props = {
     onParameterClearAll: () => void;
     isParameterLoading: boolean;
     missingRequiredParameters: string[];
-    pinnedParameters: string[];
-    onParameterPin: (parameterKey: string) => void;
     parameterOrder: string[];
     onParameterReorder: (order: string[]) => void;
     isDateZoomDisabled: boolean;
@@ -49,8 +46,6 @@ export const DashboardFiltersBar: FC<Props> = ({
     onParameterClearAll,
     isParameterLoading,
     missingRequiredParameters,
-    pinnedParameters,
-    onParameterPin,
     parameterOrder,
     onParameterReorder,
     isDateZoomDisabled,
@@ -135,13 +130,10 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         missingRequiredParameters={
                                             missingRequiredParameters
                                         }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
                                         parameterOrder={parameterOrder}
                                         onParameterReorder={onParameterReorder}
                                         separator={parametersSeparator}
                                     />
-                                    <PinnedParameters isEditMode={isEditMode} />
                                 </>
                             )}
                         </Group>
