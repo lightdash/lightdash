@@ -1,3 +1,10 @@
+# [0.2860.0](https://github.com/lightdash/lightdash/compare/0.2859.0...0.2860.0) (2026-05-01)
+
+
+### Features
+
+* project-level color palette picker ([#22590](https://github.com/lightdash/lightdash/issues/22590)) ([773bf25](https://github.com/lightdash/lightdash/commit/773bf2575e5d154dce1fa204ff0d05a5e42451e6))
+
 # [0.2859.0](https://github.com/lightdash/lightdash/compare/0.2858.1...0.2859.0) (2026-05-01)
 
 
