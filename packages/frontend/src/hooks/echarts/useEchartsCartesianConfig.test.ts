@@ -438,7 +438,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: null },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(1);
         expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
     });
@@ -450,7 +455,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20 },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(1);
         expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
     });
@@ -462,7 +472,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: 0 },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(2);
     });
 
@@ -473,7 +488,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: '' },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(2);
     });
 
@@ -481,7 +501,12 @@ describe('filterSeriesWithNoData', () => {
         const series = [makeSeries('metric_a'), makeSeries(undefined)];
         const results = [{ metric_a: 10 }];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(2);
     });
 
@@ -489,7 +514,25 @@ describe('filterSeriesWithNoData', () => {
         const series = [makeSeries('metric_a'), makeSeries('metric_b')];
         const results: Record<string, unknown>[] = [];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
+        expect(filtered).toBe(series);
+    });
+
+    test('returns unfilteredSeries when isShowHideRowsEnabled is false', () => {
+        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
+        const results = [{ metric_a: 10, metric_b: null }];
+
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            false,
+            rowLimit,
+        );
         expect(filtered).toBe(series);
     });
 
@@ -497,7 +540,12 @@ describe('filterSeriesWithNoData', () => {
         const series = [makeSeries('metric_a'), makeSeries('metric_b')];
         const results = [{ metric_a: 10, metric_b: null }];
 
-        const filtered = filterSeriesWithNoData(series, results, undefined);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            undefined,
+        );
         expect(filtered).toBe(series);
     });
 
@@ -508,7 +556,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: 5 },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(2);
     });
 
@@ -523,7 +576,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: '∅' },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         // '∅' is a truthy string — series is kept. This is a known limitation:
         // getResultValueArray falls back from null raw to formatted string.
         expect(filtered).toHaveLength(2);
@@ -545,7 +603,12 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, label_col: null, metric_b: null },
         ];
 
-        const filtered = filterSeriesWithNoData(series, results, rowLimit);
+        const filtered = filterSeriesWithNoData(
+            series,
+            results,
+            true,
+            rowLimit,
+        );
         expect(filtered).toHaveLength(2);
     });
 });

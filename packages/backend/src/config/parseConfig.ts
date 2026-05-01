@@ -1537,6 +1537,8 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
 > = [
     // Add per migration; truthy env value enables the flag.
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
+    ['SHOW_HIDE_ROWS_ENABLED', 'show-hide-rows'],
+    ['SHOW_HIDE_COLUMNS_ENABLED', 'show-hide-columns'],
     ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
     // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
     // translating to enabledFeatureFlags ensures both existing and new cloud

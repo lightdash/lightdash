@@ -1,7 +1,9 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine-8/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
@@ -25,6 +27,10 @@ const GeneralSettings: FC = () => {
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
     const { dimensions } = resultsData?.metricQuery || {
         dimensions: [] as string[],
     };
@@ -250,7 +256,7 @@ const GeneralSettings: FC = () => {
                 />
             </Config.Section>
 
-            {!isPivotTableEnabled && (
+            {isShowHideRowsEnabled && !isPivotTableEnabled && (
                 <Config.Section>
                     <Config.Heading>Data</Config.Heading>
                     <RowLimitControls

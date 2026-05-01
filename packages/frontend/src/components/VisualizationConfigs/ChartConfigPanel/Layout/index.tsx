@@ -1,5 +1,6 @@
 import {
     CartesianSeriesType,
+    FeatureFlags,
     getItemId,
     isCustomDimension,
     isDimension,
@@ -23,6 +24,7 @@ import {
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../../../common/FieldSelect';
 import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
@@ -39,6 +41,14 @@ type Props = {
 export const Layout: FC<Props> = ({ items }) => {
     const { visualizationConfig, pivotDimensions, setPivotDimensions } =
         useVisualizationContext();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
 
     const isCartesianChart =
         isCartesianVisualizationConfig(visualizationConfig);
@@ -480,33 +490,37 @@ export const Layout: FC<Props> = ({ items }) => {
                 </Config.Section>
             </Config>
 
-            <Config>
-                <Config.Section>
-                    <Config.Heading>Data</Config.Heading>
-                    <RowLimitControls
-                        rowLimit={rowLimit}
-                        onRowLimitChange={setRowLimit}
-                    />
-                </Config.Section>
-            </Config>
-            {pivotDimensions && pivotDimensions.length > 0 && (
+            {isShowHideRowsEnabled && (
                 <Config>
                     <Config.Section>
-                        <Config.Heading>Column limit</Config.Heading>
-                        <NumberInput
-                            size="xs"
-                            min={1}
-                            max={200}
-                            step={1}
-                            allowDecimal={false}
-                            clampBehavior="strict"
-                            placeholder="No limit"
-                            value={columnLimit ?? ''}
-                            onChange={handleColumnLimitChange}
+                        <Config.Heading>Data</Config.Heading>
+                        <RowLimitControls
+                            rowLimit={rowLimit}
+                            onRowLimitChange={setRowLimit}
                         />
                     </Config.Section>
                 </Config>
             )}
+            {isShowHideColumnsEnabled &&
+                pivotDimensions &&
+                pivotDimensions.length > 0 && (
+                    <Config>
+                        <Config.Section>
+                            <Config.Heading>Column limit</Config.Heading>
+                            <NumberInput
+                                size="xs"
+                                min={1}
+                                max={200}
+                                step={1}
+                                allowDecimal={false}
+                                clampBehavior="strict"
+                                placeholder="No limit"
+                                value={columnLimit ?? ''}
+                                onChange={handleColumnLimitChange}
+                            />
+                        </Config.Section>
+                    </Config>
+                )}
         </Stack>
     );
 };

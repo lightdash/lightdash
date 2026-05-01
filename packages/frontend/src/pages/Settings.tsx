@@ -78,7 +78,10 @@ import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useProject } from '../hooks/useProject';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
+import {
+    useClientFeatureFlag,
+    useServerFeatureFlag,
+} from '../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';

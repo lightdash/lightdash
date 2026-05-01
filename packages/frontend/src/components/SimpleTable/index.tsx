@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
@@ -6,6 +7,7 @@ import {
     isChunkLoadError,
     triggerChunkErrorReload,
 } from '../../features/chunkErrorHandler';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { computeLimitedRowCount, sliceRows } from '../../utils/sliceRows';
 import LoadingChart from '../common/LoadingChart';
 import PivotTable from '../common/PivotTable';
@@ -53,12 +55,17 @@ const SimpleTable: FC<SimpleTableProps> = ({
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const rowLimit = isTableVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.rowLimit
         : undefined;
 
     const needsAllRows =
+        isShowHideRowsEnabled &&
         rowLimit != null &&
         rowLimit.count > 0 &&
         (rowLimit.direction === 'last' || rowLimit.mode === 'hide');
@@ -202,13 +209,19 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }, [visualizationConfig]);
 
     const slicedRows = useMemo(
-        () => sliceRows(resultsData?.rows || [], rowLimit),
-        [resultsData?.rows, rowLimit],
+        () =>
+            sliceRows(resultsData?.rows || [], isShowHideRowsEnabled, rowLimit),
+        [resultsData?.rows, isShowHideRowsEnabled, rowLimit],
     );
 
     const totalRowsCount = useMemo(
-        () => computeLimitedRowCount(resultsData?.totalResults || 0, rowLimit),
-        [resultsData?.totalResults, rowLimit],
+        () =>
+            computeLimitedRowCount(
+                resultsData?.totalResults || 0,
+                isShowHideRowsEnabled,
+                rowLimit,
+            ),
+        [resultsData?.totalResults, isShowHideRowsEnabled, rowLimit],
     );
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
