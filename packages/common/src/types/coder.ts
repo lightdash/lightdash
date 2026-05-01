@@ -24,6 +24,7 @@ export enum ContentAsCodeType {
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
     SPACE = 'space',
+    AI_AGENT = 'ai_agent',
 }
 
 /**

@@ -23,6 +23,7 @@ export * from './adminTypes';
 export * from './aiEvalAssessment';
 export * from './chartConfig/slack';
 export * from './chartConfig/web';
+export * from './coder';
 export * from './constants';
 export * from './filterExploreByTags';
 export * from './followUpTools';
