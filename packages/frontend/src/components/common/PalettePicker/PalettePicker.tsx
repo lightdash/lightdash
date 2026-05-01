@@ -58,7 +58,9 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
     swatches,
 }) => (
     <Group gap="sm" wrap="nowrap" className={classes.row}>
-        <Text className={classes.name}>{name}</Text>
+        <Text size="xs" className={classes.name}>
+            {name}
+        </Text>
         {swatches && (
             <Group gap="xs" wrap="nowrap" className={classes.swatches}>
                 <SwatchInline
@@ -69,7 +71,9 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
                 />
                 {swatches.darkColors && swatches.darkColors.length > 0 && (
                     <>
-                        <Text c="ldGray.3">/</Text>
+                        <Text size="xs" c="ldGray.3">
+                            /
+                        </Text>
                         <SwatchInline
                             icon={IconMoon}
                             label="Dark mode"
