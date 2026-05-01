@@ -1,4 +1,10 @@
-import { type ApiError } from '@lightdash/common';
+import {
+    type ApiError,
+    type ContentVerificationInfo,
+    type Dashboard,
+    type SavedChart,
+    type UpdatedByUser,
+} from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -16,16 +22,23 @@ import {
     UnstyledButton,
 } from '@mantine-8/core';
 import {
+    IconAlertTriangle,
     IconArrowBackUp,
     IconBolt,
     IconBrandSlack,
     IconChartBar,
+    IconCircleCheck,
+    IconClock,
     IconDots,
     IconExternalLink,
+    IconEye,
+    IconFolder,
+    IconHash,
     IconLayoutDashboard,
     IconPlayerPlay,
     IconSettings,
     IconTool,
+    IconTrash,
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -36,8 +49,11 @@ import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
+import InfoRow from '../../../components/common/PageHeader/InfoRow';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
+import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
+import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
@@ -332,39 +348,142 @@ const ChartDetails: FC<{ metadata: Record<string, unknown> }> = ({
     );
 };
 
-const StaleDetails: FC<{ metadata: Record<string, unknown> }> = ({
+const BrokenDetails: FC<{ metadata: Record<string, unknown> }> = ({
     metadata,
 }) => {
-    const viewsCount = metadata.views_count as number | undefined;
-    const lastViewedAt = metadata.last_viewed_at as string | undefined;
+    const error = metadata.error as string | undefined;
+    const errorType = metadata.error_type as string | undefined;
+    const source = metadata.source as string | undefined;
+    if (!error && !errorType && !source) return null;
 
-    if (viewsCount === undefined && !lastViewedAt) return null;
+    const hasRows = !!errorType || !!source;
 
     return (
         <Stack gap="sm">
-            <MetadataLabel label="Usage" />
-            <Group gap="lg">
-                {viewsCount !== undefined && (
-                    <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
-                            Total views
-                        </Text>
-                        <Text fz="xs" fw={500}>
-                            {viewsCount}
-                        </Text>
-                    </Stack>
+            <MetadataLabel label="Validation error" />
+            {hasRows && (
+                <Stack gap={10}>
+                    {errorType && (
+                        <InfoRow icon={IconAlertTriangle} label="Type">
+                            {errorType}
+                        </InfoRow>
+                    )}
+                    {source && (
+                        <InfoRow icon={IconHash} label="Source">
+                            {source}
+                        </InfoRow>
+                    )}
+                </Stack>
+            )}
+            {error && (
+                <Text fz="xs" lh={1.7} ff="monospace">
+                    {error}
+                </Text>
+            )}
+        </Stack>
+    );
+};
+
+const SlowDetails: FC<{ metadata: Record<string, unknown> }> = ({
+    metadata,
+}) => {
+    const execMs = metadata.execution_time_ms as number | undefined;
+    const context = metadata.context as string | undefined;
+    if (execMs === undefined) return null;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label="Performance" />
+            <Stack gap={10}>
+                <InfoRow icon={IconClock} label="Execution time">
+                    {(execMs / 1000).toFixed(1)}s
+                </InfoRow>
+                {context && (
+                    <InfoRow icon={IconHash} label="Context">
+                        {context}
+                    </InfoRow>
                 )}
-                {lastViewedAt && (
-                    <Stack gap={2}>
-                        <Text fz={10} c="dimmed">
-                            Last viewed
-                        </Text>
-                        <Text fz="xs" fw={500}>
-                            {new Date(lastViewedAt).toLocaleDateString()}
-                        </Text>
-                    </Stack>
+            </Stack>
+        </Stack>
+    );
+};
+
+type ContentContext = {
+    description: string | null;
+    spaceName: string | null;
+    updatedAt: Date | string | null;
+    updatedByUser: UpdatedByUser | undefined;
+    verification: ContentVerificationInfo | null;
+    deletedAt: Date | undefined;
+    views?: number;
+};
+
+const toContentContext = (content: SavedChart | Dashboard): ContentContext => ({
+    description: content.description?.trim() || null,
+    spaceName: content.spaceName ?? null,
+    updatedAt: content.updatedAt ?? null,
+    updatedByUser: content.updatedByUser,
+    verification: content.verification,
+    deletedAt: content.deletedAt,
+    views: 'views' in content ? content.views : undefined,
+});
+
+const ContentContextDetails: FC<{
+    label: string;
+    context: ContentContext;
+}> = ({ label, context }) => {
+    const lastUpdatedBy = context.updatedByUser
+        ? `${context.updatedByUser.firstName} ${context.updatedByUser.lastName}`.trim()
+        : null;
+    const verifiedBy = context.verification?.verifiedBy
+        ? `${context.verification.verifiedBy.firstName} ${context.verification.verifiedBy.lastName}`.trim()
+        : null;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label={label} />
+            <Stack gap={10}>
+                {context.spaceName && (
+                    <InfoRow icon={IconFolder} label="Space">
+                        {context.spaceName}
+                    </InfoRow>
                 )}
-            </Group>
+                {context.updatedAt && (
+                    <InfoRow icon={IconClock} label="Last modified">
+                        <Tooltip
+                            label={formatAbsoluteTimestamp(
+                                new Date(context.updatedAt).toISOString(),
+                            )}
+                            withinPortal
+                        >
+                            <span>
+                                {formatDistanceToNowStrict(
+                                    new Date(context.updatedAt),
+                                    { addSuffix: true },
+                                )}
+                                {lastUpdatedBy ? ` by ${lastUpdatedBy}` : ''}
+                            </span>
+                        </Tooltip>
+                    </InfoRow>
+                )}
+                {typeof context.views === 'number' && (
+                    <InfoRow icon={IconEye} label="Total views">
+                        {context.views.toLocaleString()}
+                    </InfoRow>
+                )}
+                {verifiedBy && (
+                    <InfoRow icon={IconCircleCheck} label="Verified">
+                        by {verifiedBy}
+                    </InfoRow>
+                )}
+                {context.deletedAt && (
+                    <InfoRow icon={IconTrash} label="Deleted">
+                        {formatAbsoluteTimestamp(
+                            new Date(context.deletedAt).toISOString(),
+                        )}
+                    </InfoRow>
+                )}
+            </Stack>
         </Stack>
     );
 };
@@ -401,12 +520,44 @@ const DetailSidebar: FC<{
             action.targetType === 'chart' ? action.targetUuid : undefined,
         projectUuid: action.projectUuid,
     });
-    const chartDescription = savedChart?.description ?? null;
+    const { data: dashboard } = useDashboardQuery({
+        uuidOrSlug:
+            action.targetType === 'dashboard' ? action.targetUuid : undefined,
+        projectUuid: action.projectUuid,
+    });
+    const { data: chartViewStats } = useChartViewStats(
+        action.targetType === 'chart' ? action.targetUuid : undefined,
+    );
+
+    const baseContext: ContentContext | null = savedChart
+        ? toContentContext(savedChart)
+        : dashboard
+          ? toContentContext(dashboard)
+          : null;
+    const metadataViews = action.metadata.views_count;
+    const fallbackViews =
+        chartViewStats?.views ??
+        (typeof metadataViews === 'number' ? metadataViews : undefined);
+    const contentContext: ContentContext | null = baseContext
+        ? {
+              ...baseContext,
+              views: baseContext.views ?? fallbackViews,
+          }
+        : null;
+    const contextLabel =
+        action.targetType === 'dashboard'
+            ? 'Dashboard context'
+            : 'Chart context';
 
     const hasChartDetails = !!action.metadata.chart_as_code;
-    const hasStaleDetails =
-        action.metadata.views_count !== undefined ||
-        !!action.metadata.last_viewed_at;
+    const hasBrokenDetails =
+        action.actionType === 'flagged_broken' &&
+        (!!action.metadata.error ||
+            !!action.metadata.error_type ||
+            !!action.metadata.source);
+    const hasSlowDetails =
+        action.actionType === 'flagged_slow' &&
+        typeof action.metadata.execution_time_ms === 'number';
 
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
@@ -480,23 +631,37 @@ const DetailSidebar: FC<{
 
             {/* Content */}
             <Stack gap="md" p="md" style={{ overflow: 'auto', flex: 1 }}>
-                {/* Chart or stale details */}
-                {hasChartDetails && <ChartDetails metadata={action.metadata} />}
-                {hasStaleDetails && <StaleDetails metadata={action.metadata} />}
-
-                {/* Divider if we showed details above */}
-                {(hasChartDetails || hasStaleDetails) && (
-                    <Box className={classes.headerDivider} />
+                {/* Resource-side metadata (space, last updated, verified, deleted) */}
+                {contentContext && (
+                    <ContentContextDetails
+                        label={contextLabel}
+                        context={contentContext}
+                    />
                 )}
 
-                {/* Chart description if available */}
-                {chartDescription && (
+                {/* Description */}
+                {contentContext?.description && (
                     <Stack gap={4}>
                         <MetadataLabel label="Description" />
                         <Text fz="xs" lh={1.7}>
-                            {chartDescription}
+                            {contentContext.description}
                         </Text>
                     </Stack>
+                )}
+
+                {/* Action-specific details */}
+                {hasChartDetails && <ChartDetails metadata={action.metadata} />}
+                {hasSlowDetails && <SlowDetails metadata={action.metadata} />}
+                {hasBrokenDetails && (
+                    <BrokenDetails metadata={action.metadata} />
+                )}
+
+                {/* Divider if we showed details above */}
+                {(hasChartDetails ||
+                    hasBrokenDetails ||
+                    hasSlowDetails ||
+                    !!contentContext) && (
+                    <Box className={classes.headerDivider} />
                 )}
 
                 {/* Agent reasoning */}
