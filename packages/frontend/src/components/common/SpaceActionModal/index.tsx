@@ -163,7 +163,11 @@ const SpaceModal: FC<ActionModalProps> = ({
                             onInheritanceChange={setInheritanceValue}
                         />
                     ) : actionType === ActionType.UPDATE ? (
-                        <UpdateSpaceModalContent data={data} form={form} />
+                        <UpdateSpaceModalContent
+                            data={data}
+                            form={form}
+                            projectUuid={projectUuid}
+                        />
                     ) : (
                         assertUnreachable(
                             actionType,
@@ -236,6 +240,7 @@ const SpaceActionModal: FC<
                 ...(!parentSpaceUuid && {
                     inheritParentPermissions: state.inheritParentPermissions,
                 }),
+                colorPaletteUuid: state.colorPaletteUuid,
             });
             onSubmitForm?.(result);
         } else if (actionType === ActionType.DELETE) {

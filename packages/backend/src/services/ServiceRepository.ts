@@ -840,6 +840,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     projectModel: this.models.getProjectModel(),
                     spaceModel: this.models.getSpaceModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                     savedChartService: this.getSavedChartService(),

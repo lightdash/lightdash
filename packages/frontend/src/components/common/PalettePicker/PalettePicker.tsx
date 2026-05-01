@@ -26,6 +26,7 @@ type Props = {
     label?: string;
     description?: string;
     placeholder?: string;
+    size?: 'xs' | 'sm' | 'md' | 'lg';
 };
 
 type SwatchSet = {
@@ -159,6 +160,7 @@ export const PalettePicker: FC<Props> = ({
     label,
     description,
     placeholder,
+    size = 'xs',
 }) => {
     const data = [
         { value: INHERIT_VALUE, label: `Inherit from ${parentLabel}` },
@@ -182,7 +184,7 @@ export const PalettePicker: FC<Props> = ({
     return (
         <Stack gap="sm">
             <Select
-                size="xs"
+                size={size}
                 label={label}
                 description={description}
                 placeholder={placeholder}

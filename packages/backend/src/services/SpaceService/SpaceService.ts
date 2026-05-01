@@ -20,6 +20,7 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -37,6 +38,7 @@ type SpaceServiceArguments = {
     lightdashConfig: LightdashConfig;
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
+    organizationModel: OrganizationModel;
     pinnedListModel: PinnedListModel;
     spacePermissionService: SpacePermissionService;
     savedChartService: SavedChartService;
@@ -84,6 +86,8 @@ export class SpaceService
 
     private readonly spaceModel: SpaceModel;
 
+    private readonly organizationModel: OrganizationModel;
+
     private readonly pinnedListModel: PinnedListModel;
 
     private readonly spacePermissionService: SpacePermissionService;
@@ -100,6 +104,7 @@ export class SpaceService
         this.lightdashConfig = args.lightdashConfig;
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
+        this.organizationModel = args.organizationModel;
         this.pinnedListModel = args.pinnedListModel;
         this.spacePermissionService = args.spacePermissionService;
         this.savedChartService = args.savedChartService;
@@ -290,6 +295,18 @@ export class SpaceService
         }
 
         const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+
+        if (updateSpace.colorPaletteUuid) {
+            const palette = await this.organizationModel.findColorPalette(
+                space.organizationUuid,
+                updateSpace.colorPaletteUuid,
+            );
+            if (!palette) {
+                throw new ParameterError(
+                    'Color palette does not belong to this organization',
+                );
+            }
+        }
 
         const { inheritParentPermissions } = updateSpace;
 
