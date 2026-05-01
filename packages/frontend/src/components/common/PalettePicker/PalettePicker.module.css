@@ -13,3 +13,14 @@
 .swatches {
     flex-shrink: 0;
 }
+
+.preview {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border: 1px solid var(--mantine-color-gray-2);
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-gray-0);
+}
+
+.previewRow > svg {
+    flex-shrink: 0;
+}
