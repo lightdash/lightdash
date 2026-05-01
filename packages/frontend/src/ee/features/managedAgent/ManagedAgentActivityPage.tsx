@@ -752,7 +752,7 @@ const SettingsSidebar: FC<{
                                             </Text>
                                         </Stack>
                                         {capability.locked ? (
-                                            <Tooltip label="Always disabled">
+                                            <Tooltip label="Always on">
                                                 <Box
                                                     component="span"
                                                     className={
