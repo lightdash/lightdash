@@ -585,6 +585,19 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     private static buildS3SecretSql(s3Config: DuckdbS3SessionConfig): string {
         const escape = (v: string) =>
             DuckdbWarehouseClient.sqlBuilder.escapeString(v);
+        const usesStaticCredentials = !!(
+            s3Config.accessKey && s3Config.secretKey
+        );
+        // Static keys may come from dedicated pre-aggregate env vars or fall back
+        // to the base S3 config. Without them, let DuckDB resolve AWS credentials
+        // through the SDK chain, including IRSA/web identity tokens.
+        const providerClause = usesStaticCredentials
+            ? ''
+            : `PROVIDER credential_chain,
+            REFRESH auto,
+            -- Defer credential validation to S3 operations so local bootstrap
+            -- does not require AWS credentials when using runtime-provided roles.
+            VALIDATION 'none',`;
         const regionClause = s3Config.region
             ? `REGION '${escape(s3Config.region)}',`
             : '';
@@ -597,6 +610,7 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
 
         return `CREATE OR REPLACE SECRET __lightdash_s3 (
             TYPE s3,
+            ${providerClause}
             ${keyIdClause}
             ${secretClause}
             ENDPOINT '${escape(s3Config.endpoint)}',

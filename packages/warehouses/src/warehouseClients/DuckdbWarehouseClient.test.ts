@@ -328,6 +328,80 @@ describe('DuckdbWarehouseClient', () => {
         expect(streamMock).toHaveBeenCalledTimes(2);
     });
 
+    it('should use DuckDB credential chain for S3 config without static credentials', async () => {
+        const runMock = jest.fn();
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 's3.eu-west-1.amazonaws.com',
+                region: 'eu-west-1',
+                forcePathStyle: false,
+                useSsl: true,
+            },
+        });
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const secretSql = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .find((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+
+        expect(secretSql).toContain('PROVIDER credential_chain');
+        expect(secretSql).toContain('REFRESH auto');
+        expect(secretSql).toContain("VALIDATION 'none'");
+        expect(secretSql).toContain("REGION 'eu-west-1'");
+        expect(secretSql).toContain("ENDPOINT 's3.eu-west-1.amazonaws.com'");
+        expect(secretSql).not.toContain('KEY_ID');
+        expect(secretSql).not.toContain("SECRET '");
+    });
+
+    it('should use static DuckDB S3 credentials when configured', async () => {
+        const runMock = jest.fn();
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 'localhost:9000',
+                region: 'us-east-1',
+                accessKey: 'key',
+                secretKey: 'secret',
+                forcePathStyle: true,
+                useSsl: false,
+            },
+        });
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const secretSql = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .find((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+
+        expect(secretSql).not.toContain('PROVIDER credential_chain');
+        expect(secretSql).toContain("KEY_ID 'key'");
+        expect(secretSql).toContain("SECRET 'secret'");
+        expect(secretSql).toContain("URL_STYLE 'path'");
+        expect(secretSql).toContain('USE_SSL false');
+    });
+
     it('should treat instanceCacheKey as the shared instance identity', async () => {
         const runMock = jest.fn();
         const streamMock = jest.fn(async () =>
