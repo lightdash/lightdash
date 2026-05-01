@@ -289,7 +289,6 @@ function getCartesianPivotConfiguration(
             PivotConfiguration['sortOnlyColumns']
         > = metricQuery.sorts.flatMap((sort) => {
             if (
-                sort.fieldId !== xField &&
                 !valuesRefs.has(sort.fieldId) &&
                 (metricQuery.metrics.includes(sort.fieldId) ||
                     (metricQuery.tableCalculations || []).some(
