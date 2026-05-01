@@ -670,10 +670,15 @@ export class ProjectController extends BaseController {
         @Body() body: { colorPaletteUuid: string | null },
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getProjectService()
-            .updateColorPalette(req.user!, projectUuid, body.colorPaletteUuid);
+            .updateColorPalette(
+                toSessionUser(req.account),
+                projectUuid,
+                body.colorPaletteUuid,
+            );
         return {
             status: 'ok',
             results: undefined,

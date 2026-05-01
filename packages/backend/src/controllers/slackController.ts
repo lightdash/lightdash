@@ -147,13 +147,14 @@ export class SlackController extends BaseController {
     async isSlackOpenIdLinked(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         // This will throw a 404 if not found
         await req.services
             .getUserService()
             .isOpenIdLinked(
-                req.user?.userUuid!,
+                toSessionUser(req.account).userUuid,
                 OpenIdIdentityIssuerType.SLACK,
             );
 
