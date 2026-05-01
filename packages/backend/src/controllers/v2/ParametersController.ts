@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
+    assertRegisteredAccount,
     KnexPaginateArgs,
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -21,6 +22,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -125,8 +127,9 @@ export class ParametersController extends BaseController {
         @Request() req: express.Request,
         @Body() parameters: LightdashProjectConfig['parameters'],
     ): Promise<ApiSuccess<undefined>> {
+        assertRegisteredAccount(req.account);
         await this.services.getProjectService().replaceProjectParameters({
-            user: req.user!,
+            user: toSessionUser(req.account),
             projectUuid,
             parameters,
         });
