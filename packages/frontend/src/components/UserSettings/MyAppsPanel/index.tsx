@@ -169,27 +169,18 @@ const MyAppsPanel: FC = () => {
                     const displayName =
                         app.name || `Untitled app ${app.appUuid.slice(0, 8)}`;
 
-                    if (hasReadyVersion(app)) {
-                        return (
-                            <Anchor
-                                component={Link}
-                                to={`/projects/${app.projectUuid}/apps/${app.appUuid}/preview`}
-                                target="_blank"
-                                fz="sm"
-                                fw={500}
-                                c="inherit"
-                                underline="hover"
-                                truncate="end"
-                            >
-                                {displayName}
-                            </Anchor>
-                        );
-                    }
-
                     return (
-                        <Text fz="sm" fw={500} truncate="end">
+                        <Anchor
+                            component={Link}
+                            to={`/projects/${app.projectUuid}/apps/${app.appUuid}`}
+                            fz="sm"
+                            fw={500}
+                            c="inherit"
+                            underline="hover"
+                            truncate="end"
+                        >
                             {displayName}
-                        </Text>
+                        </Anchor>
                     );
                 },
             },
