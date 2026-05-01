@@ -104,6 +104,8 @@ const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
                 data: [PREVIEW_BAR_HEIGHTS[i] ?? 5],
                 itemStyle: { color, borderRadius: [2, 2, 0, 0] },
                 barWidth: 10,
+                cursor: 'default',
+                silent: true,
             })),
         };
     }, [colors]);
