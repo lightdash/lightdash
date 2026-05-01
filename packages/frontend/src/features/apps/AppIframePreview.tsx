@@ -1,9 +1,28 @@
-import { useRef, type FC } from 'react';
-import { useAppSdkBridge, type QueryEvent } from './hooks/useAppSdkBridge';
+import { useCallback, useEffect, useRef, type FC } from 'react';
+import {
+    useAppSdkBridge,
+    type ElementSelectedEvent,
+    type QueryEvent,
+} from './hooks/useAppSdkBridge';
 
 type Props = {
     src: string;
     onQueryEvent?: (event: QueryEvent) => void;
+    onElementSelected?: (event: ElementSelectedEvent) => void;
+    /** When true, the iframe-side inspector overlay is active and clicks
+     *  are intercepted to produce element-selected events. */
+    inspectorEnabled?: boolean;
+    /** Called whenever the iframe SDK announces (or fails to announce) the
+     *  inspector capability. Stays `false` until the SDK posts
+     *  `lightdash:inspect:available`, so older sandboxes (resumed with a
+     *  pre-inspector SDK) keep this `false` and let the parent hide the
+     *  Inspect button. Resets to `false` on every iframe `src` change. */
+    onInspectorAvailabilityChange?: (available: boolean) => void;
+    /** Called when the user presses Esc to leave inspect mode. The handler
+     *  lives on the parent's window because that's where focus actually
+     *  sits during inspect mode (the toolbar button before any click; the
+     *  prompt editor after each click — TipTap yanks focus back on insert). */
+    onInspectorCancelled?: () => void;
 };
 
 /**
@@ -17,9 +36,64 @@ type Props = {
  * API calls through postMessage, and this component's bridge executes them
  * using the current user's session.
  */
-const AppIframePreview: FC<Props> = ({ src, onQueryEvent }) => {
+const AppIframePreview: FC<Props> = ({
+    src,
+    onQueryEvent,
+    onElementSelected,
+    inspectorEnabled,
+    onInspectorAvailabilityChange,
+    onInspectorCancelled,
+}) => {
     const iframeRef = useRef<HTMLIFrameElement>(null);
-    const { handleIframeLoad } = useAppSdkBridge(iframeRef, onQueryEvent);
+    // Memoized so the bridge's message listener doesn't re-attach on every
+    // parent render — AppGenerate re-renders on every keystroke (editor's
+    // `onUpdate` → `setIsPromptEmpty`) and we don't want to thrash listeners.
+    const handleAnnounce = useCallback(() => {
+        onInspectorAvailabilityChange?.(true);
+    }, [onInspectorAvailabilityChange]);
+    const { handleIframeLoad, enableInspector, disableInspector } =
+        useAppSdkBridge(
+            iframeRef,
+            onQueryEvent,
+            onElementSelected,
+            handleAnnounce,
+        );
+
+    // Reset availability to false on every iframe URL change. This fires
+    // before the browser starts loading the new content, so the new SDK's
+    // `available` announce will flip it back to true if it's wired up. Old
+    // SDKs in resumed sandboxes never announce, so it stays false.
+    useEffect(() => {
+        onInspectorAvailabilityChange?.(false);
+    }, [src, onInspectorAvailabilityChange]);
+
+    // Toggling the prop while the iframe is alive — push the change through.
+    useEffect(() => {
+        if (inspectorEnabled) enableInspector();
+        else disableInspector();
+    }, [inspectorEnabled, enableInspector, disableInspector]);
+
+    // Esc-to-cancel. Lives on the parent's window because focus is on the
+    // parent (the toolbar button before any click; the editor afterwards) —
+    // the iframe never holds focus during inspect mode, so an iframe-side
+    // keydown listener would never fire.
+    useEffect(() => {
+        if (!inspectorEnabled) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onInspectorCancelled?.();
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [inspectorEnabled, onInspectorCancelled]);
+
+    // The iframe reloads on every new app version. The useEffect above won't
+    // re-fire if `inspectorEnabled` was already true, so re-sync on load.
+    const handleLoad = () => {
+        handleIframeLoad();
+        if (inspectorEnabled) enableInspector();
+    };
 
     return (
         <iframe
@@ -29,7 +103,7 @@ const AppIframePreview: FC<Props> = ({ src, onQueryEvent }) => {
             title="App preview"
             sandbox="allow-scripts allow-modals"
             allow=""
-            onLoad={handleIframeLoad}
+            onLoad={handleLoad}
         />
     );
 };

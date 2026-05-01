@@ -15,6 +15,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconClick,
     IconDatabase,
     IconDatabaseOff,
     IconLayoutDashboard,
@@ -71,6 +72,32 @@ export const ImageButton: FC<{
         className={classes.resourceButton}
     >
         Images
+    </Button>
+);
+
+/**
+ * Toggle button that activates the iframe-side element inspector.
+ * While enabled, clicks inside the preview iframe are intercepted and
+ * inserted as bracketed references at the textarea cursor (e.g.
+ * `[button "Total Revenue"]: `), so the user can compose targeted edits.
+ *
+ * The caller is expected to render this only when an inspector-capable
+ * preview is mounted (i.e. gate on `inspectorAvailable`), so no `disabled`
+ * prop is needed.
+ */
+export const InspectButton: FC<{
+    enabled: boolean;
+    onToggle: () => void;
+}> = ({ enabled, onToggle }) => (
+    <Button
+        variant={enabled ? 'filled' : 'default'}
+        color={enabled ? 'violet' : undefined}
+        size="xs"
+        leftSection={<MantineIcon icon={IconClick} size={14} />}
+        onClick={onToggle}
+        className={classes.resourceButton}
+    >
+        Inspect
     </Button>
 );
 

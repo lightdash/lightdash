@@ -6,6 +6,7 @@
  */
 
 import { createApiTransport } from './apiTransport';
+import { mountInspector } from './inspector';
 import { createPostMessageTransport } from './postMessageTransport';
 import { QueryBuilder } from './query';
 import type { LightdashClientConfig, LightdashUser, Transport } from './types';
@@ -78,6 +79,7 @@ export function createClient(): LightdashClient {
         const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
         if (params.get('transport') === 'postMessage') {
             const projectUuid = params.get('projectUuid') ?? '';
+            mountInspector(window.parent);
             return new LightdashClient(
                 { apiKey: '', baseUrl: '', projectUuid },
                 createPostMessageTransport({ targetWindow: window.parent, projectUuid }),

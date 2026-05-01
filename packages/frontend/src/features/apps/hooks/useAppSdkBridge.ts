@@ -68,6 +68,11 @@ const isQueryResultGet = (method: string, path: string): boolean =>
     method.toUpperCase() === 'GET' &&
     /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/.test(path);
 
+export type ElementSelectedEvent = {
+    /** Bracketed reference produced by the iframe inspector, e.g. `[button "Save"]`. */
+    label: string;
+};
+
 /**
  * Parent-side fetch proxy for sandboxed iframe SDK communication.
  *
@@ -78,16 +83,41 @@ const isQueryResultGet = (method: string, path: string): boolean =>
  *
  * When onQueryEvent is provided, metric query requests and their results
  * are intercepted and reported for the query inspector overlay.
+ *
+ * When onElementSelected is provided, click-to-edit selections from the
+ * iframe inspector are forwarded to the caller. Use the returned
+ * enableInspector / disableInspector helpers to toggle the iframe-side
+ * overlay.
+ *
+ * `onInspectorAvailable` fires when the iframe SDK announces capability on
+ * mount. The bridge doesn't track availability state itself — the parent
+ * owns it and is responsible for resetting on iframe `src` change.
  */
 export function useAppSdkBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
     onQueryEvent?: (event: QueryEvent) => void,
+    onElementSelected?: (event: ElementSelectedEvent) => void,
+    onInspectorAvailable?: () => void,
 ) {
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
 
             const { data } = event;
+
+            if (data?.type === 'lightdash:inspect:available') {
+                onInspectorAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:inspect:selected') {
+                const label = typeof data.label === 'string' ? data.label : '';
+                if (label && onElementSelected) {
+                    onElementSelected({ label });
+                }
+                return;
+            }
+
             if (data?.type !== 'lightdash:sdk:fetch') return;
 
             const { id, method, path, body, metadata } = data;
@@ -252,7 +282,7 @@ export function useAppSdkBridge(
                 });
             }
         },
-        [iframeRef, onQueryEvent],
+        [iframeRef, onQueryEvent, onElementSelected, onInspectorAvailable],
     );
 
     useEffect(() => {
@@ -267,5 +297,23 @@ export function useAppSdkBridge(
         );
     }, [iframeRef]);
 
-    return { handleIframeLoad };
+    const enableInspector = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: 'lightdash:inspect:enable' },
+            '*',
+        );
+    }, [iframeRef]);
+
+    const disableInspector = useCallback(() => {
+        iframeRef.current?.contentWindow?.postMessage(
+            { type: 'lightdash:inspect:disable' },
+            '*',
+        );
+    }, [iframeRef]);
+
+    return {
+        handleIframeLoad,
+        enableInspector,
+        disableInspector,
+    };
 }
