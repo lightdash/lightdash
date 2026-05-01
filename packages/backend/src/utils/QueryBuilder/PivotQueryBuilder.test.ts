@@ -385,7 +385,7 @@ describe('PivotQueryBuilder', () => {
             expect(result).not.toContain('anchor_column AS (');
 
             // Should NOT create row anchor CTEs for revenue
-            expect(result).not.toContain('"revenue_row_anchor" AS (');
+            expect(result).not.toContain('"revenue_ra" AS (');
         });
 
         test('Dimension sort: should NOT create metric anchor CTEs when sorting by groupBy column', () => {
@@ -421,8 +421,8 @@ describe('PivotQueryBuilder', () => {
             expect(result).not.toContain('anchor_column AS (');
 
             // Should NOT create metric anchor CTEs
-            expect(result).not.toContain('"revenue_row_anchor" AS (');
-            expect(result).not.toContain('"revenue_column_anchor" AS (');
+            expect(result).not.toContain('"revenue_ra" AS (');
+            expect(result).not.toContain('"revenue_ca" AS (');
         });
 
         test('Metric sort: should create column_ranking and anchor_column CTEs when sorting by value column', () => {
@@ -451,7 +451,7 @@ describe('PivotQueryBuilder', () => {
             // Metric sort: should create column_ranking CTE to compute column_index per groupBy value
             expect(result).toContain('column_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ca"."revenue_ca_value" DESC',
             );
 
             // Metric sort: should create anchor_column CTE to identify first pivot column (column_index = 1)
@@ -463,7 +463,7 @@ describe('PivotQueryBuilder', () => {
 
             // Metric sort: row anchor should use CROSS JOIN with anchor_column
             // (gets metric value at first pivot column only, not MIN/MAX across all columns)
-            expect(result).toContain('"revenue_row_anchor" AS (');
+            expect(result).toContain('"revenue_ra" AS (');
             expect(replaceWhitespace(result)).toContain(
                 'MAX(CASE WHEN q."category" = ac."anchor_category" THEN q."revenue_sum" END)',
             );
@@ -494,28 +494,28 @@ describe('PivotQueryBuilder', () => {
             const result = builder.toSql();
 
             // Should add additional CTEs for metric first values
-            expect(result).toContain('"revenue_row_anchor" AS (');
-            expect(result).toContain('"revenue_column_anchor" AS (');
+            expect(result).toContain('"revenue_ra" AS (');
+            expect(result).toContain('"revenue_ca" AS (');
 
             // row_ranking CTE should join with row_anchor and compute DENSE_RANK
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
-                'JOIN "revenue_row_anchor" ON g."date" = "revenue_row_anchor"."date"',
+                'JOIN "revenue_ra" ON g."date" = "revenue_ra"."date"',
             );
 
             // column_ranking CTE should join with column_anchor and compute DENSE_RANK
             expect(replaceWhitespace(result)).toContain(
-                'JOIN "revenue_column_anchor" ON g."category" = "revenue_column_anchor"."category"',
+                'JOIN "revenue_ca" ON g."category" = "revenue_ca"."category"',
             );
 
             // Row index should be computed in row_ranking CTE (not in pivot_query)
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" DESC, g."date" ASC) AS "row_index"',
             );
 
             // Column index should be computed in column_ranking CTE (not in pivot_query)
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."category" ASC) AS "col_idx"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ca"."revenue_ca_value" DESC, g."category" ASC) AS "col_idx"',
             );
 
             // pivot_query should JOIN with precomputed rankings
@@ -557,7 +557,7 @@ describe('PivotQueryBuilder', () => {
 
             // Row index order must follow: revenue anchor ASC, store_id DESC, then date ASC (appended)
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" ASC, g."store_id" DESC, g."date" ASC) AS "row_index"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" ASC, g."store_id" DESC, g."date" ASC) AS "row_index"',
             );
         });
 
@@ -630,7 +630,7 @@ describe('PivotQueryBuilder', () => {
             // row_ranking CTE should compute row_index with DENSE_RANK in a self-contained CTE
             expect(result).toContain('row_ranking AS (');
             expect(replaceWhitespace(result)).toContain(
-                'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_row_anchor" ON g."date" = "revenue_row_anchor"."date")',
+                'row_ranking AS (SELECT DISTINCT g."date", DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" DESC, g."date" ASC) AS "row_index" FROM group_by_query g LEFT JOIN "revenue_ra" ON g."date" = "revenue_ra"."date")',
             );
 
             // pivot_query should JOIN with precomputed rankings instead of computing Window functions
@@ -863,7 +863,7 @@ describe('PivotQueryBuilder', () => {
             // Metric-sort path: column_ranking CTE drives col_idx via
             // anchor value first, then sort-only dim, then group-by column.
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC, g."priority" ASC, g."category" ASC) AS "col_idx"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ca"."revenue_ca_value" DESC, g."priority" ASC, g."category" ASC) AS "col_idx"',
             );
             // group_by_query must select priority so the ORDER BY can resolve
             expect(result).toContain('"priority"');
@@ -1748,7 +1748,7 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             // Check that row_index ORDER BY has NULLS LAST
             expect(replaceWhitespace(result)).toContain(
-                '"revenue_row_anchor"."revenue_row_anchor_value" DESC NULLS LAST',
+                '"revenue_ra"."revenue_ra_value" DESC NULLS LAST',
             );
 
             // Check column anchor CTE has NULLS LAST
@@ -1786,7 +1786,7 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             // Row index should include NULLS FIRST when sorting by value column
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" ASC NULLS FIRST, g."date" ASC) AS "row_index"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" ASC NULLS FIRST, g."date" ASC) AS "row_index"',
             );
         });
 
@@ -1819,7 +1819,7 @@ SELECT * FROM group_by_query LIMIT 50`);
 
             // Column index should include NULLS LAST in column_ranking CTE
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC NULLS LAST, g."category" ASC) AS "col_idx"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ca"."revenue_ca_value" DESC NULLS LAST, g."category" ASC) AS "col_idx"',
             );
         });
 
@@ -1920,13 +1920,11 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             // Should use LEFT JOIN for both row and column anchor CTEs
-            expect(result).toContain('LEFT JOIN "revenue_row_anchor" ON');
-            expect(result).toContain('LEFT JOIN "revenue_column_anchor" ON');
+            expect(result).toContain('LEFT JOIN "revenue_ra" ON');
+            expect(result).toContain('LEFT JOIN "revenue_ca" ON');
             // Should not use regular JOIN (without LEFT)
-            expect(result).not.toMatch(/(?<!LEFT )JOIN "revenue_row_anchor"/);
-            expect(result).not.toMatch(
-                /(?<!LEFT )JOIN "revenue_column_anchor"/,
-            );
+            expect(result).not.toMatch(/(?<!LEFT )JOIN "revenue_ra"/);
+            expect(result).not.toMatch(/(?<!LEFT )JOIN "revenue_ca"/);
         });
     });
 
@@ -4059,7 +4057,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // https://github.com/lightdash/lightdash/issues/20683
             // Repro: a metric named "AVERAGE TAX RATE 2" combined with a
             // pivot + metric sort. The pivot pipeline derives CTE names like
-            // "events_AVERAGE TAX RATE 2_column_anchor" from field references,
+            // "events_AVERAGE TAX RATE 2_ca" from field references,
             // and an unquoted CTE name in WITH or in LEFT JOIN broke with
             // `syntax error at or near "TAX"`.
             // Expectation: anchor CTE names AND every JOIN target are wrapped
@@ -4091,31 +4089,25 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             // CTE definitions in the WITH clause must be quoted.
-            expect(result).toContain(`"${fieldWithSpaces}_column_anchor" AS (`);
-            expect(result).toContain(`"${fieldWithSpaces}_row_anchor" AS (`);
+            expect(result).toContain(`"${fieldWithSpaces}_ca" AS (`);
+            expect(result).toContain(`"${fieldWithSpaces}_ra" AS (`);
 
             // Every reference of those CTEs (LEFT JOIN, qualified column
             // accesses) must also be quoted — the original bug was unquoted
             // names appearing in JOIN clauses, not just CTE definitions.
+            expect(result).toContain(`LEFT JOIN "${fieldWithSpaces}_ra"`);
+            expect(result).toContain(`LEFT JOIN "${fieldWithSpaces}_ca"`);
             expect(result).toContain(
-                `LEFT JOIN "${fieldWithSpaces}_row_anchor"`,
+                `"${fieldWithSpaces}_ca"."${fieldWithSpaces}_ca_value"`,
             );
             expect(result).toContain(
-                `LEFT JOIN "${fieldWithSpaces}_column_anchor"`,
-            );
-            expect(result).toContain(
-                `"${fieldWithSpaces}_column_anchor"."${fieldWithSpaces}_column_anchor_value"`,
-            );
-            expect(result).toContain(
-                `"${fieldWithSpaces}_row_anchor"."${fieldWithSpaces}_row_anchor_value"`,
+                `"${fieldWithSpaces}_ra"."${fieldWithSpaces}_ra_value"`,
             );
 
             // The bare unquoted form must not appear anywhere — that is what
             // would produce the original `syntax error at or near "TAX"`.
-            expect(result).not.toContain(`${fieldWithSpaces}_column_anchor AS`);
-            expect(result).not.toContain(
-                `LEFT JOIN ${fieldWithSpaces}_row_anchor`,
-            );
+            expect(result).not.toContain(`${fieldWithSpaces}_ca AS`);
+            expect(result).not.toContain(`LEFT JOIN ${fieldWithSpaces}_ra`);
         });
 
         test('Pivot SQL on Databricks emits self-contained row_ranking + column_ranking CTEs for metric sort (#20681)', () => {
@@ -4167,7 +4159,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // row_ranking is self-contained: it owns its JOIN to row_anchor
             // and produces row_index as a concrete output column.
             expect(replaceWhitespace(result)).toContain(
-                'row_ranking AS (SELECT DISTINCT g.`event_tier`, DENSE_RANK() OVER (ORDER BY `count_row_anchor`.`count_row_anchor_value` DESC, g.`event_tier` ASC) AS `row_index` FROM group_by_query g LEFT JOIN `count_row_anchor` ON g.`event_tier` = `count_row_anchor`.`event_tier`)',
+                'row_ranking AS (SELECT DISTINCT g.`event_tier`, DENSE_RANK() OVER (ORDER BY `count_ra`.`count_ra_value` DESC, g.`event_tier` ASC) AS `row_index` FROM group_by_query g LEFT JOIN `count_ra` ON g.`event_tier` = `count_ra`.`event_tier`)',
             );
 
             // pivot_query just joins precomputed rankings — no inline
@@ -4230,7 +4222,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // column_ranking ORDER BY echoes the NULLS treatment for the
             // anchor value, then falls back to the groupBy field as tiebreaker.
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_column_anchor"."revenue_column_anchor_value" DESC NULLS FIRST, g."category" ASC) AS "col_idx"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ca"."revenue_ca_value" DESC NULLS FIRST, g."category" ASC) AS "col_idx"',
             );
 
             // row_index ORDER BY combines BOTH sort entries with their own
@@ -4238,7 +4230,7 @@ SELECT * FROM group_by_query LIMIT 50`);
             // NULLS LAST. A regression that drops the per-entry nulls flag
             // would collapse one of these.
             expect(replaceWhitespace(result)).toContain(
-                'DENSE_RANK() OVER (ORDER BY "revenue_row_anchor"."revenue_row_anchor_value" DESC NULLS FIRST, g."date" ASC NULLS LAST) AS "row_index"',
+                'DENSE_RANK() OVER (ORDER BY "revenue_ra"."revenue_ra_value" DESC NULLS FIRST, g."date" ASC NULLS LAST) AS "row_index"',
             );
         });
 
@@ -4338,8 +4330,8 @@ SELECT * FROM group_by_query LIMIT 50`);
             const result = builder.toSql();
 
             // Both sort metrics produce a column_anchor CTE.
-            expect(result).toContain('"revenue_column_anchor" AS (');
-            expect(result).toContain('"orders_column_anchor" AS (');
+            expect(result).toContain('"revenue_ca" AS (');
+            expect(result).toContain('"orders_ca" AS (');
 
             // Count is the assertion: every FIRST_VALUE must be paired with a
             // ROWS BETWEEN frame clause. A regression that leaves frames off
@@ -4733,11 +4725,9 @@ SELECT * FROM group_by_query LIMIT 50`);
             // scoped to just that CTE rather than the whole SQL. Nested
             // parens inside FIRST_VALUE / OVER (...) make a regex slice
             // brittle, so use named CTE markers as bounds.
-            const colAnchorStart = collapsed.indexOf(
-                '"revenue_column_anchor" AS (',
-            );
+            const colAnchorStart = collapsed.indexOf('"revenue_ca" AS (');
             const rowAnchorStart = collapsed.indexOf(
-                '"revenue_row_anchor" AS (',
+                '"revenue_ra" AS (',
                 colAnchorStart,
             );
             expect(colAnchorStart).toBeGreaterThanOrEqual(0);
@@ -4758,6 +4748,51 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Mixing them up is the documented regression path.
             expect(colAnchorBody).not.toContain('MAX(CASE WHEN');
             expect(colAnchorBody).not.toContain('CROSS JOIN anchor_column');
+        });
+
+        test('Anchor CTE identifiers stay within the Postgres 63-byte limit for long field references (#21401)', () => {
+            // https://github.com/lightdash/lightdash/issues/21401 / Pylon #12225
+            // Repro: a metric with a 49-char reference combined with a pivot
+            // metric sort. Anchor CTE suffixes used to be `_column_anchor_value`
+            // (20 chars), so `{ref}_column_anchor_value` overflowed Postgres'
+            // 63-byte identifier limit and silently truncated, breaking the
+            // JOIN to the anchor CTE.
+            // Expectation: every quoted identifier in the emitted SQL fits in
+            // 63 bytes, and the anchor CTEs use the short `_ca` / `_ra`
+            // suffixes that buy ~17 chars of headroom for the field reference.
+            const longRef = 'fct_tickets_ticket_id_count_distinct_of_ticket_id';
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: longRef,
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'category' }],
+                sortBy: [
+                    { reference: longRef, direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // Every quoted identifier must fit in Postgres' 63-byte limit.
+            const overlong = (result.match(/"[^"]+"/g) ?? []).filter(
+                (q) => q.length - 2 > 63,
+            );
+            expect(overlong).toEqual([]);
+
+            // Sanity check: anchor CTEs use the short suffixes.
+            expect(result).toContain(`"${longRef}_ca" AS (`);
+            expect(result).toContain(`"${longRef}_ra" AS (`);
         });
     });
 });
