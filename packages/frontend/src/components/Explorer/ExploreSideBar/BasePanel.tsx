@@ -47,6 +47,7 @@ const BasePanel = () => {
                 explores = new Fuse(Object.values(exploresResult.data), {
                     keys: [
                         'label',
+                        'name',
                         'preAggregateSource.preAggregateName',
                         'preAggregateSource.sourceExploreName',
                     ],

@@ -81,6 +81,7 @@ export const getSearchItemMap = (
             };
         }
 
+        const underlyingName = item.name !== item.label ? item.name : undefined;
         return {
             type: SearchItemType.TABLE,
             typeLabel: item.name === item.explore ? 'Table' : 'Joined table',
@@ -89,7 +90,9 @@ export const getSearchItemMap = (
                     ? undefined
                     : `${item.exploreLabel} - `,
             title: item.label,
-            description: item.description,
+            description: [underlyingName, item.description]
+                .filter(Boolean)
+                .join(' · '),
             item: item,
             location: {
                 pathname: `/projects/${projectUuid}/tables/${item.explore}`,
@@ -129,6 +132,7 @@ export const getSearchItemMap = (
                 },
             },
         );
+        const underlyingName = item.name !== item.label ? item.name : undefined;
         return {
             type: SearchItemType.FIELD,
             typeLabel:
@@ -138,7 +142,9 @@ export const getSearchItemMap = (
                     ? `${item.tableLabel} - `
                     : `${item.exploreLabel} - ${item.tableLabel} - `,
             title: item.label,
-            description: item.description,
+            description: [underlyingName, item.description]
+                .filter(Boolean)
+                .join(' · '),
             meta: item,
             location: explorePath,
         };
