@@ -212,13 +212,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     helpers.job,
                     APP_GENERATE_TIMEOUT_MS,
                     async (_job, e) => {
-                        await this.appGenerateService.markError(
+                        const marked = await this.appGenerateService.markError(
                             payload.appUuid,
                             payload.version,
                             e,
                             'Build timed out. Please try again.',
                         );
-                        this.appGenerateService.trackTimeoutFailure(payload, e);
+                        if (marked) {
+                            this.appGenerateService.trackTimeoutFailure(
+                                payload,
+                                e,
+                            );
+                        }
                     },
                 );
             },
