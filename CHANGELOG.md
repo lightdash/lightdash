@@ -1,3 +1,16 @@
+# [0.2854.0](https://github.com/lightdash/lightdash/compare/0.2853.1...0.2854.0) (2026-05-01)
+
+
+### Bug Fixes
+
+* **data-apps:** suppress spurious failed analytics event on cancel ([#22591](https://github.com/lightdash/lightdash/issues/22591)) ([1ae3c27](https://github.com/lightdash/lightdash/commit/1ae3c276779f4413d6f13c658160c414d158c821))
+
+
+### Features
+
+* match underlying dbt names in table and field search ([#22589](https://github.com/lightdash/lightdash/issues/22589)) ([2647938](https://github.com/lightdash/lightdash/commit/2647938bb15bbc13e6c07fd075040141c7b87fb3)), closes [#7493](https://github.com/lightdash/lightdash/issues/7493)
+* **permissions:** hide SQL custom dim authoring + diff-aware save gate ([#22555](https://github.com/lightdash/lightdash/issues/22555)) ([4e8b8d8](https://github.com/lightdash/lightdash/commit/4e8b8d8b867d30a7aab55e9700f7c922764e1f40)), closes [#22541](https://github.com/lightdash/lightdash/issues/22541) [#22451](https://github.com/lightdash/lightdash/issues/22451)
+
 ## [0.2853.1](https://github.com/lightdash/lightdash/compare/0.2853.0...0.2853.1) (2026-05-01)
 
 
