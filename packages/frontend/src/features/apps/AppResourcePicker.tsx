@@ -7,6 +7,7 @@ import {
     Group,
     Image,
     Loader,
+    LoadingOverlay,
     Popover,
     ScrollArea,
     Text,
@@ -293,7 +294,9 @@ export const QueryButton: FC<{
 export const SelectedImageSection: FC<{
     images: Array<{ previewUrl: string }>;
     onRemove: (previewUrl: string) => void;
-}> = ({ images, onRemove }) => {
+    disabled?: boolean;
+    loading?: boolean;
+}> = ({ images, onRemove, disabled, loading }) => {
     if (images.length === 0) return null;
 
     return (
@@ -305,11 +308,22 @@ export const SelectedImageSection: FC<{
                         className={classes.imageThumb}
                         alt="Attached"
                     />
-                    <CloseButton
-                        size="xs"
-                        className={classes.imageRemove}
-                        onClick={() => onRemove(img.previewUrl)}
+                    <LoadingOverlay
+                        visible={loading ?? false}
+                        loaderProps={{ size: 'xs' }}
+                        overlayProps={{
+                            radius: 'md',
+                            backgroundOpacity: 0.5,
+                        }}
                     />
+                    {!loading && (
+                        <CloseButton
+                            size="xs"
+                            className={classes.imageRemove}
+                            onClick={() => onRemove(img.previewUrl)}
+                            disabled={disabled}
+                        />
+                    )}
                 </Box>
             ))}
         </Group>
@@ -325,7 +339,8 @@ export const SelectedQuerySection: FC<{
     charts: SelectedChart[];
     onRemove: (uuid: string) => void;
     onToggleSampleData: (uuid: string) => void;
-}> = ({ charts, onRemove, onToggleSampleData }) => {
+    disabled?: boolean;
+}> = ({ charts, onRemove, onToggleSampleData, disabled }) => {
     if (charts.length === 0) return null;
 
     return (
@@ -351,6 +366,7 @@ export const SelectedQuerySection: FC<{
                             }
                             color={chart.includeSampleData ? 'blue' : 'gray'}
                             onClick={() => onToggleSampleData(chart.uuid)}
+                            disabled={disabled}
                             aria-label={
                                 chart.includeSampleData
                                     ? 'Sample data: on'
@@ -372,6 +388,7 @@ export const SelectedQuerySection: FC<{
                         variant="subtle"
                         color="gray"
                         onClick={() => onRemove(chart.uuid)}
+                        disabled={disabled}
                     >
                         <MantineIcon icon={IconX} size={12} />
                     </ActionIcon>
@@ -499,7 +516,8 @@ export const SelectedDashboardSection: FC<{
     dashboard: SelectedDashboard;
     onRemove: () => void;
     onToggleSampleData: () => void;
-}> = ({ dashboard, onRemove, onToggleSampleData }) => (
+    disabled?: boolean;
+}> = ({ dashboard, onRemove, onToggleSampleData, disabled }) => (
     <Box className={classes.selectedQueryList}>
         <Box className={classes.selectedQueryItem}>
             <IconBox icon={IconLayoutDashboard} color="green.6" />
@@ -517,6 +535,7 @@ export const SelectedDashboardSection: FC<{
                     variant={dashboard.includeSampleData ? 'filled' : 'default'}
                     color={dashboard.includeSampleData ? 'blue' : 'gray'}
                     onClick={onToggleSampleData}
+                    disabled={disabled}
                     aria-label={
                         dashboard.includeSampleData
                             ? 'Sample data: on'
@@ -538,6 +557,7 @@ export const SelectedDashboardSection: FC<{
                 variant="subtle"
                 color="gray"
                 onClick={onRemove}
+                disabled={disabled}
             >
                 <MantineIcon icon={IconX} size={12} />
             </ActionIcon>
