@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiPaginatedValidateResponse,
     ApiSingleValidationResponse,
+    assertRegisteredAccount,
     ValidationErrorType,
     ValidationSourceType,
 } from '@lightdash/common';
@@ -18,6 +19,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -60,6 +62,7 @@ export class ValidationControllerV2 extends BaseController {
         @Query() includeChartConfigWarnings?: boolean,
         @Query() fromSettings?: boolean,
     ): Promise<ApiPaginatedValidateResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const parsedSourceTypes = sourceTypes
@@ -85,7 +88,7 @@ export class ValidationControllerV2 extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getValidationService().getPaginated(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 { page, pageSize },
                 {
@@ -117,12 +120,13 @@ export class ValidationControllerV2 extends BaseController {
         @Path() validationId: number,
         @Request() req: express.Request,
     ): Promise<ApiSingleValidationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getValidationService()
-                .getById(req.user!, projectUuid, validationId),
+                .getById(toSessionUser(req.account), projectUuid, validationId),
         };
     }
 }

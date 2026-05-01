@@ -18,6 +18,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { GdriveService } from '../services/GdriveService/GdriveService';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
@@ -38,12 +39,13 @@ export class GoogleDriveController extends BaseController {
     async get(
         @Request() req: express.Request,
     ): Promise<ApiGdriveAccessTokenResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getUserService()
-                .getAccessToken(req.user!),
+                .getAccessToken(toSessionUser(req.account)),
         };
     }
 
