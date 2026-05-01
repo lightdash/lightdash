@@ -23,6 +23,13 @@ import useToaster from './toaster/useToaster';
 import { invalidateContent } from './useContent';
 import useSearchParams from './useSearchParams';
 
+const isCustomSqlDimensionForbiddenError = (
+    error: ApiError['error'],
+): boolean =>
+    error.statusCode === 403 &&
+    typeof error.message === 'string' &&
+    error.message.toLowerCase().includes('custom sql dimensions');
+
 const createSavedQuery = async (
     projectUuid: string,
     payload: CreateSavedChart,
@@ -346,7 +353,8 @@ export const useCreateMutation = ({
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
         (data) =>
             projectUuid
@@ -379,6 +387,14 @@ export const useCreateMutation = ({
                 }
             },
             onError: ({ error }) => {
+                if (isCustomSqlDimensionForbiddenError(error)) {
+                    showToastError({
+                        title: "Can't save chart",
+                        subtitle:
+                            "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+                    });
+                    return;
+                }
                 showToastApiError({
                     title: `Failed to save chart`,
                     apiError: error,
@@ -464,7 +480,8 @@ export const useAddVersionMutation = () => {
     const queryClient = useQueryClient();
     const dashboardUuid = useSearchParams('fromDashboard');
 
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
     return useMutation<
         SavedChart,
         ApiError,
@@ -520,6 +537,14 @@ export const useAddVersionMutation = () => {
             }
         },
         onError: ({ error }) => {
+            if (isCustomSqlDimensionForbiddenError(error)) {
+                showToastError({
+                    title: "Can't update chart",
+                    subtitle:
+                        "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+                });
+                return;
+            }
             showToastApiError({
                 title: `Failed to update chart`,
                 apiError: error,

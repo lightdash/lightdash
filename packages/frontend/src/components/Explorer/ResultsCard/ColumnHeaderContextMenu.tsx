@@ -4,6 +4,7 @@ import {
     getItemLabelWithoutTableName,
     getItemMap,
     isCustomDimension,
+    isCustomSqlDimension,
     isDimension,
     isField,
     isFilterableField,
@@ -27,6 +28,7 @@ import { useMemo, useState, type FC } from 'react';
 import {
     explorerActions,
     selectAdditionalMetrics,
+    selectSavedChart,
     selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
@@ -38,6 +40,8 @@ import {
 } from '../../../features/tableCalculation';
 import { useExplore } from '../../../hooks/useExplore';
 import { useFilters } from '../../../hooks/useFilters';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { BetaBadge } from '../../common/BetaBadge';
@@ -70,6 +74,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
+    const projectUuid = useProjectUuid();
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
+    const savedChart = useExplorerSelector(selectSavedChart);
 
     // Get explore data to check if metrics return date values
     const { data: exploreData } = useExplore(tableName, {
@@ -228,6 +235,9 @@ const ContextMenu: FC<ContextMenuProps> = ({
             </>
         );
     } else if (item && isCustomDimension(item)) {
+        const hideSqlAuthoringActions =
+            isCustomSqlDimension(item) && cannotAuthorCustomSql;
+        const hideRemove = hideSqlAuthoringActions && !!savedChart;
         return (
             <>
                 {isFilterableField(item) && (
@@ -249,34 +259,46 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconPencil} />}
-                    onClick={() => {
-                        dispatch(
-                            explorerActions.toggleCustomDimensionModal({
-                                item,
-                                isEditing: true,
-                            }),
-                        );
-                    }}
-                >
-                    Edit custom dimension
-                </Menu.Item>
-                <Menu.Divider />
+                {!hideSqlAuthoringActions && (
+                    <>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconPencil} />}
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.toggleCustomDimensionModal({
+                                        item,
+                                        isEditing: true,
+                                    }),
+                                );
+                            }}
+                        >
+                            Edit custom dimension
+                        </Menu.Item>
+                        <Menu.Divider />
+                    </>
+                )}
 
                 <ColumnHeaderSortMenuOptions item={item} sort={sort} />
 
-                <Menu.Divider />
+                {!hideRemove && (
+                    <>
+                        <Menu.Divider />
 
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconTrash} />}
-                    color="red"
-                    onClick={() => {
-                        dispatch(explorerActions.removeField(getItemId(item)));
-                    }}
-                >
-                    Remove
-                </Menu.Item>
+                        <Menu.Item
+                            leftSection={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => {
+                                dispatch(
+                                    explorerActions.removeField(
+                                        getItemId(item),
+                                    ),
+                                );
+                            }}
+                        >
+                            Remove
+                        </Menu.Item>
+                    </>
+                )}
             </>
         );
     } else if (item && isTableCalculation(item)) {

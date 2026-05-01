@@ -483,6 +483,7 @@ export class SavedChartService
             metricQuery: {
                 metrics: oldChartMetrics,
                 dimensions: oldChartDimensions,
+                customDimensions: oldCustomDimensions,
             },
         } = await this.savedChartModel.get(savedChartUuid);
 
@@ -508,8 +509,22 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
+        const oldSqlDimensionsById = new Map(
+            (oldCustomDimensions ?? [])
+                .filter(isCustomSqlDimension)
+                .map((dim) => [dim.id, dim]),
+        );
+        const hasModifiedSqlCustomDimension = (
+            data.metricQuery.customDimensions ?? []
+        )
+            .filter(isCustomSqlDimension)
+            .some((dim) => {
+                const saved = oldSqlDimensionsById.get(dim.id);
+                return !saved || saved.sql !== dim.sql;
+            });
+
         if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            hasModifiedSqlCustomDimension &&
             auditedAbility.cannot(
                 'manage',
                 subject('CustomFields', {
@@ -520,7 +535,7 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError(
-                'User cannot save queries with custom SQL dimensions',
+                'User cannot save queries with modified custom SQL dimensions',
             );
         }
 
