@@ -144,6 +144,7 @@ export const PalettePicker: FC<Props> = ({
     return (
         <Stack gap="sm">
             <Select
+                size="xs"
                 label={label}
                 description={description}
                 placeholder={placeholder}
