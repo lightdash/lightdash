@@ -253,6 +253,12 @@ const AppGenerate: FC = () => {
     // `onEmptyChange` callback for the submit button's disabled state.
     const promptEditorRef = useRef<AppPromptEditorHandle | null>(null);
     const [isPromptEmpty, setIsPromptEmpty] = useState(true);
+    // Synchronous lock for `handleSubmit`. The mutation's `isLoading` only
+    // flips true after the upload + clarify awaits resolve, leaving a
+    // multi-second window where Enter / send-button re-entry would fire
+    // duplicate iterations against the same app.
+    const isSubmittingRef = useRef(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     // Starter-template wizard state (only meaningful for v1 of a new app).
     // 'pick'    → show the 4 template cards (replaces the empty state)
     // 'confirm' → wizard collapses; the textarea takes over. Picking any
@@ -490,12 +496,13 @@ const AppGenerate: FC = () => {
     // and a pending unanswered clarification keeps the input area disabled
     // until the user clicks "Build" on the question bubble.
     const hasPendingClarification = pendingClarification !== null;
-    const isLoading =
-        isGenerating ||
-        isIterating ||
-        isBuilding ||
-        isClarifying ||
-        hasPendingClarification;
+    // Server-side work that warrants showing a placeholder assistant bubble.
+    // Excludes `isSubmitting` (client-side upload — too early to claim
+    // generation has started) and `hasPendingClarification` (drives its own
+    // question UI, not a placeholder).
+    const isAgentWorking =
+        isGenerating || isIterating || isBuilding || isClarifying;
+    const isLoading = isSubmitting || isAgentWorking || hasPendingClarification;
 
     // OS notification when a build finishes (only fires when tab is in background)
     const notifyBuildDone = useBuildNotification(appName, isLoading);
@@ -835,174 +842,182 @@ const AppGenerate: FC = () => {
 
     const handleSubmit = async () => {
         const trimmed = (promptEditorRef.current?.getText() ?? '').trim();
-        if (!trimmed || isLoading) return;
+        if (!trimmed || isLoading || isSubmittingRef.current) return;
 
-        // Send structured chart refs (uuid + per-chart sample-data opt-in).
-        // The backend resolves these server-side so the client never sees
-        // chart configs or rows.
-        const charts =
-            selectedCharts.length > 0
-                ? selectedCharts.map((c) => ({
-                      uuid: c.uuid,
-                      includeSampleData: c.includeSampleData,
-                  }))
-                : undefined;
+        isSubmittingRef.current = true;
+        setIsSubmitting(true);
 
-        // For new apps, pre-generate the UUID so the image upload and
-        // the generate request both use the same app-scoped S3 path.
-        const newAppUuid = activeAppUuid ? undefined : uuid4();
-        const targetAppUuid = activeAppUuid ?? newAppUuid;
+        try {
+            // Send structured chart refs (uuid + per-chart sample-data opt-in).
+            // The backend resolves these server-side so the client never sees
+            // chart configs or rows.
+            const charts =
+                selectedCharts.length > 0
+                    ? selectedCharts.map((c) => ({
+                          uuid: c.uuid,
+                          includeSampleData: c.includeSampleData,
+                      }))
+                    : undefined;
 
-        // Upload images sequentially. Two reasons we can't run these in parallel:
-        // 1. The backend buffers each body to avoid AWS SDK chunked signing,
-        //    which MinIO/GCS handle unreliably (RequestTimeout).
-        // 2. Concurrent PUTs to the same staging prefix
-        //    (apps/{appUuid}/uploads/) hit MinIO's per-prefix lock and fail
-        //    with "A timeout occurred while trying to lock a resource".
-        // Surface individual failures via toast rather than silently dropping them.
-        let imageIds: string[] | undefined;
-        if (imageAttachments.length > 0) {
-            const ids: string[] = [];
-            for (const att of imageAttachments) {
-                try {
-                    const result = await uploadImage({
-                        projectUuid: projectUuid!,
-                        file: att.file,
-                        appUuid: targetAppUuid!,
-                    });
-                    ids.push(result.imageId);
-                } catch (err) {
-                    showToastError({
-                        title: 'Image upload failed',
-                        subtitle:
-                            err instanceof Error
-                                ? err.message
-                                : 'Unknown error',
-                    });
+            // For new apps, pre-generate the UUID so the image upload and
+            // the generate request both use the same app-scoped S3 path.
+            const newAppUuid = activeAppUuid ? undefined : uuid4();
+            const targetAppUuid = activeAppUuid ?? newAppUuid;
+
+            // Upload images sequentially. Two reasons we can't run these in parallel:
+            // 1. The backend buffers each body to avoid AWS SDK chunked signing,
+            //    which MinIO/GCS handle unreliably (RequestTimeout).
+            // 2. Concurrent PUTs to the same staging prefix
+            //    (apps/{appUuid}/uploads/) hit MinIO's per-prefix lock and fail
+            //    with "A timeout occurred while trying to lock a resource".
+            // Surface individual failures via toast rather than silently dropping them.
+            let imageIds: string[] | undefined;
+            if (imageAttachments.length > 0) {
+                const ids: string[] = [];
+                for (const att of imageAttachments) {
+                    try {
+                        const result = await uploadImage({
+                            projectUuid: projectUuid!,
+                            file: att.file,
+                            appUuid: targetAppUuid!,
+                        });
+                        ids.push(result.imageId);
+                    } catch (err) {
+                        showToastError({
+                            title: 'Image upload failed',
+                            subtitle:
+                                err instanceof Error
+                                    ? err.message
+                                    : 'Unknown error',
+                        });
+                    }
+                }
+                imageIds = ids.length > 0 ? ids : undefined;
+                if (ids.length === 0) {
+                    return;
                 }
             }
-            imageIds = ids.length > 0 ? ids : undefined;
-            if (ids.length === 0) {
-                return;
+
+            // Capture preview URLs before clearing — they stay in the message bubble.
+            // Also store in the ref so they survive the local→server transition.
+            const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
+            if (sentImageUrls.length > 0) {
+                sentImagesByPrompt.current.set(trimmed, sentImageUrls);
             }
-        }
+            const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
+                name: c.name,
+                uuid: c.uuid,
+                chartKind: c.chartKind,
+            }));
+            if (sentCharts.length > 0) {
+                sentChartsByPrompt.current.set(trimmed, sentCharts);
+            }
+            const sentDashboardName = selectedDashboard?.name ?? null;
+            if (sentDashboardName) {
+                sentDashboardByPrompt.current.set(trimmed, sentDashboardName);
+            }
 
-        // Capture preview URLs before clearing — they stay in the message bubble.
-        // Also store in the ref so they survive the local→server transition.
-        const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
-        if (sentImageUrls.length > 0) {
-            sentImagesByPrompt.current.set(trimmed, sentImageUrls);
-        }
-        const sentCharts: ChatChart[] = selectedCharts.map((c) => ({
-            name: c.name,
-            uuid: c.uuid,
-            chartKind: c.chartKind,
-        }));
-        if (sentCharts.length > 0) {
-            sentChartsByPrompt.current.set(trimmed, sentCharts);
-        }
-        const sentDashboardName = selectedDashboard?.name ?? null;
-        if (sentDashboardName) {
-            sentDashboardByPrompt.current.set(trimmed, sentDashboardName);
-        }
+            const dashboard = selectedDashboard
+                ? {
+                      uuid: selectedDashboard.uuid,
+                      includeSampleData: selectedDashboard.includeSampleData,
+                  }
+                : undefined;
 
-        const dashboard = selectedDashboard
-            ? {
-                  uuid: selectedDashboard.uuid,
-                  includeSampleData: selectedDashboard.includeSampleData,
-              }
-            : undefined;
+            setLocalMessages((prev) => [
+                ...prev,
+                {
+                    role: 'user',
+                    content: trimmed,
+                    imagePreviewUrls: sentImageUrls,
+                    imageResourceIds: [],
+                    charts: sentCharts,
+                    dashboardName: sentDashboardName,
+                    clarifications: [],
+                    appUuid: null,
+                    version: null,
+                },
+            ]);
+            promptEditorRef.current?.clear();
+            setIsPromptEmpty(true);
+            setImageAttachments([]);
+            setSelectedCharts([]);
+            setSelectedDashboard(null);
+            resetGenerate();
+            resetIterate();
 
-        setLocalMessages((prev) => [
-            ...prev,
-            {
-                role: 'user',
-                content: trimmed,
-                imagePreviewUrls: sentImageUrls,
-                imageResourceIds: [],
-                charts: sentCharts,
-                dashboardName: sentDashboardName,
-                clarifications: [],
-                appUuid: null,
-                version: null,
-            },
-        ]);
-        promptEditorRef.current?.clear();
-        setIsPromptEmpty(true);
-        setImageAttachments([]);
-        setSelectedCharts([]);
-        setSelectedDashboard(null);
-        resetGenerate();
-        resetIterate();
+            // Pre-build clarification: first-build only. The clarifier runs for
+            // every template — the questions adapt to the kind of app being
+            // built (template is passed through). Iteration prompts skip
+            // clarification entirely — by then intent is already grounded in
+            // the existing version.
+            const isFirstBuild = !activeAppUuid;
+            if (isFirstBuild && newAppUuid) {
+                try {
+                    const { questions } = await clarifyMutateAsync({
+                        projectUuid: projectUuid!,
+                        prompt: trimmed,
+                        template: selectedTemplate ?? undefined,
+                    });
+                    if (questions.length > 0) {
+                        setPendingClarification({
+                            questions,
+                            prompt: trimmed,
+                            template: selectedTemplate ?? undefined,
+                            imageIds,
+                            appUuid: newAppUuid,
+                            charts,
+                            dashboard,
+                        });
+                        setClarificationAnswers(
+                            new Array(questions.length).fill(''),
+                        );
+                        return;
+                    }
+                    // No questions returned — fall through and build immediately.
+                } catch (err) {
+                    // Clarify failed (model not configured, network, etc.) — fall
+                    // back to the original behavior and just build. We don't want
+                    // a clarifier outage to block the actual feature.
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                        'App clarification failed; proceeding to build',
+                        err,
+                    );
+                }
+            }
 
-        // Pre-build clarification: first-build only. The clarifier runs for
-        // every template — the questions adapt to the kind of app being
-        // built (template is passed through). Iteration prompts skip
-        // clarification entirely — by then intent is already grounded in
-        // the existing version.
-        const isFirstBuild = !activeAppUuid;
-        if (isFirstBuild && newAppUuid) {
-            try {
-                const { questions } = await clarifyMutateAsync({
-                    projectUuid: projectUuid!,
-                    prompt: trimmed,
-                    template: selectedTemplate ?? undefined,
-                });
-                if (questions.length > 0) {
-                    setPendingClarification({
-                        questions,
+            const callbacks = buildSubmitCallbacks();
+
+            if (activeAppUuid) {
+                iterateMutate(
+                    {
+                        projectUuid,
+                        appUuid: activeAppUuid,
+                        prompt: trimmed,
+                        imageIds,
+                        charts,
+                        dashboard,
+                    },
+                    callbacks,
+                );
+            } else {
+                generateMutate(
+                    {
+                        projectUuid,
                         prompt: trimmed,
                         template: selectedTemplate ?? undefined,
                         imageIds,
                         appUuid: newAppUuid,
                         charts,
                         dashboard,
-                    });
-                    setClarificationAnswers(
-                        new Array(questions.length).fill(''),
-                    );
-                    return;
-                }
-                // No questions returned — fall through and build immediately.
-            } catch (err) {
-                // Clarify failed (model not configured, network, etc.) — fall
-                // back to the original behavior and just build. We don't want
-                // a clarifier outage to block the actual feature.
-                // eslint-disable-next-line no-console
-                console.warn(
-                    'App clarification failed; proceeding to build',
-                    err,
+                    },
+                    callbacks,
                 );
             }
-        }
-
-        const callbacks = buildSubmitCallbacks();
-
-        if (activeAppUuid) {
-            iterateMutate(
-                {
-                    projectUuid,
-                    appUuid: activeAppUuid,
-                    prompt: trimmed,
-                    imageIds,
-                    charts,
-                    dashboard,
-                },
-                callbacks,
-            );
-        } else {
-            generateMutate(
-                {
-                    projectUuid,
-                    prompt: trimmed,
-                    template: selectedTemplate ?? undefined,
-                    imageIds,
-                    appUuid: newAppUuid,
-                    charts,
-                    dashboard,
-                },
-                callbacks,
-            );
+        } finally {
+            isSubmittingRef.current = false;
+            setIsSubmitting(false);
         }
     };
 
@@ -1479,7 +1494,7 @@ const AppGenerate: FC = () => {
                                             </Group>
                                         </Box>
                                     ) : (
-                                        isLoading && (
+                                        isAgentWorking && (
                                             <Box
                                                 className={
                                                     classes.assistantMessage
@@ -1564,7 +1579,9 @@ const AppGenerate: FC = () => {
                                                 isPromptEmpty || isLoading
                                             }
                                             loading={
-                                                isGenerating || isIterating
+                                                isSubmitting ||
+                                                isGenerating ||
+                                                isIterating
                                             }
                                             className={classes.submitButton}
                                         >
@@ -1646,6 +1663,7 @@ const AppGenerate: FC = () => {
                                                                 ),
                                                         )
                                                     }
+                                                    disabled={isLoading}
                                                 />
                                             )}
                                             {selectedDashboard && (
@@ -1670,6 +1688,7 @@ const AppGenerate: FC = () => {
                                                                     : null,
                                                         )
                                                     }
+                                                    disabled={isLoading}
                                                 />
                                             )}
                                             {imageAttachments.length > 0 && (
@@ -1683,6 +1702,8 @@ const AppGenerate: FC = () => {
                                                     onRemove={(previewUrl) =>
                                                         clearImage(previewUrl)
                                                     }
+                                                    disabled={isLoading}
+                                                    loading={isSubmitting}
                                                 />
                                             )}
                                         </>
