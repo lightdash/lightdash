@@ -490,7 +490,7 @@ export class SavedChartModel {
 
     /**
      * Resolves the color palette for a chart by walking up the
-     * chart → dashboard → space → project → organization hierarchy.
+     * chart → dashboard → space → parent space → … → project → organization hierarchy.
      *
      * The lightdashConfig.appearance.overrideColorPalette wins over everything,
      * matching OrganizationModel.get() behaviour.
@@ -511,42 +511,89 @@ export class SavedChartModel {
             return { paletteUuid: null, colors: override, darkColors: null };
         }
 
-        // Single query: LEFT JOIN the palettes table twice (project's palette
-        // and org's palette) and COALESCE so the project palette wins when set
-        // and falls back to the org's active palette otherwise.
-        const result = await this.database(ProjectTableName)
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                `${OrganizationColorPaletteTableName} as project_palette`,
-                'project_palette.color_palette_uuid',
-                `${ProjectTableName}.color_palette_uuid`,
-            )
-            .leftJoin(
-                `${OrganizationColorPaletteTableName} as org_palette`,
-                'org_palette.color_palette_uuid',
-                `${OrganizationTableName}.color_palette_uuid`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
-            .select<{
-                color_palette_uuid: string | null;
-                colors: string[] | null;
-                dark_colors: string[] | null;
-            }>([
-                this.database.raw(
-                    'COALESCE(project_palette.color_palette_uuid, org_palette.color_palette_uuid) as color_palette_uuid',
+        // Single query: walk the space chain via parent_space_uuid (closest
+        // override wins), then COALESCE through project then org so the
+        // nearest level with a palette set wins.
+        const result = args.spaceUuid
+            ? await this.database
+                  .raw<{
+                      rows: {
+                          color_palette_uuid: string | null;
+                          colors: string[] | null;
+                          dark_colors: string[] | null;
+                      }[];
+                  }>(
+                      `
+                WITH RECURSIVE space_chain AS (
+                    SELECT space_uuid, parent_space_uuid, color_palette_uuid, 0 AS depth
+                    FROM ${SpaceTableName}
+                    WHERE space_uuid = ? AND deleted_at IS NULL
+
+                    UNION ALL
+
+                    SELECT s.space_uuid, s.parent_space_uuid, s.color_palette_uuid, sc.depth + 1
+                    FROM ${SpaceTableName} s
+                    JOIN space_chain sc ON s.space_uuid = sc.parent_space_uuid
+                    WHERE s.deleted_at IS NULL
                 ),
-                this.database.raw(
-                    'COALESCE(project_palette.colors, org_palette.colors) as colors',
-                ),
-                this.database.raw(
-                    'COALESCE(project_palette.dark_colors, org_palette.dark_colors) as dark_colors',
-                ),
-            ])
-            .first();
+                chosen_space AS (
+                    SELECT color_palette_uuid
+                    FROM space_chain
+                    WHERE color_palette_uuid IS NOT NULL
+                    ORDER BY depth ASC
+                    LIMIT 1
+                )
+                SELECT
+                    COALESCE(sp.color_palette_uuid, pp.color_palette_uuid, op.color_palette_uuid) AS color_palette_uuid,
+                    COALESCE(sp.colors, pp.colors, op.colors) AS colors,
+                    COALESCE(sp.dark_colors, pp.dark_colors, op.dark_colors) AS dark_colors
+                FROM ${ProjectTableName} p
+                INNER JOIN ${OrganizationTableName} o
+                    ON o.organization_id = p.organization_id
+                LEFT JOIN ${OrganizationColorPaletteTableName} sp
+                    ON sp.color_palette_uuid = (SELECT color_palette_uuid FROM chosen_space)
+                LEFT JOIN ${OrganizationColorPaletteTableName} pp
+                    ON pp.color_palette_uuid = p.color_palette_uuid
+                LEFT JOIN ${OrganizationColorPaletteTableName} op
+                    ON op.color_palette_uuid = o.color_palette_uuid
+                WHERE p.project_uuid = ?
+                `,
+                      [args.spaceUuid, args.projectUuid],
+                  )
+                  .then((res) => res.rows[0])
+            : await this.database(ProjectTableName)
+                  .innerJoin(
+                      OrganizationTableName,
+                      `${OrganizationTableName}.organization_id`,
+                      `${ProjectTableName}.organization_id`,
+                  )
+                  .leftJoin(
+                      `${OrganizationColorPaletteTableName} as project_palette`,
+                      'project_palette.color_palette_uuid',
+                      `${ProjectTableName}.color_palette_uuid`,
+                  )
+                  .leftJoin(
+                      `${OrganizationColorPaletteTableName} as org_palette`,
+                      'org_palette.color_palette_uuid',
+                      `${OrganizationTableName}.color_palette_uuid`,
+                  )
+                  .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
+                  .select<{
+                      color_palette_uuid: string | null;
+                      colors: string[] | null;
+                      dark_colors: string[] | null;
+                  }>([
+                      this.database.raw(
+                          'COALESCE(project_palette.color_palette_uuid, org_palette.color_palette_uuid) as color_palette_uuid',
+                      ),
+                      this.database.raw(
+                          'COALESCE(project_palette.colors, org_palette.colors) as colors',
+                      ),
+                      this.database.raw(
+                          'COALESCE(project_palette.dark_colors, org_palette.dark_colors) as dark_colors',
+                      ),
+                  ])
+                  .first();
 
         if (result?.color_palette_uuid && result.colors) {
             return {

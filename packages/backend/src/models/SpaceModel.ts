@@ -336,6 +336,7 @@ export class SpaceModel {
             inheritParentPermissions: row.inherit_parent_permissions,
             projectMemberAccessRole:
                 (row.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: row.color_palette_uuid,
         };
     }
 
@@ -1121,6 +1122,7 @@ export class SpaceModel {
             inheritParentPermissions: space.inherit_parent_permissions,
             projectMemberAccessRole:
                 (space.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: space.color_palette_uuid,
         };
     }
 
@@ -1329,6 +1331,9 @@ export class SpaceModel {
             updateData.project_member_access_role =
                 space.projectMemberAccessRole;
         }
+        if (space.colorPaletteUuid !== undefined) {
+            updateData.color_palette_uuid = space.colorPaletteUuid;
+        }
         await this.database(SpaceTableName)
             .update(updateData)
             .where('space_uuid', spaceUuid);
@@ -1379,6 +1384,9 @@ export class SpaceModel {
             if (space.projectMemberAccessRole !== undefined) {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
+            }
+            if (space.colorPaletteUuid !== undefined) {
+                updateData.color_palette_uuid = space.colorPaletteUuid;
             }
             await trx(SpaceTableName)
                 .update(updateData)

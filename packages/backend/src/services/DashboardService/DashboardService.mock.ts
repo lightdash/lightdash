@@ -58,6 +58,7 @@ export const space: SpaceTable['base'] = {
     inherit_parent_permissions: false,
     project_member_access_role: null,
     is_default_user_space: false,
+    color_palette_uuid: null,
     deleted_at: null,
     deleted_by_user_uuid: null,
 };
@@ -80,6 +81,7 @@ export const publicSpace: Space = {
     pinnedListOrder: null,
     parentSpaceUuid: null,
     path: 'public-space',
+    colorPaletteUuid: null,
 };
 export const privateSpace: Space = {
     ...publicSpace,
