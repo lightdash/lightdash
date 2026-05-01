@@ -1,3 +1,11 @@
+## [0.2853.1](https://github.com/lightdash/lightdash/compare/0.2853.0...0.2853.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* improve partial compilation error messages with field names and model-prefix hints ([#22585](https://github.com/lightdash/lightdash/issues/22585)) ([a68e550](https://github.com/lightdash/lightdash/commit/a68e550b1898f6411acd1645dee03d9fe64e150f))
+* **promote:** allow content overwrite without manage Space (PROD-7288) ([#22558](https://github.com/lightdash/lightdash/issues/22558)) ([c9b1d29](https://github.com/lightdash/lightdash/commit/c9b1d29a8d4c7e7a5a0f9a0ce10e5886ac9a66d2))
+
 # [0.2853.0](https://github.com/lightdash/lightdash/compare/0.2852.1...0.2853.0) (2026-05-01)
 
 
