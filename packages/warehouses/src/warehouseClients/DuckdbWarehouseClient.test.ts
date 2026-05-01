@@ -350,6 +350,9 @@ describe('DuckdbWarehouseClient', () => {
 
         await client.runQuery('SELECT 1 AS val');
 
+        expect(runMock).toHaveBeenCalledWith('INSTALL aws;');
+        expect(runMock).toHaveBeenCalledWith('LOAD aws;');
+
         const secretSql = runMock.mock.calls
             .map(([sql]) => sql as string)
             .find((sql) =>
@@ -388,6 +391,9 @@ describe('DuckdbWarehouseClient', () => {
         });
 
         await client.runQuery('SELECT 1 AS val');
+
+        expect(runMock).not.toHaveBeenCalledWith('INSTALL aws;');
+        expect(runMock).not.toHaveBeenCalledWith('LOAD aws;');
 
         const secretSql = runMock.mock.calls
             .map(([sql]) => sql as string)

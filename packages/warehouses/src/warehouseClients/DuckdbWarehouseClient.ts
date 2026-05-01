@@ -399,6 +399,22 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         await db.run('SET allow_unredacted_secrets = false;');
     }
 
+    private static usesS3CredentialChain(
+        s3Config: DuckdbS3SessionConfig,
+    ): boolean {
+        return !(s3Config.accessKey && s3Config.secretKey);
+    }
+
+    private static async loadAwsExtensionForCredentialChain(
+        db: DuckdbConnection,
+        s3Config?: DuckdbS3SessionConfig,
+    ): Promise<void> {
+        if (s3Config && DuckdbWarehouseClient.usesS3CredentialChain(s3Config)) {
+            await db.run('INSTALL aws;');
+            await db.run('LOAD aws;');
+        }
+    }
+
     private static async bootstrapQuerySession(
         db: DuckdbConnection,
         client: DuckdbWarehouseClient,
@@ -407,6 +423,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
         const httpfsStart = performance.now();
         await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
+        await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
+            db,
+            client.s3Config,
+        );
         const httpfsMs = performance.now() - httpfsStart;
 
         await db.run('SET enable_http_metadata_cache = true;');
@@ -585,9 +605,8 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     private static buildS3SecretSql(s3Config: DuckdbS3SessionConfig): string {
         const escape = (v: string) =>
             DuckdbWarehouseClient.sqlBuilder.escapeString(v);
-        const usesStaticCredentials = !!(
-            s3Config.accessKey && s3Config.secretKey
-        );
+        const usesStaticCredentials =
+            !DuckdbWarehouseClient.usesS3CredentialChain(s3Config);
         // Static keys may come from dedicated pre-aggregate env vars or fall back
         // to the base S3 config. Without them, let DuckDB resolve AWS credentials
         // through the SDK chain, including IRSA/web identity tokens.
@@ -708,6 +727,10 @@ export class DuckdbWarehouseClient extends WarehouseBaseClient<CreateDuckdbCrede
     ): Promise<void> {
         await db.run('INSTALL httpfs;');
         await db.run('LOAD httpfs;');
+        await DuckdbWarehouseClient.loadAwsExtensionForCredentialChain(
+            db,
+            this.s3Config,
+        );
 
         await DuckdbWarehouseClient.hardenInstance(db);
 
