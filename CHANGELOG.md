@@ -1,3 +1,10 @@
+# [0.2853.0](https://github.com/lightdash/lightdash/compare/0.2852.1...0.2853.0) (2026-05-01)
+
+
+### Features
+
+* pass `chartUuid` and `dashboardUuid` to async query warehouse metadata ([#22584](https://github.com/lightdash/lightdash/issues/22584)) ([ecbd2cd](https://github.com/lightdash/lightdash/commit/ecbd2cda5191c4edc362aeda94052b5e74420304))
+
 ## [0.2852.1](https://github.com/lightdash/lightdash/compare/0.2852.0...0.2852.1) (2026-04-30)
 
 
