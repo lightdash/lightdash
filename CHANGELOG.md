@@ -1,3 +1,10 @@
+# [0.2857.0](https://github.com/lightdash/lightdash/compare/0.2856.0...0.2857.0) (2026-05-01)
+
+
+### Features
+
+* **data-apps:** My apps name links to builder regardless of build status ([#22596](https://github.com/lightdash/lightdash/issues/22596)) ([488f87f](https://github.com/lightdash/lightdash/commit/488f87f248db12bce6fb96adb715d1b478d4b0ef))
+
 # [0.2856.0](https://github.com/lightdash/lightdash/compare/0.2855.1...0.2856.0) (2026-05-01)
 
 
