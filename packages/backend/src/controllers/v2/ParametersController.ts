@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
+    assertRegisteredAccount,
     KnexPaginateArgs,
     type ApiGetProjectParametersListResults,
     type ApiGetProjectParametersResults,
@@ -49,6 +50,7 @@ export class ParametersController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiSuccess<ApiGetProjectParametersListResults>> {
+        assertRegisteredAccount(req.account);
         let paginateArgs: KnexPaginateArgs | undefined;
 
         if (pageSize && page) {

@@ -8,6 +8,7 @@ import {
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
+    assertRegisteredAccount,
     assertSessionAuth,
     CacheMetadata,
     CalculateSubtotalsFromQuery,
@@ -117,6 +118,7 @@ export class EmbedController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiEmbedConfigResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         assertSessionAuth(req.account);
         return {
@@ -137,6 +139,7 @@ export class EmbedController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: CreateEmbedRequestBody,
     ): Promise<ApiEmbedConfigResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(201);
         assertSessionAuth(req.account);
         return {
