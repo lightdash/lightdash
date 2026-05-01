@@ -20,7 +20,3 @@
     border-radius: var(--mantine-radius-sm);
     background: var(--mantine-color-gray-0);
 }
-
-.previewRow > svg {
-    flex-shrink: 0;
-}

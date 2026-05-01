@@ -13,7 +13,7 @@ import MantineIcon from '../MantineIcon';
 import classes from './PalettePicker.module.css';
 
 const INHERIT_VALUE = '__inherit__';
-const DROPDOWN_SWATCH_LIMIT = 5;
+const SWATCH_LIMIT = 5;
 
 type Props = {
     value: string | null;
@@ -35,31 +35,23 @@ const SwatchInline: FC<{
     icon: typeof IconSun;
     label: string;
     colors: string[];
-    limit?: number;
+    limit: number;
     swatchSize?: number;
-    wrap?: boolean;
-}> = ({ icon, label, colors, limit, swatchSize = 12, wrap = false }) => {
-    const visible = limit ? colors.slice(0, limit) : colors;
-    return (
-        <Tooltip label={label} position="top" withinPortal>
-            <Group
-                gap={4}
-                wrap={wrap ? 'wrap' : 'nowrap'}
-                className={wrap ? classes.previewRow : undefined}
-            >
-                <MantineIcon icon={icon} size={14} color="gray" />
-                {visible.map((color, index) => (
-                    <ColorSwatch
-                        key={`${color}-${index}`}
-                        size={swatchSize}
-                        color={color}
-                        withShadow={false}
-                    />
-                ))}
-            </Group>
-        </Tooltip>
-    );
-};
+}> = ({ icon, label, colors, limit, swatchSize = 12 }) => (
+    <Tooltip label={label} position="top" withinPortal>
+        <Group gap={4} wrap="nowrap">
+            <MantineIcon icon={icon} size={14} color="gray" />
+            {colors.slice(0, limit).map((color, index) => (
+                <ColorSwatch
+                    key={`${color}-${index}`}
+                    size={swatchSize}
+                    color={color}
+                    withShadow={false}
+                />
+            ))}
+        </Group>
+    </Tooltip>
+);
 
 const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
     name,
@@ -73,7 +65,7 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
                     icon={IconSun}
                     label="Light mode"
                     colors={swatches.colors}
-                    limit={DROPDOWN_SWATCH_LIMIT}
+                    limit={SWATCH_LIMIT}
                 />
                 {swatches.darkColors && swatches.darkColors.length > 0 && (
                     <>
@@ -82,7 +74,7 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
                             icon={IconMoon}
                             label="Dark mode"
                             colors={swatches.darkColors}
-                            limit={DROPDOWN_SWATCH_LIMIT}
+                            limit={SWATCH_LIMIT}
                         />
                     </>
                 )}
@@ -97,16 +89,16 @@ const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
             icon={IconSun}
             label="Light mode"
             colors={swatches.colors}
+            limit={SWATCH_LIMIT}
             swatchSize={16}
-            wrap
         />
         {swatches.darkColors && swatches.darkColors.length > 0 && (
             <SwatchInline
                 icon={IconMoon}
                 label="Dark mode"
                 colors={swatches.darkColors}
+                limit={SWATCH_LIMIT}
                 swatchSize={16}
-                wrap
             />
         )}
     </Stack>
