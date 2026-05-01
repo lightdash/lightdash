@@ -1,3 +1,10 @@
+## [0.2858.1](https://github.com/lightdash/lightdash/compare/0.2858.0...0.2858.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* move "open target" link to title action icon in managed agent activity sidebar ([#22607](https://github.com/lightdash/lightdash/issues/22607)) ([48f8eab](https://github.com/lightdash/lightdash/commit/48f8eabbb7066a8d00db4c6d7cc8f374617d589a))
+
 # [0.2858.0](https://github.com/lightdash/lightdash/compare/0.2857.0...0.2858.0) (2026-05-01)
 
 
