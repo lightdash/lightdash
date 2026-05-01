@@ -15,6 +15,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { BetaBadge } from '../../../components/common/BetaBadge';
 import useHealth from '../../../hooks/health/useHealth';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
@@ -164,17 +165,23 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                                 <Text fz="lg" fw={700}>
                                     Autopilot
                                 </Text>
+                                <BetaBadge />
                                 <Box className={classes.activePill}>
                                     <Box className={classes.activeDotSmall} />
                                     Active &middot; {formatSchedule(schedule)}
                                 </Box>
                             </Group>
                             <Text fz="sm" c="dimmed" fw={500}>
-                                {actionCount > 0
-                                    ? `${actionCount} actions — ${actionSummary}`
-                                    : 'Monitoring your project'}
+                                {actionCount > 0 ? (
+                                    <>
+                                        {actionCount} actions
+                                        {actionSummary && ` - ${actionSummary}`}
+                                    </>
+                                ) : (
+                                    'Monitoring your project'
+                                )}
                                 {lastActionAt &&
-                                    ` · last run ${formatRelative(lastActionAt)}`}
+                                    ` · last action ${formatRelative(lastActionAt)}`}
                             </Text>
                         </Stack>
                     </Group>
@@ -206,9 +213,12 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                             <IconBolt size={18} />
                         </Box>
                         <Stack gap={4}>
-                            <Text fz="lg" fw={700}>
-                                Autopilot
-                            </Text>
+                            <Group gap={8} align="center">
+                                <Text fz="lg" fw={700}>
+                                    Autopilot
+                                </Text>
+                                <BetaBadge />
+                            </Group>
                             <Group
                                 gap={6}
                                 wrap="nowrap"
