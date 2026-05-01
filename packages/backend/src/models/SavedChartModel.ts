@@ -511,62 +511,48 @@ export class SavedChartModel {
             return { paletteUuid: null, colors: override, darkColors: null };
         }
 
-        const projectPalette = await this.database(ProjectTableName)
+        // Single query: LEFT JOIN the palettes table twice (project's palette
+        // and org's palette) and COALESCE so the project palette wins when set
+        // and falls back to the org's active palette otherwise.
+        const result = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .leftJoin(
-                OrganizationColorPaletteTableName,
+                `${OrganizationColorPaletteTableName} as project_palette`,
+                'project_palette.color_palette_uuid',
                 `${ProjectTableName}.color_palette_uuid`,
-                `${OrganizationColorPaletteTableName}.color_palette_uuid`,
+            )
+            .leftJoin(
+                `${OrganizationColorPaletteTableName} as org_palette`,
+                'org_palette.color_palette_uuid',
+                `${OrganizationTableName}.color_palette_uuid`,
             )
             .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
-            .select<
-                {
-                    color_palette_uuid: string | null;
-                    colors: string[] | null;
-                    dark_colors: string[] | null;
-                }[]
-            >([
-                `${OrganizationColorPaletteTableName}.color_palette_uuid`,
-                `${OrganizationColorPaletteTableName}.colors`,
-                `${OrganizationColorPaletteTableName}.dark_colors`,
+            .select<{
+                color_palette_uuid: string | null;
+                colors: string[] | null;
+                dark_colors: string[] | null;
+            }>([
+                this.database.raw(
+                    'COALESCE(project_palette.color_palette_uuid, org_palette.color_palette_uuid) as color_palette_uuid',
+                ),
+                this.database.raw(
+                    'COALESCE(project_palette.colors, org_palette.colors) as colors',
+                ),
+                this.database.raw(
+                    'COALESCE(project_palette.dark_colors, org_palette.dark_colors) as dark_colors',
+                ),
             ])
             .first();
 
-        if (projectPalette?.color_palette_uuid && projectPalette.colors) {
+        if (result?.color_palette_uuid && result.colors) {
             return {
-                paletteUuid: projectPalette.color_palette_uuid,
-                colors: projectPalette.colors,
-                darkColors: projectPalette.dark_colors,
-            };
-        }
-
-        const orgPalette = await this.database(OrganizationTableName)
-            .leftJoin(
-                OrganizationColorPaletteTableName,
-                `${OrganizationTableName}.color_palette_uuid`,
-                `${OrganizationColorPaletteTableName}.color_palette_uuid`,
-            )
-            .where(
-                `${OrganizationTableName}.organization_uuid`,
-                args.organizationUuid,
-            )
-            .select<
-                {
-                    color_palette_uuid: string | null;
-                    colors: string[] | null;
-                    dark_colors: string[] | null;
-                }[]
-            >([
-                `${OrganizationColorPaletteTableName}.color_palette_uuid`,
-                `${OrganizationColorPaletteTableName}.colors`,
-                `${OrganizationColorPaletteTableName}.dark_colors`,
-            ])
-            .first();
-
-        if (orgPalette?.color_palette_uuid && orgPalette.colors) {
-            return {
-                paletteUuid: orgPalette.color_palette_uuid,
-                colors: orgPalette.colors,
-                darkColors: orgPalette.dark_colors,
+                paletteUuid: result.color_palette_uuid,
+                colors: result.colors,
+                darkColors: result.dark_colors,
             };
         }
 
