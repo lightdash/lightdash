@@ -16,6 +16,7 @@ import {
     OauthAccount,
     Organization,
     OssEmbed,
+    RegisteredAccount,
     ServiceAcctAccount,
     SessionAccount,
     SessionUser,
@@ -170,6 +171,23 @@ export const fromApiKey = (
         },
     });
 };
+
+export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
+    ...account.user,
+    organizationUuid: account.organization.organizationUuid,
+    organizationName: account.organization.name,
+    organizationCreatedAt: account.organization.createdAt,
+    requestContext: account.requestContext,
+    serviceAccount:
+        account.authentication.type === 'service-account'
+            ? {
+                  uuid: account.authentication.serviceAccountUuid,
+                  description: account.authentication.serviceAccountDescription,
+                  attributedUserEmail:
+                      account.authentication.attributedUserEmail,
+              }
+            : undefined,
+});
 
 export const fromSession = (
     sessionUser: SessionUser,
