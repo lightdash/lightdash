@@ -1,3 +1,18 @@
+# [0.2858.0](https://github.com/lightdash/lightdash/compare/0.2857.0...0.2858.0) (2026-05-01)
+
+
+### Bug Fixes
+
+* update locked capability tooltip label to "Always on" ([#22603](https://github.com/lightdash/lightdash/issues/22603)) ([24e485f](https://github.com/lightdash/lightdash/commit/24e485fa331a5dc2fa222dfda6f662106d2c742c))
+
+
+### Features
+
+* enrich managed agent activity sidebar with content context, broken, and slow details ([#22605](https://github.com/lightdash/lightdash/issues/22605)) ([e441875](https://github.com/lightdash/lightdash/commit/e441875d51a63047392d8d4f897e3dd629c1c7a9))
+* improve managed agent action labels and add tooltips for flagged actions ([#22602](https://github.com/lightdash/lightdash/issues/22602)) ([2184d99](https://github.com/lightdash/lightdash/commit/2184d99fe6e4c9c1cab17d66d69d51a73dae2b84))
+* load AWS extension for DuckDB credential chain when static S3 credentials are absent ([#22606](https://github.com/lightdash/lightdash/issues/22606)) ([f6a55b2](https://github.com/lightdash/lightdash/commit/f6a55b21bfe7e5526db3984556f6ac6c1b1a81e9))
+* show relative timestamps with absolute tooltip in agent activity table ([#22604](https://github.com/lightdash/lightdash/issues/22604)) ([e56372c](https://github.com/lightdash/lightdash/commit/e56372cb458477be727f48e2b1f5edb639700cf9))
+
 # [0.2857.0](https://github.com/lightdash/lightdash/compare/0.2856.0...0.2857.0) (2026-05-01)
 
 
