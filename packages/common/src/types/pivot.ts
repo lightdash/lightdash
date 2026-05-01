@@ -3,13 +3,6 @@ import { type FieldType } from './field';
 import { type ResultRow, type ResultValue } from './results';
 import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 
-/**
- * A dimension referenced only via sortBy — not a row-axis index, not a pivot
- * group-by, not a metric. Carried through group_by_query to drive
- * column_index ORDER BY without affecting row layout.
- */
-export type SortOnlyDimension = { reference: string };
-
 export type PivotConfig = {
     pivotDimensions: string[];
     metricsAsRows: boolean;
@@ -34,14 +27,11 @@ export type PivotConfiguration = {
      */
     metricsAsRows?: boolean;
     /**
-     * Fields referenced only via sortBy that aren't on any axis or in pivot
-     * columns. Items with `aggregation` are metrics/table calculations merged
-     * into valuesColumns for sort-anchor CTEs; items without `aggregation`
-     * are dimensions that ride through group_by_query to drive column_index
-     * ORDER BY. Both are excluded from pivotDetails so they don't appear as
-     * chart series.
+     * Metrics/table calculations needed for sort anchor CTEs but not for display.
+     * These are merged into valuesColumns for SQL generation in PivotQueryBuilder,
+     * but excluded from pivotDetails so they don't appear as chart series.
      */
-    sortOnlyColumns?: Array<ValuesColumn | SortOnlyDimension>;
+    sortOnlyColumns?: ValuesColumn[];
 };
 
 type Field =
