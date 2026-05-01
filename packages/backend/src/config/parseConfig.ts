@@ -1158,7 +1158,6 @@ export type LightdashConfig = {
         projectId?: string;
     };
     managedAgent: {
-        enabled: boolean;
         anthropicApiKey: string | null;
         skillIds: string[];
         schedule: string;
@@ -2239,7 +2238,6 @@ export const parseConfig = (): LightdashConfig => {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
         },
         managedAgent: {
-            enabled: process.env.MANAGED_AGENT_ENABLED === 'true',
             anthropicApiKey:
                 process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
                 process.env.ANTHROPIC_API_KEY ||

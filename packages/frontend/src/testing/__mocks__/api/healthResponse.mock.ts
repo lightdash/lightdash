@@ -137,9 +137,6 @@ export default function mockHealthResponse(
         dataApps: {
             enabled: false,
         },
-        managedAgent: {
-            enabled: false,
-        },
         ...overrides,
     };
 }

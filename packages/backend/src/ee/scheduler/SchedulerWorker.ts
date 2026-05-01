@@ -132,41 +132,25 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 );
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async (payload) => {
-                if (!this.lightdashConfig.managedAgent.enabled) {
-                    return;
-                }
-
-                // Backwards compat: legacy in-flight jobs (from before this
-                // change) have an empty payload. Re-enqueue per-project jobs
-                // with the new payload shape and exit — the new jobs will
-                // then follow the single-project path below.
-                if (!payload?.projectUuid) {
-                    Logger.info(
-                        'Migrating managed agent heartbeat jobs to per-project payloads',
-                    );
-                    const enabledProjects =
-                        await this.managedAgentService.getEnabledProjects();
-                    for (const project of enabledProjects) {
-                        const schedule =
-                            project.scheduleCron ??
-                            this.lightdashConfig.managedAgent.schedule;
-                        // eslint-disable-next-line no-await-in-loop
-                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
-                            schedule,
-                            project.projectUuid,
-                        );
-                    }
-                    return;
-                }
-
                 const { projectUuid } = payload;
                 const settings = (
                     await this.managedAgentService.getEnabledProjects()
-                ).find((p) => p.projectUuid === projectUuid);
+                ).find((project) => project.projectUuid === projectUuid);
 
                 if (!settings) {
                     Logger.info(
                         `Managed agent disabled for project ${projectUuid}, stopping heartbeat loop`,
+                    );
+                    return;
+                }
+
+                const aiAutopilotEnabled =
+                    await this.managedAgentService.isAiAutopilotEnabledForProject(
+                        settings,
+                    );
+                if (!aiAutopilotEnabled) {
+                    Logger.info(
+                        `AI autopilot feature flag disabled for project ${projectUuid}, skipping managed agent heartbeat`,
                     );
                     return;
                 }
