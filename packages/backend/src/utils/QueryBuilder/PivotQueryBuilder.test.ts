@@ -755,9 +755,10 @@ describe('PivotQueryBuilder', () => {
         });
 
         test('Should drive column_index by sort-only dimension when sort dim is a 1:1 companion', () => {
-            // Frontend flagged event_priority as a sort-only dim (it's not
-            // the x-axis, not a pivot column, not a metric). Backend should
-            // emit it in column_index ORDER BY ahead of the group-by column.
+            // Frontend flagged event_priority as a column-companion sort-only
+            // dim (it's not the x-axis, not a pivot column, not a metric).
+            // Backend should emit it in column_index ORDER BY ahead of the
+            // group-by column.
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -773,7 +774,9 @@ describe('PivotQueryBuilder', () => {
                         direction: SortByDirection.DESC,
                     },
                 ],
-                sortOnlyColumns: [{ reference: 'event_priority' }],
+                sortOnlyColumns: [
+                    { reference: 'event_priority', kind: 'column' as const },
+                ],
             };
 
             const builder = new PivotQueryBuilder(
@@ -792,9 +795,9 @@ describe('PivotQueryBuilder', () => {
         });
 
         test('Should keep sort-only dim ahead of group-by sort when sortBy mixes both', () => {
-            // sortBy lists event_type's sort first, but sort-only dims are
-            // prepended and group-by parts follow groupByColumns declaration
-            // order with the requested direction applied.
+            // Column-companion sort-only dims are prepended ahead of group-by
+            // parts (which follow groupByColumns declaration order with the
+            // requested direction applied).
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -814,7 +817,9 @@ describe('PivotQueryBuilder', () => {
                         direction: SortByDirection.ASC,
                     },
                 ],
-                sortOnlyColumns: [{ reference: 'event_priority' }],
+                sortOnlyColumns: [
+                    { reference: 'event_priority', kind: 'column' as const },
+                ],
             };
 
             const builder = new PivotQueryBuilder(
@@ -849,7 +854,9 @@ describe('PivotQueryBuilder', () => {
                     { reference: 'revenue', direction: SortByDirection.DESC },
                     { reference: 'priority', direction: SortByDirection.ASC },
                 ],
-                sortOnlyColumns: [{ reference: 'priority' }],
+                sortOnlyColumns: [
+                    { reference: 'priority', kind: 'column' as const },
+                ],
             };
 
             const builder = new PivotQueryBuilder(
@@ -4758,6 +4765,206 @@ SELECT * FROM group_by_query LIMIT 50`);
             // Mixing them up is the documented regression path.
             expect(colAnchorBody).not.toContain('MAX(CASE WHEN');
             expect(colAnchorBody).not.toContain('CROSS JOIN anchor_column');
+        });
+
+        test('Column-companion sort-only dim drives column_index, not row_index (#22399)', () => {
+            // https://github.com/lightdash/lightdash/issues/22399
+            // Repro: pivot column = status, sort-only companion =
+            // status_priority. The user wants the status columns ordered by
+            // their priority (a 1:1 numeric companion of status). PR #22458
+            // fixed this by routing sortOnlyColumns into column_index ORDER
+            // BY. This test pins that fix so it cannot regress.
+            // Expectation: status_priority appears in column_index ORDER BY,
+            // never in row_index ORDER BY.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'status_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyColumns: [
+                    { reference: 'status_priority', kind: 'column' as const },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // status_priority drives column_index — that's the column-companion
+            // intent.
+            expect(collapsed).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."status_priority" ASC, g."status" ASC) AS "column_index"',
+            );
+
+            // row_index must NOT mention status_priority — it isn't an
+            // index/x-axis companion, only a column companion.
+            const rowIndexMatch = collapsed.match(
+                /DENSE_RANK\(\) OVER \(ORDER BY ([^)]+)\) AS "row_index"/,
+            );
+            expect(rowIndexMatch).not.toBeNull();
+            expect(rowIndexMatch![1]).not.toContain('status_priority');
+        });
+
+        test('Row-companion sort-only dim drives row_index for rolling-average pivot, not column_index (PR #22458 row-companion regression)', () => {
+            // Reproducer 1 from the customer report: rolling 28-day average
+            // pivoted by year, with the x-axis = `date` and a sort-only
+            // companion `y_day` (day-of-year ordinal of the same date). The
+            // user's intent is "order the x-axis chronologically by day of
+            // year", so y_day is a ROW companion of `date`.
+            //
+            // Bug shipped in PR #22458: every entry in sortOnlyColumns is
+            // prepended into column_index ORDER BY, so y_day ends up driving
+            // column ordering and the bare `date` string is left to drive
+            // row_index. Combined with the latent
+            // `column_index <= floor(maxColumnLimit / valueColumnsCount)` cap,
+            // this also truncates the chart at 200 (y_day, year) tuples.
+            //
+            // Regression: PR #22458 routes row-companion sort dims to
+            // column_index — these assertions fail until the routing is fixed
+            // so row companions land in row_index ORDER BY instead.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'rolling_28_day_average',
+                        aggregation: VizAggregationOptions.AVERAGE,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    { reference: 'y_day', direction: SortByDirection.ASC },
+                    { reference: 'year', direction: SortByDirection.ASC },
+                ],
+                sortOnlyColumns: [{ reference: 'y_day', kind: 'row' as const }],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // row_index must ORDER BY y_day so the x-axis renders by day of
+            // year, not alphabetically by `date`.
+            const rowIndexMatch = collapsed.match(
+                /DENSE_RANK\(\) OVER \(ORDER BY ([^)]+)\) AS "row_index"/,
+            );
+            expect(rowIndexMatch).not.toBeNull();
+            // Regression: PR #22458 routes row-companion sort dims to
+            // column_index — this assertion fails until fixed.
+            expect(rowIndexMatch![1]).toContain('y_day');
+
+            // column_index must NOT mention y_day — it isn't a column
+            // companion of `year`, putting it there bloats column_index
+            // cardinality past the 200-cap and truncates the chart.
+            const columnIndexMatch = collapsed.match(
+                /DENSE_RANK\(\) OVER \(ORDER BY ([^)]+)\) AS "column_index"/,
+            );
+            expect(columnIndexMatch).not.toBeNull();
+            // Regression: PR #22458 routes row-companion sort dims to
+            // column_index — this assertion fails until fixed.
+            expect(columnIndexMatch![1]).not.toContain('y_day');
+        });
+
+        test('Row-companion sort-only dim drives row_index for cumulative-enrollment pivot, not column_index (PR #22458 row-companion regression)', () => {
+            // Reproducer 2 from the customer report: cumulative enrollments
+            // pivoted by year with x-axis = `summer_month_name_event`
+            // ("December", "January", ...) and a sort-only companion
+            // `summer_month_order_event` (school-year ordinal: Dec=0, Jan=1,
+            // ..., Aug=8). The user's intent is "order x-axis chronologically
+            // in school-year order", so summer_month_order_event is a ROW
+            // companion of summer_month_name_event.
+            //
+            // Bug shipped in PR #22458: summer_month_order_event ends up in
+            // column_index ORDER BY, leaving row_index to sort
+            // summer_month_name_event alphabetically — chart x-axis renders
+            // April, August, December, ... instead of Dec, Jan, ..., Aug.
+            //
+            // Regression: PR #22458 routes row-companion sort dims to
+            // column_index — these assertions fail until the routing is fixed
+            // so row companions land in row_index ORDER BY instead.
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'summer_month_name_event',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'cumulative_enrollments',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'year' }],
+                sortBy: [
+                    { reference: 'year', direction: SortByDirection.DESC },
+                    {
+                        reference: 'summer_month_order_event',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+                sortOnlyColumns: [
+                    {
+                        reference: 'summer_month_order_event',
+                        kind: 'row' as const,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+            const collapsed = replaceWhitespace(result);
+
+            // row_index must ORDER BY summer_month_order_event so the x-axis
+            // months render in school-year order, not alphabetically.
+            const rowIndexMatch = collapsed.match(
+                /DENSE_RANK\(\) OVER \(ORDER BY ([^)]+)\) AS "row_index"/,
+            );
+            expect(rowIndexMatch).not.toBeNull();
+            // Regression: PR #22458 routes row-companion sort dims to
+            // column_index — this assertion fails until fixed.
+            expect(rowIndexMatch![1]).toContain('summer_month_order_event');
+            // The bare summer_month_name_event ASC fallback is the bugged
+            // shape — alphabetical x-axis on the customer's chart.
+            expect(collapsed).not.toContain(
+                'DENSE_RANK() OVER (ORDER BY g."summer_month_name_event" ASC) AS "row_index"',
+            );
+
+            // column_index must NOT mention summer_month_order_event — it
+            // isn't a column companion of `year`.
+            const columnIndexMatch = collapsed.match(
+                /DENSE_RANK\(\) OVER \(ORDER BY ([^)]+)\) AS "column_index"/,
+            );
+            expect(columnIndexMatch).not.toBeNull();
+            // Regression: PR #22458 routes row-companion sort dims to
+            // column_index — this assertion fails until fixed.
+            expect(columnIndexMatch![1]).not.toContain(
+                'summer_month_order_event',
+            );
         });
     });
 });

@@ -285,9 +285,39 @@ function getCartesianPivotConfiguration(
         // they don't conflate row-axis sort with column-ordering intent.
         const valuesRefs = new Set(valuesColumns.map((c) => c.reference));
         const groupByRefs = new Set(groupByColumns.map((c) => c.reference));
+
+        // Classify sort-only dimensions as row vs column companion.
+        //
+        // The shape of metricQuery.sorts can't tell us partnership 1:1 — the
+        // exact sort sequence `[groupBy, sortOnly]` happens for both real
+        // intents (e.g. customer charts that wanted x-axis ordering, AND a
+        // pivot-column tiebreaker). We pick the rule that recovers the most
+        // common intent we've seen and is safe for the original case
+        // PR #22458 fixed:
+        //
+        //   - All sort entries are sort-only dims (no row-side, no groupBy,
+        //     no value sort) → user is clearly asking to order pivot columns
+        //     by these dims → 'column' (#22399 case: `[status_priority]`
+        //     ordering a status groupBy).
+        //   - Otherwise → 'row'. The user already supplied a sort that
+        //     anchors columns (or values), so any companion dim folds into
+        //     the row-axis ordering sequence.
+        const allSortsAreSortOnlyDimensions = metricQuery.sorts.every(
+            (sort) =>
+                sort.fieldId !== xField &&
+                !valuesRefs.has(sort.fieldId) &&
+                !groupByRefs.has(sort.fieldId) &&
+                metricQuery.dimensions.includes(sort.fieldId),
+        );
+        const sortOnlyDimensionKind: 'row' | 'column' =
+            allSortsAreSortOnlyDimensions ? 'column' : 'row';
+
+        type SortOnlyEntry = NonNullable<
+            PivotConfiguration['sortOnlyColumns']
+        >[number];
         const sortOnlyColumns: NonNullable<
             PivotConfiguration['sortOnlyColumns']
-        > = metricQuery.sorts.flatMap((sort) => {
+        > = metricQuery.sorts.flatMap<SortOnlyEntry>((sort) => {
             if (
                 sort.fieldId !== xField &&
                 !valuesRefs.has(sort.fieldId) &&
@@ -309,7 +339,12 @@ function getCartesianPivotConfiguration(
                 !groupByRefs.has(sort.fieldId) &&
                 metricQuery.dimensions.includes(sort.fieldId)
             ) {
-                return [{ reference: sort.fieldId }];
+                return [
+                    {
+                        reference: sort.fieldId,
+                        kind: sortOnlyDimensionKind,
+                    },
+                ];
             }
             return [];
         });

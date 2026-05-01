@@ -2,7 +2,9 @@ import {
     getAggregatedField,
     getItemId,
     getParsedReference,
+    getSortOnlyColumnCompanions,
     getSortOnlyDimensionColumns,
+    getSortOnlyRowCompanions,
     getSortOnlyValuesColumns,
     hasPivotFunctions,
     isCustomBinDimension,
@@ -502,11 +504,16 @@ export class PivotQueryBuilder {
                     (groupCol) => groupCol.reference === reference,
                 );
 
-            const sortOnlyDimensions = getSortOnlyDimensionColumns(
+            // Only column-companion sort-only dims belong in column_index
+            // ORDER BY. Row-companion ones are routed through
+            // buildRowIndexOrderBy so they drive the x-axis instead.
+            const sortOnlyColumnCompanions = getSortOnlyColumnCompanions(
                 this.pivotConfiguration.sortOnlyColumns,
             );
-            const isSortOnlyDimension = ({ reference }: VizSortBy) =>
-                sortOnlyDimensions.some((dim) => dim.reference === reference);
+            const isSortOnlyColumnCompanion = ({ reference }: VizSortBy) =>
+                sortOnlyColumnCompanions.some(
+                    (dim) => dim.reference === reference,
+                );
 
             // Create values order parts
             const valuesOrderByParts = sortBy
@@ -534,12 +541,11 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Sort intent on sort-only dimensions (frontend-flagged companion
-            // dims that aren't on the row axis) drives column_index too. They
-            // ride in group_by_query via metricQuery.dimensions, so we just
+            // Sort intent on column-companion sort-only dims drives
+            // column_index. They ride through group_by_query so we just
             // reference them in the ORDER BY.
             const sortOnlyDimensionParts = sortBy
-                .filter(isSortOnlyDimension)
+                .filter(isSortOnlyColumnCompanion)
                 .map((sort) => {
                     const sortExpr = this.resolveSortField(
                         sort.reference,
@@ -616,6 +622,17 @@ export class PivotQueryBuilder {
         >,
         q: string,
     ): string {
+        // Row-companion sort-only dims are user-supplied row-axis ordering
+        // intent — e.g. day-of-year ordering an alphabetical month-name
+        // xField. They live in group_by_query alongside index columns and
+        // participate in row_index DENSE_RANK exactly like an index sort.
+        const sortOnlyRowCompanions = getSortOnlyRowCompanions(
+            this.pivotConfiguration.sortOnlyColumns,
+        );
+        const sortOnlyRowCompanionRefs = new Set(
+            sortOnlyRowCompanions.map((d) => d.reference),
+        );
+
         if (!sortBy?.length) {
             // Default to all index columns with ASC direction
             return indexColumns
@@ -640,6 +657,10 @@ export class PivotQueryBuilder {
                 (valCol) => valCol.reference === sort.reference,
             );
 
+            const isRowCompanionSortOnly = sortOnlyRowCompanionRefs.has(
+                sort.reference,
+            );
+
             if (isValueColumn) {
                 // Use the anchor value from the row anchor CTE
                 const rowAnchorCteName = `${sort.reference}_row_anchor`;
@@ -651,8 +672,7 @@ export class PivotQueryBuilder {
                         `${q}${rowAnchorCteName}${q}.${q}${rowAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                     );
                 }
-            } else if (isIndexColumn) {
-                // Only include index columns in row ordering
+            } else if (isIndexColumn || isRowCompanionSortOnly) {
                 const sortExpr = this.resolveSortField(
                     sort.reference,
                     sort.direction === SortByDirection.DESC,
@@ -665,7 +685,8 @@ export class PivotQueryBuilder {
                 );
                 orderByParts.push(prefixedExpr);
             }
-            // Skip other column types (like groupBy columns) as they shouldn't affect row ordering
+            // groupBy and column-companion sort-only entries are skipped —
+            // they drive column_index, not row_index.
         }
 
         // Ensure all index columns are included for proper dense_rank calculation

@@ -31,12 +31,29 @@ export const getSortOnlyValuesColumns = (
     );
 
 // Items in sortOnlyColumns that don't carry an `aggregation` (dimensions
-// that ride through group_by_query to drive column_index ORDER BY).
+// that ride through group_by_query to drive ORDER BY — see `kind` for which
+// DENSE_RANK they feed).
 export const getSortOnlyDimensionColumns = (
     sortOnlyColumns: PivotConfiguration['sortOnlyColumns'],
 ): SortOnlyDimension[] =>
     (sortOnlyColumns ?? []).filter(
         (col): col is SortOnlyDimension => !('aggregation' in col),
+    );
+
+// Sort-only dims meant to order the x-axis / row_index.
+export const getSortOnlyRowCompanions = (
+    sortOnlyColumns: PivotConfiguration['sortOnlyColumns'],
+): SortOnlyDimension[] =>
+    getSortOnlyDimensionColumns(sortOnlyColumns).filter(
+        (col) => col.kind === 'row',
+    );
+
+// Sort-only dims meant to order pivot columns / column_index.
+export const getSortOnlyColumnCompanions = (
+    sortOnlyColumns: PivotConfiguration['sortOnlyColumns'],
+): SortOnlyDimension[] =>
+    getSortOnlyDimensionColumns(sortOnlyColumns).filter(
+        (col) => col.kind === 'column',
     );
 
 // True when the user's sort drives pivot column ordering: the sort field is
