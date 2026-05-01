@@ -5,10 +5,22 @@ import type { GroupByColumn, SortBy, ValuesColumn } from './sqlRunner';
 
 /**
  * A dimension referenced only via sortBy — not a row-axis index, not a pivot
- * group-by, not a metric. Carried through group_by_query to drive
- * column_index ORDER BY without affecting row layout.
+ * group-by, not a metric. Carried through group_by_query to drive ORDER BY
+ * without surfacing as a chart series.
+ *
+ * `kind` decides which DENSE_RANK the dim feeds:
+ *   - 'row'    — orders the x-axis / row_index (e.g. day-of-year ordering an
+ *                alphabetical month name xField).
+ *   - 'column' — orders the pivot columns / column_index (e.g. priority
+ *                ordering a status groupBy).
+ *
+ * The two intents look identical at the SQL layer but differ for the user;
+ * `kind` is set by the chart-config layer where the partnership signal lives.
  */
-export type SortOnlyDimension = { reference: string };
+export type SortOnlyDimension = {
+    reference: string;
+    kind: 'row' | 'column';
+};
 
 export type PivotConfig = {
     pivotDimensions: string[];
@@ -37,9 +49,9 @@ export type PivotConfiguration = {
      * Fields referenced only via sortBy that aren't on any axis or in pivot
      * columns. Items with `aggregation` are metrics/table calculations merged
      * into valuesColumns for sort-anchor CTEs; items without `aggregation`
-     * are dimensions that ride through group_by_query to drive column_index
-     * ORDER BY. Both are excluded from pivotDetails so they don't appear as
-     * chart series.
+     * are dimensions that ride through group_by_query to drive row_index or
+     * column_index ORDER BY (per their `kind`). Both are excluded from
+     * pivotDetails so they don't appear as chart series.
      */
     sortOnlyColumns?: Array<ValuesColumn | SortOnlyDimension>;
 };

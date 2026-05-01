@@ -1,3 +1,4 @@
+import type { PivotConfiguration } from '../types/pivot';
 import { VizAggregationOptions } from '../visualizations/types';
 import { isSortedByPivot } from './utils';
 
@@ -55,7 +56,10 @@ describe('isSortedByPivot', () => {
                 sorts: [{ fieldId: 'raw_order_statuses_status_priority' }],
                 pivotDetails: {
                     sortOnlyColumns: [
-                        { reference: 'raw_order_statuses_status_priority' },
+                        {
+                            reference: 'raw_order_statuses_status_priority',
+                            kind: 'column' as const,
+                        },
                     ],
                 },
             }),
@@ -85,7 +89,12 @@ describe('isSortedByPivot', () => {
                 pivotDimensions: ['orders_status'],
                 sorts: [{ fieldId: 'orders_total_revenue' }],
                 pivotDetails: {
-                    sortOnlyColumns: [{ reference: 'some_other_dim' }],
+                    sortOnlyColumns: [
+                        {
+                            reference: 'some_other_dim',
+                            kind: 'column' as const,
+                        },
+                    ],
                 },
             }),
         ).toBe(false);
@@ -131,13 +140,15 @@ describe('isSortedByPivot', () => {
     });
 
     it('mixes sort-only dimensions and metrics in sortOnlyColumns and only treats dimensions as pivot-driving', () => {
-        const pivotDetails = {
+        const pivotDetails: {
+            sortOnlyColumns: PivotConfiguration['sortOnlyColumns'];
+        } = {
             sortOnlyColumns: [
                 {
                     reference: 'hidden_metric',
                     aggregation: VizAggregationOptions.SUM,
                 },
-                { reference: 'companion_dim' },
+                { reference: 'companion_dim', kind: 'column' },
             ],
         };
 

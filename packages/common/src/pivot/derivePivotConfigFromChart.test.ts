@@ -652,7 +652,7 @@ describe('derivePivotConfigurationFromChart', () => {
                 },
             ]);
             expect(result?.sortOnlyColumns).toEqual([
-                { reference: 'customers_customer_id' },
+                { reference: 'customers_customer_id', kind: 'column' },
             ]);
             expect(result?.sortBy).toEqual([
                 {
