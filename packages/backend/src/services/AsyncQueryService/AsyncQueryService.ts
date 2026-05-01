@@ -4866,6 +4866,8 @@ export class AsyncQueryService extends ProjectService {
         limit,
         tileUuid,
         parameters,
+        chartUuid,
+        dashboardUuid,
     }: {
         account: Account;
         projectUuid: string;
@@ -4878,6 +4880,8 @@ export class AsyncQueryService extends ProjectService {
         limit?: number;
         tileUuid?: string;
         parameters?: ParametersValuesMap;
+        chartUuid?: string;
+        dashboardUuid?: string;
     }) {
         const startTime = performance.now();
 
@@ -4898,6 +4902,8 @@ export class AsyncQueryService extends ProjectService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             query_context: context,
+            ...(chartUuid ? { chart_uuid: chartUuid } : {}),
+            ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
         };
         const durationWarehouse = performance.now() - sectionStartWarehouse;
 
@@ -5168,6 +5174,7 @@ export class AsyncQueryService extends ProjectService {
             config: sqlChart.config,
             limit: limit ?? sqlChart.limit,
             parameters: combinedParameters,
+            chartUuid: sqlChart.savedSqlUuid,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -5267,6 +5274,8 @@ export class AsyncQueryService extends ProjectService {
             dashboardSorts,
             limit: limit ?? savedChart.limit,
             parameters: combinedParameters,
+            chartUuid: savedChart.savedSqlUuid,
+            dashboardUuid,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
