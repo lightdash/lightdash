@@ -29,6 +29,7 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import { useCallback, useEffect, type FC, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
@@ -245,16 +246,11 @@ const TARGET_ICON: Record<
     project: IconChartBar,
 };
 
-const formatTimestamp = (dateStr: string) => {
-    const d = new Date(dateStr);
-    return d.toLocaleString([], {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-    });
-};
+const formatTimestamp = (dateStr: string) =>
+    formatDistanceToNowStrict(new Date(dateStr), { addSuffix: true });
+
+const formatAbsoluteTimestamp = (dateStr: string) =>
+    format(new Date(dateStr), 'MMM d, HH:mm');
 
 // --- Detail Sidebar ---
 
@@ -814,10 +810,15 @@ const ActionRow: FC<{
             className={`${classes.row} ${selected ? classes.rowSelected : ''}`}
             onClick={() => onSelect(action)}
         >
-            <Table.Td w={160}>
-                <span className={classes.timestamp}>
-                    {formatTimestamp(action.createdAt)}
-                </span>
+            <Table.Td w={90}>
+                <Tooltip
+                    label={formatAbsoluteTimestamp(action.createdAt)}
+                    withinPortal
+                >
+                    <span className={classes.timestamp}>
+                        {formatTimestamp(action.createdAt)}
+                    </span>
+                </Tooltip>
             </Table.Td>
             <Table.Td w={100}>
                 {config.tooltip ? (
@@ -945,7 +946,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                     <Table className={classes.table}>
                                         <Table.Thead>
                                             <Table.Tr>
-                                                <Table.Th>Timestamp</Table.Th>
+                                                <Table.Th />
                                                 <Table.Th>Action</Table.Th>
                                                 <Table.Th>Name</Table.Th>
                                                 <Table.Th>Message</Table.Th>
