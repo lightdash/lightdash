@@ -1,3 +1,10 @@
+## [0.2855.1](https://github.com/lightdash/lightdash/compare/0.2855.0...0.2855.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* **migrations:** disable statement_timeout for long add_primary_keys backfills (PROD-7380) ([#22593](https://github.com/lightdash/lightdash/issues/22593)) ([daf7e8b](https://github.com/lightdash/lightdash/commit/daf7e8b2aa60a49317ad94f51ce9c3f405add401)), closes [#22452](https://github.com/lightdash/lightdash/issues/22452)
+
 # [0.2855.0](https://github.com/lightdash/lightdash/compare/0.2854.0...0.2855.0) (2026-05-01)
 
 
