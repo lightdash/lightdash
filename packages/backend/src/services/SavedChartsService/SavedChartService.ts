@@ -29,6 +29,8 @@ import {
     isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
+    isSqlTableCalculation,
+    isTemplateTableCalculation,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -451,6 +453,64 @@ export class SavedChartService
         };
     }
 
+    static getSqlTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              sqlCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const sqlCount = tableCalculations.filter(isSqlTableCalculation).length;
+        if (sqlCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            sqlCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
+    static getTemplateTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              templateCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const templateCount = tableCalculations.filter(
+            isTemplateTableCalculation,
+        ).length;
+        if (templateCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            templateCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
@@ -567,6 +627,32 @@ export class SavedChartService
                 event: 'formula_table_calculation.saved',
                 userId: user.userUuid,
                 properties: formulaProperties,
+            });
+        }
+
+        const sqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (sqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: sqlProperties,
+            });
+        }
+
+        const templateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (templateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: templateProperties,
             });
         }
 
@@ -1293,6 +1379,32 @@ export class SavedChartService
             });
         }
 
+        const createSqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createSqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createSqlProperties,
+            });
+        }
+
+        const createTemplateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createTemplateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createTemplateProperties,
+            });
+        }
+
         SavedChartService.getConditionalFormattingEventProperties(
             newSavedChart,
         )?.forEach((properties) => {
@@ -1431,6 +1543,32 @@ export class SavedChartService
                 event: 'formula_table_calculation.saved',
                 userId: user.userUuid,
                 properties: duplicateFormulaProperties,
+            });
+        }
+
+        const duplicateSqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateSqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateSqlProperties,
+            });
+        }
+
+        const duplicateTemplateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateTemplateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateTemplateProperties,
             });
         }
 

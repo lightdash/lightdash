@@ -496,6 +496,30 @@ type FormulaTableCalculationSavedEvent = BaseTrack & {
     };
 };
 
+type SqlTableCalculationSavedEvent = BaseTrack & {
+    event: 'sql_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        sqlCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type TemplateTableCalculationSavedEvent = BaseTrack & {
+    event: 'template_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        templateCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
 type ChartHistoryEvent = BaseTrack & {
     event: 'saved_chart_history.view';
     properties: {
@@ -1819,6 +1843,8 @@ type TypedEvent =
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
     | FormulaTableCalculationSavedEvent
+    | SqlTableCalculationSavedEvent
+    | TemplateTableCalculationSavedEvent
     | CreateSavedChartEvent
     | ChartHistoryEvent
     | ViewChartVersionEvent
