@@ -3,10 +3,11 @@ import {
     ForbiddenError,
     ResourceViewItemType,
     type PinnedItems,
+    type RegisteredAccount,
     type ResourceViewSpaceItem,
-    type SessionUser,
     type UpdatePinnedItemOrder,
 } from '@lightdash/common';
+import { toSessionUser } from '../../auth/account';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -64,12 +65,12 @@ export class PinningService extends BaseService {
     }
 
     async getPinnedItems(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         pinnedListUuid: string,
     ): Promise<PinnedItems> {
         const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -90,7 +91,7 @@ export class PinningService extends BaseService {
         const allowedSpaceUuids =
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
-                user,
+                toSessionUser(account),
                 spaceUuids,
             );
 
@@ -148,13 +149,13 @@ export class PinningService extends BaseService {
     }
 
     async updatePinnedItemsOrder(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         pinnedListUuid: string,
         itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<PinnedItems> {
         const project = await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'manage',
@@ -177,6 +178,6 @@ export class PinningService extends BaseService {
             pinnedListUuid,
             itemsOrder,
         );
-        return this.getPinnedItems(user, projectUuid, pinnedListUuid);
+        return this.getPinnedItems(account, projectUuid, pinnedListUuid);
     }
 }

@@ -1,8 +1,8 @@
 import {
+    Account,
     HealthState,
     LightdashInstallType,
     LightdashMode,
-    SessionUser,
     UnexpectedDatabaseError,
 } from '@lightdash/common';
 import { createHmac } from 'crypto';
@@ -41,8 +41,8 @@ export class HealthService extends BaseService {
         return this.lightdashConfig.license.licenseKey !== undefined;
     }
 
-    async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
-        const isAuthenticated: boolean = !!user?.userUuid;
+    async getHealthState(account: Account | undefined): Promise<HealthState> {
+        const isAuthenticated: boolean = !!account;
 
         const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =
@@ -106,7 +106,9 @@ export class HealthService extends BaseService {
             intercom: this.lightdashConfig.intercom,
             pylon: {
                 appId: this.lightdashConfig.pylon.appId,
-                verificationHash: this.getPylonVerificationHash(user?.email),
+                verificationHash: this.getPylonVerificationHash(
+                    account?.user.email,
+                ),
             },
             headway: {
                 enabled: this.lightdashConfig.headway.enabled,

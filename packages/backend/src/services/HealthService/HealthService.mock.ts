@@ -1,9 +1,12 @@
+import { Ability } from '@casl/ability';
 import {
     AnyType,
     HealthState,
     LightdashMode,
+    PossibleAbilities,
     SessionUser,
 } from '@lightdash/common';
+import { fromSession } from '../../auth/account';
 
 export const BaseResponse: HealthState = {
     healthy: true,
@@ -139,7 +142,13 @@ export const BaseResponse: HealthState = {
     },
 };
 
-export const userMock = {
+const sessionUserMock = {
     userUuid: 'uuid',
     organizationUuid: 'orguuid',
+    organizationName: 'orgname',
+    organizationCreatedAt: new Date(),
+    ability: new Ability<PossibleAbilities>(),
+    abilityRules: [],
 } as AnyType as SessionUser;
+
+export const userMock = fromSession(sessionUserMock);

@@ -6,11 +6,12 @@ import {
     ParameterError,
     ResourceViewItemType,
     type FavoriteItems,
+    type RegisteredAccount,
     type ResourceViewSpaceItem,
-    type SessionUser,
     type ToggleFavoriteResponse,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -70,13 +71,13 @@ export class FavoritesService extends BaseService {
     }
 
     async toggleFavorite(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         contentType: ContentType,
         contentUuid: string,
     ): Promise<ToggleFavoriteResponse> {
         const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -134,7 +135,7 @@ export class FavoritesService extends BaseService {
 
         const canViewSpace = await this.spacePermissionService.can(
             'view',
-            user,
+            toSessionUser(account),
             spaceUuid,
         );
         if (!canViewSpace) {
@@ -142,20 +143,20 @@ export class FavoritesService extends BaseService {
         }
 
         const alreadyFavorited = await this.userFavoritesModel.isFavorite(
-            user.userUuid,
+            account.user.userUuid,
             contentType,
             contentUuid,
         );
 
         if (alreadyFavorited) {
             await this.userFavoritesModel.removeFavorite(
-                user.userUuid,
+                account.user.userUuid,
                 contentType,
                 contentUuid,
             );
         } else {
             await this.userFavoritesModel.addFavorite(
-                user.userUuid,
+                account.user.userUuid,
                 projectUuid,
                 contentType,
                 contentUuid,
@@ -166,10 +167,10 @@ export class FavoritesService extends BaseService {
 
         this.analytics.track({
             event: 'favorite.toggled',
-            userId: user.userUuid,
+            userId: account.user.userUuid,
             properties: {
                 projectId: projectUuid,
-                organizationId: user.organizationUuid ?? '',
+                organizationId: account.organization.organizationUuid ?? '',
                 contentType,
                 isFavorite,
             },
@@ -183,11 +184,11 @@ export class FavoritesService extends BaseService {
     }
 
     async getFavorites(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
     ): Promise<FavoriteItems> {
         const project = await this.projectModel.getSummary(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -208,12 +209,12 @@ export class FavoritesService extends BaseService {
         const allowedSpaceUuids =
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
-                user,
+                toSessionUser(account),
                 spaceUuids,
             );
 
         const favoriteRows = await this.userFavoritesModel.getFavoriteUuids(
-            user.userUuid,
+            account.user.userUuid,
             projectUuid,
         );
 

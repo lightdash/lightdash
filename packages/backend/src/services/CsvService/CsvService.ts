@@ -29,7 +29,6 @@ import {
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
     SchedulerFormat,
-    SessionUser,
 } from '@lightdash/common';
 import archiver from 'archiver';
 import { stringify } from 'csv-stringify';

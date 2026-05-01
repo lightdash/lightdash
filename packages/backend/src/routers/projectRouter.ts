@@ -1,4 +1,5 @@
 import {
+    assertRegisteredAccount,
     getObjectValue,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -70,11 +71,12 @@ projectRouter.get(
     isAuthenticated,
     async (req, res, next) => {
         try {
+            assertRegisteredAccount(req.account);
             const { type, fromDate, toDate, createdByUuid } = req.query;
             const results = await req.services
                 .getSearchService()
                 .getSearchResults(
-                    req.user!,
+                    req.account,
                     getObjectValue(req.params, 'projectUuid'),
                     getObjectValue(req.params, 'query'),
                     req.query.source as 'omnibar' | 'ai_search_box' | undefined,

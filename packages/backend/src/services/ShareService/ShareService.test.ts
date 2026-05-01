@@ -10,7 +10,6 @@ import {
     FullShareUrlWithoutParams,
     SampleShareUrl,
     ShareUrlWithoutParams,
-    User,
 } from './ShareService.mock';
 
 const shareModel = {
@@ -32,7 +31,7 @@ describe('share', () => {
     it('Should save sharedUrl', async () => {
         expect(
             await shareService.createShareUrl(
-                User,
+                Account,
                 SampleShareUrl.path,
                 SampleShareUrl.params,
             ),
