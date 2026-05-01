@@ -627,7 +627,7 @@ export class AppGenerateService extends BaseService {
         version: number,
         error: unknown,
         userMessage: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
         try {
             const updated = await this.appModel.updateVersionStatusIfInProgress(
                 appUuid,
@@ -641,10 +641,12 @@ export class AppGenerateService extends BaseService {
                     `App ${appUuid}: skipped markError — version ${version} is no longer building (likely cancelled)`,
                 );
             }
+            return updated;
         } catch (dbError) {
             this.logger.error(
                 `App ${appUuid}: failed to persist error status: ${getErrorMessage(dbError)}`,
             );
+            return false;
         }
     }
 
@@ -1652,13 +1654,15 @@ export class AppGenerateService extends BaseService {
             e2bApiKey = this.getE2bApiKey();
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
-            await this.markError(
+            const marked = await this.markError(
                 appUuid,
                 version,
                 error,
                 'Something went wrong. Please try again.',
             );
-            this.trackVersionFailed(payload, 'config', error, {}, null, 0);
+            if (marked) {
+                this.trackVersionFailed(payload, 'config', error, {}, null, 0);
+            }
             return;
         }
 
@@ -1709,20 +1713,22 @@ export class AppGenerateService extends BaseService {
                     );
                 }
             } catch (error) {
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to set up build environment. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'sandbox',
-                    error,
-                    durations,
-                    overallStart,
-                    0,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'sandbox',
+                        error,
+                        durations,
+                        overallStart,
+                        0,
+                    );
+                }
                 return;
             }
         } else {
@@ -1732,20 +1738,22 @@ export class AppGenerateService extends BaseService {
                 const missingSandboxError = new Error(
                     'No sandbox_id found for resume',
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     missingSandboxError,
                     'Failed to resume build environment. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'sandbox',
-                    missingSandboxError,
-                    durations,
-                    overallStart,
-                    0,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'sandbox',
+                        missingSandboxError,
+                        durations,
+                        overallStart,
+                        0,
+                    );
+                }
                 return;
             }
             try {
@@ -1758,20 +1766,22 @@ export class AppGenerateService extends BaseService {
                 wasResumed = true;
                 durations.resumeMs = result.durationMs;
             } catch (error) {
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to resume build environment. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'sandbox',
-                    error,
-                    durations,
-                    overallStart,
-                    0,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'sandbox',
+                        error,
+                        durations,
+                        overallStart,
+                        0,
+                    );
+                }
                 return;
             }
         }
@@ -1876,20 +1886,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: catalog failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to load your data models. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'catalog',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'catalog',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -1927,20 +1939,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to generate app code. Try rephrasing your request.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'generating',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'generating',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -1975,20 +1989,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: build failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     "The generated code couldn't be compiled. Try again or simplify your request.",
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'building',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'building',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -2057,20 +2073,22 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: deploy failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                await this.markError(
+                const marked = await this.markError(
                     appUuid,
                     version,
                     error,
                     'Failed to deploy your app. Please try again.',
                 );
-                this.trackVersionFailed(
-                    payload,
-                    'packaging',
-                    error,
-                    durations,
-                    overallStart,
-                    buildFixAttempts,
-                );
+                if (marked) {
+                    this.trackVersionFailed(
+                        payload,
+                        'packaging',
+                        error,
+                        durations,
+                        overallStart,
+                        buildFixAttempts,
+                    );
+                }
                 return;
             }
         }
@@ -2095,20 +2113,22 @@ export class AppGenerateService extends BaseService {
             this.logger.error(
                 `App ${appUuid}: failed to mark version as ready: ${getErrorMessage(error)}`,
             );
-            await this.markError(
+            const marked = await this.markError(
                 appUuid,
                 version,
                 error,
                 'Something went wrong. Please try again.',
             );
-            this.trackVersionFailed(
-                payload,
-                'db',
-                error,
-                durations,
-                overallStart,
-                buildFixAttempts,
-            );
+            if (marked) {
+                this.trackVersionFailed(
+                    payload,
+                    'db',
+                    error,
+                    durations,
+                    overallStart,
+                    buildFixAttempts,
+                );
+            }
             return;
         }
 
@@ -2830,7 +2850,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // Pause the sandbox to interrupt any running commands while keeping
         // it resumable for the next iteration.
         // The pipeline will catch the resulting error, but markError is now
-        // a no-op since the version is already in 'error' state.
+        // a no-op since the version is already in 'error' state — and
+        // pipeline catches gate `trackVersionFailed` on the markError result,
+        // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
                 const sandbox = await Sandbox.connect(app.sandbox_id, {
