@@ -1,9 +1,12 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
-import { ColorSwatch, Group, Select, Text } from '@mantine-8/core';
+import { ColorSwatch, Group, Select, Text, Tooltip } from '@mantine-8/core';
+import { IconMoon, IconSun } from '@tabler/icons-react';
 import { type FC } from 'react';
+import MantineIcon from '../MantineIcon';
 import classes from './PalettePicker.module.css';
 
 const INHERIT_VALUE = '__inherit__';
+const SWATCH_LIMIT = 5;
 
 type Props = {
     value: string | null;
@@ -16,22 +19,54 @@ type Props = {
     placeholder?: string;
 };
 
-const PaletteOptionRow: FC<{ name: string; colors: string[] | null }> = ({
+type SwatchSet = {
+    colors: string[];
+    darkColors: string[] | null;
+};
+
+const SwatchRow: FC<{
+    icon: typeof IconSun;
+    label: string;
+    colors: string[];
+}> = ({ icon, label, colors }) => (
+    <Tooltip label={label} position="top" withinPortal>
+        <Group gap={4} wrap="nowrap">
+            <MantineIcon icon={icon} size="sm" color="gray" />
+            {colors.slice(0, SWATCH_LIMIT).map((color, index) => (
+                <ColorSwatch
+                    key={`${color}-${index}`}
+                    size={12}
+                    color={color}
+                    withShadow={false}
+                />
+            ))}
+        </Group>
+    </Tooltip>
+);
+
+const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
     name,
-    colors,
+    swatches,
 }) => (
-    <Group gap="xs" wrap="nowrap" className={classes.row}>
+    <Group gap="sm" wrap="nowrap" className={classes.row}>
         <Text className={classes.name}>{name}</Text>
-        {colors && colors.length > 0 && (
-            <Group gap={2} wrap="nowrap" className={classes.swatches}>
-                {colors.slice(0, 8).map((color, index) => (
-                    <ColorSwatch
-                        key={`${color}-${index}`}
-                        size={14}
-                        color={color}
-                        withShadow={false}
-                    />
-                ))}
+        {swatches && (
+            <Group gap="xs" wrap="nowrap" className={classes.swatches}>
+                <SwatchRow
+                    icon={IconSun}
+                    label="Light mode"
+                    colors={swatches.colors}
+                />
+                {swatches.darkColors && swatches.darkColors.length > 0 && (
+                    <>
+                        <Text c="ldGray.3">/</Text>
+                        <SwatchRow
+                            icon={IconMoon}
+                            label="Dark mode"
+                            colors={swatches.darkColors}
+                        />
+                    </>
+                )}
             </Group>
         )}
     </Group>
@@ -55,8 +90,11 @@ export const PalettePicker: FC<Props> = ({
         })),
     ];
 
-    const swatchesByValue = new Map<string, string[]>(
-        palettes.map((palette) => [palette.colorPaletteUuid, palette.colors]),
+    const swatchesByValue = new Map<string, SwatchSet>(
+        palettes.map((palette) => [
+            palette.colorPaletteUuid,
+            { colors: palette.colors, darkColors: palette.darkColors },
+        ]),
     );
 
     return (
@@ -74,7 +112,7 @@ export const PalettePicker: FC<Props> = ({
             renderOption={({ option }) => (
                 <PaletteOptionRow
                     name={option.label}
-                    colors={swatchesByValue.get(option.value) ?? null}
+                    swatches={swatchesByValue.get(option.value) ?? null}
                 />
             )}
         />
