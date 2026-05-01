@@ -1,3 +1,10 @@
+## [0.2861.1](https://github.com/lightdash/lightdash/compare/0.2861.0...0.2861.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* **revert:** pivot sortonly dims ([#22622](https://github.com/lightdash/lightdash/issues/22622)) ([d034327](https://github.com/lightdash/lightdash/commit/d03432707128d661710cee4c01f73f02116a3ea0)), closes [#22479](https://github.com/lightdash/lightdash/issues/22479) [#22458](https://github.com/lightdash/lightdash/issues/22458)
+
 # [0.2861.0](https://github.com/lightdash/lightdash/compare/0.2860.0...0.2861.0) (2026-05-01)
 
 
