@@ -80,9 +80,13 @@ async function addPrimaryKey(
             [table, checkName, column],
         );
     }
+    // eslint-disable-next-line no-console
+    console.log(`  ${table}: validating not-null constraint`);
     await knex.raw(`ALTER TABLE ?? VALIDATE CONSTRAINT ??`, [table, checkName]);
 
     // 5. SET NOT NULL — fast on PG12+ thanks to the validated CHECK above.
+    // eslint-disable-next-line no-console
+    console.log(`  ${table}: setting NOT NULL`);
     await knex.raw(`ALTER TABLE ?? ALTER COLUMN ?? SET NOT NULL`, [
         table,
         column,
@@ -106,6 +110,8 @@ async function addPrimaryKey(
     if ((invalidIndex.rowCount ?? 0) > 0) {
         await knex.raw(`DROP INDEX CONCURRENTLY IF EXISTS ??`, [pkName]);
     }
+    // eslint-disable-next-line no-console
+    console.log(`  ${table}: building unique index (concurrently)`);
     await knex.raw(
         `CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS ?? ON ?? (??)`,
         [pkName, table, column],
@@ -119,6 +125,8 @@ async function addPrimaryKey(
         [pkName, table],
     );
     if ((existingPk.rowCount ?? 0) === 0) {
+        // eslint-disable-next-line no-console
+        console.log(`  ${table}: promoting index to primary key`);
         await knex.raw(
             `ALTER TABLE ?? ADD CONSTRAINT ?? PRIMARY KEY USING INDEX ??`,
             [table, pkName, pkName],
@@ -127,11 +135,19 @@ async function addPrimaryKey(
 }
 
 export async function up(knex: Knex): Promise<void> {
-    for (const { table, column } of TABLES) {
-        // eslint-disable-next-line no-console
-        console.log(`Adding primary key ${column} to ${table}`);
-        // eslint-disable-next-line no-await-in-loop
-        await addPrimaryKey(knex, table, column);
+    // The batched backfill below can run for many minutes on large tables.
+    // Disable statement_timeout for this session so a configured timeout
+    // can't interrupt the loop and leave the migration lock held.
+    await knex.raw(`SET statement_timeout = 0`);
+    try {
+        for (const { table, column } of TABLES) {
+            // eslint-disable-next-line no-console
+            console.log(`Adding primary key ${column} to ${table}`);
+            // eslint-disable-next-line no-await-in-loop
+            await addPrimaryKey(knex, table, column);
+        }
+    } finally {
+        await knex.raw(`RESET statement_timeout`);
     }
 }
 

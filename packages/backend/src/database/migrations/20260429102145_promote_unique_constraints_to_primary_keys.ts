@@ -110,11 +110,19 @@ async function promoteToPrimaryKey(
 }
 
 export async function up(knex: Knex): Promise<void> {
-    for (const { table, columns, oldConstraint } of TABLES) {
-        // eslint-disable-next-line no-console
-        console.log(`Promoting UNIQUE on ${table} to PRIMARY KEY`);
-        // eslint-disable-next-line no-await-in-loop
-        await promoteToPrimaryKey(knex, table, columns, oldConstraint);
+    // CREATE INDEX CONCURRENTLY can run for minutes on large tables.
+    // Disable statement_timeout so a configured timeout can't interrupt it
+    // and leave the migration lock held.
+    await knex.raw(`SET statement_timeout = 0`);
+    try {
+        for (const { table, columns, oldConstraint } of TABLES) {
+            // eslint-disable-next-line no-console
+            console.log(`Promoting UNIQUE on ${table} to PRIMARY KEY`);
+            // eslint-disable-next-line no-await-in-loop
+            await promoteToPrimaryKey(knex, table, columns, oldConstraint);
+        }
+    } finally {
+        await knex.raw(`RESET statement_timeout`);
     }
 }
 
