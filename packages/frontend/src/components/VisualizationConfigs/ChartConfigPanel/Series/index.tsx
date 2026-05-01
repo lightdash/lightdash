@@ -9,7 +9,6 @@ import {
     CartesianSeriesType,
     getItemId,
     getSeriesId,
-    isSortedByPivot,
     StackType,
     type CustomDimension,
     type Field,
@@ -55,16 +54,11 @@ export const Series: FC<Props> = ({ items }) => {
 
     const sortedByPivot = useMemo(
         () =>
-            isSortedByPivot({
-                pivotDimensions,
-                sorts: resultsData?.metricQuery?.sorts,
-                pivotDetails: resultsData?.pivotDetails,
-            }),
-        [
-            pivotDimensions,
-            resultsData?.metricQuery?.sorts,
-            resultsData?.pivotDetails,
-        ],
+            !!pivotDimensions?.length &&
+            !!resultsData?.metricQuery?.sorts?.some((sort) =>
+                pivotDimensions.includes(sort.fieldId),
+            ),
+        [pivotDimensions, resultsData?.metricQuery?.sorts],
     );
 
     const isCartesianChart =
