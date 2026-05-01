@@ -8,12 +8,14 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { IconMoon, IconSun } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useMemo, type FC } from 'react';
+import EChartsReact, { type EChartsOption } from '../../EChartsReactWrapper';
 import MantineIcon from '../MantineIcon';
 import classes from './PalettePicker.module.css';
 
 const INHERIT_VALUE = '__inherit__';
 const SWATCH_LIMIT = 5;
+const PREVIEW_BAR_HEIGHTS = [4, 7, 5, 9, 6];
 
 type Props = {
     value: string | null;
@@ -36,15 +38,14 @@ const SwatchInline: FC<{
     label: string;
     colors: string[];
     limit: number;
-    swatchSize?: number;
-}> = ({ icon, label, colors, limit, swatchSize = 12 }) => (
+}> = ({ icon, label, colors, limit }) => (
     <Tooltip label={label} position="top" withinPortal>
         <Group gap={4} wrap="nowrap">
             <MantineIcon icon={icon} size={14} color="gray" />
             {colors.slice(0, limit).map((color, index) => (
                 <ColorSwatch
                     key={`${color}-${index}`}
-                    size={swatchSize}
+                    size={12}
                     color={color}
                     withShadow={false}
                 />
@@ -87,25 +88,64 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
     </Group>
 );
 
-const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
-    <Stack gap="xs" className={classes.preview}>
-        <SwatchInline
-            icon={IconSun}
-            label="Light mode"
-            colors={swatches.colors}
-            limit={SWATCH_LIMIT}
-            swatchSize={16}
-        />
-        {swatches.darkColors && swatches.darkColors.length > 0 && (
-            <SwatchInline
-                icon={IconMoon}
-                label="Dark mode"
-                colors={swatches.darkColors}
-                limit={SWATCH_LIMIT}
-                swatchSize={16}
+const MiniBarChart: FC<{ colors: string[]; theme: 'light' | 'dark' }> = ({
+    colors,
+    theme,
+}) => {
+    const option = useMemo<EChartsOption>(() => {
+        const visible = colors.slice(0, SWATCH_LIMIT);
+        return {
+            animation: false,
+            grid: { left: 4, right: 4, top: 4, bottom: 4, containLabel: false },
+            xAxis: { type: 'category', data: [''], show: false },
+            yAxis: { type: 'value', show: false, max: 10 },
+            series: visible.map((color, i) => ({
+                type: 'bar',
+                data: [PREVIEW_BAR_HEIGHTS[i] ?? 5],
+                itemStyle: { color, borderRadius: [2, 2, 0, 0] },
+                barWidth: 10,
+            })),
+        };
+    }, [colors]);
+
+    return (
+        <div
+            className={
+                theme === 'dark'
+                    ? classes.miniChartDark
+                    : classes.miniChartLight
+            }
+        >
+            <EChartsReact
+                option={option}
+                style={{ height: 60, width: '100%' }}
+                opts={{ renderer: 'svg' }}
             />
+        </div>
+    );
+};
+
+const SelectedPalettePreview: FC<{ swatches: SwatchSet }> = ({ swatches }) => (
+    <Group gap="xs" grow align="stretch" wrap="nowrap">
+        <Tooltip label="Light mode" position="top" withinPortal>
+            <Stack gap={4} className={classes.miniChartCardLight}>
+                <Group gap={4} justify="center">
+                    <MantineIcon icon={IconSun} size={12} color="gray" />
+                </Group>
+                <MiniBarChart colors={swatches.colors} theme="light" />
+            </Stack>
+        </Tooltip>
+        {swatches.darkColors && swatches.darkColors.length > 0 && (
+            <Tooltip label="Dark mode" position="top" withinPortal>
+                <Stack gap={4} className={classes.miniChartCardDark}>
+                    <Group gap={4} justify="center">
+                        <MantineIcon icon={IconMoon} size={12} color="dimmed" />
+                    </Group>
+                    <MiniBarChart colors={swatches.darkColors} theme="dark" />
+                </Stack>
+            </Tooltip>
         )}
-    </Stack>
+    </Group>
 );
 
 export const PalettePicker: FC<Props> = ({

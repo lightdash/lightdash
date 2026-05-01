@@ -14,9 +14,24 @@
     flex-shrink: 0;
 }
 
-.preview {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+.miniChartCardLight,
+.miniChartCardDark {
+    padding: var(--mantine-spacing-xs);
     border: 1px solid var(--mantine-color-gray-2);
     border-radius: var(--mantine-radius-sm);
-    background: var(--mantine-color-gray-0);
+    flex: 1;
+}
+
+.miniChartCardLight {
+    background: var(--mantine-color-white);
+}
+
+.miniChartCardDark {
+    background: var(--mantine-color-dark-7);
+    border-color: var(--mantine-color-dark-5);
+}
+
+.miniChartLight,
+.miniChartDark {
+    width: 100%;
 }
