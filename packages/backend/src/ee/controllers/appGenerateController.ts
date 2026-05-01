@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    assertRegisteredAccount,
     ParameterError,
     type ApiAppImageUploadResponse,
     type ApiAppImageUrlResponse,
@@ -33,6 +34,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -53,9 +55,10 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: GenerateAppRequestBody,
     ): Promise<ApiGenerateAppResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.getAppGenerateService().generateApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             body.prompt,
             body.imageIds ?? [],
@@ -87,9 +90,10 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: ApiClarifyAppRequest,
     ): Promise<ApiClarifyAppResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.getAppGenerateService().clarifyApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             body.prompt,
             body.template,
@@ -115,6 +119,7 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
     ): Promise<ApiAppImageUploadResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const mimeType = req.headers['content-type'];
         if (!mimeType) {
@@ -130,7 +135,7 @@ export class AppGenerateController extends BaseController {
             );
         }
         const result = await this.getAppGenerateService().uploadImage(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             mimeType,
             req,
@@ -158,8 +163,9 @@ export class AppGenerateController extends BaseController {
         @Query() beforeVersion?: number,
         @Query() limit?: number,
     ): Promise<ApiGetAppResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().getAppVersions(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             { beforeVersion, limit },
@@ -185,9 +191,10 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Body() body: GenerateAppRequestBody,
     ): Promise<ApiGenerateAppResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.getAppGenerateService().iterateApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             body.prompt,
@@ -215,8 +222,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() version: number,
     ): Promise<ApiCancelAppVersionResponse> {
+        assertRegisteredAccount(req.account);
         await this.getAppGenerateService().cancelVersion(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             version,
@@ -241,8 +249,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Body() body: ApiUpdateAppRequest,
     ): Promise<ApiUpdateAppResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().updateApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             body,
@@ -268,8 +277,9 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
     ): Promise<ApiDeleteAppResponse> {
+        assertRegisteredAccount(req.account);
         await this.getAppGenerateService().deleteApp(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
         );
@@ -292,8 +302,9 @@ export class AppGenerateController extends BaseController {
         @Path() projectUuid: string,
         @Path() appUuid: string,
     ): Promise<ApiTogglePinnedItem> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().togglePinning(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
         );
@@ -317,8 +328,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() version: number,
     ): Promise<ApiPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
         const token = await this.getAppGenerateService().getPreviewToken(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             version,
@@ -339,8 +351,9 @@ export class AppGenerateController extends BaseController {
         @Path() appUuid: string,
         @Path() imageId: string,
     ): Promise<ApiAppImageUrlResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.getAppGenerateService().getImageUrl(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             appUuid,
             imageId,
@@ -373,10 +386,11 @@ export class UserAppsController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiMyAppsResponse> {
+        assertRegisteredAccount(req.account);
         const result = await this.services
             .getAppGenerateService<AppGenerateService>()
             .listMyApps(
-                req.user!,
+                toSessionUser(req.account),
                 page && pageSize ? { page, pageSize } : undefined,
             );
         return {
