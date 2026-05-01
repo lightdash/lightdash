@@ -197,30 +197,36 @@ const SetupSection: FC<{
 
 const ACTION_CONFIG: Record<
     ManagedAgentAction['actionType'],
-    { label: string; dotColor: string }
+    { label: string; dotColor: string; tooltip?: string }
 > = {
     flagged_stale: {
-        label: 'Stale',
+        label: 'Flagged stale',
         dotColor: 'var(--mantine-color-orange-5)',
+        tooltip:
+            'Marked as unused. Future Autopilot runs will review flagged items and clean them up.',
     },
     soft_deleted: {
-        label: 'Deleted',
+        label: 'Cleaned up',
         dotColor: 'var(--mantine-color-red-5)',
     },
     flagged_broken: {
-        label: 'Broken',
+        label: 'Flagged broken',
         dotColor: 'var(--mantine-color-red-5)',
+        tooltip:
+            'Marked as broken. Future Autopilot runs will review flagged items and attempt to fix them.',
     },
     flagged_slow: {
-        label: 'Slow',
+        label: 'Flagged slow',
         dotColor: 'var(--mantine-color-yellow-6)',
+        tooltip:
+            'Marked as slow. Future Autopilot runs will review flagged items and try to optimize them.',
     },
     fixed_broken: {
-        label: 'Fixed',
+        label: 'Auto-fixed',
         dotColor: 'var(--mantine-color-teal-5)',
     },
     created_content: {
-        label: 'Created',
+        label: 'Suggested',
         dotColor: 'var(--mantine-color-blue-5)',
     },
     insight: {
@@ -814,13 +820,25 @@ const ActionRow: FC<{
                 </span>
             </Table.Td>
             <Table.Td w={100}>
-                <span className={classes.actionPill}>
-                    <Box
-                        className={classes.dot}
-                        style={{ backgroundColor: config.dotColor }}
-                    />
-                    {config.label}
-                </span>
+                {config.tooltip ? (
+                    <Tooltip label={config.tooltip} withinPortal>
+                        <span className={classes.actionPill}>
+                            <Box
+                                className={classes.dot}
+                                style={{ backgroundColor: config.dotColor }}
+                            />
+                            {config.label}
+                        </span>
+                    </Tooltip>
+                ) : (
+                    <span className={classes.actionPill}>
+                        <Box
+                            className={classes.dot}
+                            style={{ backgroundColor: config.dotColor }}
+                        />
+                        {config.label}
+                    </span>
+                )}
             </Table.Td>
             <Table.Td w={250}>
                 <Group gap={6} wrap="nowrap">
