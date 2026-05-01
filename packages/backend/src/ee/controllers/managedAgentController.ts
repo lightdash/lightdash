@@ -1,5 +1,6 @@
 import {
     ApiErrorPayload,
+    assertRegisteredAccount,
     ManagedAgentAction,
     ManagedAgentActionType,
     ManagedAgentSettings,
@@ -21,6 +22,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -44,8 +46,9 @@ export class ManagedAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentSettings | null }> {
+        assertRegisteredAccount(req.account);
         const results = await this.getManagedAgentService().getSettings(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
         );
         this.setStatus(200);
@@ -60,10 +63,11 @@ export class ManagedAgentController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: UpdateManagedAgentSettings,
     ): Promise<{ status: 'ok'; results: ManagedAgentSettings }> {
+        assertRegisteredAccount(req.account);
         const results = await this.getManagedAgentService().updateSettings(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
-            req.user!.userUuid,
+            toSessionUser(req.account).userUuid,
             body,
         );
         this.setStatus(200);
@@ -77,8 +81,9 @@ export class ManagedAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
         await this.getManagedAgentService().startHeartbeat(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
         );
         this.setStatus(202);
@@ -95,8 +100,9 @@ export class ManagedAgentController extends BaseController {
         @Query() actionType?: string,
         @Query() sessionId?: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction[] }> {
+        assertRegisteredAccount(req.account);
         const results = await this.getManagedAgentService().getActions(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             {
                 date,
@@ -116,11 +122,12 @@ export class ManagedAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() actionUuid: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction }> {
+        assertRegisteredAccount(req.account);
         const results = await this.getManagedAgentService().reverseAction(
-            req.user!,
+            toSessionUser(req.account),
             projectUuid,
             actionUuid,
-            req.user!.userUuid,
+            toSessionUser(req.account).userUuid,
         );
         this.setStatus(200);
         return { status: 'ok', results };

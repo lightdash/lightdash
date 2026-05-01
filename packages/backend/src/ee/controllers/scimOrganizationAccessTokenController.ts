@@ -1,6 +1,7 @@
 import {
     ApiCreateScimServiceAccountRequest,
     ApiErrorPayload,
+    assertRegisteredAccount,
     AuthTokenPrefix,
     ScimErrorPayload,
     ServiceAccount,
@@ -24,6 +25,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -51,8 +53,9 @@ export class ScimOrganizationAccessTokenController extends BaseController {
     async getOrganizationAccessTokens(
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
+        assertRegisteredAccount(req.account);
         const results = await this.getServiceAccountService().list(
-            req.user!,
+            toSessionUser(req.account),
             SCIM_SCOPES,
         );
         this.setStatus(200);
@@ -77,11 +80,13 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ApiCreateScimServiceAccountRequest, // Service account request without scopes
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
+        assertRegisteredAccount(req.account);
         const token = await this.getServiceAccountService().create({
-            user: req.user!,
+            user: toSessionUser(req.account),
             tokenDetails: {
                 ...body,
-                organizationUuid: req.user?.organizationUuid as string,
+                organizationUuid: req.account.organization
+                    .organizationUuid as string,
                 scopes: SCIM_SCOPES,
             },
             prefix: AuthTokenPrefix.SCIM,
@@ -108,8 +113,9 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Request() req: express.Request,
         @Path() tokenUuid: string,
     ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
         await this.getServiceAccountService().delete({
-            user: req.user!,
+            user: toSessionUser(req.account),
             tokenUuid,
         });
         return {
@@ -134,11 +140,12 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         @Path() tokenUuid: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ServiceAccount }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getServiceAccountService().get({
-                user: req.user!,
+                user: toSessionUser(req.account),
                 tokenUuid,
             }),
         };
@@ -167,11 +174,12 @@ export class ScimOrganizationAccessTokenController extends BaseController {
         status: 'ok';
         results: ServiceAccountWithToken;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getServiceAccountService().rotate({
-                user: req.user!,
+                user: toSessionUser(req.account),
                 tokenUuid,
                 update: body,
                 prefix: AuthTokenPrefix.SCIM,
