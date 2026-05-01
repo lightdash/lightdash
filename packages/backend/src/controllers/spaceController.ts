@@ -5,6 +5,7 @@ import {
     ApiSpaceDeleteImpactResponse,
     ApiSpaceResponse,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     CreateSpace,
     UpdateSpace,
 } from '@lightdash/common';
@@ -24,6 +25,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -51,10 +53,11 @@ export class SpaceController extends BaseController {
         @Path() spaceUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.services
             .getSpaceService()
-            .getSpace(projectUuid, req.user!, spaceUuid);
+            .getSpace(projectUuid, toSessionUser(req.account), spaceUuid);
         return {
             status: 'ok',
             results,
@@ -77,12 +80,13 @@ export class SpaceController extends BaseController {
         @Path() spaceUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSpaceDeleteImpactResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSpaceService()
-                .getDeleteImpact(req.user!, spaceUuid),
+                .getDeleteImpact(toSessionUser(req.account), spaceUuid),
         };
     }
 
@@ -107,10 +111,11 @@ export class SpaceController extends BaseController {
         @Body() body: CreateSpace,
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.services
             .getSpaceService()
-            .createSpace(projectUuid, req.user!, body);
+            .createSpace(projectUuid, toSessionUser(req.account), body);
         return {
             status: 'ok',
             results,
@@ -137,8 +142,11 @@ export class SpaceController extends BaseController {
         @Path() spaceUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
-        await this.services.getSpaceService().delete(req.user!, spaceUuid);
+        await this.services
+            .getSpaceService()
+            .delete(toSessionUser(req.account), spaceUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -168,10 +176,11 @@ export class SpaceController extends BaseController {
         @Body() body: UpdateSpace,
         @Request() req: express.Request,
     ): Promise<ApiSpaceResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.services
             .getSpaceService()
-            .updateSpace(req.user!, spaceUuid, body);
+            .updateSpace(toSessionUser(req.account), spaceUuid, body);
         return {
             status: 'ok',
             results,
@@ -201,11 +210,12 @@ export class SpaceController extends BaseController {
         @Body() body: AddSpaceUserAccess,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSpaceService()
             .addSpaceUserAccess(
-                req.user!,
+                toSessionUser(req.account),
                 spaceUuid,
                 body.userUuid,
                 body.spaceRole,
@@ -239,10 +249,15 @@ export class SpaceController extends BaseController {
         @Path() userUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSpaceService()
-            .removeSpaceUserAccess(req.user!, spaceUuid, userUuid);
+            .removeSpaceUserAccess(
+                toSessionUser(req.account),
+                spaceUuid,
+                userUuid,
+            );
         return {
             status: 'ok',
             results: undefined,
@@ -273,11 +288,12 @@ export class SpaceController extends BaseController {
         @Body() body: AddSpaceGroupAccess,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSpaceService()
             .addSpaceGroupAccess(
-                req.user!,
+                toSessionUser(req.account),
                 spaceUuid,
                 body.groupUuid,
                 body.spaceRole,
@@ -311,10 +327,15 @@ export class SpaceController extends BaseController {
         @Path() groupUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSpaceService()
-            .removeSpaceGroupAccess(req.user!, spaceUuid, groupUuid);
+            .removeSpaceGroupAccess(
+                toSessionUser(req.account),
+                spaceUuid,
+                groupUuid,
+            );
         return {
             status: 'ok',
             results: undefined,
