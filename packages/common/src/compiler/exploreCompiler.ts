@@ -714,10 +714,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile dimension "${dimensionKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Dimension "${dimensionKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [dimensionKey]:
@@ -753,10 +754,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile metric "${metricKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Metric "${metricKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [metricKey]: ExploreCompiler.createMetricWithError(

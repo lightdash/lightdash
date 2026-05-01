@@ -368,7 +368,12 @@ export const compile = async (options: CompileHandlerOptions) => {
             e.warnings.length > 0
         ) {
             status = styles.warning('PARTIAL_SUCCESS');
-            messages = `: ${styles.warning(e.warnings.map((warning) => warning.message).join(', '))}`;
+            messages = `\n${e.warnings
+                .map(
+                    (warning) =>
+                        `    ${styles.warning(`⚠ ${warning.message}`)}`,
+                )
+                .join('\n')}`;
             partialSuccess += 1;
         } else {
             status = styles.success('SUCCESS');
