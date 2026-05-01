@@ -1,3 +1,10 @@
+# [0.2855.0](https://github.com/lightdash/lightdash/compare/0.2854.0...0.2855.0) (2026-05-01)
+
+
+### Features
+
+* **data-apps:** click-to-edit element inspector [GLITCH-374] ([#22578](https://github.com/lightdash/lightdash/issues/22578)) ([569efe4](https://github.com/lightdash/lightdash/commit/569efe4bafbf4fda10a14603361ec914525a8524))
+
 # [0.2854.0](https://github.com/lightdash/lightdash/compare/0.2853.1...0.2854.0) (2026-05-01)
 
 
