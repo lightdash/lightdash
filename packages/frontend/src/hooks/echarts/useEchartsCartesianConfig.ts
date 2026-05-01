@@ -8,6 +8,7 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
+    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -99,6 +100,7 @@ import {
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
+import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
 import {
     applyTimezoneShiftToEchartsOptions,
@@ -1403,9 +1405,10 @@ const getLongestLabel = ({
 export const filterSeriesWithNoData = (
     unfilteredSeries: EChartsSeries[],
     results: Record<string, unknown>[],
+    isShowHideRowsEnabled: boolean,
     rowLimit: RowLimit | undefined,
 ): EChartsSeries[] => {
-    if (!rowLimit) {
+    if (!isShowHideRowsEnabled || !rowLimit) {
         return unfilteredSeries;
     }
     if (results.length === 0) return unfilteredSeries;
@@ -2402,6 +2405,10 @@ const useEchartsCartesianConfig = (
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
+    const { data: showHideRowsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideRows,
+    );
+    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2476,8 +2483,13 @@ const useEchartsCartesianConfig = (
     }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
 
     const rows = useMemo(
-        () => sliceRows(allRows, validCartesianConfig?.rowLimit),
-        [allRows, validCartesianConfig?.rowLimit],
+        () =>
+            sliceRows(
+                allRows,
+                isShowHideRowsEnabled,
+                validCartesianConfig?.rowLimit,
+            ),
+        [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
     );
 
     // Pivot references from hidden series, used for resolving custom tooltip references
@@ -2528,6 +2540,7 @@ const useEchartsCartesianConfig = (
         return filterSeriesWithNoData(
             unfilteredSeries,
             resultsAndMinsAndMaxes.results,
+            isShowHideRowsEnabled,
             validCartesianConfig?.rowLimit,
         );
     }, [
@@ -2539,6 +2552,7 @@ const useEchartsCartesianConfig = (
         pivotValuesColumnsMap,
         parameters,
         resultsAndMinsAndMaxes.results,
+        isShowHideRowsEnabled,
         resolvedTimezone,
     ]);
 
@@ -2556,7 +2570,10 @@ const useEchartsCartesianConfig = (
             series,
             validCartesianConfig,
             resultsData,
-            displayedRows: validCartesianConfig?.rowLimit ? rows : undefined,
+            displayedRows:
+                isShowHideRowsEnabled && validCartesianConfig?.rowLimit
+                    ? rows
+                    : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
             resolvedTimezone: axisTimezone,
@@ -2568,6 +2585,7 @@ const useEchartsCartesianConfig = (
         series,
         resultsData,
         rows,
+        isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
         axisTimezone,
@@ -3077,7 +3095,11 @@ const useEchartsCartesianConfig = (
     // mapping (row index → category index) stays correct.
     const paddedDataToRender = useMemo(() => {
         const continuousRange = axes.continuousDateRange;
-        if (!continuousRange || !validCartesianConfig?.rowLimit)
+        if (
+            !continuousRange ||
+            !isShowHideRowsEnabled ||
+            !validCartesianConfig?.rowLimit
+        )
             return dataToRender;
         const xFieldId = validCartesianConfig?.layout?.flipAxes
             ? validCartesianConfig?.layout?.yField?.[0]
@@ -3091,6 +3113,7 @@ const useEchartsCartesianConfig = (
     }, [
         dataToRender,
         axes.continuousDateRange,
+        isShowHideRowsEnabled,
         validCartesianConfig?.rowLimit,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfig?.layout?.yField,

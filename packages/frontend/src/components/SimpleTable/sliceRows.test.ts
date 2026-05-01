@@ -9,7 +9,7 @@ describe('sliceRows', () => {
     describe('show first N rows', () => {
         it('returns first 5 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'first',
                     count: 5,
@@ -19,7 +19,7 @@ describe('sliceRows', () => {
 
         it('returns first 3 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'first',
                     count: 3,
@@ -29,7 +29,7 @@ describe('sliceRows', () => {
 
         it('returns all rows when count exceeds length', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'first',
                     count: 100,
@@ -39,7 +39,7 @@ describe('sliceRows', () => {
 
         it('returns empty array when count is 0', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'first',
                     count: 0,
@@ -49,7 +49,7 @@ describe('sliceRows', () => {
 
         it('clamps negative count to 0', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'first',
                     count: -5,
@@ -61,7 +61,7 @@ describe('sliceRows', () => {
     describe('show last N rows', () => {
         it('returns last 5 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'last',
                     count: 5,
@@ -71,7 +71,7 @@ describe('sliceRows', () => {
 
         it('returns last 3 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'last',
                     count: 3,
@@ -81,7 +81,7 @@ describe('sliceRows', () => {
 
         it('returns all rows when count exceeds length', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'last',
                     count: 100,
@@ -91,7 +91,7 @@ describe('sliceRows', () => {
 
         it('returns empty array when count is 0', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'show',
                     direction: 'last',
                     count: 0,
@@ -103,7 +103,7 @@ describe('sliceRows', () => {
     describe('hide first N rows', () => {
         it('hides first 3 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'first',
                     count: 3,
@@ -113,7 +113,7 @@ describe('sliceRows', () => {
 
         it('hides first 5 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'first',
                     count: 5,
@@ -123,7 +123,7 @@ describe('sliceRows', () => {
 
         it('returns empty array when hiding all rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'first',
                     count: 10,
@@ -133,7 +133,7 @@ describe('sliceRows', () => {
 
         it('returns empty array when hiding more than all rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'first',
                     count: 100,
@@ -143,7 +143,7 @@ describe('sliceRows', () => {
 
         it('returns all rows when hiding 0', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'first',
                     count: 0,
@@ -155,7 +155,7 @@ describe('sliceRows', () => {
     describe('hide last N rows', () => {
         it('hides last 3 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'last',
                     count: 3,
@@ -165,7 +165,7 @@ describe('sliceRows', () => {
 
         it('hides last 5 rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'last',
                     count: 5,
@@ -175,7 +175,7 @@ describe('sliceRows', () => {
 
         it('returns empty array when hiding all rows', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'last',
                     count: 10,
@@ -185,7 +185,7 @@ describe('sliceRows', () => {
 
         it('returns all rows when hiding 0', () => {
             expect(
-                sliceRows(rows, {
+                sliceRows(rows, true, {
                     mode: 'hide',
                     direction: 'last',
                     count: 0,
@@ -194,9 +194,25 @@ describe('sliceRows', () => {
         });
     });
 
+    describe('when flag is disabled', () => {
+        it('returns all rows regardless of rowLimit', () => {
+            expect(
+                sliceRows(rows, false, {
+                    mode: 'show',
+                    direction: 'first',
+                    count: 3,
+                }),
+            ).toBe(rows);
+        });
+
+        it('returns all rows when rowLimit is undefined', () => {
+            expect(sliceRows(rows, false, undefined)).toBe(rows);
+        });
+    });
+
     describe('when rowLimit is undefined', () => {
-        it('returns all rows', () => {
-            expect(sliceRows(rows, undefined)).toBe(rows);
+        it('returns all rows even if flag is enabled', () => {
+            expect(sliceRows(rows, true, undefined)).toBe(rows);
         });
     });
 });
@@ -204,13 +220,23 @@ describe('sliceRows', () => {
 describe('computeLimitedRowCount', () => {
     const serverTotal = 5000;
 
+    it('returns server total when flag is off', () => {
+        expect(
+            computeLimitedRowCount(serverTotal, false, {
+                mode: 'show',
+                direction: 'first',
+                count: 10,
+            }),
+        ).toBe(5000);
+    });
+
     it('returns server total when rowLimit is undefined', () => {
-        expect(computeLimitedRowCount(serverTotal, undefined)).toBe(5000);
+        expect(computeLimitedRowCount(serverTotal, true, undefined)).toBe(5000);
     });
 
     it('returns count when showing within server total', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'show',
                 direction: 'first',
                 count: 10,
@@ -220,7 +246,7 @@ describe('computeLimitedRowCount', () => {
 
     it('clamps to server total when count exceeds it', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'show',
                 direction: 'first',
                 count: 10000,
@@ -230,7 +256,7 @@ describe('computeLimitedRowCount', () => {
 
     it('works the same for last direction in show mode', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'show',
                 direction: 'last',
                 count: 10,
@@ -240,7 +266,7 @@ describe('computeLimitedRowCount', () => {
 
     it('returns remaining rows when hiding', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'hide',
                 direction: 'first',
                 count: 10,
@@ -250,7 +276,7 @@ describe('computeLimitedRowCount', () => {
 
     it('returns 0 when hiding all rows', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'hide',
                 direction: 'first',
                 count: 5000,
@@ -260,7 +286,7 @@ describe('computeLimitedRowCount', () => {
 
     it('handles zero count', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'show',
                 direction: 'first',
                 count: 0,
@@ -270,7 +296,7 @@ describe('computeLimitedRowCount', () => {
 
     it('returns server total when hiding 0 rows', () => {
         expect(
-            computeLimitedRowCount(serverTotal, {
+            computeLimitedRowCount(serverTotal, true, {
                 mode: 'hide',
                 direction: 'first',
                 count: 0,

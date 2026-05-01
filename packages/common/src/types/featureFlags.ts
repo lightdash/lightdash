@@ -79,6 +79,11 @@ export enum FeatureFlags {
     ChangeChartExplore = 'change-chart-explore',
 
     /**
+     * Enable show/hide N rows from start/end of chart data
+     */
+    ShowHideRows = 'show-hide-rows',
+
+    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
      * re-switching. Enabled by default; disabled per-org for orgs where
      * large dashboards spiked browser memory to 3 GB+ from accumulated
@@ -92,6 +97,11 @@ export enum FeatureFlags {
      * Existing metric filters are always displayed regardless of this flag.
      */
     MetricDashboardFilters = 'metric-dashboard-filters',
+
+    /**
+     * Enable user-configurable column limit for pivoted queries
+     */
+    ShowHideColumns = 'show-hide-columns',
 
     /**
      * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED

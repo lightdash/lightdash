@@ -1,4 +1,9 @@
-import { getItemLabel, getItemMap, isField } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getItemLabel,
+    getItemMap,
+    isField,
+} from '@lightdash/common';
 import { Box, Loader, Text } from '@mantine-8/core';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -20,6 +25,7 @@ import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
 } from '../../../hooks/useQueryResults';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import PivotTable from '../../common/PivotTable';
@@ -93,8 +99,14 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     const dimensions = query.data?.metricQuery?.dimensions ?? [];
     const metrics = query.data?.metricQuery?.metrics ?? [];
     const explorerColumnOrder = useExplorerSelector(selectColumnOrder);
+    const { data: showHideColumnsFlag } = useServerFeatureFlag(
+        FeatureFlags.ShowHideColumns,
+    );
+    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
     const columnLimit =
-        chartConfig.type === 'cartesian' && chartConfig.config
+        isShowHideColumnsEnabled &&
+        chartConfig.type === 'cartesian' &&
+        chartConfig.config
             ? chartConfig.config.columnLimit
             : undefined;
 
