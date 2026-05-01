@@ -31,6 +31,7 @@ export type DbProject = {
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
+    color_palette_uuid: string | null;
 };
 
 type CreateDbProject = Pick<
@@ -63,6 +64,7 @@ type UpdateDbProject = Partial<
         | 'query_timezone'
         | 'has_default_user_spaces'
         | 'project_defaults'
+        | 'color_palette_uuid'
     >
 >;
 

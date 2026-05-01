@@ -40,6 +40,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import type { OrganizationModel } from '../../models/OrganizationModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -259,6 +260,7 @@ const getMockedAsyncQueryService = (
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as OrganizationWarehouseCredentialsModel,
+        organizationModel: {} as OrganizationModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
             fileStorageClient: {} as FileStorageClient,

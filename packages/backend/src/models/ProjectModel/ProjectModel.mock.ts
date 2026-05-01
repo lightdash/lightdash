@@ -109,6 +109,7 @@ export const expectedProject: Project = {
     queryTimezone: null,
     createdByUserUuid: null,
     hasDefaultUserSpaces: false,
+    colorPaletteUuid: null,
 };
 
 const metricFilter: MetricFilterRule = {

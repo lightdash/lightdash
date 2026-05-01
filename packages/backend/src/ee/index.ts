@@ -257,6 +257,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
+                    organizationModel: models.getOrganizationModel(),
                     projectCompileLogModel: models.getProjectCompileLogModel(),
                     adminNotificationService:
                         repository.getAdminNotificationService(),
@@ -334,6 +335,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectParametersModel: models.getProjectParametersModel(),
                     organizationWarehouseCredentialsModel:
                         models.getOrganizationWarehouseCredentialsModel(),
+                    organizationModel: models.getOrganizationModel(),
                     pivotTableService: repository.getPivotTableService(),
                     prometheusMetrics,
                     permissionsService: repository.getPermissionsService(),

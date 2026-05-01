@@ -216,6 +216,39 @@ const updateDefaultUserSpaces = async (
         body: JSON.stringify(data),
     });
 
+const updateProjectColorPalette = async (
+    uuid: string,
+    colorPaletteUuid: string | null,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/colorPalette`,
+        method: 'PATCH',
+        body: JSON.stringify({ colorPaletteUuid }),
+    });
+
+export const useUpdateProjectColorPalette = (uuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<undefined, ApiError, string | null>(
+        (colorPaletteUuid) => updateProjectColorPalette(uuid, colorPaletteUuid),
+        {
+            mutationKey: ['project_color_palette_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+                showToastSuccess({
+                    title: 'Project color palette updated',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update project color palette',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
 export const useUpdateDefaultUserSpaces = (uuid: string) => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();

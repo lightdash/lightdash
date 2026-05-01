@@ -590,6 +590,7 @@ export type Project = {
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
     projectDefaults?: ProjectDefaults;
+    colorPaletteUuid: string | null;
 };
 
 export type ProjectSummary = Pick<

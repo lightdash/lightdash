@@ -1,0 +1,15 @@
+.row {
+    width: 100%;
+    justify-content: space-between;
+}
+
+.name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.swatches {
+    flex-shrink: 0;
+}

@@ -222,6 +222,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -297,6 +298,7 @@ export type ProjectServiceArguments = {
     featureFlagModel: FeatureFlagModel;
     projectParametersModel: ProjectParametersModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
+    organizationModel: OrganizationModel;
     projectCompileLogModel: ProjectCompileLogModel;
     adminNotificationService: AdminNotificationService;
     spacePermissionService: SpacePermissionService;
@@ -367,6 +369,8 @@ export class ProjectService extends BaseService {
 
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
 
+    organizationModel: OrganizationModel;
+
     adminNotificationService: AdminNotificationService;
 
     spacePermissionService: SpacePermissionService;
@@ -404,6 +408,7 @@ export class ProjectService extends BaseService {
         projectParametersModel,
         projectCompileLogModel,
         organizationWarehouseCredentialsModel,
+        organizationModel,
         adminNotificationService,
         spacePermissionService,
         contentVerificationModel,
@@ -441,6 +446,7 @@ export class ProjectService extends BaseService {
         this.projectCompileLogModel = projectCompileLogModel;
         this.organizationWarehouseCredentialsModel =
             organizationWarehouseCredentialsModel;
+        this.organizationModel = organizationModel;
         this.adminNotificationService = adminNotificationService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
@@ -6468,6 +6474,41 @@ export class ProjectService extends BaseService {
         await this.projectModel.updateDefaultUserSpaces(
             projectUuid,
             data.hasDefaultUserSpaces,
+        );
+    }
+
+    async updateColorPalette(
+        user: SessionUser,
+        projectUuid: string,
+        colorPaletteUuid: string | null,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (colorPaletteUuid !== null) {
+            const palette = await this.organizationModel.findColorPalette(
+                organizationUuid,
+                colorPaletteUuid,
+            );
+            if (!palette) {
+                throw new ParameterError(
+                    'Color palette does not belong to this organization',
+                );
+            }
+        }
+
+        await this.projectModel.updateColorPalette(
+            projectUuid,
+            colorPaletteUuid,
         );
     }
 

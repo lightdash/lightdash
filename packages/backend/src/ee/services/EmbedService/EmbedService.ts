@@ -519,12 +519,37 @@ export class EmbedService extends BaseService {
             canExportPagePdf,
             canDateZoom,
         } = decodedToken.content;
-        const selectedPalette = paletteUuid
-            ? await this.organizationModel.findColorPalette(
-                  dashboard.organizationUuid,
-                  paletteUuid,
-              )
-            : null;
+        // Embed paletteUuid query param overrides everything; otherwise fall back
+        // through chart → dashboard → space → project → org via the resolver.
+        let selectedPalette: {
+            colors: string[];
+            darkColors: string[] | null;
+        } | null = null;
+        if (paletteUuid) {
+            const override = await this.organizationModel.findColorPalette(
+                dashboard.organizationUuid,
+                paletteUuid,
+            );
+            if (override) {
+                selectedPalette = {
+                    colors: override.colors,
+                    darkColors: override.darkColors,
+                };
+            }
+        } else {
+            const resolved = await this.savedChartModel.resolveColorPalette({
+                dashboardUuid: dashboard.uuid,
+                spaceUuid: dashboard.spaceUuid,
+                projectUuid: dashboard.projectUuid,
+                organizationUuid: dashboard.organizationUuid,
+            });
+            if (resolved) {
+                selectedPalette = {
+                    colors: resolved.colors,
+                    darkColors: resolved.darkColors,
+                };
+            }
+        }
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',

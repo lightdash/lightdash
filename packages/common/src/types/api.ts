@@ -605,6 +605,7 @@ export type CreateProject = Omit<
     | 'queryTimezone'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'colorPaletteUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -636,6 +637,7 @@ export type UpdateProject = Omit<
     | 'queryTimezone'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'colorPaletteUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

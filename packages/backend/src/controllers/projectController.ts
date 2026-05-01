@@ -615,6 +615,34 @@ export class ProjectController extends BaseController {
     }
 
     /**
+     * Set the project's color palette to one of its organization's palettes,
+     * or null to inherit from the organization's active palette.
+     * @summary Update project color palette
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/colorPalette')
+    @OperationId('updateProjectColorPalette')
+    async updateProjectColorPalette(
+        @Path() projectUuid: string,
+        @Body() body: { colorPaletteUuid: string | null },
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateColorPalette(req.user!, projectUuid, body.colorPaletteUuid);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Get all dashboards in a project
      * @summary List dashboards
      */
