@@ -491,7 +491,7 @@ export class SavedChartModel {
 
     /**
      * Resolves the color palette for a chart by walking up the
-     * chart → dashboard → space → project → organization hierarchy.
+     * chart → dashboard → space → parent space → … → project → organization hierarchy.
      *
      * The lightdashConfig.appearance.overrideColorPalette wins over everything,
      * matching OrganizationModel.get() behaviour.
@@ -514,57 +514,152 @@ export class SavedChartModel {
             };
         }
 
-        // Single query: LEFT JOIN the palettes table twice (project's palette
-        // and org's palette) and discriminate the winning level in JS so we
-        // can surface which entity owns the resolved palette.
-        const result = await this.database(ProjectTableName)
-            .innerJoin(
-                OrganizationTableName,
-                `${OrganizationTableName}.organization_id`,
-                `${ProjectTableName}.organization_id`,
-            )
-            .leftJoin(
-                `${OrganizationColorPaletteTableName} as project_palette`,
-                'project_palette.color_palette_uuid',
-                `${ProjectTableName}.color_palette_uuid`,
-            )
-            .leftJoin(
-                `${OrganizationColorPaletteTableName} as org_palette`,
-                'org_palette.color_palette_uuid',
-                `${OrganizationTableName}.color_palette_uuid`,
-            )
-            .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
-            .select<{
-                project_uuid: string;
-                project_name: string;
-                organization_uuid: string;
-                organization_name: string;
-                project_palette_uuid: string | null;
-                project_palette_name: string | null;
-                project_palette_colors: string[] | null;
-                project_palette_dark_colors: string[] | null;
-                org_palette_uuid: string | null;
-                org_palette_name: string | null;
-                org_palette_colors: string[] | null;
-                org_palette_dark_colors: string[] | null;
-            }>([
-                `${ProjectTableName}.project_uuid as project_uuid`,
-                `${ProjectTableName}.name as project_name`,
-                `${OrganizationTableName}.organization_uuid as organization_uuid`,
-                `${OrganizationTableName}.organization_name as organization_name`,
-                'project_palette.color_palette_uuid as project_palette_uuid',
-                'project_palette.name as project_palette_name',
-                'project_palette.colors as project_palette_colors',
-                'project_palette.dark_colors as project_palette_dark_colors',
-                'org_palette.color_palette_uuid as org_palette_uuid',
-                'org_palette.name as org_palette_name',
-                'org_palette.colors as org_palette_colors',
-                'org_palette.dark_colors as org_palette_dark_colors',
-            ])
-            .first();
+        // Walk the space chain via parent_space_uuid (closest override wins)
+        // and LEFT JOIN palettes for space / project / org so we can surface
+        // which entity owns the resolved palette. When no space is in scope
+        // (embed / unsaved chart explore), skip the CTE — same query plan as
+        // before, with NULL space_* columns to keep the row shape uniform.
+        type ResolverRow = {
+            project_uuid: string;
+            project_name: string;
+            organization_uuid: string;
+            organization_name: string;
+            space_uuid: string | null;
+            space_name: string | null;
+            space_palette_uuid: string | null;
+            space_palette_name: string | null;
+            space_palette_colors: string[] | null;
+            space_palette_dark_colors: string[] | null;
+            project_palette_uuid: string | null;
+            project_palette_name: string | null;
+            project_palette_colors: string[] | null;
+            project_palette_dark_colors: string[] | null;
+            org_palette_uuid: string | null;
+            org_palette_name: string | null;
+            org_palette_colors: string[] | null;
+            org_palette_dark_colors: string[] | null;
+        };
+
+        const result: ResolverRow | undefined = args.spaceUuid
+            ? await this.database
+                  .raw<{ rows: ResolverRow[] }>(
+                      `
+                WITH RECURSIVE space_chain AS (
+                    SELECT space_uuid, name, parent_space_uuid, color_palette_uuid, 0 AS depth
+                    FROM ${SpaceTableName}
+                    WHERE space_uuid = ? AND deleted_at IS NULL
+
+                    UNION ALL
+
+                    SELECT s.space_uuid, s.name, s.parent_space_uuid, s.color_palette_uuid, sc.depth + 1
+                    FROM ${SpaceTableName} s
+                    JOIN space_chain sc ON s.space_uuid = sc.parent_space_uuid
+                    WHERE s.deleted_at IS NULL
+                ),
+                chosen_space AS (
+                    SELECT space_uuid, name, color_palette_uuid
+                    FROM space_chain
+                    WHERE color_palette_uuid IS NOT NULL
+                    ORDER BY depth ASC
+                    LIMIT 1
+                )
+                SELECT
+                    p.project_uuid AS project_uuid,
+                    p.name AS project_name,
+                    o.organization_uuid AS organization_uuid,
+                    o.organization_name AS organization_name,
+                    cs.space_uuid AS space_uuid,
+                    cs.name AS space_name,
+                    sp.color_palette_uuid AS space_palette_uuid,
+                    sp.name AS space_palette_name,
+                    sp.colors AS space_palette_colors,
+                    sp.dark_colors AS space_palette_dark_colors,
+                    pp.color_palette_uuid AS project_palette_uuid,
+                    pp.name AS project_palette_name,
+                    pp.colors AS project_palette_colors,
+                    pp.dark_colors AS project_palette_dark_colors,
+                    op.color_palette_uuid AS org_palette_uuid,
+                    op.name AS org_palette_name,
+                    op.colors AS org_palette_colors,
+                    op.dark_colors AS org_palette_dark_colors
+                FROM ${ProjectTableName} p
+                INNER JOIN ${OrganizationTableName} o
+                    ON o.organization_id = p.organization_id
+                LEFT JOIN chosen_space cs ON true
+                LEFT JOIN ${OrganizationColorPaletteTableName} sp
+                    ON sp.color_palette_uuid = cs.color_palette_uuid
+                LEFT JOIN ${OrganizationColorPaletteTableName} pp
+                    ON pp.color_palette_uuid = p.color_palette_uuid
+                LEFT JOIN ${OrganizationColorPaletteTableName} op
+                    ON op.color_palette_uuid = o.color_palette_uuid
+                WHERE p.project_uuid = ?
+                `,
+                      [args.spaceUuid, args.projectUuid],
+                  )
+                  .then((res) => res.rows[0])
+            : await this.database(ProjectTableName)
+                  .innerJoin(
+                      OrganizationTableName,
+                      `${OrganizationTableName}.organization_id`,
+                      `${ProjectTableName}.organization_id`,
+                  )
+                  .leftJoin(
+                      `${OrganizationColorPaletteTableName} as project_palette`,
+                      'project_palette.color_palette_uuid',
+                      `${ProjectTableName}.color_palette_uuid`,
+                  )
+                  .leftJoin(
+                      `${OrganizationColorPaletteTableName} as org_palette`,
+                      'org_palette.color_palette_uuid',
+                      `${OrganizationTableName}.color_palette_uuid`,
+                  )
+                  .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
+                  .select<ResolverRow>([
+                      `${ProjectTableName}.project_uuid as project_uuid`,
+                      `${ProjectTableName}.name as project_name`,
+                      `${OrganizationTableName}.organization_uuid as organization_uuid`,
+                      `${OrganizationTableName}.organization_name as organization_name`,
+                      this.database.raw('NULL::uuid as space_uuid'),
+                      this.database.raw('NULL::text as space_name'),
+                      this.database.raw('NULL::uuid as space_palette_uuid'),
+                      this.database.raw('NULL::text as space_palette_name'),
+                      this.database.raw('NULL::text[] as space_palette_colors'),
+                      this.database.raw(
+                          'NULL::text[] as space_palette_dark_colors',
+                      ),
+                      'project_palette.color_palette_uuid as project_palette_uuid',
+                      'project_palette.name as project_palette_name',
+                      'project_palette.colors as project_palette_colors',
+                      'project_palette.dark_colors as project_palette_dark_colors',
+                      'org_palette.color_palette_uuid as org_palette_uuid',
+                      'org_palette.name as org_palette_name',
+                      'org_palette.colors as org_palette_colors',
+                      'org_palette.dark_colors as org_palette_dark_colors',
+                  ])
+                  .first();
 
         if (!result) {
             return null;
+        }
+
+        if (
+            result.space_palette_uuid &&
+            result.space_palette_colors &&
+            result.space_palette_name &&
+            result.space_uuid &&
+            result.space_name
+        ) {
+            return {
+                paletteUuid: result.space_palette_uuid,
+                paletteName: result.space_palette_name,
+                colors: result.space_palette_colors,
+                darkColors: result.space_palette_dark_colors,
+                source: {
+                    type: 'space',
+                    uuid: result.space_uuid,
+                    name: result.space_name,
+                },
+            };
         }
 
         if (

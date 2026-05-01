@@ -129,6 +129,7 @@ export const upstreamFullSpace: Space = {
             spaceRole: SpaceMemberRole.ADMIN,
         },
     ],
+    colorPaletteUuid: null,
 };
 
 export const promotedChart: PromotedChart = {

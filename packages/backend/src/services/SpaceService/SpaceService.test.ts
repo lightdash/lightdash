@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -32,6 +33,7 @@ describe('SpaceService', () => {
             lightdashConfig: lightdashConfigMock,
             projectModel: {} as ProjectModel,
             spaceModel: {} as SpaceModel,
+            organizationModel: {} as OrganizationModel,
             pinnedListModel: {} as PinnedListModel,
             spacePermissionService: {
                 getSpaceAccessContext: mockGetSpaceAccessContext,
@@ -902,6 +904,7 @@ describe('SpaceService.updateSpace - permission copy on inherit toggle', () => {
             lightdashConfig: lightdashConfigMock,
             projectModel: {} as ProjectModel,
             spaceModel: mockSpaceModel as unknown as SpaceModel,
+            organizationModel: {} as OrganizationModel,
             pinnedListModel: {} as PinnedListModel,
             spacePermissionService:
                 mockSpacePermissionService as unknown as SpacePermissionService,
