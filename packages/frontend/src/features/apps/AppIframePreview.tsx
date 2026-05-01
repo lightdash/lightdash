@@ -7,6 +7,12 @@ import {
 
 type Props = {
     src: string;
+    /** Stable identity for the served bundle (e.g. `${appUuid}:${version}`).
+     *  Drives the inspector-availability reset — changes here mean a new
+     *  bundle whose SDK capabilities are unknown, so we re-await an announce.
+     *  A pure URL bump (e.g. the manual refresh counter) keeps this stable
+     *  so the Inspect button doesn't flash off and back on. */
+    identityKey: string;
     onQueryEvent?: (event: QueryEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;
     /** When true, the iframe-side inspector overlay is active and clicks
@@ -16,7 +22,7 @@ type Props = {
      *  inspector capability. Stays `false` until the SDK posts
      *  `lightdash:inspect:available`, so older sandboxes (resumed with a
      *  pre-inspector SDK) keep this `false` and let the parent hide the
-     *  Inspect button. Resets to `false` on every iframe `src` change. */
+     *  Inspect button. Resets to `false` on every `identityKey` change. */
     onInspectorAvailabilityChange?: (available: boolean) => void;
     /** Called when the user presses Esc to leave inspect mode. The handler
      *  lives on the parent's window because that's where focus actually
@@ -38,6 +44,7 @@ type Props = {
  */
 const AppIframePreview: FC<Props> = ({
     src,
+    identityKey,
     onQueryEvent,
     onElementSelected,
     inspectorEnabled,
@@ -59,13 +66,16 @@ const AppIframePreview: FC<Props> = ({
             handleAnnounce,
         );
 
-    // Reset availability to false on every iframe URL change. This fires
-    // before the browser starts loading the new content, so the new SDK's
-    // `available` announce will flip it back to true if it's wired up. Old
-    // SDKs in resumed sandboxes never announce, so it stays false.
+    // Reset availability to false when the served bundle changes (new app or
+    // new version). Fires before the browser starts loading the new content,
+    // so the new SDK's `available` announce will flip it back to true if it's
+    // wired up. Old SDKs in resumed sandboxes never announce, so it stays
+    // false. Keyed on `identityKey` rather than `src` so that pure URL bumps
+    // (manual preview refresh) don't reset — same bundle means same SDK
+    // capability, and resetting would briefly hide the Inspect button.
     useEffect(() => {
         onInspectorAvailabilityChange?.(false);
-    }, [src, onInspectorAvailabilityChange]);
+    }, [identityKey, onInspectorAvailabilityChange]);
 
     // Toggling the prop while the iframe is alive — push the change through.
     useEffect(() => {

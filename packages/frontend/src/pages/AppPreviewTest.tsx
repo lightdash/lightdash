@@ -195,7 +195,10 @@ export default function AppPreviewTest() {
                     </Menu>
                 </Box>
             )}
-            <AppIframePreview src={previewUrl} />
+            <AppIframePreview
+                src={previewUrl}
+                identityKey={`${appUuid}:${version}`}
+            />
         </Box>
     );
 }
