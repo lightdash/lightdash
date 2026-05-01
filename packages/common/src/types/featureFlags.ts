@@ -105,6 +105,11 @@ export enum FeatureFlags {
      * contents using the AI Copilot).
      */
     AiDashboardSummary = 'ai-dashboard-summary',
+
+    /**
+     * Enable Autopilot project health agent.
+     */
+    AiAutopilot = 'ai-autopilot',
 }
 
 export type FeatureFlag = {

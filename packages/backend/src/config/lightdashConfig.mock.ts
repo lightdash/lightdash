@@ -301,7 +301,6 @@ export const lightdashConfigMock: LightdashConfig = {
         projectId: 'test-project-id',
     },
     managedAgent: {
-        enabled: false,
         anthropicApiKey: null,
         skillIds: [],
         schedule: '*/30 * * * *',

@@ -421,6 +421,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     dashboardModel: models.getDashboardModel(),
                     spaceModel: models.getSpaceModel(),
                     userModel: models.getUserModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                     serviceAccountModel: models.getServiceAccountModel(),
                     schedulerClient: clients.getSchedulerClient(),
                     slackClient: clients.getSlackClient(),

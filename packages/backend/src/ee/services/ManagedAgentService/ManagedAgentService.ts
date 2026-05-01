@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    FeatureFlags,
     ForbiddenError,
     ManagedAgentActionType,
     ManagedAgentTargetType,
@@ -21,6 +22,7 @@ import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
 import type { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
+import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { OrganizationModel } from '../../../models/OrganizationModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { SavedChartModel } from '../../../models/SavedChartModel';
@@ -47,6 +49,7 @@ type ManagedAgentServiceDependencies = {
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
     userModel: UserModel;
+    featureFlagModel: FeatureFlagModel;
     serviceAccountModel: ServiceAccountModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
@@ -74,6 +77,8 @@ export class ManagedAgentService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly serviceAccountModel: ServiceAccountModel;
 
     private readonly schedulerClient: SchedulerClient;
@@ -94,6 +99,7 @@ export class ManagedAgentService extends BaseService {
         this.dashboardModel = deps.dashboardModel;
         this.spaceModel = deps.spaceModel;
         this.userModel = deps.userModel;
+        this.featureFlagModel = deps.featureFlagModel;
         this.serviceAccountModel = deps.serviceAccountModel;
         this.schedulerClient = deps.schedulerClient;
         this.slackClient = deps.slackClient;
@@ -348,6 +354,26 @@ export class ManagedAgentService extends BaseService {
 
     async getEnabledProjects(): Promise<ManagedAgentSettings[]> {
         return this.managedAgentModel.getEnabledProjects();
+    }
+
+    async isAiAutopilotEnabledForProject(
+        settings: ManagedAgentSettings,
+    ): Promise<boolean> {
+        const project = await this.projectModel.getSummary(
+            settings.projectUuid,
+        );
+        const user = settings.enabledByUserUuid
+            ? await this.userModel.findSessionUserAndOrgByUuid(
+                  settings.enabledByUserUuid,
+                  project.organizationUuid,
+              )
+            : undefined;
+        const featureFlag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.AiAutopilot,
+        });
+
+        return featureFlag.enabled;
     }
 
     // --- Actions API ---

@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -16,7 +17,7 @@ import {
 import { type FC, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { BetaBadge } from '../../../components/common/BetaBadge';
-import useHealth from '../../../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentHomeCard.module.css';
@@ -101,8 +102,10 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const navigate = useNavigate();
-    const { data: health } = useHealth();
-    const managedAgentEnabled = !!health?.managedAgent?.enabled;
+    const { data: aiAutopilotFlag } = useServerFeatureFlag(
+        FeatureFlags.AiAutopilot,
+    );
+    const managedAgentEnabled = !!aiAutopilotFlag?.enabled;
     const { data: settings } = useManagedAgentSettings({
         enabled: managedAgentEnabled,
     });
@@ -141,7 +144,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
 
     const [setupOpen, setSetupOpen] = useState(false);
 
-    if (!health?.managedAgent?.enabled) return null;
+    if (!managedAgentEnabled) return null;
 
     const handleClick = () => {
         if (isEnabled) {

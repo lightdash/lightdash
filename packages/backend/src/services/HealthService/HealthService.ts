@@ -238,9 +238,6 @@ export class HealthService extends BaseService {
             dataApps: {
                 enabled: this.lightdashConfig.appRuntime.enabled,
             },
-            managedAgent: {
-                enabled: this.lightdashConfig.managedAgent.enabled,
-            },
         };
     }
 
