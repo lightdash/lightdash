@@ -1,3 +1,15 @@
+# [0.2861.0](https://github.com/lightdash/lightdash/compare/0.2860.0...0.2861.0) (2026-05-01)
+
+
+### Bug Fixes
+
+* **data-apps:** block re-entry into handleSubmit during image upload ([#22612](https://github.com/lightdash/lightdash/issues/22612)) ([99cba60](https://github.com/lightdash/lightdash/commit/99cba602657899d9859bc3c5dc6faea3f46b0de5))
+
+
+### Features
+
+* gate managed agent heartbeat and UI on `AiAutopilot` feature flag ([#22611](https://github.com/lightdash/lightdash/issues/22611)) ([17c5a60](https://github.com/lightdash/lightdash/commit/17c5a6020fb9ef57e8c078ea54e866d84435eee4))
+
 # [0.2860.0](https://github.com/lightdash/lightdash/compare/0.2859.0...0.2860.0) (2026-05-01)
 
 
