@@ -1,3 +1,10 @@
+# [0.2856.0](https://github.com/lightdash/lightdash/compare/0.2855.1...0.2856.0) (2026-05-01)
+
+
+### Features
+
+* support DuckDB credential chain for S3 when static credentials are absent ([#22595](https://github.com/lightdash/lightdash/issues/22595)) ([d0393a1](https://github.com/lightdash/lightdash/commit/d0393a18ed4c1dc20a53d56b94e902ceb38afff3)), closes [#22594](https://github.com/lightdash/lightdash/issues/22594)
+
 ## [0.2855.1](https://github.com/lightdash/lightdash/compare/0.2855.0...0.2855.1) (2026-05-01)
 
 
