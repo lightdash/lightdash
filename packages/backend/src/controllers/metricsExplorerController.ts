@@ -1,6 +1,7 @@
 import {
     ApiCompiledQueryResults,
     ApiErrorPayload,
+    assertRegisteredAccount,
     MetricTotalComparisonType,
     type ApiMetricsExplorerTotalResults,
     type TimeFrames,
@@ -19,6 +20,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -49,12 +51,13 @@ export class MetricsExplorerController extends BaseController {
             rollingDays?: number;
         },
     ): Promise<ApiMetricsExplorerTotalResults> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getMetricsExplorerService()
             .getMetricTotal(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 explore,
                 metric,
@@ -95,12 +98,13 @@ export class MetricsExplorerController extends BaseController {
             rollingDays?: number;
         },
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getMetricsExplorerService()
             .compileMetricTotalQuery(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 explore,
                 metric,

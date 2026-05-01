@@ -6,6 +6,7 @@ import {
     ApiExploreResults,
     ApiExploresResults,
     ApiSetExploresResponse,
+    assertRegisteredAccount,
     MetricQuery,
     type ApiFormulaValidationResults,
     type ApiPreAggregateCheckResponse,
@@ -27,6 +28,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -55,10 +57,11 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
     ): Promise<ApiSetExploresResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.services
             .getProjectService()
-            .setExplores(req.user!, projectUuid, body);
+            .setExplores(toSessionUser(req.account), projectUuid, body);
 
         return {
             status: 'ok',
@@ -251,12 +254,17 @@ export class ExploreController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiChartSummaryListResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
-                .getChartsByExploreName(req.user!, projectUuid, exploreId),
+                .getChartsByExploreName(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    exploreId,
+                ),
         };
     }
 }

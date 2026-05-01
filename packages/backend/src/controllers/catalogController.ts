@@ -7,6 +7,7 @@ import {
     ApiGetMetricPeek,
     ApiMetricsCatalog,
     ApiSegmentDimensionsResponse,
+    assertRegisteredAccount,
     CatalogOwner,
     getItemId,
     type ApiCreateMetricsTreePayload,
@@ -46,6 +47,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 import {
     allowApiKeyAuthentication,
@@ -78,6 +80,7 @@ export class CatalogController extends BaseController {
         @Query() type?: ApiCatalogSearch['type'],
         @Query() filter?: ApiCatalogSearch['filter'],
     ): Promise<{ status: 'ok'; results: ApiCatalogResults }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const query: ApiCatalogSearch = {
             searchQuery: search,
@@ -88,7 +91,7 @@ export class CatalogController extends BaseController {
         const { data: results } = await this.services
             .getCatalogService()
             .getCatalog(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 query,
                 CatalogSearchContext.CATALOG,
@@ -119,6 +122,7 @@ export class CatalogController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiGetMetricsTreesResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const paginateArgs: KnexPaginateArgs | undefined =
@@ -126,7 +130,11 @@ export class CatalogController extends BaseController {
 
         const results = await this.services
             .getCatalogService()
-            .getMetricsTrees(req.user!, projectUuid, paginateArgs);
+            .getMetricsTrees(
+                toSessionUser(req.account),
+                projectUuid,
+                paginateArgs,
+            );
 
         return {
             status: 'ok',
@@ -149,12 +157,13 @@ export class CatalogController extends BaseController {
         @Path() metricsTreeUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiGetMetricsTreeResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getMetricsTreeDetails(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 metricsTreeUuidOrSlug,
             );
@@ -189,11 +198,12 @@ export class CatalogController extends BaseController {
         @Body() body: ApiCreateMetricsTreePayload,
         @Request() req: express.Request,
     ): Promise<ApiCreateMetricsTreeResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(201);
 
         const results = await this.services
             .getCatalogService()
-            .createMetricsTree(req.user!, projectUuid, body);
+            .createMetricsTree(toSessionUser(req.account), projectUuid, body);
 
         return {
             status: 'ok',
@@ -222,11 +232,17 @@ export class CatalogController extends BaseController {
         @Body() body: ApiUpdateMetricsTreePayload,
         @Request() req: express.Request,
     ): Promise<ApiUpdateMetricsTreeResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .updateMetricsTree(req.user!, projectUuid, metricsTreeUuid, body);
+            .updateMetricsTree(
+                toSessionUser(req.account),
+                projectUuid,
+                metricsTreeUuid,
+                body,
+            );
 
         return {
             status: 'ok',
@@ -253,11 +269,16 @@ export class CatalogController extends BaseController {
         @Path() metricsTreeUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         await this.services
             .getCatalogService()
-            .deleteMetricsTree(req.user!, projectUuid, metricsTreeUuid);
+            .deleteMetricsTree(
+                toSessionUser(req.account),
+                projectUuid,
+                metricsTreeUuid,
+            );
 
         return {
             status: 'ok',
@@ -284,11 +305,16 @@ export class CatalogController extends BaseController {
         @Path() metricsTreeUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiMetricsTreeLockResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .acquireTreeLock(req.user!, projectUuid, metricsTreeUuid);
+            .acquireTreeLock(
+                toSessionUser(req.account),
+                projectUuid,
+                metricsTreeUuid,
+            );
 
         return {
             status: 'ok',
@@ -315,11 +341,16 @@ export class CatalogController extends BaseController {
         @Path() metricsTreeUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         await this.services
             .getCatalogService()
-            .refreshTreeLockHeartbeat(req.user!, projectUuid, metricsTreeUuid);
+            .refreshTreeLockHeartbeat(
+                toSessionUser(req.account),
+                projectUuid,
+                metricsTreeUuid,
+            );
 
         return {
             status: 'ok',
@@ -346,11 +377,16 @@ export class CatalogController extends BaseController {
         @Path() metricsTreeUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         await this.services
             .getCatalogService()
-            .releaseTreeLock(req.user!, projectUuid, metricsTreeUuid);
+            .releaseTreeLock(
+                toSessionUser(req.account),
+                projectUuid,
+                metricsTreeUuid,
+            );
 
         return {
             status: 'ok',
@@ -374,11 +410,12 @@ export class CatalogController extends BaseController {
         @Path() table: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiCatalogMetadataResults }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetadata(req.user!, projectUuid, table);
+            .getMetadata(toSessionUser(req.account), projectUuid, table);
         return {
             status: 'ok',
             results,
@@ -401,11 +438,12 @@ export class CatalogController extends BaseController {
         @Path() table: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiCatalogAnalyticsResults }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getAnalytics(req.user!, projectUuid, table);
+            .getAnalytics(toSessionUser(req.account), projectUuid, table);
         return {
             status: 'ok',
             results,
@@ -430,11 +468,12 @@ export class CatalogController extends BaseController {
         @Path() field: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiCatalogAnalyticsResults }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.services
             .getCatalogService()
             .getFieldAnalytics(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 getItemId({
                     name: field,
@@ -474,6 +513,7 @@ export class CatalogController extends BaseController {
         @Query() tables?: ApiCatalogSearch['tables'],
         @Query() ownerUserUuids?: ApiCatalogSearch['ownerUserUuids'],
     ): Promise<ApiMetricsCatalog> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const paginateArgs: KnexPaginateArgs | undefined =
@@ -494,7 +534,7 @@ export class CatalogController extends BaseController {
         const results = await this.services
             .getCatalogService()
             .getMetricsCatalog(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 CatalogSearchContext.SPOTLIGHT,
                 paginateArgs,
@@ -526,11 +566,12 @@ export class CatalogController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetAllMetricsTreeEdges> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getAllMetricsTreeEdges(req.user!, projectUuid);
+            .getAllMetricsTreeEdges(toSessionUser(req.account), projectUuid);
 
         return {
             status: 'ok',
@@ -556,11 +597,17 @@ export class CatalogController extends BaseController {
         @Path() metricName: string,
         @Request() req: express.Request,
     ): Promise<ApiGetMetricPeek> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetric(req.user!, projectUuid, tableName, metricName);
+            .getMetric(
+                toSessionUser(req.account),
+                projectUuid,
+                tableName,
+                metricName,
+            );
 
         return {
             status: 'ok',
@@ -583,12 +630,13 @@ export class CatalogController extends BaseController {
         @Request() req: express.Request,
         @Query() tableName?: string,
     ): Promise<ApiMetricsWithAssociatedTimeDimensionResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getAllCatalogMetricsWithTimeDimensions(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 CatalogSearchContext.SPOTLIGHT,
                 tableName,
@@ -616,12 +664,13 @@ export class CatalogController extends BaseController {
         @Path() tableName: string,
         @Request() req: express.Request,
     ): Promise<ApiFilterDimensionsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getFilterDimensions(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 tableName,
                 CatalogSearchContext.METRICS_EXPLORER,
@@ -649,12 +698,13 @@ export class CatalogController extends BaseController {
         @Path() tableName: string,
         @Request() req: express.Request,
     ): Promise<ApiSegmentDimensionsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
             .getSegmentDimensions(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 tableName,
                 CatalogSearchContext.METRICS_EXPLORER,
@@ -686,9 +736,14 @@ export class CatalogController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getCatalogService()
-            .tagCatalogItem(req.user!, catalogSearchUuid, body.tagUuid);
+            .tagCatalogItem(
+                toSessionUser(req.account),
+                catalogSearchUuid,
+                body.tagUuid,
+            );
 
         this.setStatus(200);
 
@@ -715,9 +770,14 @@ export class CatalogController extends BaseController {
         @Path() tagUuid: string,
         @Request() req: express.Request,
     ) {
+        assertRegisteredAccount(req.account);
         await this.services
             .getCatalogService()
-            .untagCatalogItem(req.user!, catalogSearchUuid, tagUuid);
+            .untagCatalogItem(
+                toSessionUser(req.account),
+                catalogSearchUuid,
+                tagUuid,
+            );
 
         this.setStatus(200);
 
@@ -745,10 +805,11 @@ export class CatalogController extends BaseController {
         @Body() body: { icon: CatalogItemIcon | null },
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getCatalogService()
             .updateCatalogItemIcon(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 catalogSearchUuid,
                 body.icon,
@@ -775,11 +836,16 @@ export class CatalogController extends BaseController {
         @Request() req: express.Request,
         @Query() metricUuids: string[],
     ): Promise<ApiGetMetricsTree> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricsTree(req.user!, projectUuid, metricUuids);
+            .getMetricsTree(
+                toSessionUser(req.account),
+                projectUuid,
+                metricUuids,
+            );
 
         return {
             status: 'ok',
@@ -801,11 +867,16 @@ export class CatalogController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ApiGetMetricsTreePayload,
     ): Promise<ApiGetMetricsTree> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricsTree(req.user!, projectUuid, body.metricUuids);
+            .getMetricsTree(
+                toSessionUser(req.account),
+                projectUuid,
+                body.metricUuids,
+            );
 
         return {
             status: 'ok',
@@ -831,9 +902,14 @@ export class CatalogController extends BaseController {
         @Body() body: ApiMetricsTreeEdgePayload,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getCatalogService()
-            .createMetricsTreeEdge(req.user!, projectUuid, body);
+            .createMetricsTreeEdge(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
 
         this.setStatus(200);
         return {
@@ -863,9 +939,10 @@ export class CatalogController extends BaseController {
         @Path() targetCatalogSearchUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getCatalogService()
-            .deleteMetricsTreeEdge(req.user!, projectUuid, {
+            .deleteMetricsTreeEdge(toSessionUser(req.account), projectUuid, {
                 sourceCatalogSearchUuid,
                 targetCatalogSearchUuid,
             });
@@ -891,11 +968,12 @@ export class CatalogController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: boolean }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .hasMetricsInCatalog(req.user!, projectUuid);
+            .hasMetricsInCatalog(toSessionUser(req.account), projectUuid);
 
         return {
             status: 'ok',
@@ -915,11 +993,12 @@ export class CatalogController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: CatalogOwner[] }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getCatalogService()
-            .getMetricOwners(req.user!, projectUuid);
+            .getMetricOwners(toSessionUser(req.account), projectUuid);
 
         return {
             status: 'ok',
