@@ -39,12 +39,13 @@ export class ShareController extends BaseController {
         @Path() nanoId: string,
         @Request() req: express.Request,
     ): Promise<ApiShareResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getShareService()
-                .getShareUrl(req.account!, nanoId),
+                .getShareUrl(req.account, nanoId),
         };
     }
 

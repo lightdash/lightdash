@@ -51,6 +51,7 @@ export class ParametersController extends BaseController {
         @Query() page?: number,
         @Query() pageSize?: number,
     ): Promise<ApiSuccess<ApiGetProjectParametersListResults>> {
+        assertRegisteredAccount(req.account);
         let paginateArgs: KnexPaginateArgs | undefined;
 
         if (pageSize && page) {
@@ -63,7 +64,7 @@ export class ParametersController extends BaseController {
         const results = await this.services
             .getProjectParametersService()
             .findProjectParametersPaginated(
-                req.account!,
+                req.account,
                 projectUuid,
                 paginateArgs,
                 { search, sortBy, sortOrder },
