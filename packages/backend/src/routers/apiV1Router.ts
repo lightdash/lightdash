@@ -203,7 +203,7 @@ apiV1Router.get('/livez', async (req, res, next) => {
 apiV1Router.get('/health', async (req, res, next) => {
     req.services
         .getHealthService()
-        .getHealthState(req.user)
+        .getHealthState(req.account)
         .then((state) =>
             res.json({
                 status: 'ok',

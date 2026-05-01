@@ -57,6 +57,7 @@ import {
     LightdashAnalytics,
     McpToolCallEvent,
 } from '../../../analytics/LightdashAnalytics';
+import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { McpContextModel } from '../../../models/McpContextModel';
@@ -1334,7 +1335,7 @@ export class McpService extends BaseService {
                     const { user: mcpUser } = (extra as McpProtocolContext)
                         .authInfo!.extra;
                     const shareUrl = await this.shareService.createShareUrl(
-                        mcpUser,
+                        fromSession(mcpUser),
                         explorePath,
                         exploreParams,
                     );
@@ -1565,7 +1566,7 @@ export class McpService extends BaseService {
 
                 const verifiedContent =
                     await this.contentVerificationService.listVerifiedContent(
-                        user,
+                        fromSession(user),
                         projectUuid,
                     );
 

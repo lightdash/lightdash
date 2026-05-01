@@ -7,6 +7,7 @@ import {
     type SessionUser,
     type VerifiedContentListItem,
 } from '@lightdash/common';
+import { fromSession } from '../auth/account';
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { ContentVerificationService } from './ContentVerificationService';
@@ -86,7 +87,10 @@ describe('ContentVerificationService', () => {
     describe('listVerifiedContent', () => {
         it('should throw ForbiddenError when user lacks manage:ContentVerification', async () => {
             await expect(
-                service.listVerifiedContent(editorUser, 'project-uuid'),
+                service.listVerifiedContent(
+                    fromSession(editorUser),
+                    'project-uuid',
+                ),
             ).rejects.toThrow(ForbiddenError);
 
             expect(
@@ -96,7 +100,7 @@ describe('ContentVerificationService', () => {
 
         it('should return verified content when user is admin', async () => {
             const result = await service.listVerifiedContent(
-                adminUser,
+                fromSession(adminUser),
                 'project-uuid',
             );
 

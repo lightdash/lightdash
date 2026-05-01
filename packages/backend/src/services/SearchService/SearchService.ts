@@ -5,15 +5,16 @@ import {
     FieldSearchResult,
     ForbiddenError,
     isTableErrorSearchResult,
+    RegisteredAccount,
     SavedChartSearchResult,
     SearchFilters,
     SearchResults,
-    SessionUser,
     SpaceSearchResult,
     TableErrorSearchResult,
     TableSearchResult,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -55,7 +56,7 @@ export class SearchService extends BaseService {
     }
 
     async getSearchResults(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         query: string,
         source: 'omnibar' | 'ai_search_box' = 'omnibar',
@@ -64,7 +65,7 @@ export class SearchService extends BaseService {
         const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -101,7 +102,7 @@ export class SearchService extends BaseService {
         const accessibleSpaceUuids =
             await this.spacePermissionService.getAccessibleSpaceUuids(
                 'view',
-                user,
+                toSessionUser(account),
                 spaceUuids,
             );
 
@@ -153,7 +154,7 @@ export class SearchService extends BaseService {
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
                         {
                             organizationUuid,
-                            userUuid: user.userUuid,
+                            userUuid: account.user.userUuid,
                         },
                     );
                 filteredFields = results.fields.filter((field) => {
@@ -244,7 +245,7 @@ export class SearchService extends BaseService {
 
         this.analytics.track({
             event: 'project.search',
-            userId: user.userUuid,
+            userId: account.user.userUuid,
             properties: {
                 projectId: projectUuid,
                 spacesResultsCount: filteredResults.spaces.length,

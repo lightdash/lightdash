@@ -18,7 +18,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -65,7 +64,7 @@ export class ShareController extends BaseController {
         assertRegisteredAccount(req.account);
         const shareUrl = await this.services
             .getShareService()
-            .createShareUrl(toSessionUser(req.account), body.path, body.params);
+            .createShareUrl(req.account, body.path, body.params);
         this.setStatus(201);
         return {
             status: 'ok',

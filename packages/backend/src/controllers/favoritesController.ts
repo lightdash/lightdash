@@ -19,7 +19,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -44,7 +43,7 @@ export class FavoritesController extends BaseController {
         assertRegisteredAccount(req.account);
         const items = await this.services
             .getFavoritesService()
-            .getFavorites(toSessionUser(req.account), projectUuid);
+            .getFavorites(req.account, projectUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -72,7 +71,7 @@ export class FavoritesController extends BaseController {
         const result = await this.services
             .getFavoritesService()
             .toggleFavorite(
-                toSessionUser(req.account),
+                req.account,
                 projectUuid,
                 body.contentType,
                 body.contentUuid,

@@ -8,7 +8,6 @@ import {
     NotFoundError,
     ProjectType,
     RegisteredAccount,
-    SessionUser,
     type ApiDeployExploresResults,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
@@ -106,7 +105,7 @@ export class DeployService extends BaseService {
     }
 
     async addDeployBatch(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         sessionUuid: string,
         explores: (Explore | ExploreError)[],
@@ -123,7 +122,7 @@ export class DeployService extends BaseService {
                 );
             }
 
-            if (session.userUuid !== user.userUuid) {
+            if (session.userUuid !== account.user.userUuid) {
                 throw new ForbiddenError(
                     `Deploy session does not belong to this user`,
                 );
@@ -173,7 +172,7 @@ export class DeployService extends BaseService {
     }
 
     async finalizeDeploy(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         sessionUuid: string,
     ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
@@ -186,7 +185,7 @@ export class DeployService extends BaseService {
             );
         }
 
-        if (session.userUuid !== user.userUuid) {
+        if (session.userUuid !== account.user.userUuid) {
             throw new ForbiddenError(
                 `Deploy session does not belong to this user`,
             );
@@ -218,7 +217,7 @@ export class DeployService extends BaseService {
             // Use the existing saveExploresToCache method from ProjectService
             // This ensures we maintain the same validation and caching logic
             await this.projectService.saveExploresToCacheAndIndexCatalog(
-                user.userUuid,
+                account.user.userUuid,
                 projectUuid,
                 explores,
                 'cli_deploy',
@@ -230,7 +229,7 @@ export class DeployService extends BaseService {
             const project =
                 await this.projectModel.getWithSensitiveFields(projectUuid);
             await this.schedulerClient.generateValidation({
-                userUuid: user.userUuid,
+                userUuid: account.user.userUuid,
                 projectUuid,
                 context: 'cli',
                 organizationUuid: project.organizationUuid,

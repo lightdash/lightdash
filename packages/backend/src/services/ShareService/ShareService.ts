@@ -3,9 +3,8 @@ import {
     Account,
     assertIsAccountWithOrg,
     ForbiddenError,
-    isUserWithOrg,
     NotFoundError,
-    SessionUser,
+    RegisteredAccount,
     ShareUrl,
 } from '@lightdash/common';
 import { nanoid as nanoidGenerator } from 'nanoid';
@@ -75,27 +74,25 @@ export class ShareService extends BaseService {
     }
 
     async createShareUrl(
-        user: SessionUser,
+        account: RegisteredAccount,
         path: string,
         params: string,
     ): Promise<ShareUrl> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         const shareUrl = await this.shareModel.createSharedUrl({
             path,
             params,
             nanoid: nanoidGenerator(),
-            organizationUuid: user.organizationUuid,
-            createdByUserUuid: user.userUuid,
+            organizationUuid: account.organization.organizationUuid,
+            createdByUserUuid: account.user.userUuid,
         });
 
         this.analytics.track({
-            userId: user.userUuid,
+            userId: account.user.userUuid,
             event: 'share_url.created',
             properties: {
                 path: shareUrl.path,
-                organizationId: user.organizationUuid,
+                organizationId: account.organization.organizationUuid,
             },
         });
 

@@ -1490,7 +1490,7 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getContentVerificationService()
-                .listVerifiedContent(toSessionUser(req.account), projectUuid),
+                .listVerifiedContent(req.account, projectUuid),
         };
     }
 }

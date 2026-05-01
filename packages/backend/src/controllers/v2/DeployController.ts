@@ -20,7 +20,6 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -82,7 +81,7 @@ export class DeployController extends BaseController {
         const result = await this.services
             .getDeployService()
             .addDeployBatch(
-                toSessionUser(req.account),
+                req.account,
                 projectUuid,
                 sessionUuid,
                 (body as unknown as ApiAddDeployBatchRequest).explores,
@@ -115,11 +114,7 @@ export class DeployController extends BaseController {
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
-            .finalizeDeploy(
-                toSessionUser(req.account),
-                projectUuid,
-                sessionUuid,
-            );
+            .finalizeDeploy(req.account, projectUuid, sessionUuid);
         return {
             status: 'ok',
             results: result,

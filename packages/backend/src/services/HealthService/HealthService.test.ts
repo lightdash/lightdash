@@ -105,7 +105,10 @@ describe('health', () => {
             'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
 
         it('Should return undefined verificationHash when no pylon secret is configured', async () => {
-            const userWithEmail = { ...userMock, email: testEmail };
+            const userWithEmail = {
+                ...userMock,
+                user: { ...userMock.user, email: testEmail },
+            };
             const result = await healthService.getHealthState(userWithEmail);
             expect(result.pylon.verificationHash).toBeUndefined();
         });
@@ -142,7 +145,10 @@ describe('health', () => {
                 migrationModel: migrationModel as unknown as MigrationModel,
             });
 
-            const userWithEmail = { ...userMock, email: testEmail };
+            const userWithEmail = {
+                ...userMock,
+                user: { ...userMock.user, email: testEmail },
+            };
             const result = await service.getHealthState(userWithEmail);
 
             // Calculate expected hash

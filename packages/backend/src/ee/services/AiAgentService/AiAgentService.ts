@@ -3501,7 +3501,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             params: string,
         ): Promise<string> => {
             const result = await this.shareService.createShareUrl(
-                user,
+                fromSession(user),
                 path,
                 params,
             );
