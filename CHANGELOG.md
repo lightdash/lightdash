@@ -1,3 +1,10 @@
+# [0.2859.0](https://github.com/lightdash/lightdash/compare/0.2858.1...0.2859.0) (2026-05-01)
+
+
+### Features
+
+* **analytics:** track sql/template table calculation saves ([#22608](https://github.com/lightdash/lightdash/issues/22608)) ([0570981](https://github.com/lightdash/lightdash/commit/0570981f92a81ca921f7050827e36192c37ce255))
+
 ## [0.2858.1](https://github.com/lightdash/lightdash/compare/0.2858.0...0.2858.1) (2026-05-01)
 
 
