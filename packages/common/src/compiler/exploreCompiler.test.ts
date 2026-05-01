@@ -632,6 +632,87 @@ describe('Explore compilation with model-level parameters', () => {
                 compiler.compileExplore(exploreWithInvalidParameterReference),
             ).toThrow('Missing parameters: b.nonexistent_param');
         });
+
+        test('should hint the model name prefix when a short-form parameter reference matches a model-level parameter', () => {
+            // Reproduces PROD-6943: a short-form reference like
+            // `${lightdash.parameters.active_status}` doesn't match the
+            // model-prefixed available parameter `b.active_status`.
+            const exploreWithShortFormParameterReference = {
+                ...exploreWithParameters,
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: "${a.dim1} = ${b.dim1} AND ${ld.parameters.active_status} = 'active'",
+                    },
+                ],
+            };
+
+            expect(() =>
+                compiler.compileExplore(exploreWithShortFormParameterReference),
+            ).toThrow(
+                /Missing parameters: active_status\..*Hint:.*"active_status" is a model-level parameter.*\${lightdash\.parameters\.b\.active_status}/,
+            );
+        });
+    });
+
+    describe('Partial compilation surfaces field-level errors clearly', () => {
+        const partialCompiler = new ExploreCompiler(warehouseClientMock, {
+            allowPartialCompilation: true,
+        });
+
+        test('should produce a warning that names the failing dimension and hints the model prefix', () => {
+            // Reproduces PROD-6943: a dimension referencing a model-level
+            // parameter via the short form silently compiles to NULL. The
+            // warning surfaced to the user must name the dimension and
+            // explain how to fix the reference.
+            const exploreWithBadDimension: UncompiledExplore = {
+                ...exploreWithParameters,
+                joinedTables: [],
+                tables: {
+                    ...exploreWithParameters.tables,
+                    a: {
+                        ...exploreWithParameters.tables.a,
+                        dimensions: {
+                            ...exploreWithParameters.tables.a.dimensions,
+                            selected_team: {
+                                ...exploreWithParameters.tables.a.dimensions
+                                    .dim1,
+                                name: 'selected_team',
+                                label: 'selected_team',
+                                sql: "CASE WHEN ${lightdash.parameters.region} = 'US' THEN 1 ELSE 0 END",
+                            },
+                        },
+                    },
+                },
+            };
+
+            const result = partialCompiler.compileExplore(
+                exploreWithBadDimension,
+            );
+
+            expect(result.warnings).toBeDefined();
+            const warningMessages = (result.warnings ?? []).map(
+                (w) => w.message,
+            );
+            const dimWarning = warningMessages.find((m) =>
+                m.includes('selected_team'),
+            );
+            expect(dimWarning).toBeDefined();
+            expect(dimWarning).toContain(
+                'Dimension "selected_team" failed to compile',
+            );
+            expect(dimWarning).toContain('Missing parameters: region');
+            expect(dimWarning).toContain('${lightdash.parameters.a.region}');
+            // Confirm the placeholder NULL compiledSql is still present so
+            // the rest of the explore still ships.
+            expect(result.tables.a.dimensions.selected_team.compiledSql).toBe(
+                'NULL',
+            );
+            expect(
+                result.tables.a.dimensions.selected_team.compilationError
+                    ?.message,
+            ).toContain('selected_team');
+        });
     });
 
     describe('Parameter resolution in join conditions', () => {
