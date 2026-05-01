@@ -181,9 +181,8 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             {cannotViewSqlAuthoredFields ? (
                 <Box p="sm">
                     <Callout variant="info" title="SQL preview unavailable">
-                        This chart contains custom SQL fields. You need the{' '}
-                        <strong>Manage custom fields</strong> permission to view
-                        the compiled SQL.
+                        This chart contains custom SQL fields that you don't
+                        have permission to view.
                     </Callout>
                 </Box>
             ) : (
