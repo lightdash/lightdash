@@ -488,6 +488,77 @@ export class SavedChartModel {
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
+    /**
+     * Resolves the color palette for a chart by walking up the
+     * chart → dashboard → space → project → organization hierarchy.
+     *
+     * The lightdashConfig.appearance.overrideColorPalette wins over everything,
+     * matching OrganizationModel.get() behaviour.
+     */
+    async resolveColorPalette(args: {
+        chartUuid?: string;
+        dashboardUuid?: string;
+        spaceUuid?: string;
+        projectUuid: string;
+        organizationUuid: string;
+    }): Promise<{
+        paletteUuid: string | null;
+        colors: string[];
+        darkColors: string[] | null;
+    } | null> {
+        const override = this.lightdashConfig.appearance.overrideColorPalette;
+        if (override && override.length > 0) {
+            return { paletteUuid: null, colors: override, darkColors: null };
+        }
+
+        // Single query: LEFT JOIN the palettes table twice (project's palette
+        // and org's palette) and COALESCE so the project palette wins when set
+        // and falls back to the org's active palette otherwise.
+        const result = await this.database(ProjectTableName)
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                `${OrganizationColorPaletteTableName} as project_palette`,
+                'project_palette.color_palette_uuid',
+                `${ProjectTableName}.color_palette_uuid`,
+            )
+            .leftJoin(
+                `${OrganizationColorPaletteTableName} as org_palette`,
+                'org_palette.color_palette_uuid',
+                `${OrganizationTableName}.color_palette_uuid`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
+            .select<{
+                color_palette_uuid: string | null;
+                colors: string[] | null;
+                dark_colors: string[] | null;
+            }>([
+                this.database.raw(
+                    'COALESCE(project_palette.color_palette_uuid, org_palette.color_palette_uuid) as color_palette_uuid',
+                ),
+                this.database.raw(
+                    'COALESCE(project_palette.colors, org_palette.colors) as colors',
+                ),
+                this.database.raw(
+                    'COALESCE(project_palette.dark_colors, org_palette.dark_colors) as dark_colors',
+                ),
+            ])
+            .first();
+
+        if (result?.color_palette_uuid && result.colors) {
+            return {
+                paletteUuid: result.color_palette_uuid,
+                colors: result.colors,
+                darkColors: result.dark_colors,
+            };
+        }
+
+        return null;
+    }
+
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
         return {
             chartUuid: row.saved_query_uuid,
@@ -937,11 +1008,6 @@ export class SavedChartModel {
                         `${OrganizationTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     )
-                    .leftJoin(
-                        OrganizationColorPaletteTableName,
-                        `${OrganizationTableName}.color_palette_uuid`,
-                        `${OrganizationColorPaletteTableName}.color_palette_uuid`,
-                    )
                     .innerJoin(
                         'saved_queries_versions',
                         `${SavedChartsTableName}.saved_query_id`,
@@ -973,7 +1039,6 @@ export class SavedChartModel {
                             space_uuid: string;
                             spaceName: string;
                             dashboardName: string | null;
-                            color_palette: string[] | null;
                             slug: string;
                             deleted_at: Date | null;
                             deleted_by_user_uuid: string | null;
@@ -1002,7 +1067,6 @@ export class SavedChartModel {
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
                         `${OrganizationTableName}.organization_uuid`,
-                        `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
@@ -1140,6 +1204,7 @@ export class SavedChartModel {
                     additionalMetricsRows,
                     customBinDimensionsRows,
                     customSqlDimensionsRows,
+                    resolvedPalette,
                 ] = await Promise.all([
                     fieldsQuery,
                     sortsQuery,
@@ -1147,6 +1212,13 @@ export class SavedChartModel {
                     additionalMetricsQuery,
                     customBinDimensionsQuery,
                     customSqlDimensionsQuery,
+                    this.resolveColorPalette({
+                        chartUuid: savedQuery.saved_query_uuid,
+                        dashboardUuid: savedQuery.dashboard_uuid ?? undefined,
+                        spaceUuid: savedQuery.space_uuid,
+                        projectUuid: savedQuery.project_uuid,
+                        organizationUuid: savedQuery.organization_uuid,
+                    }),
                 ]);
 
                 // Filters out "null" fields
@@ -1190,21 +1262,6 @@ export class SavedChartModel {
                     type: savedQuery.chart_type,
                     config: savedQuery.chart_config,
                 } as ChartConfig;
-
-                const getColorPalette = () => {
-                    if (
-                        this.lightdashConfig.appearance.overrideColorPalette &&
-                        this.lightdashConfig.appearance.overrideColorPalette
-                            .length > 0
-                    ) {
-                        return this.lightdashConfig.appearance
-                            .overrideColorPalette;
-                    }
-                    if (savedQuery.color_palette) {
-                        return savedQuery.color_palette;
-                    }
-                    return ECHARTS_DEFAULT_COLORS;
-                };
 
                 const verification =
                     (await this.contentVerificationModel?.getByContent(
@@ -1332,7 +1389,8 @@ export class SavedChartModel {
                     pinnedListOrder: null,
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
-                    colorPalette: getColorPalette(),
+                    colorPalette:
+                        resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS,
                     slug: savedQuery.slug,
                     verification,
                     // Soft delete fields (only populated when deleted: true)

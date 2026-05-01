@@ -338,6 +338,7 @@ export const projectWithSensitiveFields: Project = {
     queryTimezone: null,
     createdByUserUuid: sessionAccount.user.id,
     hasDefaultUserSpaces: false,
+    colorPaletteUuid: null,
 };
 
 export const projectSummary: ProjectSummary = {

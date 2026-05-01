@@ -991,6 +991,26 @@ const Settings: FC = () => {
                                     </Can>
 
                                     <Can
+                                        I="update"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
+                                            label="Appearance"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/appearance`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconPalette}
+                                                />
+                                            }
+                                        />
+                                    </Can>
+
+                                    <Can
                                         I="manage"
                                         this={subject('Project', {
                                             organizationUuid:

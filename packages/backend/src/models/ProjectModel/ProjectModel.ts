@@ -585,6 +585,17 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async updateColorPalette(
+        projectUuid: string,
+        colorPaletteUuid: string | null,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                color_palette_uuid: colorPaletteUuid,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
@@ -682,6 +693,7 @@ export class ProjectModel {
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
+                  color_palette_uuid: string | null;
               }
             | {
                   name: string;
@@ -699,6 +711,7 @@ export class ProjectModel {
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
+                  color_palette_uuid: string | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -765,6 +778,9 @@ export class ProjectModel {
                         this.database
                             .ref('project_defaults')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('color_palette_uuid')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -807,6 +823,7 @@ export class ProjectModel {
                         undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
+                    colorPaletteUuid: project.color_palette_uuid ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1008,6 +1025,7 @@ export class ProjectModel {
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
+            colorPaletteUuid: project.colorPaletteUuid ?? null,
         };
     }
 
