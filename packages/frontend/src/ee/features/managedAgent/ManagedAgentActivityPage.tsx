@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Box,
     Button,
     Group,
@@ -410,6 +411,8 @@ const SlowDetails: FC<{ metadata: Record<string, unknown> }> = ({
 
 type ContentContext = {
     description: string | null;
+    projectUuid: string;
+    spaceUuid: string | null;
     spaceName: string | null;
     updatedAt: Date | string | null;
     updatedByUser: UpdatedByUser | undefined;
@@ -420,6 +423,8 @@ type ContentContext = {
 
 const toContentContext = (content: SavedChart | Dashboard): ContentContext => ({
     description: content.description?.trim() || null,
+    projectUuid: content.projectUuid,
+    spaceUuid: content.spaceUuid ?? null,
     spaceName: content.spaceName ?? null,
     updatedAt: content.updatedAt ?? null,
     updatedByUser: content.updatedByUser,
@@ -438,6 +443,9 @@ const ContentContextDetails: FC<{
     const verifiedBy = context.verification?.verifiedBy
         ? `${context.verification.verifiedBy.firstName} ${context.verification.verifiedBy.lastName}`.trim()
         : null;
+    const spaceUrl = context.spaceUuid
+        ? `/projects/${context.projectUuid}/spaces/${context.spaceUuid}`
+        : null;
 
     return (
         <Stack gap="sm">
@@ -445,7 +453,13 @@ const ContentContextDetails: FC<{
             <Stack gap={10}>
                 {context.spaceName && (
                     <InfoRow icon={IconFolder} label="Space">
-                        {context.spaceName}
+                        {spaceUrl ? (
+                            <Anchor href={spaceUrl} fz="xs" fw={500}>
+                                {context.spaceName}
+                            </Anchor>
+                        ) : (
+                            context.spaceName
+                        )}
                     </InfoRow>
                 )}
                 {context.updatedAt && (
@@ -505,7 +519,7 @@ const DetailSidebar: FC<{
         },
     });
 
-    const chartLink =
+    const targetLink =
         action.targetType === 'chart'
             ? `/projects/${action.projectUuid}/saved/${action.targetUuid}`
             : action.targetType === 'dashboard'
@@ -524,6 +538,9 @@ const DetailSidebar: FC<{
         uuidOrSlug:
             action.targetType === 'dashboard' ? action.targetUuid : undefined,
         projectUuid: action.projectUuid,
+        useQueryOptions: {
+            onError: () => undefined,
+        },
     });
     const { data: chartViewStats } = useChartViewStats(
         action.targetType === 'chart' ? action.targetUuid : undefined,
@@ -581,17 +598,6 @@ const DetailSidebar: FC<{
                                 </UnstyledButton>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                {chartLink && (
-                                    <Menu.Item
-                                        component="a"
-                                        href={chartLink}
-                                        leftSection={
-                                            <IconExternalLink size={14} />
-                                        }
-                                    >
-                                        Open {action.targetType}
-                                    </Menu.Item>
-                                )}
                                 <Menu.Item
                                     leftSection={<IconArrowBackUp size={14} />}
                                     disabled={
@@ -626,6 +632,25 @@ const DetailSidebar: FC<{
                     <TruncatedText maxWidth={260} fz="sm" fw={600}>
                         {action.targetName}
                     </TruncatedText>
+                    {targetLink && (
+                        <Tooltip label={`Open ${action.targetType}`}>
+                            <ActionIcon
+                                component="a"
+                                href={targetLink}
+                                aria-label={`Open ${action.targetType}`}
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                radius="md"
+                                className={classes.titleAction}
+                            >
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    size="sm"
+                                />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                 </Group>
             </Stack>
 
