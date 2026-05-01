@@ -1,5 +1,5 @@
 import {
-    AuthorizationError,
+    assertRegisteredAccount,
     type ApiDashboardPaginatedSchedulersResponse,
     type ApiErrorPayload,
     type KnexPaginateArgs,
@@ -17,6 +17,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -46,10 +47,7 @@ export class DashboardControllerV2 extends BaseController {
         @Query() page?: number,
         @Query() searchQuery?: string,
     ): Promise<ApiDashboardPaginatedSchedulersResponse> {
-        if (!req.user) {
-            throw new AuthorizationError('User session not found');
-        }
-
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -65,7 +63,7 @@ export class DashboardControllerV2 extends BaseController {
             results: await this.services
                 .getDashboardService()
                 .getSchedulers(
-                    req.user,
+                    toSessionUser(req.account),
                     dashboardUuid,
                     searchQuery,
                     paginateArgs,

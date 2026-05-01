@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiShareResponse,
+    assertRegisteredAccount,
     CreateShareUrl,
 } from '@lightdash/common';
 import {
@@ -17,6 +18,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -60,9 +62,10 @@ export class ShareController extends BaseController {
         @Body() body: CreateShareUrl,
         @Request() req: express.Request,
     ): Promise<ApiShareResponse> {
+        assertRegisteredAccount(req.account);
         const shareUrl = await this.services
             .getShareService()
-            .createShareUrl(req.user!, body.path, body.params);
+            .createShareUrl(toSessionUser(req.account), body.path, body.params);
         this.setStatus(201);
         return {
             status: 'ok',
