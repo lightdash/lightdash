@@ -707,8 +707,8 @@ export class ProjectController extends BaseController {
         @Request() req: express.Request,
         @Query() duplicateFrom?: string,
     ): Promise<ApiCreateDashboardResponse> {
-        const dashboardService = this.services.getDashboardService();
         assertRegisteredAccount(req.account);
+        const dashboardService = this.services.getDashboardService();
         this.setStatus(201);
 
         let results: ApiCreateDashboardResponse['results'];
@@ -763,8 +763,8 @@ export class ProjectController extends BaseController {
         @Body() body: CreateDashboardWithCharts,
         @Request() req: express.Request,
     ): Promise<ApiCreateDashboardWithChartsResponse> {
-        const dashboardService = this.services.getDashboardService();
         assertRegisteredAccount(req.account);
+        const dashboardService = this.services.getDashboardService();
         this.setStatus(201);
 
         const results = await dashboardService.createDashboardWithCharts(
