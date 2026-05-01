@@ -1,5 +1,5 @@
 import {
-    ActionIcon,
+    Box,
     Group,
     Skeleton,
     Stack,
@@ -44,14 +44,9 @@ const ProjectAppearance: FC<Props> = ({ projectUuid }) => {
                     label="Pick a color palette for charts in this project. Palettes are managed at the organization level."
                     position="bottom"
                 >
-                    <ActionIcon
-                        size="xs"
-                        color="gray"
-                        variant="subtle"
-                        aria-label="Appearance info"
-                    >
-                        <MantineIcon icon={IconInfoCircle} />
-                    </ActionIcon>
+                    <Box>
+                        <MantineIcon icon={IconInfoCircle} color="gray" />
+                    </Box>
                 </Tooltip>
             </Group>
 
