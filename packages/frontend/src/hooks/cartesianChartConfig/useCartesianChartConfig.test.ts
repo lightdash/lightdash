@@ -572,6 +572,102 @@ describe('mergeExistingAndExpectedSeries', () => {
             ['a', 'b', 'c'],
         );
     });
+
+    test('backend-driven series order from columnIndex DENSE_RANK overrides a saved-chart series order that disagrees (PROD-2927 / #20435)', () => {
+        // Repro: a chart was saved with pivot category order [c, a]. New
+        // results introduced category "b" and the backend re-ordered them
+        // by DENSE_RANK columnIndex into [a, b, c]. Before #20435 the merge
+        // preserved the saved [c, a] order and appended "b" at the end ->
+        // [c, a, b], so users had to manually re-order series after every
+        // run.
+        // Expectation: when sortedByPivot is true, the merged output
+        // matches expectedSeriesMap key order verbatim — backend wins over
+        // a stale saved-chart order, not just over a missing one. This
+        // strengthens the "insert in sorted position" test which only
+        // covered an existing series order that was a prefix of the
+        // backend order ([a, c] vs [a, b, c]).
+        const defaultProps = {
+            label: undefined,
+            type: CartesianSeriesType.BAR,
+            areaStyle: undefined,
+            stack: undefined,
+            showSymbol: undefined,
+            smooth: undefined,
+            yAxisIndex: 0,
+        };
+
+        // Existing series order is REVERSED relative to the new backend
+        // order — [c, a] vs backend's [a, b, c]. This is the case the
+        // existing #20435 test does not cover.
+        const existingSeries: Series[] = [
+            {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'c' }],
+                    },
+                },
+            },
+            {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'a' }],
+                    },
+                },
+            },
+        ];
+
+        const expectedSeriesMap: Record<string, Series> = {
+            'date|metric.version.a': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'a' }],
+                    },
+                },
+            },
+            'date|metric.version.b': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'b' }],
+                    },
+                },
+            },
+            'date|metric.version.c': {
+                ...defaultProps,
+                encode: {
+                    xRef: { field: 'date' },
+                    yRef: {
+                        field: 'metric',
+                        pivotValues: [{ field: 'version', value: 'c' }],
+                    },
+                },
+            },
+        };
+
+        const result = mergeExistingAndExpectedSeries({
+            expectedSeriesMap,
+            existingSeries,
+            sortedByPivot: true,
+        });
+
+        // Backend order wins — exact equality, not just inclusion. A
+        // regression that re-introduces saved-chart order would either
+        // produce [c, a, b] or [c, a, ...] here.
+        expect(result.map((s) => s.encode.yRef.pivotValues?.[0].value)).toEqual(
+            ['a', 'b', 'c'],
+        );
+    });
 });
 
 describe('getSeriesGroupedByField', () => {
