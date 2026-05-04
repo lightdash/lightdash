@@ -244,7 +244,7 @@ const ACTION_CONFIG: Record<
         dotColor: 'var(--mantine-color-teal-5)',
     },
     created_content: {
-        label: 'Suggested',
+        label: 'Created',
         dotColor: 'var(--mantine-color-blue-5)',
     },
     insight: {
@@ -637,6 +637,8 @@ const DetailSidebar: FC<{
                             <ActionIcon
                                 component="a"
                                 href={targetLink}
+                                target="_blank"
+                                rel="noreferrer"
                                 aria-label={`Open ${action.targetType}`}
                                 variant="subtle"
                                 color="gray"
