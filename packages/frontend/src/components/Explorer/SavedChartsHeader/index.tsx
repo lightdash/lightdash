@@ -33,7 +33,6 @@ import {
     IconFolderSymlink,
     IconHistory,
     IconLayoutGridAdd,
-    IconMessageCircleStar,
     IconPencil,
     IconPin,
     IconPinnedOff,
@@ -52,8 +51,7 @@ import {
     type FC,
 } from 'react';
 import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
-import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
-import { useAskAiAgentUrl } from '../../../ee/features/aiCopilot/hooks/useAskAiAgentUrl';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import {
     explorerActions,
     selectHasUnsavedChanges,
@@ -362,12 +360,6 @@ const SavedChartsHeader: FC = () => {
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
 
-    const showAiAgentMenuItem = useAiAgentButtonVisibility();
-    const askAiAgentUrl = useAskAiAgentUrl({
-        projectUuid,
-        chartUuid: savedChart?.uuid,
-    });
-
     const userCanPinChart = user.data?.ability.can(
         'manage',
         subject('PinnedItems', {
@@ -637,27 +629,13 @@ const SavedChartsHeader: FC = () => {
                             disabled={!unsavedChartVersion.tableName}
                         >
                             <Menu.Dropdown>
-                                {showAiAgentMenuItem &&
-                                    savedChart &&
-                                    askAiAgentUrl && (
-                                        <>
-                                            <Menu.Item
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconMessageCircleStar
-                                                        }
-                                                    />
-                                                }
-                                                onClick={() =>
-                                                    navigate(askAiAgentUrl)
-                                                }
-                                            >
-                                                Ask AI Agent
-                                            </Menu.Item>
-                                            <Menu.Divider />
-                                        </>
-                                    )}
+                                {savedChart && (
+                                    <AskAiAgentMenuItem
+                                        projectUuid={projectUuid}
+                                        chartUuid={savedChart.uuid}
+                                        withDivider
+                                    />
+                                )}
                                 <Menu.Label>Manage</Menu.Label>
                                 {userCanManageChart &&
                                     !hasUnsavedChanges &&

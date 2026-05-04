@@ -53,7 +53,6 @@ import {
     IconFilter,
     IconFolders,
     IconRefreshDot,
-    IconMessageCircleStar,
     IconTableExport,
     IconTelescope,
     IconVariable,
@@ -68,7 +67,7 @@ import React, {
     type FC,
     type RefObject,
 } from 'react';
-import { Link, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
@@ -91,8 +90,7 @@ const getDashboardTileErrorMessage = (
     return error.error?.message;
 };
 
-import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
-import { useAskAiAgentUrl } from '../../ee/features/aiCopilot/hooks/useAskAiAgentUrl';
+import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -598,11 +596,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         const { dashboardUuid } = useParams<{ dashboardUuid: string }>();
         const projectUuid = useProjectUuid();
-        const showAiAgentMenuItem = useAiAgentButtonVisibility();
-        const askAiAgentUrl = useAskAiAgentUrl({
-            projectUuid,
-            chartUuid: props.tile.properties.savedChartUuid ?? undefined,
-        });
         const { canViewExplore, canViewUnderlyingData, canDrillInto } =
             useContextMenuPermissions({ minimal: false });
 
@@ -1280,19 +1273,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             userCanManageChart ||
                             userCanExportData) && (
                             <>
-                                {showAiAgentMenuItem && askAiAgentUrl && (
-                                    <Menu.Item
-                                        component={Link}
-                                        to={askAiAgentUrl}
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconMessageCircleStar}
-                                            />
-                                        }
-                                    >
-                                        Ask AI Agent
-                                    </Menu.Item>
-                                )}
+                                <AskAiAgentMenuItem
+                                    projectUuid={projectUuid}
+                                    chartUuid={savedChartUuid ?? undefined}
+                                />
+
                                 <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"
