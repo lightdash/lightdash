@@ -354,6 +354,7 @@ export const lightdashConfigMock: LightdashConfig = {
         s3: null,
         e2bApiKey: null,
         e2bTemplateName: 'lightdash-data-app',
+        e2bTemplateTag: '',
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

@@ -57,23 +57,36 @@ pnpm run dev
 pnpm run build
 ```
 
-## E2B template name
+## E2B template name and tag
 
 The build script (`build-sandbox.ts`) and the backend (`AppGenerateService`) both target the
-`lightdash-data-app` E2B template by default — this is the production template.
+`lightdash-data-app` E2B template by default — this is the production template. Builds are
+identified by `name:tag` ([E2B template tags](https://e2b.dev/docs/template/tags)); the
+backend defaults its tag to the running Lightdash version.
 
-During development, set `E2B_TEMPLATE_NAME` to a different name to build and use a personal/dev
-template instead. Both `build-sandbox.ts` and the backend read the same env var, so as long as
-they share it, the backend will spin up sandboxes from your dev template.
+Override either side independently:
+
+| Env var                   | Used by                         | Default                                  |
+| ------------------------- | ------------------------------- | ---------------------------------------- |
+| `E2B_TEMPLATE_NAME`       | build script + backend          | `lightdash-data-app`                     |
+| `E2B_TEMPLATE_TAG`        | build script + backend          | empty (build) / running `VERSION` (backend) |
+| `E2B_TEMPLATE_EXTRA_TAGS` | build script (comma-separated)  | unset                                    |
 
 ```bash
-# Build to a dev template
-E2B_TEMPLATE_NAME=lightdash-data-app-dev pnpm run build
+# Build to a personal dev template, untagged (uses E2B's :default)
+E2B_TEMPLATE_NAME=lukas-dev-template pnpm run build
 
-# Backend will use the same template when this env var is set
+# Build a versioned release-style image
+E2B_TEMPLATE_NAME=lightdash-data-app \
+E2B_TEMPLATE_TAG=0.2870.0 \
+E2B_TEMPLATE_EXTRA_TAGS=latest \
+  pnpm run build
+
+# Backend resolves the same vars to compose `name:tag` for Sandbox.create
 ```
 
-When `E2B_TEMPLATE_NAME` is unset, both sides fall back to the prod `lightdash-data-app` template.
+In CI, the `data-app-template` GitHub workflow handles publishing automatically — see
+`.github/workflows/data-app-template.yml`.
 
 ## Related
 
