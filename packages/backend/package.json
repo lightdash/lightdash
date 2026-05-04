@@ -43,7 +43,8 @@
         "rollback-all": "knex migrate:rollback --all --knexfile src/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/knexfile.js",
         "repl": "node dist/ee/repl/index.js",
-        "repl-dev": "nodemon --exec tsx src/ee/repl/index.ts"
+        "repl-dev": "nodemon --exec tsx src/ee/repl/index.ts",
+        "upload-autopilot-skill": "tsx src/scripts/upload-autopilot-skill.ts"
     },
     "dependencies": {
         "@ai-sdk/amazon-bedrock": "4.0.48",
