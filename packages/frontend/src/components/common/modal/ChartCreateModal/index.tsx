@@ -16,6 +16,12 @@ interface ChartCreateModalProps extends Pick<
     defaultSpaceUuid?: string;
     onConfirm: (savedData: CreateSavedChartVersion) => void;
     chartMetadata?: ChartMetadata;
+    /**
+     * When true, ignore the editing-dashboard context and let the user choose a
+     * space or dashboard destination instead of auto-saving to the originating
+     * dashboard.
+     */
+    forceSpaceOrDashboardChoice?: boolean;
 }
 
 enum SaveMode {
@@ -30,6 +36,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     defaultSpaceUuid,
     onConfirm,
     chartMetadata,
+    forceSpaceOrDashboardChoice = false,
 }) => {
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
@@ -46,11 +53,14 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     }, [opened, getEditingDashboardInfo]);
 
     const saveMode = useMemo(() => {
+        if (forceSpaceOrDashboardChoice) {
+            return SaveMode.DEFAULT;
+        }
         if (editingDashboardInfo.name && editingDashboardInfo.dashboardUuid) {
             return SaveMode.TO_DASHBOARD;
         }
         return SaveMode.DEFAULT;
-    }, [editingDashboardInfo]);
+    }, [editingDashboardInfo, forceSpaceOrDashboardChoice]);
 
     const { projectUuid } = useParams<{ projectUuid: string }>();
 

@@ -31,6 +31,7 @@ import {
     useUpdateDashboard,
 } from '../../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
+import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
@@ -89,6 +90,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
         useCreateMutation({ redirectOnSuccess });
+
+    const { clearIsEditingDashboardChart } = useDashboardStorage();
 
     const [saveDestination, setSaveDestination] = useState<SaveDestination>(
         SaveDestination.Space,
@@ -336,6 +339,13 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             }
 
             if (savedQuery) {
+                // Saving as a new chart to a space (or to a different dashboard)
+                // means the editor is no longer editing for the originating
+                // dashboard tile, so clear that context to hide the dashboard
+                // banner in the new chart viewer.
+                if (saveDestination === SaveDestination.Space) {
+                    clearIsEditingDashboardChart();
+                }
                 onConfirm(savedQuery);
                 return savedQuery;
             }
@@ -349,6 +359,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             updateDashboard,
             handleCreateNewSpace,
             onConfirm,
+            clearIsEditingDashboardChart,
         ],
     );
 

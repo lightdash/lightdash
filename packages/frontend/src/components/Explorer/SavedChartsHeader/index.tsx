@@ -25,7 +25,6 @@ import {
     IconBell,
     IconCircleCheck,
     IconCircleCheckFilled,
-    IconCirclePlus,
     IconCirclesRelation,
     IconCopy,
     IconDatabaseExport,
@@ -103,7 +102,6 @@ import MantineModal from '../../common/MantineModal';
 const ChangeChartExploreModal = lazy(
     () => import('../../common/modal/ChangeChartExploreModal'),
 );
-import ChartCreateModal from '../../common/modal/ChartCreateModal';
 import ChartDeleteModal from '../../common/modal/ChartDeleteModal';
 import ChartDuplicateModal from '../../common/modal/ChartDuplicateModal';
 import ChartUpdateModal from '../../common/modal/ChartUpdateModal';
@@ -130,7 +128,6 @@ const SavedChartsHeader: FC = () => {
     }>();
     const dashboardUuid = useSearchParams('fromDashboard');
     const isFromDashboard = !!dashboardUuid;
-    const spaceUuid = useSearchParams('fromSpace');
 
     const { data: project } = useProject(projectUuid);
 
@@ -175,7 +172,6 @@ const SavedChartsHeader: FC = () => {
     const { clearDashboardStorage } = useDashboardStorage();
     const [isRenamingChart, setIsRenamingChart] = useState(false);
     const [isMovingChart, setIsMovingChart] = useState(false);
-    const [isQueryModalOpen, queryModalHandlers] = useDisclosure();
     const [isDeleteModalOpen, deleteModalHandlers] = useDisclosure();
     const [isScheduledDeliveriesModalOpen, scheduledDeliveriesModalHandlers] =
         useDisclosure();
@@ -185,6 +181,7 @@ const SavedChartsHeader: FC = () => {
         useDisclosure();
     const [isAddToDashboardModalOpen, addToDashboardModalHandlers] =
         useDisclosure();
+    const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
     const [isChartDuplicateModalOpen, chartDuplicateModalHandlers] =
         useDisclosure();
     const [isChangeExploreModalOpen, changeExploreModalHandlers] =
@@ -302,7 +299,7 @@ const SavedChartsHeader: FC = () => {
         if (
             hasUnsavedChanges &&
             isEditMode &&
-            !isQueryModalOpen &&
+            !isSaveModalOpen &&
             !nextLocation.pathname.includes(
                 `/projects/${projectUuid}/saved/${savedChart?.uuid}`,
             ) &&
@@ -582,7 +579,11 @@ const SavedChartsHeader: FC = () => {
                                     </>
                                 ) : (
                                     <>
-                                        <SaveChartButton />
+                                        <SaveChartButton
+                                            onSaveModalOpenChange={
+                                                setIsSaveModalOpen
+                                            }
+                                        />
                                         <Button
                                             variant="default"
                                             size="xs"
@@ -628,18 +629,6 @@ const SavedChartsHeader: FC = () => {
                         >
                             <Menu.Dropdown>
                                 <Menu.Label>Manage</Menu.Label>
-                                {userCanManageChart && hasUnsavedChanges && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconCirclePlus}
-                                            />
-                                        }
-                                        onClick={queryModalHandlers.open}
-                                    >
-                                        Save chart as
-                                    </Menu.Item>
-                                )}
                                 {userCanManageChart &&
                                     !hasUnsavedChanges &&
                                     !chartBelongsToDashboard && (
@@ -909,15 +898,6 @@ const SavedChartsHeader: FC = () => {
                 )}
             </PageHeader>
 
-            {unsavedChartVersion && (
-                <ChartCreateModal
-                    opened={isQueryModalOpen}
-                    savedData={unsavedChartVersion}
-                    onClose={queryModalHandlers.close}
-                    onConfirm={queryModalHandlers.close}
-                    defaultSpaceUuid={spaceUuid ?? undefined}
-                />
-            )}
             {savedChart && isAddToDashboardModalOpen && projectUuid && (
                 <AddTilesToDashboardModal
                     isOpen={isAddToDashboardModalOpen}
