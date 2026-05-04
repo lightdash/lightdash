@@ -1,3 +1,10 @@
+# [0.2862.0](https://github.com/lightdash/lightdash/compare/0.2861.1...0.2862.0) (2026-05-04)
+
+
+### Features
+
+* add autopilot skill upload script and Slack messaging skill definition ([#22624](https://github.com/lightdash/lightdash/issues/22624)) ([8454d97](https://github.com/lightdash/lightdash/commit/8454d975ac3ed93c77a6415506277c43ce82c3e4))
+
 ## [0.2861.1](https://github.com/lightdash/lightdash/compare/0.2861.0...0.2861.1) (2026-05-01)
 
 
