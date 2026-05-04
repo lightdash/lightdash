@@ -773,8 +773,8 @@ importers:
         specifier: 4.1.1
         version: 4.1.1
       liquidjs:
-        specifier: 10.25.5
-        version: 10.25.5
+        specifier: 10.25.7
+        version: 10.25.7
       lodash:
         specifier: 4.17.23
         version: 4.17.23
@@ -11555,8 +11555,8 @@ packages:
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     hasBin: true
 
-  liquidjs@10.25.5:
-    resolution: {integrity: sha512-GKiKeZjJDdVoQAu+S9rzkYsYnYhcep5W3WwZXgb5f+yq484P/k9JqamBbGYu+LBEixcUAXZr2jogdAIjB3ki1w==}
+  liquidjs@10.25.7:
+    resolution: {integrity: sha512-rPCjJLiD4eDhQjvv964AeXFC+HbeYBbZrd7Z82Q6hqv1lX7G+5w4SJcKLn9CAAAwHI4aS3dTdo083UB79K3pDA==}
     engines: {node: '>=16'}
     hasBin: true
 
@@ -28857,7 +28857,7 @@ snapshots:
       supports-color: 9.1.0
       yaml: 1.10.2
 
-  liquidjs@10.25.5:
+  liquidjs@10.25.7:
     dependencies:
       commander: 10.0.1
 
