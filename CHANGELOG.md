@@ -1,3 +1,10 @@
+# [0.2863.0](https://github.com/lightdash/lightdash/compare/0.2862.0...0.2863.0) (2026-05-04)
+
+
+### Features
+
+* **data-apps:** add refresh preview button [GLITCH-380] ([#22619](https://github.com/lightdash/lightdash/issues/22619)) ([4440519](https://github.com/lightdash/lightdash/commit/4440519e54c27369ac4175ab5d348ae70caba7f6))
+
 # [0.2862.0](https://github.com/lightdash/lightdash/compare/0.2861.1...0.2862.0) (2026-05-04)
 
 
