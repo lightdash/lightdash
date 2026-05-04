@@ -1,4 +1,18 @@
+import { type DateZoom } from '../../types/api/paginatedQuery';
+import { type DashboardFilters } from '../../types/filter';
+import { type ParametersValuesMap } from '../../types/parameters';
 import { type TraceTaskBase } from '../../types/scheduler';
+
+/**
+ * Runtime state captured at pin time for a chart context. When a user pins a
+ * chart from a dashboard view, these are the dashboard-level overrides that
+ * were applied to the chart on screen at that moment.
+ */
+export type AiChartRuntimeOverrides = {
+    dashboardFilters?: DashboardFilters;
+    dashboardParameters?: ParametersValuesMap;
+    dateZoom?: DateZoom;
+};
 
 export type AiThread = {
     aiThreadUuid: string;
@@ -70,10 +84,38 @@ export type CreateSlackPrompt = {
     promptSlackTs: string;
 };
 
+export type AiPromptContextItemInput =
+    | {
+          type: 'chart';
+          chartUuid: string;
+          runtimeOverrides?: AiChartRuntimeOverrides;
+      }
+    | { type: 'dashboard'; dashboardUuid: string };
+
+export type AiPromptContextInput = AiPromptContextItemInput[];
+
+export type AiPromptContextItem =
+    | {
+          type: 'chart';
+          chartUuid: string;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+          runtimeOverrides: AiChartRuntimeOverrides | null;
+      }
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+      };
+
+export type AiPromptContext = AiPromptContextItem[];
+
 export type CreateWebAppPrompt = {
     threadUuid: string;
     createdByUserUuid: string;
     prompt: string;
+    context?: AiPromptContextInput;
     modelConfig?: {
         modelName: string;
         modelProvider: string;

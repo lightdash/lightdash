@@ -16,6 +16,7 @@ import type {
     ToolVerticalBarArgs,
 } from '../..';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
+import { type AiPromptContextInput } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
@@ -262,6 +263,7 @@ export type ApiAiAgentThreadResponse = {
 
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
+    context?: AiPromptContextInput;
     modelConfig?: {
         modelName: string;
         modelProvider: string;
@@ -273,6 +275,7 @@ export type ApiAiAgentThreadCreateResponse = ApiSuccess<AiAgentThreadSummary>;
 
 export type ApiAiAgentThreadMessageCreateRequest = {
     prompt: string;
+    context?: AiPromptContextInput;
     modelConfig?: {
         modelName: string;
         modelProvider: string;

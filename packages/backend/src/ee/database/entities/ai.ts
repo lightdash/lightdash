@@ -1,3 +1,4 @@
+import { type AiChartRuntimeOverrides } from '@lightdash/common';
 import { Knex } from 'knex';
 
 export const AiThreadTableName = 'ai_thread';
@@ -185,6 +186,33 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
     Partial<Pick<DbAiAgentToolResult, 'metadata'>>
+>;
+
+export const AiPromptContextTableName = 'ai_prompt_context';
+
+export type AiPromptContextEntityType = 'chart' | 'dashboard';
+
+export type DbAiPromptContext = {
+    ai_prompt_context_uuid: string;
+    ai_prompt_uuid: string;
+    entity_type: AiPromptContextEntityType;
+    entity_uuid: string;
+    pinned_version_uuid: string | null;
+    display_name: string | null;
+    runtime_overrides: AiChartRuntimeOverrides | null;
+    created_at: Date;
+};
+
+export type AiPromptContextTable = Knex.CompositeTableType<
+    DbAiPromptContext,
+    Pick<DbAiPromptContext, 'ai_prompt_uuid' | 'entity_type' | 'entity_uuid'> &
+        Partial<
+            Pick<
+                DbAiPromptContext,
+                'pinned_version_uuid' | 'display_name' | 'runtime_overrides'
+            >
+        >,
+    never
 >;
 
 export const AiOrganizationSettingsTableName = 'ai_organization_settings';

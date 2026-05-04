@@ -23,6 +23,9 @@ import {
     AiAgentUserPreferences,
     AiArtifact,
     AiEvalRunResultAssessment,
+    AiPromptContext,
+    AiPromptContextInput,
+    AiPromptContextItem,
     AiResultType,
     AiThread,
     AiWebAppPrompt,
@@ -58,8 +61,16 @@ import { Knex } from 'knex';
 import moment from 'moment';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../../database/entities/dashboards';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../../database/entities/savedCharts';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
@@ -68,6 +79,8 @@ import { wrapSentryTransaction } from '../../utils';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiPromptContextEntityType,
+    AiPromptContextTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
@@ -77,6 +90,7 @@ import {
     DbAiAgentToolCall,
     DbAiAgentToolResult,
     DbAiPrompt,
+    DbAiPromptContext,
     DbAiSlackPrompt,
     DbAiSlackThread,
     DbAiThread,
@@ -2779,8 +2793,187 @@ export class AiAgentModel {
                 user_uuid: data.createdByUserUuid,
             });
 
+            if (data.context && data.context.length > 0) {
+                await AiAgentModel.insertPromptContext(
+                    trx,
+                    row.ai_prompt_uuid,
+                    data.context,
+                );
+            }
+
             return row.ai_prompt_uuid;
         });
+    }
+
+    private static async insertPromptContext(
+        trx: Knex.Transaction,
+        promptUuid: string,
+        context: AiPromptContextInput,
+    ): Promise<void> {
+        const chartUuids = context.flatMap((c) =>
+            c.type === 'chart' ? [c.chartUuid] : [],
+        );
+        const dashboardUuids = context.flatMap((c) =>
+            c.type === 'dashboard' ? [c.dashboardUuid] : [],
+        );
+
+        const chartLookup = new Map(
+            (
+                await trx(SavedChartsTableName)
+                    .leftJoin(
+                        SavedChartVersionsTableName,
+                        `${SavedChartsTableName}.saved_query_id`,
+                        `${SavedChartVersionsTableName}.saved_query_id`,
+                    )
+                    .whereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        chartUuids,
+                    )
+                    .whereNull(`${SavedChartsTableName}.deleted_at`)
+                    .distinctOn(`${SavedChartsTableName}.saved_query_uuid`)
+                    .orderBy([
+                        {
+                            column: `${SavedChartsTableName}.saved_query_uuid`,
+                        },
+                        {
+                            column: `${SavedChartVersionsTableName}.created_at`,
+                            order: 'desc',
+                            nulls: 'last',
+                        },
+                    ])
+                    .select<
+                        {
+                            saved_query_uuid: string;
+                            name: string;
+                            saved_queries_version_uuid: string | null;
+                        }[]
+                    >({
+                        saved_query_uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                        name: `${SavedChartsTableName}.name`,
+                        saved_queries_version_uuid: `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                    })
+            ).map((r) => [r.saved_query_uuid, r] as const),
+        );
+
+        const dashboardLookup = new Map(
+            (
+                await trx(DashboardsTableName)
+                    .leftJoin(
+                        DashboardVersionsTableName,
+                        `${DashboardsTableName}.dashboard_id`,
+                        `${DashboardVersionsTableName}.dashboard_id`,
+                    )
+                    .whereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuids,
+                    )
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
+                    .orderBy([
+                        {
+                            column: `${DashboardsTableName}.dashboard_uuid`,
+                        },
+                        {
+                            column: `${DashboardVersionsTableName}.created_at`,
+                            order: 'desc',
+                            nulls: 'last',
+                        },
+                    ])
+                    .select<
+                        {
+                            dashboard_uuid: string;
+                            name: string;
+                            dashboard_version_uuid: string | null;
+                        }[]
+                    >({
+                        dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                        name: `${DashboardsTableName}.name`,
+                        dashboard_version_uuid: `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                    })
+            ).map((r) => [r.dashboard_uuid, r] as const),
+        );
+
+        const rows = context.map((ctx) => {
+            switch (ctx.type) {
+                case 'chart': {
+                    const chart = chartLookup.get(ctx.chartUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'chart' as AiPromptContextEntityType,
+                        entity_uuid: ctx.chartUuid,
+                        pinned_version_uuid:
+                            chart?.saved_queries_version_uuid ?? null,
+                        display_name: chart?.name ?? null,
+                        runtime_overrides: ctx.runtimeOverrides ?? null,
+                    };
+                }
+                case 'dashboard': {
+                    const dashboard = dashboardLookup.get(ctx.dashboardUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'dashboard' as AiPromptContextEntityType,
+                        entity_uuid: ctx.dashboardUuid,
+                        pinned_version_uuid:
+                            dashboard?.dashboard_version_uuid ?? null,
+                        display_name: dashboard?.name ?? null,
+                    };
+                }
+                default:
+                    return assertUnreachable(
+                        ctx,
+                        'Unknown AiPromptContextInput type',
+                    );
+            }
+        });
+
+        await trx(AiPromptContextTableName).insert(rows);
+    }
+
+    async getContextForPromptUuids(
+        promptUuids: string[],
+    ): Promise<Map<string, AiPromptContext>> {
+        const grouped = new Map<string, AiPromptContext>();
+        if (promptUuids.length === 0) return grouped;
+
+        const rows = await this.database(AiPromptContextTableName)
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .orderBy('created_at', 'asc')
+            .select<DbAiPromptContext[]>('*');
+
+        for (const row of rows) {
+            const existing = grouped.get(row.ai_prompt_uuid) ?? [];
+            existing.push(AiAgentModel.toAiPromptContextItem(row));
+            grouped.set(row.ai_prompt_uuid, existing);
+        }
+
+        return grouped;
+    }
+
+    private static toAiPromptContextItem(
+        row: DbAiPromptContext,
+    ): AiPromptContextItem {
+        switch (row.entity_type) {
+            case 'chart':
+                return {
+                    type: 'chart',
+                    chartUuid: row.entity_uuid,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
+                    runtimeOverrides: row.runtime_overrides,
+                };
+            case 'dashboard':
+                return {
+                    type: 'dashboard',
+                    dashboardUuid: row.entity_uuid,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
+                };
+            default:
+                return assertUnreachable(
+                    row.entity_type,
+                    `Unknown ai_prompt_context.entity_type`,
+                );
+        }
     }
 
     async existsSlackPromptsByChannelAndTimestamps(
