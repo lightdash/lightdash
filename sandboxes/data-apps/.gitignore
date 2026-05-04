@@ -10,3 +10,4 @@ template/src/components/ui/
 template/src/lib/*
 !template/src/lib/theme.ts
 !template/src/lib/filters.tsx
+!template/src/lib/floating.tsx

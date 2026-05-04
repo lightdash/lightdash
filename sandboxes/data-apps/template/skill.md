@@ -460,37 +460,51 @@ export function RevenueBySegment() {
 
 Render the active filters above the dashboard so the user can see what's applied, dismiss them individually, or clear them all. Read `allFilters` from `useGlobalFilters()` and design the bar to match the app's visual style — `frontend-design` drives the look. Show the explore alongside the field so users can tell which chart contributed each filter, and call `removeFilter(f)` / `clearFilters()` from your dismiss buttons.
 
-### Floating surfaces — always set a background
+### Floating surfaces — chrome is template-managed
 
-**Every floating UI surface must have an explicit, opaque background and a visible border.** This is non-negotiable — without it, dropdown menus, dialogs, and popovers render transparent over charts and tables, the underlying data bleeds through, text is unreadable, and click targets are ambiguous.
+**The template owns the visual chrome (background, border, shadow, hover state) of every floating surface.** That covers shadcn's `DropdownMenuContent`, `PopoverContent`, `DialogContent`, plus any custom Recharts tooltip you wrap in `ChartTooltipSurface` (see below). The chrome adapts to whatever theme you design — `chart-overrides.css` mixes `--background` toward `--foreground` to guarantee contrast on both dark and light themes.
 
-The rule applies to every component that floats above page content:
+What this means for you:
 
-| Component | Required classes |
-|---|---|
-| `DropdownMenuContent` | `bg-white border shadow-md` |
-| `DialogContent` | `bg-white border shadow-lg` |
-| `PopoverContent` | `bg-white border shadow-md` |
-| `SheetContent` | `bg-white border shadow-lg` |
-| `TooltipContent` | `bg-white border shadow-sm` |
+- **Don't add `bg-*`, `border-*`, `shadow-*`, or inline `style={{ background, border, boxShadow }}` to floating surfaces.** Those will be overridden, and trying to fight them just produces inconsistent results across regenerations. The chrome is already correct.
+- **Inner padding, font sizes, content layout, accent stripes — all yours.** Design the contents however the app calls for; the wrapper handles the rest.
+- **Custom Recharts tooltips must be wrapped in `<ChartTooltipSurface>`** from `@/lib/floating`. Without it, the tooltip is a plain unstyled div and looks transparent over the chart.
+
+Custom tooltip example:
 
 ```tsx
-<DropdownMenuContent className="bg-white border shadow-md">
-    {/* ... */}
-</DropdownMenuContent>
+import { Tooltip } from 'recharts';
+import { ChartTooltipSurface } from '@/lib/floating';
 
-<DialogContent className="bg-white border shadow-lg max-w-3xl">
-    {/* ... */}
-</DialogContent>
-
-<PopoverContent className="bg-white border shadow-md">
-    {/* ... */}
-</PopoverContent>
+<Tooltip content={({ active, payload, label }) => {
+    if (!active || !payload?.length) return null;
+    return (
+        <ChartTooltipSurface>
+            <div className="font-semibold mb-1">{label}</div>
+            <div className="font-mono text-sm tabular-nums">
+                {payload[0].value}
+            </div>
+        </ChartTooltipSurface>
+    );
+}} />
 ```
 
-**Do not rely on shadcn defaults like `bg-popover` or `bg-background`.** Those classes resolve through CSS variables (`--popover`, `--background`) that may not be populated in the sandbox theme, leaving the surface transparent. Hard-code `bg-white` so the background renders regardless of theme state. For dark-mode support, use `bg-white dark:bg-zinc-900`.
+Action menus and dialogs use shadcn's components as-is — no className needed for the chrome:
 
-This rule covers every code example below — every floating component you render must include these classes.
+```tsx
+<DropdownMenuContent>
+    <DropdownMenuItem onClick={...}>Filter by {value}</DropdownMenuItem>
+</DropdownMenuContent>
+```
+
+**One scope rule still matters:** if you toggle dark mode via the `.dark` class, set it on `<html>`, never on a wrapper `<div>`. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces leak out to light scope. Either:
+
+```js
+// main.jsx — set once at boot, applies to <html> and every portal
+document.documentElement.classList.add('dark');
+```
+
+…or skip `.dark` entirely and put dark values directly in `:root`. Do not write `<div className="dark">` anywhere.
 
 ### Data interactions — action menu
 
@@ -550,7 +564,7 @@ function RevenueChart() {
                     <DropdownMenuTrigger asChild>
                         <div style={{ position: 'fixed', left: menuState.x, top: menuState.y, width: 1, height: 1 }} />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="bg-white border shadow-md">
+                    <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => {
                             // Tagged with EXPLORE so it only applies to other queries against
                             // the same explore — never broadcast across explores.
@@ -585,7 +599,7 @@ function RevenueChart() {
 
             {drillState && (
                 <Dialog open onOpenChange={() => setDrillState(null)}>
-                    <DialogContent className="bg-white border shadow-lg max-w-3xl">
+                    <DialogContent className="max-w-3xl">
                         <DialogHeader><DialogTitle>{drillState.title}</DialogTitle></DialogHeader>
                         <DrillResults query={drillState.query} />
                     </DialogContent>
@@ -827,6 +841,5 @@ function DrillResults({ query: q }) {
 | Action menu missing "Filter by &lt;value&gt;" | Default UX requirement violated — users have no way to drill in | Every data-powered chart/table must include the option, calling `addFilter({ field, operator: 'equals', value, explore: EXPLORE })` |
 | Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
-| Transparent popover/dialog/dropdown backgrounds | Content unreadable over charts; clicks pass through ambiguously | Hard-code `bg-white border shadow-md` (or `shadow-lg` for dialogs) on every `DropdownMenuContent`, `DialogContent`, `PopoverContent`, `SheetContent`, and `TooltipContent`. Never rely on shadcn defaults like `bg-popover` — the underlying CSS variables aren't reliably populated. See [Floating surfaces](#floating-surfaces--always-set-a-background) |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
