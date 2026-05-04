@@ -476,6 +476,11 @@ const clickhouseConfig: WarehouseConfig = {
                 return `toStartOfHour(${originalSql})`;
             case TimeFrames.MINUTE:
                 return `toStartOfMinute(${originalSql})`;
+            case TimeFrames.SECOND:
+                // toStartOfSecond requires DateTime64; lift Date/DateTime via cast.
+                return `toStartOfSecond(toDateTime64(${originalSql}, 3))`;
+            case TimeFrames.MILLISECOND:
+                return `toStartOfMillisecond(toDateTime64(${originalSql}, 3))`;
             default:
                 throw new ParseError(
                     `Cannot recognise truncate function for ${timeFrame}`,
@@ -510,6 +515,14 @@ const clickhouseConfig: WarehouseConfig = {
             return `modulo(toDayOfWeek(${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
         }
 
+        // ClickHouse toWeek defaults to mode 0 (US, Sunday-base, 0–53). Mode 3 is
+        // ISO 8601 (Monday-base, 1–53), matching Postgres EXTRACT(WEEK) and the
+        // toStartOfWeek(d, 1) used by truncation. The startOfWeek shift mirrors
+        // what other warehouses do on the same path.
+        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
+            return `toWeek(addDays(${originalSql}, -${startOfWeek}), 3)`;
+        }
+
         const extractFunction = clickhouseTimeFrameMap[timeFrame];
         if (!extractFunction) {
             throw new ParseError(
@@ -521,8 +534,8 @@ const clickhouseConfig: WarehouseConfig = {
     getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
             ...nullTimeFrameMap,
-            [TimeFrames.DAY_OF_WEEK_NAME]: 'toDayOfWeekName',
-            [TimeFrames.MONTH_NAME]: 'toMonthName',
+            [TimeFrames.DAY_OF_WEEK_NAME]: `dateName('weekday', ${originalSql})`,
+            [TimeFrames.MONTH_NAME]: `monthName(${originalSql})`,
             [TimeFrames.QUARTER_NAME]: `concat('Q', toString(toQuarter(${originalSql})))`,
         };
         const formatExpression = timeFrameExpressions[timeFrame];
@@ -531,10 +544,7 @@ const clickhouseConfig: WarehouseConfig = {
                 `Cannot recognise format expression for ${timeFrame}`,
             );
         }
-        if (timeFrame === TimeFrames.QUARTER_NAME) {
-            return formatExpression;
-        }
-        return `${formatExpression}(${originalSql})`;
+        return formatExpression;
     },
 };
 

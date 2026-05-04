@@ -106,6 +106,30 @@ describe('TimeFrames', () => {
                 'addDays(toStartOfWeek(addDays(${TABLE}.created, -0), 1), 0)',
             );
         });
+
+        test('ClickHouse SECOND truncation lifts to DateTime64 (toStartOfSecond rejects plain DateTime)', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.SECOND].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.SECOND,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual('toStartOfSecond(toDateTime64(${TABLE}.created, 3))');
+        });
+
+        test('ClickHouse MILLISECOND truncation lifts to DateTime64 (toStartOfMillisecond rejects plain DateTime)', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.MILLISECOND].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.MILLISECOND,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual(
+                'toStartOfMillisecond(toDateTime64(${TABLE}.created, 3))',
+            );
+        });
     });
 
     describe('getSqlForDatePart - DAY_OF_WEEK_INDEX with startOfWeek', () => {
@@ -302,6 +326,79 @@ describe('TimeFrames', () => {
                     WeekDay.MONDAY,
                 ),
             ).toEqual(`DATE_PART('DOW', ${col})`);
+        });
+    });
+
+    describe('getSqlForDatePart - ClickHouse WEEK_NUM with startOfWeek', () => {
+        const col = '${TABLE}.created';
+        const tf = TimeFrames.WEEK_NUM;
+        const dt = DimensionType.DATE;
+
+        test('Monday start: toWeek mode 3 (ISO) matches Postgres EXTRACT(WEEK), fixes US-default off-by-one', () => {
+            // toWeek(d) defaults to mode 0 (US, Sunday-base, 0–53). Mode 3 is
+            // ISO 8601 (Monday-base), matching every other warehouse adapter.
+            expect(
+                timeFrameConfigs[tf].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    tf,
+                    col,
+                    dt,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(`toWeek(addDays(${col}, -0), 3)`);
+        });
+
+        test('Wednesday start: shift date back by 2 days before extracting ISO week', () => {
+            expect(
+                timeFrameConfigs[tf].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    tf,
+                    col,
+                    dt,
+                    WeekDay.WEDNESDAY,
+                ),
+            ).toEqual(`toWeek(addDays(${col}, -2), 3)`);
+        });
+    });
+
+    describe('getSqlForDatePartName - ClickHouse', () => {
+        const col = '${TABLE}.created';
+        const dt = DimensionType.DATE;
+
+        test('DAY_OF_WEEK_NAME uses dateName(weekday, ...) — toDayOfWeekName does not exist in ClickHouse', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.DAY_OF_WEEK_NAME].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.DAY_OF_WEEK_NAME,
+                    col,
+                    dt,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(`dateName('weekday', ${col})`);
+        });
+
+        test('MONTH_NAME uses monthName(...) — toMonthName does not exist in ClickHouse', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.MONTH_NAME].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    dt,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(`monthName(${col})`);
+        });
+
+        test('QUARTER_NAME stays as concat(Q, toQuarter(...))', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.QUARTER_NAME].getSql(
+                    SupportedDbtAdapter.CLICKHOUSE,
+                    TimeFrames.QUARTER_NAME,
+                    col,
+                    dt,
+                    WeekDay.MONDAY,
+                ),
+            ).toEqual(`concat('Q', toString(toQuarter(${col})))`);
         });
     });
 
