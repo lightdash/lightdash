@@ -66,9 +66,6 @@ type WarehouseConfig = {
         startOfWeek?: WeekDay | null,
         timezone?: string,
     ) => string;
-    // `timezone`, when provided, swaps `originalSql` for the project-TZ
-    // shifted value (`dateExtractsTimezoneConversions[adapter].toExtractInputTz`)
-    // before composing the EXTRACT/DATE_PART expression.
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
@@ -148,9 +145,7 @@ export const dateTruncTimezoneConversions: Record<
     },
 };
 
-/** Per-warehouse SQL for shifting an EXTRACT/DATE_PART input from UTC into
- *  the project zone before extracting a calendar component. EXTRACT returns
- *  a number/string, not a timestamp, so there is no inverse `toUTC`. */
+// EXTRACT returns a number/string, so no `toUTC` inverse — one-way shift only.
 type DateExtractTimezoneConversion = {
     toExtractInputTz: (sql: string, tz: string) => string;
 };
@@ -159,8 +154,7 @@ export const dateExtractsTimezoneConversions: Record<
     SupportedDbtAdapter,
     DateExtractTimezoneConversion
 > = {
-    // BigQuery: `AT TIME ZONE 'tz'` is only valid concatenated inside
-    // `EXTRACT(... FROM ...)`. The shape diverges from DATE_TRUNC's no-op.
+    // BigQuery: `AT TIME ZONE` only parses inside `EXTRACT(... FROM ...)`.
     [SupportedDbtAdapter.BIGQUERY]: {
         toExtractInputTz: (sql, tz) => `${sql} AT TIME ZONE '${tz}'`,
     },
@@ -750,13 +744,7 @@ export const getSqlForTruncatedDate = (
     return toUTC(truncated, timezone);
 };
 
-/**
- * Generates EXTRACT/DATE_PART SQL. When a timezone is provided on a TIMESTAMP
- * base dimension, the input is shifted into the project zone before the
- * calendar component is read, so the result agrees with sibling DATE_TRUNC
- * dimensions. DATE base dimensions short-circuit since they have no time
- * component to shift.
- */
+// DATE base dimensions short-circuit: no time component to shift.
 export const getSqlForDatePart = (
     adapterType: SupportedDbtAdapter,
     timeFrame: TimeFrames,
@@ -1013,9 +1001,7 @@ export const truncatableTimeFrames: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.YEAR,
 ]);
 
-/** Time frames that use EXTRACT/DATE_PART (numeric) or format/name functions
- *  (string), as opposed to DATE_TRUNC. The TZ-aware path wraps the input via
- *  dateExtractsTimezoneConversions before extracting. */
+/** Time frames that use EXTRACT/DATE_PART or format/name functions, not DATE_TRUNC. */
 export const extractableTimeFrames: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.DAY_OF_WEEK_INDEX,
     TimeFrames.DAY_OF_MONTH_NUM,

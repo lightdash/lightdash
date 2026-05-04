@@ -583,9 +583,7 @@ export class MetricQueryBuilder {
         );
     }
 
-    /** Regenerates timestamp-derived SQL with timezone conversion: DATE_TRUNC
-     *  for truncatable intervals, EXTRACT/DATE_PART (and format/name) for
-     *  extractable ones. */
+    /** Rewrites `compiledSql` with the project-TZ wrap for truncatable and extractable intervals. */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
@@ -603,7 +601,6 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        // Get base dimension's compiledSql (before DATE_TRUNC / EXTRACT)
         const baseDimensionId = dimension.timeIntervalBaseDimensionName
             ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
             : undefined;
@@ -612,9 +609,7 @@ export class MetricQueryBuilder {
             ? this.exploreDimensions[baseDimensionId]
             : undefined;
 
-        // DATE base dimensions short-circuit: DATE has no time component, so
-        // EXTRACT is already in the project's calendar and DATE_TRUNC's tz
-        // round-trip would either error or anchor at midnight UTC and drift.
+        // DATE base: no time component to shift, so the wrap would drift at midnight.
         if (
             !baseDimension?.compiledSql ||
             baseDimension.type !== DimensionType.TIMESTAMP
@@ -633,8 +628,6 @@ export class MetricQueryBuilder {
             );
         }
 
-        // Extract/format path — timeFrameConfigs.getSql dispatches to
-        // getSqlForDatePart (numeric) or getSqlForDatePartName (Name variants).
         return timeFrameConfigs[dimension.timeInterval].getSql(
             adapterType,
             dimension.timeInterval,
