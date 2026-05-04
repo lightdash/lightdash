@@ -1,3 +1,16 @@
+# [0.2864.0](https://github.com/lightdash/lightdash/compare/0.2863.0...0.2864.0) (2026-05-04)
+
+
+### Bug Fixes
+
+* hide managed agent home card for preview projects ([#22627](https://github.com/lightdash/lightdash/issues/22627)) ([ee7b10b](https://github.com/lightdash/lightdash/commit/ee7b10b3bf374d1071bc07a9b5e3cb0616363f9a))
+* rename `created_content` label to "Created" and open target link in new tab ([#22625](https://github.com/lightdash/lightdash/issues/22625)) ([a0162e9](https://github.com/lightdash/lightdash/commit/a0162e97f5305fd5f6f7b8f6bcd9d00b05bb1fda))
+
+
+### Features
+
+* add project context details to managed agent activity sidebar ([#22626](https://github.com/lightdash/lightdash/issues/22626)) ([64a7ef1](https://github.com/lightdash/lightdash/commit/64a7ef17964369ce0dfd2d24d4f1626e5935bf6e))
+
 # [0.2863.0](https://github.com/lightdash/lightdash/compare/0.2862.0...0.2863.0) (2026-05-04)
 
 
