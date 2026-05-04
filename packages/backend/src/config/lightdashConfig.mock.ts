@@ -274,6 +274,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
+        internalLightdashHostIgnoreHttpsErrors: false,
         browserEndpoint: 'ws://headless-browser:3000',
         maxScreenshotRetries: 5,
         retryBaseDelayMs: 3000,

@@ -466,6 +466,29 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
                 'wss://headless-browser-host',
             );
         });
+
+        test('internalLightdashHostIgnoreHttpsErrors defaults to false', () => {
+            const config = parseConfig();
+            expect(
+                config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
+            ).toBe(false);
+        });
+
+        test('internalLightdashHostIgnoreHttpsErrors is true when env var is "true"', () => {
+            process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS = 'true';
+            const config = parseConfig();
+            expect(
+                config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
+            ).toBe(true);
+        });
+
+        test('internalLightdashHostIgnoreHttpsErrors is false for any other value', () => {
+            process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS = '1';
+            const config = parseConfig();
+            expect(
+                config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
+            ).toBe(false);
+        });
     });
 
     describe('environment variables for API tokens', () => {

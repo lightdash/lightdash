@@ -912,6 +912,14 @@ export class UnfurlService extends BaseService {
                                 ? contextId.toString()
                                 : 'undefined',
                         },
+                        // Allow self-signed / untrusted certs when the
+                        // internal Lightdash host is reached through an
+                        // HTTPS ingress whose cert isn't in the browserless
+                        // trust store. Opt-in via env var because it
+                        // disables TLS validation for the entire context.
+                        ignoreHTTPSErrors:
+                            this.lightdashConfig.headlessBrowser
+                                .internalLightdashHostIgnoreHttpsErrors,
                     });
 
                     // Polyfill crypto.randomUUID (needed for Loom iframes)

@@ -1278,6 +1278,7 @@ export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
     internalLightdashHost: string;
+    internalLightdashHostIgnoreHttpsErrors: boolean;
     browserEndpoint: string;
     maxScreenshotRetries: number;
     retryBaseDelayMs: number;
@@ -2018,6 +2019,9 @@ export const parseConfig = (): LightdashConfig => {
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
+            internalLightdashHostIgnoreHttpsErrors:
+                process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS ===
+                'true',
             browserEndpoint,
             maxScreenshotRetries: parseInt(
                 process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
