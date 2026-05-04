@@ -914,7 +914,7 @@ describe('TimeFrames', () => {
         test.each([
             [
                 SupportedDbtAdapter.BIGQUERY,
-                `FORMAT_DATETIME('%A', ${col} AT TIME ZONE '${tz}')`,
+                `FORMAT_TIMESTAMP('%A', ${col}, '${tz}')`,
             ],
             [
                 SupportedDbtAdapter.POSTGRES,
@@ -963,6 +963,34 @@ describe('TimeFrames', () => {
                     DimensionType.TIMESTAMP,
                 ),
             ).toEqual(`TO_CHAR(${col}, 'FMMonth')`);
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
         });
+
+        test.each([
+            [TimeFrames.DAY_OF_WEEK_NAME, '%A'],
+            [TimeFrames.MONTH_NAME, '%B'],
+            [TimeFrames.QUARTER_NAME, 'Q%Q'],
+        ])(
+            'BigQuery %s: native FORMAT_TIMESTAMP with tz arg (no AT TIME ZONE)',
+            (timeFrame, format) => {
+                expect(
+                    getSqlForDatePartName(
+                        SupportedDbtAdapter.BIGQUERY,
+                        timeFrame,
+                        col,
+                        DimensionType.TIMESTAMP,
+                        null,
+                        tz,
+                    ),
+                ).toEqual(`FORMAT_TIMESTAMP('${format}', ${col}, '${tz}')`);
+            },
+        );
     });
 });

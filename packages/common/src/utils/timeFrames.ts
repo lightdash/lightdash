@@ -296,12 +296,10 @@ const bigqueryConfig: WarehouseConfig = {
             );
         }
         if (type === DimensionType.TIMESTAMP) {
-            const sql = timezone
-                ? dateExtractsTimezoneConversions[
-                      SupportedDbtAdapter.BIGQUERY
-                  ].toExtractInputTz(originalSql, timezone)
-                : originalSql;
-            return `FORMAT_DATETIME('${formatExpression}', ${sql})`;
+            if (timezone) {
+                return `FORMAT_TIMESTAMP('${formatExpression}', ${originalSql}, '${timezone}')`;
+            }
+            return `FORMAT_DATETIME('${formatExpression}', ${originalSql})`;
         }
         return `FORMAT_DATE('${formatExpression}', ${originalSql})`;
     },
