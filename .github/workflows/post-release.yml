@@ -458,3 +458,127 @@ jobs:
           git add Formula/lightdash.rb
           git commit -m "Update lightdash to $VERSION"
           git push origin main
+
+  # ============================================================================
+  # Job 4: Data App E2B template — publish a tag matching this release
+  # ============================================================================
+  # Two paths:
+  #   build  — full E2B template rebuild when sandboxes/data-apps/** or
+  #            packages/query-sdk/** changed since the previous release.
+  #   retag  — fast path that re-tags the existing :latest build with the new
+  #            release version, so every released version still has a pinned
+  #            tag without burning E2B build minutes on a no-op rebuild.
+  data-app-template-resolve:
+    name: Resolve E2B template build action
+    runs-on: depot-ubuntu-24.04-4
+    outputs:
+      action: ${{ steps.plan.outputs.action }}
+      primary_tag: ${{ steps.plan.outputs.primary_tag }}
+      source_tag: ${{ steps.plan.outputs.source_tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Plan build
+        id: plan
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          PRIMARY_TAG="$RELEASE_TAG"
+          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
+            echo "No previous tag found — performing full build"
+            ACTION="build"
+            SOURCE_TAG=""
+          else
+            CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- 'sandboxes/data-apps/' 'packages/query-sdk/' || true)
+            if [ -n "$CHANGED" ]; then
+              echo "Template/SDK changed since $PREVIOUS_TAG — performing full build"
+              echo "$CHANGED"
+              ACTION="build"
+              SOURCE_TAG=""
+            else
+              echo "No template/SDK changes since $PREVIOUS_TAG — re-tagging :latest"
+              ACTION="retag"
+              SOURCE_TAG="latest"
+            fi
+          fi
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "primary_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
+          echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+
+  data-app-template-build:
+    name: Build E2B template
+    needs: data-app-template-resolve
+    if: needs.data-app-template-resolve.outputs.action == 'build'
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+      E2B_TEMPLATE_NAME: lightdash-data-app
+      E2B_TEMPLATE_TAG: ${{ needs.data-app-template-resolve.outputs.primary_tag }}
+      E2B_TEMPLATE_EXTRA_TAGS: latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      - name: Install root deps
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Install sandbox deps
+        working-directory: sandboxes/data-apps
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build & publish E2B template
+        working-directory: sandboxes/data-apps
+        run: pnpm run build
+
+  data-app-template-retag:
+    name: Re-tag existing E2B build
+    needs: data-app-template-resolve
+    if: needs.data-app-template-resolve.outputs.action == 'retag'
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+      E2B_TEMPLATE_NAME: lightdash-data-app
+      E2B_TEMPLATE_TAG: ${{ needs.data-app-template-resolve.outputs.primary_tag }}
+      E2B_TEMPLATE_SOURCE_TAG: ${{ needs.data-app-template-resolve.outputs.source_tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install sandbox deps
+        working-directory: sandboxes/data-apps
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Re-tag :latest build with release version
+        working-directory: sandboxes/data-apps
+        run: pnpm exec tsx assign-tag.ts
