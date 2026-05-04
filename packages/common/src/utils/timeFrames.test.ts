@@ -92,6 +92,32 @@ describe('TimeFrames', () => {
             );
         });
 
+        test('BigQuery 3-arg TIMESTAMP_TRUNC wraps inner expr in TIMESTAMP() so DATETIME inputs coerce', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    'UTC',
+                ),
+            ).toEqual(
+                "TIMESTAMP_TRUNC(TIMESTAMP(${TABLE}.created), DAY, 'UTC')",
+            );
+        });
+
+        test('BigQuery 2-arg TIMESTAMP_TRUNC keeps original expr unchanged (DATETIME overload still applies)', () => {
+            expect(
+                timeFrameConfigs[TimeFrames.DAY].getSql(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual('TIMESTAMP_TRUNC(${TABLE}.created, DAY)');
+        });
+
         test('should get sql where start of the week is Monday for ClickHouse', () => {
             // Monday (startOfWeek=0): must pass mode 1 to toStartOfWeek() so it returns Monday not Sunday
             expect(

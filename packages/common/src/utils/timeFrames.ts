@@ -181,7 +181,9 @@ const bigqueryConfig: WarehouseConfig = {
                 : timeFrame;
         if (type === DimensionType.TIMESTAMP) {
             if (timezone) {
-                return `TIMESTAMP_TRUNC(${originalSql}, ${datePart}, '${timezone}')`;
+                // 3-arg overload requires TIMESTAMP; coerce in case the
+                // declared TIMESTAMP dim emits DATETIME at runtime.
+                return `TIMESTAMP_TRUNC(TIMESTAMP(${originalSql}), ${datePart}, '${timezone}')`;
             }
             return `TIMESTAMP_TRUNC(${originalSql}, ${datePart})`;
         }
