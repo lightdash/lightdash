@@ -414,14 +414,11 @@ was tested against that exact source tree.
 
 - `E2B_TEMPLATE_TAG` defaults to the backend's `VERSION`, producing
   `lightdash-data-app:<version>` at sandbox creation time.
-- The `.github/workflows/data-app-template.yml` workflow guarantees that tag exists for every
-  released version. It rebuilds the template only when `sandboxes/data-apps/**` or
-  `packages/query-sdk/**` changed; otherwise it re-tags the existing `:latest` build.
+- The release-driven jobs in `.github/workflows/post-release.yml` guarantee that tag exists
+  for every released version. They rebuild the template only when `sandboxes/data-apps/**`
+  or `packages/query-sdk/**` changed; otherwise they re-tag the existing `:latest` build.
 - Set `E2B_TEMPLATE_TAG=` (empty) to fall back to E2B's implicit `default` tag — useful for
   rollbacks or for dev environments running against a personal template.
-
-PR builds publish to a separate dev template (`lukas-dev-template:pr-<n>`) so they can never
-shadow prod tags. The workflow comments the resulting template ref on the PR.
 
 S3 credentials are configured through the existing `S3_*` environment variables used by the app runtime config.
 

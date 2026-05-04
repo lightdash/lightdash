@@ -85,8 +85,9 @@ E2B_TEMPLATE_EXTRA_TAGS=latest \
 # Backend resolves the same vars to compose `name:tag` for Sandbox.create
 ```
 
-In CI, the `data-app-template` GitHub workflow handles publishing automatically — see
-`.github/workflows/data-app-template.yml`.
+In CI, the release-driven jobs in `.github/workflows/post-release.yml` handle publishing
+automatically — they tag each release as `lightdash-data-app:<version>` (and rolling
+`:latest`), rebuilding the image only when this folder or `packages/query-sdk/` changed.
 
 ## Related
 
