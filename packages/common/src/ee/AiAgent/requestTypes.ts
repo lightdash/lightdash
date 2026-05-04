@@ -1,6 +1,7 @@
 import { type DateZoom } from '../../types/api/paginatedQuery';
 import { type DashboardFilters } from '../../types/filter';
 import { type ParametersValuesMap } from '../../types/parameters';
+import { type ChartKind } from '../../types/savedCharts';
 import { type TraceTaskBase } from '../../types/scheduler';
 
 /**
@@ -101,6 +102,7 @@ export type AiPromptContextItem =
           pinnedVersionUuid: string | null;
           displayName: string | null;
           runtimeOverrides: AiChartRuntimeOverrides | null;
+          chartKind: ChartKind | null;
       }
     | {
           type: 'dashboard';

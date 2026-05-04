@@ -36,6 +36,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     assertUnreachable,
+    ChartKind,
     CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
@@ -2948,9 +2949,34 @@ export class AiAgentModel {
             .orderBy('created_at', 'asc')
             .select<DbAiPromptContext[]>('*');
 
+        const chartUuids = rows
+            .filter((r) => r.entity_type === 'chart')
+            .map((r) => r.entity_uuid);
+        const chartKindByUuid = new Map(
+            (
+                await this.database(SavedChartsTableName)
+                    .whereIn('saved_query_uuid', chartUuids)
+                    .whereNull('deleted_at')
+                    .select<
+                        {
+                            saved_query_uuid: string;
+                            last_version_chart_kind: string | null;
+                        }[]
+                    >('saved_query_uuid', 'last_version_chart_kind')
+            ).map(
+                (r) =>
+                    [
+                        r.saved_query_uuid,
+                        (r.last_version_chart_kind as ChartKind | null) ?? null,
+                    ] as const,
+            ),
+        );
+
         for (const row of rows) {
             const existing = grouped.get(row.ai_prompt_uuid) ?? [];
-            existing.push(AiAgentModel.toAiPromptContextItem(row));
+            existing.push(
+                AiAgentModel.toAiPromptContextItem(row, chartKindByUuid),
+            );
             grouped.set(row.ai_prompt_uuid, existing);
         }
 
@@ -2959,6 +2985,7 @@ export class AiAgentModel {
 
     private static toAiPromptContextItem(
         row: DbAiPromptContext,
+        chartKindByUuid: Map<string, ChartKind | null>,
     ): AiPromptContextItem {
         switch (row.entity_type) {
             case 'chart':
@@ -2968,6 +2995,7 @@ export class AiAgentModel {
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                     runtimeOverrides: row.runtime_overrides,
+                    chartKind: chartKindByUuid.get(row.entity_uuid) ?? null,
                 };
             case 'dashboard':
                 return {

@@ -1,5 +1,8 @@
 import type {
     AiAgent,
+    AiPromptContext,
+    AiPromptContextItem,
+    AiPromptContextItemInput,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
@@ -361,12 +364,37 @@ export const useAiAgentThread = (
 };
 
 // Helper functions for thread creation
+
+/**
+ * Builds an optimistic `AiPromptContextItem` from an input item by padding
+ * the resolved-only fields (name, version, kind) with `null`. Used to render
+ * the pinned card immediately on submit before the server response arrives.
+ */
+const toOptimisticContextItem = (
+    item: AiPromptContextItemInput,
+): AiPromptContextItem =>
+    item.type === 'chart'
+        ? {
+              type: 'chart',
+              chartUuid: item.chartUuid,
+              displayName: null,
+              pinnedVersionUuid: null,
+              chartKind: null,
+              runtimeOverrides: item.runtimeOverrides ?? null,
+          }
+        : {
+              ...item,
+              displayName: null,
+              pinnedVersionUuid: null,
+          };
+
 const createOptimisticMessages = (
     threadUuid: string,
     promptUuid: string,
     prompt: string,
     user: UserWithAbility,
     agent: AiAgent,
+    context: AiPromptContext = [],
 ) => {
     return [
         {
@@ -379,7 +407,7 @@ const createOptimisticMessages = (
                 name: `${user?.firstName} ${user?.lastName}`,
                 uuid: user?.userUuid ?? 'unknown',
             },
-            context: [],
+            context,
         },
         {
             role: 'assistant' as const,
@@ -483,13 +511,15 @@ export const useCreateAgentThreadMutation = (
     return useMutation<
         ApiAiAgentThreadCreateResponse['results'],
         ApiError,
-        ApiAiAgentThreadCreateRequest
+        ApiAiAgentThreadCreateRequest & {
+            optimisticContext?: AiPromptContext;
+        }
     >({
-        mutationFn: (data) =>
+        mutationFn: ({ optimisticContext: _optimisticContext, ...data }) =>
             agentUuid
                 ? createAgentThread(projectUuid, agentUuid, data)
                 : Promise.reject(),
-        onSuccess: async (thread) => {
+        onSuccess: async (thread, variables) => {
             // Invalidate both user-specific and all-users thread queries
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
@@ -517,6 +547,13 @@ export const useCreateAgentThreadMutation = (
                             thread.firstMessage.message,
                             user!.data!,
                             agent!,
+                            // Prefer the caller's resolved metadata (name,
+                            // chartKind) if provided so the pinned card
+                            // renders correctly in the optimistic state.
+                            // Otherwise fall back to nulls and wait for the
+                            // post-stream refetch to fill them in.
+                            variables.optimisticContext ??
+                                variables.context?.map(toOptimisticContextItem),
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -603,10 +640,12 @@ export const useCreateAgentThreadMessageMutation = (
     return useMutation<
         ApiAiAgentThreadMessageCreateResponse['results'],
         ApiError,
-        ApiAiAgentThreadMessageCreateRequest,
+        ApiAiAgentThreadMessageCreateRequest & {
+            optimisticContext?: AiPromptContext;
+        },
         { messageUuid: string }
     >({
-        mutationFn: (data) =>
+        mutationFn: ({ optimisticContext: _optimisticContext, ...data }) =>
             agentUuid && threadUuid
                 ? createAgentThreadMessage(
                       projectUuid,
@@ -640,6 +679,8 @@ export const useCreateAgentThreadMessageMutation = (
                                 data.prompt,
                                 user!.data!,
                                 agent!,
+                                data.optimisticContext ??
+                                    data.context?.map(toOptimisticContextItem),
                             ),
                         ],
                     };

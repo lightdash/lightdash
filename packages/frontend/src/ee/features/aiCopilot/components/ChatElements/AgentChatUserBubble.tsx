@@ -1,11 +1,12 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import { Anchor, Card, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Anchor, Card, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
+import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
@@ -45,6 +46,22 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                     </Anchor>
                 </Tooltip>
             </Stack>
+
+            {message.context.length > 0 && projectUuid && (
+                <Group gap="xs" wrap="wrap" justify="flex-end">
+                    {message.context.map((item, idx) => (
+                        <PinnedContextCard
+                            key={`${item.type}-${
+                                item.type === 'chart'
+                                    ? item.chartUuid
+                                    : item.dashboardUuid
+                            }-${idx}`}
+                            item={item}
+                            projectUuid={projectUuid}
+                        />
+                    ))}
+                </Group>
+            )}
 
             <Card
                 pos="relative"
