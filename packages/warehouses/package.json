@@ -34,7 +34,7 @@
     "@duckdb/node-api": "1.4.4-r.1",
     "@google-cloud/bigquery": "7.9.2",
     "@lightdash/common": "workspace:*",
-    "lodash": "4.17.23",
+    "lodash": "4.18.1",
     "node-fetch": "2.7.0",
     "pg": "8.13.1",
     "pg-cursor": "2.10.0",
