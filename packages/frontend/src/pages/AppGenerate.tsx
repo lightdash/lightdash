@@ -25,6 +25,7 @@ import {
     Textarea,
     ThemeIcon,
     Title,
+    Tooltip,
 } from '@mantine-8/core';
 import {
     IconAppsOff,
@@ -37,6 +38,7 @@ import {
     IconPencil,
     IconLayoutDashboard,
     IconPlayerStop,
+    IconRefresh,
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
@@ -155,6 +157,11 @@ const AppPreview: FC<{
     projectUuid: string;
     appUuid: string;
     version: number;
+    /** Bumping this re-mounts the iframe URL to force a reload (and a
+     *  re-run of the app's metric queries). Same version → identical app
+     *  bundle, but the new query string defeats any caching and flushes
+     *  whatever in-iframe state was running. */
+    refreshKey: number;
     onQueryEvent?: (event: QueryEvent) => void;
     inspectorEnabled?: boolean;
     onElementSelected?: (event: { label: string }) => void;
@@ -164,6 +171,7 @@ const AppPreview: FC<{
     projectUuid,
     appUuid,
     version,
+    refreshKey,
     onQueryEvent,
     inspectorEnabled,
     onElementSelected,
@@ -178,7 +186,7 @@ const AppPreview: FC<{
 
     const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     if (isLoading) {
@@ -206,6 +214,7 @@ const AppPreview: FC<{
     return (
         <AppIframePreview
             src={previewUrl}
+            identityKey={`${appUuid}:${version}`}
             onQueryEvent={onQueryEvent}
             inspectorEnabled={inspectorEnabled}
             onElementSelected={onElementSelected}
@@ -653,6 +662,17 @@ const AppGenerate: FC = () => {
             setPreviewApp(latestReadyPreview);
         }
     }, [latestReadyPreview, previewApp?.appUuid, previewApp?.version]);
+
+    // Manual refresh counter for the preview iframe. The iframe URL embeds
+    // this value, so bumping it forces the browser to reload the iframe and
+    // re-execute the app's metric queries. Used after the user pushes a
+    // semantic-layer change and wants to see it reflected without waiting
+    // on the in-progress code-gen iteration.
+    const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
+    const handleRefreshPreview = useCallback(() => {
+        setPreviewRefreshKey((k) => k + 1);
+        setTrackedQueries([]);
+    }, []);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1741,6 +1761,26 @@ const AppGenerate: FC = () => {
                                         </Text>
                                     )}
                                 </Box>
+                                <Tooltip
+                                    label="Refresh preview to re-run queries"
+                                    withArrow
+                                    position="bottom"
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        size="sm"
+                                        color="ldGray.6"
+                                        ml="auto"
+                                        disabled={!previewApp}
+                                        onClick={handleRefreshPreview}
+                                        aria-label="Refresh preview"
+                                    >
+                                        <MantineIcon
+                                            icon={IconRefresh}
+                                            size={16}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
                                 <Menu
                                     position="bottom-end"
                                     shadow="md"
@@ -1753,7 +1793,6 @@ const AppGenerate: FC = () => {
                                             variant="subtle"
                                             size="sm"
                                             color="ldGray.6"
-                                            ml="auto"
                                             aria-label="App actions"
                                         >
                                             <IconDots size={16} />
@@ -1903,6 +1942,7 @@ const AppGenerate: FC = () => {
                                     projectUuid={projectUuid}
                                     appUuid={previewApp.appUuid}
                                     version={previewApp.version}
+                                    refreshKey={previewRefreshKey}
                                     onQueryEvent={handleQueryEvent}
                                     inspectorEnabled={inspectorEnabled}
                                     onElementSelected={handleElementSelected}

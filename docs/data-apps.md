@@ -137,6 +137,15 @@ This means Claude can see what it built previously and make targeted changes rat
 Users can cancel a building version. This atomically marks it as `status='error'` in the database and pauses the sandbox
 (interrupting any running commands). The sandbox remains resumable for subsequent iterations.
 
+### Refreshing the preview
+
+A refresh button in the preview header reloads the iframe to re-execute the app's metric queries against the warehouse,
+without kicking off a new code-gen iteration. The motivating use case is "I just pushed a semantic-layer change while
+Claude is still iterating in the sidebar — show me what the queries look like now." Implementation: `AppGenerate` owns
+a `previewRefreshKey` counter that gets baked into the iframe URL as `&r={key}`. Bumping the counter changes the URL,
+which forces the browser to reload the iframe; the served bundle and the JWT are unaffected. The query inspector panel
+is cleared on refresh so the new query run isn't mixed with stale entries from the previous load.
+
 ### Deletion
 
 Deleting an app goes through a single `DELETE /apps/{appUuid}` endpoint that routes to one of two modes based on the
