@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
@@ -84,9 +85,11 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
-                        <ManagedAgentHomeCard
-                            projectUuid={project.data.projectUuid}
-                        />
+                        {project.data.type !== ProjectType.PREVIEW && (
+                            <ManagedAgentHomeCard
+                                projectUuid={project.data.projectUuid}
+                            />
+                        )}
                         {isAiAgentsEnabled && (
                             <AiSearchBox
                                 projectUuid={project.data.projectUuid}
