@@ -27,7 +27,7 @@
         "d3-cloud": "1.2.9",
         "d3-sankey": "0.12.3",
         "date-fns": "3.6.0",
-        "lodash-es": "4.17.23",
+        "lodash-es": "4.18.1",
         "lucide-react": "0.469.0",
         "react": "19.2.5",
         "react-dom": "19.2.5",
