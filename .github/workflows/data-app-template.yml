@@ -1,0 +1,262 @@
+name: Data App E2B Template
+
+# Builds and publishes the E2B sandbox template that powers Data Apps.
+#
+# - PR mode: when a PR touches the template or query-sdk, build to a dev
+#   template (`lukas-dev-template` by default) with tag `pr-<number>` so the
+#   prod template is never affected. The PR can then be tested by pointing a
+#   preview backend at that template/tag.
+#
+# - Release mode: on every published release, ensure
+#   `lightdash-data-app:<version>` exists. Rebuilds only when relevant files
+#   changed since the previous release; otherwise re-tags the existing
+#   `:latest` build with the new version. Always moves `:latest` so it tracks
+#   the most recently published version.
+#
+# Secrets required:
+#   E2B_API_KEY — token for the E2B account that owns both templates.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'sandboxes/data-apps/**'
+      - 'packages/query-sdk/**'
+      - '.github/workflows/data-app-template.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      template_name:
+        description: 'E2B template name to build'
+        required: true
+        default: 'lightdash-data-app'
+      template_tag:
+        description: 'Primary tag for this build'
+        required: true
+        default: 'manual'
+      extra_tags:
+        description: 'Comma-separated extra tags (optional)'
+        required: false
+        default: ''
+      force_rebuild:
+        description: 'Force rebuild even if no relevant files changed'
+        required: false
+        default: 'false'
+
+# Only one build per ref at a time — PRs trigger a lot of pushes and we don't
+# want concurrent builds racing on the same dev template tag.
+concurrency:
+  group: data-app-template-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  resolve:
+    name: Resolve target template, tag, and rebuild decision
+    runs-on: depot-ubuntu-24.04-4
+    outputs:
+      template_name: ${{ steps.plan.outputs.template_name }}
+      primary_tag: ${{ steps.plan.outputs.primary_tag }}
+      extra_tags: ${{ steps.plan.outputs.extra_tags }}
+      action: ${{ steps.plan.outputs.action }}
+      source_tag: ${{ steps.plan.outputs.source_tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Plan build
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TEMPLATE_NAME: ${{ github.event.inputs.template_name }}
+          INPUT_TEMPLATE_TAG: ${{ github.event.inputs.template_tag }}
+          INPUT_EXTRA_TAGS: ${{ github.event.inputs.extra_tags }}
+          INPUT_FORCE_REBUILD: ${{ github.event.inputs.force_rebuild }}
+        run: |
+          set -euo pipefail
+
+          TEMPLATE_NAME=""
+          PRIMARY_TAG=""
+          EXTRA_TAGS=""
+          ACTION="" # build | retag | skip
+          SOURCE_TAG=""
+
+          case "$EVENT" in
+            pull_request)
+              # Dev template, scoped per-PR. Never touches prod tags.
+              TEMPLATE_NAME="lukas-dev-template"
+              PRIMARY_TAG="pr-${PR_NUMBER}"
+              ACTION="build"
+              ;;
+
+            release)
+              TEMPLATE_NAME="lightdash-data-app"
+              # Release tags are bare versions (e.g. 0.2862.0) per release.config.js
+              PRIMARY_TAG="${RELEASE_TAG}"
+              EXTRA_TAGS="latest"
+
+              # Rebuild only when the template or SDK changed since the
+              # previous release. Otherwise re-tag the existing `latest` build
+              # so every release version still has a pinned tag.
+              PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -A1 "^${RELEASE_TAG}$" | tail -1 || true)
+              if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$RELEASE_TAG" ]; then
+                echo "No previous tag found — performing full build"
+                ACTION="build"
+              else
+                CHANGED=$(git diff --name-only "$PREVIOUS_TAG" "$RELEASE_TAG" -- 'sandboxes/data-apps/' 'packages/query-sdk/' || true)
+                if [ -n "$CHANGED" ]; then
+                  echo "Template/SDK changed since $PREVIOUS_TAG — performing full build"
+                  echo "$CHANGED"
+                  ACTION="build"
+                else
+                  echo "No template/SDK changes since $PREVIOUS_TAG — re-tagging latest build"
+                  ACTION="retag"
+                  SOURCE_TAG="latest"
+                fi
+              fi
+              ;;
+
+            workflow_dispatch)
+              TEMPLATE_NAME="${INPUT_TEMPLATE_NAME}"
+              PRIMARY_TAG="${INPUT_TEMPLATE_TAG}"
+              EXTRA_TAGS="${INPUT_EXTRA_TAGS}"
+              ACTION="build"
+              ;;
+          esac
+
+          echo "template_name=$TEMPLATE_NAME" >> "$GITHUB_OUTPUT"
+          echo "primary_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
+          echo "extra_tags=$EXTRA_TAGS" >> "$GITHUB_OUTPUT"
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
+          echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
+
+          echo ""
+          echo "Plan:"
+          echo "  template = $TEMPLATE_NAME"
+          echo "  primary tag = $PRIMARY_TAG"
+          echo "  extra tags = $EXTRA_TAGS"
+          echo "  action = $ACTION"
+          [ -n "$SOURCE_TAG" ] && echo "  source tag = $SOURCE_TAG" || true
+
+  build:
+    name: Build E2B template
+    needs: resolve
+    if: needs.resolve.outputs.action == 'build'
+    runs-on: depot-ubuntu-24.04-4
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+      E2B_TEMPLATE_NAME: ${{ needs.resolve.outputs.template_name }}
+      E2B_TEMPLATE_TAG: ${{ needs.resolve.outputs.primary_tag }}
+      E2B_TEMPLATE_EXTRA_TAGS: ${{ needs.resolve.outputs.extra_tags }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+          cache-dependency-path: 'pnpm-lock.yaml'
+
+      # Root install — needed to build @lightdash/query-sdk before packing it
+      # into the sandbox image.
+      - name: Install root deps
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      # Sandbox install — build-sandbox.ts uses tsx + e2b from this folder.
+      # No lockfile is committed (only two pinned deps), so plain install.
+      - name: Install sandbox deps
+        working-directory: sandboxes/data-apps
+        run: sfw pnpm install --prefer-offline
+
+      - name: Build & publish E2B template
+        working-directory: sandboxes/data-apps
+        run: pnpm run build
+
+      - name: Comment template ref on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const marker = '<!-- data-app-template-comment -->';
+            const templateName = process.env.E2B_TEMPLATE_NAME;
+            const tag = process.env.E2B_TEMPLATE_TAG;
+            const body = `${marker}
+            ## Data App Template
+
+            Built dev template: \`${templateName}:${tag}\`
+
+            To exercise this build locally or against a preview env, set:
+
+            \`\`\`
+            E2B_TEMPLATE_NAME=${templateName}
+            E2B_TEMPLATE_TAG=${tag}
+            \`\`\`
+            `;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  retag:
+    name: Re-tag existing E2B build
+    needs: resolve
+    if: needs.resolve.outputs.action == 'retag'
+    runs-on: depot-ubuntu-24.04-4
+    env:
+      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install sandbox deps
+        working-directory: sandboxes/data-apps
+        run: sfw pnpm install --prefer-offline
+
+      - name: Move :latest tag to new release version
+        working-directory: sandboxes/data-apps
+        env:
+          E2B_TEMPLATE_NAME: ${{ needs.resolve.outputs.template_name }}
+          E2B_TEMPLATE_TAG: ${{ needs.resolve.outputs.primary_tag }}
+          E2B_TEMPLATE_SOURCE_TAG: ${{ needs.resolve.outputs.source_tag }}
+        run: pnpm exec tsx assign-tag.ts

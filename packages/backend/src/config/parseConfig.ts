@@ -1312,6 +1312,13 @@ export type AppRuntimeConfig = {
     s3: S3Config | null;
     e2bApiKey: string | null;
     e2bTemplateName: string;
+    /**
+     * Tag identifying which build of `e2bTemplateName` to launch sandboxes
+     * from. Composed into `name:tag` for `Sandbox.create`. Empty string falls
+     * back to E2B's implicit `default` tag — used as a transition state for
+     * deployments that haven't picked up a version-tagged build yet.
+     */
+    e2bTemplateTag: string;
 };
 
 export type IntercomConfig = {
@@ -1520,6 +1527,11 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
         e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+        // Default to the running Lightdash version so prod always launches
+        // sandboxes from the matching template build (the release workflow
+        // guarantees this tag exists). Operators can override to roll back
+        // or pin during incidents.
+        e2bTemplateTag: process.env.E2B_TEMPLATE_TAG ?? (VERSION as string),
     };
 };
 

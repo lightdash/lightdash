@@ -400,10 +400,28 @@ notification via `useBuildNotification`.
 APP_RUNTIME_ENABLED=true                           # Master feature flag
 E2B_API_KEY=...                                    # E2B sandbox API key
 E2B_TEMPLATE_NAME=lightdash-data-app               # Optional E2B template override (for dev)
+E2B_TEMPLATE_TAG=0.2870.0                          # Optional E2B template tag override (defaults to current Lightdash version)
 APP_RUNTIME_LIGHTDASH_ORIGIN=https://app.example   # Origin for CORS/CSP (defaults to SITE_URL)
 APP_RUNTIME_CDN_ORIGIN=https://cdn.example.com     # Optional CDN for CSP
 APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain for preview serving
 ```
+
+### Template versioning
+
+Each Lightdash release publishes an [E2B template tag](https://e2b.dev/docs/template/tags)
+matching the release version, so the running backend launches sandboxes from a build that
+was tested against that exact source tree.
+
+- `E2B_TEMPLATE_TAG` defaults to the backend's `VERSION`, producing
+  `lightdash-data-app:<version>` at sandbox creation time.
+- The `.github/workflows/data-app-template.yml` workflow guarantees that tag exists for every
+  released version. It rebuilds the template only when `sandboxes/data-apps/**` or
+  `packages/query-sdk/**` changed; otherwise it re-tags the existing `:latest` build.
+- Set `E2B_TEMPLATE_TAG=` (empty) to fall back to E2B's implicit `default` tag — useful for
+  rollbacks or for dev environments running against a personal template.
+
+PR builds publish to a separate dev template (`lukas-dev-template:pr-<n>`) so they can never
+shadow prod tags. The workflow comments the resulting template ref on the PR.
 
 S3 credentials are configured through the existing `S3_*` environment variables used by the app runtime config.
 

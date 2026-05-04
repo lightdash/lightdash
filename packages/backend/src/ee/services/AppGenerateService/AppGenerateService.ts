@@ -682,17 +682,24 @@ export class AppGenerateService extends BaseService {
         e2bApiKey: string,
     ): Promise<{ sandbox: Sandbox; durationMs: number }> {
         const start = performance.now();
-        const sandbox = await Sandbox.create(
-            this.lightdashConfig.appRuntime.e2bTemplateName,
-            {
-                timeoutMs: 60 * 60 * 1000,
-                apiKey: e2bApiKey,
-                lifecycle: { onTimeout: 'pause' },
-                network: {
-                    allowOut: ['api.anthropic.com'],
-                    denyOut: [ALL_TRAFFIC],
-                },
+        const { e2bTemplateName, e2bTemplateTag } =
+            this.lightdashConfig.appRuntime;
+        // E2B treats `name` and `name:default` interchangeably, so an empty
+        // tag is fine — it just resolves to the implicit `default` build.
+        const templateRef = e2bTemplateTag
+            ? `${e2bTemplateName}:${e2bTemplateTag}`
+            : e2bTemplateName;
+        const sandbox = await Sandbox.create(templateRef, {
+            timeoutMs: 60 * 60 * 1000,
+            apiKey: e2bApiKey,
+            lifecycle: { onTimeout: 'pause' },
+            network: {
+                allowOut: ['api.anthropic.com'],
+                denyOut: [ALL_TRAFFIC],
             },
+        });
+        this.logger.info(
+            `App ${appUuid}: launching sandbox from template ${templateRef}`,
         );
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
