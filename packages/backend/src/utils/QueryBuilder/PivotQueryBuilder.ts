@@ -737,9 +737,11 @@ export class PivotQueryBuilder {
 
         Object.values(columnAnchorCTEs).forEach(({ cteName }) => {
             const joinConditions = groupByColumns
-                .map(
-                    (col) =>
-                        `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
+                .map((col) =>
+                    this.warehouseSqlBuilder.getNullSafeEqualSql(
+                        `g.${q}${col.reference}${q}`,
+                        `${q}${cteName}${q}.${q}${col.reference}${q}`,
+                    ),
                 )
                 .join(' AND ');
             joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
@@ -825,11 +827,13 @@ export class PivotQueryBuilder {
             .map((col) => `q.${q}${col.reference}${q}`)
             .join(', ');
 
-        // Build condition to match anchor column using CROSS JOIN alias
+        // Build condition to match anchor column using CROSS JOIN alias.
         const anchorMatchConditions = groupByColumns
-            .map(
-                (col) =>
-                    `q.${q}${col.reference}${q} = ac.${q}anchor_${col.reference}${q}`,
+            .map((col) =>
+                this.warehouseSqlBuilder.getNullSafeEqualSql(
+                    `q.${q}${col.reference}${q}`,
+                    `ac.${q}anchor_${col.reference}${q}`,
+                ),
             )
             .join(' AND ');
 
@@ -1004,9 +1008,11 @@ export class PivotQueryBuilder {
 
         Object.values(rowAnchorQueries).forEach(({ cteName }) => {
             const joinConditions = indexColumns
-                .map(
-                    (col) =>
-                        `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
+                .map((col) =>
+                    this.warehouseSqlBuilder.getNullSafeEqualSql(
+                        `g.${q}${col.reference}${q}`,
+                        `${q}${cteName}${q}.${q}${col.reference}${q}`,
+                    ),
                 )
                 .join(' AND ');
             joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);
@@ -1056,9 +1062,11 @@ export class PivotQueryBuilder {
 
             if (indexColumns.length > 0) {
                 const rowRankJoinConditions = indexColumns
-                    .map(
-                        (col) =>
-                            `g.${q}${col.reference}${q} = rr.${q}${col.reference}${q}`,
+                    .map((col) =>
+                        this.warehouseSqlBuilder.getNullSafeEqualSql(
+                            `g.${q}${col.reference}${q}`,
+                            `rr.${q}${col.reference}${q}`,
+                        ),
                     )
                     .join(' AND ');
                 joins.push(
@@ -1067,9 +1075,11 @@ export class PivotQueryBuilder {
             }
 
             const colRankJoinConditions = groupByColumns
-                .map(
-                    (col) =>
-                        `g.${q}${col.reference}${q} = cr.${q}${col.reference}${q}`,
+                .map((col) =>
+                    this.warehouseSqlBuilder.getNullSafeEqualSql(
+                        `g.${q}${col.reference}${q}`,
+                        `cr.${q}${col.reference}${q}`,
+                    ),
                 )
                 .join(' AND ');
             joins.push(
@@ -1098,9 +1108,11 @@ export class PivotQueryBuilder {
                 // Skip if no index columns (row anchor CTEs shouldn't exist in this case)
                 if (indexColumns.length > 0) {
                     const joinConditions = indexColumns
-                        .map(
-                            (col) =>
-                                `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
+                        .map((col) =>
+                            this.warehouseSqlBuilder.getNullSafeEqualSql(
+                                `g.${q}${col.reference}${q}`,
+                                `${q}${cteName}${q}.${q}${col.reference}${q}`,
+                            ),
                         )
                         .join(' AND ');
                     joins.push(
@@ -1110,9 +1122,11 @@ export class PivotQueryBuilder {
             } else if (cteName.endsWith('_column_anchor')) {
                 // Join on group columns for column anchor CTEs
                 const joinConditions = groupByColumns
-                    .map(
-                        (col) =>
-                            `g.${q}${col.reference}${q} = ${q}${cteName}${q}.${q}${col.reference}${q}`,
+                    .map((col) =>
+                        this.warehouseSqlBuilder.getNullSafeEqualSql(
+                            `g.${q}${col.reference}${q}`,
+                            `${q}${cteName}${q}.${q}${col.reference}${q}`,
+                        ),
                     )
                     .join(' AND ');
                 joins.push(`LEFT JOIN ${q}${cteName}${q} ON ${joinConditions}`);

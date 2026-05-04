@@ -21,6 +21,7 @@ import {
     getCustomRangeSelectSql,
     getFixedWidthBinSelectSql,
 } from './customDimensions';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 export const convertCustomSqlDimensionToDbt = (
     field: CustomSqlDimension,
@@ -138,6 +139,7 @@ const warehouseClientMock: WarehouseClient = {
     getFloatingType() {
         return 'FLOAT';
     },
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     escapeString(value) {
         return value;
     },

@@ -8,6 +8,7 @@ import {
     CompiledTable,
     CreateWarehouseCredentials,
     CustomDimensionType,
+    defaultNullSafeEqualSql,
     DimensionType,
     Explore,
     FieldType,
@@ -88,6 +89,7 @@ export const warehouseClientMock: WarehouseClient = {
     },
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -144,6 +146,7 @@ export const bigqueryClientMock: WarehouseClient = {
     } as CreateWarehouseCredentials,
     getFieldQuoteChar: () => '`',
     getFloatingType: () => 'FLOAT64',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     getCatalog: async () => ({
         default: {
             public: {
