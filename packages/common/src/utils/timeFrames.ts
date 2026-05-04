@@ -66,16 +66,21 @@ type WarehouseConfig = {
         startOfWeek?: WeekDay | null,
         timezone?: string,
     ) => string;
+    // `timezone`, when provided, swaps `originalSql` for the project-TZ
+    // shifted value (`dateExtractsTimezoneConversions[adapter].toExtractInputTz`)
+    // before composing the EXTRACT/DATE_PART expression.
     getSqlForDatePart: (
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
         startOfWeek?: WeekDay | null,
+        timezone?: string,
     ) => string;
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
+        timezone?: string,
     ) => string;
 };
 
@@ -143,6 +148,55 @@ export const dateTruncTimezoneConversions: Record<
     },
 };
 
+/** Per-warehouse SQL for shifting an EXTRACT/DATE_PART input from UTC into
+ *  the project zone before extracting a calendar component. EXTRACT returns
+ *  a number/string, not a timestamp, so there is no inverse `toUTC`. */
+type DateExtractTimezoneConversion = {
+    toExtractInputTz: (sql: string, tz: string) => string;
+};
+
+export const dateExtractsTimezoneConversions: Record<
+    SupportedDbtAdapter,
+    DateExtractTimezoneConversion
+> = {
+    // BigQuery: `AT TIME ZONE 'tz'` is only valid concatenated inside
+    // `EXTRACT(... FROM ...)`. The shape diverges from DATE_TRUNC's no-op.
+    [SupportedDbtAdapter.BIGQUERY]: {
+        toExtractInputTz: (sql, tz) => `${sql} AT TIME ZONE '${tz}'`,
+    },
+    [SupportedDbtAdapter.SNOWFLAKE]: {
+        toExtractInputTz: (sql, tz) =>
+            `CONVERT_TIMEZONE('UTC', '${tz}', ${sql})`,
+    },
+    [SupportedDbtAdapter.POSTGRES]: {
+        toExtractInputTz: (sql, tz) =>
+            `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+    },
+    [SupportedDbtAdapter.REDSHIFT]: {
+        toExtractInputTz: (sql, tz) =>
+            `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+    },
+    [SupportedDbtAdapter.DUCKDB]: {
+        toExtractInputTz: (sql, tz) =>
+            `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
+    },
+    [SupportedDbtAdapter.DATABRICKS]: {
+        toExtractInputTz: (sql, tz) =>
+            `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+    },
+    [SupportedDbtAdapter.TRINO]: {
+        toExtractInputTz: (sql, tz) =>
+            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+    },
+    [SupportedDbtAdapter.ATHENA]: {
+        toExtractInputTz: (sql, tz) =>
+            `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
+    },
+    [SupportedDbtAdapter.CLICKHOUSE]: {
+        toExtractInputTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
+    },
+};
+
 export const SUB_DAY_TIME_FRAMES: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.MILLISECOND,
     TimeFrames.SECOND,
@@ -194,7 +248,13 @@ const bigqueryConfig: WarehouseConfig = {
         originalSql: string,
         _,
         startOfWeek,
+        timezone,
     ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.BIGQUERY
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
         const bigqueryTimeFrameExpressions: Record<TimeFrames, string | null> =
             {
                 ...timeFrameToDatePartMap,
@@ -208,7 +268,7 @@ const bigqueryConfig: WarehouseConfig = {
         }
 
         if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
-            return `EXTRACT(${datePart}(${bigqueryStartOfWeekMap[startOfWeek]}) FROM ${originalSql})`;
+            return `EXTRACT(${datePart}(${bigqueryStartOfWeekMap[startOfWeek]}) FROM ${sql})`;
         }
 
         // BigQuery DAYOFWEEK: 1=Sunday, 2=Monday, ..., 7=Saturday
@@ -217,15 +277,16 @@ const bigqueryConfig: WarehouseConfig = {
             isWeekDay(startOfWeek)
         ) {
             const nativeOffset = ((startOfWeek + 1) % 7) + 1;
-            return `MOD(EXTRACT(DAYOFWEEK FROM ${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
+            return `MOD(EXTRACT(DAYOFWEEK FROM ${sql}) - ${nativeOffset} + 7, 7) + 1`;
         }
 
-        return `EXTRACT(${datePart} FROM ${originalSql})`;
+        return `EXTRACT(${datePart} FROM ${sql})`;
     },
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
         type: DimensionType,
+        timezone,
     ) => {
         // https://cloud.google.com/bigquery/docs/reference/standard-sql/format-elements#format_elements_date_time
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
@@ -241,7 +302,12 @@ const bigqueryConfig: WarehouseConfig = {
             );
         }
         if (type === DimensionType.TIMESTAMP) {
-            return `FORMAT_DATETIME('${formatExpression}', ${originalSql})`;
+            const sql = timezone
+                ? dateExtractsTimezoneConversions[
+                      SupportedDbtAdapter.BIGQUERY
+                  ].toExtractInputTz(originalSql, timezone)
+                : originalSql;
+            return `FORMAT_DATETIME('${formatExpression}', ${sql})`;
         }
         return `FORMAT_DATE('${formatExpression}', ${originalSql})`;
     },
@@ -251,16 +317,37 @@ const bigqueryConfig: WarehouseConfig = {
 const snowflakeConfig: WarehouseConfig = {
     getSqlForTruncatedDate: (timeFrame, originalSql) =>
         `DATE_TRUNC('${timeFrame}', ${originalSql})`,
-    getSqlForDatePart: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        __,
+        timezone,
+    ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
 
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
 
-        return `DATE_PART('${datePart}', ${originalSql})`;
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.SNOWFLAKE
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
+        return `DATE_PART('${datePart}', ${sql})`;
     },
-    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        timezone,
+    ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.SNOWFLAKE
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
         // https://docs.snowflake.com/en/sql-reference/functions/to_char.html
         const timeFrameExpressionsFn: Record<
             TimeFrames,
@@ -268,10 +355,10 @@ const snowflakeConfig: WarehouseConfig = {
         > = {
             ...nullTimeFrameMap,
             [TimeFrames.DAY_OF_WEEK_NAME]: () =>
-                `DECODE(TO_CHAR(${originalSql}, 'DY'), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
-            [TimeFrames.MONTH_NAME]: () => `TO_CHAR(${originalSql}, 'MMMM')`,
+                `DECODE(TO_CHAR(${sql}, 'DY'), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
+            [TimeFrames.MONTH_NAME]: () => `TO_CHAR(${sql}, 'MMMM')`,
             [TimeFrames.QUARTER_NAME]: () =>
-                `CONCAT('Q', DATE_PART('QUARTER', ${originalSql}))`,
+                `CONCAT('Q', DATE_PART('QUARTER', ${sql}))`,
         };
         const formatExpressionFn = timeFrameExpressionsFn[timeFrame];
         if (!formatExpressionFn) {
@@ -296,6 +383,7 @@ const postgresConfig: WarehouseConfig = {
         originalSql: string,
         _,
         startOfWeek,
+        timezone,
     ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
 
@@ -303,9 +391,15 @@ const postgresConfig: WarehouseConfig = {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
 
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.POSTGRES
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
+
         if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek} days`;
-            return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
+            return `DATE_PART('${datePart}', (${sql} - interval '${intervalDiff}'))`;
         }
 
         // PostgreSQL DOW: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -314,12 +408,22 @@ const postgresConfig: WarehouseConfig = {
             isWeekDay(startOfWeek)
         ) {
             const nativeOffset = (startOfWeek + 1) % 7;
-            return `MOD(CAST(DATE_PART('DOW', ${originalSql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
+            return `MOD(CAST(DATE_PART('DOW', ${sql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
         }
 
-        return `DATE_PART('${datePart}', ${originalSql})`;
+        return `DATE_PART('${datePart}', ${sql})`;
     },
-    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        timezone,
+    ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.POSTGRES
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
         // https://www.postgresql.org/docs/current/functions-formatting.html
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
             ...nullTimeFrameMap,
@@ -333,7 +437,7 @@ const postgresConfig: WarehouseConfig = {
                 `Cannot recognise format expression for ${timeFrame}`,
             );
         }
-        return `TO_CHAR(${originalSql}, 'FM${formatExpression}')`;
+        return `TO_CHAR(${sql}, 'FM${formatExpression}')`;
     },
 };
 
@@ -350,6 +454,7 @@ const databricksConfig: WarehouseConfig = {
         originalSql: string,
         _,
         startOfWeek,
+        timezone,
     ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
 
@@ -357,9 +462,15 @@ const databricksConfig: WarehouseConfig = {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
 
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.DATABRICKS
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
+
         if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
             const intervalDiff = `${startOfWeek} days`;
-            return `DATE_PART('${datePart}', (${originalSql} - interval '${intervalDiff}'))`;
+            return `DATE_PART('${datePart}', (${sql} - interval '${intervalDiff}'))`;
         }
 
         // Databricks DOW: 0=Sunday, 1=Monday, ..., 6=Saturday
@@ -368,12 +479,22 @@ const databricksConfig: WarehouseConfig = {
             isWeekDay(startOfWeek)
         ) {
             const nativeOffset = (startOfWeek + 1) % 7;
-            return `MOD(CAST(DATE_PART('DOW', ${originalSql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
+            return `MOD(CAST(DATE_PART('DOW', ${sql}) AS INT) - ${nativeOffset} + 7, 7) + 1`;
         }
 
-        return `DATE_PART('${datePart}', ${originalSql})`;
+        return `DATE_PART('${datePart}', ${sql})`;
     },
-    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        timezone,
+    ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.DATABRICKS
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
         // https://docs.databricks.com/spark/latest/spark-sql/language-manual/functions/date_format.html
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
             ...nullTimeFrameMap,
@@ -387,7 +508,7 @@ const databricksConfig: WarehouseConfig = {
                 `Cannot recognise format expression for ${timeFrame}`,
             );
         }
-        return `DATE_FORMAT(${originalSql}, '${formatExpression}')`;
+        return `DATE_FORMAT(${sql}, '${formatExpression}')`;
     },
 };
 
@@ -410,15 +531,22 @@ const trinoConfig: WarehouseConfig = {
         originalSql: string,
         _,
         startOfWeek,
+        timezone,
     ) => {
         const datePart = timeFrameToDatePartMap[timeFrame];
         if (!datePart) {
             throw new ParseError(`Cannot recognise date part for ${timeFrame}`);
         }
 
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.TRINO
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
+
         if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
             const intervalDiff = `'${startOfWeek}' day`;
-            return `EXTRACT(${datePart} FROM (${originalSql} - interval ${intervalDiff}))`;
+            return `EXTRACT(${datePart} FROM (${sql} - interval ${intervalDiff}))`;
         }
 
         // Trino DOW (ISO): 1=Monday, 2=Tuesday, ..., 7=Sunday
@@ -427,22 +555,31 @@ const trinoConfig: WarehouseConfig = {
             isWeekDay(startOfWeek)
         ) {
             const nativeOffset = startOfWeek + 1;
-            return `MOD(EXTRACT(DOW FROM ${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
+            return `MOD(EXTRACT(DOW FROM ${sql}) - ${nativeOffset} + 7, 7) + 1`;
         }
 
-        return `EXTRACT(${datePart} FROM ${originalSql})`;
+        return `EXTRACT(${datePart} FROM ${sql})`;
     },
-    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        timezone,
+    ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.TRINO
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
         const timeFrameExpressionsFn: Record<
             TimeFrames,
             (() => string) | null
         > = {
             ...nullTimeFrameMap,
-            [TimeFrames.DAY_OF_WEEK_NAME]: () =>
-                `date_format(${originalSql}, '%W')`,
-            [TimeFrames.MONTH_NAME]: () => `date_format(${originalSql}, '%M')`,
+            [TimeFrames.DAY_OF_WEEK_NAME]: () => `date_format(${sql}, '%W')`,
+            [TimeFrames.MONTH_NAME]: () => `date_format(${sql}, '%M')`,
             [TimeFrames.QUARTER_NAME]: () =>
-                `CONCAT('Q', cast(extract(QUARTER from ${originalSql}) as varchar))`,
+                `CONCAT('Q', cast(extract(QUARTER from ${sql}) as varchar))`,
         };
         const formatExpressionFn = timeFrameExpressionsFn[timeFrame];
         if (!formatExpressionFn) {
@@ -494,7 +631,14 @@ const clickhouseConfig: WarehouseConfig = {
         originalSql: string,
         _,
         startOfWeek,
+        timezone,
     ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.CLICKHOUSE
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
+
         const clickhouseTimeFrameMap: Record<TimeFrames, string | null> = {
             ...timeFrameToDatePartMap,
             [TimeFrames.DAY_OF_WEEK_INDEX]: 'toDayOfWeek',
@@ -514,7 +658,7 @@ const clickhouseConfig: WarehouseConfig = {
             isWeekDay(startOfWeek)
         ) {
             const nativeOffset = startOfWeek + 1;
-            return `modulo(toDayOfWeek(${originalSql}) - ${nativeOffset} + 7, 7) + 1`;
+            return `modulo(toDayOfWeek(${sql}) - ${nativeOffset} + 7, 7) + 1`;
         }
 
         // ClickHouse toWeek defaults to mode 0 (US, Sunday-base, 0–53). Mode 3 is
@@ -522,7 +666,7 @@ const clickhouseConfig: WarehouseConfig = {
         // toStartOfWeek(d, 1) used by truncation. The startOfWeek shift mirrors
         // what other warehouses do on the same path.
         if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
-            return `toWeek(addDays(${originalSql}, -${startOfWeek}), 3)`;
+            return `toWeek(addDays(${sql}, -${startOfWeek}), 3)`;
         }
 
         const extractFunction = clickhouseTimeFrameMap[timeFrame];
@@ -531,14 +675,24 @@ const clickhouseConfig: WarehouseConfig = {
                 `Cannot recognise extract function for ${timeFrame}`,
             );
         }
-        return `${extractFunction}(${originalSql})`;
+        return `${extractFunction}(${sql})`;
     },
-    getSqlForDatePartName: (timeFrame: TimeFrames, originalSql: string) => {
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        timezone,
+    ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.CLICKHOUSE
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
         const timeFrameExpressions: Record<TimeFrames, string | null> = {
             ...nullTimeFrameMap,
-            [TimeFrames.DAY_OF_WEEK_NAME]: `dateName('weekday', ${originalSql})`,
-            [TimeFrames.MONTH_NAME]: `monthName(${originalSql})`,
-            [TimeFrames.QUARTER_NAME]: `concat('Q', toString(toQuarter(${originalSql})))`,
+            [TimeFrames.DAY_OF_WEEK_NAME]: `dateName('weekday', ${sql})`,
+            [TimeFrames.MONTH_NAME]: `monthName(${sql})`,
+            [TimeFrames.QUARTER_NAME]: `concat('Q', toString(toQuarter(${sql})))`,
         };
         const formatExpression = timeFrameExpressions[timeFrame];
         if (!formatExpression) {
@@ -596,30 +750,60 @@ export const getSqlForTruncatedDate = (
     return toUTC(truncated, timezone);
 };
 
-const getSqlForDatePart: TimeFrameConfig['getSql'] = (
-    adapterType,
-    timeFrame,
-    originalSql,
-    type,
-    startOfWeek,
-) =>
-    warehouseConfigs[adapterType].getSqlForDatePart(
+/**
+ * Generates EXTRACT/DATE_PART SQL. When a timezone is provided on a TIMESTAMP
+ * base dimension, the input is shifted into the project zone before the
+ * calendar component is read, so the result agrees with sibling DATE_TRUNC
+ * dimensions. DATE base dimensions short-circuit since they have no time
+ * component to shift.
+ */
+export const getSqlForDatePart = (
+    adapterType: SupportedDbtAdapter,
+    timeFrame: TimeFrames,
+    originalSql: string,
+    type: DimensionType,
+    startOfWeek?: WeekDay | null,
+    timezone?: string,
+): string => {
+    if (!timezone || type !== DimensionType.TIMESTAMP) {
+        return warehouseConfigs[adapterType].getSqlForDatePart(
+            timeFrame,
+            originalSql,
+            type,
+            startOfWeek,
+        );
+    }
+    return warehouseConfigs[adapterType].getSqlForDatePart(
         timeFrame,
         originalSql,
         type,
         startOfWeek,
+        timezone,
     );
-const getSqlForDatePartName: TimeFrameConfig['getSql'] = (
-    adapterType,
-    timeFrame,
-    originalSql,
-    type,
-) =>
-    warehouseConfigs[adapterType].getSqlForDatePartName(
+};
+
+export const getSqlForDatePartName = (
+    adapterType: SupportedDbtAdapter,
+    timeFrame: TimeFrames,
+    originalSql: string,
+    type: DimensionType,
+    _startOfWeek?: WeekDay | null,
+    timezone?: string,
+): string => {
+    if (!timezone || type !== DimensionType.TIMESTAMP) {
+        return warehouseConfigs[adapterType].getSqlForDatePartName(
+            timeFrame,
+            originalSql,
+            type,
+        );
+    }
+    return warehouseConfigs[adapterType].getSqlForDatePartName(
         timeFrame,
         originalSql,
         type,
+        timezone,
     );
+};
 
 type TimeFrameConfig = {
     getLabel: () => string;
@@ -630,6 +814,7 @@ type TimeFrameConfig = {
         originalSql: string,
         type: DimensionType,
         startOfWeek?: WeekDay | null,
+        timezone?: string,
     ) => string;
     getAxisMinInterval: () => number | null;
     getAxisLabelFormatter: () => Record<string, string> | null;
@@ -826,6 +1011,24 @@ export const truncatableTimeFrames: ReadonlySet<TimeFrames> = new Set([
     TimeFrames.MONTH,
     TimeFrames.QUARTER,
     TimeFrames.YEAR,
+]);
+
+/** Time frames that use EXTRACT/DATE_PART (numeric) or format/name functions
+ *  (string), as opposed to DATE_TRUNC. The TZ-aware path wraps the input via
+ *  dateExtractsTimezoneConversions before extracting. */
+export const extractableTimeFrames: ReadonlySet<TimeFrames> = new Set([
+    TimeFrames.DAY_OF_WEEK_INDEX,
+    TimeFrames.DAY_OF_MONTH_NUM,
+    TimeFrames.DAY_OF_YEAR_NUM,
+    TimeFrames.WEEK_NUM,
+    TimeFrames.MONTH_NUM,
+    TimeFrames.QUARTER_NUM,
+    TimeFrames.YEAR_NUM,
+    TimeFrames.HOUR_OF_DAY_NUM,
+    TimeFrames.MINUTE_OF_HOUR_NUM,
+    TimeFrames.DAY_OF_WEEK_NAME,
+    TimeFrames.MONTH_NAME,
+    TimeFrames.QUARTER_NAME,
 ]);
 
 export const isTimeInterval = (value: string): value is TimeFrames =>

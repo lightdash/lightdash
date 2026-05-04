@@ -4944,3 +4944,256 @@ describe('Nested aggregate metrics', () => {
         expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
     });
 });
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+describe('Timezone-aware EXTRACT-based time dimensions', () => {
+    const buildExtractExplore = (
+        baseType: DimensionType,
+        adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
+    ): Explore => ({
+        targetDatabase: adapter,
+        name: 'events',
+        label: 'events',
+        baseTable: 'events',
+        tags: [],
+        joinedTables: [],
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'db',
+                schema: 's',
+                sqlTable: '"events"',
+                primaryKey: ['id'],
+                dimensions: {
+                    id: {
+                        type: DimensionType.NUMBER,
+                        name: 'id',
+                        label: 'id',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.id',
+                        compiledSql: '"events".id',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at: {
+                        type: baseType,
+                        name: 'occurred_at',
+                        label: 'occurred_at',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.occurred_at',
+                        compiledSql: '"events".occurred_at',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at_day_of_week_index: {
+                        type: DimensionType.NUMBER,
+                        name: 'occurred_at_day_of_week_index',
+                        label: 'occurred_at_day_of_week_index',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_PART('DOW', \${TABLE}.occurred_at)`,
+                        // Compile-time UTC-only SQL (matches today's behavior)
+                        compiledSql: `DATE_PART('DOW', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.DAY_OF_WEEK_INDEX,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                    },
+                    occurred_at_week_num: {
+                        type: DimensionType.NUMBER,
+                        name: 'occurred_at_week_num',
+                        label: 'occurred_at_week_num',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_PART('WEEK', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_PART('WEEK', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.WEEK_NUM,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                    },
+                    occurred_at_day_of_week_name: {
+                        type: DimensionType.STRING,
+                        name: 'occurred_at_day_of_week_name',
+                        label: 'occurred_at_day_of_week_name',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `TO_CHAR(\${TABLE}.occurred_at, 'FMDay')`,
+                        compiledSql: `TO_CHAR("events".occurred_at, 'FMDay')`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                    },
+                },
+                metrics: {
+                    event_count: {
+                        type: MetricType.COUNT,
+                        fieldType: FieldType.METRIC,
+                        table: 'events',
+                        tableLabel: 'events',
+                        name: 'event_count',
+                        label: 'event_count',
+                        sql: '${TABLE}.id',
+                        compiledSql: 'COUNT("events".id)',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+    });
+
+    const baseDowQuery = (filterValues?: number[]): CompiledMetricQuery => ({
+        exploreName: 'events',
+        dimensions: ['events_occurred_at_day_of_week_index'],
+        metrics: ['events_event_count'],
+        filters: filterValues
+            ? {
+                  dimensions: {
+                      id: 'root',
+                      and: [
+                          {
+                              id: 'dow-eq',
+                              target: {
+                                  fieldId:
+                                      'events_occurred_at_day_of_week_index',
+                              },
+                              operator: FilterOperator.EQUALS,
+                              values: filterValues,
+                          },
+                      ],
+                  },
+              }
+            : {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    });
+
+    test('TIMESTAMP base + flag on + non-UTC TZ wraps SELECT (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: baseDowQuery(),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`,
+        );
+        // Bare UTC SQL must not be present
+        expect(query).not.toMatch(/DATE_PART\('DOW', "events"\.occurred_at\)/);
+    });
+
+    test('TIMESTAMP base + flag on + non-UTC TZ wraps WHERE filter LHS (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: baseDowQuery([1]),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        // Both SELECT and WHERE LHS must use the wrapped expression so they
+        // agree on what counts as e.g. Monday in the project zone.
+        const wrappedSql = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
+        expect(
+            query.match(new RegExp(escapeRegExp(wrappedSql), 'g')),
+        ).not.toBeNull();
+        expect(
+            query.match(new RegExp(escapeRegExp(wrappedSql), 'g'))!.length,
+        ).toBeGreaterThanOrEqual(2);
+    });
+
+    test('DATE base dimension + flag on + non-UTC TZ short-circuits (bare EXTRACT)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.DATE),
+            compiledMetricQuery: baseDowQuery(),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(`DATE_PART('DOW', "events".occurred_at)`);
+        expect(query).not.toContain('AT TIME ZONE');
+    });
+
+    test('TIMESTAMP base + flag off → bare EXTRACT', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: baseDowQuery(),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(query).toContain(`DATE_PART('DOW', "events".occurred_at)`);
+        expect(query).not.toContain('AT TIME ZONE');
+    });
+
+    test('Name variant (DAY_OF_WEEK_NAME) wraps with the project TZ', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: {
+                ...baseDowQuery(),
+                dimensions: ['events_occurred_at_day_of_week_name'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `TO_CHAR(("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York', 'FMDay')`,
+        );
+    });
+
+    test('WEEK_NUM with non-default startOfWeek composes with the TZ wrap (Postgres)', () => {
+        // Build an explore overriding startOfWeek for the events table.
+        const explore = buildExtractExplore(DimensionType.TIMESTAMP);
+        explore.tables.events = {
+            ...explore.tables.events,
+            orderFieldsBy: undefined,
+        };
+        const { query } = buildQuery({
+            explore: {
+                ...explore,
+                tables: {
+                    ...explore.tables,
+                    events: {
+                        ...explore.tables.events,
+                    },
+                },
+            },
+            compiledMetricQuery: {
+                ...baseDowQuery(),
+                dimensions: ['events_occurred_at_week_num'],
+            },
+            warehouseSqlBuilder: {
+                ...warehouseClientMock,
+                getStartOfWeek: () => 2 /* Wednesday */,
+            },
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `DATE_PART('WEEK', (("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York' - interval '2 days'))`,
+        );
+    });
+});

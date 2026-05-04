@@ -10,6 +10,7 @@ import {
     DimensionType,
     Explore,
     ExploreCompiler,
+    extractableTimeFrames,
     extractTotalReferences,
     FieldReferenceError,
     FieldType,
@@ -58,6 +59,7 @@ import {
     sqlContainsAggregation,
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
+    timeFrameConfigs,
     TimeFrames,
     truncatableTimeFrames,
     UserAttributeValueMap,
@@ -581,7 +583,9 @@ export class MetricQueryBuilder {
         );
     }
 
-    /** Regenerates DATE_TRUNC with timezone conversion for truncatable timestamp dimensions. */
+    /** Regenerates timestamp-derived SQL with timezone conversion: DATE_TRUNC
+     *  for truncatable intervals, EXTRACT/DATE_PART (and format/name) for
+     *  extractable ones. */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
@@ -589,17 +593,17 @@ export class MetricQueryBuilder {
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
-        // Skip non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.)
-        // which use EXTRACT/DATE_PART, not DATE_TRUNC.
-        if (
-            !useTimezoneAwareDateTrunc ||
-            !dimension.timeInterval ||
-            !truncatableTimeFrames.has(dimension.timeInterval)
-        ) {
+        if (!useTimezoneAwareDateTrunc || !dimension.timeInterval) {
             return dimension.compiledSql;
         }
 
-        // Get base dimension's compiledSql (before DATE_TRUNC)
+        const isTruncatable = truncatableTimeFrames.has(dimension.timeInterval);
+        const isExtractable = extractableTimeFrames.has(dimension.timeInterval);
+        if (!isTruncatable && !isExtractable) {
+            return dimension.compiledSql;
+        }
+
+        // Get base dimension's compiledSql (before DATE_TRUNC / EXTRACT)
         const baseDimensionId = dimension.timeIntervalBaseDimensionName
             ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
             : undefined;
@@ -608,6 +612,9 @@ export class MetricQueryBuilder {
             ? this.exploreDimensions[baseDimensionId]
             : undefined;
 
+        // DATE base dimensions short-circuit: DATE has no time component, so
+        // EXTRACT is already in the project's calendar and DATE_TRUNC's tz
+        // round-trip would either error or anchor at midnight UTC and drift.
         if (
             !baseDimension?.compiledSql ||
             baseDimension.type !== DimensionType.TIMESTAMP
@@ -615,7 +622,20 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        return getSqlForTruncatedDate(
+        if (isTruncatable) {
+            return getSqlForTruncatedDate(
+                adapterType,
+                dimension.timeInterval,
+                baseDimension.compiledSql,
+                baseDimension.type,
+                startOfWeek,
+                timezone,
+            );
+        }
+
+        // Extract/format path — timeFrameConfigs.getSql dispatches to
+        // getSqlForDatePart (numeric) or getSqlForDatePartName (Name variants).
+        return timeFrameConfigs[dimension.timeInterval].getSql(
             adapterType,
             dimension.timeInterval,
             baseDimension.compiledSql,

@@ -2,8 +2,12 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { DimensionType } from '../types/field';
 import { DateGranularity, TimeFrames } from '../types/timeFrames';
 import {
+    dateExtractsTimezoneConversions,
     dateTruncTimezoneConversions,
+    extractableTimeFrames,
     getDateDimension,
+    getSqlForDatePart,
+    getSqlForDatePartName,
     getSqlForTruncatedDate,
     isSubDayGranularity,
     SUB_DAY_GRANULARITIES,
@@ -634,6 +638,331 @@ describe('TimeFrames', () => {
             ).toEqual(
                 `CONVERT_TIMEZONE('${tz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', '${tz}', ${col})))`,
             );
+        });
+    });
+
+    describe('extractableTimeFrames', () => {
+        test('contains numeric and Name EXTRACT-style intervals, not truncatable ones', () => {
+            expect(
+                extractableTimeFrames.has(TimeFrames.DAY_OF_WEEK_INDEX),
+            ).toBe(true);
+            expect(extractableTimeFrames.has(TimeFrames.MONTH_NUM)).toBe(true);
+            expect(extractableTimeFrames.has(TimeFrames.HOUR_OF_DAY_NUM)).toBe(
+                true,
+            );
+            expect(extractableTimeFrames.has(TimeFrames.DAY_OF_WEEK_NAME)).toBe(
+                true,
+            );
+            expect(extractableTimeFrames.has(TimeFrames.MONTH_NAME)).toBe(true);
+            expect(extractableTimeFrames.has(TimeFrames.QUARTER_NAME)).toBe(
+                true,
+            );
+
+            expect(extractableTimeFrames.has(TimeFrames.DAY)).toBe(false);
+            expect(extractableTimeFrames.has(TimeFrames.WEEK)).toBe(false);
+            expect(extractableTimeFrames.has(TimeFrames.RAW)).toBe(false);
+        });
+    });
+
+    describe('dateExtractsTimezoneConversions', () => {
+        test('BigQuery emits AT TIME ZONE inside the EXTRACT input', () => {
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.BIGQUERY
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(`col AT TIME ZONE 'America/New_York'`);
+        });
+
+        test('Snowflake uses CONVERT_TIMEZONE', () => {
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.SNOWFLAKE
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(`CONVERT_TIMEZONE('UTC', 'America/New_York', col)`);
+        });
+
+        test('Postgres / Redshift / DuckDB share the timestamptz cast form', () => {
+            const expected = `(col)::timestamptz AT TIME ZONE 'America/New_York'`;
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.POSTGRES
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(expected);
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.REDSHIFT
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(expected);
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.DUCKDB
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(expected);
+        });
+
+        test('Trino / Athena cast back to naive timestamp', () => {
+            const expected = `CAST(col AT TIME ZONE 'America/New_York' AS timestamp)`;
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.TRINO
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(expected);
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.ATHENA
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(expected);
+        });
+
+        test('Databricks composes from_utc/to_utc with current_timezone', () => {
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.DATABRICKS
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(
+                `from_utc_timestamp(to_utc_timestamp(col, current_timezone()), 'America/New_York')`,
+            );
+        });
+
+        test('ClickHouse wraps with toTimeZone (mirrors DATE_TRUNC pattern)', () => {
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.CLICKHOUSE
+                ].toExtractInputTz('col', 'America/New_York'),
+            ).toEqual(`toTimeZone(col, 'America/New_York')`);
+        });
+    });
+
+    describe('getSqlForDatePart with timezone', () => {
+        const tz = 'America/New_York';
+        const col = 'event_ts';
+
+        // DAY_OF_WEEK_INDEX (no startOfWeek) — exercises the bare extract path.
+        test.each([
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `EXTRACT(DAYOFWEEK FROM ${col} AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.SNOWFLAKE,
+                `DATE_PART('DOW', CONVERT_TIMEZONE('UTC', '${tz}', ${col}))`,
+            ],
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `DATE_PART('DOW', (${col})::timestamptz AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.REDSHIFT,
+                `DATE_PART('DOW', (${col})::timestamptz AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.DUCKDB,
+                `DATE_PART('DOW', (${col})::timestamptz AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.DATABRICKS,
+                `DATE_PART('DOW', from_utc_timestamp(to_utc_timestamp(${col}, current_timezone()), '${tz}'))`,
+            ],
+            [
+                SupportedDbtAdapter.TRINO,
+                `EXTRACT(DOW FROM CAST(${col} AT TIME ZONE '${tz}' AS timestamp))`,
+            ],
+            [
+                SupportedDbtAdapter.ATHENA,
+                `EXTRACT(DOW FROM CAST(${col} AT TIME ZONE '${tz}' AS timestamp))`,
+            ],
+            [
+                SupportedDbtAdapter.CLICKHOUSE,
+                `toDayOfWeek(toTimeZone(${col}, '${tz}'))`,
+            ],
+        ])('%s: DAY_OF_WEEK_INDEX wraps input in tz', (adapter, expected) => {
+            expect(
+                getSqlForDatePart(
+                    adapter,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toEqual(expected);
+        });
+
+        // MONTH_NUM — exercises the standard EXTRACT(part FROM ...) path.
+        test.each([
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `EXTRACT(MONTH FROM ${col} AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.SNOWFLAKE,
+                `DATE_PART('MONTH', CONVERT_TIMEZONE('UTC', '${tz}', ${col}))`,
+            ],
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `DATE_PART('MONTH', (${col})::timestamptz AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.CLICKHOUSE,
+                `toMonth(toTimeZone(${col}, '${tz}'))`,
+            ],
+        ])('%s: MONTH_NUM wraps input in tz', (adapter, expected) => {
+            expect(
+                getSqlForDatePart(
+                    adapter,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toEqual(expected);
+        });
+
+        test('flag-off (no timezone arg): byte-identical to bare EXTRACT', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual(`DATE_PART('DOW', ${col})`);
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual(`EXTRACT(MONTH FROM ${col})`);
+        });
+
+        test('DATE base dimension with timezone short-circuits (no wrap)', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.DATE,
+                    null,
+                    tz,
+                ),
+            ).toEqual(`DATE_PART('DOW', ${col})`);
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.DATE,
+                    null,
+                    tz,
+                ),
+            ).toEqual(`EXTRACT(MONTH FROM ${col})`);
+        });
+
+        test('WEEK_NUM with non-default startOfWeek composes with the tz wrap (Postgres)', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.WEEK_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    WeekDay.WEDNESDAY,
+                    tz,
+                ),
+            ).toEqual(
+                `DATE_PART('WEEK', ((${col})::timestamptz AT TIME ZONE '${tz}' - interval '2 days'))`,
+            );
+        });
+
+        test('WEEK_NUM with non-default startOfWeek composes with the tz wrap (BigQuery)', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.WEEK_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    WeekDay.WEDNESDAY,
+                    tz,
+                ),
+            ).toEqual(
+                `EXTRACT(WEEK(WEDNESDAY) FROM ${col} AT TIME ZONE '${tz}')`,
+            );
+        });
+
+        test('DAY_OF_WEEK_INDEX with startOfWeek composes mod arithmetic with tz wrap (Postgres)', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    WeekDay.MONDAY,
+                    tz,
+                ),
+            ).toEqual(
+                `MOD(CAST(DATE_PART('DOW', (${col})::timestamptz AT TIME ZONE '${tz}') AS INT) - 1 + 7, 7) + 1`,
+            );
+        });
+    });
+
+    describe('getSqlForDatePartName with timezone (Name variants)', () => {
+        const tz = 'America/New_York';
+        const col = 'event_ts';
+
+        test.each([
+            [
+                SupportedDbtAdapter.BIGQUERY,
+                `FORMAT_DATETIME('%A', ${col} AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.POSTGRES,
+                `TO_CHAR((${col})::timestamptz AT TIME ZONE '${tz}', 'FMDay')`,
+            ],
+            [
+                SupportedDbtAdapter.CLICKHOUSE,
+                `dateName('weekday', toTimeZone(${col}, '${tz}'))`,
+            ],
+            [
+                SupportedDbtAdapter.TRINO,
+                `date_format(CAST(${col} AT TIME ZONE '${tz}' AS timestamp), '%W')`,
+            ],
+        ])('%s: DAY_OF_WEEK_NAME wraps input in tz', (adapter, expected) => {
+            expect(
+                getSqlForDatePartName(
+                    adapter,
+                    TimeFrames.DAY_OF_WEEK_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toEqual(expected);
+        });
+
+        test('DATE base dimension with timezone short-circuits (Postgres)', () => {
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.DATE,
+                    null,
+                    tz,
+                ),
+            ).toEqual(`TO_CHAR(${col}, 'FMMonth')`);
+        });
+
+        test('flag-off: byte-identical to bare format', () => {
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                ),
+            ).toEqual(`TO_CHAR(${col}, 'FMMonth')`);
         });
     });
 });

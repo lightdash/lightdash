@@ -100,6 +100,16 @@ The SQL differs per warehouse (some have native TZ-aware truncation, others comp
 
 **Truncated intervals on a DATE base dimension skip the round-trip.** A truncated interval whose base column is a DATE (e.g. `order_date_month`) falls back to raw `DATE_TRUNC`. DATE values carry no time component — casting one into `timestamptz` for the round-trip would anchor at midnight and then cross a day boundary whenever the project timezone has a non-zero offset.
 
+### SELECT — EXTRACT-based grouping
+
+EXTRACT/DATE_PART intervals (`DAY_OF_WEEK_INDEX`, `DAY_OF_MONTH_NUM`, `DAY_OF_YEAR_NUM`, `WEEK_NUM`, `MONTH_NUM`, `QUARTER_NUM`, `YEAR_NUM`, `HOUR_OF_DAY_NUM`, `MINUTE_OF_HOUR_NUM`) and the format/name variants (`DAY_OF_WEEK_NAME`, `MONTH_NAME`, `QUARTER_NAME`) compile to UTC-only SQL and are rewritten at query time to extract calendar components in the project timezone. Unlike DATE_TRUNC there is no round-trip — EXTRACT returns a number/string, not a timestamp — so the input is shifted *into* the project zone once before extracting. The shift expression is the same per-warehouse pattern used by DATE_TRUNC's `toProjectTz`, except for BigQuery, whose native form is `<expr> AT TIME ZONE 'tz'` concatenated inside `EXTRACT(... FROM ...)`. Defined in `dateExtractsTimezoneConversions`.
+
+A "Day of week" or "Month number" dimension grouped next to a DATE_TRUNC sibling now buckets rows on the same project-TZ calendar — the previous gap where the two could disagree (e.g. one row showing under "Tue" and the other under "Mon" for the same instant) is closed.
+
+**Filter parity** is the same as DATE_TRUNC: WHERE LHS reuses the wrapped expression so a filter like `day_of_week_index = 1` compares against the same project-TZ DOW the SELECT groups on.
+
+**EXTRACT-based intervals on a DATE base dimension skip the wrap.** Same reason as the DATE_TRUNC bypass: a DATE column has no time component, so EXTRACT is already in the project's calendar by definition.
+
 **Files:** `packages/common/src/utils/timeFrames.ts`, `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`
 
 ### WHERE — Filter boundaries
@@ -297,7 +307,6 @@ The only remaining hole is NTZ-style columns storing non-UTC data on warehouses 
 
 | Gap                                                              | Description                                                                                                                                                                                                                                                                           | Impact                                                                                                                                            |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **EXTRACT-based time dimensions are not timezone-aware**         | Intervals that use EXTRACT/DATE_PART rather than DATE_TRUNC (e.g. `DAY_OF_WEEK_INDEX`, `MONTH_NUM`, `HOUR_OF_DAY_NUM`, `QUARTER_NUM`) read parts of the raw UTC value                                                                                                                 | "Day of week" and similar slicers bucket rows by UTC components, which can disagree with a project-TZ DATE_TRUNC grouped next to them             |
 | **BigQuery/Athena: no session timezone**                         | These warehouses have no session-timezone plumbing, so the data-timezone setting is inert. NTZ-style columns (BigQuery `DATETIME`, Athena bare `TIMESTAMP`) can't be rebased from their stored zone to UTC                                                                           | Data timezone setting has no effect (UI field is hidden); NTZ columns holding non-UTC data can't be normalized                                    |
 | **Excel exports render DATE/TIMESTAMP cells in UTC**             | `convertRowToExcel` writes raw `Date` objects for field-level DATE and TIMESTAMP values so Excel treats the cell as a native date (sortable, filterable, with column-level `numFmt`). Routing through the timezone-aware formatter returns a string and loses those semantics. `Date` also carries no zone — ExcelJS serializes via UTC components — so there's no clean way to land a project-TZ wall-clock in a real date cell | Excel downloads show UTC wall-clock for DATE/TIMESTAMP columns, so Excel and CSV downloads of the same query disagree when a project timezone is set |
 | **Google Sheets pivot deliveries render TIMESTAMP/DATE cells in UTC** | Gsheet pivot deliveries call `pivotResultsAsCsv({ onlyRaw: true })`, which reads `value.raw` and skips the timezone-formatted output from `formatRows`. Pivot column headers built via `formatItemValue` also omit the timezone args. Kept raw so columns preserve their native types in Google Sheets | Gsheet pivot output renders timestamps in UTC even with `EnableTimezoneSupport` on, so it disagrees with the Explorer view when the project TZ is non-UTC |
@@ -322,7 +331,7 @@ flowchart TD
 ### What "fully working" means
 
 1. **Filters:** all relative operators compute boundaries in project TZ, literals are unambiguously UTC (with the known BigQuery/ClickHouse bare-literal caveat), and comparisons work for both TZ and NTZ columns on every warehouse with session-TZ plumbing.
-2. **DATE_TRUNC:** groups at project-TZ boundaries on every warehouse. Truncated intervals round-trip through project wall-clock. EXTRACT-based intervals still read UTC components — the remaining correctness gap.
+2. **Time dimensions:** groups at project-TZ boundaries on every warehouse. Truncated intervals (DATE_TRUNC) round-trip through project wall-clock; EXTRACT-based intervals (numeric and Name variants) shift their input into the project zone before extracting. Both paths bypass the wrap when the base dimension is a DATE.
 3. **Display:** formatted timestamps reflect the project timezone across Explorer, chart axes, tooltips, and CSV exports, with the resolved zone labelled in the UI. Truncated intervals on a DATE base dimension skip the shift so calendar dates render as-is.
 4. **NTZ normalization:** NTZ columns are interpreted via the data timezone at query time. Today this relies on warehouse session-TZ plumbing — every supported warehouse has it except BigQuery and Athena, where NTZ-style columns with non-UTC data are stuck.
 
