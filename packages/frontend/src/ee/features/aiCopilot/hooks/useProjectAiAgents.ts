@@ -379,6 +379,7 @@ const createOptimisticMessages = (
                 name: `${user?.firstName} ${user?.lastName}`,
                 uuid: user?.userUuid ?? 'unknown',
             },
+            context: [],
         },
         {
             role: 'assistant' as const,

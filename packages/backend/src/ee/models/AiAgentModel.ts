@@ -1489,6 +1489,7 @@ export class AiAgentModel {
         const referencedArtifactsMap = await this.findThreadReferencedArtifacts(
             { promptUuids },
         );
+        const contextMap = await this.getContextForPromptUuids(promptUuids);
 
         const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
@@ -1508,6 +1509,7 @@ export class AiAgentModel {
                     name: row.user_name,
                     slackUserId: row.slack_user_id,
                 },
+                context: contextMap.get(row.ai_prompt_uuid) ?? [],
             });
 
             const toolCalls = await this.getToolCallsForPrompt(
@@ -2176,6 +2178,12 @@ export class AiAgentModel {
                         uuid: row.user_uuid,
                         name: row.user_name,
                     },
+                    context:
+                        (
+                            await this.getContextForPromptUuids([
+                                row.ai_prompt_uuid,
+                            ])
+                        ).get(row.ai_prompt_uuid) ?? [],
                 } satisfies AiAgentMessageUser;
             case 'assistant':
                 const toolCalls = await this.getToolCallsForPrompt(

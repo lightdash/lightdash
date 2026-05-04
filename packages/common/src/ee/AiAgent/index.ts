@@ -16,7 +16,10 @@ import type {
     ToolVerticalBarArgs,
 } from '../..';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
-import { type AiPromptContextInput } from './requestTypes';
+import {
+    type AiPromptContext,
+    type AiPromptContextInput,
+} from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import { type AiMetricQuery, type AiResultType } from './types';
 
@@ -132,6 +135,7 @@ export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
     createdAt: string;
 
     user: TUser;
+    context: AiPromptContext;
 };
 
 export type AiAgentMessageAssistantArtifact = Pick<

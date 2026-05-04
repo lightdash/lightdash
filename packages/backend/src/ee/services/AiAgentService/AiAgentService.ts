@@ -14,6 +14,7 @@ import {
     AiDuplicateSlackPromptError,
     AiMetricQueryWithFilters,
     AiModelOption,
+    AiPromptContext,
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
@@ -28,6 +29,7 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
+    assertUnreachable,
     CatalogType,
     CommercialFeatureFlags,
     Explore,
@@ -946,6 +948,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
+                context: body.context,
                 modelConfig: body.modelConfig,
             });
 
@@ -1020,6 +1023,7 @@ export class AiAgentService extends BaseService {
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
+            context: body.context,
             modelConfig: body.modelConfig,
         });
 
@@ -2491,6 +2495,57 @@ Use them as a reference, but do all the due dilligence and follow the instructio
         } satisfies UserModelMessage;
     }
 
+    static createPinnedContextMessage(
+        context: AiPromptContext,
+    ): UserModelMessage | null {
+        if (context.length === 0) return null;
+
+        const lines = context.map((item) => {
+            const name = item.displayName ?? '(name unavailable)';
+            switch (item.type) {
+                case 'chart': {
+                    const headline = `- Chart "${name}" (chartUuid: ${item.chartUuid})`;
+                    const overrides = item.runtimeOverrides;
+                    if (!overrides) return headline;
+                    const overrideLines: string[] = [];
+                    if (overrides.dashboardFilters) {
+                        overrideLines.push(
+                            `    Dashboard filters: ${JSON.stringify(overrides.dashboardFilters)}`,
+                        );
+                    }
+                    if (overrides.dashboardParameters) {
+                        overrideLines.push(
+                            `    Parameter values: ${JSON.stringify(overrides.dashboardParameters)}`,
+                        );
+                    }
+                    if (overrides.dateZoom) {
+                        overrideLines.push(
+                            `    Date zoom: ${JSON.stringify(overrides.dateZoom)}`,
+                        );
+                    }
+                    if (overrideLines.length === 0) return headline;
+                    return `${headline}\n  Runtime overrides applied when the chart was pinned:\n${overrideLines.join('\n')}`;
+                }
+                case 'dashboard':
+                    return `- Dashboard "${name}" (dashboardUuid: ${item.dashboardUuid})`;
+                default:
+                    return assertUnreachable(
+                        item,
+                        'Unknown AiPromptContextItem type',
+                    );
+            }
+        });
+
+        return {
+            role: 'user',
+            content: `\
+The user attached the following to this message as context:
+${lines.join('\n')}
+
+Use your existing tools to inspect them when relevant to the user's question. When runtime overrides are listed, apply them on top of the chart's saved state when querying.`,
+        } satisfies UserModelMessage;
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -2504,6 +2559,10 @@ Use them as a reference, but do all the due dilligence and follow the instructio
             retrieveRelevantArtifacts: boolean;
         },
     ): Promise<ModelMessage[]> {
+        const contextMap = await this.aiAgentModel.getContextForPromptUuids(
+            threadMessages.map((m) => m.ai_prompt_uuid),
+        );
+
         const messagesWithToolCalls = await Promise.all(
             threadMessages.map(async (message, index) => {
                 const messages: ModelMessage[] = [
@@ -2512,6 +2571,14 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                         content: message.prompt,
                     } satisfies UserModelMessage,
                 ];
+
+                const pinnedContextMessage =
+                    AiAgentService.createPinnedContextMessage(
+                        contextMap.get(message.ai_prompt_uuid) ?? [],
+                    );
+                if (pinnedContextMessage) {
+                    messages.push(pinnedContextMessage);
+                }
 
                 // Inject relevant verified artifacts after first user prompt (search or retrieve cached)
                 if (index === 0 && options.retrieveRelevantArtifacts) {
