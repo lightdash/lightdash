@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ContentVerificationInfo,
     type Dashboard,
+    type Project,
     type SavedChart,
     type UpdatedByUser,
 } from '@lightdash/common';
@@ -30,6 +31,7 @@ import {
     IconChartBar,
     IconCircleCheck,
     IconClock,
+    IconDatabase,
     IconDots,
     IconExternalLink,
     IconEye,
@@ -57,6 +59,7 @@ import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useProject } from '../../../hooks/useProject';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
@@ -260,7 +263,7 @@ const TARGET_ICON: Record<
     chart: IconChartBar,
     dashboard: IconLayoutDashboard,
     space: IconChartBar,
-    project: IconChartBar,
+    project: IconDatabase,
 };
 
 const formatTimestamp = (dateStr: string) =>
@@ -502,6 +505,64 @@ const ContentContextDetails: FC<{
     );
 };
 
+const getProjectBranch = (project: Project): string | null =>
+    'branch' in project.dbtConnection ? project.dbtConnection.branch : null;
+
+const ProjectContextDetails: FC<{
+    project: Project;
+    upstreamProject?: Project;
+    createdAt?: string | null;
+}> = ({ project, upstreamProject, createdAt }) => {
+    const projectLink = `/projects/${project.projectUuid}`;
+    const upstreamProjectLink = upstreamProject
+        ? `/projects/${upstreamProject.projectUuid}`
+        : null;
+    const branch = getProjectBranch(project);
+    const isPreviewProject = !!project.upstreamProjectUuid;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label="Project metadata" />
+            <Stack gap={10}>
+                <InfoRow icon={IconDatabase} label="Project">
+                    <Anchor href={projectLink} fz="xs" fw={500}>
+                        {project.name}
+                    </Anchor>
+                </InfoRow>
+                <InfoRow icon={IconHash} label="Type">
+                    {isPreviewProject ? 'Preview project' : 'Project'}
+                </InfoRow>
+                {upstreamProject && (
+                    <InfoRow icon={IconExternalLink} label="Upstream project">
+                        {upstreamProjectLink ? (
+                            <Anchor href={upstreamProjectLink} fz="xs" fw={500}>
+                                {upstreamProject.name}
+                            </Anchor>
+                        ) : (
+                            upstreamProject.name
+                        )}
+                    </InfoRow>
+                )}
+                {branch && (
+                    <InfoRow icon={IconHash} label="Branch">
+                        {branch}
+                    </InfoRow>
+                )}
+                {createdAt && (
+                    <InfoRow icon={IconClock} label="Created">
+                        <Tooltip
+                            label={formatAbsoluteTimestamp(createdAt)}
+                            withinPortal
+                        >
+                            <span>{formatTimestamp(createdAt)}</span>
+                        </Tooltip>
+                    </InfoRow>
+                )}
+            </Stack>
+        </Stack>
+    );
+};
+
 const DetailSidebar: FC<{
     action: ManagedAgentAction;
     onClose: () => void;
@@ -509,6 +570,7 @@ const DetailSidebar: FC<{
     const queryClient = useQueryClient();
     const config = ACTION_CONFIG[action.actionType];
     const isReversed = !!action.reversedAt;
+    const isProjectTarget = action.targetType === 'project';
 
     const revertMutation = useMutation({
         mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
@@ -519,12 +581,13 @@ const DetailSidebar: FC<{
         },
     });
 
-    const targetLink =
-        action.targetType === 'chart'
-            ? `/projects/${action.projectUuid}/saved/${action.targetUuid}`
-            : action.targetType === 'dashboard'
-              ? `/projects/${action.projectUuid}/dashboards/${action.targetUuid}`
-              : null;
+    const targetLink = isProjectTarget
+        ? `/projects/${action.targetUuid}`
+        : action.targetType === 'chart'
+          ? `/projects/${action.projectUuid}/saved/${action.targetUuid}`
+          : action.targetType === 'dashboard'
+            ? `/projects/${action.projectUuid}/dashboards/${action.targetUuid}`
+            : null;
 
     const TargetIcon = TARGET_ICON[action.targetType];
 
@@ -544,6 +607,20 @@ const DetailSidebar: FC<{
     });
     const { data: chartViewStats } = useChartViewStats(
         action.targetType === 'chart' ? action.targetUuid : undefined,
+    );
+    const { data: targetProject } = useProject(
+        isProjectTarget ? action.targetUuid : undefined,
+        {
+            retry: false,
+            onError: () => undefined,
+        },
+    );
+    const { data: upstreamProject } = useProject(
+        targetProject?.upstreamProjectUuid,
+        {
+            retry: false,
+            onError: () => undefined,
+        },
     );
 
     const baseContext: ContentContext | null = savedChart
@@ -575,6 +652,11 @@ const DetailSidebar: FC<{
     const hasSlowDetails =
         action.actionType === 'flagged_slow' &&
         typeof action.metadata.execution_time_ms === 'number';
+    const projectCreatedAt =
+        typeof action.metadata.created_at === 'string'
+            ? action.metadata.created_at
+            : null;
+    const hasProjectDetails = !!targetProject;
 
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
@@ -621,14 +703,11 @@ const DetailSidebar: FC<{
                     </Group>
                 </Group>
                 <Group gap={6} wrap="nowrap">
-                    {(action.targetType === 'chart' ||
-                        action.targetType === 'dashboard') && (
-                        <TargetIcon
-                            size={16}
-                            color="var(--mantine-color-dimmed)"
-                            style={{ flexShrink: 0 }}
-                        />
-                    )}
+                    <TargetIcon
+                        size={16}
+                        color="var(--mantine-color-dimmed)"
+                        style={{ flexShrink: 0 }}
+                    />
                     <TruncatedText maxWidth={260} fz="sm" fw={600}>
                         {action.targetName}
                     </TruncatedText>
@@ -665,6 +744,13 @@ const DetailSidebar: FC<{
                         context={contentContext}
                     />
                 )}
+                {targetProject && (
+                    <ProjectContextDetails
+                        project={targetProject}
+                        upstreamProject={upstreamProject}
+                        createdAt={projectCreatedAt}
+                    />
+                )}
 
                 {/* Description */}
                 {contentContext?.description && (
@@ -687,7 +773,8 @@ const DetailSidebar: FC<{
                 {(hasChartDetails ||
                     hasBrokenDetails ||
                     hasSlowDetails ||
-                    !!contentContext) && (
+                    !!contentContext ||
+                    hasProjectDetails) && (
                     <Box className={classes.headerDivider} />
                 )}
 
