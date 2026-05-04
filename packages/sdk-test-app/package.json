@@ -31,6 +31,6 @@
         "pg": "8.13.1",
         "pg-connection-string": "2.7.0",
         "typescript": "6.0.0-beta",
-        "vite": "8.0.4"
+        "vite": "8.0.5"
     }
 }
