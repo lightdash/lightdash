@@ -176,10 +176,9 @@ jobs:
         run: sfw pnpm install --frozen-lockfile --prefer-offline
 
       # Sandbox install — build-sandbox.ts uses tsx + e2b from this folder.
-      # No lockfile is committed (only two pinned deps), so plain install.
       - name: Install sandbox deps
         working-directory: sandboxes/data-apps
-        run: sfw pnpm install --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
 
       - name: Build & publish E2B template
         working-directory: sandboxes/data-apps
