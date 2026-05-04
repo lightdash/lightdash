@@ -65,6 +65,13 @@
     flex-direction: column;
 }
 
+.emptyState {
+    padding: var(--mantine-spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .queryRow {
     @mixin light {
         border-bottom: 1px solid var(--mantine-color-ldGray-1);

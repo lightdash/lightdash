@@ -27,6 +27,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useLocalStorage } from '@mantine-8/hooks';
 import {
     IconAppsOff,
     IconAppWindow,
@@ -105,6 +106,8 @@ import { useSpaceSummaries } from '../hooks/useSpaces';
 import { useAbilityContext } from '../providers/Ability/useAbilityContext';
 import useApp from '../providers/App/useApp';
 import classes from './AppGenerate.module.css';
+
+const PERSIST_LOGS_STORAGE_KEY = 'data-apps:persist-logs';
 
 /**
  * Parse `[tag "text" @loc]` (or `[tag @loc]`, `[tag "text"]`, `[tag]`) from
@@ -298,6 +301,47 @@ const AppGenerate: FC = () => {
     // that never announces, in which case the toggle stays hidden.
     const [inspectorAvailable, setInspectorAvailable] = useState(false);
     const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
+    // Mirrors Chrome DevTools "Preserve log". When off (default), the queries
+    // panel is cleared on iframe refresh and on new-version load — fresh
+    // bundles re-run their queries, so stale entries would only confuse the
+    // user. Stored in localStorage so the preference survives a tab close
+    // and stays consistent across tabs.
+    const [persistLogs, setPersistLogs] = useLocalStorage<boolean>({
+        key: PERSIST_LOGS_STORAGE_KEY,
+        defaultValue: false,
+    });
+    // Request IDs of queries we marked as interrupted on iframe reload. The
+    // bridge's parent-side fetch keeps running after the iframe dies and will
+    // emit a late `running` event for them — without this guard that event
+    // would resurrect the entry as 'running', or (if not matched) get appended
+    // as a fresh ghost entry. The set grows for the page session; entries are
+    // short request IDs, so the footprint is negligible.
+    const interruptedRequestIdsRef = useRef<Set<string>>(new Set());
+    const handleClearQueries = useCallback(() => {
+        setTrackedQueries([]);
+    }, []);
+    // Move pending/running entries into a terminal `error` state. Used when
+    // the preview iframe reloads with persistLogs on — the iframe that would
+    // have polled their queryUuids is dead, so they would otherwise sit
+    // non-terminal forever.
+    const interruptInFlightQueries = useCallback(() => {
+        setTrackedQueries((prev) => {
+            let mutated = false;
+            const next = prev.map((q) => {
+                if (q.status !== 'pending' && q.status !== 'running') {
+                    return q;
+                }
+                mutated = true;
+                interruptedRequestIdsRef.current.add(q.id);
+                return {
+                    ...q,
+                    status: 'error' as const,
+                    error: 'Interrupted by reload',
+                };
+            });
+            return mutated ? next : prev;
+        });
+    }, []);
     const handleElementSelected = useCallback((event: { label: string }) => {
         const ref = parseElementRefLabel(event.label);
         if (!ref) {
@@ -315,6 +359,12 @@ const AppGenerate: FC = () => {
         setInspectorEnabled(false);
     }, []);
     const handleQueryEvent = useCallback((event: QueryEvent) => {
+        // Drop late events (typically the POST-resolution `running` event)
+        // for requests we already marked interrupted — without this they
+        // either un-terminal the entry or get appended as a ghost.
+        if (interruptedRequestIdsRef.current.has(event.id)) {
+            return;
+        }
         setTrackedQueries((prev) => {
             // If this event has a queryUuid, merge it with an existing entry
             if (event.queryUuid) {
@@ -322,6 +372,16 @@ const AppGenerate: FC = () => {
                     (q) => q.queryUuid === event.queryUuid,
                 );
                 if (existing) {
+                    // Don't resurrect a terminal entry. Covers the rare race
+                    // where iframe-1 managed to issue a poll GET before
+                    // dying, so a late `ready` event arrives keyed on the
+                    // (already-interrupted) queryUuid.
+                    if (
+                        existing.status === 'ready' ||
+                        existing.status === 'error'
+                    ) {
+                        return prev;
+                    }
                     return prev.map((q) =>
                         q.queryUuid === event.queryUuid
                             ? {
@@ -660,8 +720,24 @@ const AppGenerate: FC = () => {
                 latestReadyPreview.version !== previewApp?.version)
         ) {
             setPreviewApp(latestReadyPreview);
+            // The new bundle re-runs its queries from scratch, so the
+            // previous version's entries are stale. With "Persist" on we
+            // flip in-flight ones to a terminal "interrupted" state instead
+            // of clearing — the iframe that would have polled their
+            // queryUuids is gone, so they'd otherwise sit non-terminal.
+            if (persistLogs) {
+                interruptInFlightQueries();
+            } else {
+                setTrackedQueries([]);
+            }
         }
-    }, [latestReadyPreview, previewApp?.appUuid, previewApp?.version]);
+    }, [
+        latestReadyPreview,
+        previewApp?.appUuid,
+        previewApp?.version,
+        persistLogs,
+        interruptInFlightQueries,
+    ]);
 
     // Manual refresh counter for the preview iframe. The iframe URL embeds
     // this value, so bumping it forces the browser to reload the iframe and
@@ -671,8 +747,12 @@ const AppGenerate: FC = () => {
     const [previewRefreshKey, setPreviewRefreshKey] = useState(0);
     const handleRefreshPreview = useCallback(() => {
         setPreviewRefreshKey((k) => k + 1);
-        setTrackedQueries([]);
-    }, []);
+        if (persistLogs) {
+            interruptInFlightQueries();
+        } else {
+            setTrackedQueries([]);
+        }
+    }, [persistLogs, interruptInFlightQueries]);
 
     const scrollToBottom = useCallback(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -1964,6 +2044,9 @@ const AppGenerate: FC = () => {
                             <QueryInspector
                                 queries={trackedQueries}
                                 projectUuid={projectUuid!}
+                                onClear={handleClearQueries}
+                                persistLogs={persistLogs}
+                                onPersistLogsChange={setPersistLogs}
                             />
                         </Box>
                     </Box>

@@ -9,7 +9,9 @@ import {
     CopyButton,
     Group,
     ScrollArea,
+    Switch,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
 import {
     IconChevronDown,
@@ -17,6 +19,7 @@ import {
     IconCopy,
     IconDatabase,
     IconExternalLink,
+    IconTrash,
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useRef, useState, type FC } from 'react';
@@ -32,6 +35,9 @@ type TrackedQuery = QueryEvent & {
 type Props = {
     queries: TrackedQuery[];
     projectUuid: string;
+    onClear: () => void;
+    persistLogs: boolean;
+    onPersistLogsChange: (value: boolean) => void;
 };
 
 const statusColor = (status: TrackedQuery['status']): string => {
@@ -324,7 +330,13 @@ const MIN_HEIGHT = 100;
 const MAX_HEIGHT = 600;
 const DEFAULT_HEIGHT = 300;
 
-const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
+const QueryInspector: FC<Props> = ({
+    queries,
+    projectUuid,
+    onClear,
+    persistLogs,
+    onPersistLogsChange,
+}) => {
     const [collapsed, setCollapsed] = useState(true);
     const [dismissed, setDismissed] = useState(false);
     const [height, setHeight] = useState(DEFAULT_HEIGHT);
@@ -367,8 +379,19 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
         setCollapsed(true);
     }, []);
 
-    // Nothing to show
-    if (queries.length === 0) return null;
+    const handleClear = useCallback(
+        (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onClear();
+        },
+        [onClear],
+    );
+
+    // Hide the panel entirely only when there's nothing to show *and* the
+    // user hasn't engaged with it. If they've expanded it (e.g. cleared the
+    // log to wait for fresh queries), keep it mounted with an empty state so
+    // the next query lands somewhere visible.
+    if (queries.length === 0 && collapsed) return null;
 
     // Dismissed — show a small icon to reopen
     if (dismissed) {
@@ -401,14 +424,37 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                 </Text>
                 <Box ml="auto" />
                 {!collapsed && (
-                    <ActionIcon
-                        variant="subtle"
-                        size="xs"
-                        color="gray"
-                        onClick={handleDismiss}
-                    >
-                        <MantineIcon icon={IconX} size={12} />
-                    </ActionIcon>
+                    <>
+                        <Tooltip label="Clear queries" withArrow position="top">
+                            <ActionIcon
+                                variant="subtle"
+                                size="xs"
+                                color="gray"
+                                onClick={handleClear}
+                                aria-label="Clear queries"
+                            >
+                                <MantineIcon icon={IconTrash} size={12} />
+                            </ActionIcon>
+                        </Tooltip>
+                        <Tooltip
+                            label="Preserve queries across iframe refreshes and new app versions"
+                            withArrow
+                            position="top"
+                        >
+                            <Box onClick={(e) => e.stopPropagation()}>
+                                <Switch
+                                    size="xs"
+                                    label="Persist"
+                                    checked={persistLogs}
+                                    onChange={(e) =>
+                                        onPersistLogsChange(
+                                            e.currentTarget.checked,
+                                        )
+                                    }
+                                />
+                            </Box>
+                        </Tooltip>
+                    </>
                 )}
                 <ActionIcon variant="subtle" size="xs" color="gray">
                     {collapsed ? (
@@ -417,6 +463,17 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                         <MantineIcon icon={IconChevronDown} size={12} />
                     )}
                 </ActionIcon>
+                {!collapsed && (
+                    <ActionIcon
+                        variant="subtle"
+                        size="xs"
+                        color="gray"
+                        onClick={handleDismiss}
+                        aria-label="Close queries panel"
+                    >
+                        <MantineIcon icon={IconX} size={12} />
+                    </ActionIcon>
+                )}
             </Group>
             <Collapse in={!collapsed}>
                 <Box
@@ -427,13 +484,21 @@ const QueryInspector: FC<Props> = ({ queries, projectUuid }) => {
                 />
                 <ScrollArea h={height}>
                     <Box className={classes.queryList}>
-                        {queries.map((q) => (
-                            <QueryRow
-                                key={q.queryUuid ?? q.id}
-                                query={q}
-                                projectUuid={projectUuid}
-                            />
-                        ))}
+                        {queries.length === 0 ? (
+                            <Box className={classes.emptyState}>
+                                <Text size="xs" c="dimmed">
+                                    No queries yet
+                                </Text>
+                            </Box>
+                        ) : (
+                            queries.map((q) => (
+                                <QueryRow
+                                    key={q.queryUuid ?? q.id}
+                                    query={q}
+                                    projectUuid={projectUuid}
+                                />
+                            ))
+                        )}
                     </Box>
                 </ScrollArea>
             </Collapse>
