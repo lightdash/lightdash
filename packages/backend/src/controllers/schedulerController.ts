@@ -582,10 +582,9 @@ export class SchedulerController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiJobStatusResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         const { status, details } = await this.services
             .getSchedulerService()
-            .getJobStatus(req.account, jobId);
+            .getJobStatus(req.account!, jobId);
         return {
             status: 'ok',
             results: {

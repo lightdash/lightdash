@@ -42,7 +42,7 @@ import {
     UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
-    type RegisteredAccount,
+    type Account,
 } from '@lightdash/common';
 import cronstrue from 'cronstrue';
 import {
@@ -1143,7 +1143,7 @@ export class SchedulerService extends BaseService {
     }
 
     async getJobStatus(
-        account: RegisteredAccount,
+        account: Account,
         jobId: string,
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
         assertIsAccountWithOrg(account);
