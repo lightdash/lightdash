@@ -39,7 +39,7 @@ describe('pivotResultsAsCsv', () => {
                 dimensionOverrides: {},
             },
             customLabels: undefined,
-            rawFor: 'none',
+            onlyRaw: false,
             maxColumnLimit: 60,
             pivotDetails: null,
         });
@@ -76,7 +76,7 @@ describe('pivotResultsAsCsv', () => {
                 dimensionOverrides: {},
             },
             customLabels: { views: 'Page Views' },
-            rawFor: 'none',
+            onlyRaw: false,
             maxColumnLimit: 60,
             pivotDetails: null,
         });
@@ -104,7 +104,7 @@ describe('pivotResultsAsCsv', () => {
                 dimensionOverrides: {},
             },
             customLabels: undefined,
-            rawFor: 'none' as const,
+            onlyRaw: false,
             maxColumnLimit: 60,
             pivotDetails: null,
         };

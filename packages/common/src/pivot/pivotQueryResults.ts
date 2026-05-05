@@ -27,16 +27,6 @@ type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
 
-/**
- * Cell-value selection for pivot output.
- * - 'all'          → use `raw` for every cell (= legacy `onlyRaw: true`)
- * - 'none'         → use `formatted` for every cell (= legacy `onlyRaw: false`)
- * - 'non-temporal' → `raw` for non-temporal cells, `formatted` for DATE/TIMESTAMP cells
- *                    (used by Google Sheets / Slack / email pivot deliveries to
- *                    keep numeric native types while honoring the project tz)
- */
-export type PivotRawSelection = 'all' | 'none' | 'non-temporal';
-
 const isTemporalField = (item: ItemsMap[string] | undefined): boolean =>
     !!item &&
     isField(item) &&
@@ -1606,9 +1596,18 @@ type PivotResultsParams = {
     itemMap: ItemsMap;
     metricQuery: MetricQuery;
     customLabels: Record<string, string> | undefined;
-    rawFor: PivotRawSelection;
+    onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
+    /**
+     * When set, DATE/TIMESTAMP cells use the row's `formatted` value
+     * (which honors the project tz via formatRows) regardless of
+     * `onlyRaw`, while other cells continue to follow `onlyRaw`. Used
+     * by Google Sheets / Slack / email pivot deliveries to keep
+     * numeric native types while honoring the project tz on date
+     * columns. Threaded into combinedRetrofit so total/header
+     * formatting picks up the same zone.
+     */
     timezone?: string;
 };
 
@@ -1618,7 +1617,7 @@ export const pivotResultsAsData = ({
     itemMap,
     metricQuery,
     customLabels,
-    rawFor,
+    onlyRaw,
     maxColumnLimit,
     undefinedCharacter = '',
     pivotDetails,
@@ -1652,18 +1651,14 @@ export const pivotResultsAsData = ({
               timezone,
           });
 
-    const pickField = (fieldId: string): 'raw' | 'formatted' => {
-        switch (rawFor) {
-            case 'all':
-                return 'raw';
-            case 'none':
-                return 'formatted';
-            case 'non-temporal':
-                return isTemporalField(itemMap[fieldId]) ? 'formatted' : 'raw';
-            default:
-                return 'raw';
-        }
-    };
+    const formatField = onlyRaw ? 'raw' : 'formatted';
+    // When a project timezone is supplied, override the per-cell choice
+    // for temporal fields so DATE/TIMESTAMP values come from the
+    // tz-aware `formatted` output even on `onlyRaw: true` paths.
+    const pickField = (fieldId: string): 'raw' | 'formatted' =>
+        timezone && isTemporalField(itemMap[fieldId])
+            ? 'formatted'
+            : formatField;
     const headers = pivotedResults.headerValues.reduce<string[][]>(
         (acc, row, i) => {
             const values = row.map((header) =>

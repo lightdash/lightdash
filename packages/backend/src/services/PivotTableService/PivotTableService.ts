@@ -247,7 +247,7 @@ export class PivotTableService extends BaseService {
             itemMap,
             metricQuery,
             customLabels,
-            rawFor: onlyRaw ? 'all' : 'none',
+            onlyRaw,
             maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
         });
