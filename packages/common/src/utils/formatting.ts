@@ -186,6 +186,17 @@ export function formatTimestamp(
     return momentDate.format(getTimeFormat(timeInterval));
 }
 
+// Date whose UTC components match `value` rendered in `timezone`.
+// ExcelJS serializes Date cells via UTC components and Excel cells
+// carry no zone — this is how we land project-tz wall-clock in a
+// real date cell. Resulting Date no longer represents a real instant.
+export function toExcelWallClockDate(
+    value: MomentInput,
+    timezone: string,
+): Date {
+    return moment.tz(value, timezone).utc(true).toDate();
+}
+
 export function getLocalTimeDisplay(
     value: MomentInput,
     showTimezone: boolean = true,

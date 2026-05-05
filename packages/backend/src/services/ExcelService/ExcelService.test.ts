@@ -644,6 +644,99 @@ describe('ExcelService', () => {
             expect(result[1]).toEqual(new Date('2023-12-25T10:30:00.000Z'));
         });
 
+        describe('timezone wall-clock shift', () => {
+            const TIMESTAMP_ROW = {
+                timestamp_column: '2024-01-16T05:30:45.000Z',
+            };
+            const SORTED = ['timestamp_column'];
+
+            it.each([
+                ['undefined', undefined],
+                ['UTC', 'UTC'],
+            ])(
+                'is a no-op when timezone is %s (silence guarantee)',
+                (_label, tz) => {
+                    const result = ExcelService.convertRowToExcel(
+                        TIMESTAMP_ROW,
+                        mockItemMapWithFormats,
+                        false,
+                        SORTED,
+                        tz,
+                    );
+
+                    expect(result[0]).toEqual(
+                        moment('2024-01-16T05:30:45.000Z').toDate(),
+                    );
+                },
+            );
+
+            it('shifts TIMESTAMP cells into project-tz wall-clock when tz is non-UTC', () => {
+                const result = ExcelService.convertRowToExcel(
+                    TIMESTAMP_ROW,
+                    mockItemMapWithFormats,
+                    false,
+                    SORTED,
+                    'America/New_York',
+                );
+
+                // 05:30:45 UTC == 00:30:45 NY (EST, -5).
+                const cell = result[0] as Date;
+                expect(cell).toBeInstanceOf(Date);
+                expect(cell.getUTCFullYear()).toBe(2024);
+                expect(cell.getUTCMonth()).toBe(0);
+                expect(cell.getUTCDate()).toBe(16);
+                expect(cell.getUTCHours()).toBe(0);
+                expect(cell.getUTCMinutes()).toBe(30);
+                expect(cell.getUTCSeconds()).toBe(45);
+            });
+
+            it('does not shift DATE cells (calendar values stay as-is)', () => {
+                const result = ExcelService.convertRowToExcel(
+                    { date_column: '2024-01-16' },
+                    mockItemMapWithFormats,
+                    false,
+                    ['date_column'],
+                    'America/New_York',
+                );
+
+                expect(result[0]).toEqual(moment('2024-01-16').toDate());
+            });
+        });
+
+        describe('convertToExcelDate', () => {
+            it('returns the same Date as today when timezone is undefined or UTC', () => {
+                const iso = '2024-01-16T05:30:45.000Z';
+                const expected = moment(iso, moment.ISO_8601, true).toDate();
+
+                expect(ExcelService.convertToExcelDate(iso)).toEqual(expected);
+                expect(ExcelService.convertToExcelDate(iso, 'UTC')).toEqual(
+                    expected,
+                );
+            });
+
+            it('shifts ISO timestamp strings to project-tz wall-clock when tz is non-UTC', () => {
+                const cell = ExcelService.convertToExcelDate(
+                    '2024-01-16T05:30:45.000Z',
+                    'America/New_York',
+                ) as Date;
+
+                expect(cell).toBeInstanceOf(Date);
+                expect(cell.getUTCHours()).toBe(0);
+                expect(cell.getUTCMinutes()).toBe(30);
+            });
+
+            it('does not shift bare date strings (no time component)', () => {
+                const cell = ExcelService.convertToExcelDate(
+                    '2024-01-16',
+                    'America/New_York',
+                );
+
+                expect(cell).toEqual(
+                    moment('2024-01-16', moment.ISO_8601, true).toDate(),
+                );
+            });
+        });
+
         it('should preserve numeric metric values that resemble YYYYMM dates (PROD-6683)', () => {
             const row = {
                 number_without_format: '202811',

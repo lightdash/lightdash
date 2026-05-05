@@ -16,6 +16,7 @@ import {
     pivotResultsAsData,
     ResultRow,
     timeIntervalToExcelNumFmt,
+    toExcelWallClockDate,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -38,10 +39,23 @@ import {
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
-    static convertToExcelDate(value: unknown): Date | unknown {
+    private static isTzActive(
+        timezone: string | undefined,
+    ): timezone is string {
+        return !!timezone && timezone !== 'UTC';
+    }
+
+    static convertToExcelDate(
+        value: unknown,
+        timezone?: string,
+    ): Date | unknown {
         if (typeof value === 'string') {
             const dateValue = moment(value, moment.ISO_8601, true);
             if (dateValue.isValid()) {
+                // Bare date strings (no 'T') skip the shift to keep calendar values.
+                if (ExcelService.isTzActive(timezone) && value.includes('T')) {
+                    return toExcelWallClockDate(value, timezone);
+                }
                 return dateValue.toDate();
             }
         }
@@ -82,12 +96,23 @@ export class ExcelService {
             const item = itemMap[fieldId];
             const isItemField = isField(item);
 
-            // For date/timestamp fields with custom formatting, convert to Date object first
             if (
                 isItemField &&
                 (item.type === DimensionType.DATE ||
                     item.type === DimensionType.TIMESTAMP)
             ) {
+                // DATE-base intervals are calendar values — shifting would
+                // cross day boundaries on negative offsets.
+                const isDateBaseInterval =
+                    isDimension(item) &&
+                    item.timeIntervalBaseDimensionType === DimensionType.DATE;
+                if (
+                    ExcelService.isTzActive(timezone) &&
+                    item.type === DimensionType.TIMESTAMP &&
+                    !isDateBaseInterval
+                ) {
+                    return toExcelWallClockDate(rawValue, timezone);
+                }
                 return moment(rawValue).toDate();
             }
 
@@ -157,6 +182,7 @@ export class ExcelService {
                 customLabels,
                 maxColumnLimit,
                 pivotDetails,
+                timezone,
             });
         }
 
@@ -173,8 +199,15 @@ export class ExcelService {
 
         // Build date column metadata: for each data column, determine if
         // it's a date/timestamp dimension and what Excel numFmt to apply.
-        const dateColumnFormats = new Map<number, { numFmt: string }>();
+        const dateColumnFormats = new Map<
+            number,
+            {
+                numFmt: string;
+                shouldShift: boolean;
+            }
+        >();
         if (!onlyRaw) {
+            const tzActive = ExcelService.isTzActive(timezone);
             pivotData.fieldIds.forEach((fieldId, colIndex) => {
                 const field = itemMap[fieldId];
                 if (
@@ -190,7 +223,16 @@ export class ExcelService {
                     );
                     if (numFmt) {
                         const offset = pivotData.hasIndex ? 0 : 1;
-                        dateColumnFormats.set(colIndex + offset, { numFmt });
+                        const isDateBaseInterval =
+                            field.timeIntervalBaseDimensionType ===
+                            DimensionType.DATE;
+                        dateColumnFormats.set(colIndex + offset, {
+                            numFmt,
+                            shouldShift:
+                                tzActive &&
+                                field.type === DimensionType.TIMESTAMP &&
+                                !isDateBaseInterval,
+                        });
                     }
                 }
             });
@@ -226,7 +268,9 @@ export class ExcelService {
                 ) {
                     const m = moment.utc(cell.raw);
                     if (m.isValid()) {
-                        return m.toDate();
+                        return dateFmt.shouldShift && timezone
+                            ? toExcelWallClockDate(cell.raw, timezone)
+                            : m.toDate();
                     }
                 }
                 return cell.formatted;
@@ -276,6 +320,7 @@ export class ExcelService {
         customLabels,
         maxColumnLimit,
         pivotDetails,
+        timezone,
     }: {
         formattedRows: ResultRow[];
         itemMap: ItemsMap;
@@ -285,6 +330,7 @@ export class ExcelService {
         customLabels: Record<string, string> | undefined;
         maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
@@ -302,7 +348,7 @@ export class ExcelService {
 
         csvResults.forEach((row, index) => {
             const excelRow = row.map((value) =>
-                ExcelService.convertToExcelDate(value),
+                ExcelService.convertToExcelDate(value, timezone),
             );
             worksheet.addRow(excelRow);
 
