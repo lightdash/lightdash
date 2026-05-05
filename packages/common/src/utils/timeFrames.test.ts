@@ -941,6 +941,14 @@ describe('TimeFrames', () => {
                 `TO_CHAR((${col})::timestamptz AT TIME ZONE '${tz}', 'FMDay')`,
             ],
             [
+                SupportedDbtAdapter.SNOWFLAKE,
+                `DECODE(TO_CHAR(CONVERT_TIMEZONE('UTC', '${tz}', ${col}), 'DY'), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
+            ],
+            [
+                SupportedDbtAdapter.DATABRICKS,
+                `DATE_FORMAT(from_utc_timestamp(to_utc_timestamp(${col}, current_timezone()), '${tz}'), 'EEEE')`,
+            ],
+            [
                 SupportedDbtAdapter.CLICKHOUSE,
                 `dateName('weekday', toTimeZone(${col}, '${tz}'))`,
             ],

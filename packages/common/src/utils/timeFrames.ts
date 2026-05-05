@@ -316,7 +316,7 @@ const snowflakeConfig: WarehouseConfig = {
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
-        _,
+        _type,
         timezone,
     ) => {
         const sql = timezone
@@ -385,7 +385,7 @@ const postgresConfig: WarehouseConfig = {
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
-        _,
+        _type,
         timezone,
     ) => {
         const sql = timezone
@@ -449,7 +449,7 @@ const databricksConfig: WarehouseConfig = {
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
-        _,
+        _type,
         timezone,
     ) => {
         const sql = timezone
@@ -518,7 +518,7 @@ const trinoConfig: WarehouseConfig = {
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
-        _,
+        _type,
         timezone,
     ) => {
         const sql = timezone
@@ -628,7 +628,7 @@ const clickhouseConfig: WarehouseConfig = {
     getSqlForDatePartName: (
         timeFrame: TimeFrames,
         originalSql: string,
-        _,
+        _type,
         timezone,
     ) => {
         const sql = timezone
