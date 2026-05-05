@@ -23,10 +23,9 @@ import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
 const SaveChartButton: FC<{
-    isExplorer?: boolean;
     disabled?: boolean;
     onSaveModalOpenChange?: (isOpen: boolean) => void;
-}> = ({ isExplorer, disabled, onSaveModalOpenChange }) => {
+}> = ({ disabled, onSaveModalOpenChange }) => {
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
@@ -149,15 +148,10 @@ const SaveChartButton: FC<{
                 >
                     <Button
                         disabled={isDisabled}
-                        variant={isExplorer ? 'default' : undefined}
-                        color={isExplorer ? 'blue' : 'green.7'}
+                        variant="default"
                         size="xs"
                         loading={update.isLoading || isPendingOpen}
-                        leftSection={
-                            isExplorer ? (
-                                <MantineIcon icon={IconDeviceFloppy} />
-                            ) : undefined
-                        }
+                        leftSection={<MantineIcon icon={IconDeviceFloppy} />}
                         {...(isDisabled && {
                             'data-disabled': true,
                         })}
@@ -195,8 +189,7 @@ const SaveChartButton: FC<{
                         disabled={isSaveAsDisabled}
                     >
                         <Button
-                            variant={isExplorer ? 'default' : undefined}
-                            color={isExplorer ? 'blue' : 'green.7'}
+                            variant="default"
                             size="xs"
                             p="xs"
                             disabled={isSaveAsDisabled}
