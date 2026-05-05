@@ -420,7 +420,7 @@ jobs:
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
+        uses: cypress-io/github-action@c495c3ddffba403ba11be95fffb67e25203b3799 # v7
         with:
           install: false
           browser: firefox
@@ -482,7 +482,7 @@ jobs:
           json: ${{ secrets.GCP_CREDENTIALS }}
           dir: "./packages/e2e/cypress/fixtures/"
       - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
+        uses: cypress-io/github-action@c495c3ddffba403ba11be95fffb67e25203b3799 # v7
         with:
           install: false
           browser: firefox
@@ -527,7 +527,7 @@ jobs:
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
+        uses: cypress-io/github-action@c495c3ddffba403ba11be95fffb67e25203b3799 # v7
         with:
           install: false
           working-directory: packages/e2e
@@ -586,7 +586,7 @@ jobs:
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
+        uses: cypress-io/github-action@c495c3ddffba403ba11be95fffb67e25203b3799 # v7
         with:
           install: false
           working-directory: packages/e2e
@@ -658,7 +658,7 @@ jobs:
           package_version="$(pnpm m ls --depth=-1 | grep '@lightdash/cli@' | sed -E 's/.*@lightdash\/cli@([0-9.]+).*/\1/')"
           if [ $package_version = $lightdash_version ]; then exit 0 ; else echo "Version mismatch"; exit 1; fi
       - name: Run Cypress
-        uses: cypress-io/github-action@783cb3f07983868532cabaedaa1e6c00ff4786a8 # v7
+        uses: cypress-io/github-action@c495c3ddffba403ba11be95fffb67e25203b3799 # v7
         with:
           install: false
           working-directory: packages/e2e
