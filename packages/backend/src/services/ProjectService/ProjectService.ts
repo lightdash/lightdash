@@ -1673,15 +1673,26 @@ export class ProjectService extends BaseService {
         }
     }
 
-    async saveExploresToCacheAndIndexCatalog(
-        userUuid: string,
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project',
-        jobUuid?: string | null,
-        requestMethod?: string | null,
-        projectConfigDefaults?: ProjectDefaults,
-    ) {
+    async saveExploresToCacheAndIndexCatalog(args: {
+        userUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project';
+        jobUuid?: string | null;
+        requestMethod?: string | null;
+        projectConfigDefaults?: ProjectDefaults;
+        cliVersion?: string | null;
+    }) {
+        const {
+            userUuid,
+            projectUuid,
+            explores,
+            compilationSource,
+            jobUuid,
+            requestMethod,
+            projectConfigDefaults,
+            cliVersion,
+        } = args;
         // We delete the explores when saving to cache which cascades to the catalog
         // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
@@ -1715,6 +1726,7 @@ export class ProjectService extends BaseService {
             projectUuid,
             organizationUuid,
             compilationSource,
+            cliVersion: cliVersion ?? null,
             projectDefault: projectConfigDefaults?.case_sensitive ?? null,
             exploreCount: explores.length,
             exploresWithFlag: explores
@@ -2202,15 +2214,15 @@ export class ProjectService extends BaseService {
                         projectUuid: newProjectUuid,
                         parameters: lightdashProjectConfig.parameters,
                     });
-                    await this.saveExploresToCacheAndIndexCatalog(
-                        user.userUuid,
-                        newProjectUuid,
+                    await this.saveExploresToCacheAndIndexCatalog({
+                        userUuid: user.userUuid,
+                        projectUuid: newProjectUuid,
                         explores,
-                        'create_project',
+                        compilationSource: 'create_project',
                         jobUuid,
-                        method,
-                        lightdashProjectConfig.defaults,
-                    );
+                        requestMethod: method,
+                        projectConfigDefaults: lightdashProjectConfig.defaults,
+                    });
                     return newProjectUuid;
                 },
             );
@@ -2283,16 +2295,15 @@ export class ProjectService extends BaseService {
             enabled: this.lightdashConfig.preAggregates.enabled,
         });
 
-        await this.saveExploresToCacheAndIndexCatalog(
-            user.userUuid,
+        await this.saveExploresToCacheAndIndexCatalog({
+            userUuid: user.userUuid,
             projectUuid,
-            exploresWithPreAggregates,
-
+            explores: exploresWithPreAggregates,
             // TODO: Do not hardcode CLI information here
-            'cli_deploy',
-            null,
-            'cli',
-        );
+            compilationSource: 'cli_deploy',
+            jobUuid: null,
+            requestMethod: 'cli',
+        });
 
         await this.schedulerClient.generateValidation({
             userUuid: user.userUuid,
@@ -2686,15 +2697,16 @@ export class ProjectService extends BaseService {
                             });
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
-                            await this.saveExploresToCacheAndIndexCatalog(
-                                user.userUuid,
+                            await this.saveExploresToCacheAndIndexCatalog({
+                                userUuid: user.userUuid,
                                 projectUuid,
                                 explores,
-                                'refresh_dbt',
-                                job.jobUuid,
-                                method,
-                                lightdashProjectConfig.defaults,
-                            );
+                                compilationSource: 'refresh_dbt',
+                                jobUuid: job.jobUuid,
+                                requestMethod: method,
+                                projectConfigDefaults:
+                                    lightdashProjectConfig.defaults,
+                            });
                             timings.cacheExplores.end = performance.now();
                         } finally {
                             await adapter.destroy();
@@ -5450,15 +5462,16 @@ export class ProjectService extends BaseService {
                         });
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();
-                        const result = this.saveExploresToCacheAndIndexCatalog(
-                            user.userUuid,
+                        const result = this.saveExploresToCacheAndIndexCatalog({
+                            userUuid: user.userUuid,
                             projectUuid,
                             explores,
-                            'refresh_dbt',
-                            job.jobUuid,
+                            compilationSource: 'refresh_dbt',
+                            jobUuid: job.jobUuid,
                             requestMethod,
-                            lightdashProjectConfig.defaults,
-                        );
+                            projectConfigDefaults:
+                                lightdashProjectConfig.defaults,
+                        });
                         timings.cacheExplores.end = performance.now();
 
                         return result;
@@ -8021,15 +8034,15 @@ export class ProjectService extends BaseService {
         }
 
         Logger.info(`Set explores for: ${projectToSetExplores}`);
-        await this.saveExploresToCacheAndIndexCatalog(
-            user.userUuid,
-            projectToSetExplores,
-            [...convertedExplores, ...exploreErrors],
-            'refresh_dbt',
-            null,
-            'api',
-            project.projectDefaults,
-        );
+        await this.saveExploresToCacheAndIndexCatalog({
+            userUuid: user.userUuid,
+            projectUuid: projectToSetExplores,
+            explores: [...convertedExplores, ...exploreErrors],
+            compilationSource: 'refresh_dbt',
+            jobUuid: null,
+            requestMethod: 'api',
+            projectConfigDefaults: project.projectDefaults,
+        });
 
         Logger.info(`Schedule validation:`, {
             userUuid: user.userUuid,

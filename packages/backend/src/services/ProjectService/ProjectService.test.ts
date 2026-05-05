@@ -1488,10 +1488,12 @@ describe('ProjectService', () => {
             });
 
             await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
-                user.userUuid,
-                projectUuid,
-                [validExplore],
-                'cli_deploy',
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                },
             );
 
             expect(

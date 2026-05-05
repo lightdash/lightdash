@@ -6,6 +6,7 @@ import {
     ApiFinalizeDeployResponse,
     ApiStartDeploySessionResponse,
     assertRegisteredAccount,
+    LightdashCliVersionHeader,
 } from '@lightdash/common';
 import {
     Body,
@@ -119,6 +120,7 @@ export class DeployController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 sessionUuid,
+                req.header(LightdashCliVersionHeader),
             );
         return {
             status: 'ok',
