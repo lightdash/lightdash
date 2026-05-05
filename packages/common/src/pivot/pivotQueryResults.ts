@@ -27,6 +27,21 @@ type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
 
+/**
+ * Cell-value selection for pivot output.
+ * - 'all'          → use `raw` for every cell (= legacy `onlyRaw: true`)
+ * - 'none'         → use `formatted` for every cell (= legacy `onlyRaw: false`)
+ * - 'non-temporal' → `raw` for non-temporal cells, `formatted` for DATE/TIMESTAMP cells
+ *                    (used by Google Sheets / Slack / email pivot deliveries to
+ *                    keep numeric native types while honoring the project tz)
+ */
+export type PivotRawSelection = 'all' | 'none' | 'non-temporal';
+
+const isTemporalField = (item: ItemsMap[string] | undefined): boolean =>
+    !!item &&
+    isField(item) &&
+    (item.type === DimensionType.DATE || item.type === DimensionType.TIMESTAMP);
+
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
     metricQuery: Pick<
@@ -44,6 +59,7 @@ type PivotQueryResultsArgs = {
     };
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
+    timezone?: string;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -227,6 +243,7 @@ const combinedRetrofit = (
     data: PivotData,
     getField: FieldFunction,
     getFieldLabel: FieldLabelFunction,
+    timezone?: string,
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
@@ -259,7 +276,13 @@ const combinedRetrofit = (
         if (!isSummable(item)) {
             return null;
         }
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(
+            item,
+            total,
+            false,
+            undefined,
+            timezone,
+        );
 
         return {
             raw: total,
@@ -274,7 +297,13 @@ const combinedRetrofit = (
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
         const item = getField(field.fieldId);
 
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(
+            item,
+            total,
+            false,
+            undefined,
+            timezone,
+        );
 
         return {
             raw: total,
@@ -525,6 +554,7 @@ export const pivotQueryResults = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    timezone,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -876,7 +906,7 @@ export const pivotQueryResults = ({
         },
         groupedSubtotals,
     };
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, timezone);
 };
 
 /**
@@ -892,6 +922,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel,
     groupedSubtotals,
     columnLimit,
+    timezone,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -908,6 +939,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
     columnLimit?: number;
+    timezone?: string;
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
@@ -1507,7 +1539,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         groupedSubtotals,
     };
 
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, timezone);
 };
 
 export type PivotResultsDataCell = {
@@ -1574,9 +1606,10 @@ type PivotResultsParams = {
     itemMap: ItemsMap;
     metricQuery: MetricQuery;
     customLabels: Record<string, string> | undefined;
-    onlyRaw: boolean;
+    rawFor: PivotRawSelection;
     maxColumnLimit: number;
     undefinedCharacter?: string;
+    timezone?: string;
 };
 
 export const pivotResultsAsData = ({
@@ -1585,10 +1618,11 @@ export const pivotResultsAsData = ({
     itemMap,
     metricQuery,
     customLabels,
-    onlyRaw,
+    rawFor,
     maxColumnLimit,
     undefinedCharacter = '',
     pivotDetails,
+    timezone,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1604,6 +1638,7 @@ export const pivotResultsAsData = ({
               pivotDetails,
               pivotConfig,
               groupedSubtotals: undefined,
+              timezone,
           })
         : pivotQueryResults({
               pivotConfig,
@@ -1614,14 +1649,26 @@ export const pivotResultsAsData = ({
               },
               getField: (fieldId: string) => itemMap && itemMap[fieldId],
               getFieldLabel,
+              timezone,
           });
 
-    const formatField = onlyRaw ? 'raw' : 'formatted';
+    const pickField = (fieldId: string): 'raw' | 'formatted' => {
+        switch (rawFor) {
+            case 'all':
+                return 'raw';
+            case 'none':
+                return 'formatted';
+            case 'non-temporal':
+                return isTemporalField(itemMap[fieldId]) ? 'formatted' : 'raw';
+            default:
+                return 'raw';
+        }
+    };
     const headers = pivotedResults.headerValues.reduce<string[][]>(
         (acc, row, i) => {
             const values = row.map((header) =>
                 'value' in header
-                    ? (header.value[formatField] as string)
+                    ? (header.value[pickField(header.fieldId)] as string)
                     : getFieldLabel(header.fieldId),
             );
             const fields = pivotedResults.titleFields[i];
@@ -1654,7 +1701,7 @@ export const pivotResultsAsData = ({
         const cells: PivotResultsDataCell[] = fieldIds.map((fieldId) => ({
             raw: row[fieldId]?.value?.raw ?? '',
             formatted:
-                (row[fieldId]?.value?.[formatField] as string) ||
+                (row[fieldId]?.value?.[pickField(fieldId)] as string) ||
                 undefinedCharacter,
             fieldId,
         }));

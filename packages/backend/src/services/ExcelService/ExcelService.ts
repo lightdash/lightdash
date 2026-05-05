@@ -205,7 +205,7 @@ export class ExcelService {
             itemMap,
             metricQuery,
             customLabels,
-            onlyRaw,
+            rawFor: onlyRaw ? 'all' : 'none',
             maxColumnLimit,
             pivotDetails,
         });
@@ -347,7 +347,7 @@ export class ExcelService {
             itemMap,
             metricQuery,
             customLabels,
-            onlyRaw,
+            rawFor: onlyRaw ? 'all' : 'none',
             maxColumnLimit,
             pivotDetails,
         });
