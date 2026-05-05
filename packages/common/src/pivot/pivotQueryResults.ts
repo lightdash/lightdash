@@ -49,7 +49,6 @@ type PivotQueryResultsArgs = {
     };
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
-    timezone?: string;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -233,7 +232,6 @@ const combinedRetrofit = (
     data: PivotData,
     getField: FieldFunction,
     getFieldLabel: FieldLabelFunction,
-    timezone?: string,
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
@@ -266,13 +264,7 @@ const combinedRetrofit = (
         if (!isSummable(item)) {
             return null;
         }
-        const formattedValue = formatItemValue(
-            item,
-            total,
-            false,
-            undefined,
-            timezone,
-        );
+        const formattedValue = formatItemValue(item, total, false, undefined);
 
         return {
             raw: total,
@@ -287,13 +279,7 @@ const combinedRetrofit = (
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
         const item = getField(field.fieldId);
 
-        const formattedValue = formatItemValue(
-            item,
-            total,
-            false,
-            undefined,
-            timezone,
-        );
+        const formattedValue = formatItemValue(item, total, false, undefined);
 
         return {
             raw: total,
@@ -544,7 +530,6 @@ export const pivotQueryResults = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
-    timezone,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -896,7 +881,7 @@ export const pivotQueryResults = ({
         },
         groupedSubtotals,
     };
-    return combinedRetrofit(pivotData, getField, getFieldLabel, timezone);
+    return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
 
 /**
@@ -912,7 +897,6 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel,
     groupedSubtotals,
     columnLimit,
-    timezone,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -929,7 +913,6 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
     columnLimit?: number;
-    timezone?: string;
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
@@ -1529,7 +1512,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         groupedSubtotals,
     };
 
-    return combinedRetrofit(pivotData, getField, getFieldLabel, timezone);
+    return combinedRetrofit(pivotData, getField, getFieldLabel);
 };
 
 export type PivotResultsDataCell = {
@@ -1599,9 +1582,8 @@ type PivotResultsParams = {
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
-    // When set, DATE/TIMESTAMP cells take the tz-aware `formatted` value
-    // even on `onlyRaw: true` paths. Also threaded into combinedRetrofit
-    // for total + header formatting.
+    // When set, DATE/TIMESTAMP cells take the tz-aware `formatted`
+    // value even on `onlyRaw: true` paths.
     timezone?: string;
 };
 
@@ -1631,7 +1613,6 @@ export const pivotResultsAsData = ({
               pivotDetails,
               pivotConfig,
               groupedSubtotals: undefined,
-              timezone,
           })
         : pivotQueryResults({
               pivotConfig,
@@ -1642,7 +1623,6 @@ export const pivotResultsAsData = ({
               },
               getField: (fieldId: string) => itemMap && itemMap[fieldId],
               getFieldLabel,
-              timezone,
           });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
