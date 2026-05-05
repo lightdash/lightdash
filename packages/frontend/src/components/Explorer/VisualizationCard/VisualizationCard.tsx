@@ -39,6 +39,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
@@ -83,15 +84,22 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const { colorScheme } = useMantineColorScheme();
     const dispatch = useExplorerDispatch();
 
-    const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && org?.chartDarkColors) {
-            return org.chartDarkColors;
-        }
-        return org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, org?.chartColors, org?.chartDarkColors]);
-
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
+
+    const projectUuid = savedChart?.projectUuid || fallBackUUid;
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
+        chartUuid: savedChart?.uuid,
+        dashboardUuid: savedChart?.dashboardUuid ?? undefined,
+        spaceUuid: savedChart?.spaceUuid,
+    });
+
+    const colorPalette = useMemo(() => {
+        if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
+            return resolvedPalette.darkColors;
+        }
+        return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
+    }, [colorScheme, resolvedPalette]);
 
     const {
         query,
@@ -159,8 +167,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
         [toggleExpandedSection],
     );
-
-    const projectUuid = savedChart?.projectUuid || fallBackUUid;
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 

@@ -8,13 +8,20 @@ import {
     type PivotChartLayout,
     type ValueLabelPositionOptions,
 } from '@lightdash/common';
-import { Accordion, SegmentedControl, Stack, Text } from '@mantine/core';
+import {
+    Accordion,
+    SegmentedControl,
+    Stack,
+    Text,
+    useMantineColorScheme,
+} from '@mantine/core';
 import { useMemo } from 'react';
 import {
     useAppSelector,
     useAppDispatch as useVizDispatch,
 } from '../../../features/sqlRunner/store/hooks';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { selectProjectUuid } from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
@@ -35,8 +42,15 @@ export const CartesianChartSeries = ({
     selectedChartType: ChartKind;
     actions: BarChartActionsType | LineChartActionsType;
 }) => {
-    const { data: org } = useOrganization();
-    const colors = org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
+    const projectUuid = useAppSelector(selectProjectUuid);
+    const { data: resolvedPalette } = useProjectColorPalette(
+        projectUuid || undefined,
+    );
+    const { colorScheme } = useMantineColorScheme();
+    const colors =
+        colorScheme === 'dark' && resolvedPalette?.darkColors?.length
+            ? resolvedPalette.darkColors
+            : (resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS);
     const dispatch = useVizDispatch();
 
     const currentConfig = useAppSelector((state) =>

@@ -55,6 +55,7 @@ import {
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
+    ECHARTS_DEFAULT_COLORS,
     Explore,
     ExploreError,
     ExploreType,
@@ -131,6 +132,7 @@ import {
     ReplaceCustomFieldsPayload,
     replaceDimensionInExplore,
     RequestMethod,
+    ResolvedProjectColorPalette,
     resolveQueryTimezone,
     resolveToBaseTimeDimension,
     ResultRow,
@@ -6549,6 +6551,46 @@ export class ProjectService extends BaseService {
         await this.projectModel.updateColorPalette(
             projectUuid,
             colorPaletteUuid,
+        );
+    }
+
+    async getResolvedColorPalette(
+        user: SessionUser,
+        projectUuid: string,
+        context: {
+            spaceUuid?: string;
+            dashboardUuid?: string;
+            chartUuid?: string;
+        } = {},
+    ): Promise<ResolvedProjectColorPalette> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const resolved = await this.savedChartModel.resolveColorPalette({
+            projectUuid,
+            organizationUuid,
+            spaceUuid: context.spaceUuid,
+            dashboardUuid: context.dashboardUuid,
+            chartUuid: context.chartUuid,
+        });
+
+        return (
+            resolved ?? {
+                colors: ECHARTS_DEFAULT_COLORS,
+                darkColors: null,
+                paletteUuid: null,
+                paletteName: null,
+                source: { type: 'default' },
+            }
         );
     }
 

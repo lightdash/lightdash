@@ -12,6 +12,7 @@ import {
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
     ApiProjectAccessListResponse,
+    ApiProjectColorPaletteResponse,
     ApiProjectResponse,
     ApiSpaceSummaryListResponse,
     ApiSqlChartAsCodeListResponse,
@@ -649,6 +650,40 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Get the resolved color palette for a project, walking the
+     * chart -> dashboard -> space -> project -> organization fallback chain
+     * (matches saved-chart resolution). The optional UUIDs let unsaved
+     * renderers (Explore, AI viz, sql runner) opt into deeper layers as
+     * they become available.
+     * @summary Get project color palette
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/colorPalette')
+    @OperationId('getProjectColorPalette')
+    async getProjectColorPalette(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() spaceUuid?: string,
+        @Query() dashboardUuid?: string,
+        @Query() chartUuid?: string,
+    ): Promise<ApiProjectColorPaletteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const palette = await this.services
+            .getProjectService()
+            .getResolvedColorPalette(toSessionUser(req.account), projectUuid, {
+                spaceUuid,
+                dashboardUuid,
+                chartUuid,
+            });
+        return {
+            status: 'ok',
+            results: palette,
         };
     }
 

@@ -25,6 +25,7 @@ import {
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type QueryObserverSuccessResult } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
@@ -34,8 +35,8 @@ import MetricQueryDataProvider from '../../../../../components/MetricQueryData/M
 import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
 import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
+import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useOrganization } from '../../../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
@@ -68,15 +69,16 @@ export const AiVisualizationRenderer: FC<Props> = ({
     onDashboardChartConfigChange: onDashboardChartConfigChangeProp,
 }) => {
     const { data: health } = useHealth();
-    const { data: organization } = useOrganization();
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid);
     const { colorScheme } = useMantineColorScheme();
 
     const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && organization?.chartDarkColors) {
-            return organization.chartDarkColors;
+        if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
+            return resolvedPalette.darkColors;
         }
-        return organization?.chartColors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, organization?.chartColors, organization?.chartDarkColors]);
+        return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
+    }, [colorScheme, resolvedPalette]);
 
     const { metricQuery, fields, resolvedTimezone } =
         queryExecutionHandle.data.query;

@@ -130,6 +130,7 @@ import {
 } from './openIdIdentity';
 import {
     type AllowedEmailDomains,
+    type ApiProjectColorPaletteResponse,
     type OnboardingStatus,
     type Organization,
     type OrganizationProject,
@@ -1035,6 +1036,7 @@ type ApiResults =
     | ApiMyAppsResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiProjectColorPaletteResponse['results']
     | DashboardPreAggregateAudit;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

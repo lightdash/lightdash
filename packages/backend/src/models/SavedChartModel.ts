@@ -36,6 +36,7 @@ import {
     NotFoundError,
     Organization,
     Project,
+    ResolvedProjectColorPalette,
     SavedChartDAO,
     SessionUser,
     SortField,
@@ -501,19 +502,21 @@ export class SavedChartModel {
         spaceUuid?: string;
         projectUuid: string;
         organizationUuid: string;
-    }): Promise<{
-        paletteUuid: string | null;
-        colors: string[];
-        darkColors: string[] | null;
-    } | null> {
+    }): Promise<ResolvedProjectColorPalette | null> {
         const override = this.lightdashConfig.appearance.overrideColorPalette;
         if (override && override.length > 0) {
-            return { paletteUuid: null, colors: override, darkColors: null };
+            return {
+                paletteUuid: null,
+                paletteName: null,
+                colors: override,
+                darkColors: null,
+                source: { type: 'config' },
+            };
         }
 
         // Single query: LEFT JOIN the palettes table twice (project's palette
-        // and org's palette) and COALESCE so the project palette wins when set
-        // and falls back to the org's active palette otherwise.
+        // and org's palette) and discriminate the winning level in JS so we
+        // can surface which entity owns the resolved palette.
         const result = await this.database(ProjectTableName)
             .innerJoin(
                 OrganizationTableName,
@@ -532,27 +535,71 @@ export class SavedChartModel {
             )
             .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
             .select<{
-                color_palette_uuid: string | null;
-                colors: string[] | null;
-                dark_colors: string[] | null;
+                project_uuid: string;
+                project_name: string;
+                organization_uuid: string;
+                organization_name: string;
+                project_palette_uuid: string | null;
+                project_palette_name: string | null;
+                project_palette_colors: string[] | null;
+                project_palette_dark_colors: string[] | null;
+                org_palette_uuid: string | null;
+                org_palette_name: string | null;
+                org_palette_colors: string[] | null;
+                org_palette_dark_colors: string[] | null;
             }>([
-                this.database.raw(
-                    'COALESCE(project_palette.color_palette_uuid, org_palette.color_palette_uuid) as color_palette_uuid',
-                ),
-                this.database.raw(
-                    'COALESCE(project_palette.colors, org_palette.colors) as colors',
-                ),
-                this.database.raw(
-                    'COALESCE(project_palette.dark_colors, org_palette.dark_colors) as dark_colors',
-                ),
+                `${ProjectTableName}.project_uuid as project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${OrganizationTableName}.organization_uuid as organization_uuid`,
+                `${OrganizationTableName}.organization_name as organization_name`,
+                'project_palette.color_palette_uuid as project_palette_uuid',
+                'project_palette.name as project_palette_name',
+                'project_palette.colors as project_palette_colors',
+                'project_palette.dark_colors as project_palette_dark_colors',
+                'org_palette.color_palette_uuid as org_palette_uuid',
+                'org_palette.name as org_palette_name',
+                'org_palette.colors as org_palette_colors',
+                'org_palette.dark_colors as org_palette_dark_colors',
             ])
             .first();
 
-        if (result?.color_palette_uuid && result.colors) {
+        if (!result) {
+            return null;
+        }
+
+        if (
+            result.project_palette_uuid &&
+            result.project_palette_colors &&
+            result.project_palette_name
+        ) {
             return {
-                paletteUuid: result.color_palette_uuid,
-                colors: result.colors,
-                darkColors: result.dark_colors,
+                paletteUuid: result.project_palette_uuid,
+                paletteName: result.project_palette_name,
+                colors: result.project_palette_colors,
+                darkColors: result.project_palette_dark_colors,
+                source: {
+                    type: 'project',
+                    uuid: result.project_uuid,
+                    name: result.project_name,
+                },
+            };
+        }
+
+        if (
+            result.org_palette_uuid &&
+            result.org_palette_colors &&
+            result.org_palette_name
+        ) {
+            return {
+                paletteUuid: result.org_palette_uuid,
+                paletteName: result.org_palette_name,
+                colors: result.org_palette_colors,
+                darkColors: result.org_palette_dark_colors,
+                source: {
+                    type: 'organization',
+                    uuid: result.organization_uuid,
+                    name: result.organization_name,
+                },
             };
         }
 

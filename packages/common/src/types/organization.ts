@@ -191,3 +191,31 @@ export type ApiCreatedColorPaletteResponse = {
     status: 'ok';
     results: OrganizationColorPalette;
 };
+
+/**
+ * Where a resolved colour palette came from. The `config` and `default` cases
+ * carry no entity reference; the rest expose the UUID and human-readable name
+ * of the entity (organization, project, space, dashboard or chart) that owns
+ * the winning palette in the resolution chain.
+ */
+export type ColorPaletteSource =
+    | { type: 'config' }
+    | { type: 'default' }
+    | { type: 'organization'; uuid: string; name: string }
+    | { type: 'project'; uuid: string; name: string }
+    | { type: 'space'; uuid: string; name: string }
+    | { type: 'dashboard'; uuid: string; name: string }
+    | { type: 'chart'; uuid: string; name: string };
+
+export type ResolvedProjectColorPalette = {
+    colors: string[];
+    darkColors: string[] | null;
+    paletteUuid: string | null;
+    paletteName: string | null;
+    source: ColorPaletteSource;
+};
+
+export type ApiProjectColorPaletteResponse = {
+    status: 'ok';
+    results: ResolvedProjectColorPalette;
+};
