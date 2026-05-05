@@ -14,6 +14,7 @@ describe('isAggregateCall', () => {
         ['=SUMIF(A, B > 0)', true, 'SUMIF'],
         ['=AVERAGEIF(A, B > 0)', true, 'AVERAGEIF'],
         ['=COUNTIF(B > 0)', true, 'COUNTIF'],
+        ['=COUNT(DISTINCT A)', true, 'COUNT(DISTINCT)'],
     ])('recognises %s as aggregate (%s)', (formula, expected, _desc) => {
         expect(isAggregateCall(parse(formula))).toBe(expected);
     });

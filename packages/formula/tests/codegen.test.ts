@@ -82,6 +82,15 @@ describe('codegen', () => {
                 }),
             ).toBe(`COUNT(CASE WHEN ("region" = 'EU') THEN 1 END)`);
         });
+
+        it('COUNT(DISTINCT col)', () => {
+            expect(
+                compile('=COUNT(DISTINCT region)', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe(`COUNT(DISTINCT "region")`);
+        });
     });
 
     describe('scalar functions stay bare', () => {
@@ -116,6 +125,29 @@ describe('codegen', () => {
                     columns,
                 }),
             ).toBe('CASE WHEN ("revenue" > 0) THEN 1 ELSE 0 END');
+        });
+
+        it('CASE WHEN compiles to the same SQL as the equivalent IF', () => {
+            const fromCase = compile(
+                '=CASE WHEN revenue > 0 THEN 1 ELSE 0 END',
+                { dialect: 'postgres', columns },
+            );
+            const fromIf = compile('=IF(revenue > 0, 1, 0)', {
+                dialect: 'postgres',
+                columns,
+            });
+            expect(fromCase).toBe(fromIf);
+        });
+
+        it('multi-branch CASE compiles to nested CASE WHEN ... END', () => {
+            expect(
+                compile(
+                    '=CASE WHEN revenue > 200 THEN "high" WHEN revenue > 100 THEN "medium" ELSE "low" END',
+                    { dialect: 'postgres', columns },
+                ),
+            ).toBe(
+                `CASE WHEN ("revenue" > 200) THEN 'high' ELSE CASE WHEN ("revenue" > 100) THEN 'medium' ELSE 'low' END END`,
+            );
         });
 
         it('arithmetic stays scalar', () => {
@@ -161,6 +193,16 @@ describe('codegen', () => {
                     renderAggregate: asWindowAggregate,
                 }),
             ).toBe(`COUNT(CASE WHEN ("region" = 'EU') THEN 1 END) OVER ()`);
+        });
+
+        it('is invoked on COUNT(DISTINCT col)', () => {
+            expect(
+                compile('=COUNT(DISTINCT region)', {
+                    dialect: 'postgres',
+                    columns,
+                    renderAggregate: asWindowAggregate,
+                }),
+            ).toBe(`COUNT(DISTINCT "region") OVER ()`);
         });
 
         it('is invoked on 1-arg MIN but not 2-arg (scalar LEAST)', () => {

@@ -624,6 +624,98 @@ describe('Formula Grammar', () => {
         });
     });
 
+    describe('CASE WHEN expression', () => {
+        it('parses single WHEN with ELSE as a flat If', () => {
+            const ast = parse('=CASE WHEN A > 0 THEN 1 ELSE 0 END');
+            expect(ast).toEqual({
+                type: 'If',
+                condition: {
+                    type: 'Comparison',
+                    op: '>',
+                    left: { type: 'ColumnRef', name: 'A' },
+                    right: { type: 'NumberLiteral', value: 0 },
+                },
+                then: { type: 'NumberLiteral', value: 1 },
+                else: { type: 'NumberLiteral', value: 0 },
+            });
+        });
+
+        it('parses single WHEN without ELSE (else is null)', () => {
+            const ast = parse('=CASE WHEN A > 0 THEN 1 END');
+            expect(ast).toEqual({
+                type: 'If',
+                condition: {
+                    type: 'Comparison',
+                    op: '>',
+                    left: { type: 'ColumnRef', name: 'A' },
+                    right: { type: 'NumberLiteral', value: 0 },
+                },
+                then: { type: 'NumberLiteral', value: 1 },
+                else: null,
+            });
+        });
+
+        it('desugars multiple WHENs into right-nested Ifs', () => {
+            const ast = parse(
+                '=CASE WHEN A > 200 THEN "high" WHEN A > 100 THEN "medium" ELSE "low" END',
+            );
+            expect(ast).toEqual({
+                type: 'If',
+                condition: {
+                    type: 'Comparison',
+                    op: '>',
+                    left: { type: 'ColumnRef', name: 'A' },
+                    right: { type: 'NumberLiteral', value: 200 },
+                },
+                then: { type: 'StringLiteral', value: 'high' },
+                else: {
+                    type: 'If',
+                    condition: {
+                        type: 'Comparison',
+                        op: '>',
+                        left: { type: 'ColumnRef', name: 'A' },
+                        right: { type: 'NumberLiteral', value: 100 },
+                    },
+                    then: { type: 'StringLiteral', value: 'medium' },
+                    else: { type: 'StringLiteral', value: 'low' },
+                },
+            });
+        });
+
+        it('produces identical AST to the equivalent nested IF', () => {
+            const fromCase = parse(
+                '=CASE WHEN A > 200 THEN "high" WHEN A > 100 THEN "medium" ELSE "low" END',
+            );
+            const fromIf = parse(
+                '=IF(A > 200, "high", IF(A > 100, "medium", "low"))',
+            );
+            expect(fromCase).toEqual(fromIf);
+        });
+
+        it('parses lowercase keywords (case-insensitive)', () => {
+            const ast = parse('=case when A > 0 then 1 else 0 end');
+            expect(ast.type).toBe('If');
+        });
+
+        it('accepts boolean operators in WHEN condition', () => {
+            const ast = parse(
+                '=CASE WHEN A > 0 AND B < 10 THEN 1 ELSE 0 END',
+            );
+            expect(ast.type).toBe('If');
+            expect(ast).toMatchObject({
+                condition: { type: 'Logical', op: 'AND' },
+            });
+        });
+
+        it('rejects CASE with no WHEN clause', () => {
+            expect(() => parse('=CASE END')).toThrow();
+        });
+
+        it('rejects CASE missing END', () => {
+            expect(() => parse('=CASE WHEN A > 0 THEN 1')).toThrow();
+        });
+    });
+
     describe('conditional aggregates', () => {
         it('parses SUMIF', () => {
             const ast = parse('=SUMIF(A, B = "Electronics")');
@@ -664,6 +756,45 @@ describe('Formula Grammar', () => {
                     op: '>',
                     left: { type: 'ColumnRef', name: 'A' },
                     right: { type: 'NumberLiteral', value: 100 },
+                },
+            });
+        });
+
+        it('parses COUNT(DISTINCT col) as a CountDistinct node', () => {
+            const ast = parse('=COUNT(DISTINCT A)');
+            expect(ast).toEqual({
+                type: 'CountDistinct',
+                arg: { type: 'ColumnRef', name: 'A' },
+            });
+        });
+
+        it('parses COUNT(DISTINCT) case-insensitively', () => {
+            const ast = parse('=count(distinct A)');
+            expect(ast).toEqual({
+                type: 'CountDistinct',
+                arg: { type: 'ColumnRef', name: 'A' },
+            });
+        });
+
+        it('still parses plain COUNT(col) as ZeroOrOneArgFn', () => {
+            const ast = parse('=COUNT(A)');
+            expect(ast.type).toBe('ZeroOrOneArgFn');
+        });
+
+        it('still parses COUNT() as ZeroOrOneArgFn (COUNT(*))', () => {
+            const ast = parse('=COUNT()');
+            expect(ast.type).toBe('ZeroOrOneArgFn');
+        });
+
+        it('parses COUNT(DISTINCT expr1 + expr2) keeping the binary op intact', () => {
+            const ast = parse('=COUNT(DISTINCT A + B)');
+            expect(ast).toEqual({
+                type: 'CountDistinct',
+                arg: {
+                    type: 'BinaryOp',
+                    op: '+',
+                    left: { type: 'ColumnRef', name: 'A' },
+                    right: { type: 'ColumnRef', name: 'B' },
                 },
             });
         });

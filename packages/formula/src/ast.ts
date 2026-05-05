@@ -19,6 +19,7 @@ export const isAggregateCall = (node: ASTNode): boolean => {
     switch (node.type) {
         case 'ConditionalAggregate':
         case 'CountIf':
+        case 'CountDistinct':
             return true;
         case 'SingleArgFn':
         case 'ZeroOrOneArgFn':
@@ -76,6 +77,8 @@ export const extractColumnRefs = (node: ASTNode): string[] => {
             ];
         case 'CountIf':
             return extractColumnRefs(node.condition);
+        case 'CountDistinct':
+            return extractColumnRefs(node.arg);
         case 'SingleArgFn':
             return extractColumnRefs(node.arg);
         case 'ZeroOrOneArgFn':

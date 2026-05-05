@@ -102,8 +102,10 @@ UnaryExpr
 
 Primary
   = IfExpr
+  / CaseExpr
   / ConditionalAggregate
   / CountIf
+  / CountDistinctExpr
   / DateTruncExpr
   / DateAddOrSubExpr
   / DateDiffExpr
@@ -129,6 +131,24 @@ IfExpr
       return { type: "If", condition, then, "else": else_ ? else_[3] : null };
     }
 
+// Searched CASE (CASE WHEN c1 THEN v1 [WHEN c2 THEN v2]* [ELSE v] END)
+// desugars to nested `If` nodes at parse time so the AST and per-dialect
+// codegen are identical to a hand-written nested IF.
+CaseExpr
+  = "CASE"i _ first:WhenClause rest:(_ WhenClause)* elseClause:(_ "ELSE"i _ Expression)? _ "END"i {
+      const clauses = [first, ...rest.map(r => r[1])];
+      const else_ = elseClause ? elseClause[3] : null;
+      return clauses.reduceRight(
+        (acc, c) => ({ type: "If", condition: c.condition, then: c.then, "else": acc }),
+        else_
+      );
+    }
+
+WhenClause
+  = "WHEN"i _ condition:BooleanOr _ "THEN"i _ then:Expression {
+      return { condition, then };
+    }
+
 ConditionalAggregate
   = name:Identifier &{ return conditionalAggFns.includes(name.toUpperCase()); }
     _ "(" _ value:Expression _ "," _ condition:BooleanOr _ ")" {
@@ -138,6 +158,15 @@ ConditionalAggregate
 CountIf
   = "COUNTIF"i _ "(" _ condition:BooleanOr _ ")" {
       return { type: "CountIf", condition };
+    }
+
+// COUNT(DISTINCT expr) is parsed as a dedicated AST node rather than smuggling
+// a `distinct` flag onto ZeroOrOneArgFn — keeps the AST shape per node strict.
+// Must be tried before the generic ZeroOrOneArgFn rule (which would otherwise
+// fail at the DISTINCT token and bubble through to InvalidFn).
+CountDistinctExpr
+  = "COUNT"i _ "(" _ "DISTINCT"i _ arg:Expression _ ")" {
+      return { type: "CountDistinct", arg };
     }
 
 // DATE_TRUNC("unit", date) — first arg must be a whitelisted string literal.

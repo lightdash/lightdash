@@ -72,6 +72,7 @@ export type ASTNode =
     | IfNode
     | ConditionalAggregateNode
     | CountIfNode
+    | CountDistinctNode
     | ZeroArgFnNode
     | SingleArgFnNode
     | OneOrTwoArgFnNode
@@ -119,6 +120,11 @@ export interface ConditionalAggregateNode {
 export interface CountIfNode {
     type: 'CountIf';
     condition: ASTNode;
+}
+
+export interface CountDistinctNode {
+    type: 'CountDistinct';
+    arg: ASTNode;
 }
 
 export interface ZeroArgFnNode {

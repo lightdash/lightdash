@@ -7,6 +7,7 @@ import type {
     ComparisonNode,
     CompileOptions,
     ConditionalAggregateNode,
+    CountDistinctNode,
     CountIfNode,
     DateFnNode,
     DateUnit,
@@ -66,6 +67,8 @@ export class SqlGenerator {
                 return this.generateConditionalAggregate(node);
             case 'CountIf':
                 return this.generateCountIf(node);
+            case 'CountDistinct':
+                return this.generateCountDistinct(node);
             case 'ZeroArgFn':
                 return this.generateZeroArgFn(node);
             case 'SingleArgFn':
@@ -172,6 +175,10 @@ export class SqlGenerator {
     protected generateCountIf(node: CountIfNode): string {
         const condition = this.generate(node.condition);
         return `COUNT(CASE WHEN ${condition} THEN 1 END)`;
+    }
+
+    protected generateCountDistinct(node: CountDistinctNode): string {
+        return `COUNT(DISTINCT ${this.generate(node.arg)})`;
     }
 
     protected generateZeroArgFn(node: ZeroArgFnNode): string {
