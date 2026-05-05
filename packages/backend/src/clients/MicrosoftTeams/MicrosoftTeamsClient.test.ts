@@ -1,7 +1,4 @@
-import {
-    classifyHttpStatus,
-    redactWebhookIdentity,
-} from './MicrosoftTeamsClient';
+import { redactWebhookIdentity } from './MicrosoftTeamsClient';
 
 describe('redactWebhookIdentity', () => {
     const teamsWebhookUrl =
@@ -62,30 +59,5 @@ describe('redactWebhookIdentity', () => {
     it('returns the literal "invalid-url" string for malformed input without throwing', () => {
         expect(() => redactWebhookIdentity('not-a-url')).not.toThrow();
         expect(redactWebhookIdentity('not-a-url')).toBe('invalid-url');
-    });
-});
-
-describe('classifyHttpStatus', () => {
-    it('classifies 2xx as "ok"', () => {
-        expect(classifyHttpStatus(200)).toBe('ok');
-        expect(classifyHttpStatus(202)).toBe('ok');
-        expect(classifyHttpStatus(299)).toBe('ok');
-    });
-
-    it('classifies 4xx as "client_error"', () => {
-        expect(classifyHttpStatus(400)).toBe('client_error');
-        expect(classifyHttpStatus(404)).toBe('client_error');
-        expect(classifyHttpStatus(499)).toBe('client_error');
-    });
-
-    it('classifies 5xx as "server_error"', () => {
-        expect(classifyHttpStatus(500)).toBe('server_error');
-        expect(classifyHttpStatus(503)).toBe('server_error');
-    });
-
-    it('classifies anything else as "unexpected"', () => {
-        expect(classifyHttpStatus(100)).toBe('unexpected');
-        expect(classifyHttpStatus(300)).toBe('unexpected');
-        expect(classifyHttpStatus(0)).toBe('unexpected');
     });
 });

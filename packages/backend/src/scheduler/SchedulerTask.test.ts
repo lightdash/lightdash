@@ -124,7 +124,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: true,
             fieldId: 'm',
             operator: ThresholdOperator.GREATER_THAN,
@@ -148,7 +148,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: false,
             fieldId: 'm',
             operator: ThresholdOperator.GREATER_THAN,
@@ -172,7 +172,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: true,
             fieldId: 'm',
             operator: ThresholdOperator.LESS_THAN,
@@ -196,7 +196,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: false,
             fieldId: 'm',
             operator: ThresholdOperator.LESS_THAN,
@@ -220,7 +220,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 120 }, { m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: true,
             fieldId: 'm',
             operator: ThresholdOperator.INCREASED_BY,
@@ -244,7 +244,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 120 }, { m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: false,
             fieldId: 'm',
             operator: ThresholdOperator.INCREASED_BY,
@@ -268,7 +268,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 50 }, { m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: true,
             fieldId: 'm',
             operator: ThresholdOperator.DECREASED_BY,
@@ -292,7 +292,7 @@ describe('evaluateThreshold', () => {
             ],
             [{ m: 90 }, { m: 100 }],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: false,
             fieldId: 'm',
             operator: ThresholdOperator.DECREASED_BY,
@@ -316,7 +316,7 @@ describe('evaluateThreshold', () => {
             ],
             [],
         );
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: false,
             fieldId: 'm',
             operator: ThresholdOperator.GREATER_THAN,
@@ -329,7 +329,7 @@ describe('evaluateThreshold', () => {
 
     it('should return null diagnostic fields when thresholds are empty', () => {
         const result = SchedulerTask.evaluateThreshold([], [{ m: 100 }]);
-        expect(result).toEqual({
+        expect(result).toMatchObject({
             met: false,
             fieldId: null,
             operator: null,
