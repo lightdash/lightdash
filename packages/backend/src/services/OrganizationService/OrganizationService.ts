@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AllowedEmailDomains,
     assertIsAccountWithOrg,
     convertProjectRoleToOrganizationRole,
@@ -107,7 +108,7 @@ export class OrganizationService extends BaseService {
         this.featureFlagModel = featureFlagModel;
     }
 
-    async get(account: RegisteredAccount): Promise<Organization> {
+    async get(account: Account): Promise<Organization> {
         assertIsAccountWithOrg(account);
 
         const needsProject = !(await this.projectModel.hasProjects(

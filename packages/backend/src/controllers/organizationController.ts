@@ -73,12 +73,11 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiOrganization> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .get(req.account),
+                .get(req.account!),
         };
     }
 
