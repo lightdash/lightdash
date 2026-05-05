@@ -19,7 +19,7 @@
     "pg": "8.13.1",
     "snowflake-sdk": "2.3.4",
     "trino-client": "0.2.9",
-    "tsx": "4.19.2"
+    "tsx": "4.19.4"
   },
   "devDependencies": {
     "@types/pg": "8.11.10",
