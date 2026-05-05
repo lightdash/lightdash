@@ -107,13 +107,21 @@ export const useExplorerQueryManager = () => {
     const missingRequiredParameters = useMemo(() => {
         if (parameterReferences === null) return null;
 
-        // Missing required parameters are the ones that are not set and don't have a default value
-        const missing = parameterReferences.filter(
+        // Two ways a parameter is "required" for query execution:
+        //   1. It is referenced in the compiled SQL — without a value the SQL substitution will fail
+        //   2. It has `required: true` in its definition — the user has marked it mandatory regardless of whether it appears in current SQL (e.g. liquid-only usage)
+        const requiredKeys = Object.keys(parameterDefinitions ?? {}).filter(
+            (key) => parameterDefinitions?.[key]?.required === true,
+        );
+        const keysToCheck = Array.from(
+            new Set([...parameterReferences, ...requiredKeys]),
+        );
+
+        return keysToCheck.filter(
             (parameter) =>
                 !parameters?.[parameter] &&
                 !parameterDefinitions?.[parameter]?.default,
         );
-        return missing;
     }, [parameterReferences, parameters, parameterDefinitions]);
 
     // Dispatch functions for query UUID history

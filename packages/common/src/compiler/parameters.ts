@@ -133,15 +133,21 @@ export const getAvailableParameterNames = (
     );
 
 /**
- * Get all available parameter names for a project and explore
- * @param exploreParameters - The explore parameters
- * @param includedTables - The included tables
- * @returns An array of available parameter names
+ * Get all available parameter names for a project and explore.
+ *
+ * When `baseTable` is provided, parameters defined on tables other than the
+ * base are still returned (so they can be referenced in SQL/liquid), but their
+ * `required` flag is dropped. Required only applies to the explore's base
+ * table — joined tables become required only if their params actually appear
+ * in the compiled SQL (handled separately via `parameterReferences`).
  */
 export const getAvailableParametersFromTables = (
     includedTables: (Table | CompiledTable)[],
+    baseTable?: string,
 ): Record<string, LightdashProjectParameter> =>
     includedTables.reduce((acc, table) => {
+        const tableName = table.originalName ?? table.name;
+        const isBaseTable = baseTable !== undefined && tableName === baseTable;
         const tableParameters = Object.keys(table.parameters || {}).reduce<
             Record<string, LightdashProjectParameter>
         >((acc2, p) => {
@@ -150,8 +156,6 @@ export const getAvailableParametersFromTables = (
                 return acc2;
             }
 
-            // Use the original table name for parameters if available, otherwise use the current name
-            const tableName = table.originalName ?? table.name;
             const parameterKey = `${tableName}.${p}`;
 
             return {
@@ -159,6 +163,9 @@ export const getAvailableParametersFromTables = (
                 [parameterKey]: {
                     ...parameter,
                     type: parameter.type || 'string',
+                    ...(baseTable !== undefined && !isBaseTable
+                        ? { required: false }
+                        : {}),
                 },
             };
         }, {});
@@ -219,14 +226,33 @@ const getParametersSchemaAndValidator = ():
     return cached;
 };
 
+export type ParameterScope = 'project' | 'model';
+
 /**
  * Validate parameter configuration using AJV against the JSON schema.
+ *
+ * `scope` defaults to 'model' for backwards compatibility. When 'project' is
+ * passed, fields that are only valid at model level (currently `required`) are
+ * rejected with a clear error.
  */
 export const validateParameterConfiguration = (
     parameters: Record<string, LightdashProjectParameter> | undefined,
+    scope: ParameterScope = 'model',
 ): { isValid: boolean; error: string | null } => {
     if (!parameters || Object.keys(parameters).length === 0) {
         return { isValid: true, error: null };
+    }
+
+    if (scope === 'project') {
+        const projectLevelRequired = Object.entries(parameters)
+            .filter(([, def]) => def?.required === true)
+            .map(([name]) => name);
+        if (projectLevelRequired.length > 0) {
+            return {
+                isValid: false,
+                error: `\`required: true\` is only supported on model-level parameters. Move these parameters under a model's \`config.meta.parameters\` to require them: ${projectLevelRequired.join(', ')}`,
+            };
+        }
     }
 
     const schemaAndValidator = getParametersSchemaAndValidator();

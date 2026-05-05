@@ -11,6 +11,23 @@ models:
             options_from_dimension:
               dimension: "first_name"
               model: "customers"
+          required_tenant:
+            label: "Tenant (required, no dimension reference)"
+            description: "Demo of a required parameter that has no underlying dimension reference. It is always shown in the Customers explore and the query is blocked until a value is selected."
+            required: true
+            options:
+              - "acme"
+              - "globex"
+              - "stark-industries"
+          required_region_with_default:
+            label: "Region (required with default)"
+            description: "Demo of a required parameter that has a default — always shown but does not block the query."
+            required: true
+            default: "EMEA"
+            options:
+              - "AMER"
+              - "EMEA"
+              - "APAC"
         primary_key: customer_id
         spotlight:
           categories: ["experimental"]

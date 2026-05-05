@@ -553,8 +553,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             .flatMap((tile) => tileParameterReferences[tile.uuid] ?? []);
 
         return Object.fromEntries(
-            Object.entries(parameters).filter(([key]) =>
-                activeParamKeys.includes(key),
+            Object.entries(parameters).filter(
+                ([key, def]) =>
+                    def.required === true || activeParamKeys.includes(key),
             ),
         );
     }, [dashboardTiles, parameters, tileParameterReferences, isActiveTile]);

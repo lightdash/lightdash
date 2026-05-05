@@ -995,6 +995,10 @@
                                     "description": "Whether users can input custom values beyond predefined options",
                                     "type": "boolean"
                                 },
+                                "required": {
+                                    "description": "When true, the parameter is always shown in the explore and a value (or default) must be set before the query can run",
+                                    "type": "boolean"
+                                },
                                 "options_from_dimension": {
                                     "description": "Get parameter options from a dimension in a model",
                                     "type": "object",

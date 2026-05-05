@@ -122,7 +122,10 @@ export const useDashboardChartReadyQuery = (
     useEffect(() => {
         if (explore) {
             addParameterDefinitions(
-                getAvailableParametersFromTables(Object.values(explore.tables)),
+                getAvailableParametersFromTables(
+                    Object.values(explore.tables),
+                    explore.baseTable,
+                ),
             );
         }
     }, [explore, addParameterDefinitions]);

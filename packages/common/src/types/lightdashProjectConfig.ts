@@ -21,6 +21,7 @@ export type LightdashProjectParameter = {
     default?: ParameterValue;
     multiple?: boolean; // the parameter input will be a multi select
     allow_custom_values?: boolean; // allows users to input custom values beyond predefined options
+    required?: boolean; // when true, the parameter is always shown in the explore and a value (or default) must be set before the query can run
     options?: string[] | number[]; // hardcoded options - kept separate as they're always homogeneous arrays
     options_from_dimension?: {
         // options will be populated from dimension values

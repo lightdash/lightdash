@@ -23,8 +23,9 @@ const EmbedDashboardParameters: FC = () => {
 
     const referencedParameters = useMemo(() => {
         return Object.fromEntries(
-            Object.entries(parameterDefinitions).filter(([key]) =>
-                parameterReferences.has(key),
+            Object.entries(parameterDefinitions).filter(
+                ([key, def]) =>
+                    def.required === true || parameterReferences.has(key),
             ),
         );
     }, [parameterDefinitions, parameterReferences]);

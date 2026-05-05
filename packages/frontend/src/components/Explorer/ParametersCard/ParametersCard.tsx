@@ -40,8 +40,10 @@ const ParametersCard = memo(
 
         const filteredParameterDefinitions = useMemo(() => {
             return Object.fromEntries(
-                Object.entries(parameterDefinitions).filter(([key]) =>
-                    parameterReferences?.includes(key),
+                Object.entries(parameterDefinitions).filter(
+                    ([key, def]) =>
+                        def.required === true ||
+                        parameterReferences?.includes(key),
                 ),
             );
         }, [parameterDefinitions, parameterReferences]);

@@ -159,6 +159,7 @@ import {
     UserAccessControls,
     UserAttributeValueMap,
     UserWarehouseCredentials,
+    validateParameterConfiguration,
     VizColumn,
     WarehouseClient,
     WarehouseConnectionError,
@@ -7754,6 +7755,16 @@ export class ProjectService extends BaseService {
         ) {
             throw new ForbiddenError(
                 `User does not have permission to update project parameters`,
+            );
+        }
+
+        const validation = validateParameterConfiguration(
+            parameters,
+            'project',
+        );
+        if (!validation.isValid) {
+            throw new ParameterError(
+                validation.error ?? 'Invalid project parameter configuration',
             );
         }
 

@@ -1,4 +1,6 @@
+import { type Table } from '../types/explore';
 import {
+    getAvailableParametersFromTables,
     getParameterReferences,
     validateParameterConfiguration,
     validateParameterNames,
@@ -370,5 +372,155 @@ describe('validateParameterConfiguration', () => {
         });
         expect(result.isValid).toBe(true);
         expect(result.error).toBeNull();
+    });
+
+    it('should pass for model-level parameter with required: true', () => {
+        const result = validateParameterConfiguration(
+            {
+                tenant: {
+                    label: 'Tenant',
+                    options: ['acme', 'globex'],
+                    required: true,
+                },
+            },
+            'model',
+        );
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should pass for model-level parameter with required: false', () => {
+        const result = validateParameterConfiguration(
+            {
+                tenant: {
+                    label: 'Tenant',
+                    options: ['acme', 'globex'],
+                    required: false,
+                },
+            },
+            'model',
+        );
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should still enforce options/options_from_dimension/allow_custom_values when required is set', () => {
+        const result = validateParameterConfiguration(
+            {
+                tenant: {
+                    label: 'Tenant',
+                    required: true,
+                },
+            },
+            'model',
+        );
+        expect(result.isValid).toBe(false);
+        expect(result.error).not.toBeNull();
+    });
+
+    it('should reject project-level parameter with required: true', () => {
+        const result = validateParameterConfiguration(
+            {
+                tenant: {
+                    label: 'Tenant',
+                    options: ['acme', 'globex'],
+                    required: true,
+                },
+            },
+            'project',
+        );
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain('tenant');
+        expect(result.error).toContain('model-level');
+    });
+
+    it('should pass for project-level parameter without required', () => {
+        const result = validateParameterConfiguration(
+            {
+                tenant: {
+                    label: 'Tenant',
+                    options: ['acme', 'globex'],
+                },
+            },
+            'project',
+        );
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+
+    it('should pass for project-level parameter with required: false', () => {
+        const result = validateParameterConfiguration(
+            {
+                tenant: {
+                    label: 'Tenant',
+                    options: ['acme', 'globex'],
+                    required: false,
+                },
+            },
+            'project',
+        );
+        expect(result.isValid).toBe(true);
+        expect(result.error).toBeNull();
+    });
+});
+
+describe('getAvailableParametersFromTables', () => {
+    const buildTable = (
+        name: string,
+        params: Record<
+            string,
+            { label: string; required?: boolean; options?: string[] }
+        >,
+    ): Table =>
+        ({
+            name,
+            originalName: name,
+            label: name,
+            database: 'db',
+            schema: 'public',
+            sqlTable: `"${name}"`,
+            dimensions: {},
+            metrics: {},
+            lineageGraph: {},
+            parameters: params,
+        }) as unknown as Table;
+
+    const tables = [
+        buildTable('customers', {
+            customer_name: { label: 'Customer name', options: ['a'] },
+            required_tenant: {
+                label: 'Tenant',
+                required: true,
+                options: ['acme'],
+            },
+        }),
+        buildTable('orders', {
+            currency: { label: 'Currency', options: ['usd'] },
+        }),
+    ];
+
+    it('preserves `required` on all tables when no baseTable is provided', () => {
+        const result = getAvailableParametersFromTables(tables);
+        expect(result['customers.required_tenant'].required).toBe(true);
+        expect(result['customers.customer_name'].required).toBeUndefined();
+    });
+
+    it('preserves `required` on the base table when baseTable is provided', () => {
+        const result = getAvailableParametersFromTables(tables, 'customers');
+        expect(result['customers.required_tenant'].required).toBe(true);
+    });
+
+    it('strips `required` from non-base tables when baseTable is provided', () => {
+        const result = getAvailableParametersFromTables(tables, 'orders');
+        expect(result['customers.required_tenant'].required).toBe(false);
+        expect(result['customers.customer_name'].required).toBe(false);
+        // Base-table params keep their original (un-set) required flag
+        expect(result['orders.currency'].required).toBeUndefined();
+    });
+
+    it('keeps non-required params from joined tables available for SQL references', () => {
+        const result = getAvailableParametersFromTables(tables, 'orders');
+        expect(result['customers.customer_name']).toBeDefined();
+        expect(result['customers.customer_name'].label).toBe('Customer name');
     });
 });

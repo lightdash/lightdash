@@ -175,6 +175,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
             return explore
                 ? getAvailableParametersFromTables(
                       Object.values(explore.tables),
+                      explore.baseTable,
                   )
                 : {};
         }, [explore]);
@@ -185,6 +186,14 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 ...(exploreParameterDefinitions ?? {}),
             };
         }, [projectParameters, exploreParameterDefinitions]);
+
+        const hasRequiredParameter = useMemo(
+            () =>
+                Object.values(parameterDefinitions).some(
+                    (def) => def.required === true,
+                ),
+            [parameterDefinitions],
+        );
 
         useEffect(() => {
             dispatch(
@@ -230,11 +239,12 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                         ))}
 
                     {!!tableName &&
-                        parameterReferencesFromRedux &&
-                        parameterReferencesFromRedux?.length > 0 && (
+                        ((parameterReferencesFromRedux &&
+                            parameterReferencesFromRedux.length > 0) ||
+                            hasRequiredParameter) && (
                             <ParametersCard
                                 parameterReferences={
-                                    parameterReferencesFromRedux
+                                    parameterReferencesFromRedux ?? undefined
                                 }
                             />
                         )}

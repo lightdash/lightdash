@@ -225,10 +225,29 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const addParameterDefinitions = useCallback(
         (parameters: ParameterDefinitions) => {
-            setParameterDefinitions((prev) => ({
-                ...prev,
-                ...parameters,
-            }));
+            setParameterDefinitions((prev) => {
+                const merged: ParameterDefinitions = { ...prev };
+                for (const [key, def] of Object.entries(parameters)) {
+                    const existing = merged[key];
+                    // OR-merge `required` so that if any contributing tile says
+                    // a parameter is required (because it's on that tile's base
+                    // table), the dashboard treats it as required regardless of
+                    // load order or other tiles where the same param sits on a
+                    // joined table.
+                    merged[key] = existing
+                        ? {
+                              ...existing,
+                              ...def,
+                              required:
+                                  existing.required === true ||
+                                  def.required === true
+                                      ? true
+                                      : def.required,
+                          }
+                        : def;
+                }
+                return merged;
+            });
         },
         [],
     );
@@ -492,11 +511,18 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     }, [projectParameters, addParameterDefinitions]);
 
     const missingRequiredParameters = useMemo(() => {
-        // If no parameter references, return empty array
-        if (!dashboardParameterReferences.size) return [];
+        // Parameters can become required for the dashboard in two ways:
+        //   1. A chart on the dashboard references the parameter in its SQL
+        //   2. The parameter has `required: true` in its definition
+        const requiredKeys = Object.keys(parameterDefinitions).filter(
+            (key) => parameterDefinitions[key]?.required === true,
+        );
+        const keysToCheck = Array.from(
+            new Set([...dashboardParameterReferences, ...requiredKeys]),
+        );
+        if (keysToCheck.length === 0) return [];
 
-        // Missing required parameters are the ones that are not set and don't have a default value
-        return Array.from(dashboardParameterReferences).filter(
+        return keysToCheck.filter(
             (parameterName) =>
                 !parameters[parameterName] &&
                 !parameterDefinitions[parameterName]?.default,
