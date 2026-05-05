@@ -3,7 +3,6 @@ import {
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiUnassignRoleFromUserResponse,
-    assertRegisteredAccount,
     CreateGroupRoleAssignmentRequest,
     CreateUserRoleAssignmentRequest,
     UpdateRoleAssignmentRequest,
@@ -72,10 +71,9 @@ export class ProjectRolesController extends BaseController {
         @Request() req: express.Request,
         @Path() projectId: string,
     ): Promise<ApiRoleAssignmentListResponse> {
-        assertRegisteredAccount(req.account);
         const assignments =
             await this.getRolesService().getProjectRoleAssignments(
-                req.account,
+                req.account!,
                 projectId,
             );
 
@@ -104,10 +102,9 @@ export class ProjectRolesController extends BaseController {
         @Path() userId: string,
         @Body() body: UpsertUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
-        assertRegisteredAccount(req.account);
         const assignment =
             await this.getRolesService().upsertProjectUserRoleAssignment(
-                req.account,
+                req.account!,
                 projectId,
                 userId,
                 body,
@@ -138,10 +135,9 @@ export class ProjectRolesController extends BaseController {
         @Path() groupId: string,
         @Body() body: UpsertUserRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
-        assertRegisteredAccount(req.account);
         const assignment =
             await this.getRolesService().upsertProjectGroupRoleAssignment(
-                req.account,
+                req.account!,
                 projectId,
                 groupId,
                 body,
@@ -172,10 +168,9 @@ export class ProjectRolesController extends BaseController {
         @Path() groupId: string,
         @Body() body: UpdateRoleAssignmentRequest,
     ): Promise<ApiRoleAssignmentResponse> {
-        assertRegisteredAccount(req.account);
         const assignment =
             await this.getRolesService().updateProjectRoleAssignment(
-                req.account,
+                req.account!,
                 projectId,
                 groupId,
                 'group',
@@ -206,9 +201,8 @@ export class ProjectRolesController extends BaseController {
         @Path() projectId: string,
         @Path() userId: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        assertRegisteredAccount(req.account);
         await this.getRolesService().deleteProjectRoleAssignment(
-            req.account,
+            req.account!,
             projectId,
             userId,
             'user',
@@ -238,9 +232,8 @@ export class ProjectRolesController extends BaseController {
         @Path() projectId: string,
         @Path() groupId: string,
     ): Promise<ApiUnassignRoleFromUserResponse> {
-        assertRegisteredAccount(req.account);
         await this.getRolesService().deleteProjectRoleAssignment(
-            req.account,
+            req.account!,
             projectId,
             groupId,
             'group',

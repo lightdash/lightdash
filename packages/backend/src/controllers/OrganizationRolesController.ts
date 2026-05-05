@@ -4,7 +4,6 @@ import {
     ApiRoleAssignmentListResponse,
     ApiRoleAssignmentResponse,
     ApiRoleWithScopesResponse,
-    assertRegisteredAccount,
     CreateRole,
 } from '@lightdash/common';
 import {
@@ -66,10 +65,9 @@ export class OrganizationRolesController extends BaseController {
         @Query() load?: string,
         @Query() roleTypeFilter?: string,
     ): Promise<ApiGetRolesResponse | ApiRoleWithScopesResponse> {
-        assertRegisteredAccount(req.account);
         const loadScopes = load === 'scopes';
         const roles = await this.getRolesService().getRolesByOrganizationUuid(
-            req.account,
+            req.account!,
             orgUuid,
             loadScopes,
             roleTypeFilter,
@@ -94,10 +92,9 @@ export class OrganizationRolesController extends BaseController {
         @Request() req: express.Request,
         @Path() orgUuid: string,
     ): Promise<ApiRoleAssignmentListResponse> {
-        assertRegisteredAccount(req.account);
         const assignments =
             await this.getRolesService().getOrganizationRoleAssignments(
-                req.account,
+                req.account!,
                 orgUuid,
             );
 
@@ -121,9 +118,8 @@ export class OrganizationRolesController extends BaseController {
         @Path() orgUuid: string,
         @Path() roleUuid: string,
     ): Promise<ApiRoleWithScopesResponse> {
-        assertRegisteredAccount(req.account);
         const role = await this.getRolesService().getRoleByUuid(
-            req.account,
+            req.account!,
             roleUuid,
         );
 
@@ -152,10 +148,9 @@ export class OrganizationRolesController extends BaseController {
         @Path() userId: string,
         @Body() body: { roleId: string },
     ): Promise<ApiRoleAssignmentResponse> {
-        assertRegisteredAccount(req.account);
         const assignment =
             await this.getRolesService().upsertOrganizationUserRoleAssignment(
-                req.account,
+                req.account!,
                 orgUuid,
                 userId,
                 body,
@@ -186,9 +181,8 @@ export class OrganizationRolesController extends BaseController {
         @Path() roleId: string,
         @Body() body: CreateRole,
     ): Promise<ApiRoleWithScopesResponse> {
-        assertRegisteredAccount(req.account);
         const duplicatedRole = await this.getRolesService().duplicateRole(
-            req.account,
+            req.account!,
             orgUuid,
             roleId,
             body,

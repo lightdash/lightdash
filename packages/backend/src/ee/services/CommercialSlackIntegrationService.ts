@@ -1,6 +1,6 @@
 import {
+    Account,
     ForbiddenError,
-    RegisteredAccount,
     SessionUser,
     SlackSettings,
 } from '@lightdash/common';
@@ -62,7 +62,7 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
         return response;
     }
 
-    async deleteInstallationFromOrganizationUuid(account: RegisteredAccount) {
+    async deleteInstallationFromOrganizationUuid(account: Account) {
         await super.deleteInstallationFromOrganizationUuid(account);
 
         await this.aiAgentModel.deleteSlackIntegrations({

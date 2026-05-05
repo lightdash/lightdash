@@ -6,7 +6,7 @@ import {
     NotFoundError,
     SchedulerJobStatus,
     UserActivity,
-    type RegisteredAccount,
+    type Account,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
@@ -46,7 +46,7 @@ export class AnalyticsService extends BaseService {
 
     async getUserActivity(
         projectUuid: string,
-        account: RegisteredAccount,
+        account: Account,
     ): Promise<UserActivity> {
         assertIsAccountWithOrg(account);
         const { organizationUuid, name: projectName } =
@@ -68,7 +68,7 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.dashboard_viewed',
-            userId: account.user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
                 organizationId: account.organization.organizationUuid,
@@ -84,7 +84,7 @@ export class AnalyticsService extends BaseService {
 
     async exportUserActivityRawCsv(
         projectUuid: string,
-        account: RegisteredAccount,
+        account: Account,
     ): Promise<string> {
         assertIsAccountWithOrg(account);
         const { organizationUuid, name: projectName } =
@@ -105,7 +105,7 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.csv_download',
-            userId: account.user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
                 organizationId: account.organization.organizationUuid,
@@ -131,7 +131,7 @@ export class AnalyticsService extends BaseService {
             fileName,
             projectUuid,
             organizationUuid,
-            createdByUserUuid: account.user.userUuid,
+            createdByUserUuid: account.user.id,
         });
         return upload.path;
     }

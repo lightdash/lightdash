@@ -63,12 +63,11 @@ export class GoogleDriveController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await req.services
                 .getGdriveService()
-                .scheduleUploadGsheet(req.account, body),
+                .scheduleUploadGsheet(req.account!, body),
         };
     }
 }

@@ -3,7 +3,6 @@ import {
     ApiErrorPayload,
     ApiSuccessEmpty,
     ApiUserAttributesResponse,
-    assertRegisteredAccount,
     CreateUserAttribute,
     getRequestMethod,
     LightdashRequestMethodHeader,
@@ -46,7 +45,6 @@ export class UserAttributesController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiUserAttributesResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         const context = getRequestMethod(
             req.header(LightdashRequestMethodHeader),
         );
@@ -54,7 +52,7 @@ export class UserAttributesController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getUserAttributesService()
-                .getAll(req.account, context),
+                .getAll(req.account!, context),
         };
     }
 
@@ -76,12 +74,12 @@ export class UserAttributesController extends BaseController {
         @Body() body: CreateUserAttribute,
     ): Promise<ApiCreateUserAttributeResponse> {
         this.setStatus(201);
-        assertRegisteredAccount(req.account);
+
         return {
             status: 'ok',
             results: await this.services
                 .getUserAttributesService()
-                .create(req.account, body),
+                .create(req.account!, body),
         };
     }
 
@@ -105,12 +103,12 @@ export class UserAttributesController extends BaseController {
         @Body() body: CreateUserAttribute,
     ): Promise<ApiCreateUserAttributeResponse> {
         this.setStatus(201);
-        assertRegisteredAccount(req.account);
+
         return {
             status: 'ok',
             results: await this.services
                 .getUserAttributesService()
-                .update(req.account, userAttributeUuid, body),
+                .update(req.account!, userAttributeUuid, body),
         };
     }
 
@@ -132,10 +130,10 @@ export class UserAttributesController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
+
         await this.services
             .getUserAttributesService()
-            .delete(req.account, userAttributeUuid);
+            .delete(req.account!, userAttributeUuid);
         return {
             status: 'ok',
             results: undefined,

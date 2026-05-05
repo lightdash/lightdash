@@ -5,7 +5,6 @@ import {
     AiResultType,
     AnyType,
     ApiKeyAccount,
-    assertRegisteredAccount,
     CatalogType,
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
@@ -22,7 +21,6 @@ import {
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
-    RegisteredAccount,
     SchedulerJobStatus,
     ServiceAcctAccount,
     SessionUser,
@@ -1486,7 +1484,6 @@ export class McpService extends BaseService {
                             args.limit ?? 500,
                         );
 
-                    assertRegisteredAccount(account);
                     const jobResult = await this.pollSqlJobToCompletion(
                         account,
                         jobId,
@@ -1631,7 +1628,7 @@ export class McpService extends BaseService {
     }
 
     private async pollSqlJobToCompletion(
-        account: RegisteredAccount,
+        account: Account,
         jobId: string,
     ): Promise<{ fileUrl: string; columns: Array<{ reference: string }> }> {
         const maxWaitMs = 5 * 60 * 1000;

@@ -4,8 +4,8 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
+    type Account,
     type ProjectCompileLog,
-    type RegisteredAccount,
 } from '@lightdash/common';
 import {
     DbProjectCompileLogSortColumns,
@@ -26,7 +26,7 @@ export class ProjectCompileLogService extends BaseService {
     }
 
     async getProjectCompileLogs(
-        account: RegisteredAccount,
+        account: Account,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
         sort?: {
@@ -69,7 +69,7 @@ export class ProjectCompileLogService extends BaseService {
     }
 
     async getProjectCompileLogByJob(
-        account: RegisteredAccount,
+        account: Account,
         projectUuid: string,
         jobUuid: string,
     ): Promise<ProjectCompileLog | undefined> {

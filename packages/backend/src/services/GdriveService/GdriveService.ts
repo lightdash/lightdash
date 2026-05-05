@@ -1,7 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
+    CustomSqlQueryForbiddenError,
     ForbiddenError,
-    RegisteredAccount,
+    isCustomSqlDimension,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
 } from '@lightdash/common';
@@ -59,7 +61,7 @@ export class GdriveService extends BaseService {
     }
 
     async scheduleUploadGsheet(
-        account: RegisteredAccount,
+        account: Account,
         gsheetOptions: UploadMetricGsheet,
     ) {
         const projectSummary = await this.projectModel.getSummary(
@@ -103,7 +105,7 @@ export class GdriveService extends BaseService {
 
         const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
-            userUuid: account.user.userUuid,
+            userUuid: account.user.id,
             organizationUuid,
         };
 
