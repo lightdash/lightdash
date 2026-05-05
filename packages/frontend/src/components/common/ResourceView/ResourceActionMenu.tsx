@@ -297,7 +297,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 }}
                                 style={isSqlChart ? { display: 'none' } : {}}
                             >
-                                Rename
+                                {item.type === ResourceViewItemType.SPACE
+                                    ? 'Update space'
+                                    : 'Rename'}
                             </Menu.Item>
 
                             {item.type === ResourceViewItemType.CHART ||
