@@ -245,7 +245,7 @@ jobs:
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: |
             node_modules
@@ -260,7 +260,7 @@ jobs:
 
       - name: Cache common build
         id: cache-common
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: packages/common/dist
           key: ${{ runner.os }}-common-build-${{ hashFiles('packages/common/src/**', 'packages/common/tsconfig*.json') }}
@@ -271,7 +271,7 @@ jobs:
 
       - name: Cache warehouses build
         id: cache-warehouses
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
         with:
           path: packages/warehouses/dist
           key: ${{ runner.os }}-warehouses-build-${{ hashFiles('packages/warehouses/src/**', 'packages/warehouses/tsconfig*.json', 'packages/common/src/**') }}
