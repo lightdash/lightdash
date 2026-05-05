@@ -111,6 +111,7 @@ import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
 import {
@@ -141,6 +142,7 @@ import {
     GetDashboardChartsFn,
     GetExploreFn,
     GetPromptFn,
+    GetSavedChartFn,
     ListExploresFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
@@ -192,6 +194,7 @@ type AiAgentServiceDependencies = {
     userModel: UserModel;
     spaceService: SpaceService;
     projectModel: ProjectModel;
+    savedChartService: SavedChartService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
     prometheusMetrics?: PrometheusMetrics;
@@ -262,6 +265,8 @@ export class AiAgentService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly savedChartService: SavedChartService;
+
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
@@ -289,6 +294,7 @@ export class AiAgentService extends BaseService {
         this.userModel = dependencies.userModel;
         this.spaceService = dependencies.spaceService;
         this.projectModel = dependencies.projectModel;
+        this.savedChartService = dependencies.savedChartService;
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
@@ -2847,6 +2853,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return webOrSlackPrompt;
         };
 
+        const getSavedChart: GetSavedChartFn = (chartUuid) =>
+            this.savedChartService.get(chartUuid, fromSession(user), {
+                projectUuid,
+            });
+
         const runAsyncQuery: RunAsyncQueryFn = (metricQuery) =>
             wrapSentryTransaction(
                 'AiAgent.runAsyncQuery',
@@ -3084,6 +3095,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            getSavedChart,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -3160,6 +3172,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            getSavedChart,
             sendFile,
             storeToolCall,
             storeToolResults,
@@ -3210,6 +3223,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFields,
             findExplores,
             runAsyncQuery,
+            getSavedChart,
             getPrompt,
             sendFile,
             storeToolCall,

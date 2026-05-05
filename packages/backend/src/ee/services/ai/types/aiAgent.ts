@@ -11,6 +11,7 @@ import {
     GetExploreCompilerFn,
     GetExploreFn,
     GetPromptFn,
+    GetSavedChartFn,
     ListExploresFn,
     RunAsyncQueryFn,
     SearchFieldValuesFn,
@@ -65,6 +66,7 @@ export type AiAgentDependencies = {
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
+    getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     updatePrompt: UpdatePromptFn;

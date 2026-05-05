@@ -31,6 +31,7 @@ export const getToolIcon = (toolName: ToolName) => {
             improveContext: IconSchool,
             proposeChange: IconPencil,
             runQuery: IconTable,
+            runSavedChart: IconChartHistogram,
         };
 
     return iconMap[toolName];

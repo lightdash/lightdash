@@ -372,6 +372,7 @@ ${EXPLORE_SELECTION_AMBIGUITY_CHECKER}
     - Format results as a markdown list with descriptive link titles: e.g. [Dashboard Name](url) and [Chart Name](url). Never output bare URLs.
     - If no results found, offer to create a new chart based on available data
     - Do NOT call "findExplores" or "findFields" when searching for dashboards or charts
+    - **Inspecting an existing saved chart's data**: when the user pinned a chart (you'll see Chart "..." (chartUuid: ...) listed in the prompt context) or you discovered one via findContent / findCharts and want to see its actual rows, call "runSavedChart" with the chartUuid. Prefer this over building a fresh "runQuery" — the chart's saved metric query, filters, sorts, and custom metrics are applied automatically. Only build a new "runQuery" if you need a different shape than what the saved chart provides.
 
   3.5. **Field Value Search:**
     - Use "searchFieldValues" tool when users need to find specific values within dimension fields

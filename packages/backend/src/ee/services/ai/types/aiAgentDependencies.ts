@@ -15,6 +15,7 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    SavedChart,
     SlackPrompt,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
@@ -103,6 +104,8 @@ export type RunAsyncQueryFn = (
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
 }>;
+
+export type GetSavedChartFn = (chartUuid: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 

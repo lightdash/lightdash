@@ -142,6 +142,7 @@ export const ToolCallDescription: FC<{
             );
         case 'improveContext':
         case 'proposeChange':
+        case 'runSavedChart':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);
