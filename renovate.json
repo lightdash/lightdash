@@ -3,6 +3,8 @@
   "extends": [
     "config:recommended",
     ":dependencyDashboard",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(chore)",
     "group:allNonMajor",
     "group:monorepos",
     "schedule:weekends",
