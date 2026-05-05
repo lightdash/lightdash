@@ -1599,15 +1599,9 @@ type PivotResultsParams = {
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
-    /**
-     * When set, DATE/TIMESTAMP cells use the row's `formatted` value
-     * (which honors the project tz via formatRows) regardless of
-     * `onlyRaw`, while other cells continue to follow `onlyRaw`. Used
-     * by Google Sheets / Slack / email pivot deliveries to keep
-     * numeric native types while honoring the project tz on date
-     * columns. Threaded into combinedRetrofit so total/header
-     * formatting picks up the same zone.
-     */
+    // When set, DATE/TIMESTAMP cells take the tz-aware `formatted` value
+    // even on `onlyRaw: true` paths. Also threaded into combinedRetrofit
+    // for total + header formatting.
     timezone?: string;
 };
 
@@ -1652,9 +1646,6 @@ export const pivotResultsAsData = ({
           });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
-    // When a project timezone is supplied, override the per-cell choice
-    // for temporal fields so DATE/TIMESTAMP values come from the
-    // tz-aware `formatted` output even on `onlyRaw: true` paths.
     const pickField = (fieldId: string): 'raw' | 'formatted' =>
         timezone && isTemporalField(itemMap[fieldId])
             ? 'formatted'
