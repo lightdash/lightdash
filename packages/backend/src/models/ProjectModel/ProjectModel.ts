@@ -1551,6 +1551,9 @@ export class ProjectModel {
                 )
                 .select('users.user_id')
                 .where('email', email)
+                // Defence: SAs have no email row so this is empty for them,
+                // but the explicit guard documents intent.
+                .andWhere('users.is_internal', false)
                 .andWhere(
                     `${OrganizationMembershipsTableName}.organization_id`,
                     project.organization_id,

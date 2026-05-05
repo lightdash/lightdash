@@ -255,12 +255,38 @@ describe('Service Accounts API', () => {
             page += 1;
             if (page > 50) break; // hard stop to prevent runaway loops
         }
-        expect(seen).not.toContain(`Service account ${description}`);
-        // Stronger: no user with first_name 'Service account' should appear.
-        const anyServiceAccountListed = seen.some((name) =>
-            name.startsWith('Service account '),
+        // The SA's first_name is its description; if the filter ever
+        // breaks, the listing will start including a row whose firstName
+        // matches our marker.
+        expect(seen).not.toContain(description);
+    });
+
+    // Defence against a future refactor that might apply a search filter
+    // on top of the queryBuilder in a way that bypasses the
+    // `users.is_internal = false` predicate.
+    it('Should not surface in /api/v1/org/users when searching by SA name', async () => {
+        const description = `searchable-leak-check ${Date.now()}`;
+        const createResp = await admin.post<Body<{ uuid: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description,
+                expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+                scopes: ['org:admin'],
+            },
         );
-        expect(anyServiceAccountListed).toBe(false);
+        expect(createResp.status).toBe(201);
+
+        // The SA's first_name is the literal "Service account" — search by it.
+        const resp = await admin.get<
+            Body<{
+                data: Array<{ firstName: string; lastName: string }>;
+            }>
+        >(`${apiUrl}/org/users?searchQuery=Service`);
+        expect(resp.status).toBe(200);
+        const matched = (resp.body.results.data ?? []).filter(
+            (r) => r.firstName === 'Service account',
+        );
+        expect(matched).toHaveLength(0);
     });
 
     // SCIM /Users feeds IdPs (Okta/Azure AD). Leaking SAs would cause the
@@ -290,8 +316,10 @@ describe('Service Accounts API', () => {
         });
         expect(usersResp.status).toBe(200);
         const resources = usersResp.body.Resources ?? [];
+        // The SA's first_name is its description; we look for our marker
+        // rather than a generic "Service account" prefix.
         const anySaListed = resources.some(
-            (r) => r.name?.givenName === 'Service account',
+            (r) => r.name?.givenName === description,
         );
         expect(anySaListed).toBe(false);
     });

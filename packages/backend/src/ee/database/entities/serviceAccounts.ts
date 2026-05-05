@@ -12,7 +12,14 @@ export type DbServiceAccounts = {
     rotated_by_user_uuid: string | null;
     last_used_at: Date | null;
     scopes: string[];
-    service_account_user_uuid: string;
+    // Nullable at the DB level. NOT NULL is intentionally deferred to a
+    // follow-up migration (expand-contract): keeping the column nullable
+    // for one deploy cycle removes the rolling-deploy / rollback trap
+    // where old code (without `ServiceAccountModel.save` populating this
+    // column) would hit a NOT NULL violation. Application code always
+    // populates it for new rows; the backfill ensures all existing rows
+    // have it set; the follow-up will promote NOT NULL after stability.
+    service_account_user_uuid: string | null;
 };
 
 type DbCreateServiceAccount = Omit<

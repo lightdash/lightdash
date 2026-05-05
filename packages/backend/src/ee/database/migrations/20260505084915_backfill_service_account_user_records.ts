@@ -6,14 +6,44 @@ const UsersTableName = 'users';
 const OrganizationsTableName = 'organizations';
 const OrganizationMembershipsTableName = 'organization_memberships';
 
-// Mirrors `getRoleForScopes` in the auth middleware. Kept inline here so
-// this migration is insulated from code reorganisation.
+// Maps each SA scope to the closest semantic org role for the FK row on
+// `organization_memberships`. The role is ornamental at v1 — runtime CASL
+// still comes from `applyServiceAccountAbilities` via the SA auth
+// middleware — but the semantic mapping (`org:edit -> editor`,
+// `org:read -> viewer`) reads better in admin UIs than collapsing
+// everything to `member`, and signals intent for any future v2 design.
+//
+// Note: the role abilities are NOT byte-identical to the corresponding
+// scope's abilities (`EDITOR`/`VIEWER` gate manage/view on per-space
+// access lists; the scopes today grant org-wide). v2's permission cutover
+// will need to handle this gap explicitly — either via a scope-mirroring
+// custom role or by keeping SAs on the scope-derived path.
+//
+// Failure-mode rationale: if v2 ever goes wrong and the role becomes
+// load-bearing prematurely, "I can't do X" (because EDITOR gates a
+// specific operation) is a better customer experience than "I can't do
+// anything" (which is what `member` would produce). Picking the larger
+// semantic role is the safer-degradation choice.
+//
+// `scim:manage` is mapped to `member` as an explicit exception: SCIM SAs
+// stay on the scope-derived runtime path even after Phase C, so the role
+// here is genuinely ornamental and least-privilege.
+//
+// Must stay in lockstep with `ServiceAccountModel.getRoleForScopes`. The
+// SA auth middleware's own `getRoleForScopes` intentionally diverges (it
+// computes the role for the spoofed admin SessionUser at runtime, which
+// stays unchanged in v1 to preserve live behavior).
 const SCIM_MANAGE = 'scim:manage';
 const ORG_ADMIN = 'org:admin';
-const roleForScopes = (scopes: string[]): OrganizationMemberRole =>
-    scopes.includes(SCIM_MANAGE) || scopes.includes(ORG_ADMIN)
-        ? OrganizationMemberRole.ADMIN
-        : OrganizationMemberRole.MEMBER;
+const ORG_EDIT = 'org:edit';
+const ORG_READ = 'org:read';
+const roleForScopes = (scopes: string[]): OrganizationMemberRole => {
+    if (scopes.includes(ORG_ADMIN)) return OrganizationMemberRole.ADMIN;
+    if (scopes.includes(ORG_EDIT)) return OrganizationMemberRole.EDITOR;
+    if (scopes.includes(ORG_READ)) return OrganizationMemberRole.VIEWER;
+    // scim:manage and any future capability-only scope fall through.
+    return OrganizationMemberRole.MEMBER;
+};
 
 // Backfill: every existing service_accounts row gets its own dedicated
 // `users` row + `organization_memberships` row, linked via the new
@@ -38,22 +68,25 @@ export async function up(knex: Knex): Promise<void> {
             .where('organization_uuid', sa.organization_uuid)
             .select('organization_id');
         if (!org) {
-            // FK should prevent this, but stay defensive — skip orphaned SAs
-            // rather than failing the whole migration.
-            // eslint-disable-next-line no-continue
-            continue;
+            // The FK on service_accounts.organization_uuid → organizations
+            // should make this unreachable. If it ever happens, fail loudly:
+            // the next migration sets NOT NULL on service_account_user_uuid
+            // and would fail with a confusing constraint error instead.
+            throw new Error(
+                `Service account ${sa.service_account_uuid} references missing organization ${sa.organization_uuid}; cannot backfill. Resolve the orphan row before re-running.`,
+            );
         }
 
         // eslint-disable-next-line no-await-in-loop
         const [saUser] = await knex(UsersTableName)
             .insert({
-                first_name: 'Service account',
-                last_name: sa.description,
+                first_name: sa.description,
+                last_name: '',
                 is_marketing_opted_in: false,
                 is_tracking_anonymized: false,
                 is_setup_complete: true,
                 is_active: false,
-                is_service_account: true,
+                is_internal: true,
             })
             .returning(['user_id', 'user_uuid']);
 

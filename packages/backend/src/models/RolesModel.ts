@@ -667,6 +667,10 @@ export class RolesModel {
             tx || this.database
         )('organization_memberships')
             .join('users', 'organization_memberships.user_id', 'users.user_id')
+            // Hide internal user records (service accounts, etc.) from the
+            // role-assignment admin UI; they're shown via their entity table
+            // (e.g. /service-accounts), not the role assignments listing.
+            .where('users.is_internal', false)
             .join(
                 'organizations',
                 'organization_memberships.organization_id',
