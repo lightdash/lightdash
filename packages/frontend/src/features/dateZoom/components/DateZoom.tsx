@@ -153,10 +153,6 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
     );
     const { track } = useTracking();
 
-    useEffect(() => {
-        if (isEditMode) setDateZoomGranularity(undefined);
-    }, [isEditMode, setDateZoomGranularity]);
-
     // Reset active sub-day granularity when no TIMESTAMP dimensions exist
     // (e.g., saved config or URL param on DATE-only dashboard)
     useEffect(() => {

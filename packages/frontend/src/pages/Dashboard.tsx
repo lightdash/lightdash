@@ -10,7 +10,7 @@ import { captureException } from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
-import { useBlocker, useNavigate, useParams } from 'react-router';
+import { useBlocker, useLocation, useNavigate, useParams } from 'react-router';
 import { dashboardCSSVars } from '../components/common/Dashboard/dashboard.constants';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
@@ -31,6 +31,7 @@ import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
+import { useDateZoomGranularitySearch } from '../hooks/useExplorerRoute';
 import useApp from '../providers/App/useApp';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
@@ -40,6 +41,7 @@ import '../styles/react-grid.css';
 
 const Dashboard: FC = () => {
     const navigate = useNavigate();
+    const { search } = useLocation();
     const { projectUuid, dashboardUuid, mode } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
@@ -602,6 +604,13 @@ const Dashboard: FC = () => {
 
         await refreshDashboardVersion();
 
+        const currentParams = new URLSearchParams(search);
+        const dateZoomParam = currentParams.get('dateZoom');
+        const editParams = new URLSearchParams();
+        if (dateZoomParam) {
+            editParams.set('dateZoom', dateZoomParam);
+        }
+
         // Defer the redirect
         void Promise.resolve().then(() => {
             return navigate(
@@ -610,7 +619,7 @@ const Dashboard: FC = () => {
                         dashboardTabs.length > 0
                             ? `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit/tabs/${activeTab?.uuid}`
                             : `/projects/${projectUuid}/dashboards/${dashboardUuid}/edit`,
-                    search: '',
+                    search: editParams.toString(),
                 },
                 { replace: true },
             );
@@ -621,6 +630,7 @@ const Dashboard: FC = () => {
         resetDashboardFilters,
         refreshDashboardVersion,
         navigate,
+        search,
         activeTab?.uuid,
         dashboardTabs.length,
     ]);
@@ -849,12 +859,14 @@ const DashboardPage: FC = () => {
     }>();
     const { user } = useApp();
     const dashboardCommentsCheck = useDashboardCommentsCheck(user?.data);
+    const dateZoom = useDateZoomGranularitySearch();
 
     return (
         <DashboardProvider
             key={dashboardUuid}
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
+            dateZoom={dateZoom}
         >
             <Dashboard />
         </DashboardProvider>
