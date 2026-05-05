@@ -1,22 +1,16 @@
-import {
-    AuthorizationError,
-    ServiceAccount,
-    ServiceAccountScope,
-    SessionUser,
-} from '@lightdash/common';
+import { AuthorizationError, SessionUser } from '@lightdash/common';
 import express from 'express';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 import { mockNext, mockResponse } from './middleware.mock';
 import { authenticateServiceAccount } from './middlewares';
 import {
-    mockAdminUser,
     mockRequestWithEmptyToken,
-    mockRequestWithExpiredToken,
     mockRequestWithInvalidToken,
     mockRequestWithMalformedToken,
     mockRequestWithNonBearerToken,
     mockRequestWithNoToken,
     mockRequestWithValidToken,
+    mockSaSessionUser,
     mockServiceAccount,
 } from './serviceAccount.mock';
 
@@ -43,12 +37,14 @@ describe('Service Account Authentication Middleware', () => {
         expect(mockRequestWithValidToken.user).toBeDefined();
 
         const user = mockRequestWithValidToken.user as SessionUser;
-        expect(user.userUuid).toBe(mockAdminUser.userUuid);
-        expect(user.email).toBe('service-account@lightdash.com');
-        expect(user.firstName).toBe('service account');
-        expect(user.lastName).toBe(mockServiceAccount.description);
+        expect(user.userUuid).toBe(mockSaSessionUser.userUuid);
+        expect(user.firstName).toBe(mockSaSessionUser.firstName);
         expect(user.organizationUuid).toBe(mockServiceAccount.organizationUuid);
-        expect(user.userId).toBe(mockAdminUser.userId);
+        expect(user.userId).toBe(mockSaSessionUser.userId);
+        expect(user.serviceAccount).toEqual({
+            uuid: mockServiceAccount.uuid,
+            description: mockServiceAccount.description,
+        });
         expect(user.ability).toBeDefined();
         expect(mockNext).toHaveBeenCalledWith();
     });
@@ -149,7 +145,6 @@ describe('Service Account Authentication Middleware', () => {
 
         expect(user.ability).toBeDefined();
         expect(user.abilityRules).toBeDefined();
-        expect(user.isActive).toBe(true);
         expect(user.isTrackingAnonymized).toBe(false);
         expect(user.isMarketingOptedIn).toBe(false);
         expect(user.isSetupComplete).toBe(true);

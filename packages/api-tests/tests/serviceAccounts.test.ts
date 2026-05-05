@@ -603,18 +603,14 @@ describe('Service Account scope matrix', () => {
     });
 });
 
-describe('Service Account identity (current admin-spoofing behavior)', () => {
-    // These assertions intentionally pin down the placeholder identity that
-    // `authenticateServiceAccount` synthesizes today by copying the seeded
-    // admin user. The refactor will replace this with a dedicated SA user
-    // record; expect this describe to need updating then.
+describe('Service Account identity', () => {
     let admin: ApiClient;
 
     beforeAll(async () => {
         admin = await login();
     });
 
-    it('GET /api/v1/user returns the spoofed service-account identity', async () => {
+    it('GET /api/v1/user returns the dedicated service-account identity', async () => {
         const description = `identity-test ${Date.now()}`;
         const createResp = await admin.post<Body<{ token: string }>>(
             `${apiUrl}/service-accounts`,
@@ -637,23 +633,18 @@ describe('Service Account identity (current admin-spoofing behavior)', () => {
             }>
         >(`${apiUrl}/user`);
         expect(resp.status).toBe(200);
-        // Today the middleware borrows the admin user's UUID (FK requirement)
-        // and overwrites email/firstName/lastName with placeholders.
-        expect(resp.body.results.userUuid).toBe(SEED_ORG_1_ADMIN.user_uuid);
-        expect(resp.body.results.email).toBe('service-account@lightdash.com');
-        expect(resp.body.results.firstName).toBe('service account');
-        expect(resp.body.results.lastName).toBe(description);
+        // The middleware loads the SA's own `users` row (linked via
+        // `service_accounts.service_account_user_uuid`) so the identity
+        // surfaces the SA — not a fallback admin.
+        expect(resp.body.results.userUuid).not.toBe(SEED_ORG_1_ADMIN.user_uuid);
+        expect(resp.body.results.firstName).toBe(description);
         expect(resp.body.results.organizationUuid).toBe(
             SEED_ORG_1.organization_uuid,
         );
     });
 });
 
-describe('Service Account content attribution (current admin-spoofing behavior)', () => {
-    // Today, content created by an SA gets stamped with the seeded admin's
-    // UUID in `created_by_user_uuid` columns, because the middleware fakes a
-    // SessionUser around an admin user. After the refactor, the SA's own
-    // dedicated user UUID will appear here.
+describe('Service Account content attribution', () => {
     let admin: ApiClient;
     const projectUuid = SEED_PROJECT.project_uuid;
     const createdSpaceUuids: string[] = [];
@@ -672,7 +663,7 @@ describe('Service Account content attribution (current admin-spoofing behavior)'
         }
     });
 
-    it('a space created by an SA reports the admin user as creator', async () => {
+    it('a space created by an SA reports the SA as creator, not the admin', async () => {
         const { token } = await createServiceAccountToken(admin, [
             ServiceAccountScope.ORG_EDIT,
         ]);
@@ -688,7 +679,6 @@ describe('Service Account content attribution (current admin-spoofing behavior)'
         const spaceUuid = createResp.body.results.uuid;
         createdSpaceUuids.push(spaceUuid);
 
-        // Admin reads back to inspect the createdBy attribution
         const detailResp = await admin.get<
             Body<{
                 uuid: string;
@@ -699,12 +689,10 @@ describe('Service Account content attribution (current admin-spoofing behavior)'
             }>
         >(`${apiUrl}/projects/${projectUuid}/spaces/${spaceUuid}`);
         expect(detailResp.status).toBe(200);
-        // Whichever way the API surfaces "creator", it should match the
-        // admin user (today's behavior). We check both the explicit field
-        // (if present) and the auto-granted access entry the API gives the
-        // creator.
+        // The seeded admin should NOT be the recorded creator anymore — the
+        // SA's own dedicated user row is.
         const access = detailResp.body.results.access ?? [];
         const accessUuids = access.map((a) => a.userUuid);
-        expect(accessUuids).toContain(SEED_ORG_1_ADMIN.user_uuid);
+        expect(accessUuids).not.toContain(SEED_ORG_1_ADMIN.user_uuid);
     });
 });

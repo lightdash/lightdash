@@ -20,7 +20,15 @@ import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.account?.isAuthenticated() || req.user?.userUuid) {
-        if (req.account?.user?.isActive || req.user?.isActive) {
+        // Service-account principals run on a dedicated user row that is
+        // intentionally `is_active = false` (defense-in-depth against any
+        // login path). The `isActive` gate is for human deactivation, so
+        // skip it for the service-account auth type.
+        if (
+            req.account?.authentication?.type === 'service-account' ||
+            req.account?.user?.isActive ||
+            req.user?.isActive
+        ) {
             next();
         } else {
             // Destroy session if user is deactivated and return error

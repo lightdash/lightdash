@@ -27,6 +27,16 @@ export class ServiceAccountModel {
     static mapDbObjectToServiceAccount(
         data: DbServiceAccounts,
     ): ServiceAccount {
+        if (!data.service_account_user_uuid) {
+            // Backfill migration populates this for every existing row, and
+            // `ServiceAccountModel.save` always sets it for new rows. A null
+            // here means the row predates the backfill and should never reach
+            // runtime — fail loudly rather than silently fall back to an
+            // admin spoof.
+            throw new UnexpectedDatabaseError(
+                `Service account ${data.service_account_uuid} is missing service_account_user_uuid`,
+            );
+        }
         return {
             uuid: data.service_account_uuid,
             organizationUuid: data.organization_uuid,
@@ -37,6 +47,7 @@ export class ServiceAccountModel {
             rotatedAt: data.rotated_at,
             createdByUserUuid: data.created_by_user_uuid,
             scopes: data.scopes as ServiceAccountScope[],
+            userUuid: data.service_account_user_uuid,
         };
     }
 

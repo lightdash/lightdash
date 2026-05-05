@@ -1,7 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
+    OrganizationMemberRole,
+    PossibleAbilities,
     ServiceAccount,
     ServiceAccountScope,
     SessionServiceAccount,
+    SessionUser,
 } from '@lightdash/common';
 import express from 'express';
 import { BaseService } from '../../services/BaseService';
@@ -16,18 +20,29 @@ export const mockServiceAccount: ServiceAccount = {
     lastUsedAt: null,
     rotatedAt: null,
     scopes: [ServiceAccountScope.SCIM_MANAGE],
+    userUuid: 'sa-user-uuid',
 };
 
-const mockOrganization = {
+const mockSaSessionUser = {
+    userUuid: 'sa-user-uuid',
+    userId: 42,
+    email: undefined,
+    firstName: 'test scim token',
+    lastName: '',
     organizationUuid: 'test-org-uuid',
-    name: 'Test Org',
+    organizationName: 'Test Org',
+    organizationCreatedAt: new Date('2024-01-01T00:00:00.000Z'),
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
+    role: OrganizationMemberRole.ADMIN,
+    isActive: false,
+    isPending: false,
     createdAt: new Date('2024-01-01T00:00:00.000Z'),
-};
-
-const mockAdminUser = {
-    userUuid: 'admin-user-uuid',
-    userId: 1,
-};
+    updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+    ability: new Ability<PossibleAbilities>([]),
+    abilityRules: [],
+} as unknown as SessionUser;
 
 export const mockRequest = {
     headers: {
@@ -42,13 +57,10 @@ export const mockRequest = {
         getServiceAccountService: jest.fn().mockReturnValue({
             authenticateScim: jest.fn().mockResolvedValue(mockServiceAccount),
         }),
-        getOrganizationService: jest.fn().mockReturnValue({
-            getOrganizationByUuid: jest
-                .fn()
-                .mockResolvedValue(mockOrganization),
-        }),
         getUserService: jest.fn().mockReturnValue({
-            getAdminUser: jest.fn().mockResolvedValue(mockAdminUser),
+            getSessionUserForServiceAccount: jest
+                .fn()
+                .mockResolvedValue(mockSaSessionUser),
         }),
     },
 } as unknown as express.Request;

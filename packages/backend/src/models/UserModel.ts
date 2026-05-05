@@ -1,7 +1,8 @@
-import { AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     ActivateUser,
     AlreadyExistsError,
+    applyServiceAccountAbilities,
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
@@ -22,6 +23,7 @@ import {
     ProjectMemberRole,
     Role,
     RoleWithScopes,
+    ServiceAccountScope,
     SessionUser,
     UpdateUserArgs,
     validatePassword,
@@ -80,6 +82,7 @@ export type DbUserDetails = {
     role?: OrganizationMemberRole;
     role_uuid?: string;
     is_active: boolean;
+    is_internal: boolean;
     updated_at: Date;
 };
 
@@ -612,6 +615,30 @@ export class UserModel {
             hasAuthentication,
         );
 
+        // Service accounts get a dedicated `users` row marked `is_internal`.
+        // Their runtime authorization comes from `applyServiceAccountAbilities`
+        // (driven by the SA's scopes), not the role/project ability builder
+        // — so this branch covers both live SA requests and worker
+        // re-hydration (schedulers, async queries) without a scope→role
+        // regression. v2 will unify this onto the standard role-based path.
+        if (user.is_internal) {
+            const serviceAccount = await this.findServiceAccountByUserUuid(
+                user.user_uuid,
+            );
+            if (serviceAccount) {
+                const builder = new AbilityBuilder<MemberAbility>(Ability);
+                applyServiceAccountAbilities({
+                    scopes: serviceAccount.scopes,
+                    organizationUuid: serviceAccount.organizationUuid,
+                    builder,
+                });
+                return {
+                    abilityBuilder: builder,
+                    lightdashUser,
+                };
+            }
+        }
+
         // Fetch scopes for custom roles
         const customRoleUuids = [...projectRoles, ...groupProjectRoles]
             .map((role) => role.roleUuid)
@@ -631,6 +658,31 @@ export class UserModel {
         return {
             abilityBuilder,
             lightdashUser,
+        };
+    }
+
+    private async findServiceAccountByUserUuid(userUuid: string): Promise<
+        | {
+              scopes: ServiceAccountScope[];
+              organizationUuid: string;
+          }
+        | undefined
+    > {
+        const row = await this.database('service_accounts')
+            .where('service_account_user_uuid', userUuid)
+            .select<
+                {
+                    scopes: string[];
+                    organization_uuid: string;
+                }[]
+            >('scopes', 'organization_uuid')
+            .first();
+        if (!row) {
+            return undefined;
+        }
+        return {
+            scopes: row.scopes as ServiceAccountScope[],
+            organizationUuid: row.organization_uuid,
         };
     }
 

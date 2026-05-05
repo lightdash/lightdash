@@ -39,6 +39,7 @@ import {
     PasswordReset,
     ProjectMemberRole,
     RegisterOrActivateUser,
+    ServiceAccount,
     SessionUser,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
@@ -2457,6 +2458,21 @@ export class UserService extends BaseService {
             forceRedirect: false,
             redirectUri: undefined,
         };
+    }
+
+    /**
+     * Loads the SessionUser for the dedicated `users` row provisioned for this
+     * service account. Abilities are derived from the SA's scopes via
+     * `applyServiceAccountAbilities` inside
+     * `UserModel.generateUserAbilityBuilder`.
+     */
+    async getSessionUserForServiceAccount(
+        serviceAccount: ServiceAccount,
+    ): Promise<SessionUser> {
+        return this.userModel.findSessionUserAndOrgByUuid(
+            serviceAccount.userUuid,
+            serviceAccount.organizationUuid,
+        );
     }
 
     /*

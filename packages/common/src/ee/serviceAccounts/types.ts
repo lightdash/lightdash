@@ -15,6 +15,11 @@ export type ServiceAccount = {
     lastUsedAt: Date | null;
     rotatedAt: Date | null;
     scopes: ServiceAccountScope[];
+    // The dedicated `users` row provisioned for this service account. Auth
+    // middleware loads this user to build `req.user`, so writes attribute the
+    // service account itself (not a fallback admin) on `created_by_user_uuid`
+    // / `updated_by_user_uuid` and audit logs.
+    userUuid: string;
 };
 
 export type ServiceAccountWithToken = ServiceAccount & {

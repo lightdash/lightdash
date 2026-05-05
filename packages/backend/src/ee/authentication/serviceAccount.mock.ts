@@ -1,7 +1,14 @@
 /*
 Service accounts
 */
-import { ServiceAccount, ServiceAccountScope } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    OrganizationMemberRole,
+    PossibleAbilities,
+    ServiceAccount,
+    ServiceAccountScope,
+    SessionUser,
+} from '@lightdash/common';
 import express from 'express';
 
 // Mock service account data
@@ -15,6 +22,7 @@ export const mockServiceAccount: ServiceAccount = {
     lastUsedAt: null,
     rotatedAt: null,
     scopes: [ServiceAccountScope.ORG_ADMIN],
+    userUuid: 'sa-dedicated-user-uuid',
 };
 
 export const mockExpiredServiceAccount: ServiceAccount = {
@@ -27,11 +35,26 @@ export const mockOrganization = {
     organizationUuid: 'test-org-uuid',
 };
 
-export const mockAdminUser = {
-    userUuid: 'test-user-uuid',
-    userId: 1,
-    email: 'admin@example.com',
-};
+export const mockSaSessionUser = {
+    userUuid: 'sa-dedicated-user-uuid',
+    userId: 42,
+    email: undefined,
+    firstName: 'Test service account',
+    lastName: '',
+    organizationUuid: 'test-org-uuid',
+    organizationName: 'Test Organization',
+    organizationCreatedAt: new Date('2024-01-01'),
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
+    role: OrganizationMemberRole.ADMIN,
+    isActive: false,
+    isPending: false,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01'),
+    ability: new Ability<PossibleAbilities>([]),
+    abilityRules: [],
+} as unknown as SessionUser;
 
 // Mock requests for different scenarios
 export const mockRequestWithValidToken = {
@@ -44,13 +67,10 @@ export const mockRequestWithValidToken = {
                 .fn()
                 .mockResolvedValue(mockServiceAccount),
         }),
-        getOrganizationService: jest.fn().mockReturnValue({
-            getOrganizationByUuid: jest
-                .fn()
-                .mockResolvedValue(mockOrganization),
-        }),
         getUserService: jest.fn().mockReturnValue({
-            getAdminUser: jest.fn().mockResolvedValue(mockAdminUser),
+            getSessionUserForServiceAccount: jest
+                .fn()
+                .mockResolvedValue(mockSaSessionUser),
         }),
     },
 } as unknown as express.Request;
