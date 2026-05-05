@@ -1680,6 +1680,7 @@ export class ProjectService extends BaseService {
         compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project',
         jobUuid?: string | null,
         requestMethod?: string | null,
+        projectConfigDefaults?: ProjectDefaults,
     ) {
         // We delete the explores when saving to cache which cascades to the catalog
         // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
@@ -1709,6 +1710,28 @@ export class ProjectService extends BaseService {
 
         const compilationReport = calculateCompilationReport({ explores });
         const project = await this.projectModel.get(projectUuid);
+
+        Logger.info('compile.case_sensitive_resolution', {
+            projectUuid,
+            organizationUuid,
+            compilationSource,
+            projectDefault: projectConfigDefaults?.case_sensitive ?? null,
+            exploreCount: explores.length,
+            exploresWithFlag: explores
+                .filter((e) => e.caseSensitive !== undefined)
+                .map((e) => ({ name: e.name, value: e.caseSensitive })),
+            dimensionsWithFlag: explores.flatMap((e) =>
+                Object.entries(e.tables ?? {}).flatMap(([t, tbl]) =>
+                    Object.values(tbl.dimensions ?? {})
+                        .filter((d) => d.caseSensitive !== undefined)
+                        .map((d) => ({
+                            table: t,
+                            name: d.name,
+                            value: d.caseSensitive,
+                        })),
+                ),
+            ),
+        });
 
         await this.projectCompileLogModel.insert({
             projectUuid,
@@ -2186,6 +2209,7 @@ export class ProjectService extends BaseService {
                         'create_project',
                         jobUuid,
                         method,
+                        lightdashProjectConfig.defaults,
                     );
                     return newProjectUuid;
                 },
@@ -2669,6 +2693,7 @@ export class ProjectService extends BaseService {
                                 'refresh_dbt',
                                 job.jobUuid,
                                 method,
+                                lightdashProjectConfig.defaults,
                             );
                             timings.cacheExplores.end = performance.now();
                         } finally {
@@ -5432,6 +5457,7 @@ export class ProjectService extends BaseService {
                             'refresh_dbt',
                             job.jobUuid,
                             requestMethod,
+                            lightdashProjectConfig.defaults,
                         );
                         timings.cacheExplores.end = performance.now();
 
@@ -8002,6 +8028,7 @@ export class ProjectService extends BaseService {
             'refresh_dbt',
             null,
             'api',
+            project.projectDefaults,
         );
 
         Logger.info(`Schedule validation:`, {

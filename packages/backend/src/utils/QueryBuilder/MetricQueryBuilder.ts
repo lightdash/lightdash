@@ -1448,7 +1448,7 @@ export class MetricQueryBuilder {
             }
         }
 
-        return renderWithErrorHandling(() =>
+        const renderedFilterSql = renderWithErrorHandling(() =>
             renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
                 filterField,
@@ -1463,6 +1463,19 @@ export class MetricQueryBuilder {
                 this.args.useTimezoneAwareDateTrunc,
             ),
         );
+
+        Logger.info('query.case_sensitive_applied', {
+            exploreName: explore.name,
+            ruleCaseSensitive:
+                filterRuleWithParamReplacedValues.caseSensitive ?? null,
+            fieldCaseSensitive:
+                'caseSensitive' in field ? (field.caseSensitive ?? null) : null,
+            exploreCaseSensitive: this.args.explore.caseSensitive ?? null,
+            fieldId: getItemId(field),
+            finalSqlContainsUpper: /UPPER\s*\(/i.test(renderedFilterSql),
+        });
+
+        return renderedFilterSql;
     }
 
     static getNullsFirstLast(sort: SortField) {
