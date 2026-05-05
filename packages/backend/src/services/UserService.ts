@@ -2475,36 +2475,6 @@ export class UserService extends BaseService {
         );
     }
 
-    /*
-    For service accounts, we get the admin user from the userUuid who created the user
-    if this user no longer exist, then we fall back to the oldest admin in the org
-    (ordered by created_at asc, user_uuid asc as tie-breaker) so the same service
-    account always resolves to the same fallback admin.
-    */
-    async getAdminUser(userUuid: string | null, organizationUuid: string) {
-        try {
-            if (!userUuid) {
-                throw new Error('User uuid is required');
-            }
-            return await this.userModel.findSessionUserAndOrgByUuid(
-                userUuid,
-                organizationUuid,
-            );
-        } catch (error) {
-            const adminUserUuid =
-                await this.organizationMemberProfileModel.findOldestAdminUserUuid(
-                    organizationUuid,
-                );
-            if (!adminUserUuid) {
-                throw new Error('No admin user found');
-            }
-            return this.userModel.findSessionUserAndOrgByUuid(
-                adminUserUuid,
-                organizationUuid,
-            );
-        }
-    }
-
     async isOpenIdLinked(
         userUuid: string,
         issuerType: OpenIdIdentityIssuerType,

@@ -71,7 +71,7 @@ export class ServiceAccountModel {
     // Maps the SA's scopes to an org-membership role for the DB row on
     // `organization_memberships`. The role is ornamental at v1 — runtime
     // CASL still comes from `applyServiceAccountAbilities` via the SA auth
-    // middleware.
+    // middleware path in `UserModel.generateUserAbilityBuilder`.
     //
     // The semantic mapping (`org:edit -> editor`, `org:read -> viewer`)
     // reads better in admin UIs than collapsing everything to `member`,
@@ -81,9 +81,6 @@ export class ServiceAccountModel {
     // since SCIM stays on the scope-derived runtime path even at v2.
     //
     // Must stay in lockstep with `roleForScopes` in the backfill migration.
-    // The middleware's `getRoleForScopes` intentionally diverges (it
-    // computes the role for the spoofed admin SessionUser at runtime,
-    // which stays unchanged in v1).
     static getRoleForScopes(
         scopes: ServiceAccountScope[],
     ): OrganizationMemberRole {
