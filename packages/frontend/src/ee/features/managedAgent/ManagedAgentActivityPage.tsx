@@ -966,12 +966,27 @@ const SettingsSidebar: FC<{
                             </Group>
                             {organizationHasSlack ? (
                                 slackNotificationsEnabled && (
-                                    <SlackChannelSelect
-                                        placeholder="Search channels..."
-                                        size="sm"
-                                        value={slackChannelId}
-                                        onChange={handleSlackChannelChange}
-                                    />
+                                    <Stack gap={6}>
+                                        <SlackChannelSelect
+                                            placeholder="Search channels..."
+                                            size="sm"
+                                            value={slackChannelId}
+                                            onChange={handleSlackChannelChange}
+                                        />
+                                        <Text fz="xs" c="dimmed">
+                                            Please invite Lightdash to this
+                                            channel — we can&apos;t post
+                                            messages until you do. (
+                                            <Text
+                                                component="span"
+                                                inherit
+                                                ff="monospace"
+                                            >
+                                                /invite @Lightdash
+                                            </Text>
+                                            )
+                                        </Text>
+                                    </Stack>
                                 )
                             ) : (
                                 <Stack gap="xs">
