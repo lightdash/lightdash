@@ -2225,6 +2225,7 @@ export default class SchedulerTask {
                     metricQuery: payload.metricQuery,
                     customLabels: payload.customLabels,
                     onlyRaw: true,
+                    timezone: displayTimezone ?? undefined,
                     maxColumnLimit:
                         this.lightdashConfig.pivotTable.maxColumnLimit,
                     pivotDetails,
@@ -2893,6 +2894,7 @@ export default class SchedulerTask {
                         metricQuery: chart.metricQuery,
                         customLabels,
                         onlyRaw: true,
+                        timezone: displayTimezone ?? undefined,
                         maxColumnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,
                         pivotDetails,
@@ -3053,6 +3055,7 @@ export default class SchedulerTask {
                                 metricQuery: chart.metricQuery,
                                 customLabels,
                                 onlyRaw: true,
+                                timezone: displayTimezone ?? undefined,
                                 maxColumnLimit:
                                     this.lightdashConfig.pivotTable
                                         .maxColumnLimit,
