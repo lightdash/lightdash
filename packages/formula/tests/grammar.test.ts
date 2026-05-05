@@ -813,6 +813,140 @@ describe('Formula Grammar', () => {
         });
     });
 
+    describe('windowed aggregate (OVER PARTITION BY)', () => {
+        it('parses SUM(A) OVER (PARTITION BY B)', () => {
+            const ast = parse('=SUM(A) OVER (PARTITION BY B)');
+            expect(ast).toEqual({
+                type: 'WindowedAggregate',
+                aggregate: {
+                    type: 'SingleArgFn',
+                    name: 'SUM',
+                    arg: { type: 'ColumnRef', name: 'A' },
+                },
+                windowClause: {
+                    type: 'WindowClause',
+                    partitionBy: { type: 'ColumnRef', name: 'B' },
+                },
+            });
+        });
+
+        it('parses AVG with both PARTITION BY and ORDER BY', () => {
+            const ast = parse(
+                '=AVG(A) OVER (PARTITION BY B ORDER BY C DESC)',
+            );
+            expect(ast).toEqual({
+                type: 'WindowedAggregate',
+                aggregate: {
+                    type: 'SingleArgFn',
+                    name: 'AVG',
+                    arg: { type: 'ColumnRef', name: 'A' },
+                },
+                windowClause: {
+                    type: 'WindowClause',
+                    partitionBy: { type: 'ColumnRef', name: 'B' },
+                    orderBy: {
+                        column: { type: 'ColumnRef', name: 'C' },
+                        direction: 'DESC',
+                    },
+                },
+            });
+        });
+
+        it('parses empty OVER ()', () => {
+            const ast = parse('=SUM(A) OVER ()');
+            expect(ast).toEqual({
+                type: 'WindowedAggregate',
+                aggregate: {
+                    type: 'SingleArgFn',
+                    name: 'SUM',
+                    arg: { type: 'ColumnRef', name: 'A' },
+                },
+                windowClause: { type: 'WindowClause' },
+            });
+        });
+
+        it('parses COUNT(DISTINCT col) OVER (PARTITION BY …)', () => {
+            const ast = parse('=COUNT(DISTINCT A) OVER (PARTITION BY B)');
+            expect(ast).toMatchObject({
+                type: 'WindowedAggregate',
+                aggregate: { type: 'CountDistinct' },
+                windowClause: {
+                    partitionBy: { type: 'ColumnRef', name: 'B' },
+                },
+            });
+        });
+
+        it('parses SUMIF OVER (PARTITION BY …)', () => {
+            const ast = parse(
+                '=SUMIF(A, B > 0) OVER (PARTITION BY C)',
+            );
+            expect(ast).toMatchObject({
+                type: 'WindowedAggregate',
+                aggregate: { type: 'ConditionalAggregate', name: 'SUMIF' },
+            });
+        });
+
+        it('parses COUNT() OVER (PARTITION BY …) — count(*) windowed', () => {
+            const ast = parse('=COUNT() OVER (PARTITION BY B)');
+            expect(ast).toMatchObject({
+                type: 'WindowedAggregate',
+                aggregate: { type: 'ZeroOrOneArgFn', name: 'COUNT', arg: null },
+            });
+        });
+
+        it('parses 1-arg MIN OVER (PARTITION BY …)', () => {
+            const ast = parse('=MIN(A) OVER (PARTITION BY B)');
+            expect(ast).toMatchObject({
+                type: 'WindowedAggregate',
+                aggregate: { type: 'OneOrTwoArgFn', name: 'MIN' },
+            });
+        });
+
+        it('plain SUM(A) without OVER still parses as bare aggregate', () => {
+            const ast = parse('=SUM(A)');
+            expect(ast).toEqual({
+                type: 'SingleArgFn',
+                name: 'SUM',
+                arg: { type: 'ColumnRef', name: 'A' },
+            });
+        });
+
+        it('rejects ABS(A) OVER (PARTITION BY B) — ABS is not an aggregate', () => {
+            // ABS isn't in WindowableAggregate, so the OVER suffix can't bind.
+            // The parser falls through to bare ABS, which leaves `OVER (...)`
+            // as trailing input that fails the top-level Formula rule.
+            expect(() => parse('=ABS(A) OVER (PARTITION BY B)')).toThrow();
+        });
+
+        it('windowed aggregate composes with arithmetic', () => {
+            const ast = parse(
+                '=SUM(A) OVER (PARTITION BY B) - AVG(A) OVER (PARTITION BY B)',
+            );
+            expect(ast).toMatchObject({
+                type: 'BinaryOp',
+                op: '-',
+                left: { type: 'WindowedAggregate' },
+                right: { type: 'WindowedAggregate' },
+            });
+        });
+
+        it('case-insensitive OVER / PARTITION BY / ORDER BY', () => {
+            const ast = parse(
+                '=sum(A) over (partition by B order by C asc)',
+            );
+            expect(ast).toMatchObject({
+                type: 'WindowedAggregate',
+                windowClause: {
+                    partitionBy: { type: 'ColumnRef', name: 'B' },
+                    orderBy: {
+                        column: { type: 'ColumnRef', name: 'C' },
+                        direction: 'ASC',
+                    },
+                },
+            });
+        });
+    });
+
     describe('conditional aggregates', () => {
         it('parses SUMIF', () => {
             const ast = parse('=SUMIF(A, B = "Electronics")');

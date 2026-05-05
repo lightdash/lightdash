@@ -29,6 +29,9 @@ export const isAggregateCall = (node: ASTNode): boolean => {
                 (node.name === 'MIN' || node.name === 'MAX') &&
                 node.args.length === 1
             );
+        // WindowedAggregate carries its own OVER clause so the renderAggregate
+        // hook must NOT wrap it again — same treatment as native window fns.
+        case 'WindowedAggregate':
         case 'BinaryOp':
         case 'UnaryOp':
         case 'If':
@@ -79,6 +82,17 @@ export const extractColumnRefs = (node: ASTNode): string[] => {
             return extractColumnRefs(node.condition);
         case 'CountDistinct':
             return extractColumnRefs(node.arg);
+        case 'WindowedAggregate': {
+            const aggRefs = extractColumnRefs(node.aggregate);
+            const wc = node.windowClause;
+            const partRefs = wc.partitionBy
+                ? extractColumnRefs(wc.partitionBy)
+                : [];
+            const orderRefs = wc.orderBy
+                ? extractColumnRefs(wc.orderBy.column)
+                : [];
+            return [...aggRefs, ...partRefs, ...orderRefs];
+        }
         case 'SingleArgFn':
             return extractColumnRefs(node.arg);
         case 'ZeroOrOneArgFn':

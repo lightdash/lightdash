@@ -16,6 +16,10 @@ describe('extractColumnRefs', () => {
         ['=COUNT(DISTINCT A + B)', ['A', 'B']],
         ['=CONCAT(A, B, C)', ['A', 'B', 'C']],
         ['=CASE WHEN A > 0 THEN B ELSE C END', ['A', 'B', 'C']],
+        ['=SUM(A) OVER (PARTITION BY B)', ['A', 'B']],
+        ['=AVG(A) OVER (PARTITION BY B ORDER BY C DESC)', ['A', 'B', 'C']],
+        ['=SUM(A) OVER ()', ['A']],
+        ['=SUMIF(A, B > 0) OVER (PARTITION BY C)', ['A', 'B', 'C']],
     ])('extracts refs from %s', (formula, expected) => {
         expect(extractColumnRefs(parse(formula))).toEqual(expected);
     });

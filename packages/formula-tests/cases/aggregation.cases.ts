@@ -167,4 +167,111 @@ export const aggregationCases: TestCase[] = [
         tier: 1,
         tags: ['aggregation'],
     },
+    {
+        id: 'aggregation/sum-over-partition-by',
+        formula: '=SUM(A) OVER (PARTITION BY B)',
+        description:
+            'Per-partition windowed SUM — total per category replicated on every row',
+        columns: { A: 'order_amount', B: 'category' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 665 }, // id=1, Electronics
+            { result: 340.5 }, // id=2, Clothing
+            { result: 665 }, // id=3, Electronics
+            { result: 1070 }, // id=4, Furniture
+            { result: 340.5 }, // id=5, Clothing
+            { result: 665 }, // id=6, Electronics
+            { result: 1070 }, // id=7, Furniture
+            { result: 340.5 }, // id=8, Clothing
+            { result: 665 }, // id=9, Electronics
+            { result: 1070 }, // id=10, Furniture
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['aggregation', 'window'],
+    },
+    {
+        id: 'aggregation/count-distinct-over-partition-by',
+        formula: '=COUNT(DISTINCT A) OVER (PARTITION BY B)',
+        description:
+            'Per-partition COUNT(DISTINCT) — distinct customers per category',
+        columns: { A: 'customer_name', B: 'category' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 4 }, // Electronics: Alice, Charlie, Frank, Ivy
+            { result: 3 }, // Clothing: Bob, Eve, Henry
+            { result: 4 },
+            { result: 3 }, // Furniture: Diana, Grace, Jack
+            { result: 3 },
+            { result: 4 },
+            { result: 3 },
+            { result: 3 },
+            { result: 4 },
+            { result: 3 },
+        ],
+        // Two engines reject COUNT(DISTINCT …) inside a window:
+        //   - Redshift: "WINDOW definition is not supported" (pre-PG-14 fork).
+        //   - Athena: "DISTINCT in window function parameters not yet
+        //     supported" (older Presto/Trino — bare Trino itself works fine).
+        // Codegen still emits the same SQL on those engines; the DB rejects
+        // it at execution. Documented limitation, not a generation bug.
+        warehouses: ALL_WAREHOUSES.filter(
+            (w) => w !== 'redshift' && w !== 'athena',
+        ),
+        tier: 1,
+        tags: ['aggregation', 'window'],
+    },
+    {
+        id: 'aggregation/sum-over-empty',
+        formula: '=SUM(A) OVER ()',
+        description:
+            'Windowed SUM with empty OVER — global total replicated on every row',
+        columns: { A: 'order_amount' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        expectedRows: [
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+            { result: 2075.5 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['aggregation', 'window'],
+    },
+    {
+        id: 'aggregation/sumif-over-partition-by',
+        formula: '=SUMIF(A, A > 100) OVER (PARTITION BY B)',
+        description:
+            'Per-partition windowed SUMIF — sum of amounts > 100 per category',
+        columns: { A: 'order_amount', B: 'category' },
+        sourceTable: 'test_orders',
+        orderBy: 'id',
+        // Electronics > 100: 180 + 310 = 490 (Alice 100 excluded, Charlie 75 excluded)
+        // Clothing > 100: 250.5 (only Bob qualifies)
+        // Furniture > 100: 500 + 420 + 150 = 1070
+        expectedRows: [
+            { result: 490 },
+            { result: 250.5 },
+            { result: 490 },
+            { result: 1070 },
+            { result: 250.5 },
+            { result: 490 },
+            { result: 1070 },
+            { result: 250.5 },
+            { result: 490 },
+            { result: 1070 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['aggregation', 'window'],
+    },
 ];

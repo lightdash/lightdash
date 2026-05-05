@@ -1473,4 +1473,98 @@ describe('codegen', () => {
             );
         });
     });
+
+    describe('windowed aggregate (OVER PARTITION BY)', () => {
+        const ctx = {
+            amount: 'amount',
+            category: 'category',
+            order_date: 'order_date',
+            customer_id: 'customer_id',
+        };
+
+        it('emits SUM(...) OVER (PARTITION BY ...) on Postgres', () => {
+            expect(
+                compile('=SUM(amount) OVER (PARTITION BY category)', {
+                    dialect: 'postgres',
+                    columns: ctx,
+                }),
+            ).toBe(`SUM("amount") OVER (PARTITION BY "category")`);
+        });
+
+        it('emits AVG with PARTITION BY + ORDER BY', () => {
+            expect(
+                compile(
+                    '=AVG(amount) OVER (PARTITION BY category ORDER BY order_date)',
+                    { dialect: 'postgres', columns: ctx },
+                ),
+            ).toBe(
+                `AVG("amount"::DOUBLE PRECISION) OVER (PARTITION BY "category" ORDER BY "order_date")`,
+            );
+        });
+
+        it('emits empty OVER ()', () => {
+            expect(
+                compile('=SUM(amount) OVER ()', {
+                    dialect: 'postgres',
+                    columns: ctx,
+                }),
+            ).toBe(`SUM("amount") OVER ()`);
+        });
+
+        it('emits COUNT(DISTINCT col) OVER (PARTITION BY ...)', () => {
+            expect(
+                compile(
+                    '=COUNT(DISTINCT customer_id) OVER (PARTITION BY category)',
+                    { dialect: 'postgres', columns: ctx },
+                ),
+            ).toBe(
+                `COUNT(DISTINCT "customer_id") OVER (PARTITION BY "category")`,
+            );
+        });
+
+        it('emits SUMIF OVER (PARTITION BY ...)', () => {
+            expect(
+                compile(
+                    '=SUMIF(amount, category = "Electronics") OVER (PARTITION BY category)',
+                    { dialect: 'postgres', columns: ctx },
+                ),
+            ).toBe(
+                `SUM(CASE WHEN ("category" = 'Electronics') THEN "amount" END) OVER (PARTITION BY "category")`,
+            );
+        });
+
+        it('quotes identifiers per dialect — BigQuery', () => {
+            expect(
+                compile('=SUM(amount) OVER (PARTITION BY category)', {
+                    dialect: 'bigquery',
+                    columns: ctx,
+                }),
+            ).toBe('SUM(`amount`) OVER (PARTITION BY `category`)');
+        });
+
+        it('renderAggregate hook does NOT wrap a windowed aggregate', () => {
+            expect(
+                compile('=SUM(amount) OVER (PARTITION BY category)', {
+                    dialect: 'postgres',
+                    columns: ctx,
+                    renderAggregate: (sql) => `${sql} OVER ()`,
+                }),
+            ).toBe(`SUM("amount") OVER (PARTITION BY "category")`);
+        });
+
+        it('renderAggregate still wraps non-windowed aggregates next to a windowed one', () => {
+            expect(
+                compile(
+                    '=SUM(amount) OVER (PARTITION BY category) - SUM(amount)',
+                    {
+                        dialect: 'postgres',
+                        columns: ctx,
+                        renderAggregate: (sql) => `${sql} OVER ()`,
+                    },
+                ),
+            ).toBe(
+                `(SUM("amount") OVER (PARTITION BY "category") - SUM("amount") OVER ())`,
+            );
+        });
+    });
 });

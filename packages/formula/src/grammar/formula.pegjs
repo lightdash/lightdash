@@ -108,6 +108,7 @@ UnaryExpr
 Primary
   = IfExpr
   / CaseExpr
+  / WindowedAggregate
   / ConditionalAggregate
   / CountIf
   / CountDistinctExpr
@@ -172,6 +173,60 @@ CountIf
 CountDistinctExpr
   = "COUNT"i _ "(" _ "DISTINCT"i _ arg:Expression _ ")" {
       return { type: "CountDistinct", arg };
+    }
+
+// `<aggregate> OVER (PARTITION BY … [ORDER BY … [ASC|DESC]])` — wraps any
+// aggregate call so users can write SQL-style windowed aggregates like
+// `SUM(amount) OVER (PARTITION BY category)`. WindowableAggregate matches
+// only aggregate-shape calls (so `ABS(x) OVER (...)` falls through to
+// InvalidFn / ColumnRef). Tried before the bare aggregate rules in Primary
+// so the OVER suffix wins when present; if OVER is missing, this rule fails
+// and Primary falls through to the bare-aggregate alternatives.
+WindowedAggregate
+  = agg:WindowableAggregate _ "OVER"i _ "(" _ wc:OverClauseContent? _ ")" {
+      return {
+        type: "WindowedAggregate",
+        aggregate: agg,
+        windowClause: wc || { type: "WindowClause" },
+      };
+    }
+
+WindowableAggregate
+  = ConditionalAggregate
+  / CountIf
+  / CountDistinctExpr
+  / name:Identifier &{
+      const u = name.toUpperCase();
+      return u === 'SUM' || u === 'AVG' || u === 'AVERAGE';
+    } _ "(" _ arg:Expression _ ")" {
+      return { type: "SingleArgFn", name: name.toUpperCase(), arg };
+    }
+  / "COUNT"i _ "(" _ arg:Expression? _ ")" {
+      return { type: "ZeroOrOneArgFn", name: "COUNT", arg: arg ?? null };
+    }
+  / name:Identifier &{
+      const u = name.toUpperCase();
+      return u === 'MIN' || u === 'MAX';
+    } _ "(" _ arg:Expression _ ")" {
+      return { type: "OneOrTwoArgFn", name: name.toUpperCase(), args: [arg] };
+    }
+
+OverClauseContent
+  = parts:OverClausePart+ {
+      const wc = { type: "WindowClause" };
+      for (const p of parts) {
+        if (p.partitionBy) wc.partitionBy = p.partitionBy;
+        if (p.orderBy) wc.orderBy = p.orderBy;
+      }
+      return wc;
+    }
+
+OverClausePart
+  = _ "PARTITION"i _ "BY"i _ col:Expression {
+      return { partitionBy: col };
+    }
+  / _ "ORDER"i _ "BY"i _ col:Expression dir:(_ ("ASC"i / "DESC"i))? {
+      return { orderBy: { column: col, direction: dir ? dir[1].toUpperCase() : undefined } };
     }
 
 // DATE_TRUNC("unit", date) — first arg must be a whitelisted string literal.

@@ -24,6 +24,7 @@ import type {
     VariadicFnNode,
     WeekDay,
     WindowClauseNode,
+    WindowedAggregateNode,
     WindowFnNode,
     ZeroArgFnNode,
     ZeroOrOneArgFnNode,
@@ -69,6 +70,8 @@ export class SqlGenerator {
                 return this.generateCountIf(node);
             case 'CountDistinct':
                 return this.generateCountDistinct(node);
+            case 'WindowedAggregate':
+                return this.generateWindowedAggregate(node);
             case 'ZeroArgFn':
                 return this.generateZeroArgFn(node);
             case 'SingleArgFn':
@@ -179,6 +182,28 @@ export class SqlGenerator {
 
     protected generateCountDistinct(node: CountDistinctNode): string {
         return `COUNT(DISTINCT ${this.generate(node.arg)})`;
+    }
+
+    // Emits `<aggregate-sql> OVER (PARTITION BY … ORDER BY …)`. The inner
+    // aggregate is generated via `generateNode` (not `generate`) so the
+    // renderAggregate hook does NOT wrap it — the explicit OVER replaces
+    // whatever wrapping the caller would have applied. Same contract as
+    // native window functions (RUNNING_TOTAL, LAG, …).
+    protected generateWindowedAggregate(node: WindowedAggregateNode): string {
+        const inner = this.generateNode(node.aggregate);
+        return `${inner} ${this.formatOverClause(node.windowClause)}`;
+    }
+
+    protected formatOverClause(wc: WindowClauseNode): string {
+        const parts: string[] = [];
+        if (wc.partitionBy) {
+            parts.push(`PARTITION BY ${this.generate(wc.partitionBy)}`);
+        }
+        if (wc.orderBy) {
+            const dir = wc.orderBy.direction ? ` ${wc.orderBy.direction}` : '';
+            parts.push(`ORDER BY ${this.generate(wc.orderBy.column)}${dir}`);
+        }
+        return parts.length === 0 ? 'OVER ()' : `OVER (${parts.join(' ')})`;
     }
 
     protected generateZeroArgFn(node: ZeroArgFnNode): string {
