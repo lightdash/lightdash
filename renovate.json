@@ -4,14 +4,13 @@
     "config:recommended",
     ":dependencyDashboard",
     ":semanticCommitTypeAll(chore)",
-    "group:allNonMajor",
     "group:monorepos",
     "helpers:pinGitHubActionDigests"
   ],
-  "minimumReleaseAge": "3 days",
+  "minimumReleaseAge": "7 days",
   "internalChecksFilter": "none",
   "rangeStrategy": "bump",
-  "prConcurrentLimit": 5,
+  "prConcurrentLimit": 8,
   "prHourlyLimit": 2,
   "labels": ["dependencies"],
   "dependencyDashboardApproval": false,
@@ -21,6 +20,7 @@
   },
   "packageRules": [
     {
+      "description": "Automerge dev dependency minor/patch updates for stable packages",
       "matchDepTypes": ["devDependencies"],
       "matchUpdateTypes": ["minor", "patch"],
       "matchCurrentVersion": "!/^0/",
@@ -28,12 +28,14 @@
       "platformAutomerge": true
     },
     {
+      "description": "Automerge @types/* updates",
       "matchPackageNames": ["@types/**"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "platformAutomerge": true
     },
     {
+      "description": "Automerge prod dependency patch updates for stable packages",
       "matchDepTypes": ["dependencies"],
       "matchUpdateTypes": ["patch"],
       "matchCurrentVersion": "!/^0/",
@@ -41,6 +43,7 @@
       "platformAutomerge": true
     },
     {
+      "description": "Never automerge sensitive infrastructure packages",
       "matchPackageNames": [
         "pg", "pg-protocol", "pg-cursor",
         "knex",
@@ -57,8 +60,162 @@
       "automerge": false
     },
     {
+      "description": "Ignore internal packages",
       "matchPackageNames": ["@lightdash/**"],
       "enabled": false
+    },
+    {
+      "description": "Group AI/LLM packages",
+      "groupName": "AI/LLM packages",
+      "matchPackageNames": [
+        "@ai-sdk/**",
+        "@anthropic-ai/sdk",
+        "@langchain/**",
+        "@mastra/**",
+        "ai",
+        "autoevals",
+        "e2b"
+      ]
+    },
+    {
+      "description": "Group database and warehouse packages",
+      "groupName": "database and warehouse packages",
+      "matchPackageNames": [
+        "pg",
+        "pg-protocol",
+        "pg-cursor",
+        "pg-connection-string",
+        "knex",
+        "duckdb",
+        "@duckdb/node-api",
+        "snowflake-sdk",
+        "@databricks/sql",
+        "@clickhouse/client",
+        "@google-cloud/bigquery",
+        "nodejs-polars"
+      ]
+    },
+    {
+      "description": "Group Monaco editor packages",
+      "groupName": "Monaco editor packages",
+      "matchPackageNames": [
+        "monaco-editor",
+        "monaco-sql-languages",
+        "monaco-yaml",
+        "@monaco-editor/react",
+        "@popsql/monaco-sql-languages"
+      ]
+    },
+    {
+      "description": "Group i18n packages",
+      "groupName": "i18n packages",
+      "matchPackageNames": [
+        "i18next",
+        "i18next-browser-languagedetector",
+        "i18next-http-backend",
+        "i18next-locize-backend",
+        "react-i18next"
+      ]
+    },
+    {
+      "description": "Group auth and security packages",
+      "groupName": "auth and security packages",
+      "matchPackageNames": [
+        "jose",
+        "jsonwebtoken",
+        "passport",
+        "passport-google-oauth20",
+        "passport-local",
+        "passport-oauth2",
+        "passport-oauth2-refresh",
+        "passport-openidconnect",
+        "passport-strategy",
+        "@node-oauth/oauth2-server",
+        "openid-client",
+        "@types/passport",
+        "@types/passport-google-oauth20",
+        "@types/passport-local",
+        "@types/passport-oauth2",
+        "@types/passport-oauth2-refresh",
+        "@types/passport-strategy",
+        "@types/jsonwebtoken"
+      ]
+    },
+    {
+      "description": "Group Slack and comms packages",
+      "groupName": "Slack and comms packages",
+      "matchPackageNames": [
+        "@slack/oauth",
+        "slackify-markdown",
+        "@rudderstack/rudder-sdk-node",
+        "rudder-sdk-js"
+      ]
+    },
+    {
+      "description": "Group build and compiler tools",
+      "groupName": "build and compiler tools",
+      "matchPackageNames": [
+        "vite",
+        "vite-plugin-singlefile",
+        "@sentry/vite-plugin",
+        "rollup",
+        "typescript",
+        "tsx",
+        "oxc-parser",
+        "oxfmt",
+        "oxlint-tsgolint",
+        "autoprefixer",
+        "postcss"
+      ]
+    },
+    {
+      "description": "Group ESLint packages",
+      "groupName": "ESLint packages",
+      "matchPackageNames": [
+        "eslint-config-prettier",
+        "eslint-plugin-import",
+        "eslint-plugin-jest",
+        "eslint-plugin-jest-dom",
+        "eslint-plugin-jsdoc",
+        "eslint-plugin-jsx-a11y",
+        "eslint-plugin-perfectionist",
+        "eslint-plugin-react-refresh",
+        "eslint-plugin-testing-library",
+        "globals"
+      ]
+    },
+    {
+      "description": "Group testing packages",
+      "groupName": "testing packages",
+      "matchPackageNames": [
+        "jest",
+        "ts-jest",
+        "cypress",
+        "cypress-split",
+        "jsdom",
+        "nock",
+        "@types/jest"
+      ]
+    },
+    {
+      "description": "Group Sentry packages",
+      "groupName": "Sentry packages",
+      "matchPackageNames": ["@sentry/**"]
+    },
+    {
+      "description": "Group Mantine packages",
+      "groupName": "Mantine packages",
+      "matchPackageNames": ["@mantine/**", "mantine-form-zod-resolver"]
+    },
+    {
+      "description": "Group React core packages",
+      "groupName": "React core packages",
+      "matchPackageNames": [
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
