@@ -251,6 +251,67 @@ The canonical source of truth for field types is `packages/common/src/types/fiel
     -   Import from `@lightdash/common`: `import { assertUnreachable } from '@lightdash/common';`
     -   This provides compile-time safety when new union members are added
 
+## Logging — Prefer Wide Events
+
+When adding logging to a unit of work (a request, job, scheduler task, or operation), prefer a **wide events** approach: accumulate context as the work flows through, then emit **one structured event at the end** with as many fields as you can muster — rather than scattering many thin log lines throughout the code path.
+
+**Why**: high-cardinality dimensions (user ID, org ID, project UUID, route, latency, DB time, cache hits, build SHA, feature flags, region, error info, upstream timings, etc.) preserved on a single event let us answer arbitrary questions at query time without pre-building dashboards. Aggregated metrics throw away per-request context the moment they're rolled up; wide events keep it.
+
+**How to apply in this codebase**: Lightdash uses Winston via `import Logger from './logging/logger';` with a structured-context object as the second argument — this IS the wide-event payload.
+
+-   ✅ **Good** — accumulate context, emit one fat event:
+
+    ```typescript
+    const event: Record<string, unknown> = {
+        requestId,
+        userUuid: user.userUuid,
+        organizationUuid: user.organizationUuid,
+        projectUuid,
+        route: '/api/v1/...',
+    };
+    try {
+        const t0 = Date.now();
+        const explore = await this.getExplore(...);
+        event.exploreLoadMs = Date.now() - t0;
+        event.exploreName = explore.name;
+
+        const t1 = Date.now();
+        const rows = await warehouseClient.runQuery(...);
+        event.warehouseQueryMs = Date.now() - t1;
+        event.rowCount = rows.length;
+        event.cacheHit = false;
+
+        event.outcome = 'success';
+    } catch (e) {
+        event.outcome = 'error';
+        event.errorName = e.name;
+        event.errorMessage = e.message;
+        throw e;
+    } finally {
+        event.totalMs = Date.now() - tStart;
+        Logger.info('runQuery', event);
+    }
+    ```
+
+-   ❌ **Avoid** — scattered, low-context lines that lose correlation:
+
+    ```typescript
+    Logger.info('Loading explore');
+    Logger.info('Running warehouse query');
+    Logger.info(`Got ${rows.length} rows`);
+    Logger.info('Done');
+    ```
+
+**Guidelines**:
+
+-   **One event per unit of work.** A request handler, a scheduler task, a CLI command — each gets one wide event at completion, not many along the way.
+-   **Pass the event object down** the call chain (or use a request-scoped context) so deeper code can attach fields without a fresh `Logger.info` call. Winston child loggers (`Logger.child({ ... })`) are also fine for cross-cutting context.
+-   **Always include the outcome** (`success` / `error` / `aborted`) and **a duration field** so the same event drives both error analysis and latency analysis.
+-   **High-cardinality fields are the point** — include UUIDs, route, build SHA, feature-flag values. Don't pre-aggregate.
+-   **Never log secrets or PII** — see `sensitiveCredentialsFieldNames` in `packages/common/src/types/projects.ts`. Field names like `password`, `token`, `keyfileContents`, raw user emails, etc. must never appear in event payloads.
+-   **Errors still get `Logger.error`**, but with the same accumulated wide context — don't throw away the event when something fails, attach the error fields and emit it.
+-   **Existing thin logs are fine** — don't refactor them as a side quest. This guidance shapes new code.
+
 ## Security Best Practices
 
 ### Installing Dependencies — Always Use `sfw`
