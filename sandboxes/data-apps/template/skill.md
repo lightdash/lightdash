@@ -318,10 +318,82 @@ Each additional metric needs:
 |---|---|---|
 | `data` | `Row[]` | Flat objects keyed by short field name. Raw values. Use for charts. |
 | `columns` | `Column[]` | Field metadata (`name`, `label`, `type`). Use for table headers. |
-| `format` | `(row, fieldName) => string` | Formatted display value (currency, %, dates). Use for text. |
+| `format` | `(row, fieldName) => string` | Server-side formatted value — preserves currency, %, prefix/suffix from the dbt YAML. **Tabular** form (e.g. `2025-03`, `2025-03-17`) — fine in dense table cells, **not** chart-friendly. For dates, chart axes, and human-readable date columns, prefer the `formatField` / `formatDate` / `formatNumber` helpers from `@/lib/format` (see [Formatting](#formatting)). |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
 | `refetch` | `() => void` | Re-run the query on demand. |
+
+### Formatting
+
+Every Lightdash row carries two views of each value:
+
+- `row[fieldName]` — the **raw** value. Numbers are real numbers; **dates and timestamps are full ISO strings** (e.g. `'2025-03-01T00:00:00Z'`) regardless of the truncation grain. Pass these to charts as data, not as axis labels.
+- `format(row, fieldName)` — the **server-formatted** value. Preserves dbt YAML formatting (currency, percent, prefix/suffix) but is tabular and zero-padded for dates (e.g. `'2025-03'`, `'2025-Q1'`). Fine in dense table cells, ugly on chart axes.
+
+For chart axes and any human-facing date column, use the helpers in `@/lib/format`:
+
+```tsx
+import { formatField, formatDate, formatNumber, getColumn } from '@/lib/format';
+```
+
+| Helper | Use for |
+|---|---|
+| `formatField(row, column, format, variant?)` | Default catch-all for table cells, KPI labels, and tooltip values. Routes dates through human-readable patterns, numbers through compact form on axes, and falls back to the SDK `format()` for currency/% so dbt YAML formatting is preserved. |
+| `formatDate(value, column?, variant?, opts?)` | A `tickFormatter` for date X-axes, or any place you have a raw value (no row). Variant is `'cell'` (default) or `'axis'` (compact). Pass `opts.pattern` to override with a custom date-fns pattern. |
+| `formatNumber(value, variant?)` | A `tickFormatter` for numeric Y-axes. `variant: 'axis'` returns compact form (`24K`, `$1.2M` style) without currency prefix. |
+| `getColumn(columns, name)` | Find a column by short name. Useful for passing column metadata to `formatDate` from a `tickFormatter`. |
+
+`variant: 'axis'` outputs:
+- date / timestamp by grain — `2025` (year), `Q1 '25` (quarter), `Jun '25` (month), `Jun 16 '25` (week / day)
+- number — compact (`24K`, `1.2M`)
+- timestamp without grain — `Jun 16, 14:00`
+
+`variant: 'cell'` outputs:
+- date / timestamp by grain — `2025`, `Q1 2025`, `Jun 2025`, `Jun 16, 2025`
+- number — server-formatted (currency / % / suffix preserved via the SDK `format()` you pass in)
+- timestamp without grain — `Jun 16, 2025 14:00`
+
+**Override** by passing `opts.pattern` to `formatDate`, or by formatting yourself with `date-fns`/`Intl.NumberFormat`:
+
+```tsx
+import { format as formatDateFns, parseISO } from 'date-fns';
+
+formatDate(row.order_date_month, getColumn(columns, 'order_date_month'), 'axis', { pattern: 'MMM yyyy' });
+
+// Or fully manual:
+formatDateFns(parseISO(row.order_date as string), 'EEEE, MMM d');
+```
+
+#### Chart axes
+
+**Every `<XAxis>` and `<YAxis>` in the app must have a `tickFormatter`.** No exceptions — including year axes that "look like they'd be fine" (`race_date_year` is still a full ISO timestamp at the data layer; Recharts will render `2025-01-01T00:00:00Z`, not `2025`).
+
+```tsx
+import { XAxis, YAxis } from 'recharts';
+import { formatDate, formatNumber, getColumn } from '@/lib/format';
+
+const dateCol = getColumn(columns, 'order_date_month');
+
+<XAxis
+    dataKey="order_date_month"
+    tickFormatter={(v) => formatDate(v, dateCol, 'axis')}
+/>
+<YAxis tickFormatter={(v) => formatNumber(v, 'axis')} />
+```
+
+**Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
+
+#### Tables
+
+Use `formatField` for cells so dates render `Jun 16, 2025` instead of `2025-06-16`, while currency/percent metrics still flow through the SDK's server format:
+
+```tsx
+{columns.map((col) => (
+    <TableCell key={col.name}>{formatField(row, col, format, 'cell')}</TableCell>
+))}
+```
+
+For the action-menu label and clipboard copy on a cell, the same helper applies — pass `format` so the per-field server format wins for currency/percent.
 
 ### Filters
 
@@ -639,7 +711,7 @@ function copyToClipboard(text: string) {
 function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     const header = columns.map((c) => c.label).join(',');
     const rows = data.map((row) =>
-        columns.map((c) => `"${format(row, c.name).replace(/"/g, '""')}"`).join(','),
+        columns.map((c) => `"${formatField(row, c, format, 'cell').replace(/"/g, '""')}"`).join(','),
     );
     return [header, ...rows].join('\n');
 }
@@ -665,9 +737,9 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
                         <TableCell
                             key={col.name}
                             className="cursor-pointer"
-                            onClick={() => copyToClipboard(format(row, col.name))}
+                            onClick={() => copyToClipboard(formatField(row, col, format, 'cell'))}
                         >
-                            {format(row, col.name)}
+                            {formatField(row, col, format, 'cell')}
                         </TableCell>
                     ))}
                 </TableRow>
@@ -806,7 +878,7 @@ function DrillResults({ query: q }) {
                     {data.map((row, i) => (
                         <TableRow key={i}>
                             {columns.map((col) => (
-                                <TableCell key={col.name}>{format(row, col.name)}</TableCell>
+                                <TableCell key={col.name}>{formatField(row, col, format, 'cell')}</TableCell>
                             ))}
                         </TableRow>
                     ))}
@@ -840,6 +912,10 @@ function DrillResults({ query: q }) {
 | Building the filtered query inline (not memoized) | New query identity every render → infinite re-fetch | `useMemo(() => baseQuery.filters(filtersFor(EXPLORE)), [filtersFor])` |
 | Action menu missing "Filter by &lt;value&gt;" | Default UX requirement violated — users have no way to drill in | Every data-powered chart/table must include the option, calling `addFilter({ field, operator: 'equals', value, explore: EXPLORE })` |
 | Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
+| `<XAxis dataKey="order_date_month" />` with no `tickFormatter` | Recharts renders the raw ISO timestamp (e.g. `2025-03-01T00:00:00Z`) as labels | `tickFormatter={(v) => formatDate(v, getColumn(columns, 'order_date_month'), 'axis')}` from `@/lib/format` |
+| Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
+| Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |
+| Treating `row.order_date_month` as a `Date` or short string | It's a full ISO timestamp string (`2025-03-01T00:00:00Z`) for every grain | Pass through `formatDate` / `formatField`, or `parseISO` it before doing date math |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
