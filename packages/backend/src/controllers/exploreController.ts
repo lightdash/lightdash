@@ -7,6 +7,7 @@ import {
     ApiExploresResults,
     ApiSetExploresResponse,
     assertRegisteredAccount,
+    LightdashCliVersionHeader,
     MetricQuery,
     type ApiFormulaValidationResults,
     type ApiPreAggregateCheckResponse,
@@ -61,7 +62,12 @@ export class ExploreController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getProjectService()
-            .setExplores(toSessionUser(req.account), projectUuid, body);
+            .setExplores(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+                req.header(LightdashCliVersionHeader),
+            );
 
         return {
             status: 'ok',

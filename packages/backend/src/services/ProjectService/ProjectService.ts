@@ -2266,6 +2266,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         explores: (Explore | ExploreError)[],
+        cliVersion?: string | null,
     ): Promise<ApiDeployExploresResults> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -2303,6 +2304,7 @@ export class ProjectService extends BaseService {
             compilationSource: 'cli_deploy',
             jobUuid: null,
             requestMethod: 'cli',
+            cliVersion,
         });
 
         await this.schedulerClient.generateValidation({
