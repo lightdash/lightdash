@@ -159,7 +159,7 @@
         "slackify-markdown": "4.4.0",
         "sshpk": "1.18.0",
         "tar-stream": "3.1.8",
-        "uuid": "8.3.2",
+        "uuid": "14.0.0",
         "vitest": "3.2.4",
         "winston": "3.13.0",
         "yaml": "2.7.0",
