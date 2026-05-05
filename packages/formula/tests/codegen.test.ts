@@ -1281,4 +1281,196 @@ describe('codegen', () => {
             ).toBe('SUBSTR(`domain`, 1, 5)');
         });
     });
+
+    describe('SPLIT_PART', () => {
+        const stringColumns = { email: 'email' };
+
+        it('emits ANSI SPLIT_PART on Postgres', () => {
+            expect(
+                compile('=SPLIT_PART(email, "@", 2)', {
+                    dialect: 'postgres',
+                    columns: stringColumns,
+                }),
+            ).toBe(`SPLIT_PART("email", '@', 2)`);
+        });
+
+        it('emits ANSI SPLIT_PART on Snowflake', () => {
+            expect(
+                compile('=SPLIT_PART(email, "@", 2)', {
+                    dialect: 'snowflake',
+                    columns: stringColumns,
+                }),
+            ).toBe(`SPLIT_PART("email", '@', 2)`);
+        });
+
+        it('emits ANSI SPLIT_PART on DuckDB', () => {
+            expect(
+                compile('=SPLIT_PART(email, "@", 2)', {
+                    dialect: 'duckdb',
+                    columns: stringColumns,
+                }),
+            ).toBe(`SPLIT_PART("email", '@', 2)`);
+        });
+
+        it('emits ANSI SPLIT_PART on Trino / Athena', () => {
+            for (const dialect of ['trino', 'athena'] as const) {
+                expect(
+                    compile('=SPLIT_PART(email, "@", 2)', {
+                        dialect,
+                        columns: stringColumns,
+                    }),
+                ).toBe(`SPLIT_PART("email", '@', 2)`);
+            }
+        });
+
+        it('BigQuery composes via SPLIT(...)[SAFE_OFFSET(n-1)]', () => {
+            expect(
+                compile('=SPLIT_PART(email, "@", 2)', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe(
+                "IFNULL(SPLIT(`email`, '@')[SAFE_OFFSET((2) - 1)], '')",
+            );
+        });
+
+        it('ClickHouse uses splitByString with reversed (delim, text) arg order', () => {
+            expect(
+                compile('=SPLIT_PART(email, "@", 2)', {
+                    dialect: 'clickhouse',
+                    columns: stringColumns,
+                }),
+            ).toBe(`splitByString('@', "email")[2]`);
+        });
+    });
+
+    describe('STRPOS', () => {
+        const stringColumns = { url: 'url' };
+
+        it('emits ANSI STRPOS on Postgres / Redshift / BigQuery / Trino / Athena / DuckDB', () => {
+            const expected = (qid: string) => `STRPOS(${qid}, '://')`;
+            for (const dialect of [
+                'postgres',
+                'redshift',
+                'duckdb',
+                'trino',
+                'athena',
+            ] as const) {
+                expect(
+                    compile('=STRPOS(url, "://")', {
+                        dialect,
+                        columns: stringColumns,
+                    }),
+                ).toBe(expected(`"url"`));
+            }
+            expect(
+                compile('=STRPOS(url, "://")', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe(expected('`url`'));
+        });
+
+        it('Snowflake uses POSITION(substring, text) — substring first', () => {
+            expect(
+                compile('=STRPOS(url, "://")', {
+                    dialect: 'snowflake',
+                    columns: stringColumns,
+                }),
+            ).toBe(`POSITION('://', "url")`);
+        });
+
+        it('Databricks uses INSTR(text, substring)', () => {
+            expect(
+                compile('=STRPOS(url, "://")', {
+                    dialect: 'databricks',
+                    columns: stringColumns,
+                }),
+            ).toBe("INSTR(`url`, '://')");
+        });
+
+        it('ClickHouse uses lowercase position(text, substring)', () => {
+            expect(
+                compile('=STRPOS(url, "://")', {
+                    dialect: 'clickhouse',
+                    columns: stringColumns,
+                }),
+            ).toBe(`position("url", '://')`);
+        });
+    });
+
+    describe('STARTS_WITH', () => {
+        const stringColumns = { url: 'url' };
+
+        it('emits ANSI STARTS_WITH on Postgres / DuckDB / BigQuery / Trino / Athena', () => {
+            const expected = (qid: string) =>
+                `STARTS_WITH(${qid}, 'https://')`;
+            for (const dialect of [
+                'postgres',
+                'duckdb',
+                'trino',
+                'athena',
+            ] as const) {
+                expect(
+                    compile('=STARTS_WITH(url, "https://")', {
+                        dialect,
+                        columns: stringColumns,
+                    }),
+                ).toBe(expected(`"url"`));
+            }
+            expect(
+                compile('=STARTS_WITH(url, "https://")', {
+                    dialect: 'bigquery',
+                    columns: stringColumns,
+                }),
+            ).toBe(expected('`url`'));
+        });
+
+        it('Redshift composes via LEFT(text, LENGTH(prefix)) = prefix', () => {
+            expect(
+                compile('=STARTS_WITH(url, "https://")', {
+                    dialect: 'redshift',
+                    columns: stringColumns,
+                }),
+            ).toBe(`(LEFT("url", LENGTH('https://')) = 'https://')`);
+        });
+
+        it('Snowflake uses STARTSWITH (no underscore)', () => {
+            expect(
+                compile('=STARTS_WITH(url, "https://")', {
+                    dialect: 'snowflake',
+                    columns: stringColumns,
+                }),
+            ).toBe(`STARTSWITH("url", 'https://')`);
+        });
+
+        it('Databricks uses STARTSWITH (no underscore)', () => {
+            expect(
+                compile('=STARTS_WITH(url, "https://")', {
+                    dialect: 'databricks',
+                    columns: stringColumns,
+                }),
+            ).toBe("STARTSWITH(`url`, 'https://')");
+        });
+
+        it('ClickHouse uses camelCase startsWith', () => {
+            expect(
+                compile('=STARTS_WITH(url, "https://")', {
+                    dialect: 'clickhouse',
+                    columns: stringColumns,
+                }),
+            ).toBe(`startsWith("url", 'https://')`);
+        });
+
+        it('STARTS_WITH inside IF compiles correctly', () => {
+            expect(
+                compile(
+                    '=IF(STARTS_WITH(url, "https://"), "secure", "insecure")',
+                    { dialect: 'postgres', columns: stringColumns },
+                ),
+            ).toBe(
+                `CASE WHEN STARTS_WITH("url", 'https://') THEN 'secure' ELSE 'insecure' END`,
+            );
+        });
+    });
 });

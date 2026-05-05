@@ -13,6 +13,7 @@
   const dateUnits = options.dateUnits;
   const allFunctionNames = options.allFunctionNames;
   const booleanFns = options.booleanFns;
+  const booleanTwoArgFns = options.booleanTwoArgFns;
 }
 
 Formula
@@ -64,6 +65,10 @@ BooleanFn
   = name:Identifier &{ return booleanFns.includes(name.toUpperCase()); }
     _ "(" _ arg:Expression _ ")" {
       return { type: "SingleArgFn", name: name.toUpperCase(), arg };
+    }
+  / name:Identifier &{ return booleanTwoArgFns.includes(name.toUpperCase()); }
+    _ "(" _ first:Expression _ "," _ second:Expression _ ")" {
+      return { type: "TwoArgFn", name: name.toUpperCase(), args: [first, second] };
     }
 
 // --- Arithmetic layer ---

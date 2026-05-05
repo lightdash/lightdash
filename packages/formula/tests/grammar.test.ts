@@ -157,6 +157,103 @@ describe('Formula Grammar', () => {
             });
         });
 
+        it('parses SPLIT_PART as a three-arg function', () => {
+            const ast = parse('=SPLIT_PART(A, "@", 2)');
+            expect(ast).toEqual({
+                type: 'ThreeArgFn',
+                name: 'SPLIT_PART',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'StringLiteral', value: '@' },
+                    { type: 'NumberLiteral', value: 2 },
+                ],
+            });
+        });
+
+        it('parses STRPOS as a two-arg function', () => {
+            const ast = parse('=STRPOS(A, "://")');
+            expect(ast).toEqual({
+                type: 'TwoArgFn',
+                name: 'STRPOS',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'StringLiteral', value: '://' },
+                ],
+            });
+        });
+
+        it('parses STARTS_WITH as a two-arg function (top-level)', () => {
+            const ast = parse('=STARTS_WITH(A, "https://")');
+            expect(ast).toEqual({
+                type: 'TwoArgFn',
+                name: 'STARTS_WITH',
+                args: [
+                    { type: 'ColumnRef', name: 'A' },
+                    { type: 'StringLiteral', value: 'https://' },
+                ],
+            });
+        });
+
+        it('parses STARTS_WITH inside an IF condition (boolean context)', () => {
+            const ast = parse('=IF(STARTS_WITH(A, "https://"), 1, 0)');
+            expect(ast).toMatchObject({
+                type: 'If',
+                condition: {
+                    type: 'TwoArgFn',
+                    name: 'STARTS_WITH',
+                },
+                then: { type: 'NumberLiteral', value: 1 },
+                else: { type: 'NumberLiteral', value: 0 },
+            });
+        });
+
+        it('parses STARTS_WITH inside CASE WHEN condition', () => {
+            const ast = parse(
+                '=CASE WHEN STARTS_WITH(A, "https://") THEN "secure" ELSE "insecure" END',
+            );
+            expect(ast).toMatchObject({
+                type: 'If',
+                condition: {
+                    type: 'TwoArgFn',
+                    name: 'STARTS_WITH',
+                },
+            });
+        });
+
+        it('parses STARTS_WITH negated by NOT', () => {
+            const ast = parse('=NOT STARTS_WITH(A, "https://")');
+            expect(ast).toEqual({
+                type: 'UnaryOp',
+                op: 'NOT',
+                operand: {
+                    type: 'TwoArgFn',
+                    name: 'STARTS_WITH',
+                    args: [
+                        { type: 'ColumnRef', name: 'A' },
+                        { type: 'StringLiteral', value: 'https://' },
+                    ],
+                },
+            });
+        });
+
+        it('rejects SPLIT_PART with wrong arity', () => {
+            expect(() => parse('=SPLIT_PART(A, "@")')).toThrow(
+                'SPLIT_PART called with wrong number of arguments',
+            );
+        });
+
+        it('rejects STRPOS with wrong arity', () => {
+            expect(() => parse('=STRPOS(A)')).toThrow(
+                'STRPOS called with wrong number of arguments',
+            );
+        });
+
+        it('rejects STARTS_WITH with wrong arity', () => {
+            expect(() => parse('=STARTS_WITH(A)')).toThrow(
+                'STARTS_WITH called with wrong number of arguments',
+            );
+        });
+
         it('parses REPLACE wrapping a SingleArgFn', () => {
             const ast = parse('=REPLACE(LOWER(A), "x", "y")');
             expect(ast).toEqual({

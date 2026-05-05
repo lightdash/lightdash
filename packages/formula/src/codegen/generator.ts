@@ -268,6 +268,10 @@ export class SqlGenerator {
                 return this.generateLeft(a, b);
             case 'RIGHT':
                 return this.generateRight(a, b);
+            case 'STRPOS':
+                return this.generateStrpos(a, b);
+            case 'STARTS_WITH':
+                return this.generateStartsWith(a, b);
             default:
                 return assertUnreachable(
                     node.name,
@@ -290,6 +294,20 @@ export class SqlGenerator {
         );
     }
 
+    protected generateStrpos(text: string, substring: string): string {
+        return (
+            this.dialect.generateStrpos?.(text, substring) ??
+            `STRPOS(${text}, ${substring})`
+        );
+    }
+
+    protected generateStartsWith(text: string, prefix: string): string {
+        return (
+            this.dialect.generateStartsWith?.(text, prefix) ??
+            `STARTS_WITH(${text}, ${prefix})`
+        );
+    }
+
     protected generateThreeArgFn(node: ThreeArgFnNode): string {
         const [a, b, c] = node.args.map((x) => this.generate(x));
         switch (node.name) {
@@ -297,12 +315,25 @@ export class SqlGenerator {
                 return `REPLACE(${a}, ${b}, ${c})`;
             case 'SUBSTRING':
                 return this.generateSubstring(a, b, c);
+            case 'SPLIT_PART':
+                return this.generateSplitPart(a, b, c);
             default:
                 return assertUnreachable(
                     node.name,
                     `Unknown three-arg function: ${node.name}`,
                 );
         }
+    }
+
+    protected generateSplitPart(
+        text: string,
+        delimiter: string,
+        n: string,
+    ): string {
+        return (
+            this.dialect.generateSplitPart?.(text, delimiter, n) ??
+            `SPLIT_PART(${text}, ${delimiter}, ${n})`
+        );
     }
 
     protected generateSubstring(

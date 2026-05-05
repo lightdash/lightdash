@@ -21,6 +21,22 @@ export interface DialectConfig {
     // LEFT / RIGHT emission. Default `LEFT(t, n)` / `RIGHT(t, n)` works everywhere except Trino / Athena, which lack both and compose via `substr`.
     generateLeft?: (text: string, count: string) => string;
     generateRight?: (text: string, count: string) => string;
+    // SPLIT_PART(text, delim, n) — 1-indexed n-th part. Default ANSI form serves
+    // Postgres / Redshift / Snowflake / DuckDB / Trino / Athena. BigQuery and
+    // Databricks have only `SPLIT(text, delim)` returning an array; ClickHouse
+    // uses `splitByString`. All overrides return the empty/null fallback for
+    // out-of-range indexes so behaviour matches the ANSI default.
+    generateSplitPart?: (text: string, delimiter: string, n: string) => string;
+    // STRPOS(text, substring) — 1-indexed position; 0 if not found. Default
+    // ANSI `STRPOS(t, s)` works on Postgres / Redshift / BigQuery / Trino /
+    // Athena. Snowflake / Databricks use `POSITION(s IN t)`; DuckDB uses
+    // `INSTR(t, s)`; ClickHouse uses lowercase `position(t, s)`.
+    generateStrpos?: (text: string, substring: string) => string;
+    // STARTS_WITH(text, prefix) — boolean. Native on Postgres 11+ / DuckDB /
+    // BigQuery / Trino / Athena. Redshift has no native fn (LIKE fallback);
+    // Snowflake / Databricks use `STARTSWITH` (no underscore); ClickHouse uses
+    // camelCase `startsWith`.
+    generateStartsWith?: (text: string, prefix: string) => string;
     generateLagLead?: (ctx: LagLeadContext) => string;
     // AVG emission. Covers both the aggregate `=AVG(A)` and the windowed
     // `=MOVING_AVG(A, N, …)` (which fans out to `AVG(...) OVER (…)`).
@@ -242,6 +258,12 @@ const REDSHIFT_CONFIG: DialectConfig = {
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>
         `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
+    // Redshift forks pre-11 Postgres, so the native `STARTS_WITH` doesn't
+    // exist. Compose via `LEFT(t, LENGTH(p)) = p` — safer than `LIKE p || '%'`
+    // because the prefix isn't subject to LIKE-pattern escaping. NULL-in,
+    // NULL-out behaviour matches Postgres' native STARTS_WITH.
+    generateStartsWith: (text, prefix) =>
+        `(LEFT(${text}, LENGTH(${prefix})) = ${prefix})`,
 };
 
 // Snowflake's `DATEADD(unit, n, d)` takes a bare unit identifier and is the
@@ -258,6 +280,11 @@ const SNOWFLAKE_CONFIG: DialectConfig = {
         `DATEADD(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${n}, ${date})`,
     generateDateDiff: (unit, start, end) =>
         `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
+    // Snowflake has no `STRPOS`. `POSITION(substring, text)` is the function
+    // form (substring first); 1-indexed, 0 if not found.
+    generateStrpos: (text, substring) => `POSITION(${substring}, ${text})`,
+    // Snowflake spells it `STARTSWITH` — no underscore.
+    generateStartsWith: (text, prefix) => `STARTSWITH(${text}, ${prefix})`,
 };
 
 const DUCKDB_CONFIG: DialectConfig = {
@@ -320,6 +347,13 @@ const BIGQUERY_CONFIG: DialectConfig = {
     // BigQuery has no `SUBSTRING`; the native function is `SUBSTR`.
     generateSubstring: (text, start, length) =>
         `SUBSTR(${text}, ${start}, ${length})`,
+    // BigQuery has no native `SPLIT_PART`. `SPLIT(t, d)` returns an array;
+    // `SAFE_OFFSET(n-1)` returns NULL on out-of-range, which we coalesce to
+    // empty string to match Postgres' `SPLIT_PART` semantics for in-range
+    // cases. (Trade-off: NULL input also coalesces to empty — Postgres keeps
+    // NULL. Almost no real prompts hit that edge case.)
+    generateSplitPart: (text, delimiter, n) =>
+        `IFNULL(SPLIT(${text}, ${delimiter})[SAFE_OFFSET((${n}) - 1)], '')`,
 };
 
 // Databricks (Spark SQL) has no general `DATEADD(unit, …)` across versions,
@@ -359,6 +393,10 @@ const DATABRICKS_CONFIG: DialectConfig = {
     // identifier (Databricks SQL Warehouse, Runtime 11+).
     generateDateDiff: (unit, start, end) =>
         `DATEDIFF(${SQL_DATE_UNIT_IDENTIFIERS[unit]}, ${start}, ${end})`,
+    // Databricks has no `STRPOS`; `INSTR(str, substr)` matches the call shape.
+    generateStrpos: (text, substring) => `INSTR(${text}, ${substring})`,
+    // Databricks spells it `STARTSWITH` — no underscore.
+    generateStartsWith: (text, prefix) => `STARTSWITH(${text}, ${prefix})`,
 };
 
 // ClickHouse has four dialect quirks the formula package cares about:
@@ -436,6 +474,16 @@ const CLICKHOUSE_CONFIG: DialectConfig = {
             'ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING',
         );
     },
+    // ClickHouse uses `splitByString(separator, string)` — note the arg
+    // order is (delim, text), inverse of SPLIT_PART. The result is a
+    // 1-indexed array; out-of-range index returns the type's default ('').
+    generateSplitPart: (text, delimiter, n) =>
+        `splitByString(${delimiter}, ${text})[${n}]`,
+    // ClickHouse's `position(haystack, needle)` is lowercase and 1-indexed;
+    // returns 0 if not found — same semantics as ANSI STRPOS.
+    generateStrpos: (text, substring) => `position(${text}, ${substring})`,
+    // ClickHouse spells it `startsWith` (camelCase).
+    generateStartsWith: (text, prefix) => `startsWith(${text}, ${prefix})`,
 };
 
 // Trino / Athena config. Athena's SQL Engine v3 is Trino, and
