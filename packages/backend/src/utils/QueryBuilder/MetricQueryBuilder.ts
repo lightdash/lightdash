@@ -286,6 +286,13 @@ export function getIntervalSyntax(
 export class MetricQueryBuilder {
     private compilationErrors: string[] = [];
 
+    private caseSensitiveFilters: Array<{
+        fieldId: string;
+        ruleCaseSensitive: boolean | null;
+        fieldCaseSensitive: boolean | null;
+        finalSqlContainsUpper: boolean;
+    }> = [];
+
     private readonly baseMetricIdByPopMetricId: Record<string, string> = {};
 
     private popComparisonConfigs: Array<{
@@ -1477,14 +1484,12 @@ export class MetricQueryBuilder {
             ),
         );
 
-        Logger.info('query.case_sensitive_applied', {
-            exploreName: explore.name,
+        this.caseSensitiveFilters.push({
+            fieldId: getItemId(field),
             ruleCaseSensitive:
                 filterRuleWithParamReplacedValues.caseSensitive ?? null,
             fieldCaseSensitive:
                 'caseSensitive' in field ? (field.caseSensitive ?? null) : null,
-            exploreCaseSensitive: this.args.explore.caseSensitive ?? null,
-            fieldId: getItemId(field),
             finalSqlContainsUpper: /UPPER\s*\(/i.test(renderedFilterSql),
         });
 
@@ -3897,6 +3902,7 @@ export class MetricQueryBuilder {
     }
 
     public compileQuery(): CompiledQuery {
+        const start = Date.now();
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
 
@@ -4444,6 +4450,31 @@ export class MetricQueryBuilder {
                 parameterReferences.has(key),
             ),
         );
+
+        Logger.info('query.compile', {
+            exploreName: explore.name,
+            exploreCaseSensitive: this.args.explore.caseSensitive ?? null,
+            adapterType: this.args.warehouseSqlBuilder.getAdapterType(),
+            timezone: this.args.timezone,
+            dataTimezone: this.args.dataTimezone ?? null,
+            useTimezoneAwareDateTrunc:
+                this.args.useTimezoneAwareDateTrunc ?? false,
+            dimensionCount: compiledMetricQuery.dimensions.length,
+            metricCount: compiledMetricQuery.metrics.length,
+            tableCalculationCount: compiledMetricQuery.tableCalculations.length,
+            popComparisonCount: this.popComparisonConfigs.length,
+            hasPivotConfiguration: this.args.pivotConfiguration !== undefined,
+            continueOnError: this.args.continueOnError ?? false,
+            warningCount: warnings.length,
+            compilationErrorCount: this.compilationErrors.length,
+            parameterReferenceCount: parameterReferences.size,
+            missingParameterReferenceCount: missingParameterReferences.size,
+            renderedSqlBytes: replacedSql.length,
+            caseSensitiveFilterCount: this.caseSensitiveFilters.length,
+            caseSensitiveFilters: this.caseSensitiveFilters,
+            durationMs: Date.now() - start,
+            outcome: 'success',
+        });
 
         return {
             query: replacedSql,
