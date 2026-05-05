@@ -722,6 +722,9 @@ export const getSqlForDatePart = (
     );
 };
 
+// Unlike getSqlForDatePart, the wrap is applied per-adapter rather than
+// centrally — BigQuery's name path uses native FORMAT_TIMESTAMP(fmt, ts, tz)
+// and can't accept a pre-wrapped `... AT TIME ZONE` input.
 export const getSqlForDatePartName = (
     adapterType: SupportedDbtAdapter,
     timeFrame: TimeFrames,

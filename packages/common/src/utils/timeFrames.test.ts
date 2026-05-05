@@ -803,6 +803,26 @@ describe('TimeFrames', () => {
                 `DATE_PART('MONTH', (${col})::timestamptz AT TIME ZONE '${tz}')`,
             ],
             [
+                SupportedDbtAdapter.REDSHIFT,
+                `DATE_PART('MONTH', (${col})::timestamptz AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.DUCKDB,
+                `DATE_PART('MONTH', (${col})::timestamptz AT TIME ZONE '${tz}')`,
+            ],
+            [
+                SupportedDbtAdapter.DATABRICKS,
+                `DATE_PART('MONTH', from_utc_timestamp(to_utc_timestamp(${col}, current_timezone()), '${tz}'))`,
+            ],
+            [
+                SupportedDbtAdapter.TRINO,
+                `EXTRACT(MONTH FROM CAST(${col} AT TIME ZONE '${tz}' AS timestamp))`,
+            ],
+            [
+                SupportedDbtAdapter.ATHENA,
+                `EXTRACT(MONTH FROM CAST(${col} AT TIME ZONE '${tz}' AS timestamp))`,
+            ],
+            [
                 SupportedDbtAdapter.CLICKHOUSE,
                 `toMonth(toTimeZone(${col}, '${tz}'))`,
             ],
