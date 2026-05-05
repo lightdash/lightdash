@@ -33,7 +33,7 @@ type ResourceValidationErrorIndicatorProps = {
     projectUuid: string;
     canUserManageValidation: boolean;
     children: React.ReactNode;
-    validationId?: number;
+    validationUuid?: string;
 };
 
 /**
@@ -44,9 +44,9 @@ const ResourceValidationErrorIndicator = ({
     projectUuid,
     canUserManageValidation,
     children,
-    validationId,
+    validationUuid,
 }: ResourceValidationErrorIndicatorProps) => {
-    if (!validationId) {
+    if (!validationUuid) {
         return children;
     }
 
@@ -73,7 +73,7 @@ const ResourceValidationErrorIndicator = ({
                             fw={600}
                             to={{
                                 pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                search: `?validationId=${validationId}`,
+                                search: `?validationUuid=${validationUuid}`,
                             }}
                             color="blue.4"
                             fz="xs"
@@ -156,8 +156,8 @@ const InfiniteResourceTableColumnName = ({
         item.data.validationErrors &&
         item.data.validationErrors.length > 0;
 
-    const validationId = hasValidationErrors
-        ? item.data.validationErrors![0].validationId
+    const validationUuid = hasValidationErrors
+        ? item.data.validationErrors![0].validationUuid
         : undefined;
 
     const verification =
@@ -180,7 +180,7 @@ const InfiniteResourceTableColumnName = ({
                     item={item}
                     projectUuid={projectUuid}
                     canUserManageValidation={canUserManageValidation}
-                    validationId={validationId}
+                    validationUuid={validationUuid}
                 >
                     <ResourceIcon item={item} />
                 </ResourceValidationErrorIndicator>

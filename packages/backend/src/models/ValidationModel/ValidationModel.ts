@@ -37,7 +37,9 @@ import {
 import Logger from '../../logging/logger';
 
 type NormalizedValidationRow = {
-    validation_id: number;
+    validation_uuid: string;
+    /** @deprecated Use `validation_uuid`. NULL for rows created after the UUID migration (PROD-7386). */
+    validation_id: number | null;
     created_at: Date;
     project_uuid: string;
     error: string;
@@ -163,30 +165,60 @@ export class ValidationModel {
         });
     }
 
-    async getByValidationId(
-        validationId: number,
-    ): Promise<Pick<ValidationResponseBase, 'validationId' | 'projectUuid'>> {
-        const [validation] = await this.database(ValidationTableName).where(
-            'validation_id',
-            validationId,
+    async getByValidationIdOrUuid(
+        validationIdOrUuid: number | string,
+        projectUuid: string,
+    ): Promise<
+        Pick<
+            ValidationResponseBase,
+            'validationUuid' | 'validationId' | 'projectUuid'
+        >
+    > {
+        // Always scope by project so a request for /projects/A/validate/<X>
+        // can never resolve a row that belongs to project B.
+        const query = this.database(ValidationTableName).where(
+            'project_uuid',
+            projectUuid,
         );
+        // Numeric id resolves a pre-UUID-migration row (validation_id IS NOT
+        // NULL is enforced via the partial unique index, but we filter
+        // explicitly so the planner can use it).
+        const [validation] =
+            typeof validationIdOrUuid === 'number'
+                ? await query
+                      .where('validation_id', validationIdOrUuid)
+                      .whereNotNull('validation_id')
+                : await query.where('validation_uuid', validationIdOrUuid);
 
         if (!validation) {
             throw new NotFoundError(
-                `Validation with id ${validationId} not found`,
+                `Validation ${validationIdOrUuid} not found`,
             );
         }
 
         return {
+            validationUuid: validation.validation_uuid,
             validationId: validation.validation_id,
             projectUuid: validation.project_uuid,
         };
     }
 
-    async deleteValidation(validationId: number): Promise<void> {
-        await this.database(ValidationTableName)
-            .where('validation_id', validationId)
-            .delete();
+    async deleteValidationByIdOrUuid(
+        validationIdOrUuid: number | string,
+        projectUuid: string,
+    ): Promise<void> {
+        const query = this.database(ValidationTableName).where(
+            'project_uuid',
+            projectUuid,
+        );
+        if (typeof validationIdOrUuid === 'number') {
+            await query
+                .where('validation_id', validationIdOrUuid)
+                .whereNotNull('validation_id')
+                .delete();
+        } else {
+            await query.where('validation_uuid', validationIdOrUuid).delete();
+        }
     }
 
     async deleteChartValidations(chartUuid: string): Promise<void> {
@@ -382,6 +414,7 @@ export class ValidationModel {
                     ? `${validationError.first_name} ${validationError.last_name}`
                     : undefined,
                 lastUpdatedAt: validationError.last_version_updated_at,
+                validationUuid: validationError.validation_uuid,
                 validationId: validationError.validation_id,
                 spaceUuid: validationError.space_uuid,
                 chartKind:
@@ -484,6 +517,7 @@ export class ValidationModel {
                         ? `${validationError.first_name} ${validationError.last_name}`
                         : undefined,
                     lastUpdatedAt: validationError.last_updated_at,
+                    validationUuid: validationError.validation_uuid,
                     validationId: validationError.validation_id,
                     spaceUuid: validationError.space_uuid,
                     errorType: validationError.error_type,
@@ -519,6 +553,7 @@ export class ValidationModel {
                 projectUuid: validationError.project_uuid,
                 error: validationError.error,
                 name: validationError.model_name ?? undefined,
+                validationUuid: validationError.validation_uuid,
                 validationId: validationError.validation_id,
                 errorType: validationError.error_type,
                 source: ValidationSourceType.Table,
@@ -536,6 +571,7 @@ export class ValidationModel {
     ): ValidationResponse {
         if (row.source === ValidationSourceType.Chart) {
             return {
+                validationUuid: row.validation_uuid,
                 validationId: row.validation_id,
                 createdAt: row.created_at,
                 projectUuid: row.project_uuid,
@@ -563,6 +599,7 @@ export class ValidationModel {
                 row.error,
             );
             return {
+                validationUuid: row.validation_uuid,
                 validationId: row.validation_id,
                 createdAt: row.created_at,
                 projectUuid: row.project_uuid,
@@ -585,6 +622,7 @@ export class ValidationModel {
         }
 
         return {
+            validationUuid: row.validation_uuid,
             validationId: row.validation_id,
             createdAt: row.created_at,
             projectUuid: row.project_uuid,
@@ -595,14 +633,38 @@ export class ValidationModel {
         };
     }
 
-    async getFullById(
-        validationId: number,
+    async getFullByIdOrUuid(
+        validationIdOrUuid: number | string,
+        projectUuid: string,
         options?: {
             allowedSpaceUuids?: string[] | 'all';
         },
     ): Promise<ValidationResponse | undefined> {
         const allowedSpaceUuids = options?.allowedSpaceUuids ?? 'all';
         const dashboardSpaceAlias = 'dashboard_space';
+
+        // Always scope by project so a request for /projects/A/validate/<X>
+        // can never resolve a row that belongs to project B. Pre-UUID-migration
+        // rows are looked up by their integer `validation_id`; post-migration
+        // rows by `validation_uuid`. The `whereNotNull` on the legacy branch
+        // is defensive — without it a future row whose `validation_id` was
+        // somehow re-populated could match unexpectedly.
+        const filterByIdOrUuid = (qb: Knex.QueryBuilder) => {
+            void qb.where(`${ValidationTableName}.project_uuid`, projectUuid);
+            if (typeof validationIdOrUuid === 'number') {
+                void qb
+                    .where(
+                        `${ValidationTableName}.validation_id`,
+                        validationIdOrUuid,
+                    )
+                    .whereNotNull(`${ValidationTableName}.validation_id`);
+            } else {
+                void qb.where(
+                    `${ValidationTableName}.validation_uuid`,
+                    validationIdOrUuid,
+                );
+            }
+        };
 
         const chartSubquery = this.database(ValidationTableName)
             .leftJoin(
@@ -630,12 +692,13 @@ export class ValidationModel {
                 `${SavedChartsTableName}.last_version_updated_by_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .where(`${ValidationTableName}.validation_id`, validationId)
+            .modify(filterByIdOrUuid)
             .andWhere(
                 `${ValidationTableName}.source`,
                 ValidationSourceType.Chart,
             )
             .select([
+                `${ValidationTableName}.validation_uuid`,
                 `${ValidationTableName}.validation_id`,
                 `${ValidationTableName}.created_at`,
                 `${ValidationTableName}.project_uuid`,
@@ -683,12 +746,13 @@ export class ValidationModel {
                 `${UserTableName}.user_uuid`,
                 `${DashboardVersionsTableName}.updated_by_user_uuid`,
             )
-            .where(`${ValidationTableName}.validation_id`, validationId)
+            .modify(filterByIdOrUuid)
             .andWhere(
                 `${ValidationTableName}.source`,
                 ValidationSourceType.Dashboard,
             )
             .select([
+                `${ValidationTableName}.validation_uuid`,
                 `${ValidationTableName}.validation_id`,
                 `${ValidationTableName}.created_at`,
                 `${ValidationTableName}.project_uuid`,
@@ -716,12 +780,13 @@ export class ValidationModel {
             .limit(1);
 
         const tableSubquery = this.database(ValidationTableName)
-            .where(`${ValidationTableName}.validation_id`, validationId)
+            .modify(filterByIdOrUuid)
             .andWhere(
                 `${ValidationTableName}.source`,
                 ValidationSourceType.Table,
             )
             .select([
+                `${ValidationTableName}.validation_uuid`,
                 `${ValidationTableName}.validation_id`,
                 `${ValidationTableName}.created_at`,
                 `${ValidationTableName}.project_uuid`,
@@ -768,9 +833,7 @@ export class ValidationModel {
             .limit(1);
 
         const row = rows[0];
-        if (!row) {
-            return undefined;
-        }
+        if (!row) return undefined;
 
         return ValidationModel.mapRowToValidationResponse(row);
     }
@@ -844,6 +907,7 @@ export class ValidationModel {
             .andWhere(jobFilter)
             .whereNotNull(`${SavedChartsTableName}.saved_query_uuid`)
             .select([
+                `${ValidationTableName}.validation_uuid`,
                 `${ValidationTableName}.validation_id`,
                 `${ValidationTableName}.created_at`,
                 `${ValidationTableName}.project_uuid`,
@@ -918,6 +982,7 @@ export class ValidationModel {
             .andWhere(jobFilter)
             .whereNotNull(`${DashboardsTableName}.dashboard_uuid`)
             .select([
+                `${ValidationTableName}.validation_uuid`,
                 `${ValidationTableName}.validation_id`,
                 `${ValidationTableName}.created_at`,
                 `${ValidationTableName}.project_uuid`,
@@ -969,6 +1034,7 @@ export class ValidationModel {
             )
             .andWhere(jobFilter)
             .select([
+                `${ValidationTableName}.validation_uuid`,
                 `${ValidationTableName}.validation_id`,
                 `${ValidationTableName}.created_at`,
                 `${ValidationTableName}.project_uuid`,
@@ -1053,7 +1119,7 @@ export class ValidationModel {
                 })
                 .orderBy([
                     { column: sortColumn, order: sortDirection },
-                    { column: 'validation_id', order: 'asc' },
+                    { column: 'validation_uuid', order: 'asc' },
                 ])
                 .limit(paginateArgs.pageSize)
                 .offset((paginateArgs.page - 1) * paginateArgs.pageSize);

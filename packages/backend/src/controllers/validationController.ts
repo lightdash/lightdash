@@ -119,24 +119,29 @@ export class ValidationController extends BaseController {
     /**
      * Deletes a single validation error.
      * @summary Dismiss validation error
-     * @param validationId the projectId for the validation
+     * @param validationIdOrUuid the validation UUID, or a legacy integer id
+     *   for rows created before the UUID migration (PROD-7386).
      * @param req express request
      * @param fromSettings boolean to know if this request is made from the settings page, for analytics
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Delete('/{validationId}')
+    @Delete('/{validationIdOrUuid}')
     @OperationId('DeleteValidationDismiss')
     async dismiss(
         @Path() projectUuid: string,
-        @Path() validationId: number,
+        @Path() validationIdOrUuid: number | string,
         @Request() req: express.Request,
     ): Promise<ApiValidationDismissResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getValidationService()
-            .delete(toSessionUser(req.account), validationId);
+            .deleteValidation(
+                toSessionUser(req.account),
+                projectUuid,
+                validationIdOrUuid,
+            );
         return {
             status: 'ok',
         };

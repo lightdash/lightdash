@@ -105,19 +105,20 @@ export class ValidationControllerV2 extends BaseController {
     }
 
     /**
-     * Get a single validation result by ID.
+     * Get a single validation result.
      * @summary Get validation result
      * @param projectUuid the projectId for the validation
-     * @param validationId the validation result ID
+     * @param validationIdOrUuid the validation UUID, or a legacy integer id
+     *   for rows created before the UUID migration (PROD-7386).
      * @param req express request
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('{validationId}')
+    @Get('{validationIdOrUuid}')
     @OperationId('GetValidationResult')
     async get(
         @Path() projectUuid: string,
-        @Path() validationId: number,
+        @Path() validationIdOrUuid: number | string,
         @Request() req: express.Request,
     ): Promise<ApiSingleValidationResponse> {
         assertRegisteredAccount(req.account);
@@ -126,7 +127,11 @@ export class ValidationControllerV2 extends BaseController {
             status: 'ok',
             results: await this.services
                 .getValidationService()
-                .getById(toSessionUser(req.account), projectUuid, validationId),
+                .getValidation(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    validationIdOrUuid,
+                ),
         };
     }
 }

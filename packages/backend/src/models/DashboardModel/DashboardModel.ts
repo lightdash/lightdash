@@ -533,6 +533,7 @@ export class DashboardModel {
                         firstViewedAt: first_viewed_at,
                         validationErrors: validation_errors?.map(
                             (error: DbValidationTable) => ({
+                                validationUuid: error.validation_uuid,
                                 validationId: error.validation_id,
                                 error: error.error,
                                 createdAt: error.created_at,

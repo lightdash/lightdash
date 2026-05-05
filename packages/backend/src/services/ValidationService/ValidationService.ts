@@ -1115,49 +1115,55 @@ export class ValidationService extends BaseService {
         return this.hidePrivateContent(user, projectUuid, validations);
     }
 
-    async getById(
+    private async resolveAllowedSpaceUuids(
         user: SessionUser,
         projectUuid: string,
-        validationId: number,
-    ): Promise<ValidationResponse> {
-        const projectSummary = await this.projectModel.getSummary(projectUuid);
-
+        organizationUuid: string,
+    ): Promise<string[] | 'all'> {
         const auditedAbility = this.createAuditedAbility(user);
-
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('Validation', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid,
-                }),
+                subject('Validation', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        let allowedSpaceUuids: string[] | 'all' = 'all';
-
-        if (user.role !== OrganizationMemberRole.ADMIN) {
-            const spaces = await this.spaceModel.find({ projectUuid });
-            const spaceUuids = spaces.map((s) => s.uuid);
-
-            allowedSpaceUuids =
-                await this.spacePermissionService.getAccessibleSpaceUuids(
-                    'view',
-                    user,
-                    spaceUuids,
-                );
+        if (user.role === OrganizationMemberRole.ADMIN) {
+            return 'all';
         }
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const spaceUuids = spaces.map((s) => s.uuid);
+        return this.spacePermissionService.getAccessibleSpaceUuids(
+            'view',
+            user,
+            spaceUuids,
+        );
+    }
 
-        const validation = await this.validationModel.getFullById(
-            validationId,
+    async getValidation(
+        user: SessionUser,
+        projectUuid: string,
+        validationIdOrUuid: number | string,
+    ): Promise<ValidationResponse> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const allowedSpaceUuids = await this.resolveAllowedSpaceUuids(
+            user,
+            projectUuid,
+            organizationUuid,
+        );
+
+        const validation = await this.validationModel.getFullByIdOrUuid(
+            validationIdOrUuid,
+            projectUuid,
             { allowedSpaceUuids },
         );
 
         if (!validation) {
             throw new NotFoundError(
-                `Validation with id ${validationId} not found`,
+                `Validation ${validationIdOrUuid} not found`,
             );
         }
 
@@ -1257,22 +1263,18 @@ export class ValidationService extends BaseService {
         return this.hidePrivateContent(user, projectUuid, validations);
     }
 
-    async delete(user: SessionUser, validationId: number): Promise<void> {
-        const validation =
-            await this.validationModel.getByValidationId(validationId);
-        const projectSummary = await this.projectModel.getSummary(
-            validation.projectUuid,
-        );
+    private async authorizeAndTrackDismiss(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('Validation', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid: validation.projectUuid,
-                }),
+                subject('Validation', { organizationUuid, projectUuid }),
             )
         ) {
             throw new ForbiddenError();
@@ -1283,11 +1285,29 @@ export class ValidationService extends BaseService {
             userId: user.userUuid,
             properties: {
                 organizationId: user.organizationUuid,
-                projectId: validation.projectUuid,
+                projectId: projectUuid,
             },
         });
+    }
 
-        await this.validationModel.deleteValidation(validationId);
+    async deleteValidation(
+        user: SessionUser,
+        projectUuid: string,
+        validationIdOrUuid: number | string,
+    ): Promise<void> {
+        // Authorize against the URL's projectUuid first, then look up the
+        // validation scoped to that project. If the validation belongs to a
+        // different project the lookup throws NotFoundError, so the caller
+        // can never act on a row outside the project they're authorized for.
+        await this.authorizeAndTrackDismiss(user, projectUuid);
+        await this.validationModel.getByValidationIdOrUuid(
+            validationIdOrUuid,
+            projectUuid,
+        );
+        await this.validationModel.deleteValidationByIdOrUuid(
+            validationIdOrUuid,
+            projectUuid,
+        );
     }
 
     async validateAndUpdateChart(

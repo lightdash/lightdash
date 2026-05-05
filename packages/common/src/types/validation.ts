@@ -3,7 +3,12 @@ import type { KnexPaginatedData } from './knex-paginate';
 import type { ChartKind } from './savedCharts';
 
 export type ValidationResponseBase = {
-    validationId: number;
+    validationUuid: string;
+    /**
+     * @deprecated Use `validationUuid`. The integer `validationId` is null
+     * for validations created after the UUID migration (PROD-7386).
+     */
+    validationId: number | null;
     createdAt: Date;
     name: string;
     error: string;
@@ -108,7 +113,7 @@ export type ApiDashboardValidationResponse = ApiSuccess<{
 
 export type ValidationSummary = Pick<
     ValidationResponse,
-    'error' | 'createdAt' | 'validationId'
+    'error' | 'createdAt' | 'validationUuid' | 'validationId'
 >;
 
 export enum ValidationErrorType {

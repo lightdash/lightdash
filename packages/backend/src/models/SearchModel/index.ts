@@ -343,20 +343,28 @@ export class SearchModel {
             .whereNull('job_id')
             .whereIn('dashboard_uuid', dashboardUuids)
             .andWhereNot('dashboard_uuid', null)
-            .select('validation_id', 'dashboard_uuid')
+            .select('validation_uuid', 'validation_id', 'dashboard_uuid')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.dashboard_uuid) {
-                            acc[row.dashboard_uuid] = [
-                                ...(acc[row.dashboard_uuid] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.dashboard_uuid) {
+                        acc[row.dashboard_uuid] = [
+                            ...(acc[row.dashboard_uuid] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         const directChartsQuery = this.database(SavedChartsTableName)
@@ -931,20 +939,28 @@ export class SearchModel {
             .whereNull('job_id')
             .whereIn('saved_chart_uuid', chartUuids)
             .andWhereNot('saved_chart_uuid', null)
-            .select('validation_id', 'saved_chart_uuid')
+            .select('validation_uuid', 'validation_id', 'saved_chart_uuid')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.saved_chart_uuid) {
-                            acc[row.saved_chart_uuid] = [
-                                ...(acc[row.saved_chart_uuid] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.saved_chart_uuid) {
+                        acc[row.saved_chart_uuid] = [
+                            ...(acc[row.saved_chart_uuid] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         return savedCharts.map((chart) => ({
@@ -1413,20 +1429,28 @@ export class SearchModel {
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
             .whereNotNull('model_name')
-            .select('validation_id', 'model_name')
+            .select('validation_uuid', 'validation_id', 'model_name')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.model_name) {
-                            acc[row.model_name] = [
-                                ...(acc[row.model_name] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.model_name) {
+                        acc[row.model_name] = [
+                            ...(acc[row.model_name] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         return explores.reduce<TableErrorSearchResult[]>((acc, explore) => {

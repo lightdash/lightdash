@@ -41,12 +41,12 @@ const getValidation = async (
         body: undefined,
     });
 
-const getValidationById = async (
+const getValidationByUuid = async (
     projectUuid: string,
-    validationId: number,
+    validationUuid: string,
 ): Promise<ValidationResponse> =>
     lightdashApi<ValidationResponse>({
-        url: `/projects/${projectUuid}/validate/${validationId}`,
+        url: `/projects/${projectUuid}/validate/${validationUuid}`,
         method: 'GET',
         body: undefined,
         version: 'v2',
@@ -54,12 +54,12 @@ const getValidationById = async (
 
 export const usePinnedValidation = (
     projectUuid: string,
-    validationId: number | null,
+    validationUuid: string | null,
 ) =>
     useQuery({
-        queryKey: ['pinnedValidation', projectUuid, validationId],
-        queryFn: () => getValidationById(projectUuid, validationId!),
-        enabled: validationId !== null,
+        queryKey: ['pinnedValidation', projectUuid, validationUuid],
+        queryFn: () => getValidationByUuid(projectUuid, validationUuid!),
+        enabled: validationUuid !== null,
     });
 
 export const useValidation = (
@@ -303,12 +303,12 @@ export const useValidationNotificationChecker = (): [boolean, () => void] => {
     ];
 };
 
-const deleteValidation = async (
+const deleteValidationByUuid = async (
     projectUuid: string,
-    validationId: number,
+    validationUuid: string,
 ): Promise<null> =>
     lightdashApi<null>({
-        url: `/projects/${projectUuid}/validate/${validationId}`,
+        url: `/projects/${projectUuid}/validate/${validationUuid}`,
         method: 'DELETE',
         body: undefined,
     });
@@ -316,8 +316,8 @@ const deleteValidation = async (
 export const useDeleteValidation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    return useMutation<null, ApiError, number>(
-        (validationId) => deleteValidation(projectUuid, validationId),
+    return useMutation<null, ApiError, string>(
+        (validationUuid) => deleteValidationByUuid(projectUuid, validationUuid),
         {
             mutationKey: ['delete_validation', projectUuid],
             onSuccess: async () => {

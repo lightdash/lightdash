@@ -481,6 +481,7 @@ export class SpaceModel {
                 pinnedListOrder: order,
                 validationErrors: validation_errors?.map(
                     (error: DbValidationTable) => ({
+                        validationUuid: error.validation_uuid,
                         validationId: error.validation_id,
                         error: error.error,
                         createdAt: error.created_at,
@@ -824,9 +825,10 @@ export class SpaceModel {
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(
-                ({ error, created_at, validation_id }) => ({
+                ({ error, created_at, validation_uuid, validation_id }) => ({
                     error,
                     createdAt: created_at,
+                    validationUuid: validation_uuid,
                     validationId: validation_id,
                 }),
             ),

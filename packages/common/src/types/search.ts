@@ -23,6 +23,8 @@ export type DashboardSearchResult = Pick<
     'uuid' | 'name' | 'description' | 'spaceUuid' | 'projectUuid'
 > & {
     validationErrors: {
+        validationUuid: ValidationErrorDashboardResponse['validationUuid'];
+        /** @deprecated Use validationUuid. Null for post-migration validations. */
         validationId: ValidationErrorDashboardResponse['validationId'];
     }[];
     viewsCount: number;
@@ -54,6 +56,8 @@ export type SavedChartSearchResult = Pick<
 > & {
     chartType: ChartKind;
     validationErrors: {
+        validationUuid: ValidationErrorChartResponse['validationUuid'];
+        /** @deprecated Use validationUuid. Null for post-migration validations. */
         validationId: ValidationErrorChartResponse['validationId'];
     }[];
     chartSource: 'saved';
@@ -135,6 +139,8 @@ export type TableErrorSearchResult = Pick<
     'explore' | 'exploreLabel'
 > & {
     validationErrors: {
+        validationUuid: ValidationErrorTableResponse['validationUuid'];
+        /** @deprecated Use validationUuid. Null for post-migration validations. */
         validationId: ValidationErrorTableResponse['validationId'];
     }[];
 };
