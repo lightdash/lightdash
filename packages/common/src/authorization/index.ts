@@ -37,16 +37,39 @@ export const getUserAbilityBuilder = ({
 }: UserAbilityBuilderArgs) => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     if (user.role && user.organizationUuid) {
-        // TODO custom roles at organization level are not supported yet
-        applyOrganizationMemberAbilities({
-            role: user.role,
-            member: {
-                organizationUuid: user.organizationUuid,
-                userUuid: user.userUuid,
-            },
-            builder,
-            permissionsConfig,
-        });
+        // Org-level custom role: if the user's organization_memberships row
+        // points at a role_uuid AND custom roles are enabled AND we have the
+        // role's scopes, build CASL from those scopes (same path as
+        // project-level custom roles below). Falls back to the system role
+        // path otherwise.
+        const orgCustomRoleScopes =
+            customRolesEnabled && user.roleUuid
+                ? customRoleScopes?.[user.roleUuid]
+                : undefined;
+
+        if (orgCustomRoleScopes) {
+            buildAbilityFromScopes(
+                {
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                    scopes: orgCustomRoleScopes,
+                    isEnterprise,
+                    organizationRole: user.role,
+                    permissionsConfig,
+                },
+                builder,
+            );
+        } else {
+            applyOrganizationMemberAbilities({
+                role: user.role,
+                member: {
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+                builder,
+                permissionsConfig,
+            });
+        }
 
         projectProfiles.forEach((projectProfile) => {
             if (projectProfile.roleUuid && customRolesEnabled) {

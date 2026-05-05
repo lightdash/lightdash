@@ -20,7 +20,7 @@ const applyOrganizationMemberDynamicAbilities = ({
     }
 };
 
-const applyOrganizationMemberStaticAbilities: Record<
+export const applyOrganizationMemberStaticAbilities: Record<
     OrganizationMemberRole,
     (
         member: OrganizationMemberAbilitiesArgs['member'],

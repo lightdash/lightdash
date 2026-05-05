@@ -21,6 +21,7 @@ export const mockServiceAccount: ServiceAccount = {
     rotatedAt: null,
     scopes: [ServiceAccountScope.SCIM_MANAGE],
     userUuid: 'sa-user-uuid',
+    roleUuid: null,
 };
 
 const mockSaSessionUser = {

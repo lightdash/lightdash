@@ -3,6 +3,7 @@ import {
     ActivateUser,
     AlreadyExistsError,
     applyServiceAccountAbilities,
+    buildAbilityFromScopes,
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
@@ -625,12 +626,57 @@ export class UserModel {
         );
 
         // Service accounts get a dedicated `users` row marked `is_internal`.
-        // Their runtime authorization comes from `applyServiceAccountAbilities`
-        // (driven by the SA's scopes), not the role/project ability builder
-        // — so this branch covers both live SA requests and worker
-        // re-hydration (schedulers, async queries) without a scope→role
-        // regression. v2 will unify this onto the standard role-based path.
+        // Two permission shapes coexist:
+        //  1. Custom org role (preferred): `organization_memberships.role_uuid`
+        //     points at a custom role; CASL composes from its `scoped_roles`
+        //     via the standard `buildAbilityFromScopes` path. UI scope-toggling
+        //     drives runtime behavior end-to-end.
+        //  2. Legacy scopes (back-compat): `service_accounts.scopes` drives
+        //     CASL via `applyServiceAccountAbilities`. SAs created before
+        //     custom-role support keep working unchanged.
         if (user.is_internal) {
+            // Custom-role path: if the SA's user has a role_uuid set, build
+            // CASL from that role's scopes. Reuses the same loader the human
+            // path uses below. The `customRoles.enabled` flag is intentionally
+            // NOT consulted here — it's a feature/UI gate (does the role
+            // builder appear in settings?), not a runtime ability gate. Once
+            // a role exists in the DB and is bound to the SA's
+            // organization_membership, the runtime must respect it. If we
+            // silently neutered role-driven SAs whenever an admin toggled
+            // the flag off, every CI workflow on those tokens would 403
+            // overnight.
+            if (user.role_uuid) {
+                const customRoleScopes = await this.customRoleScopes([
+                    user.role_uuid,
+                ]);
+                const scopes = customRoleScopes[user.role_uuid];
+                if (scopes) {
+                    const builder = new AbilityBuilder<MemberAbility>(Ability);
+                    buildAbilityFromScopes(
+                        {
+                            organizationUuid: user.organization_uuid as string,
+                            userUuid: user.user_uuid,
+                            scopes,
+                            isEnterprise:
+                                this.lightdashConfig.license.licenseKey !==
+                                undefined,
+                            organizationRole: user.role,
+                            permissionsConfig: {
+                                pat: this.lightdashConfig.auth.pat,
+                            },
+                        },
+                        builder,
+                    );
+                    return {
+                        abilityBuilder: builder,
+                        lightdashUser,
+                    };
+                }
+            }
+
+            // Legacy scopes path: SA pre-dates custom-role support, or the
+            // role lookup didn't resolve. Fall back to the scope-derived
+            // ability set.
             const serviceAccount = await this.findServiceAccountByUserUuid(
                 user.user_uuid,
             );
@@ -639,6 +685,7 @@ export class UserModel {
                 applyServiceAccountAbilities({
                     scopes: serviceAccount.scopes,
                     organizationUuid: serviceAccount.organizationUuid,
+                    userUuid: user.user_uuid,
                     builder,
                 });
                 return {

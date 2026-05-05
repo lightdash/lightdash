@@ -3,7 +3,11 @@ import {
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
     ServiceAccountScope,
+    type ChartAsCode,
 } from '@lightdash/common';
+import * as fs from 'fs';
+import * as yaml from 'js-yaml';
+import * as nodePath from 'path';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 
@@ -42,6 +46,11 @@ const bearerClient = (token: string) => {
             }),
         post: <T = unknown>(path: string, body?: unknown) =>
             client.post<T>(path, body, {
+                headers: authHeader,
+                failOnStatusCode: false,
+            }),
+        put: <T = unknown>(path: string, body?: unknown) =>
+            client.put<T>(path, body, {
                 headers: authHeader,
                 failOnStatusCode: false,
             }),
@@ -688,5 +697,414 @@ describe('Service Account content attribution', () => {
         const access = detailResp.body.results.access ?? [];
         const accessUuids = access.map((a) => a.userUuid);
         expect(accessUuids).not.toContain(SEED_ORG_1_ADMIN.user_uuid);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Custom-role path. A service account can be created with a `roleUuid`
+// pointing at an org-level custom role; CASL is then derived from the role's
+// scope list via `buildAbilityFromScopes` (NOT the legacy
+// `applyServiceAccountAbilities` mapping). The two paths are mutually
+// exclusive — `scopes` and `roleUuid` cannot both be set.
+// ---------------------------------------------------------------------------
+
+const rolesUrl = `/api/v2/orgs/${SEED_ORG_1.organization_uuid}/roles`;
+
+type CreatedRole = { roleUuid: string; name: string };
+
+const createCustomRole = async (
+    admin: ApiClient,
+    name: string,
+    scopes: string[],
+): Promise<CreatedRole> => {
+    const resp = await admin.post<Body<CreatedRole>>(rolesUrl, {
+        name,
+        description: `api-test ${name}`,
+        scopes,
+    });
+    expect(resp.status).toBeGreaterThanOrEqual(200);
+    expect(resp.status).toBeLessThan(300);
+    return resp.body.results;
+};
+
+describe('Service Account custom-role path', () => {
+    let admin: ApiClient;
+    const createdRoleUuids: string[] = [];
+
+    beforeAll(async () => {
+        admin = await login();
+    });
+
+    afterAll(async () => {
+        for (const roleUuid of createdRoleUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await admin.delete(`${rolesUrl}/${roleUuid}`, {
+                failOnStatusCode: false,
+            });
+        }
+    });
+
+    it('Should create a SA bound to a custom role and respect that role’s scopes', async () => {
+        const role = await createCustomRole(admin, `cust-role ${Date.now()}`, [
+            'view:Project',
+        ]);
+        createdRoleUuids.push(role.roleUuid);
+
+        const createResp = await admin.post<
+            Body<{
+                uuid: string;
+                token: string;
+                roleUuid: string | null;
+                scopes: string[];
+            }>
+        >(`${apiUrl}/service-accounts`, {
+            description: `custom-role SA ${Date.now()}`,
+            expiresAt: inOneHour(),
+            roleUuid: role.roleUuid,
+        });
+        expect(createResp.status).toBe(201);
+        // The API echoes the roleUuid back; legacy `scopes` is empty for a
+        // role-driven SA. Anything else here would mean the controller is
+        // dropping/translating the field unexpectedly.
+        expect(createResp.body.results.roleUuid).toBe(role.roleUuid);
+        expect(createResp.body.results.scopes).toEqual([]);
+
+        const sa = bearerClient(createResp.body.results.token);
+
+        // view:Project allowed → /org/projects must succeed.
+        const projects = await sa.get(`${apiUrl}/org/projects`);
+        expect(projects.status).toBe(200);
+
+        // manage:OrganizationMemberProfile not in role → must be denied.
+        const orgUsers = await sa.get(`${apiUrl}/org/users`);
+        expect(orgUsers.status).toBe(403);
+
+        // manage:SavedChart not in role → modifying a chart must be denied.
+        // We resolve a real chart uuid from the seed project to keep this
+        // robust across reset-db cycles.
+        const chartsResp = await admin.get<Body<Array<{ uuid: string }>>>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/charts`,
+        );
+        const someChartUuid = chartsResp.body.results[0]?.uuid;
+        if (!someChartUuid) throw new Error('No charts found in seed project');
+        const patchChart = await sa.patch(`${apiUrl}/saved/${someChartUuid}`, {
+            name: 'should-not-apply',
+        });
+        expect(patchChart.status).toBe(403);
+    });
+
+    it('Should reject creation with both `scopes` and `roleUuid` set', async () => {
+        const role = await createCustomRole(admin, `mutex-both ${Date.now()}`, [
+            'view:Project',
+        ]);
+        createdRoleUuids.push(role.roleUuid);
+
+        const resp = await admin.post(
+            `${apiUrl}/service-accounts`,
+            {
+                description: 'should-not-create',
+                expiresAt: inOneHour(),
+                scopes: [ServiceAccountScope.ORG_READ],
+                roleUuid: role.roleUuid,
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(400);
+    });
+
+    it('Should reject creation with neither `scopes` nor `roleUuid`', async () => {
+        const resp = await admin.post(
+            `${apiUrl}/service-accounts`,
+            {
+                description: 'should-not-create',
+                expiresAt: inOneHour(),
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(400);
+    });
+
+    it('Should reject a roleUuid that does not exist in this org', async () => {
+        const resp = await admin.post(
+            `${apiUrl}/service-accounts`,
+            {
+                description: 'should-not-create',
+                expiresAt: inOneHour(),
+                // Random uuid that won't match any role.
+                roleUuid: '00000000-0000-0000-0000-000000000000',
+            },
+            { failOnStatusCode: false },
+        );
+        expect(resp.status).toBe(400);
+    });
+
+    it('Should not break legacy `scopes`-only service accounts', async () => {
+        // Smoke test for back-compat: a `scopes` SA must still authenticate
+        // and the runtime ability must come from `applyServiceAccountAbilities`
+        // (the legacy hardcoded mapping), independent of any custom role.
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.ORG_EDIT,
+        ]);
+        const sa = bearerClient(token);
+
+        const projects = await sa.get(`${apiUrl}/org/projects`);
+        expect(projects.status).toBe(200);
+
+        // ORG_EDIT grants `manage:Space` (legacy mapping)
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces`,
+            { name: `legacy-edit-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${SEED_PROJECT.project_uuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+});
+
+// ---------------------------------------------------------------------------
+// CLI deploy/upload surface via a custom role. The legacy `org:edit` scope
+// does NOT grant `manage:DeployProject` or `manage:ContentAsCode`, so an SA
+// that needs to run `lightdash deploy` / `lightdash upload` would historically
+// have to use `org:admin`. The custom-role path lets operators grant exactly
+// those abilities — and nothing else — to a CI service account.
+// ---------------------------------------------------------------------------
+
+describe('Service Account custom-role: CLI deploy/upload', () => {
+    let admin: ApiClient;
+    const projectUuid = SEED_PROJECT.project_uuid;
+    const createdRoleUuids: string[] = [];
+
+    let chartAsCodeFixture: ChartAsCode;
+
+    beforeAll(async () => {
+        admin = await login();
+        chartAsCodeFixture = yaml.load(
+            fs.readFileSync(
+                nodePath.resolve(__dirname, '../fixtures/chartAsCode.yml'),
+                'utf8',
+            ),
+        ) as ChartAsCode;
+    });
+
+    afterAll(async () => {
+        for (const roleUuid of createdRoleUuids) {
+            // eslint-disable-next-line no-await-in-loop
+            await admin.delete(`${rolesUrl}/${roleUuid}`, {
+                failOnStatusCode: false,
+            });
+        }
+    });
+
+    it('legacy ORG_EDIT can upload content-as-code (back-compat for `lightdash upload`)', async () => {
+        // Pre-Phase-C the auth middleware spoofed the admin user so an
+        // `org:edit` SA implicitly had `manage:ContentAsCode`. The cutover
+        // to a dedicated SA identity dropped that and broke the existing
+        // CI workflow; `applyServiceAccountAbilities` now grants it
+        // explicitly to ORG_EDIT so `lightdash upload` keeps working.
+        // Deploy (`PUT /explores` → `manage:DeployProject`) is intentionally
+        // still admin-only — that workflow is heavier and needs explicit
+        // opt-in via either ORG_ADMIN or a custom role.
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.ORG_EDIT,
+        ]);
+        const sa = bearerClient(token);
+
+        const cac = await sa.post(
+            `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+            chartAsCodeFixture,
+        );
+        expect(cac.status).toBe(200);
+
+        const deploy = await sa.put(
+            `${apiUrl}/projects/${projectUuid}/explores`,
+            [],
+        );
+        expect(deploy.status).toBe(403);
+    });
+
+    // The `system:*` SA scopes delegate to the same
+    // `applyOrganizationMemberStaticAbilities` builders that human users go
+    // through, so the SA's CASL must match the user-with-this-role shape.
+    // We exercise a representative slice — admin / developer / editor /
+    // viewer — and pin: who can deploy, who can upload CAC, who can
+    // create spaces.
+    it('system:admin grants the same shape as a human admin (deploy + CAC + space)', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_ADMIN,
+        ]);
+        const sa = bearerClient(token);
+        // PUT /explores with `[]` lands at body validation downstream of
+        // CASL, so a non-401/403 status is what proves the role passed
+        // the deploy permission check. Sending real explores would corrupt
+        // the seeded project's catalog.
+        const deployStatus = (
+            await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, [])
+        ).status;
+        expect([401, 403]).not.toContain(deployStatus);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(200);
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            { name: `system-admin-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('system:developer grants CAC + spaces but NOT deploy on a non-preview project', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_DEVELOPER,
+        ]);
+        const sa = bearerClient(token);
+        // Developer's `manage:DeployProject` is conditional on preview
+        // projects the SA itself created — the seeded Jaffle Shop is type
+        // DEFAULT so deploy is denied (mirrors human-developer behavior).
+        expect(
+            (await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, []))
+                .status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(200);
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            { name: `system-developer-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('system:editor cannot deploy or upload CAC, but can manage spaces', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_EDITOR,
+        ]);
+        const sa = bearerClient(token);
+        expect(
+            (await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, []))
+                .status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(403);
+        const space = await sa.post<Body<{ uuid: string }>>(
+            `${apiUrl}/projects/${projectUuid}/spaces`,
+            { name: `system-editor-${Date.now()}` },
+        );
+        expect(space.status).toBe(200);
+        if (space.body.results?.uuid) {
+            await admin.delete(
+                `${apiUrl}/projects/${projectUuid}/spaces/${space.body.results.uuid}`,
+                { failOnStatusCode: false },
+            );
+        }
+    });
+
+    it('system:viewer cannot deploy, upload, or create spaces', async () => {
+        const { token } = await createServiceAccountToken(admin, [
+            ServiceAccountScope.SYSTEM_VIEWER,
+        ]);
+        const sa = bearerClient(token);
+        expect(
+            (await sa.put(`${apiUrl}/projects/${projectUuid}/explores`, []))
+                .status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(
+                    `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+                    chartAsCodeFixture,
+                )
+            ).status,
+        ).toBe(403);
+        expect(
+            (
+                await sa.post(`${apiUrl}/projects/${projectUuid}/spaces`, {
+                    name: `system-viewer-${Date.now()}`,
+                })
+            ).status,
+        ).toBe(403);
+    });
+
+    it('a custom role with `manage:DeployProject` + `manage:ContentAsCode` lets the SA deploy and upload', async () => {
+        const role = await createCustomRole(
+            admin,
+            `cli-deployer ${Date.now()}`,
+            [
+                'view:Project',
+                'manage:DeployProject',
+                'manage:ContentAsCode',
+                'manage:Space',
+                'manage:Dashboard',
+                'manage:SavedChart',
+            ],
+        );
+        createdRoleUuids.push(role.roleUuid);
+
+        const createResp = await admin.post<Body<{ token: string }>>(
+            `${apiUrl}/service-accounts`,
+            {
+                description: `cli-deployer SA ${Date.now()}`,
+                expiresAt: inOneHour(),
+                roleUuid: role.roleUuid,
+            },
+        );
+        expect(createResp.status).toBe(201);
+        const sa = bearerClient(createResp.body.results.token);
+
+        // PUT /explores → manage:DeployProject (the deploy command).
+        // Body validation happens after CASL; not-401/403 is what proves
+        // the role passed the deploy permission check.
+        const deploy = await sa.put(
+            `${apiUrl}/projects/${projectUuid}/explores`,
+            [],
+        );
+        expect([401, 403]).not.toContain(deploy.status);
+
+        // POST /charts/<slug>/code → manage:ContentAsCode (the upload command)
+        const cac = await sa.post(
+            `${apiUrl}/projects/${projectUuid}/charts/${chartAsCodeFixture.slug}/code`,
+            chartAsCodeFixture,
+        );
+        expect(cac.status).toBe(200);
+
+        // Negative: the role doesn't grant `delete:Project` or org-member
+        // management; those must still be denied.
+        const deleteProject = await sa.delete(
+            `${apiUrl}/org/projects/${projectUuid}`,
+        );
+        expect(deleteProject.status).toBe(403);
+
+        const orgUsers = await sa.get(`${apiUrl}/org/users`);
+        expect(orgUsers.status).toBe(403);
     });
 });

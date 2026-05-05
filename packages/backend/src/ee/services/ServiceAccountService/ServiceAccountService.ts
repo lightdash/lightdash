@@ -87,6 +87,7 @@ export class ServiceAccountService extends BaseService {
                     expiresAt: tokenDetails.expiresAt,
                     description: tokenDetails.description,
                     scopes: tokenDetails.scopes,
+                    roleUuid: tokenDetails.roleUuid,
                 },
                 prefix,
             });
@@ -99,7 +100,10 @@ export class ServiceAccountService extends BaseService {
             });
             return token;
         } catch (error) {
-            if (error instanceof ForbiddenError) {
+            if (
+                error instanceof ForbiddenError ||
+                error instanceof ParameterError
+            ) {
                 throw error;
             }
             this.logger.error(

@@ -2,6 +2,7 @@ import {
     AuthTokenPrefix,
     CreateServiceAccount,
     OrganizationMemberRole,
+    ParameterError,
     ServiceAccount,
     ServiceAccountScope,
     ServiceAccountWithToken,
@@ -10,12 +11,18 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { OrganizationMembershipsTableName } from '../../database/entities/organizationMemberships';
+import { RolesTableName } from '../../database/entities/roles';
 import { DbUser } from '../../database/entities/users';
 import { deprecatedHash, hash } from '../../utils/hash';
 import {
     DbServiceAccounts,
     ServiceAccountsTableName,
 } from '../database/entities/serviceAccounts';
+
+type DbServiceAccountWithRole = DbServiceAccounts & {
+    role_uuid: string | null;
+};
 
 export class ServiceAccountModel {
     private readonly database: Knex;
@@ -25,7 +32,7 @@ export class ServiceAccountModel {
     }
 
     static mapDbObjectToServiceAccount(
-        data: DbServiceAccounts,
+        data: DbServiceAccountWithRole,
     ): ServiceAccount {
         if (!data.service_account_user_uuid) {
             // Backfill migration populates this for every existing row, and
@@ -48,7 +55,31 @@ export class ServiceAccountModel {
             createdByUserUuid: data.created_by_user_uuid,
             scopes: data.scopes as ServiceAccountScope[],
             userUuid: data.service_account_user_uuid,
+            roleUuid: data.role_uuid ?? null,
         };
+    }
+
+    /**
+     * Returns the SELECT shape used by all read paths. Joins
+     * `organization_memberships` to surface the SA's optional org-level
+     * custom role assignment alongside the service_accounts columns.
+     */
+    private serviceAccountSelectQuery() {
+        return this.database(ServiceAccountsTableName)
+            .leftJoin(
+                'users',
+                'users.user_uuid',
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+            )
+            .leftJoin(
+                OrganizationMembershipsTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                'users.user_id',
+            )
+            .select<DbServiceAccountWithRole[]>(
+                `${ServiceAccountsTableName}.*`,
+                `${OrganizationMembershipsTableName}.role_uuid`,
+            );
     }
 
     static generateToken(prefix: string = ''): string {
@@ -84,6 +115,25 @@ export class ServiceAccountModel {
     static getRoleForScopes(
         scopes: ServiceAccountScope[],
     ): OrganizationMemberRole {
+        // Prefer explicit `system:*` scopes — they map 1:1 to the org role
+        // tier and let admin-UI listings show "Admin/Developer/..." rather
+        // than collapsing everything onto the legacy three-bucket scheme.
+        if (scopes.includes(ServiceAccountScope.SYSTEM_ADMIN)) {
+            return OrganizationMemberRole.ADMIN;
+        }
+        if (scopes.includes(ServiceAccountScope.SYSTEM_DEVELOPER)) {
+            return OrganizationMemberRole.DEVELOPER;
+        }
+        if (scopes.includes(ServiceAccountScope.SYSTEM_EDITOR)) {
+            return OrganizationMemberRole.EDITOR;
+        }
+        if (scopes.includes(ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER)) {
+            return OrganizationMemberRole.INTERACTIVE_VIEWER;
+        }
+        if (scopes.includes(ServiceAccountScope.SYSTEM_VIEWER)) {
+            return OrganizationMemberRole.VIEWER;
+        }
+        // Legacy coarse scopes
         if (scopes.includes(ServiceAccountScope.ORG_ADMIN)) {
             return OrganizationMemberRole.ADMIN;
         }
@@ -101,10 +151,46 @@ export class ServiceAccountModel {
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
+        // Permission shape: exactly one of `scopes` (legacy preset) or
+        // `roleUuid` (custom org role) must drive runtime CASL. Sending both
+        // is rejected so we always have one source of truth.
+        const hasScopes = !!data.scopes && data.scopes.length > 0;
+        const hasRoleUuid = !!data.roleUuid;
+        if (hasScopes && hasRoleUuid) {
+            throw new ParameterError(
+                'Specify either scopes or roleUuid, not both',
+            );
+        }
+        if (!hasScopes && !hasRoleUuid) {
+            throw new ParameterError(
+                'A service account must have either scopes or a roleUuid',
+            );
+        }
+
         const tokenHash = await hash(token);
-        const role = ServiceAccountModel.getRoleForScopes(data.scopes);
+        const scopes = data.scopes ?? [];
+        // Ornamental org-membership role: only consulted by admin-UI listings.
+        // For custom-role-driven SAs, default to MEMBER (least privilege at
+        // the FK level); for legacy-scope SAs, derive from the broadest scope.
+        const role = hasRoleUuid
+            ? OrganizationMemberRole.MEMBER
+            : ServiceAccountModel.getRoleForScopes(scopes);
 
         return this.database.transaction(async (trx) => {
+            // If a custom role was provided, validate it belongs to the SA's
+            // organization (defence against cross-org role assignment).
+            if (data.roleUuid) {
+                const [roleRow] = await trx(RolesTableName)
+                    .where('role_uuid', data.roleUuid)
+                    .andWhere('organization_uuid', data.organizationUuid)
+                    .select('role_uuid');
+                if (!roleRow) {
+                    throw new ParameterError(
+                        `Role ${data.roleUuid} not found in this organization`,
+                    );
+                }
+            }
+
             // Dedicated user row for this service account. Marked
             // `is_internal = true` so listings/login/SCIM filter it out;
             // `is_active = false` defends-in-depth against any login path.
@@ -139,10 +225,11 @@ export class ServiceAccountModel {
                 );
             }
 
-            await trx('organization_memberships').insert({
+            await trx(OrganizationMembershipsTableName).insert({
                 user_id: saUser.user_id,
                 organization_id: org.organization_id,
                 role,
+                role_uuid: data.roleUuid ?? null,
             });
 
             const [row] = await trx(ServiceAccountsTableName)
@@ -152,7 +239,7 @@ export class ServiceAccountModel {
                     expires_at: data.expiresAt,
                     description: data.description,
                     token_hash: tokenHash,
-                    scopes: data.scopes,
+                    scopes,
                     service_account_user_uuid: saUser.user_uuid,
                 })
                 .returning('*');
@@ -162,7 +249,10 @@ export class ServiceAccountModel {
                 );
             }
             return {
-                ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
+                ...ServiceAccountModel.mapDbObjectToServiceAccount({
+                    ...row,
+                    role_uuid: data.roleUuid ?? null,
+                }),
                 token,
             };
         });
@@ -202,15 +292,18 @@ export class ServiceAccountModel {
         const token = ServiceAccountModel.generateToken(prefix);
         const tokenHash = await hash(token);
 
-        const [row] = await this.database(ServiceAccountsTableName)
+        await this.database(ServiceAccountsTableName)
             .update({
                 rotated_at: new Date(),
                 rotated_by_user_uuid: rotatedByUserUuid,
                 expires_at: expiresAt,
                 token_hash: tokenHash,
             })
-            .where('service_account_uuid', serviceAccountUuid)
-            .returning('*');
+            .where('service_account_uuid', serviceAccountUuid);
+        const [row] = await this.serviceAccountSelectQuery().where(
+            `${ServiceAccountsTableName}.service_account_uuid`,
+            serviceAccountUuid,
+        );
         return {
             ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
             token,
@@ -221,12 +314,15 @@ export class ServiceAccountModel {
         organizationUuid: string,
         scopes?: ServiceAccountScope[],
     ): Promise<ServiceAccount[]> {
-        const query = this.database('service_accounts')
-            .select('*')
-            .where('organization_uuid', organizationUuid);
+        const query = this.serviceAccountSelectQuery().where(
+            `${ServiceAccountsTableName}.organization_uuid`,
+            organizationUuid,
+        );
         if (scopes) {
             // scopes <@ ? returns true only if the database's scopes array is a full subset of elements from the provided scopes array
-            void query.whereRaw('scopes <@ ?', [scopes]);
+            void query.whereRaw(`${ServiceAccountsTableName}.scopes <@ ?`, [
+                scopes,
+            ]);
         }
         const rows = await query;
         return rows.map(ServiceAccountModel.mapDbObjectToServiceAccount);
@@ -235,18 +331,21 @@ export class ServiceAccountModel {
     async getTokenbyUuid(
         serviceAccountUuid: string,
     ): Promise<ServiceAccount | undefined> {
-        const [row] = await this.database('service_accounts')
-            .select('*')
-            .where('service_account_uuid', serviceAccountUuid);
+        const [row] = await this.serviceAccountSelectQuery().where(
+            `${ServiceAccountsTableName}.service_account_uuid`,
+            serviceAccountUuid,
+        );
         return row && ServiceAccountModel.mapDbObjectToServiceAccount(row);
     }
 
     async getByToken(token: string): Promise<ServiceAccount> {
         const hashedToken = await hash(token);
-        const [row] = await this.database('service_accounts')
-            .select('*')
-            .where('token_hash', hashedToken)
-            .orWhere('token_hash', deprecatedHash(token)); // Adding old sha256 hash for backwards compatibility
+        const [row] = await this.serviceAccountSelectQuery()
+            .where(`${ServiceAccountsTableName}.token_hash`, hashedToken)
+            .orWhere(
+                `${ServiceAccountsTableName}.token_hash`,
+                deprecatedHash(token),
+            ); // Adding old sha256 hash for backwards compatibility
         const mappedRow = ServiceAccountModel.mapDbObjectToServiceAccount(row);
         return mappedRow;
     }
