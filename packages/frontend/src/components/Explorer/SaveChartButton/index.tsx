@@ -1,10 +1,6 @@
 import { getItemId, getMetrics } from '@lightdash/common';
-import { Button, Menu, rgba, Tooltip } from '@mantine-8/core';
-import {
-    IconChevronDown,
-    IconCirclePlus,
-    IconDeviceFloppy,
-} from '@tabler/icons-react';
+import { Button, rgba, Tooltip } from '@mantine-8/core';
+import { IconDeviceFloppy, IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import {
     useAmbientAiEnabled,
@@ -18,7 +14,6 @@ import {
     selectUnsavedChartVersionForSave,
     useExplorerSelector,
 } from '../../../features/explorer/store';
-import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
@@ -59,23 +54,16 @@ const SaveChartButton: FC<{
     const { missingRequiredParameters } = useExplorerQuery();
 
     const [isQueryModalOpen, setIsQueryModalOpen] = useState<boolean>(false);
-    const [forceSpaceOrDashboardChoice, setForceSpaceOrDashboardChoice] =
-        useState(false);
+    const [isSaveAsModal, setIsSaveAsModal] = useState(false);
     // Track if user clicked save while metadata is still loading
     const [isPendingOpen, setIsPendingOpen] = useState(false);
-
-    const { getEditingDashboardInfo } = useDashboardStorage();
-    const editingDashboardInfo = getEditingDashboardInfo();
-    const dashboardName = editingDashboardInfo.dashboardUuid
-        ? editingDashboardInfo.name
-        : null;
 
     useEffect(() => {
         onSaveModalOpenChange?.(isQueryModalOpen);
     }, [isQueryModalOpen, onSaveModalOpenChange]);
 
-    const openSaveAsModal = (chooseLocation: boolean) => {
-        setForceSpaceOrDashboardChoice(chooseLocation);
+    const openSaveAsModal = () => {
+        setIsSaveAsModal(true);
         setIsQueryModalOpen(true);
     };
 
@@ -199,70 +187,30 @@ const SaveChartButton: FC<{
                 </Tooltip>
 
                 {showSaveAsMenu && (
-                    <Menu
-                        position="bottom-end"
+                    <Tooltip
+                        label="Save as new chart"
+                        position="bottom"
                         withArrow
                         withinPortal
-                        shadow="md"
-                        offset={2}
-                        arrowOffset={10}
+                        disabled={isSaveAsDisabled}
                     >
-                        <Menu.Target>
-                            <Button
-                                variant={isExplorer ? 'default' : undefined}
-                                color={isExplorer ? 'blue' : 'green.7'}
-                                size="xs"
-                                p="xs"
-                                disabled={isSaveAsDisabled}
-                                aria-label="More save options"
-                                style={{
-                                    borderTopLeftRadius: 0,
-                                    borderBottomLeftRadius: 0,
-                                }}
-                                data-testid="SaveChartButton/SaveAsMenu"
-                            >
-                                <MantineIcon icon={IconChevronDown} size="sm" />
-                            </Button>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            {dashboardName ? (
-                                <>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconCirclePlus}
-                                            />
-                                        }
-                                        disabled={isSaveAsDisabled}
-                                        onClick={() => openSaveAsModal(false)}
-                                    >
-                                        {`Save as new chart in "${dashboardName}"`}
-                                    </Menu.Item>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconCirclePlus}
-                                            />
-                                        }
-                                        disabled={isSaveAsDisabled}
-                                        onClick={() => openSaveAsModal(true)}
-                                    >
-                                        Save as new chart and choose location
-                                    </Menu.Item>
-                                </>
-                            ) : (
-                                <Menu.Item
-                                    leftSection={
-                                        <MantineIcon icon={IconCirclePlus} />
-                                    }
-                                    disabled={isSaveAsDisabled}
-                                    onClick={() => openSaveAsModal(false)}
-                                >
-                                    Save as new chart
-                                </Menu.Item>
-                            )}
-                        </Menu.Dropdown>
-                    </Menu>
+                        <Button
+                            variant={isExplorer ? 'default' : undefined}
+                            color={isExplorer ? 'blue' : 'green.7'}
+                            size="xs"
+                            p="xs"
+                            disabled={isSaveAsDisabled}
+                            aria-label="Save as new chart"
+                            style={{
+                                borderTopLeftRadius: 0,
+                                borderBottomLeftRadius: 0,
+                            }}
+                            data-testid="SaveChartButton/SaveAsButton"
+                            onClick={openSaveAsModal}
+                        >
+                            <MantineIcon icon={IconPlus} size="sm" />
+                        </Button>
+                    </Tooltip>
                 )}
             </Button.Group>
 
@@ -272,15 +220,16 @@ const SaveChartButton: FC<{
                     savedData={unsavedChartVersionForSave}
                     onClose={() => {
                         setIsQueryModalOpen(false);
-                        setForceSpaceOrDashboardChoice(false);
+                        setIsSaveAsModal(false);
                     }}
                     onConfirm={() => {
                         setIsQueryModalOpen(false);
-                        setForceSpaceOrDashboardChoice(false);
+                        setIsSaveAsModal(false);
                     }}
                     defaultSpaceUuid={spaceUuid ?? undefined}
                     chartMetadata={generatedMetadata ?? undefined}
-                    forceSpaceOrDashboardChoice={forceSpaceOrDashboardChoice}
+                    forceSpaceOrDashboardChoice={isSaveAsModal}
+                    isSaveAs={isSaveAsModal}
                 />
             )}
         </>

@@ -25,6 +25,7 @@ export const DEFAULT_CHART_METADATA = {
 
 export enum SaveDestination {
     Dashboard = 'dashboard',
+    OriginatingDashboard = 'originating_dashboard',
     Space = 'space',
 }
 

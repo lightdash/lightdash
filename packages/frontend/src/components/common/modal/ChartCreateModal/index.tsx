@@ -22,6 +22,12 @@ interface ChartCreateModalProps extends Pick<
      * dashboard.
      */
     forceSpaceOrDashboardChoice?: boolean;
+    /**
+     * When true, the modal is being used to save an existing chart as a new
+     * chart. The title becomes "Save as..." and, if the editor was opened from
+     * a dashboard, the originating dashboard is offered as a destination.
+     */
+    isSaveAs?: boolean;
 }
 
 enum SaveMode {
@@ -37,6 +43,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     onConfirm,
     chartMetadata,
     forceSpaceOrDashboardChoice = false,
+    isSaveAs = false,
 }) => {
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
@@ -65,11 +72,24 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
     const getModalTitle = useCallback(() => {
+        if (isSaveAs) {
+            return 'Save as new chart';
+        }
         if (saveMode === SaveMode.TO_DASHBOARD) {
             return `Save chart to "${editingDashboardInfo.name}"`;
         }
         return 'Save chart';
-    }, [saveMode, editingDashboardInfo]);
+    }, [saveMode, editingDashboardInfo, isSaveAs]);
+
+    const originatingDashboard =
+        isSaveAs &&
+        editingDashboardInfo.dashboardUuid &&
+        editingDashboardInfo.name
+            ? {
+                  dashboardUuid: editingDashboardInfo.dashboardUuid,
+                  dashboardName: editingDashboardInfo.name,
+              }
+            : null;
 
     return (
         <MantineModal
@@ -102,6 +122,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                         dashboardName: savedData.dashboardName ?? null,
                         dashboardUuid: savedData.dashboardUuid ?? null,
                     }}
+                    originatingDashboard={originatingDashboard}
                     chartMetadata={chartMetadata}
                 />
             )}

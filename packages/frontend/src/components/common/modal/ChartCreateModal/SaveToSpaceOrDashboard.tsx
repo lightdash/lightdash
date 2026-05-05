@@ -5,6 +5,8 @@ import {
     DashboardTileTypes,
     getDefaultChartTileSize,
     hasUnusedDimensions,
+    type CreateChartInDashboard,
+    type CreateDashboardChartTile,
     type CreateSavedChartVersion,
     type DashboardChartTile,
     type DashboardVersionedFields,
@@ -23,6 +25,7 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { IconPlus } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { z } from 'zod';
 import {
@@ -32,6 +35,7 @@ import {
 } from '../../../../hooks/dashboard/useDashboard';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useDashboardStorage from '../../../../hooks/dashboard/useDashboardStorage';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCreateMutation } from '../../../../hooks/useSavedQuery';
 import { useSpaceManagement } from '../../../../hooks/useSpaceManagement';
 import { useSpaceSummaries } from '../../../../hooks/useSpaces';
@@ -71,6 +75,15 @@ type Props = {
         dashboardUuid: string | null;
         dashboardName: string | null;
     };
+    /**
+     * When the editor is opened from a dashboard tile, this carries the
+     * originating dashboard so that the radio can offer a third option to save
+     * the new chart into that dashboard (mirroring the in-dashboard save flow).
+     */
+    originatingDashboard?: {
+        dashboardUuid: string;
+        dashboardName: string;
+    } | null;
     defaultSpaceUuid?: string | undefined;
     chartMetadata?: ChartMetadata;
     redirectOnSuccess?: boolean;
@@ -83,15 +96,24 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     onConfirm,
     onClose,
     dashboardInfoFromSavedData = { dashboardUuid: null, dashboardName: null },
+    originatingDashboard = null,
     chartMetadata = DEFAULT_CHART_METADATA,
     redirectOnSuccess = true,
 }) => {
     const { user } = useApp();
+    const navigate = useNavigate();
+    const { showToastSuccess } = useToaster();
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
         useCreateMutation({ redirectOnSuccess });
 
-    const { clearIsEditingDashboardChart } = useDashboardStorage();
+    const {
+        clearIsEditingDashboardChart,
+        getUnsavedDashboardTiles,
+        setUnsavedDashboardTiles,
+        getDashboardActiveTabUuid,
+        setDashboardChartInfo,
+    } = useDashboardStorage();
 
     const [saveDestination, setSaveDestination] = useState<SaveDestination>(
         SaveDestination.Space,
@@ -225,6 +247,11 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         projectUuid,
     });
 
+    const { data: originatingDashboardData } = useDashboardQuery({
+        uuidOrSlug: originatingDashboard?.dashboardUuid ?? undefined,
+        projectUuid,
+    });
+
     // Handle dashboard selection errors
     useEffect(() => {
         if (selectedDashboardError) {
@@ -238,6 +265,11 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     }, [selectedDashboardError, setFieldError, clearFieldError]);
 
     const isFormReadyToSave = useMemo(() => {
+        // OriginatingDashboard skips step 2 — it submits straight from
+        // InitialInfo as soon as the chart has a name.
+        if (saveDestination === SaveDestination.OriginatingDashboard) {
+            return !!form.values.name && !!originatingDashboard;
+        }
         if (currentStep === ModalStep.SelectDestination) {
             if (saveDestination === SaveDestination.Space) {
                 return (
@@ -263,6 +295,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         selectedDashboard,
         isLoadingSelectedDashboard,
         isSelectedDashboardError,
+        originatingDashboard,
     ]);
 
     const handleOnSubmit = useCallback(
@@ -272,6 +305,54 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             }
 
             let savedQuery: SavedChart | undefined;
+            /**
+             * Save back to the dashboard the editor was opened from.
+             * Mirrors `SaveToDashboard` — stages the new tile in
+             * sessionStorage and navigates to the dashboard editor so the
+             * user can review/save unsaved dashboard changes.
+             */
+            if (
+                saveDestination === SaveDestination.OriginatingDashboard &&
+                originatingDashboard &&
+                projectUuid
+            ) {
+                const newChartInDashboard: CreateChartInDashboard = {
+                    ...savedData,
+                    name: values.name,
+                    description: values.description ?? undefined,
+                    dashboardUuid: originatingDashboard.dashboardUuid,
+                };
+                savedQuery = await createChart(newChartInDashboard);
+                const activeTabUuid = getDashboardActiveTabUuid();
+                const newTile: CreateDashboardChartTile = {
+                    uuid: uuid4(),
+                    type: DashboardTileTypes.SAVED_CHART,
+                    tabUuid: activeTabUuid ?? undefined,
+                    properties: {
+                        belongsToDashboard: true,
+                        savedChartUuid: savedQuery.uuid,
+                        chartName: values.name,
+                    },
+                    ...getDefaultChartTileSize(savedData.chartConfig?.type),
+                };
+                const unsavedTiles = getUnsavedDashboardTiles();
+                const existingTiles =
+                    unsavedTiles?.length > 0
+                        ? unsavedTiles
+                        : originatingDashboardData?.tiles;
+                setUnsavedDashboardTiles(
+                    appendNewTilesToBottom(existingTiles ?? [], [newTile]),
+                );
+                void navigate(
+                    activeTabUuid
+                        ? `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit/tabs/${activeTabUuid}`
+                        : `/projects/${projectUuid}/dashboards/${originatingDashboard.dashboardUuid}/edit`,
+                );
+                showToastSuccess({
+                    title: `Success! ${values.name} was added to ${originatingDashboard.dashboardName}`,
+                });
+            }
+
             /**
              * Create chart
              * Save to dashboard by creating a new tile and then updating the dashboard by sending it to the bottom
@@ -339,12 +420,22 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             }
 
             if (savedQuery) {
-                // Saving as a new chart to a space (or to a different dashboard)
-                // means the editor is no longer editing for the originating
-                // dashboard tile, so clear that context to hide the dashboard
-                // banner in the new chart viewer.
+                // Saving to a Space leaves the dashboard context behind — clear
+                // the editing flag so the banner disappears in the new viewer.
                 if (saveDestination === SaveDestination.Space) {
                     clearIsEditingDashboardChart();
+                }
+                // Saving to a Different dashboard re-points the banner at the
+                // chosen dashboard so the new chart's viewer shows the correct
+                // "viewing this chart from within {dashboard}" context.
+                if (
+                    saveDestination === SaveDestination.Dashboard &&
+                    selectedDashboard
+                ) {
+                    setDashboardChartInfo({
+                        name: selectedDashboard.name,
+                        dashboardUuid: selectedDashboard.uuid,
+                    });
                 }
                 onConfirm(savedQuery);
                 return savedQuery;
@@ -360,6 +451,15 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             handleCreateNewSpace,
             onConfirm,
             clearIsEditingDashboardChart,
+            setDashboardChartInfo,
+            originatingDashboard,
+            originatingDashboardData,
+            projectUuid,
+            navigate,
+            showToastSuccess,
+            getUnsavedDashboardTiles,
+            setUnsavedDashboardTiles,
+            getDashboardActiveTabUuid,
         ],
     );
 
@@ -381,6 +481,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         }
     };
 
+    const skipDestinationStep =
+        saveDestination === SaveDestination.OriginatingDashboard;
+
     // Determine if we should show the "New Space" button
     const shouldShowNewSpaceButton =
         currentStep === ModalStep.SelectDestination &&
@@ -396,7 +499,10 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     return (
         <form
             onSubmit={(e) => {
-                if (currentStep === ModalStep.InitialInfo) {
+                if (
+                    currentStep === ModalStep.InitialInfo &&
+                    !skipDestinationStep
+                ) {
                     e.preventDefault();
                     return;
                 }
@@ -440,9 +546,21 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                         label="Space"
                                         disabled={!spaces || isLoadingSpaces}
                                     />
+                                    {originatingDashboard && (
+                                        <Radio
+                                            value={
+                                                SaveDestination.OriginatingDashboard
+                                            }
+                                            label={`"${originatingDashboard.dashboardName}" dashboard`}
+                                        />
+                                    )}
                                     <Radio
                                         value={SaveDestination.Dashboard}
-                                        label="Dashboard"
+                                        label={
+                                            originatingDashboard
+                                                ? 'Different dashboard'
+                                                : 'Dashboard'
+                                        }
                                     />
                                 </Stack>
                             </Radio.Group>
@@ -482,7 +600,8 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                                 spaces={spaces}
                                 dashboards={dashboards}
                             />
-                        ) : (
+                        ) : saveDestination ===
+                          SaveDestination.OriginatingDashboard ? null : (
                             assertUnreachable(
                                 saveDestination,
                                 `Unknown save destination ${saveDestination}`,
@@ -515,18 +634,28 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             <Button onClick={onClose} variant="default">
                                 Cancel
                             </Button>
-                            <Button
-                                onClick={(
-                                    e: React.MouseEvent<HTMLButtonElement>,
-                                ) => {
-                                    e.preventDefault();
-                                    handleNextStep();
-                                }}
-                                disabled={!form.values.name}
-                                type="button"
-                            >
-                                Next
-                            </Button>
+                            {skipDestinationStep ? (
+                                <Button
+                                    type="submit"
+                                    loading={isSavingChart}
+                                    disabled={!isFormReadyToSave}
+                                >
+                                    Save
+                                </Button>
+                            ) : (
+                                <Button
+                                    onClick={(
+                                        e: React.MouseEvent<HTMLButtonElement>,
+                                    ) => {
+                                        e.preventDefault();
+                                        handleNextStep();
+                                    }}
+                                    disabled={!form.values.name}
+                                    type="button"
+                                >
+                                    Next
+                                </Button>
+                            )}
                         </>
                     ) : (
                         <>
