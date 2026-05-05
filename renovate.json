@@ -8,8 +8,8 @@
     "group:monorepos",
     "helpers:pinGitHubActionDigests"
   ],
-  "minimumReleaseAge": "7 days",
-  "internalChecksFilter": "strict",
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "none",
   "rangeStrategy": "bump",
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
