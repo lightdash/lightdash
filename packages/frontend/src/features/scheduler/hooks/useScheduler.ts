@@ -1,5 +1,6 @@
 import {
     SchedulerJobStatus,
+    ThresholdStatus,
     type AnyType,
     type ApiError,
     type ApiJobStatusResponse,
@@ -449,7 +450,10 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                     });
                 }
                 if (data?.status === SchedulerJobStatus.COMPLETED) {
-                    if (data.details?.thresholdStatus === 'not_met') {
+                    if (
+                        data.details?.thresholdStatus ===
+                        ThresholdStatus.NOT_MET
+                    ) {
                         showToastInfo({
                             title: 'Threshold not met. No notification was sent.',
                         });

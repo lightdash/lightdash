@@ -81,6 +81,7 @@ import {
     SyncSlackChannelsPayload,
     ThresholdOperator,
     ThresholdOptions,
+    ThresholdStatus,
     TimeZone,
     translateSlackError,
     UnexpectedGoogleSheetsError,
@@ -3504,7 +3505,9 @@ export default class SchedulerTask {
                         evaluatedParsedValue: evaluation.evaluatedParsedValue,
                         previousRawValue: evaluation.previousRawValue,
                         previousParsedValue: evaluation.previousParsedValue,
-                        result: evaluation.met ? 'met' : 'not_met',
+                        result: evaluation.met
+                            ? ThresholdStatus.MET
+                            : ThresholdStatus.NOT_MET,
                     });
 
                     if (evaluation.met) {
@@ -3543,7 +3546,7 @@ export default class SchedulerTask {
                                 organizationUuid:
                                     schedulerPayload.organizationUuid,
                                 createdByUserUuid: schedulerPayload.userUuid,
-                                thresholdStatus: 'not_met',
+                                thresholdStatus: ThresholdStatus.NOT_MET,
                                 thresholdFieldId: evaluation.fieldId,
                                 thresholdOperator: evaluation.operator,
                                 thresholdValue: evaluation.thresholdValue,
@@ -3564,7 +3567,7 @@ export default class SchedulerTask {
                                 schedulerId: schedulerUuid,
                                 groupId: jobId,
                                 isThresholdAlert: true,
-                                thresholdStatus: 'not_met',
+                                thresholdStatus: ThresholdStatus.NOT_MET,
                             },
                         });
                         return;
