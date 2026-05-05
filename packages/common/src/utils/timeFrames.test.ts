@@ -665,12 +665,12 @@ describe('TimeFrames', () => {
     });
 
     describe('dateExtractsTimezoneConversions', () => {
-        test('BigQuery emits AT TIME ZONE inside the EXTRACT input', () => {
+        test('BigQuery coerces to TIMESTAMP and emits AT TIME ZONE inside the EXTRACT input', () => {
             expect(
                 dateExtractsTimezoneConversions[
                     SupportedDbtAdapter.BIGQUERY
                 ].toExtractInputTz('col', 'America/New_York'),
-            ).toEqual(`col AT TIME ZONE 'America/New_York'`);
+            ).toEqual(`TIMESTAMP(col) AT TIME ZONE 'America/New_York'`);
         });
 
         test('Snowflake uses CONVERT_TIMEZONE', () => {
@@ -741,7 +741,7 @@ describe('TimeFrames', () => {
         test.each([
             [
                 SupportedDbtAdapter.BIGQUERY,
-                `EXTRACT(DAYOFWEEK FROM ${col} AT TIME ZONE '${tz}')`,
+                `EXTRACT(DAYOFWEEK FROM TIMESTAMP(${col}) AT TIME ZONE '${tz}')`,
             ],
             [
                 SupportedDbtAdapter.SNOWFLAKE,
@@ -792,7 +792,7 @@ describe('TimeFrames', () => {
         test.each([
             [
                 SupportedDbtAdapter.BIGQUERY,
-                `EXTRACT(MONTH FROM ${col} AT TIME ZONE '${tz}')`,
+                `EXTRACT(MONTH FROM TIMESTAMP(${col}) AT TIME ZONE '${tz}')`,
             ],
             [
                 SupportedDbtAdapter.SNOWFLAKE,
@@ -887,7 +887,7 @@ describe('TimeFrames', () => {
                     tz,
                 ),
             ).toEqual(
-                `EXTRACT(WEEK(WEDNESDAY) FROM ${col} AT TIME ZONE '${tz}')`,
+                `EXTRACT(WEEK(WEDNESDAY) FROM TIMESTAMP(${col}) AT TIME ZONE '${tz}')`,
             );
         });
 
@@ -914,7 +914,7 @@ describe('TimeFrames', () => {
         test.each([
             [
                 SupportedDbtAdapter.BIGQUERY,
-                `FORMAT_TIMESTAMP('%A', ${col}, '${tz}')`,
+                `FORMAT_TIMESTAMP('%A', TIMESTAMP(${col}), '${tz}')`,
             ],
             [
                 SupportedDbtAdapter.POSTGRES,
@@ -989,7 +989,9 @@ describe('TimeFrames', () => {
                         null,
                         tz,
                     ),
-                ).toEqual(`FORMAT_TIMESTAMP('${format}', ${col}, '${tz}')`);
+                ).toEqual(
+                    `FORMAT_TIMESTAMP('${format}', TIMESTAMP(${col}), '${tz}')`,
+                );
             },
         );
     });
