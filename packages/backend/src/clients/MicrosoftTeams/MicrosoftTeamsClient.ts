@@ -9,9 +9,30 @@ import {
     ThresholdOptions,
     type PartialFailure,
 } from '@lightdash/common';
+import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { AttachmentUrl } from '../EmailClient/EmailClient';
+
+export const redactWebhookIdentity = (webhookUrl: string) => {
+    try {
+        const parsed = new URL(webhookUrl);
+        const pathHash = createHash('sha256')
+            .update(parsed.pathname)
+            .digest('hex')
+            .slice(0, 12);
+        return `${parsed.host}/…${pathHash}`;
+    } catch {
+        return 'invalid-url';
+    }
+};
+
+export const classifyHttpStatus = (status: number) => {
+    if (status >= 200 && status < 300) return 'ok';
+    if (status >= 400 && status < 500) return 'client_error';
+    if (status >= 500) return 'server_error';
+    return 'unexpected';
+};
 
 type MicrosoftTeamsClientArguments = {
     lightdashConfig: LightdashConfig;
@@ -38,6 +59,7 @@ export class MicrosoftTeamsClient {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
+        const webhookIdentity = redactWebhookIdentity(webhookUrl);
         const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: {
@@ -46,12 +68,17 @@ export class MicrosoftTeamsClient {
             body: JSON.stringify(payload),
         });
 
+        const classification = classifyHttpStatus(response.status);
+
         // Accept any 2xx status: legacy webhooks return 200, Power Automate Workflows return 202
         if (!response.ok) {
             const responseText = await response.text();
-            Logger.error(
-                `Microsoft teams webhook returned an error: ${response.status} ${responseText}`,
-            );
+            Logger.error('msteams.webhook_failed', {
+                webhookIdentity,
+                httpStatus: response.status,
+                classification,
+                responseBody: responseText.slice(0, 500),
+            });
             Logger.info(
                 `Microsoft teams webhook payload ${JSON.stringify(
                     payload,
@@ -62,6 +89,12 @@ export class MicrosoftTeamsClient {
 
             throw new MsTeamsError(`Microsoft teams webhook returned an error`);
         }
+
+        Logger.info('msteams.webhook_sent', {
+            webhookIdentity,
+            httpStatus: response.status,
+            classification,
+        });
     }
 
     async postImageWithWebhook({

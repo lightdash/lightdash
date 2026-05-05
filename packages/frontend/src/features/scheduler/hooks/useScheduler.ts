@@ -449,9 +449,15 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                     });
                 }
                 if (data?.status === SchedulerJobStatus.COMPLETED) {
-                    showToastSuccess({
-                        title: 'Scheduled delivery sent successfully',
-                    });
+                    if (data.details?.thresholdStatus === 'not_met') {
+                        showToastInfo({
+                            title: 'Threshold not met. No notification was sent.',
+                        });
+                    } else {
+                        showToastSuccess({
+                            title: 'Scheduled delivery sent successfully',
+                        });
+                    }
 
                     return setTimeout(
                         () =>

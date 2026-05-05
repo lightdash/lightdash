@@ -5645,6 +5645,7 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncSavedChartQueryArgs,
         pollingOptions?: PollingOptions,
     ): Promise<{
+        queryUuid: string;
         rows: Record<string, unknown>[];
         cacheMetadata: CacheMetadata;
         fields: ItemsMap;
@@ -5663,13 +5664,14 @@ export class AsyncQueryService extends ProjectService {
             ...pollingOptions,
         });
 
-        return this.getReadyQueryResults({
+        const ready = await this.getReadyQueryResults({
             account,
             projectUuid,
             queryUuid,
             cacheMetadata,
             fields,
         });
+        return { queryUuid, ...ready };
     }
 
     /**

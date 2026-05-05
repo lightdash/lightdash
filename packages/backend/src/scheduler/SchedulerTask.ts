@@ -2606,24 +2606,37 @@ export default class SchedulerTask {
     }
 
     // eslint-disable-next-line consistent-return -- we throw in the default case. tsc doesn't like it.
-    static isPositiveThresholdAlert(
+    static evaluateThreshold(
         thresholds: ThresholdOptions[],
         results: Record<string, AnyType>[],
-    ): boolean {
-        if (thresholds.length < 1 || results.length < 1) {
-            return false;
+    ): {
+        met: boolean;
+        fieldId: string | null;
+        operator: ThresholdOperator | null;
+        thresholdValue: number | null;
+        rowCount: number;
+        evaluatedRawValue: AnyType;
+        evaluatedParsedValue: number | null;
+        previousRawValue?: AnyType;
+        previousParsedValue?: number | null;
+    } {
+        const rowCount = results.length;
+
+        if (thresholds.length < 1 || rowCount < 1) {
+            return {
+                met: false,
+                fieldId: thresholds[0]?.fieldId ?? null,
+                operator: thresholds[0]?.operator ?? null,
+                thresholdValue: thresholds[0]?.value ?? null,
+                rowCount,
+                evaluatedRawValue: undefined,
+                evaluatedParsedValue: null,
+            };
         }
 
         const { fieldId, operator, value: thresholdValue } = thresholds[0];
 
-        const getValue = (resultIdx: number) => {
-            if (results.length === 0) {
-                throw new NotEnoughResults(
-                    `Threshold alert error: Query returned no rows.`,
-                );
-            }
-
-            // If we are trying to access beyond available rows, throw a general error
+        const getRawAndParsed = (resultIdx: number) => {
             if (resultIdx >= results.length) {
                 throw new NotEnoughResults(
                     `Threshold alert error: Expected at least ${resultIdx} rows, but only ${results.length} row(s) were returned.`,
@@ -2638,34 +2651,66 @@ export default class SchedulerTask {
                     `Threshold alert error: Tried to reference field with unknown id: ${fieldId}`,
                 );
             }
-            return parseFloat(result[fieldId]);
+            return {
+                raw: result[fieldId],
+                parsed: parseFloat(result[fieldId]),
+            };
         };
 
-        const latestValue = getValue(0);
+        const latest = getRawAndParsed(0);
+        const evaluatedRawValue = latest.raw;
+        const evaluatedParsedValue = latest.parsed;
+
         switch (operator) {
             case ThresholdOperator.GREATER_THAN:
-                return latestValue > thresholdValue;
+                return {
+                    met: evaluatedParsedValue > thresholdValue,
+                    fieldId,
+                    operator,
+                    thresholdValue,
+                    rowCount,
+                    evaluatedRawValue,
+                    evaluatedParsedValue,
+                };
 
             case ThresholdOperator.LESS_THAN:
-                return latestValue < thresholdValue;
+                return {
+                    met: evaluatedParsedValue < thresholdValue,
+                    fieldId,
+                    operator,
+                    thresholdValue,
+                    rowCount,
+                    evaluatedRawValue,
+                    evaluatedParsedValue,
+                };
 
             case ThresholdOperator.INCREASED_BY:
             case ThresholdOperator.DECREASED_BY:
-                // Ensure at least two rows exist for these operations
-                if (results.length < 2) {
+                if (rowCount < 2) {
                     throw new NotEnoughResults(
-                        `Threshold alert error: Increase/decrease comparison requires at least two rows, but only ${results.length} row(s) were returned.`,
+                        `Threshold alert error: Increase/decrease comparison requires at least two rows, but only ${rowCount} row(s) were returned.`,
                     );
                 }
-                const previousValue = getValue(1);
-                if (operator === ThresholdOperator.INCREASED_BY) {
-                    const percentageIncrease =
-                        ((latestValue - previousValue) / previousValue) * 100;
-                    return percentageIncrease > thresholdValue;
-                }
-                const percentageDecrease =
-                    ((previousValue - latestValue) / previousValue) * 100;
-                return percentageDecrease > thresholdValue;
+                const previous = getRawAndParsed(1);
+                const percentage =
+                    operator === ThresholdOperator.INCREASED_BY
+                        ? ((evaluatedParsedValue - previous.parsed) /
+                              previous.parsed) *
+                          100
+                        : ((previous.parsed - evaluatedParsedValue) /
+                              previous.parsed) *
+                          100;
+                return {
+                    met: percentage > thresholdValue,
+                    fieldId,
+                    operator,
+                    thresholdValue,
+                    rowCount,
+                    evaluatedRawValue,
+                    evaluatedParsedValue,
+                    previousRawValue: previous.raw,
+                    previousParsedValue: previous.parsed,
+                };
 
             default:
                 return assertUnreachable(
@@ -2673,6 +2718,13 @@ export default class SchedulerTask {
                     `Unknown threshold alert operator: ${operator}`,
                 );
         }
+    }
+
+    static isPositiveThresholdAlert(
+        thresholds: ThresholdOptions[],
+        results: Record<string, AnyType>[],
+    ): boolean {
+        return SchedulerTask.evaluateThreshold(thresholds, results).met;
     }
 
     protected async uploadGsheets(
@@ -3424,7 +3476,7 @@ export default class SchedulerTask {
                 // TODO add multiple AND conditions
                 if (savedChartUuid) {
                     // We are fetching here the results before getting image or CSV
-                    const { rows } =
+                    const { queryUuid, rows } =
                         await this.asyncQueryService.executeSavedChartQueryAndGetResults(
                             {
                                 account,
@@ -3435,9 +3487,27 @@ export default class SchedulerTask {
                             SCHEDULER_POLLING_OPTIONS,
                         );
 
-                    if (
-                        SchedulerTask.isPositiveThresholdAlert(thresholds, rows)
-                    ) {
+                    const evaluation = SchedulerTask.evaluateThreshold(
+                        thresholds,
+                        rows,
+                    );
+                    Logger.info('scheduler.threshold_evaluated', {
+                        schedulerUuid,
+                        jobId,
+                        savedChartUuid,
+                        queryUuid,
+                        fieldId: evaluation.fieldId,
+                        operator: evaluation.operator,
+                        thresholdValue: evaluation.thresholdValue,
+                        rowCount: evaluation.rowCount,
+                        evaluatedRawValue: evaluation.evaluatedRawValue,
+                        evaluatedParsedValue: evaluation.evaluatedParsedValue,
+                        previousRawValue: evaluation.previousRawValue,
+                        previousParsedValue: evaluation.previousParsedValue,
+                        result: evaluation.met ? 'met' : 'not_met',
+                    });
+
+                    if (evaluation.met) {
                         // If the delivery frequency is once, we disable the scheduler.
                         // It will get sent once this time.
                         if (
@@ -3461,6 +3531,42 @@ export default class SchedulerTask {
                         console.debug(
                             'Negative threshold alert, skipping notification',
                         );
+                        await this.schedulerService.logSchedulerJob({
+                            task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
+                            schedulerUuid,
+                            jobId,
+                            jobGroup: jobId,
+                            scheduledTime,
+                            status: SchedulerJobStatus.COMPLETED,
+                            details: {
+                                projectUuid: schedulerPayload.projectUuid,
+                                organizationUuid:
+                                    schedulerPayload.organizationUuid,
+                                createdByUserUuid: schedulerPayload.userUuid,
+                                thresholdStatus: 'not_met',
+                                thresholdFieldId: evaluation.fieldId,
+                                thresholdOperator: evaluation.operator,
+                                thresholdValue: evaluation.thresholdValue,
+                                evaluatedParsedValue:
+                                    evaluation.evaluatedParsedValue,
+                                rowCount: evaluation.rowCount,
+                            },
+                        });
+                        this.analytics.track({
+                            event: 'scheduler_job.completed',
+                            anonymousId: LightdashAnalytics.anonymousId,
+                            userId: schedulerPayload.userUuid,
+                            properties: {
+                                jobId,
+                                organizationId:
+                                    schedulerPayload.organizationUuid,
+                                projectId: schedulerPayload.projectUuid,
+                                schedulerId: schedulerUuid,
+                                groupId: jobId,
+                                isThresholdAlert: true,
+                                thresholdStatus: 'not_met',
+                            },
+                        });
                         return;
                     }
                 } else if (dashboardUuid) {

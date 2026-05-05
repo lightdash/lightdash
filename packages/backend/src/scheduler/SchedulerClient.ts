@@ -974,20 +974,22 @@ export class SchedulerClient {
             }
 
             // Legacy behavior for "Send Now" - individual jobs per target
-            const promises = scheduler.targets.map((target) => {
-                let targetPage = page;
-                if (perChannelPages) {
-                    if (isCreateSchedulerSlackTarget(target)) {
-                        targetPage = perChannelPages.slack ?? page;
-                    } else if (isCreateSchedulerMsTeamsTarget(target)) {
-                        targetPage = perChannelPages.msteams ?? page;
-                    } else if (isCreateSchedulerGoogleChatTarget(target)) {
-                        targetPage = perChannelPages.googlechat ?? page;
-                    } else {
-                        targetPage = perChannelPages.email ?? page;
-                    }
-                }
-                return this.addNotificationJob(
+            const targetTypeOf = (
+                target: CreateSchedulerTarget,
+            ): 'slack' | 'msteams' | 'googlechat' | 'email' => {
+                if (isCreateSchedulerSlackTarget(target)) return 'slack';
+                if (isCreateSchedulerMsTeamsTarget(target)) return 'msteams';
+                if (isCreateSchedulerGoogleChatTarget(target))
+                    return 'googlechat';
+                return 'email';
+            };
+
+            const promises = scheduler.targets.map(async (target) => {
+                const type = targetTypeOf(target);
+                const targetPage = perChannelPages
+                    ? (perChannelPages[type] ?? page)
+                    : page;
+                const result = await this.addNotificationJob(
                     scheduledTime,
                     parentJobId,
                     scheduler,
@@ -996,11 +998,22 @@ export class SchedulerClient {
                     targetPage,
                     traceProperties,
                 );
+                return { ...result, type };
             });
             Logger.info(
                 `Creating ${promises.length} notification jobs for scheduler ${schedulerUuid}`,
             );
-            return await Promise.all(promises);
+            const results = await Promise.all(promises);
+            Logger.info('scheduler.fanout_created', {
+                schedulerUuid,
+                parentJobId,
+                childJobs: results.map(({ type, jobId }) => ({
+                    type,
+                    jobId,
+                    targetCount: 1,
+                })),
+            });
+            return results.map(({ target, jobId }) => ({ target, jobId }));
         } catch (err: AnyType) {
             Logger.error(
                 `Unable to schedule notification job for scheduler ${schedulerUuid}`,
@@ -1099,6 +1112,17 @@ export class SchedulerClient {
         );
 
         const results = await Promise.all(batchJobs);
+
+        Logger.info('scheduler.fanout_created', {
+            schedulerUuid: scheduler.schedulerUuid,
+            parentJobId,
+            childJobs: results.map(({ type, jobId, targetCount }) => ({
+                type,
+                jobId,
+                targetCount,
+            })),
+        });
+
         return results.map((result) => ({
             jobId: result.jobId,
             target: undefined,
