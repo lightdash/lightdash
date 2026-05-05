@@ -5164,22 +5164,8 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
     });
 
     test('WEEK_NUM with non-default startOfWeek composes with the TZ wrap (Postgres)', () => {
-        // Build an explore overriding startOfWeek for the events table.
-        const explore = buildExtractExplore(DimensionType.TIMESTAMP);
-        explore.tables.events = {
-            ...explore.tables.events,
-            orderFieldsBy: undefined,
-        };
         const { query } = buildQuery({
-            explore: {
-                ...explore,
-                tables: {
-                    ...explore.tables,
-                    events: {
-                        ...explore.tables.events,
-                    },
-                },
-            },
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
             compiledMetricQuery: {
                 ...baseDowQuery(),
                 dimensions: ['events_occurred_at_week_num'],

@@ -925,6 +925,21 @@ describe('TimeFrames', () => {
                 `MOD(CAST(DATE_PART('DOW', (${col})::timestamptz AT TIME ZONE '${tz}') AS INT) - 1 + 7, 7) + 1`,
             );
         });
+
+        test('DAY_OF_WEEK_INDEX with startOfWeek composes mod arithmetic with tz wrap (BigQuery)', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    WeekDay.MONDAY,
+                    tz,
+                ),
+            ).toEqual(
+                `MOD(EXTRACT(DAYOFWEEK FROM TIMESTAMP(${col}) AT TIME ZONE '${tz}') - 2 + 7, 7) + 1`,
+            );
+        });
     });
 
     describe('getSqlForDatePartName with timezone (Name variants)', () => {
