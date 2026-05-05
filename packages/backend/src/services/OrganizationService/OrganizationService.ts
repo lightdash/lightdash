@@ -26,7 +26,6 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
-    RegisteredAccount,
     SessionUser,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
@@ -302,9 +301,7 @@ export class OrganizationService extends BaseService {
         };
     }
 
-    async getProjects(
-        account: RegisteredAccount,
-    ): Promise<OrganizationProject[]> {
+    async getProjects(account: Account): Promise<OrganizationProject[]> {
         const { organizationUuid } = account.organization;
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
@@ -696,7 +693,7 @@ export class OrganizationService extends BaseService {
     }
 
     async getColorPalettes(
-        account: RegisteredAccount,
+        account: Account,
     ): Promise<OrganizationColorPaletteWithIsActive[]> {
         const { organizationUuid } = account.organization;
 

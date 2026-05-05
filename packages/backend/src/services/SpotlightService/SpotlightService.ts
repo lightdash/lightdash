@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     NotFoundError,
-    type RegisteredAccount,
+    type Account,
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -35,7 +35,7 @@ export class SpotlightService extends BaseService {
     }
 
     async createSpotlightTableConfig(
-        account: RegisteredAccount,
+        account: Account,
         projectUuid: string,
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
@@ -64,7 +64,7 @@ export class SpotlightService extends BaseService {
     }
 
     async getSpotlightTableConfig(
-        account: RegisteredAccount,
+        account: Account,
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
@@ -100,7 +100,7 @@ export class SpotlightService extends BaseService {
     }
 
     async resetSpotlightTableConfig(
-        account: RegisteredAccount,
+        account: Account,
         projectUuid: string,
     ): Promise<void> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);

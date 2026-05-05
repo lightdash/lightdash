@@ -42,10 +42,9 @@ export class ProjectDefaultsController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccess<ProjectDefaults | undefined>> {
-        assertRegisteredAccount(req.account);
         const project = await this.services
             .getProjectService()
-            .getProject(projectUuid, req.account);
+            .getProject(projectUuid, req.account!);
 
         return {
             status: 'ok',

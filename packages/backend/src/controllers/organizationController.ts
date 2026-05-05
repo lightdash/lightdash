@@ -185,12 +185,11 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiOrganizationProjects> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getProjects(req.account),
+                .getProjects(req.account!),
         };
     }
 
@@ -547,12 +546,11 @@ export class OrganizationController extends BaseController {
         @Request() req: express.Request,
     ): Promise<ApiColorPalettesResponse> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .getColorPalettes(req.account),
+                .getColorPalettes(req.account!),
         };
     }
 

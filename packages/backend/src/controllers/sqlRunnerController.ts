@@ -554,12 +554,11 @@ export class SqlRunnerController extends BaseController {
         @Body() body: CreateVirtualViewPayload,
     ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         const { name, sql, columns, parameterValues } = body;
 
         const virtualViewName = await this.services
             .getProjectService()
-            .createVirtualView(req.account, projectUuid, {
+            .createVirtualView(req.account!, projectUuid, {
                 name,
                 sql,
                 columns,
@@ -587,10 +586,9 @@ export class SqlRunnerController extends BaseController {
         @Body() body: UpdateVirtualViewPayload,
     ): Promise<ApiCreateVirtualView> {
         this.setStatus(200);
-        assertRegisteredAccount(req.account);
         const { name: virtualViewName } = await this.services
             .getProjectService()
-            .updateVirtualView(req.account, projectUuid, name, body);
+            .updateVirtualView(req.account!, projectUuid, name, body);
 
         return {
             status: 'ok',
