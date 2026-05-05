@@ -3492,6 +3492,20 @@ export default class SchedulerTask {
                         thresholds,
                         rows,
                     );
+                    const firstRow: Record<string, AnyType> | undefined =
+                        rows[0];
+                    const dimensionFieldIds = firstRow
+                        ? Object.keys(firstRow).filter(
+                              (k) => k !== evaluation.fieldId,
+                          )
+                        : [];
+                    const firstRowDimensions = firstRow
+                        ? Object.fromEntries(
+                              Object.entries(firstRow).filter(
+                                  ([k]) => k !== evaluation.fieldId,
+                              ),
+                          )
+                        : {};
                     Logger.info('scheduler.threshold_evaluated', {
                         schedulerUuid,
                         jobId,
@@ -3505,6 +3519,8 @@ export default class SchedulerTask {
                         evaluatedParsedValue: evaluation.evaluatedParsedValue,
                         previousRawValue: evaluation.previousRawValue,
                         previousParsedValue: evaluation.previousParsedValue,
+                        dimensionFieldIds,
+                        firstRowDimensions,
                         result: evaluation.met
                             ? ThresholdStatus.MET
                             : ThresholdStatus.NOT_MET,
