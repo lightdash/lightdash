@@ -27,6 +27,7 @@ import { useAmbientAiEnabled } from '../../../ee/features/ambientAi/hooks/useAmb
 import { useTableCalculationAceEditorCompleter } from '../../../hooks/useExplorerAceEditorCompleter';
 import { type TableCalculationForm } from '../types';
 import FormulaConversionPreviewBody from './FormulaConversionPreview';
+import classes from './SqlForm.module.css';
 import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-github';
 import 'ace-builds/src-noconflict/theme-tomorrow_night';
@@ -179,7 +180,10 @@ export const SqlForm: FC<Props> = ({
 
     return (
         <Flex direction="column" h="100%">
-            <ScrollArea style={{ flex: 1 }}>
+            <ScrollArea
+                style={{ flex: 1 }}
+                className={conversionState ? classes.editorBlurred : undefined}
+            >
                 <SqlEditor
                     mode="sql"
                     theme={

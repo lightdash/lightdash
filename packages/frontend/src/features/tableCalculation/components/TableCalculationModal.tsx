@@ -30,9 +30,11 @@ import { useForm } from '@mantine/form';
 import {
     IconAlertTriangle,
     IconCalculator,
+    IconHelpCircle,
     IconMaximize,
     IconMinimize,
     IconSparkles,
+    IconSpeakerphone,
     IconWand,
 } from '@tabler/icons-react';
 import {
@@ -48,6 +50,7 @@ import {
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import {
@@ -62,6 +65,7 @@ import useToaster from '../../../hooks/toaster/useToaster';
 import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
+import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
@@ -298,11 +302,27 @@ const TableCalculationModal: FC<Props> = ({
 
     const isExistingSqlCalc =
         !!tableCalculation && isSqlTableCalculation(tableCalculation);
-    const showConvertToFormulaButton =
+
+    const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
+    const showSqlDeprecationCallout =
+        cannotAuthorCustomSql === true && editMode !== EditMode.TEMPLATE;
+    const canConvertExistingSqlToFormula =
         isExistingSqlCalc &&
         isFormulaSupported &&
         isAmbientAiEnabled &&
         editMode === EditMode.SQL;
+    const showConvertToFormulaButton =
+        canConvertExistingSqlToFormula && !showSqlDeprecationCallout;
+    const showConvertInCallout =
+        showSqlDeprecationCallout && canConvertExistingSqlToFormula;
+    const showTryFormulasInCallout =
+        showSqlDeprecationCallout &&
+        editMode === EditMode.SQL &&
+        isNewCalculation &&
+        isFormulaSupported;
+    const handleTryFormulasClick = useCallback(() => {
+        setEditMode(EditMode.FORMULA);
+    }, []);
 
     const showConversionPreview =
         editMode === EditMode.SQL &&
@@ -547,6 +567,95 @@ const TableCalculationModal: FC<Props> = ({
             }}
         >
             <Stack gap="xs">
+                {showSqlDeprecationCallout && (
+                    <Callout
+                        variant="warning"
+                        title={
+                            <Group gap={6} wrap="nowrap" align="center">
+                                <Text
+                                    fw={700}
+                                    size="sm"
+                                    c="light-dark(var(--mantine-color-ldDark-9), var(--mantine-color-yellow-1))"
+                                    inherit
+                                >
+                                    Coming soon: Editors won't be able to create
+                                    new SQL table calculations
+                                </Text>
+                                <Tooltip
+                                    label="Existing SQL calculations stay editable — just convert them to formula first. They're easier to read and reuse that way."
+                                    multiline
+                                    w={280}
+                                    withArrow
+                                    position="top"
+                                >
+                                    <Box style={{ display: 'flex' }}>
+                                        <MantineIcon
+                                            icon={IconHelpCircle}
+                                            color="light-dark(var(--mantine-color-ldDark-7), var(--mantine-color-yellow-3))"
+                                            size="sm"
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            </Group>
+                        }
+                        fz="sm"
+                        icon={<MantineIcon icon={IconSpeakerphone} size="lg" />}
+                        bd="1px solid light-dark(var(--mantine-color-yellow-3), var(--mantine-color-yellow-9))"
+                        bg="light-dark(var(--mantine-color-yellow-0), var(--mantine-color-dark-7))"
+                        p="xs"
+                    >
+                        <Stack gap="xs">
+                            <Text
+                                size="xs"
+                                c="light-dark(var(--mantine-color-ldDark-9), var(--mantine-color-yellow-1))"
+                            >
+                                We're moving custom SQL behind a new permission.
+                                Use formulas instead — no SQL required,
+                                validated as you type, and they work in any
+                                warehouse.
+                            </Text>
+                            <Group gap="xs" mt={4} justify="flex-end">
+                                {showConvertInCallout &&
+                                    !showConversionPreview && (
+                                        <Button
+                                            size="compact-xs"
+                                            variant="default"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconWand}
+                                                    size="sm"
+                                                />
+                                            }
+                                            loading={isConvertingSql}
+                                            onClick={handleConvertClick}
+                                        >
+                                            Convert to formula
+                                        </Button>
+                                    )}
+                                {showTryFormulasInCallout && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="default"
+                                        onClick={handleTryFormulasClick}
+                                    >
+                                        Try formulas now
+                                    </Button>
+                                )}
+                                <Anchor
+                                    size="xs"
+                                    c="light-dark(var(--mantine-color-ldDark-9), var(--mantine-color-yellow-1))"
+                                    fw={500}
+                                    href="https://docs.lightdash.com/guides/formula-table-calculations"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    underline="always"
+                                >
+                                    Learn more
+                                </Anchor>
+                            </Group>
+                        </Stack>
+                    </Callout>
+                )}
                 <Stack gap={2}>
                     <Group className={classes.inputModeHeader}>
                         <Group gap={6} wrap="nowrap">
