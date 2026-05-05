@@ -6,7 +6,6 @@
     ":semanticCommitTypeAll(chore)",
     "group:allNonMajor",
     "group:monorepos",
-    "schedule:weekends",
     "helpers:pinGitHubActionDigests"
   ],
   "minimumReleaseAge": "7 days",
