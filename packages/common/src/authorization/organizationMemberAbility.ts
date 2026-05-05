@@ -277,6 +277,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'CustomFields', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'CustomSqlTableCalculations', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'SqlRunner', {
             organizationUuid: member.organizationUuid,
         });

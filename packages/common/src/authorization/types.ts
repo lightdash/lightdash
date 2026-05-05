@@ -30,6 +30,7 @@ export type CaslSubjectNames =
     | 'ContentVerification'
     | 'CustomFields'
     | 'CustomSql'
+    | 'CustomSqlTableCalculations'
     | 'DataApp'
     | 'Dashboard'
     | 'DeployProject'

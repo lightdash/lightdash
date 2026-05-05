@@ -549,6 +549,7 @@ export class SavedChartService
                 metrics: oldChartMetrics,
                 dimensions: oldChartDimensions,
                 customDimensions: oldCustomDimensions,
+                tableCalculations: oldTableCalculations,
             },
         } = await this.savedChartModel.get(savedChartUuid);
 
@@ -601,6 +602,36 @@ export class SavedChartService
         ) {
             throw new ForbiddenError(
                 'User cannot save queries with modified custom SQL dimensions',
+            );
+        }
+
+        const oldSqlTcsByName = new Map(
+            (oldTableCalculations ?? [])
+                .filter(isSqlTableCalculation)
+                .map((tc) => [tc.name, tc]),
+        );
+        const hasModifiedSqlTableCalculation = (
+            data.metricQuery.tableCalculations ?? []
+        )
+            .filter(isSqlTableCalculation)
+            .some((tc) => {
+                const saved = oldSqlTcsByName.get(tc.name);
+                return !saved || saved.sql !== tc.sql;
+            });
+
+        if (
+            hasModifiedSqlTableCalculation &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with new or modified SQL table calculations',
             );
         }
 

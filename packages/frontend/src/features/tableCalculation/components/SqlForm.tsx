@@ -50,6 +50,7 @@ type Props = {
     focusOnRender?: boolean;
     onCmdEnter?: () => void;
     onAiApplied?: () => void;
+    readOnly?: boolean;
     // Structured state for the SQL→formula conversion flow. When set,
     // the AI slot renders the conversion preview body instead of the
     // free-prompt AI input — the slot itself is the same <AiSlot> React
@@ -82,6 +83,7 @@ export const SqlForm: FC<Props> = ({
     focusOnRender = false,
     onCmdEnter,
     onAiApplied,
+    readOnly = false,
     conversionState,
 }) => {
     const theme = useMantineTheme();
@@ -200,12 +202,13 @@ export const SqlForm: FC<Props> = ({
                     }}
                     style={{ zIndex: 0 }}
                     onLoad={handleEditorLoad}
-                    enableLiveAutocompletion
-                    enableBasicAutocompletion
+                    enableLiveAutocompletion={!readOnly}
+                    enableBasicAutocompletion={!readOnly}
                     showPrintMargin={false}
                     isFullScreen={isFullScreen}
                     wrapEnabled={isSoftWrapEnabled}
                     gutterBackgroundColor={theme.colors.ldGray[1]}
+                    readOnly={readOnly}
                     {...form.getInputProps('sql')}
                 />
                 <SqlEditorActions
@@ -216,7 +219,7 @@ export const SqlForm: FC<Props> = ({
             </ScrollArea>
 
             <Box style={{ flexShrink: 0 }}>
-                {!isAmbientAiEnabled ? (
+                {readOnly && !conversionState ? null : !isAmbientAiEnabled ? (
                     <Alert
                         radius={0}
                         icon={<MantineIcon icon={IconSparkles} />}

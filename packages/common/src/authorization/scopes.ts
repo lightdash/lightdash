@@ -572,6 +572,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:CustomSqlTableCalculations',
+        description: 'Create and edit SQL table calculations',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'create:VirtualView',
         description: 'Create virtual views',
         isEnterprise: false,
