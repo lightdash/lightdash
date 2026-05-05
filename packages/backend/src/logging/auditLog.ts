@@ -33,18 +33,16 @@ export const UserAuditActorSchema = BaseUserActorSchema.extend({
     type: z.enum(['session', 'pat', 'oauth']),
 });
 
-// `uuid` is the service-account UUID — the actual actor.
-// `attributedUserUuid` is the admin user the action gets recorded against
-// due to an FK on the users table; surfaced so auditors can reconcile with
-// user-level activity views. @see https://github.com/lightdash/lightdash/issues/15466
+// `uuid` is the service-account UUID — the actual actor. Service accounts
+// now have a dedicated `users` row, so writes attribute the SA directly via
+// `created_by_user_uuid` / `updated_by_user_uuid`; no separate "attributed
+// user" plumbing is required.
 export const ServiceAccountAuditActorSchema = z.object({
     type: z.literal('service-account'),
     uuid: z.string(),
     description: z.string().optional(),
     organizationUuid: z.string(),
     organizationRole: z.string(),
-    attributedUserUuid: z.string(),
-    attributedUserEmail: z.string().optional(),
 });
 
 export const AnonymousAuditActorSchema = z.object({

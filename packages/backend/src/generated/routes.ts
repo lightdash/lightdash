@@ -14984,8 +14984,6 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                attributedUserEmail: { dataType: 'string' },
-                attributedUserUuid: { dataType: 'string', required: true },
                 serviceAccountDescription: {
                     dataType: 'string',
                     required: true,

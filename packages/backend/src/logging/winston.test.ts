@@ -75,7 +75,6 @@ describe('formatAuditActor', () => {
                 description: 'ci-deploy',
                 organizationUuid: 'org-uuid',
                 organizationRole: 'admin',
-                attributedUserUuid: 'admin-uuid',
             }),
         ).toBe('service-account "ci-deploy"');
     });
@@ -87,7 +86,6 @@ describe('formatAuditActor', () => {
                 uuid: 'sa-uuid',
                 organizationUuid: 'org-uuid',
                 organizationRole: 'admin',
-                attributedUserUuid: 'admin-uuid',
             }),
         ).toBe('service-account sa-uuid');
     });
@@ -230,7 +228,7 @@ describe('formatAuditMessage', () => {
         );
     });
 
-    it('formats service account event with attribution caveat (email)', () => {
+    it('formats service account event without attribution caveat', () => {
         expect(
             formatAuditMessage({
                 ...baseEvent,
@@ -240,8 +238,6 @@ describe('formatAuditMessage', () => {
                     description: 'ci-deploy',
                     organizationUuid: 'org-uuid',
                     organizationRole: 'admin',
-                    attributedUserUuid: 'admin-uuid',
-                    attributedUserEmail: 'admin@company.com',
                 },
                 action: 'manage',
                 resource: {
@@ -254,31 +250,7 @@ describe('formatAuditMessage', () => {
                 },
             }),
         ).toBe(
-            'service-account "ci-deploy" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed) (recorded against user admin@company.com)',
-        );
-    });
-
-    it('formats service account event with attribution caveat falling back to uuid', () => {
-        expect(
-            formatAuditMessage({
-                ...baseEvent,
-                actor: {
-                    type: 'service-account',
-                    uuid: 'sa-uuid',
-                    description: 'ci-deploy',
-                    organizationUuid: 'org-uuid',
-                    organizationRole: 'admin',
-                    attributedUserUuid: 'admin-uuid',
-                },
-                action: 'manage',
-                resource: {
-                    type: 'Group',
-                    metadata: { groupUuid: 'group-uuid' },
-                    organizationUuid: 'org-uuid',
-                },
-            }),
-        ).toBe(
-            'service-account "ci-deploy" managed Group -> groupUuid: group-uuid (allowed) (recorded against user admin-uuid)',
+            'service-account "ci-deploy" managed Group -> groupUuid: group-uuid, groupName: Engineering (allowed)',
         );
     });
 

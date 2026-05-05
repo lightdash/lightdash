@@ -15898,12 +15898,6 @@
             },
             "ServiceAccountAuth": {
                 "properties": {
-                    "attributedUserEmail": {
-                        "type": "string"
-                    },
-                    "attributedUserUuid": {
-                        "type": "string"
-                    },
                     "serviceAccountDescription": {
                         "type": "string"
                     },
@@ -15920,7 +15914,6 @@
                     }
                 },
                 "required": [
-                    "attributedUserUuid",
                     "serviceAccountDescription",
                     "serviceAccountUuid",
                     "source",

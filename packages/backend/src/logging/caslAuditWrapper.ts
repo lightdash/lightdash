@@ -73,12 +73,8 @@ export const createActorFromAccount = (account: Account): AuditActor => {
 
     if (account.isServiceAccount()) {
         const svcAccount = account as ServiceAcctAccount;
-        const {
-            serviceAccountUuid,
-            serviceAccountDescription,
-            attributedUserUuid,
-            attributedUserEmail,
-        } = svcAccount.authentication;
+        const { serviceAccountUuid, serviceAccountDescription } =
+            svcAccount.authentication;
         return {
             type: 'service-account',
             uuid: serviceAccountUuid,
@@ -86,8 +82,6 @@ export const createActorFromAccount = (account: Account): AuditActor => {
             organizationUuid:
                 svcAccount.organization.organizationUuid || 'unknown',
             organizationRole: svcAccount.user.role || 'unknown',
-            attributedUserUuid,
-            attributedUserEmail,
         };
     }
 
@@ -140,9 +134,8 @@ export const createActorFromAccount = (account: Account): AuditActor => {
  * @deprecated Prefer createActorFromAccount with Account type
  */
 export const createActorFromUser = (user: AuditableUser): AuditActor => {
-    // Service-account requests stamp `req.user.serviceAccount` alongside the
-    // attributed admin user, so the legacy SessionUser path can still produce
-    // a service-account audit actor.
+    // Service-account requests stamp `req.user.serviceAccount`, so the legacy
+    // SessionUser path can still produce a service-account audit actor.
     if (user.serviceAccount) {
         return {
             type: 'service-account',
@@ -150,8 +143,6 @@ export const createActorFromUser = (user: AuditableUser): AuditActor => {
             description: user.serviceAccount.description || undefined,
             organizationUuid: user.organizationUuid || 'unknown',
             organizationRole: user.role || 'unknown',
-            attributedUserUuid: user.userUuid,
-            attributedUserEmail: user.serviceAccount.attributedUserEmail,
         };
     }
 

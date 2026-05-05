@@ -119,9 +119,6 @@ export const fromJwt = ({
     });
 };
 
-// TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
-// service-account/principle-user unrelated to a real admin-user.
-// @see https://github.com/lightdash/lightdash/issues/15466
 export const fromServiceAccount = (
     sessionUser: SessionUser,
     source: string,
@@ -140,8 +137,6 @@ export const fromServiceAccount = (
             serviceAccountUuid: sessionUser.serviceAccount.uuid,
             serviceAccountDescription:
                 sessionUser.serviceAccount.description ?? '',
-            attributedUserUuid: sessionUser.userUuid,
-            attributedUserEmail: sessionUser.serviceAccount.attributedUserEmail,
         },
         organization,
         user: {
@@ -183,8 +178,6 @@ export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
             ? {
                   uuid: account.authentication.serviceAccountUuid,
                   description: account.authentication.serviceAccountDescription,
-                  attributedUserEmail:
-                      account.authentication.attributedUserEmail,
               }
             : undefined,
 });

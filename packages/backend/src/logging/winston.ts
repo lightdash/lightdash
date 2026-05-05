@@ -213,17 +213,7 @@ export const formatAuditMessage = (event: AuditLogEvent): string => {
     const resource = formatAuditResource(event.resource);
     const status = `(${event.status})`;
     const reason = event.reason ? ` - ${event.reason}` : '';
-    // Service-account actions are recorded against an admin user due to an FK
-    // constraint; flag this so auditors can reconcile with user-level views.
-    // @see https://github.com/lightdash/lightdash/issues/15466
-    const caveat =
-        event.actor.type === 'service-account'
-            ? ` (recorded against user ${
-                  event.actor.attributedUserEmail ||
-                  event.actor.attributedUserUuid
-              })`
-            : '';
-    return `${actor} ${action} ${resource} ${status}${reason}${caveat}`;
+    return `${actor} ${action} ${resource} ${status}${reason}`;
 };
 
 export const logAuditEvent = (event: AuditLogEvent): void => {

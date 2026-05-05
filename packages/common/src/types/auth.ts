@@ -49,11 +49,6 @@ export type ServiceAccountAuth = {
     source: string; // The service account token
     serviceAccountUuid: string;
     serviceAccountDescription: string;
-    // Admin user UUID/email the action is recorded against due to an FK on the
-    // users table. Used by audit logs to flag the attribution caveat.
-    // @see https://github.com/lightdash/lightdash/issues/15466
-    attributedUserUuid: string;
-    attributedUserEmail?: string;
 };
 
 export type OauthAuth = {
