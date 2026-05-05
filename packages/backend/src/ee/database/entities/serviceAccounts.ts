@@ -12,6 +12,7 @@ export type DbServiceAccounts = {
     rotated_by_user_uuid: string | null;
     last_used_at: Date | null;
     scopes: string[];
+    service_account_user_uuid: string;
 };
 
 type DbCreateServiceAccount = Omit<
@@ -21,7 +22,9 @@ type DbCreateServiceAccount = Omit<
     | 'rotated_at'
     | 'last_used_at'
     | 'rotated_by_user_uuid'
->;
+    | 'service_account_user_uuid'
+> &
+    Partial<Pick<DbServiceAccounts, 'service_account_user_uuid'>>;
 
 type DbRotateServiceAccount = {
     token_hash: string;
@@ -34,9 +37,16 @@ type DbUpdateUsedDatePersonalAccessToken = {
     last_used_at: Date;
 };
 
+// Used by the backfill migration only; production code never NULLs the link.
+type DbBackfillServiceAccountUserUuid = {
+    service_account_user_uuid: string | null;
+};
+
 export type ServiceAccountTable = Knex.CompositeTableType<
     DbServiceAccounts,
     DbCreateServiceAccount,
-    DbRotateServiceAccount | DbUpdateUsedDatePersonalAccessToken
+    | DbRotateServiceAccount
+    | DbUpdateUsedDatePersonalAccessToken
+    | DbBackfillServiceAccountUserUuid
 >;
 export const ServiceAccountsTableName = 'service_accounts';

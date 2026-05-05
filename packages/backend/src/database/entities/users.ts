@@ -10,6 +10,7 @@ export type DbUser = {
     is_tracking_anonymized: boolean;
     is_setup_complete: boolean;
     is_active: boolean;
+    is_service_account: boolean;
     updated_at: Date;
 };
 
@@ -22,7 +23,7 @@ export type DbUserIn = Pick<
     | 'is_setup_complete'
     | 'is_active'
 > &
-    Partial<Pick<DbUser, 'user_uuid'>>;
+    Partial<Pick<DbUser, 'user_uuid' | 'is_service_account'>>;
 export type DbUserUpdate = Partial<
     Pick<
         DbUser,

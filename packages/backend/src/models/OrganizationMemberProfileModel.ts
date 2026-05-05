@@ -65,6 +65,11 @@ export class OrganizationMemberProfileModel {
 
     constructor({ database }: { database: Knex }) {
         this.database = database;
+        // Service-account user records live in the `users` table for FK
+        // purposes (see Phase A of the SA refactor) but are not human
+        // organization members. Excluding them here keeps every listing
+        // surface — admin UI, SCIM /Users, share pickers — free of
+        // machine principals without per-callsite filtering.
         this.queryBuilder = () =>
             database(OrganizationMembershipsTableName)
                 .innerJoin(
@@ -72,6 +77,7 @@ export class OrganizationMemberProfileModel {
                     `${OrganizationMembershipsTableName}.user_id`,
                     `${UserTableName}.user_id`,
                 )
+                .where(`${UserTableName}.is_service_account`, false)
                 .joinRaw(
                     `INNER JOIN ${EmailTableName} ON ${UserTableName}.user_id = ${EmailTableName}.user_id AND ${EmailTableName}.is_primary`,
                 )
@@ -133,6 +139,10 @@ export class OrganizationMemberProfileModel {
                 `${OrganizationMembershipsTableName}.role`,
                 OrganizationMemberRole.ADMIN,
             )
+            // Service-account users may have role=admin via scope mapping but
+            // they're not humans; skip them so the auth middleware's admin
+            // fallback never picks one up.
+            .where(`${UserTableName}.is_service_account`, false)
             .orderBy(`${UserTableName}.created_at`, 'asc')
             .orderBy(`${UserTableName}.user_uuid`, 'asc')
             .select<{ user_uuid: string }[]>(`${UserTableName}.user_uuid`)
@@ -239,6 +249,8 @@ export class OrganizationMemberProfileModel {
         googleOidcOnly?: boolean,
     ): Promise<KnexPaginatedData<OrganizationMemberProfileWithGroups[]>> {
         let orgMembersAndGroupsQuery = this.database(UserTableName)
+            // See queryBuilder above — exclude service-account user records.
+            .where(`${UserTableName}.is_service_account`, false)
             .leftJoin(
                 OrganizationMembershipsTableName,
                 `${UserTableName}.user_id`,

@@ -1,6 +1,7 @@
 import {
     AuthTokenPrefix,
     CreateServiceAccount,
+    OrganizationMemberRole,
     ServiceAccount,
     ServiceAccountScope,
     ServiceAccountWithToken,
@@ -9,6 +10,7 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
+import { DbUser } from '../../database/entities/users';
 import { deprecatedHash, hash } from '../../utils/hash';
 import {
     DbServiceAccounts,
@@ -55,35 +57,95 @@ export class ServiceAccountModel {
         return this.save(user, data, token);
     }
 
+    // Maps the SA's scopes to an org-membership role. The role is currently
+    // ornamental at runtime (CASL still comes from `applyServiceAccountAbilities`
+    // via the auth middleware) but it's required because `organization_memberships`
+    // has a NOT NULL `role` column. v2 will collapse permission resolution onto
+    // this role and delete the scope-derived ability path.
+    static getRoleForScopes(
+        scopes: ServiceAccountScope[],
+    ): OrganizationMemberRole {
+        if (
+            scopes.includes(ServiceAccountScope.SCIM_MANAGE) ||
+            scopes.includes(ServiceAccountScope.ORG_ADMIN)
+        ) {
+            return OrganizationMemberRole.ADMIN;
+        }
+        return OrganizationMemberRole.MEMBER;
+    }
+
     async save(
         user: SessionUser | undefined,
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
         const tokenHash = await hash(token);
-        const [row] = await this.database('service_accounts')
-            .insert({
-                created_by_user_uuid: user?.userUuid || null,
-                organization_uuid: data.organizationUuid,
-                expires_at: data.expiresAt,
-                description: data.description,
-                token_hash: tokenHash,
-                scopes: data.scopes,
-            })
-            .returning('*');
-        if (row === undefined) {
-            throw new UnexpectedDatabaseError(
-                'Could not create service account token',
-            );
-        }
-        return {
-            ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
-            token,
-        };
+        const role = ServiceAccountModel.getRoleForScopes(data.scopes);
+
+        return this.database.transaction(async (trx) => {
+            // Dedicated user row for this service account. Marked
+            // `is_service_account = true` so listings/login/SCIM filter it out;
+            // `is_active = false` defends-in-depth against any login path.
+            const [saUser] = await trx<DbUser>('users')
+                .insert({
+                    first_name: 'Service account',
+                    last_name: data.description,
+                    is_marketing_opted_in: false,
+                    is_tracking_anonymized: false,
+                    is_setup_complete: true,
+                    is_active: false,
+                    is_service_account: true,
+                })
+                .returning('*');
+
+            // organization_memberships keys on the integer organization_id, so
+            // we need to look it up from the SA's organization_uuid.
+            const [org] = await trx('organizations')
+                .where('organization_uuid', data.organizationUuid)
+                .select('organization_id');
+            if (!org) {
+                throw new UnexpectedDatabaseError(
+                    `Organization ${data.organizationUuid} not found`,
+                );
+            }
+
+            await trx('organization_memberships').insert({
+                user_id: saUser.user_id,
+                organization_id: org.organization_id,
+                role,
+            });
+
+            const [row] = await trx(ServiceAccountsTableName)
+                .insert({
+                    created_by_user_uuid: user?.userUuid || null,
+                    organization_uuid: data.organizationUuid,
+                    expires_at: data.expiresAt,
+                    description: data.description,
+                    token_hash: tokenHash,
+                    scopes: data.scopes,
+                    service_account_user_uuid: saUser.user_uuid,
+                })
+                .returning('*');
+            if (row === undefined) {
+                throw new UnexpectedDatabaseError(
+                    'Could not create service account token',
+                );
+            }
+            return {
+                ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
+                token,
+            };
+        });
     }
 
+    // Tombstone semantics: delete the service-account row only. The dedicated
+    // user record persists so historical FK references (`created_by_user_uuid`
+    // on charts/dashboards/schedulers/audit log etc.) keep JOINing and the UI
+    // continues to show "Service account: <description>" for past content.
+    // Cascade in the other direction (deleting the user row → drops the SA)
+    // is enforced at the FK level for orphan prevention.
     async delete(serviceAccountUuid: string): Promise<void> {
-        await this.database('service_accounts')
+        await this.database(ServiceAccountsTableName)
             .delete()
             .where('service_account_uuid', serviceAccountUuid);
     }
