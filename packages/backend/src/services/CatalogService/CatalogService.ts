@@ -159,7 +159,7 @@ export class CatalogService<
             ) {
                 const fields: CatalogField[] = Object.values(
                     explore.tables,
-                ).flatMap((t) => parseFieldsFromCompiledTable(t));
+                ).flatMap((t) => parseFieldsFromCompiledTable(t, explore.tags));
 
                 return [...acc, ...fields];
             }
@@ -793,7 +793,7 @@ export class CatalogService<
         }
 
         const baseTable = explore.tables?.[explore.baseTable];
-        const fields = parseFieldsFromCompiledTable(baseTable);
+        const fields = parseFieldsFromCompiledTable(baseTable, explore.tags);
         const filteredFields = fields.filter((field) =>
             checkUserAttributesAccess(
                 field.requiredAttributes,

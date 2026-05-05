@@ -802,6 +802,7 @@ export class CatalogModel {
                 `chart_usage`,
                 `${CatalogTableName}.joined_tables`,
                 `${CatalogTableName}.table_name`,
+                `${CatalogTableName}.yaml_tags`,
                 `icon`,
                 `${CatalogTableName}.owner_user_uuid`,
                 `owner_user.first_name as owner_first_name`,
@@ -1008,9 +1009,17 @@ export class CatalogModel {
         }
 
         if (tags && tags.length > 0) {
+            // Match either the explore's table-level tags (jsonb) OR the
+            // catalog item's own field-level yaml_tags (text[]).
+            // For Field rows yaml_tags holds the metric/dimension's tags;
+            // for Table rows it holds the explore's tags.
+            const placeholders = tags.map(() => '?').join(',');
             catalogItemsQuery = catalogItemsQuery.whereRaw(
-                `${CachedExploreTableName}.explore->'tags' \\?| ARRAY[${tags.map(() => '?').join(',')}]`,
-                tags,
+                `(
+                    ${CachedExploreTableName}.explore->'tags' \\?| ARRAY[${placeholders}]
+                    OR ${CatalogTableName}.yaml_tags && ARRAY[${placeholders}]::text[]
+                )`,
+                [...tags, ...tags],
             );
         }
 

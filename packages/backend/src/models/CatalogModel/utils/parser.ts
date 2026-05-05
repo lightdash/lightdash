@@ -15,6 +15,13 @@ import {
 } from '@lightdash/common';
 import { DbCatalog } from '../../../database/entities/catalog';
 
+// Metric/dimension YAML tags should be returned alongside the inherited
+// table-level tags, with order preserved (table tags first) and duplicates removed.
+const mergeFieldAndTableTags = (
+    fieldTags: string[] | null | undefined,
+    tableTags: string[] | null | undefined,
+): string[] => [...new Set([...(tableTags ?? []), ...(fieldTags ?? [])])];
+
 const parseFieldFromMetricOrDimension = (
     table: CompiledTable,
     field: CompiledMetric | CompiledDimension,
@@ -62,6 +69,7 @@ const parseFieldFromMetricOrDimension = (
 
 export const parseFieldsFromCompiledTable = (
     table: CompiledTable,
+    exploreTags: string[] = [],
 ): CatalogField[] => {
     const tableFields = [
         ...Object.values(table.dimensions).filter((d) => !d.isIntervalBase),
@@ -71,7 +79,7 @@ export const parseFieldsFromCompiledTable = (
         parseFieldFromMetricOrDimension(table, field, {
             label: field.label,
             description: field.description ?? '',
-            tags: [],
+            tags: mergeFieldAndTableTags(field.tags, exploreTags),
             categories: [],
             requiredAttributes:
                 field.requiredAttributes ?? table.requiredAttributes,
@@ -164,7 +172,10 @@ export const parseCatalog = (
         label: dbCatalog.label,
         description: dbCatalog.description,
         catalogSearchUuid: dbCatalog.catalog_search_uuid,
-        tags: dbCatalog.explore.tags,
+        tags: mergeFieldAndTableTags(
+            dbCatalog.yaml_tags,
+            dbCatalog.explore.tags,
+        ),
         categories: dbCatalog.catalog_tags,
         requiredAttributes: dbCatalog.required_attributes ?? undefined,
         anyAttributes: dbCatalog.any_attributes ?? undefined,
