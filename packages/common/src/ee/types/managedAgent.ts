@@ -15,6 +15,31 @@ export enum ManagedAgentTargetType {
     PROJECT = 'project',
 }
 
+export enum ManagedAgentScheduleOption {
+    HOURLY = 'hourly',
+    DAILY = 'daily',
+}
+
+export const ManagedAgentScheduleCronByOption: Record<
+    ManagedAgentScheduleOption,
+    string
+> = {
+    [ManagedAgentScheduleOption.HOURLY]: '0 * * * *',
+    [ManagedAgentScheduleOption.DAILY]: '0 0 * * *',
+};
+
+export const getManagedAgentScheduleCron = (
+    schedule: ManagedAgentScheduleOption = ManagedAgentScheduleOption.HOURLY,
+) => ManagedAgentScheduleCronByOption[schedule];
+
+export const getManagedAgentScheduleOption = (
+    scheduleCron: string | null | undefined,
+) =>
+    scheduleCron ===
+    ManagedAgentScheduleCronByOption[ManagedAgentScheduleOption.DAILY]
+        ? ManagedAgentScheduleOption.DAILY
+        : ManagedAgentScheduleOption.HOURLY;
+
 export type ManagedAgentSettings = {
     projectUuid: string;
     enabled: boolean;
@@ -43,7 +68,7 @@ export type ManagedAgentAction = {
 
 export type UpdateManagedAgentSettings = {
     enabled?: boolean;
-    scheduleCron?: string;
+    schedule?: ManagedAgentScheduleOption;
     slackChannelId?: string | null;
     toolSettings?: Record<string, boolean>;
 };

@@ -2262,7 +2262,7 @@ export const parseConfig = (): LightdashConfig => {
                 .split(',')
                 .map((skillId) => skillId.trim())
                 .filter(Boolean),
-            schedule: process.env.MANAGED_AGENT_SCHEDULE || '*/30 * * * *',
+            schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 * * * *',
             sessionTimeoutMs: parseInt(
                 process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
                 10,

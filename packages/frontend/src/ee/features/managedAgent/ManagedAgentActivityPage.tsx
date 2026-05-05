@@ -2,9 +2,11 @@ import {
     type ApiError,
     type ContentVerificationInfo,
     type Dashboard,
+    ManagedAgentScheduleOption,
     type Project,
     type SavedChart,
     type UpdatedByUser,
+    getManagedAgentScheduleOption,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -77,7 +79,7 @@ const updateSettings = async (
     projectUuid: string,
     body: {
         enabled?: boolean;
-        scheduleCron?: string;
+        schedule?: ManagedAgentScheduleOption;
         slackChannelId?: string | null;
         toolSettings?: Record<string, boolean>;
     },
@@ -96,12 +98,8 @@ const runHeartbeat = async (projectUuid: string) =>
     });
 
 const SCHEDULE_OPTIONS = [
-    { value: '*/5 * * * *', label: 'Every 5 min' },
-    { value: '*/15 * * * *', label: 'Every 15 min' },
-    { value: '*/30 * * * *', label: 'Every 30 min' },
-    { value: '0 * * * *', label: 'Hourly' },
-    { value: '0 */6 * * *', label: 'Every 6 hours' },
-    { value: '0 0 * * *', label: 'Daily' },
+    { value: ManagedAgentScheduleOption.HOURLY, label: 'Hourly' },
+    { value: ManagedAgentScheduleOption.DAILY, label: 'Daily' },
 ];
 
 const CAPABILITY_GROUPS = [
@@ -143,10 +141,9 @@ const SetupSection: FC<{
     onRunNow,
     isRunNowLoading,
 }) => {
+    const schedule = getManagedAgentScheduleOption(initialSchedule);
     const scheduleLabel =
-        SCHEDULE_OPTIONS.find(
-            (o) => o.value === initialSchedule,
-        )?.label?.replace(' (recommended)', '') ?? initialSchedule;
+        SCHEDULE_OPTIONS.find((o) => o.value === schedule)?.label ?? 'Hourly';
 
     return (
         <Stack gap={0}>
@@ -810,6 +807,7 @@ const SettingsSidebar: FC<{
     const queryClient = useQueryClient();
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
+    const selectedSchedule = getManagedAgentScheduleOption(schedule);
     const [slackNotificationsEnabled, setSlackNotificationsEnabled] =
         useState(!!slackChannelId);
 
@@ -838,7 +836,9 @@ const SettingsSidebar: FC<{
     const handleScheduleChange = useCallback(
         (value: string | null) => {
             if (value) {
-                mutation.mutate({ scheduleCron: value });
+                mutation.mutate({
+                    schedule: value as ManagedAgentScheduleOption,
+                });
             }
         },
         [mutation],
@@ -926,7 +926,7 @@ const SettingsSidebar: FC<{
                             </Text>
                             <Select
                                 data={SCHEDULE_OPTIONS}
-                                value={schedule}
+                                value={selectedSchedule}
                                 onChange={handleScheduleChange}
                                 size="sm"
                                 disabled={isLoading || mutation.isLoading}
@@ -1213,9 +1213,7 @@ export const ManagedAgentActivityPage: FC = () => {
                         <Stack gap="lg">
                             <SetupSection
                                 enabled={settings?.enabled ?? false}
-                                schedule={
-                                    settings?.scheduleCron ?? '*/30 * * * *'
-                                }
+                                schedule={settings?.scheduleCron ?? '0 * * * *'}
                                 settingsOpen={settingsOpen}
                                 isRunNowLoading={runNowMutation.isLoading}
                                 onRunNow={() => runNowMutation.mutate()}
@@ -1290,7 +1288,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                     projectUuid={projectUuid!}
                                     enabled={settings?.enabled ?? false}
                                     schedule={
-                                        settings?.scheduleCron ?? '*/30 * * * *'
+                                        settings?.scheduleCron ?? '0 * * * *'
                                     }
                                     slackChannelId={
                                         settings?.slackChannelId ?? null

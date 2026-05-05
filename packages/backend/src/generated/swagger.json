@@ -1249,8 +1249,9 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "scheduleCron": {
-                        "type": "string"
+                    "schedule": {
+                        "type": "string",
+                        "enum": ["hourly", "daily"]
                     },
                     "enabled": {
                         "type": "boolean"

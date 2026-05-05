@@ -1,4 +1,8 @@
-import { FeatureFlags } from '@lightdash/common';
+import {
+    FeatureFlags,
+    ManagedAgentScheduleOption,
+    getManagedAgentScheduleOption,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -40,12 +44,10 @@ const formatRelative = (dateStr: string) => {
 };
 
 const formatSchedule = (cron: string) => {
-    const match = cron.match(/^\*\/(\d+) /);
-    if (match) return `${match[1]}m`;
-    if (cron === '0 * * * *') return '1h';
-    if (cron === '0 */6 * * *') return '6h';
-    if (cron === '0 0 * * *') return '24h';
-    return cron;
+    return getManagedAgentScheduleOption(cron) ===
+        ManagedAgentScheduleOption.DAILY
+        ? '24h'
+        : '1h';
 };
 
 /** Generates a deterministic grid of subtle squares */
@@ -116,7 +118,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     const isEnabled = settings?.enabled ?? false;
     const actionCount = actions?.length ?? 0;
     const lastActionAt = actions?.[0]?.createdAt ?? null;
-    const schedule = settings?.scheduleCron ?? '*/30 * * * *';
+    const schedule = settings?.scheduleCron ?? '0 * * * *';
 
     // Feature carousel — must be before any early returns (hooks rule)
     const [featureIdx, setFeatureIdx] = useState(0);

@@ -1,4 +1,6 @@
 import {
+    getManagedAgentScheduleCron,
+    getManagedAgentScheduleOption,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
@@ -33,10 +35,13 @@ export class ManagedAgentModel {
     // --- Settings ---
 
     static mapDbSettings(row: DbManagedAgentSettings): ManagedAgentSettings {
+        const scheduleCron = getManagedAgentScheduleCron(
+            getManagedAgentScheduleOption(row.schedule_cron),
+        );
         return {
             projectUuid: row.project_uuid,
             enabled: row.enabled,
-            scheduleCron: row.schedule_cron,
+            scheduleCron,
             enabledByUserUuid: row.enabled_by_user_uuid,
             slackChannelId: row.slack_channel_id,
             toolSettings: row.tool_settings ?? {},
@@ -138,7 +143,7 @@ export class ManagedAgentModel {
             .insert({
                 project_uuid: projectUuid,
                 enabled: update.enabled ?? false,
-                schedule_cron: update.scheduleCron ?? '*/30 * * * *',
+                schedule_cron: getManagedAgentScheduleCron(update.schedule),
                 enabled_by_user_uuid: update.enabled ? userUuid : null,
                 slack_channel_id: update.slackChannelId ?? null,
                 tool_settings: update.toolSettings ?? {},
@@ -147,8 +152,8 @@ export class ManagedAgentModel {
             .onConflict('project_uuid')
             .merge({
                 enabled: update.enabled,
-                ...(update.scheduleCron !== undefined && {
-                    schedule_cron: update.scheduleCron,
+                ...(update.schedule !== undefined && {
+                    schedule_cron: getManagedAgentScheduleCron(update.schedule),
                 }),
                 ...(update.slackChannelId !== undefined && {
                     slack_channel_id: update.slackChannelId,

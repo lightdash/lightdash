@@ -1,3 +1,4 @@
+import { ManagedAgentScheduleOption } from '@lightdash/common';
 import { Box, Group, Select, Stack, Text } from '@mantine-8/core';
 import {
     IconBolt,
@@ -14,7 +15,7 @@ import classes from './ManagedAgentSetupModal.module.css';
 
 const updateSettings = async (
     projectUuid: string,
-    body: { enabled: boolean; scheduleCron: string },
+    body: { enabled: boolean; schedule: ManagedAgentScheduleOption },
 ) =>
     lightdashApi({
         url: `/projects/${projectUuid}/managed-agent/settings`,
@@ -23,12 +24,8 @@ const updateSettings = async (
     });
 
 const SCHEDULE_OPTIONS = [
-    { value: '*/5 * * * *', label: 'Every 5 minutes' },
-    { value: '*/15 * * * *', label: 'Every 15 minutes' },
-    { value: '*/30 * * * *', label: 'Every 30 minutes (recommended)' },
-    { value: '0 * * * *', label: 'Every hour' },
-    { value: '0 */6 * * *', label: 'Every 6 hours' },
-    { value: '0 0 * * *', label: 'Daily' },
+    { value: ManagedAgentScheduleOption.HOURLY, label: 'Hourly' },
+    { value: ManagedAgentScheduleOption.DAILY, label: 'Daily' },
 ];
 
 const CAPABILITIES = [
@@ -62,13 +59,13 @@ export const ManagedAgentSetupModal: FC<{
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
     const queryClient = useQueryClient();
-    const [schedule, setSchedule] = useState('*/30 * * * *');
+    const [schedule, setSchedule] = useState(ManagedAgentScheduleOption.HOURLY);
 
     const mutation = useMutation({
         mutationFn: () =>
             updateSettings(projectUuid, {
                 enabled: true,
-                scheduleCron: schedule,
+                schedule,
             }),
         onSuccess: () => {
             void queryClient.invalidateQueries({
@@ -143,7 +140,10 @@ export const ManagedAgentSetupModal: FC<{
                     <Select
                         data={SCHEDULE_OPTIONS}
                         value={schedule}
-                        onChange={(v) => v && setSchedule(v)}
+                        onChange={(value) =>
+                            value &&
+                            setSchedule(value as ManagedAgentScheduleOption)
+                        }
                         size="sm"
                     />
                     <Text fz="xs" c="dimmed" mt={6}>

@@ -1201,7 +1201,10 @@ const models: TsoaRoute.Models = {
                         { dataType: 'enum', enums: [null] },
                     ],
                 },
-                scheduleCron: { dataType: 'string' },
+                schedule: {
+                    dataType: 'enum',
+                    enums: ['hourly', 'daily'],
+                },
                 enabled: { dataType: 'boolean' },
             },
             validators: {},
