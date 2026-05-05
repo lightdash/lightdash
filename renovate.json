@@ -3,7 +3,6 @@
   "extends": [
     "config:recommended",
     ":dependencyDashboard",
-    ":semanticCommits",
     ":semanticCommitTypeAll(chore)",
     "group:allNonMajor",
     "group:monorepos",
@@ -16,6 +15,7 @@
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "labels": ["dependencies"],
+  "dependencyDashboardApproval": false,
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 5am on monday"]
@@ -29,7 +29,7 @@
       "platformAutomerge": true
     },
     {
-      "matchPackagePatterns": ["^@types/"],
+      "matchPackageNames": ["@types/**"],
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "platformAutomerge": true
@@ -43,13 +43,22 @@
     },
     {
       "matchPackageNames": [
-        "pg", "knex", "node-fetch",
-        "jsonwebtoken", "bcrypt"
+        "pg", "pg-protocol", "pg-cursor",
+        "knex",
+        "axios", "node-fetch", "got",
+        "jose", "jsonwebtoken", "bcrypt", "argon2",
+        "helmet",
+        "stripe",
+        "snowflake-sdk", "@databricks/sql", "@clickhouse/client",
+        "duckdb", "@duckdb/node-api", "nodejs-polars",
+        "@google-cloud/**",
+        "@modelcontextprotocol/sdk",
+        "e2b"
       ],
       "automerge": false
     },
     {
-      "matchPackagePatterns": ["^@lightdash/"],
+      "matchPackageNames": ["@lightdash/**"],
       "enabled": false
     }
   ],
