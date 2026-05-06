@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ContentVerificationInfo,
     type Dashboard,
+    getManagedAgentActionCategory,
     ManagedAgentScheduleOption,
     type Project,
     type SavedChart,
@@ -257,6 +258,16 @@ const ACTION_CONFIG: Record<
         label: 'Insight',
         dotColor: 'var(--mantine-color-violet-5)',
     },
+};
+
+const revertActionLabel = (
+    category: ReturnType<typeof getManagedAgentActionCategory>,
+    isReversed: boolean,
+): string => {
+    if (category === 'undo') {
+        return isReversed ? 'Already undone' : 'Undo action';
+    }
+    return isReversed ? 'Already dismissed' : 'Dismiss';
 };
 
 const TARGET_ICON: Record<
@@ -571,15 +582,26 @@ const DetailSidebar: FC<{
     onClose: () => void;
 }> = ({ action, onClose }) => {
     const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
     const config = ACTION_CONFIG[action.actionType];
     const isReversed = !!action.reversedAt;
     const isProjectTarget = action.targetType === 'project';
+    const category = getManagedAgentActionCategory(action.actionType);
 
-    const revertMutation = useMutation({
+    const revertMutation = useMutation<unknown, ApiError>({
         mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
         onSuccess: () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-actions', action.projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title:
+                    category === 'undo'
+                        ? 'Could not undo action'
+                        : 'Could not dismiss action',
+                apiError: error,
             });
         },
     });
@@ -691,9 +713,7 @@ const DetailSidebar: FC<{
                                     onClick={() => revertMutation.mutate()}
                                     color={isReversed ? undefined : 'red'}
                                 >
-                                    {isReversed
-                                        ? 'Already reverted'
-                                        : 'Revert action'}
+                                    {revertActionLabel(category, isReversed)}
                                 </Menu.Item>
                             </Menu.Dropdown>
                         </Menu>

@@ -1,16 +1,14 @@
+import {
+    type ManagedAgentActionType,
+    type ManagedAgentTargetType,
+} from '@lightdash/common';
+
 export type ManagedAgentAction = {
     actionUuid: string;
     projectUuid: string;
     sessionId: string;
-    actionType:
-        | 'flagged_stale'
-        | 'soft_deleted'
-        | 'flagged_broken'
-        | 'flagged_slow'
-        | 'fixed_broken'
-        | 'created_content'
-        | 'insight';
-    targetType: 'chart' | 'dashboard' | 'space' | 'project';
+    actionType: ManagedAgentActionType;
+    targetType: ManagedAgentTargetType;
     targetUuid: string;
     targetName: string;
     description: string;
