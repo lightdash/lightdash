@@ -793,22 +793,35 @@ export class UnfurlService extends BaseService {
         unfurlId: string,
     ): Promise<void> {
         try {
+            // Inline JSON parsing instead of a named inner helper — esbuild's
+            // keep-names option (used by tsx in dev) wraps named consts with
+            // __name(...), which fails in the browser context where __name
+            // is undefined. Inline arrow function args don't get this wrapping.
             const progress = await page.evaluate((selector) => {
                 const el = document.querySelector(selector);
                 if (!el) return null;
-                const parse = (attr: string): string[] => {
-                    try {
-                        const v = el.getAttribute(attr);
-                        return v ? (JSON.parse(v) as string[]) : [];
-                    } catch {
-                        return [];
-                    }
-                };
-                return {
-                    expected: parse('data-tiles-expected'),
-                    ready: parse('data-tiles-ready'),
-                    errored: parse('data-tiles-errored'),
-                };
+                const expected: string[] = [];
+                const ready: string[] = [];
+                const errored: string[] = [];
+                try {
+                    const v = el.getAttribute('data-tiles-expected');
+                    if (v) expected.push(...(JSON.parse(v) as string[]));
+                } catch {
+                    /* ignore malformed attribute */
+                }
+                try {
+                    const v = el.getAttribute('data-tiles-ready');
+                    if (v) ready.push(...(JSON.parse(v) as string[]));
+                } catch {
+                    /* ignore malformed attribute */
+                }
+                try {
+                    const v = el.getAttribute('data-tiles-errored');
+                    if (v) errored.push(...(JSON.parse(v) as string[]));
+                } catch {
+                    /* ignore malformed attribute */
+                }
+                return { expected, ready, errored };
             }, SCREENSHOT_SELECTORS.PROGRESS_INDICATOR);
 
             if (!progress) {
@@ -1055,20 +1068,25 @@ export class UnfurlService extends BaseService {
                         if (type === 'error') {
                             const location = msg.location();
                             const text = msg.text();
-                            // Suppress known-benign noise (Google Fonts CORS,
-                            // CSP report-only directives) so real JS errors
-                            // dominate the error stream.
+                            // Match across both the message text and the
+                            // resource URL: Chrome puts the URL in
+                            // location.url for resource-fetch failures
+                            // ("Failed to load resource: net::ERR_FAILED")
+                            // and in text for CORS rejections
+                            // ("Access to font at '...' has been blocked").
+                            const surface = `${location.url} ${text}`;
+                            // Suppress known-benign noise (Google Fonts
+                            // CORS/fetch failures, CSP report-only
+                            // directives) so real JS errors dominate the
+                            // error stream.
                             const isBenign =
                                 /upgrade-insecure-requests.*report-only/i.test(
-                                    text,
+                                    surface,
                                 ) ||
                                 /Cross-Origin-Opener-Policy.*ignored/i.test(
-                                    text,
+                                    surface,
                                 ) ||
-                                /fonts\.gstatic\.com.*ERR_FAILED/i.test(text) ||
-                                /Failed to load resource: net::ERR_FAILED.*fonts\.gstatic\.com/i.test(
-                                    text,
-                                );
+                                /fonts\.gstatic\.com/i.test(surface);
 
                             if (isBenign) {
                                 this.logger.debug(
