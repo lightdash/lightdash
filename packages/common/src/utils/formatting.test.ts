@@ -9,6 +9,7 @@ import {
     MetricType,
     NumberSeparator,
     type CustomFormat,
+    type Dimension,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
 import {
@@ -24,6 +25,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
+    isShiftableForTzExport,
     toIsoWithProjectOffset,
 } from './formatting';
 import {
@@ -824,6 +826,80 @@ describe('Formatting', () => {
                     'Pacific/Pago_Pago',
                 ),
             ).toEqual('2026-03-02');
+        });
+
+        test('formatItemValue ignores display timezone when convertTimezone is false', () => {
+            const value = new Date('2026-03-03T01:30:00.000Z');
+            // TIMESTAMP dim with convertTimezone: false renders in raw UTC
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.TIMESTAMP,
+                        convertTimezone: false,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03, 01:30:00:000 (+00:00)');
+            // DATE-base-TIMESTAMP child also opts out
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        convertTimezone: false,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03');
+            // Sanity: same dim with convertTimezone === true (default) still shifts
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-02, 14:30:00:000 (-11:00)');
+        });
+
+        test('isShiftableForTzExport respects convertTimezone: false', () => {
+            // The function is part of the public formatting surface used by
+            // pivot exports + Google Sheets — opt-out must short-circuit.
+            const tsBase: Dimension = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+            };
+            const tsBaseOptOut: Dimension = {
+                ...tsBase,
+                convertTimezone: false,
+            };
+            expect(isShiftableForTzExport(tsBase)).toBe(true);
+            expect(isShiftableForTzExport(tsBaseOptOut)).toBe(false);
+
+            const dateOverTs: Dimension = {
+                ...dimension,
+                type: DimensionType.DATE,
+                timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+            };
+            const dateOverTsOptOut: Dimension = {
+                ...dateOverTs,
+                convertTimezone: false,
+            };
+            expect(isShiftableForTzExport(dateOverTs)).toBe(true);
+            expect(isShiftableForTzExport(dateOverTsOptOut)).toBe(false);
         });
 
         test('formatItemValue should return the right format when field is Metric', () => {

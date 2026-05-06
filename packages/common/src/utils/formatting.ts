@@ -218,11 +218,20 @@ export const toIsoWithProjectOffset = (
     return m.tz(timezone).toISOString(true);
 };
 
+// True when the dimension is explicitly opted out of the project timezone
+// for display (convert_timezone: false in YAML). Filter SQL is generated
+// separately and is unaffected by this flag.
+export const isDimensionDisplayTimezoneDisabled = (
+    item: Item | AdditionalMetric | undefined,
+): boolean => isDimension(item) && item.convertTimezone === false;
+
 // TIMESTAMP fields and TIMESTAMP-base DATE intervals (DATE_TRUNC round-trip)
 // carry a real instant — both shift into the project tz for export.
-// Calendar DATEs (no time component) stay put.
+// Calendar DATEs (no time component) stay put. Dimensions opted out via
+// convert_timezone: false also stay put.
 export const isShiftableForTzExport = (item: Item | undefined): boolean => {
     if (!isField(item)) return false;
+    if (isDimensionDisplayTimezoneDisabled(item)) return false;
     if (item.type === DimensionType.TIMESTAMP) return true;
     return (
         item.type === DimensionType.DATE &&
@@ -922,6 +931,12 @@ export function formatItemValue(
 
         if (isCustomSqlDimension(item) || 'type' in item) {
             const type = getItemType(item);
+            // Strip the display timezone for dims opted out via
+            // convert_timezone: false so values render in the raw
+            // warehouse instant.
+            const effectiveTimezone = isDimensionDisplayTimezoneDisabled(item)
+                ? undefined
+                : timezone;
 
             // Date/Timestamp table calculations may carry a CUSTOM format
             // expression (e.g. "mmmm d, yyyy"). The default switch path
@@ -964,7 +979,7 @@ export function formatItemValue(
                         item.timeIntervalBaseDimensionType ===
                             DimensionType.DATE
                             ? undefined
-                            : timezone;
+                            : effectiveTimezone;
                     return isMomentInput(value)
                         ? formatDate(
                               value,
@@ -982,7 +997,7 @@ export function formatItemValue(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
-                              timezone,
+                              effectiveTimezone,
                               displayTimezone,
                           )
                         : 'NaT';
@@ -993,7 +1008,7 @@ export function formatItemValue(
                             value,
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
-                            timezone,
+                            effectiveTimezone,
                             displayTimezone,
                         );
                     }
