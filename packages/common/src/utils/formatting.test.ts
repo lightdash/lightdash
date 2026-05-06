@@ -19,6 +19,7 @@ import {
     formatDate,
     formatItemValue,
     formatNumberValue,
+    formatTemporalCellForSpreadsheet,
     formatTimestamp,
     formatValueWithExpression,
     getCustomFormatFromLegacy,
@@ -2058,6 +2059,97 @@ describe('Formatting', () => {
                     'Asia/Karachi',
                 ),
             ).toBe('2024-01-15T07:00:00.000+05:00');
+        });
+    });
+
+    describe('formatTemporalCellForSpreadsheet', () => {
+        const tz = 'Pacific/Pago_Pago'; // UTC-11
+        const tsField = {
+            ...dimension,
+            type: DimensionType.TIMESTAMP,
+            name: 'event_timestamp',
+        };
+        const dateBaseTsField = {
+            ...dimension,
+            type: DimensionType.DATE,
+            name: 'event_timestamp_day',
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const calendarDateField = {
+            ...dimension,
+            type: DimensionType.DATE,
+            name: 'order_date',
+        };
+
+        test('TIMESTAMP shifts into project tz with millis', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    tsField,
+                    '2024-01-15T18:00:00.000Z',
+                    tz,
+                ),
+            ).toBe('2024-01-15 07:00:00.000');
+        });
+
+        test('TIMESTAMP without timezone formats wall-clock as-is', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    tsField,
+                    '2024-01-15T18:00:00.000Z',
+                    undefined,
+                ),
+            ).toBe('2024-01-15 18:00:00.000');
+        });
+
+        test('DATE-base-TS shifts into project tz', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    dateBaseTsField,
+                    '2024-01-15T11:00:00.000Z',
+                    tz,
+                ),
+            ).toBe('2024-01-15');
+        });
+
+        test('calendar DATE is not shifted even when tz is set', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    calendarDateField,
+                    '2024-01-15',
+                    tz,
+                ),
+            ).toBe('2024-01-15');
+        });
+
+        test('returns undefined for non-temporal fields', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(dimension, 'foo', tz),
+            ).toBeUndefined();
+            expect(
+                formatTemporalCellForSpreadsheet(metric, 42, tz),
+            ).toBeUndefined();
+        });
+
+        test('returns undefined for null / empty raw values', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(tsField, null, tz),
+            ).toBeUndefined();
+            expect(
+                formatTemporalCellForSpreadsheet(tsField, undefined, tz),
+            ).toBeUndefined();
+            expect(
+                formatTemporalCellForSpreadsheet(tsField, '', tz),
+            ).toBeUndefined();
+        });
+
+        test('accepts Date input', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    tsField,
+                    new Date('2024-01-15T18:00:00.000Z'),
+                    tz,
+                ),
+            ).toBe('2024-01-15 07:00:00.000');
         });
     });
 });

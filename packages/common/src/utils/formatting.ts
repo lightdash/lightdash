@@ -231,6 +231,33 @@ export const isShiftableForTzExport = (item: Item | undefined): boolean => {
     );
 };
 
+// Renders a temporal cell as the wall-clock string Excel and Google Sheets
+// auto-detect as a date. TIMESTAMP → `YYYY-MM-DD HH:mm:ss.SSS`, DATE →
+// `YYYY-MM-DD`. Shifts into the project tz when the item is timezone-
+// shiftable (TIMESTAMP / DATE-base-TS) and a timezone is supplied; calendar
+// DATEs are formatted as-is. Returns undefined for non-temporal fields or
+// unparseable values so callers can fall through to their existing
+// formatting path.
+export const formatTemporalCellForSpreadsheet = (
+    item: Item | undefined,
+    rawValue: unknown,
+    timezone: string | undefined,
+): string | undefined => {
+    if (!isField(item)) return undefined;
+    const isTimestamp = item.type === DimensionType.TIMESTAMP;
+    const isDate = item.type === DimensionType.DATE;
+    if (!isTimestamp && !isDate) return undefined;
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return undefined;
+    }
+    const shouldShift = !!timezone && isShiftableForTzExport(item);
+    const m = shouldShift
+        ? moment.utc(rawValue as MomentInput).tz(timezone!)
+        : moment(rawValue as MomentInput);
+    if (!m.isValid()) return undefined;
+    return m.format(isTimestamp ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD');
+};
+
 export function getLocalTimeDisplay(
     value: MomentInput,
     showTimezone: boolean = true,

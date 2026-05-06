@@ -241,6 +241,9 @@ export class PivotTableService extends BaseService {
             undefined,
             timezone,
         );
+
+        // Pivot CSV uses the same wall-clock temporal format as non-pivot
+        // CSV so spreadsheet apps auto-detect dates. See GLITCH-406.
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
@@ -250,6 +253,8 @@ export class PivotTableService extends BaseService {
             onlyRaw,
             maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            timezone,
+            formatTemporalsForSpreadsheet: true,
         });
 
         const csvContent = await new Promise<string>((resolve, reject) => {

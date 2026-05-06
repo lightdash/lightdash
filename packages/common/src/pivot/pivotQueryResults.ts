@@ -23,6 +23,7 @@ import { TimeFrames } from '../types/timeFrames';
 import { getArrayValue, getObjectValue } from '../utils/accessors';
 import {
     formatItemValue,
+    formatTemporalCellForSpreadsheet,
     isShiftableForTzExport,
     toIsoWithProjectOffset,
 } from '../utils/formatting';
@@ -1585,6 +1586,9 @@ type PivotResultsParams = {
     // is the warehouse instant shifted into the project tz with an explicit
     // offset suffix. No-op for other modes / fields.
     timezone?: string;
+    // When true, shiftable temporal cells (header + body, both modes) emit
+    // the wall-clock format spreadsheet apps auto-detect as a date.
+    formatTemporalsForSpreadsheet?: boolean;
 };
 
 export const pivotResultsAsData = ({
@@ -1598,6 +1602,7 @@ export const pivotResultsAsData = ({
     undefinedCharacter = '',
     pivotDetails,
     timezone,
+    formatTemporalsForSpreadsheet = false,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1626,16 +1631,22 @@ export const pivotResultsAsData = ({
           });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
-    // For onlyRaw + timezone, re-encode TIMESTAMP / DATE-base-TS values
-    // into the project tz with an explicit offset suffix. No-op for other
-    // modes / fields, so non-onlyRaw and non-tz callers are byte-identical.
     const pickValue = (
         cellValue: ResultValue | undefined,
         fieldId: string,
     ): string => {
+        const item = itemMap[fieldId];
+        if (formatTemporalsForSpreadsheet) {
+            const spreadsheetTemporal = formatTemporalCellForSpreadsheet(
+                item,
+                cellValue?.raw,
+                timezone,
+            );
+            if (spreadsheetTemporal !== undefined) return spreadsheetTemporal;
+        }
         const base = (cellValue?.[formatField] as string) ?? '';
         if (!onlyRaw || !timezone) return base;
-        if (!isShiftableForTzExport(itemMap[fieldId])) return base;
+        if (!isShiftableForTzExport(item)) return base;
         const shifted = toIsoWithProjectOffset(cellValue?.raw, timezone);
         return shifted ?? base;
     };
