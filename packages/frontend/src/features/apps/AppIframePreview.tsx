@@ -7,6 +7,11 @@ import {
 
 type Props = {
     src: string;
+    /** Origin the iframe will load from — used to gate the postMessage bridge.
+     *  Same value for all preview iframes from the same Lightdash instance
+     *  (the configured preview-host), or the parent's own origin in the
+     *  same-origin fallback case. */
+    expectedPreviewOrigin: string;
     /** Stable identity for the served bundle (e.g. `${appUuid}:${version}`).
      *  Drives the inspector-availability reset — changes here mean a new
      *  bundle whose SDK capabilities are unknown, so we re-await an announce.
@@ -44,6 +49,7 @@ type Props = {
  */
 const AppIframePreview: FC<Props> = ({
     src,
+    expectedPreviewOrigin,
     identityKey,
     onQueryEvent,
     onElementSelected,
@@ -61,6 +67,7 @@ const AppIframePreview: FC<Props> = ({
     const { handleIframeLoad, enableInspector, disableInspector } =
         useAppSdkBridge(
             iframeRef,
+            expectedPreviewOrigin,
             onQueryEvent,
             onElementSelected,
             handleAnnounce,
@@ -111,7 +118,7 @@ const AppIframePreview: FC<Props> = ({
             src={src}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="App preview"
-            sandbox="allow-scripts allow-modals"
+            sandbox="allow-scripts allow-modals allow-same-origin"
             allow=""
             onLoad={handleLoad}
         />

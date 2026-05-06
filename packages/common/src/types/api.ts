@@ -511,6 +511,13 @@ export type HealthState = {
     };
     dataApps: {
         enabled: boolean;
+        /**
+         * Origin where data-app preview iframes are served (e.g.,
+         * `https://analytics.lightdash.app`). Used by the frontend to construct
+         * the iframe URL and to validate postMessage origins. `null` means
+         * previews are served same-origin (dev / pre-cutover).
+         */
+        previewOrigin: string | null;
     };
 };
 

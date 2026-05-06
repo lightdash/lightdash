@@ -97,6 +97,7 @@ import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
+import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
 import useToaster from '../hooks/toaster/useToaster';
@@ -187,9 +188,9 @@ const AppPreview: FC<{
         error,
     } = useAppPreviewToken(projectUuid, appUuid, version);
 
-    const baseUrl = window.location.origin;
+    const previewOrigin = usePreviewOrigin();
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     if (isLoading) {
@@ -217,6 +218,7 @@ const AppPreview: FC<{
     return (
         <AppIframePreview
             src={previewUrl}
+            expectedPreviewOrigin={previewOrigin}
             identityKey={`${appUuid}:${version}`}
             onQueryEvent={onQueryEvent}
             inspectorEnabled={inspectorEnabled}

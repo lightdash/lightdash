@@ -237,6 +237,7 @@ export class HealthService extends BaseService {
             },
             dataApps: {
                 enabled: this.lightdashConfig.appRuntime.enabled,
+                previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
             },
         };
     }

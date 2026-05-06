@@ -95,6 +95,14 @@ export type ElementSelectedEvent = {
  */
 export function useAppSdkBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
+    /**
+     * The origin this iframe is expected to load from. When previews are
+     * served cross-origin this is `https://{customer}.lightdash.app`; in
+     * same-origin dev it's `window.location.origin`. The bridge rejects any
+     * inbound message whose `event.origin` doesn't match, and uses this
+     * value as the `targetOrigin` on every outbound `postMessage` (no `'*'`).
+     */
+    expectedPreviewOrigin: string,
     onQueryEvent?: (event: QueryEvent) => void,
     onElementSelected?: (event: ElementSelectedEvent) => void,
     onInspectorAvailable?: () => void,
@@ -102,6 +110,7 @@ export function useAppSdkBridge(
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
+            if (event.origin !== expectedPreviewOrigin) return;
 
             const { data } = event;
 
@@ -126,6 +135,10 @@ export function useAppSdkBridge(
                 result?: unknown;
                 error?: string;
             }) => {
+                // Wildcard targetOrigin — see handleIframeLoad below. The
+                // parent's `event.source` and route allowlist do the security
+                // work; matching against expectedPreviewOrigin only adds
+                // noise from race conditions during iframe (re)mount.
                 iframeRef.current?.contentWindow?.postMessage(
                     { type: 'lightdash:sdk:fetch-response', id, ...response },
                     '*',
@@ -282,7 +295,13 @@ export function useAppSdkBridge(
                 });
             }
         },
-        [iframeRef, onQueryEvent, onElementSelected, onInspectorAvailable],
+        [
+            iframeRef,
+            expectedPreviewOrigin,
+            onQueryEvent,
+            onElementSelected,
+            onInspectorAvailable,
+        ],
     );
 
     useEffect(() => {
@@ -291,6 +310,11 @@ export function useAppSdkBridge(
     }, [handleMessage]);
 
     const handleIframeLoad = useCallback(() => {
+        // `*` because the load event fires once for the initial about:blank
+        // (which inherits the parent's origin) and again after the iframe
+        // navigates to its actual src. With a specific targetOrigin the
+        // first call logs a noisy postMessage warning. The :ready signal
+        // carries no sensitive data, so wildcard is safe here.
         iframeRef.current?.contentWindow?.postMessage(
             { type: 'lightdash:sdk:ready' },
             '*',

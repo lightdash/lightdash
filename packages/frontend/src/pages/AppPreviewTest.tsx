@@ -9,6 +9,7 @@ import ForbiddenPanel from '../components/ForbiddenPanel';
 import AppIframePreview from '../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
+import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../hooks/useSpaces';
 import useApp from '../providers/App/useApp';
@@ -80,6 +81,8 @@ export default function AppPreviewTest() {
         return () => window.removeEventListener('blur', handleBlur);
     }, [handleBlur]);
 
+    const previewOrigin = usePreviewOrigin();
+
     if (dataAppsFlag.isLoading) {
         return null;
     }
@@ -131,9 +134,8 @@ export default function AppPreviewTest() {
         );
     }
 
-    const baseUrl = window.location.origin;
     const previewUrl = token
-        ? `${baseUrl}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
         : undefined;
 
     if (isLoading) {
@@ -197,6 +199,7 @@ export default function AppPreviewTest() {
             )}
             <AppIframePreview
                 src={previewUrl}
+                expectedPreviewOrigin={previewOrigin}
                 identityKey={`${appUuid}:${version}`}
             />
         </Box>

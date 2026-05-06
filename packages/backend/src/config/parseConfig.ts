@@ -1309,6 +1309,13 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     lightdashOrigin: string;
     cdnOrigin: string | null;
+    /**
+     * Origin where data-app preview iframes are served, distinct from the
+     * Lightdash app origin (e.g., `https://acme.lightdash.app`). When null,
+     * previews are served same-origin — dev / pre-cutover behavior. The
+     * host filter rejects requests on this hostname unless the path matches
+     * the preview-router prefix.
+     */
     previewOrigin: string | null;
     s3: S3Config | null;
     e2bApiKey: string | null;
