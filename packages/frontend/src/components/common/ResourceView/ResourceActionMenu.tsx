@@ -295,6 +295,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                     ? item.data.uuid
                                     : undefined
                             }
+                            clickedFrom="resource_action_menu"
                             withDivider={userCanManage && !favoritesContext}
                         />
                     )}

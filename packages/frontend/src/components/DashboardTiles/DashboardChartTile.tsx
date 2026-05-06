@@ -1276,6 +1276,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <AskAiAgentMenuItem
                                     projectUuid={projectUuid}
                                     chartUuid={savedChartUuid ?? undefined}
+                                    clickedFrom="dashboard_chart_tile"
                                 />
 
                                 <Tooltip

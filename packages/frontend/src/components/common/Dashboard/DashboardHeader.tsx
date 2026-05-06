@@ -734,6 +734,7 @@ const DashboardHeader = memo(
                                     <AskAiAgentMenuItem
                                         projectUuid={projectUuid}
                                         dashboardUuid={dashboard.uuid}
+                                        clickedFrom="dashboard_header"
                                         withDivider
                                     />
                                     {!!userCanManageDashboard && (

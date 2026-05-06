@@ -58,6 +58,7 @@ import {
     toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    type AiPromptContextInput,
     type SessionUser,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -272,6 +273,29 @@ export class AiAgentService extends BaseService {
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     private readonly shareService: ShareService;
+
+    private static getPinnedContextAnalyticsProperties(
+        context: AiPromptContextInput | undefined,
+    ): Pick<
+        AiAgentPromptCreatedEvent['properties'],
+        | 'hasPinnedContext'
+        | 'pinnedContextCount'
+        | 'pinnedChartCount'
+        | 'pinnedDashboardCount'
+    > {
+        const pinnedChartCount =
+            context?.filter((item) => item.type === 'chart').length ?? 0;
+        const pinnedDashboardCount =
+            context?.filter((item) => item.type === 'dashboard').length ?? 0;
+        const pinnedContextCount = pinnedChartCount + pinnedDashboardCount;
+
+        return {
+            hasPinnedContext: pinnedContextCount > 0,
+            pinnedContextCount,
+            pinnedChartCount,
+            pinnedDashboardCount,
+        };
+    }
 
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
@@ -967,6 +991,9 @@ export class AiAgentService extends BaseService {
                     aiAgentId: agentUuid,
                     threadId: threadUuid,
                     context: 'web_app',
+                    ...AiAgentService.getPinnedContextAnalyticsProperties(
+                        body.context,
+                    ),
                 },
             });
         }
@@ -1042,6 +1069,9 @@ export class AiAgentService extends BaseService {
                 aiAgentId: agentUuid,
                 threadId: threadUuid,
                 context: 'web_app',
+                ...AiAgentService.getPinnedContextAnalyticsProperties(
+                    body.context,
+                ),
             },
         });
 
@@ -3444,6 +3474,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     aiAgentId: data.agentUuid || '',
                     threadId: threadUuid,
                     context: 'slack',
+                    ...AiAgentService.getPinnedContextAnalyticsProperties(
+                        undefined,
+                    ),
                 },
             });
         }

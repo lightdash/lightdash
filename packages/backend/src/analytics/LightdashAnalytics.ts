@@ -1702,6 +1702,10 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         aiAgentId: string;
         threadId: string | undefined;
         context: 'slack' | 'web_app';
+        hasPinnedContext: boolean;
+        pinnedContextCount: number;
+        pinnedChartCount: number;
+        pinnedDashboardCount: number;
     };
 };
 

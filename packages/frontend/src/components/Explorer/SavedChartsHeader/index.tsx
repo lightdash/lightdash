@@ -633,6 +633,7 @@ const SavedChartsHeader: FC = () => {
                                     <AskAiAgentMenuItem
                                         projectUuid={projectUuid}
                                         chartUuid={savedChart.uuid}
+                                        clickedFrom="saved_chart_header"
                                         withDivider
                                     />
                                 )}
