@@ -45,6 +45,25 @@ export class ExcelService {
         return !!timezone && timezone !== 'UTC';
     }
 
+    /**
+     * TIMESTAMP fields and TIMESTAMP-base DATE intervals carry a real
+     * instant — both shift into the project zone. DATE fields whose base is
+     * DATE (or unset) are calendar values and stay put: shifting would
+     * cross day boundaries on non-zero offsets. Mirrors the rule in
+     * `CsvService.convertRowToCsv`.
+     */
+    private static isShiftableDateField(
+        item: ItemsMap[string] | undefined,
+    ): boolean {
+        if (!isField(item)) return false;
+        if (item.type === DimensionType.TIMESTAMP) return true;
+        return (
+            item.type === DimensionType.DATE &&
+            isDimension(item) &&
+            item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
+        );
+    }
+
     static convertToExcelDate(
         value: unknown,
         timezone?: string,
@@ -101,15 +120,9 @@ export class ExcelService {
                 (item.type === DimensionType.DATE ||
                     item.type === DimensionType.TIMESTAMP)
             ) {
-                // DATE-base intervals are calendar values — shifting would
-                // cross day boundaries on negative offsets.
-                const isDateBaseInterval =
-                    isDimension(item) &&
-                    item.timeIntervalBaseDimensionType === DimensionType.DATE;
                 if (
                     ExcelService.isTzActive(timezone) &&
-                    item.type === DimensionType.TIMESTAMP &&
-                    !isDateBaseInterval
+                    ExcelService.isShiftableDateField(item)
                 ) {
                     return toExcelWallClockDate(rawValue, timezone);
                 }
@@ -223,15 +236,11 @@ export class ExcelService {
                     );
                     if (numFmt) {
                         const offset = pivotData.hasIndex ? 0 : 1;
-                        const isDateBaseInterval =
-                            field.timeIntervalBaseDimensionType ===
-                            DimensionType.DATE;
                         dateColumnFormats.set(colIndex + offset, {
                             numFmt,
                             shouldShift:
                                 tzActive &&
-                                field.type === DimensionType.TIMESTAMP &&
-                                !isDateBaseInterval,
+                                ExcelService.isShiftableDateField(field),
                         });
                     }
                 }

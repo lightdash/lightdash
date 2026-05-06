@@ -79,6 +79,19 @@ const mockItemMapWithFormats: ItemsMap = {
         fieldType: FieldType.DIMENSION,
         sql: '${TABLE}.timestamp_column',
     },
+    date_base_ts_column: {
+        name: 'date_base_ts_column',
+        description: undefined,
+        type: DimensionType.DATE,
+        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        timeInterval: TimeFrames.DAY,
+        hidden: false,
+        table: 'table',
+        tableLabel: 'table',
+        label: 'Date Base TS Column',
+        fieldType: FieldType.DIMENSION,
+        sql: '${TABLE}.date_base_ts_column',
+    } as Dimension,
     // Additional format test cases from Lightdash docs
     pounds_currency_rounded: {
         name: 'pounds_currency_rounded',
@@ -700,6 +713,27 @@ describe('ExcelService', () => {
                 );
 
                 expect(result[0]).toEqual(moment('2024-01-16').toDate());
+            });
+
+            it('shifts DATE cells whose base is TIMESTAMP (DATE_TRUNC round-trip)', () => {
+                // 2024-01-16T05:00:00Z is midnight Jan 16 in NY (EST, -5)
+                // after the DATE_TRUNC round-trip — should land on the
+                // project-tz day boundary, not the UTC instant.
+                const result = ExcelService.convertRowToExcel(
+                    { date_base_ts_column: '2024-01-16T05:00:00.000Z' },
+                    mockItemMapWithFormats,
+                    false,
+                    ['date_base_ts_column'],
+                    'America/New_York',
+                );
+
+                const cell = result[0] as Date;
+                expect(cell).toBeInstanceOf(Date);
+                expect(cell.getUTCFullYear()).toBe(2024);
+                expect(cell.getUTCMonth()).toBe(0);
+                expect(cell.getUTCDate()).toBe(16);
+                expect(cell.getUTCHours()).toBe(0);
+                expect(cell.getUTCMinutes()).toBe(0);
             });
         });
 
