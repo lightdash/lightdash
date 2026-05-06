@@ -1717,3 +1717,59 @@ describe('duplicate metric/dimension names', () => {
         expect(duplicateWarnings[1].message).toContain('user_id2');
     });
 });
+
+describe('convert_timezone dimension override', () => {
+    const buildModel = (
+        convertTimezoneValue: boolean | undefined,
+    ): DbtModelNode & { relation_name: string } => ({
+        ...model,
+        columns: {
+            created_at: {
+                name: 'created_at',
+                description: 'when the row was created',
+                data_type: DimensionType.TIMESTAMP,
+                meta: {
+                    dimension: {
+                        type: DimensionType.TIMESTAMP,
+                        ...(convertTimezoneValue !== undefined
+                            ? { convert_timezone: convertTimezoneValue }
+                            : {}),
+                        time_intervals: [TimeFrames.DAY, TimeFrames.MONTH_NUM],
+                    },
+                },
+            },
+        },
+    });
+
+    it('writes convertTimezone: false onto the compiled dimension and its time-interval children', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            buildModel(false),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dimensions.created_at.convertTimezone).toBe(false);
+        expect(result.dimensions.created_at_day.convertTimezone).toBe(false);
+        expect(result.dimensions.created_at_month_num.convertTimezone).toBe(
+            false,
+        );
+    });
+
+    it('omits convertTimezone when not set or set to true (default behavior)', () => {
+        const undef = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            buildModel(undefined),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(undef.dimensions.created_at.convertTimezone).toBeUndefined();
+
+        const truthy = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            buildModel(true),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(truthy.dimensions.created_at.convertTimezone).toBeUndefined();
+    });
+});

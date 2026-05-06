@@ -212,6 +212,9 @@ const convertDimension = (
             ? { richText: meta.dimension.richText }
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
+        ...(meta.dimension?.convert_timezone === false
+            ? { convertTimezone: false }
+            : {}),
         groups,
         isIntervalBase,
         ...(meta.dimension && meta.dimension.tags
