@@ -18,7 +18,7 @@ export const useDashboardCommentsCheck = (
 
     // Default-on; opt out via DISABLE_DASHBOARD_COMMENTS=true on the backend.
     const isDashboardCommentsEnabled =
-        health.data?.dashboardComments.enabled ?? true;
+        health.data?.dashboardComments?.enabled ?? true;
 
     return {
         canViewDashboardComments:
