@@ -23,6 +23,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
+    toIsoWithProjectOffset,
 } from './formatting';
 import {
     additionalMetric,
@@ -1990,6 +1991,73 @@ describe('Formatting', () => {
                     ),
                 );
             });
+        });
+    });
+
+    describe('toIsoWithProjectOffset', () => {
+        const tz = 'Pacific/Pago_Pago'; // UTC-11, no DST
+
+        test('returns undefined when timezone is unset', () => {
+            expect(
+                toIsoWithProjectOffset('2024-01-15T02:00:00.000Z', undefined),
+            ).toBeUndefined();
+        });
+
+        test('returns undefined when timezone is UTC (no-op short-circuit)', () => {
+            expect(
+                toIsoWithProjectOffset('2024-01-15T02:00:00.000Z', 'UTC'),
+            ).toBeUndefined();
+        });
+
+        test('shifts a UTC ISO string into project offset', () => {
+            expect(toIsoWithProjectOffset('2024-01-15T02:00:00.000Z', tz)).toBe(
+                '2024-01-14T15:00:00.000-11:00',
+            );
+        });
+
+        test('always emits millis even when source had none', () => {
+            expect(toIsoWithProjectOffset('2024-01-15T02:00:00Z', tz)).toBe(
+                '2024-01-14T15:00:00.000-11:00',
+            );
+        });
+
+        test('accepts Date input', () => {
+            expect(
+                toIsoWithProjectOffset(
+                    new Date('2024-01-15T02:00:00.000Z'),
+                    tz,
+                ),
+            ).toBe('2024-01-14T15:00:00.000-11:00');
+        });
+
+        test('accepts numeric epoch ms', () => {
+            const epoch = Date.UTC(2024, 0, 15, 2, 0, 0, 0);
+            expect(toIsoWithProjectOffset(epoch, tz)).toBe(
+                '2024-01-14T15:00:00.000-11:00',
+            );
+        });
+
+        test('returns undefined for null/undefined/non-instant inputs', () => {
+            expect(toIsoWithProjectOffset(null, tz)).toBeUndefined();
+            expect(toIsoWithProjectOffset(undefined, tz)).toBeUndefined();
+            expect(toIsoWithProjectOffset({}, tz)).toBeUndefined();
+            expect(toIsoWithProjectOffset(['a'], tz)).toBeUndefined();
+        });
+
+        test('returns undefined for unparseable strings', () => {
+            expect(
+                toIsoWithProjectOffset('not-a-timestamp', tz),
+            ).toBeUndefined();
+        });
+
+        test('honors positive-offset zones (DST-aware via moment-timezone)', () => {
+            // Asia/Karachi is UTC+5 year-round, so 02:00 UTC -> 07:00 +05:00
+            expect(
+                toIsoWithProjectOffset(
+                    '2024-01-15T02:00:00.000Z',
+                    'Asia/Karachi',
+                ),
+            ).toBe('2024-01-15T07:00:00.000+05:00');
         });
     });
 });

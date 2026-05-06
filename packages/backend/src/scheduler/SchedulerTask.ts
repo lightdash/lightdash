@@ -2228,6 +2228,7 @@ export default class SchedulerTask {
                     maxColumnLimit:
                         this.lightdashConfig.pivotTable.maxColumnLimit,
                     pivotDetails,
+                    timezone: displayTimezone ?? undefined,
                 });
 
                 await this.googleDriveClient.appendCsvToSheet(
@@ -2246,6 +2247,7 @@ export default class SchedulerTask {
                     payload.columnOrder,
                     payload.customLabels,
                     payload.hiddenFields,
+                    displayTimezone ?? undefined,
                 );
             }
 
@@ -2896,6 +2898,7 @@ export default class SchedulerTask {
                         maxColumnLimit:
                             this.lightdashConfig.pivotTable.maxColumnLimit,
                         pivotDetails,
+                        timezone: displayTimezone ?? undefined,
                     });
                     await this.googleDriveClient.appendCsvToSheet(
                         refreshToken,
@@ -2914,6 +2917,7 @@ export default class SchedulerTask {
                         chart.tableConfig.columnOrder,
                         customLabels,
                         getHiddenTableFields(chart.chartConfig),
+                        displayTimezone ?? undefined,
                     );
                 }
             } else if (dashboardUuid) {
@@ -3057,6 +3061,7 @@ export default class SchedulerTask {
                                     this.lightdashConfig.pivotTable
                                         .maxColumnLimit,
                                 pivotDetails,
+                                timezone: displayTimezone ?? undefined,
                             });
 
                             await this.googleDriveClient.appendCsvToSheet(
@@ -3076,6 +3081,7 @@ export default class SchedulerTask {
                                 chart.tableConfig.columnOrder,
                                 customLabels,
                                 getHiddenTableFields(chart.chartConfig),
+                                displayTimezone ?? undefined,
                             );
                         }
                     }, Promise.resolve())

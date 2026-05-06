@@ -16,6 +16,7 @@ import {
     MissingConfigError,
     NotFoundError,
     TableCalculation,
+    toIsoWithProjectOffset,
     UnexpectedGoogleSheetsError,
 } from '@lightdash/common';
 import { google, sheets_v4 } from 'googleapis';
@@ -301,6 +302,7 @@ export class GoogleDriveClient {
     static formatCell(
         value: AnyType,
         item?: Field | TableCalculation | CustomDimension | Metric,
+        timezone?: string,
     ) {
         // We don't want to use formatItemValue directly because the format for some types on Gsheets
         // is different to what we use to present the data in the UI (eg: timestamps, currencies)
@@ -324,6 +326,12 @@ export class GoogleDriveClient {
                 // For very large BigInt values, convert to string to preserve precision
                 formattedValue = value.toString();
             }
+        } else if (isField(item) && item.type === DimensionType.TIMESTAMP) {
+            // Shift the wall-clock into the project tz with an explicit
+            // offset so cells communicate the zone honestly. Falls through
+            // to the existing passthrough when timezone is unset / UTC.
+            const shifted = toIsoWithProjectOffset(value, timezone);
+            formattedValue = shifted ?? value;
         } else if (isField(item) && item.type === DimensionType.DATE) {
             const timeInterval = isDimension(item)
                 ? item.timeInterval
@@ -373,6 +381,7 @@ export class GoogleDriveClient {
         columnOrder: string[] = [],
         customLabels: Record<string, string> = {},
         hiddenFields: string[] = [],
+        timezone?: string,
     ) {
         if (!this.isEnabled) {
             throw new MissingConfigError('Google Drive is not enabled');
@@ -398,7 +407,7 @@ export class GoogleDriveClient {
                 const item = itemMap[fieldId];
                 // Google sheet doesn't like arrays as values, so we need to convert them to strings
                 const value = row[fieldId];
-                return GoogleDriveClient.formatCell(value, item);
+                return GoogleDriveClient.formatCell(value, item, timezone);
             }),
         );
 

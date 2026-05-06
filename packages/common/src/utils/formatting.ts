@@ -197,6 +197,40 @@ export function toExcelWallClockDate(
     return moment.tz(value, timezone).utc(true).toDate();
 }
 
+// Re-encode a UTC instant as ISO 8601 in the project tz with an explicit
+// offset suffix (e.g. `2024-01-14T15:00:00.000-11:00`). Returns undefined
+// when there's nothing to shift; callers fall through to passthrough so
+// flag-off / UTC output stays bit-identical.
+export const toIsoWithProjectOffset = (
+    rawValue: unknown,
+    timezone: string | undefined,
+): string | undefined => {
+    if (!timezone || timezone === 'UTC') return undefined;
+    if (
+        typeof rawValue !== 'string' &&
+        typeof rawValue !== 'number' &&
+        !(rawValue instanceof Date)
+    ) {
+        return undefined;
+    }
+    const m = moment.utc(rawValue);
+    if (!m.isValid()) return undefined;
+    return m.tz(timezone).toISOString(true);
+};
+
+// TIMESTAMP fields and TIMESTAMP-base DATE intervals (DATE_TRUNC round-trip)
+// carry a real instant — both shift into the project tz for export.
+// Calendar DATEs (no time component) stay put.
+export const isShiftableForTzExport = (item: Item | undefined): boolean => {
+    if (!isField(item)) return false;
+    if (item.type === DimensionType.TIMESTAMP) return true;
+    return (
+        item.type === DimensionType.DATE &&
+        isDimension(item) &&
+        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
+    );
+};
+
 export function getLocalTimeDisplay(
     value: MomentInput,
     showTimezone: boolean = true,

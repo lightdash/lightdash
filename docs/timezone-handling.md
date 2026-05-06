@@ -186,6 +186,7 @@ The resolved timezone rides on the API response (`resolvedTimezone` on `ApiExecu
 - Chart tooltips (`tooltipFormatter`) use the same pair via `resolveAxisTimezone` so headers and hover values agree with the axis
 - CSV exports — including pivot CSVs — run through the backend formatter, so downloads match the Explorer view
 - Excel exports use a wall-clock-as-UTC `Date` builder (`toExcelWallClockDate` in `packages/common/src/utils/formatting.ts`) so date cells stay real dates with project-TZ wall-clock and keep their `numFmt`
+- Google Sheets exports re-encode TIMESTAMP and TIMESTAMP-base DATE intervals as ISO 8601 with an explicit project-TZ offset (`toIsoWithProjectOffset` in `packages/common/src/utils/formatting.ts`); cells stay as text either way (Sheets doesn't auto-detect ISO-Z as datetime), the suffix just communicates the zone honestly
 - The chart card shows a resolved-timezone badge so users can see which zone they're looking at
 
 ```mermaid
@@ -309,7 +310,6 @@ The only remaining hole is NTZ-style columns storing non-UTC data on warehouses 
 | Gap                                                              | Description                                                                                                                                                                                                                                                                           | Impact                                                                                                                                            |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **BigQuery/Athena: no session timezone**                         | These warehouses have no session-timezone plumbing, so the data-timezone setting is inert. NTZ-style columns (BigQuery `DATETIME`, Athena bare `TIMESTAMP`) can't be rebased from their stored zone to UTC                                                                           | Data timezone setting has no effect (UI field is hidden); NTZ columns holding non-UTC data can't be normalized                                    |
-| **Google Sheets pivot deliveries render TIMESTAMP/DATE cells in UTC** | Gsheet pivot deliveries call `pivotResultsAsCsv({ onlyRaw: true })`, which reads `value.raw` and skips the timezone-formatted output from `formatRows`. Pivot column headers built via `formatItemValue` also omit the timezone args. Kept raw so columns preserve their native types in Google Sheets | Gsheet pivot output renders timestamps in UTC even with `EnableTimezoneSupport` on, so it disagrees with the Explorer view when the project TZ is non-UTC |
 
 ---
 
