@@ -341,6 +341,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                 <Stack
                     bg={'ldGray.0'}
                     spacing="xs"
+                    p="xs"
                     sx={(theme) => ({
                         borderRadius: theme.radius.sm,
                     })}
