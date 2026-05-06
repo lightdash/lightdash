@@ -322,6 +322,12 @@ export class RolesModel {
                 Pick<Project, 'type'>
         >
     > {
+        type Row = {
+            project_uuid: string;
+            project_type: ProjectType;
+            role: ProjectMemberRole | null;
+            role_uuid: string | null;
+        };
         const rows = await (tx || this.database)('project_memberships')
             .leftJoin(
                 'projects',
@@ -329,7 +335,12 @@ export class RolesModel {
                 'projects.project_id',
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
-            .select('*')
+            .select<Row[]>([
+                'projects.project_uuid',
+                'projects.project_type',
+                'project_memberships.role',
+                'project_memberships.role_uuid',
+            ])
             .where('users.user_uuid', userUuid);
 
         return rows.map((row) => ({

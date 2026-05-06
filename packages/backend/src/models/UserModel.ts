@@ -514,6 +514,11 @@ export class UserModel {
             'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
         >[]
     > {
+        type Row = {
+            project_uuid: string;
+            role: ProjectMemberRole | null;
+            role_uuid: string | null;
+        };
         const projectMemberships = await this.database('project_memberships')
             .leftJoin(
                 ProjectTableName,
@@ -521,7 +526,11 @@ export class UserModel {
                 `${ProjectTableName}.project_id`,
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
-            .select('*')
+            .select<Row[]>([
+                `${ProjectTableName}.project_uuid`,
+                'project_memberships.role',
+                'project_memberships.role_uuid',
+            ])
             .where('users.user_uuid', userUuid);
 
         return projectMemberships.map((membership) => ({
