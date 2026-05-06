@@ -46,6 +46,12 @@ import {
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
+type HeartbeatToolContext = {
+    projectUuid: string;
+    sessionId: string;
+    runUuid: string;
+};
+
 type ManagedAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -647,9 +653,7 @@ export class ManagedAgentService extends BaseService {
             input: Record<string, unknown>,
         ): Promise<string> =>
             this.handleToolCall(
-                projectUuid,
-                sessionId,
-                runUuid,
+                { projectUuid, sessionId, runUuid },
                 toolName,
                 input,
             );
@@ -897,12 +901,11 @@ export class ManagedAgentService extends BaseService {
     // --- Tool Handlers ---
 
     private async handleToolCall(
-        projectUuid: string,
-        sessionId: string,
-        runUuid: string,
+        ctx: HeartbeatToolContext,
         toolName: string,
         input: Record<string, unknown>,
     ): Promise<string> {
+        const { projectUuid } = ctx;
         switch (toolName) {
             case 'get_recent_actions':
                 return this.handleGetRecentActions(
@@ -920,44 +923,19 @@ export class ManagedAgentService extends BaseService {
             case 'get_popular_content':
                 return this.handleGetPopularContent(projectUuid);
             case 'flag_content':
-                return this.handleFlagContent(
-                    projectUuid,
-                    sessionId,
-                    runUuid,
-                    input,
-                );
+                return this.handleFlagContent(ctx, input);
             case 'soft_delete_content':
-                return this.handleSoftDelete(
-                    projectUuid,
-                    sessionId,
-                    runUuid,
-                    input,
-                );
+                return this.handleSoftDelete(ctx, input);
             case 'log_insight':
-                return this.handleLogInsight(
-                    projectUuid,
-                    sessionId,
-                    runUuid,
-                    input,
-                );
+                return this.handleLogInsight(ctx, input);
             case 'get_chart_details':
                 return this.handleGetChartDetails(projectUuid, input);
             case 'get_chart_schema':
                 return this.handleGetChartSchema();
             case 'fix_broken_chart':
-                return this.handleFixBrokenChart(
-                    projectUuid,
-                    sessionId,
-                    runUuid,
-                    input,
-                );
+                return this.handleFixBrokenChart(ctx, input);
             case 'create_content_from_code':
-                return this.handleCreateContent(
-                    projectUuid,
-                    sessionId,
-                    runUuid,
-                    input,
-                );
+                return this.handleCreateContent(ctx, input);
             case 'get_user_questions':
                 return this.handleGetUserQuestions(projectUuid, input);
             case 'get_slow_queries':
@@ -1172,11 +1150,10 @@ chartConfig:
     }
 
     private async handleFixBrokenChart(
-        projectUuid: string,
-        sessionId: string,
-        runUuid: string,
+        ctx: HeartbeatToolContext,
         input: Record<string, unknown>,
     ): Promise<string> {
+        const { projectUuid, sessionId, runUuid } = ctx;
         const chartUuid = input.chart_uuid as string;
         const chartName = input.chart_name as string;
         const description = input.description as string;
@@ -1283,11 +1260,10 @@ chartConfig:
     }
 
     private async handleCreateContent(
-        projectUuid: string,
-        sessionId: string,
-        runUuid: string,
+        ctx: HeartbeatToolContext,
         input: Record<string, unknown>,
     ): Promise<string> {
+        const { projectUuid, sessionId, runUuid } = ctx;
         const chartAsCode = input.chart_as_code as Record<string, unknown>;
         if (!chartAsCode || typeof chartAsCode !== 'object') {
             throw new Error('chart_as_code must be a non-null object');
@@ -1435,11 +1411,10 @@ chartConfig:
     ]);
 
     private async handleFlagContent(
-        projectUuid: string,
-        sessionId: string,
-        runUuid: string,
+        ctx: HeartbeatToolContext,
         input: Record<string, unknown>,
     ): Promise<string> {
+        const { projectUuid, sessionId, runUuid } = ctx;
         const targetUuid = input.target_uuid as string;
         const targetName = input.target_name as string;
         const description = input.description as string;
@@ -1495,11 +1470,10 @@ chartConfig:
     }
 
     private async handleSoftDelete(
-        projectUuid: string,
-        sessionId: string,
-        runUuid: string,
+        ctx: HeartbeatToolContext,
         input: Record<string, unknown>,
     ): Promise<string> {
+        const { projectUuid, sessionId, runUuid } = ctx;
         const targetUuid = input.target_uuid as string;
         const targetName = input.target_name as string;
         const description = input.description as string;
@@ -1591,11 +1565,10 @@ chartConfig:
     }
 
     private async handleLogInsight(
-        projectUuid: string,
-        sessionId: string,
-        runUuid: string,
+        ctx: HeartbeatToolContext,
         input: Record<string, unknown>,
     ): Promise<string> {
+        const { projectUuid, sessionId, runUuid } = ctx;
         const targetUuid = input.target_uuid as string;
         const targetName = input.target_name as string;
         const description = input.description as string;
