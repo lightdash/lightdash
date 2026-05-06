@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -279,6 +280,23 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 ? 'Remove from favorites'
                                 : 'Add to favorites'}
                         </Menu.Item>
+                    )}
+
+                    {isChartOrDashboard && !isSqlChart && (
+                        <AskAiAgentMenuItem
+                            projectUuid={projectUuid}
+                            chartUuid={
+                                isResourceViewItemChart(item)
+                                    ? item.data.uuid
+                                    : undefined
+                            }
+                            dashboardUuid={
+                                isResourceViewItemDashboard(item)
+                                    ? item.data.uuid
+                                    : undefined
+                            }
+                            withDivider={userCanManage && !favoritesContext}
+                        />
                     )}
 
                     {userCanManage && favoritesContext && <Menu.Divider />}
