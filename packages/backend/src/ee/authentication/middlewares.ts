@@ -2,6 +2,7 @@ import {
     AuthorizationError,
     getErrorMessage,
     ScimError,
+    ServiceAccountScope,
 } from '@lightdash/common';
 import { RequestHandler } from 'express';
 import { fromServiceAccount } from '../../auth/account/account';
@@ -163,6 +164,23 @@ export const authenticateServiceAccount: RequestHandler = async (
                 'Invalid service account token. Authentication failed.',
             );
         }
+
+        // SCIM-only tokens are only valid for `/scim/v2/*` endpoints, which
+        // use `isScimAuthenticated`. Reject them here so they can't reach the
+        // regular API surface.
+        const isScimOnly =
+            serviceAccount.scopes.length === 1 &&
+            serviceAccount.scopes[0] === ServiceAccountScope.SCIM_MANAGE;
+        if (isScimOnly) {
+            logServiceAccountAuthFailure(
+                req,
+                'SCIM-only token used outside /scim/* endpoints',
+            );
+            throw new AuthorizationError(
+                'Invalid service account token. Authentication failed.',
+            );
+        }
+
         req.serviceAccount = serviceAccount;
 
         // Load the SA's dedicated `users` row. Abilities are derived from the

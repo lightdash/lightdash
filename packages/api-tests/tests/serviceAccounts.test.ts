@@ -589,16 +589,10 @@ describe('Service Account scope matrix', () => {
             expect(resp.status).toBe(200);
         });
 
-        it('GET /org/projects: SCIM_MANAGE currently allows it (auth succeeds, no scope filter at controller)', async () => {
-            // SCIM_MANAGE only adds 'manage' on OrganizationMemberProfile and
-            // Group in serviceAccountAbility.ts, but `/org/projects` does not
-            // gate on those subjects, so the SA request authenticates and
-            // the controller returns the project list. Captured as current
-            // behavior; any future tightening (e.g. scope-by-subject filter)
-            // will surface here.
+        it('rejects GET /org/projects (SCIM-only tokens are restricted to /scim/* endpoints)', async () => {
             const sa = bearerClient(scimToken);
             const resp = await sa.get(`${apiUrl}/org/projects`);
-            expect(resp.status).toBe(200);
+            expect(resp.status).toBe(401);
         });
     });
 });
