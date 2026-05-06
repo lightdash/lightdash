@@ -131,6 +131,9 @@ export default function mockHealthResponse(
             enabled: false,
             retentionDays: 30,
         },
+        dashboardComments: {
+            enabled: true,
+        },
         preAggregates: {
             enabled: false,
         },

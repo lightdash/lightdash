@@ -894,21 +894,15 @@ describe('feature flag env-var allowlists', () => {
         expect(config.disabledFeatureFlags.has('killed-flag')).toBe(true);
     });
 
-    test('legacy DISABLE_DASHBOARD_COMMENTS=true translates to disabledFeatureFlags', () => {
-        // Backward-compat for self-hosters who set the legacy env var before
-        // the unified LIGHTDASH_DISABLE_FEATURE_FLAGS pattern was introduced.
-        process.env.DISABLE_DASHBOARD_COMMENTS = 'true';
-        const config = parseConfig();
-        expect(
-            config.disabledFeatureFlags.has('dashboard-comments-enabled'),
-        ).toBe(true);
-    });
-
-    test('legacy DISABLE_DASHBOARD_COMMENTS unset leaves the flag out of disabledFeatureFlags', () => {
+    test('dashboardComments.enabled defaults to true when DISABLE_DASHBOARD_COMMENTS is unset', () => {
         delete process.env.DISABLE_DASHBOARD_COMMENTS;
         const config = parseConfig();
-        expect(
-            config.disabledFeatureFlags.has('dashboard-comments-enabled'),
-        ).toBe(false);
+        expect(config.dashboardComments.enabled).toBe(true);
+    });
+
+    test('DISABLE_DASHBOARD_COMMENTS=true disables dashboardComments', () => {
+        process.env.DISABLE_DASHBOARD_COMMENTS = 'true';
+        const config = parseConfig();
+        expect(config.dashboardComments.enabled).toBe(false);
     });
 });

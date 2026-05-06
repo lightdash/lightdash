@@ -506,6 +506,9 @@ export type HealthState = {
         enabled: boolean;
         retentionDays: number;
     };
+    dashboardComments: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
     };

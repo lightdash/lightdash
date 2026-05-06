@@ -7,9 +7,9 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { CommentModel } from '../../models/CommentModel/CommentModel';
 import type { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import type { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import type { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import type { UserModel } from '../../models/UserModel';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -126,10 +126,6 @@ const userModel = {
     })),
 };
 
-const featureFlagModel = {
-    get: jest.fn(async () => ({ enabled: true })),
-};
-
 const spacePermissionService = {
     can: jest.fn(async () => true),
 };
@@ -141,13 +137,13 @@ describe('CommentService', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         service = new CommentService({
+            lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             dashboardModel: dashboardModel as unknown as DashboardModel,
             commentModel: commentModel as unknown as CommentModel,
             notificationsModel:
                 notificationsModel as unknown as NotificationsModel,
             userModel: userModel as unknown as UserModel,
-            featureFlagModel: featureFlagModel as unknown as FeatureFlagModel,
             spacePermissionService:
                 spacePermissionService as unknown as SpacePermissionService,
         });

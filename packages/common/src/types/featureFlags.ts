@@ -16,11 +16,6 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable dashboard comments
-     */
-    DashboardComments = 'dashboard-comments-enabled',
-
-    /**
      * Enable scheduler task that replaces custom metrics after project compile
      */
     ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',

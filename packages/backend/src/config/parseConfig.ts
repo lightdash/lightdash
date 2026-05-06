@@ -1245,6 +1245,9 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    dashboardComments: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
         parquetEnabled: boolean;
@@ -1585,7 +1588,6 @@ const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
     readonly [envVar: string, flagId: string]
 > = [
     // Add per migration; truthy env value disables the flag.
-    ['DISABLE_DASHBOARD_COMMENTS', 'dashboard-comments-enabled'],
 ];
 
 export const parseConfig = (): LightdashConfig => {
@@ -2290,6 +2292,9 @@ export const parseConfig = (): LightdashConfig => {
             enabled:
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
+        },
+        dashboardComments: {
+            enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',

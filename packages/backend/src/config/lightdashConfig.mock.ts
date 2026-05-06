@@ -336,6 +336,9 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         retentionDays: 30,
     },
+    dashboardComments: {
+        enabled: true,
+    },
     preAggregates: {
         enabled: false,
         parquetEnabled: false,

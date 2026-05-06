@@ -313,12 +313,12 @@ export class ServiceRepository
             'commentService',
             () =>
                 new CommentService({
+                    lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
                     dashboardModel: this.models.getDashboardModel(),
                     commentModel: this.models.getCommentModel(),
                     notificationsModel: this.models.getNotificationsModel(),
                     userModel: this.models.getUserModel(),
-                    featureFlagModel: this.models.getFeatureFlagModel(),
                     spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
