@@ -1,17 +1,56 @@
-import { Button, Group, Stack, Title } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Button,
+    Divider,
+    Group,
+    Paper,
+    SegmentedControl,
+    Stack,
+    Text,
+    TextInput,
+    Title,
+    Tooltip,
+    useMantineTheme,
+} from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconUsersGroup } from '@tabler/icons-react';
-import { useState } from 'react';
+import { IconSearch, IconUsersGroup, IconX } from '@tabler/icons-react';
+import { useCallback, useMemo, useState } from 'react';
 import { EmptyState } from '../../../components/common/EmptyState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ServiceAccountsCreateModal } from './ServiceAccountsCreateModal';
 import { ServiceAccountsTable } from './ServiceAccountsTable';
+import classes from './ServiceAccountsToolbar.module.css';
+import { isServiceAccountStale } from './staleness';
 import { useServiceAccounts } from './useServiceAccounts';
 
+type StatusFilter = 'all' | 'active' | 'stale';
+
+const STATUS_FILTER_OPTIONS: {
+    value: StatusFilter;
+    label: string;
+    tooltip: string;
+}[] = [
+    { value: 'all', label: 'All', tooltip: 'Show all service accounts' },
+    {
+        value: 'active',
+        label: 'Active',
+        tooltip: 'Show accounts used in the last 30 days',
+    },
+    {
+        value: 'stale',
+        label: 'Stale',
+        tooltip: 'Show accounts not used in the last 30 days',
+    },
+];
+
 export function ServiceAccountsPage() {
+    const theme = useMantineTheme();
     const [opened, { open, close }] = useDisclosure(false);
     const { listAccounts, createAccount, deleteAccount } = useServiceAccounts();
     const [token, setToken] = useState<string>();
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+    const [search, setSearch] = useState('');
 
     const handleCloseModal = () => {
         setToken(undefined);
@@ -23,23 +62,140 @@ export function ServiceAccountsPage() {
         setToken(data.token);
     };
 
-    const hasAccounts = listAccounts?.data?.length ?? 0 > 0;
+    const handleStatusFilterChange = useCallback((value: string) => {
+        setStatusFilter(value as StatusFilter);
+    }, []);
+
+    const accountsData = listAccounts?.data;
+    const hasAccounts = (accountsData?.length ?? 0) > 0;
+
+    const filteredAccounts = useMemo(() => {
+        const all = accountsData ?? [];
+        const trimmedSearch = search.trim().toLowerCase();
+        return all.filter((account) => {
+            const matchesSearch =
+                !trimmedSearch ||
+                account.description.toLowerCase().includes(trimmedSearch);
+            const matchesStatus =
+                statusFilter === 'all' ||
+                (statusFilter === 'stale'
+                    ? isServiceAccountStale(account)
+                    : !isServiceAccountStale(account));
+            return matchesSearch && matchesStatus;
+        });
+    }, [accountsData, search, statusFilter]);
 
     return (
         <Stack mb="lg">
             {hasAccounts ? (
                 <>
-                    <Group position="apart">
-                        <Title size="h5">Service accounts</Title>
+                    <Group justify="space-between">
+                        <Title order={5}>Service accounts</Title>
                         <Button onClick={open} size="xs">
                             Add service account
                         </Button>
                     </Group>
-                    <ServiceAccountsTable
-                        accounts={listAccounts?.data ?? []}
-                        onDelete={deleteAccount.mutate}
-                        isDeleting={deleteAccount.isLoading}
-                    />
+                    <Paper
+                        withBorder
+                        style={{
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                        }}
+                    >
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            p={`${theme.spacing.sm} ${theme.spacing.md}`}
+                            className={classes.toolbar}
+                        >
+                            <Group gap="xs" wrap="nowrap">
+                                <Tooltip
+                                    withinPortal
+                                    label="Search by description"
+                                >
+                                    <TextInput
+                                        size="xs"
+                                        radius="md"
+                                        type="search"
+                                        variant="default"
+                                        placeholder="Search service accounts..."
+                                        value={search}
+                                        classNames={{
+                                            input: search
+                                                ? classes.searchInputWithValue
+                                                : classes.searchInput,
+                                        }}
+                                        leftSection={
+                                            <MantineIcon
+                                                size="md"
+                                                color="ldGray.6"
+                                                icon={IconSearch}
+                                            />
+                                        }
+                                        onChange={(e) =>
+                                            setSearch(e.target.value)
+                                        }
+                                        rightSection={
+                                            search ? (
+                                                <ActionIcon
+                                                    onClick={() =>
+                                                        setSearch('')
+                                                    }
+                                                    variant="transparent"
+                                                    size="xs"
+                                                    color="ldGray.5"
+                                                >
+                                                    <MantineIcon icon={IconX} />
+                                                </ActionIcon>
+                                            ) : null
+                                        }
+                                    />
+                                </Tooltip>
+
+                                <Divider
+                                    orientation="vertical"
+                                    w={1}
+                                    h={20}
+                                    style={{ alignSelf: 'center' }}
+                                />
+
+                                <SegmentedControl
+                                    size="xs"
+                                    radius="md"
+                                    value={statusFilter}
+                                    onChange={handleStatusFilterChange}
+                                    classNames={{
+                                        root: classes.segmentedControl,
+                                        indicator: classes.segmentedIndicator,
+                                        label: classes.segmentedLabel,
+                                    }}
+                                    data={STATUS_FILTER_OPTIONS.map(
+                                        (option) => ({
+                                            value: option.value,
+                                            label: (
+                                                <Tooltip
+                                                    label={option.tooltip}
+                                                    withinPortal
+                                                >
+                                                    <Box>
+                                                        <Text fz="xs" fw={500}>
+                                                            {option.label}
+                                                        </Text>
+                                                    </Box>
+                                                </Tooltip>
+                                            ),
+                                        }),
+                                    )}
+                                />
+                            </Group>
+                        </Group>
+                        <ServiceAccountsTable
+                            accounts={filteredAccounts}
+                            onDelete={deleteAccount.mutate}
+                            isDeleting={deleteAccount.isLoading}
+                        />
+                    </Paper>
                 </>
             ) : (
                 <EmptyState

@@ -8,7 +8,6 @@ import {
     Button,
     Group,
     HoverCard,
-    Paper,
     Stack,
     Table,
     Text,
@@ -20,14 +19,7 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
-
-const STALE_THRESHOLD_DAYS = 30;
-const STALE_THRESHOLD_MS = STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
-
-const isStale = (serviceAccount: ServiceAccount): boolean => {
-    const reference = serviceAccount.lastUsedAt ?? serviceAccount.createdAt;
-    return Date.now() - new Date(reference).getTime() > STALE_THRESHOLD_MS;
-};
+import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
 
 const TableRow: FC<{
     onClickDelete: (serviceAccount: ServiceAccount) => void;
@@ -35,7 +27,7 @@ const TableRow: FC<{
 }> = ({ onClickDelete, serviceAccount }) => {
     const { description, scopes, lastUsedAt, rotatedAt, expiresAt } =
         serviceAccount;
-    const stale = isStale(serviceAccount);
+    const stale = isServiceAccountStale(serviceAccount);
 
     const scopeBadges = scopes.map((scope) => (
         <Badge
@@ -177,28 +169,26 @@ export const ServiceAccountsTable: FC<TableProps> = ({
 
     return (
         <>
-            <Paper withBorder sx={{ overflow: 'hidden' }}>
-                <Table className={cx(classes.root, classes.alignLastTdRight)}>
-                    <thead>
-                        <tr>
-                            <th>Description</th>
-                            <th>Scopes</th>
-                            <th>Expires at</th>
-                            <th>Last used at</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {accounts.map((serviceAccount) => (
-                            <TableRow
-                                key={serviceAccount.uuid}
-                                serviceAccount={serviceAccount}
-                                onClickDelete={handleOpenModal}
-                            />
-                        ))}
-                    </tbody>
-                </Table>
-            </Paper>
+            <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                <thead>
+                    <tr>
+                        <th>Description</th>
+                        <th>Scopes</th>
+                        <th>Expires at</th>
+                        <th>Last used at</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {accounts.map((serviceAccount) => (
+                        <TableRow
+                            key={serviceAccount.uuid}
+                            serviceAccount={serviceAccount}
+                            onClickDelete={handleOpenModal}
+                        />
+                    ))}
+                </tbody>
+            </Table>
 
             <ServiceAccountsDeleteModal
                 isOpen={opened}
