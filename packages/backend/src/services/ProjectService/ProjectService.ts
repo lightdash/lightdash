@@ -3105,6 +3105,15 @@ export class ProjectService extends BaseService {
         return { explore, dateZoomApplied: false };
     }
 
+    private static getSnowflakeDisableConvertTimezoneWrap(
+        credentials: CreateWarehouseCredentials,
+    ): boolean {
+        return (
+            credentials.type === WarehouseTypes.SNOWFLAKE &&
+            credentials.disableTimestampConversion === true
+        );
+    }
+
     static async _compileQuery({
         metricQuery,
         explore,
@@ -3120,7 +3129,7 @@ export class ProjectService extends BaseService {
         continueOnError,
         useTimezoneAwareDateTrunc,
         dataTimezone,
-        whSkipUtcNormalization,
+        snowflakeDisableConvertTimezoneWrap,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -3136,7 +3145,7 @@ export class ProjectService extends BaseService {
         continueOnError?: boolean;
         useTimezoneAwareDateTrunc?: boolean;
         dataTimezone?: string;
-        whSkipUtcNormalization?: boolean;
+        snowflakeDisableConvertTimezoneWrap?: boolean;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -3171,7 +3180,7 @@ export class ProjectService extends BaseService {
             originalExplore: dateZoom ? explore : undefined,
             useTimezoneAwareDateTrunc,
             dataTimezone,
-            whSkipUtcNormalization,
+            snowflakeDisableConvertTimezoneWrap,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -3311,9 +3320,10 @@ export class ProjectService extends BaseService {
             continueOnError: true, // Return SQL even with compilation errors for debugging
             useTimezoneAwareDateTrunc,
             dataTimezone: warehouseCredentials.dataTimezone,
-            whSkipUtcNormalization:
-                warehouseCredentials.type === WarehouseTypes.SNOWFLAKE &&
-                warehouseCredentials.disableTimestampConversion,
+            snowflakeDisableConvertTimezoneWrap:
+                ProjectService.getSnowflakeDisableConvertTimezoneWrap(
+                    warehouseCredentials,
+                ),
         });
 
         // Generate pivot query if pivot configuration is provided
@@ -4308,11 +4318,10 @@ export class ProjectService extends BaseService {
                         pivotDimensions: metricQueryWithLimit.pivotDimensions,
                         useTimezoneAwareDateTrunc,
                         dataTimezone: warehouseClient.credentials.dataTimezone,
-                        whSkipUtcNormalization:
-                            warehouseClient.credentials.type ===
-                                WarehouseTypes.SNOWFLAKE &&
-                            warehouseClient.credentials
-                                .disableTimestampConversion,
+                        snowflakeDisableConvertTimezoneWrap:
+                            ProjectService.getSnowflakeDisableConvertTimezoneWrap(
+                                warehouseClient.credentials,
+                            ),
                     });
 
                     const { query } = fullQuery;
@@ -4882,9 +4891,10 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
             dataTimezone: warehouseClient.credentials.dataTimezone,
-            whSkipUtcNormalization:
-                warehouseClient.credentials.type === WarehouseTypes.SNOWFLAKE &&
-                warehouseClient.credentials.disableTimestampConversion,
+            snowflakeDisableConvertTimezoneWrap:
+                ProjectService.getSnowflakeDisableConvertTimezoneWrap(
+                    warehouseClient.credentials,
+                ),
         });
 
         const isUserCacheEnabled =

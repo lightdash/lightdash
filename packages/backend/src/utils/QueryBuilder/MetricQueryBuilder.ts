@@ -137,11 +137,23 @@ export type BuildQueryProps = {
     useTimezoneAwareDateTrunc?: boolean;
     /** Warehouse session timezone — used to skip wrapping when it matches queryTimezone. */
     dataTimezone?: string;
-    /**
-     * Snowflake-only: when true, the compile-time CONVERT_TIMEZONE wrap is
-     * disabled, so values flow through Layer 2 in `dataTimezone` rather than UTC.
-     */
-    whSkipUtcNormalization?: boolean;
+    /** Snowflake-only: skip the compile-time CONVERT_TIMEZONE-to-UTC wrap. */
+    snowflakeDisableConvertTimezoneWrap?: boolean;
+};
+
+/** Timezone of warehouse rows reaching Layer 2. Exported for testing. */
+export const getEffectiveInputTimezone = (
+    adapterType: SupportedDbtAdapter,
+    dataTimezone: string | undefined,
+    snowflakeDisableConvertTimezoneWrap: boolean | undefined,
+): string => {
+    if (
+        adapterType === SupportedDbtAdapter.SNOWFLAKE &&
+        !snowflakeDisableConvertTimezoneWrap
+    ) {
+        return 'UTC';
+    }
+    return dataTimezone ?? 'UTC';
 };
 
 /**
@@ -326,19 +338,13 @@ export class MetricQueryBuilder {
 
     /**
      * Skip timezone conversion when the effective input TZ matches the query TZ.
-     * Snowflake's effective input is UTC when the compile-time CONVERT_TIMEZONE
-     * wrap is active; when whSkipUtcNormalization is set the wrap is skipped
-     * and values flow through in dataTimezone, just like the other warehouses.
      */
     private shouldSkipTimezoneConversion(): boolean {
-        const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
-
-        const effectiveInputTz =
-            adapterType === SupportedDbtAdapter.SNOWFLAKE &&
-            !this.args.whSkipUtcNormalization
-                ? 'UTC'
-                : (this.args.dataTimezone ?? 'UTC');
-
+        const effectiveInputTz = getEffectiveInputTimezone(
+            this.args.warehouseSqlBuilder.getAdapterType(),
+            this.args.dataTimezone,
+            this.args.snowflakeDisableConvertTimezoneWrap,
+        );
         return effectiveInputTz === this.args.timezone;
     }
 

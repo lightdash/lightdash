@@ -20,6 +20,7 @@ import {
 import {
     BuildQueryProps,
     CompiledQuery,
+    getEffectiveInputTimezone,
     getIntervalSyntax,
     MetricQueryBuilder,
 } from './MetricQueryBuilder';
@@ -5183,68 +5184,45 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         );
     });
 
-    describe('shouldSkipTimezoneConversion (via timezoneForDateTrunc)', () => {
-        const snowflakeWarehouseClient = {
-            ...warehouseClientMock,
-            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
-        };
-        const buildBuilder = (
-            overrides: Partial<BuildQueryProps>,
-        ): MetricQueryBuilder =>
-            new MetricQueryBuilder({
-                explore: buildExtractExplore(DimensionType.TIMESTAMP),
-                compiledMetricQuery: baseDowQuery(),
-                warehouseSqlBuilder: snowflakeWarehouseClient,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: 'UTC',
-                parameterDefinitions: {},
-                useTimezoneAwareDateTrunc: true,
-                ...overrides,
-            });
-
-        // `timezoneForDateTrunc` returns undefined when the skip-check passes,
-        // and the project timezone otherwise. Used for DATE_TRUNC localization
-        // in PoP / custom-metric / filter dim resolution paths.
-        const tzForDateTrunc = (b: MetricQueryBuilder): string | undefined =>
-            (b as unknown as { timezoneForDateTrunc: string | undefined })
-                .timezoneForDateTrunc;
-
-        test('Snowflake + Layer 1 active + project tz === UTC → skip', () => {
-            expect(tzForDateTrunc(buildBuilder({ timezone: 'UTC' }))).toBe(
-                undefined,
-            );
-        });
-
-        test('Snowflake + Layer 1 active + project tz !== UTC → no skip', () => {
+    describe('getEffectiveInputTimezone (Snowflake)', () => {
+        test('default: input is UTC (compile-time wrap normalises)', () => {
             expect(
-                tzForDateTrunc(buildBuilder({ timezone: 'America/New_York' })),
-            ).toBe('America/New_York');
-        });
-
-        test('Snowflake + whSkipUtcNormalization + dataTimezone !== project tz → no skip', () => {
-            // Pre-fix this returned undefined (incorrectly skipped) — leaving
-            // non-UTC values to display as if they were UTC.
-            expect(
-                tzForDateTrunc(
-                    buildBuilder({
-                        timezone: 'UTC',
-                        dataTimezone: 'America/New_York',
-                        whSkipUtcNormalization: true,
-                    }),
+                getEffectiveInputTimezone(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    'America/New_York',
+                    undefined,
                 ),
             ).toBe('UTC');
         });
 
-        test('Snowflake + whSkipUtcNormalization + dataTimezone === project tz → skip', () => {
+        test('snowflakeDisableConvertTimezoneWrap: input is dataTimezone', () => {
             expect(
-                tzForDateTrunc(
-                    buildBuilder({
-                        timezone: 'America/New_York',
-                        dataTimezone: 'America/New_York',
-                        whSkipUtcNormalization: true,
-                    }),
+                getEffectiveInputTimezone(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    'America/New_York',
+                    true,
                 ),
-            ).toBe(undefined);
+            ).toBe('America/New_York');
+        });
+
+        test('snowflakeDisableConvertTimezoneWrap + no dataTimezone: falls back to UTC', () => {
+            expect(
+                getEffectiveInputTimezone(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    undefined,
+                    true,
+                ),
+            ).toBe('UTC');
+        });
+
+        test('non-Snowflake: input is dataTimezone (flag ignored)', () => {
+            expect(
+                getEffectiveInputTimezone(
+                    SupportedDbtAdapter.POSTGRES,
+                    'America/New_York',
+                    true,
+                ),
+            ).toBe('America/New_York');
         });
     });
 });
