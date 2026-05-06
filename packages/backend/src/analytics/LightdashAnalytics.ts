@@ -1341,6 +1341,68 @@ export type CommentsEvent = BaseTrack & {
     };
 };
 
+export type ManagedAgentSettingsCreatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+    };
+};
+
+export type ManagedAgentSettingsUpdatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+        changes: Array<
+            'enabled' | 'disabled' | 'schedule' | 'slack_channel' | 'tools'
+        >;
+        previousEnabled: boolean;
+        previousSchedule: string;
+    };
+};
+
+export type ManagedAgentRunNowTriggeredEvent = BaseTrack & {
+    event: 'managed_agent.run_now_triggered';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        schedule: string;
+    };
+};
+
+export type ManagedAgentActionReversedEvent = BaseTrack & {
+    event: 'managed_agent.action_reversed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        actionType: string;
+        targetType: string;
+        sessionId: string;
+        actionAgeMs: number;
+    };
+};
+
+export type ManagedAgentEvent =
+    | ManagedAgentSettingsCreatedEvent
+    | ManagedAgentSettingsUpdatedEvent
+    | ManagedAgentRunNowTriggeredEvent
+    | ManagedAgentActionReversedEvent;
+
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
 ) => {
@@ -1914,6 +1976,7 @@ type TypedEvent =
     | RestoredSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent
+    | ManagedAgentEvent
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent

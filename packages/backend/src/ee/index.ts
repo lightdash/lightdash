@@ -413,6 +413,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             managedAgentService: ({ context, models, clients }) =>
                 new ManagedAgentService({
                     lightdashConfig: context.lightdashConfig,
+                    analytics: context.lightdashAnalytics,
                     managedAgentModel: models.getManagedAgentModel(),
                     analyticsModel: models.getAnalyticsModel(),
                     organizationModel: models.getOrganizationModel(),

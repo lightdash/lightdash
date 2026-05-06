@@ -19,6 +19,7 @@ import {
     type ValidationResponse,
 } from '@lightdash/common';
 import type { KnownBlock } from '@slack/bolt';
+import type { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import type { SlackClient } from '../../../clients/Slack/SlackClient';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { AnalyticsModel } from '../../../models/AnalyticsModel';
@@ -41,6 +42,7 @@ import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
 type ManagedAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
+    analytics: LightdashAnalytics;
     managedAgentModel: ManagedAgentModel;
     analyticsModel: AnalyticsModel;
     organizationModel: OrganizationModel;
@@ -59,6 +61,8 @@ type ManagedAgentServiceDependencies = {
 
 export class ManagedAgentService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly analytics: LightdashAnalytics;
 
     private readonly managedAgentModel: ManagedAgentModel;
 
@@ -91,6 +95,7 @@ export class ManagedAgentService extends BaseService {
     constructor(deps: ManagedAgentServiceDependencies) {
         super();
         this.lightdashConfig = deps.lightdashConfig;
+        this.analytics = deps.analytics;
         this.managedAgentModel = deps.managedAgentModel;
         this.analyticsModel = deps.analyticsModel;
         this.organizationModel = deps.organizationModel;
@@ -299,6 +304,7 @@ export class ManagedAgentService extends BaseService {
         update: UpdateManagedAgentSettings,
     ): Promise<ManagedAgentSettings> {
         await this.assertCanManageProject(user, projectUuid);
+        const previous = await this.managedAgentModel.getSettings(projectUuid);
         const settings = await this.managedAgentModel.upsertSettings(
             projectUuid,
             userUuid,
@@ -350,7 +356,89 @@ export class ManagedAgentService extends BaseService {
             await this.syncProjectAgentConfig(projectUuid);
         }
 
+        await this.trackSettingsChange(
+            projectUuid,
+            userUuid,
+            previous,
+            settings,
+        );
+
         return settings;
+    }
+
+    private async trackSettingsChange(
+        projectUuid: string,
+        userUuid: string,
+        previous: ManagedAgentSettings | null,
+        next: ManagedAgentSettings,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const enabledTools = Object.entries(next.toolSettings)
+            .filter(([, on]) => on)
+            .map(([key]) => key);
+        const disabledTools = Object.entries(next.toolSettings)
+            .filter(([, on]) => !on)
+            .map(([key]) => key);
+
+        if (previous === null) {
+            this.analytics.track({
+                event: 'managed_agent.settings_created',
+                userId: userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    enabled: next.enabled,
+                    schedule: next.schedule,
+                    hasSlackChannel: next.slackChannelId !== null,
+                    enabledTools,
+                    disabledTools,
+                },
+            });
+            return;
+        }
+
+        const changes: Array<
+            'enabled' | 'disabled' | 'schedule' | 'slack_channel' | 'tools'
+        > = [];
+        if (previous.enabled !== next.enabled) {
+            changes.push(next.enabled ? 'enabled' : 'disabled');
+        }
+        if (previous.schedule !== next.schedule) {
+            changes.push('schedule');
+        }
+        if (previous.slackChannelId !== next.slackChannelId) {
+            changes.push('slack_channel');
+        }
+        const toolKeys = new Set([
+            ...Object.keys(previous.toolSettings),
+            ...Object.keys(next.toolSettings),
+        ]);
+        const toolsChanged = [...toolKeys].some(
+            (key) => previous.toolSettings[key] !== next.toolSettings[key],
+        );
+        if (toolsChanged) {
+            changes.push('tools');
+        }
+
+        if (changes.length === 0) return;
+
+        this.analytics.track({
+            event: 'managed_agent.settings_updated',
+            userId: userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                enabled: next.enabled,
+                schedule: next.schedule,
+                hasSlackChannel: next.slackChannelId !== null,
+                enabledTools,
+                disabledTools,
+                changes,
+                previousEnabled: previous.enabled,
+                previousSchedule: previous.schedule,
+            },
+        });
     }
 
     async getEnabledProjects(): Promise<ManagedAgentSettings[]> {
@@ -439,7 +527,27 @@ export class ManagedAgentService extends BaseService {
                 break;
         }
 
-        return this.managedAgentModel.reverseAction(actionUuid, userUuid);
+        const reversed = await this.managedAgentModel.reverseAction(
+            actionUuid,
+            userUuid,
+        );
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        this.analytics.track({
+            event: 'managed_agent.action_reversed',
+            userId: userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                actionType: action.actionType,
+                targetType: action.targetType,
+                sessionId: action.sessionId,
+                actionAgeMs: Date.now() - new Date(action.createdAt).getTime(),
+            },
+        });
+
+        return reversed;
     }
 
     // --- Heartbeat ---
@@ -515,6 +623,21 @@ export class ManagedAgentService extends BaseService {
         projectUuid: string,
     ): Promise<void> {
         await this.assertCanManageProject(user, projectUuid);
+
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        if (settings) {
+            const { organizationUuid } =
+                await this.projectModel.getSummary(projectUuid);
+            this.analytics.track({
+                event: 'managed_agent.run_now_triggered',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    schedule: settings.schedule,
+                },
+            });
+        }
 
         void this.runHeartbeat(projectUuid).catch((error) => {
             this.logger.error(
