@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getItemId,
     getItemLabelWithoutTableName,
     isCustomDimension,
@@ -22,6 +23,7 @@ import {
     findMatchingProperty,
     useGeoJsonProperties,
 } from '../../../hooks/useGeoJsonProperties';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -91,6 +93,9 @@ export const Layout: FC = memo(() => {
     const { visualizationConfig, itemsMap } = useVisualizationContext();
 
     const isMapConfig = isMapVisualizationConfig(visualizationConfig);
+
+    const hexbinFlag = useServerFeatureFlag(FeatureFlags.HexbinMap);
+    const isHexbinEnabled = hexbinFlag.data?.enabled ?? false;
 
     // Get all available fields for selection (dimensions, metrics, and table calculations)
     const availableFields = useMemo(() => {
@@ -255,6 +260,9 @@ export const Layout: FC = memo(() => {
         { value: MapChartType.SCATTER, label: 'Scatter' },
         { value: MapChartType.AREA, label: 'Area' },
         { value: MapChartType.HEATMAP, label: 'Heatmap' },
+        ...(isHexbinEnabled
+            ? [{ value: MapChartType.HEXBIN, label: 'Hexbin' }]
+            : []),
     ];
 
     const locationType = config.locationType || MapChartType.SCATTER;
@@ -277,10 +285,11 @@ export const Layout: FC = memo(() => {
             : undefined
         : undefined;
 
-    // Show Values section for scatter and area maps (not heatmap)
+    // Show Values section for scatter, area, and hexbin maps (not heatmap)
     const showValuesSection =
         locationType === MapChartType.SCATTER ||
-        locationType === MapChartType.AREA;
+        locationType === MapChartType.AREA ||
+        locationType === MapChartType.HEXBIN;
 
     // Helper to check if a field looks like a lat/lon field by its label
     const isLatLonField = (fieldId: string): boolean => {
@@ -325,7 +334,8 @@ export const Layout: FC = memo(() => {
             </Config>
 
             {(locationType === MapChartType.SCATTER ||
-                locationType === MapChartType.HEATMAP) && (
+                locationType === MapChartType.HEATMAP ||
+                locationType === MapChartType.HEXBIN) && (
                 <Config>
                     <Config.Section>
                         <Config.Heading>Coordinates</Config.Heading>

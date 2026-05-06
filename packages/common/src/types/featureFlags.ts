@@ -105,6 +105,13 @@ export enum FeatureFlags {
      * Enable Autopilot project health agent.
      */
     AiAutopilot = 'ai-autopilot',
+
+    /**
+     * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
+     * Gates the option in the Map Type segmented control. Existing charts
+     * already saved with the hexbin layer continue to render either way.
+     */
+    HexbinMap = 'hexbin-map',
 }
 
 export type FeatureFlag = {

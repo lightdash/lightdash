@@ -10,7 +10,9 @@ import { scaleSqrt } from 'd3-scale';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
+    lazy,
     memo,
+    Suspense,
     useCallback,
     useEffect,
     useMemo,
@@ -41,13 +43,17 @@ import useLeafletMapConfig, {
 import { useTileFallback } from '../../hooks/leaflet/useTileFallback';
 import { useContextMenuPermissions } from '../../hooks/useContextMenuPermissions';
 import { createMultiColorScale } from '../../utils/colorUtils';
+import Callout from '../common/Callout';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import { isMapVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 import HeatmapLayer from './HeatmapLayer';
+import { MAX_HEXBIN_POINTS } from './hexbin/hexbinUtils';
 import MapContextMenu from './MapContextMenu';
 import MapLegend from './MapLegend';
+
+const HexbinLayer = lazy(() => import('./hexbin/HexbinLayer'));
 
 // Types for Leaflet internals used in the monkey-patch below
 interface LeafletMapPrototype {
@@ -746,6 +752,16 @@ const SimpleMap: FC<SimpleMapProps> = memo(
         }, [mapConfig]);
 
         const isHeatmap = mapConfig?.locationType === MapChartType.HEATMAP;
+        const isHexbin = mapConfig?.locationType === MapChartType.HEXBIN;
+
+        const [hexbinTruncated, setHexbinTruncated] = useState<{
+            totalPoints: number;
+        } | null>(null);
+
+        // Reset when leaving hex layer
+        useEffect(() => {
+            if (!isHexbin) setHexbinTruncated(null);
+        }, [isHexbin]);
 
         // Memoize choropleth/area mode calculations
         const regionData = useMemo(
@@ -1011,7 +1027,17 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                 eventHandlers={tileLayerEventHandlers}
                             />
                         )}
-                        {isHeatmap ? (
+                        {isHexbin ? (
+                            <Suspense fallback={null}>
+                                <HexbinLayer
+                                    points={scatterData}
+                                    colorScale={mapConfig.colors.scale}
+                                    opacity={mapConfig.hexbinConfig.opacity}
+                                    valueFieldLabel={mapConfig.valueFieldLabel}
+                                    onTruncated={setHexbinTruncated}
+                                />
+                            </Suspense>
+                        ) : isHeatmap ? (
                             <HeatmapLayer
                                 points={heatmapPoints}
                                 options={{
@@ -1052,6 +1078,14 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                             })
                         )}
                     </MapContainer>
+                    {isHexbin && hexbinTruncated && (
+                        <Callout variant="warning" mt="xs">
+                            Showing hex bins for the first{' '}
+                            {MAX_HEXBIN_POINTS.toLocaleString()} points of{' '}
+                            {hexbinTruncated.totalPoints.toLocaleString()}.
+                            Reduce the result set for accurate binning.
+                        </Callout>
+                    )}
                     {mapConfig.showLegend &&
                         (mapConfig.valueRange ||
                             mapConfig.sizeRange ||

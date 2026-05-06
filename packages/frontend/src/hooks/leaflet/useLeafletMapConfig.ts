@@ -76,6 +76,9 @@ export type LeafletMapConfig = {
         blur: number;
         opacity: number;
     };
+    hexbinConfig: {
+        opacity: number;
+    };
     tile: TileConfig;
     tileBackground: MapTileBackground;
     backgroundColor: string | null;
@@ -236,6 +239,7 @@ const useLeafletMapConfig = ({
             maxBubbleSize,
             sizeFieldId,
             heatmapConfig,
+            hexbinConfig,
             tileBackground,
             darkModeTileBackground,
             backgroundColor,
@@ -285,7 +289,8 @@ const useLeafletMapConfig = ({
         const isLatLong =
             !locationType ||
             locationType === MapChartType.SCATTER ||
-            locationType === MapChartType.HEATMAP;
+            locationType === MapChartType.HEATMAP ||
+            locationType === MapChartType.HEXBIN;
 
         let scatterData: ScatterPoint[] | null = null;
         let regionData: RegionData[] | null = null;
@@ -584,6 +589,9 @@ const useLeafletMapConfig = ({
                 radius: heatmapConfig?.radius ?? 25,
                 blur: heatmapConfig?.blur ?? 15,
                 opacity: heatmapConfig?.opacity ?? 0.6,
+            },
+            hexbinConfig: {
+                opacity: hexbinConfig?.opacity ?? 0.7,
             },
             tile: getTileConfig(
                 colorScheme === 'dark'

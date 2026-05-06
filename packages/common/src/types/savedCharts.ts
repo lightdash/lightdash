@@ -225,6 +225,7 @@ export enum MapChartType {
     SCATTER = 'scatter',
     AREA = 'area',
     HEATMAP = 'heatmap',
+    HEXBIN = 'hexbin',
 }
 
 export enum MapTileBackground {
@@ -285,6 +286,11 @@ export type MapChart = {
         /** Blur amount for heat points */
         blur?: number;
         /** Opacity of the heatmap layer */
+        opacity?: number;
+    };
+    /** Configuration for H3 hexagonal binning visualization */
+    hexbinConfig?: {
+        /** Opacity of hex polygons (0.1 to 1) */
         opacity?: number;
     };
     /** Data layer opacity (0.1 to 1) */

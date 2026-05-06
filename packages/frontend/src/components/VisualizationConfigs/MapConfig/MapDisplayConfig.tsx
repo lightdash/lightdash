@@ -181,6 +181,7 @@ export const Display: FC = memo(() => {
         setSizeFieldId,
         setValueFieldId,
         setHeatmapConfig,
+        setHexbinConfig,
         setTileBackground,
         setDarkModeTileBackground,
         setBackgroundColor,
@@ -213,8 +214,9 @@ export const Display: FC = memo(() => {
         : undefined;
     const isValueFieldNumeric = isNumericItem(valueField);
     const isHeatmap = validConfig.locationType === MapChartType.HEATMAP;
-    // Show color range for numeric values OR heatmaps (which use density-based coloring)
-    const showColorRange = isValueFieldNumeric || isHeatmap;
+    const isHexbin = validConfig.locationType === MapChartType.HEXBIN;
+    // Show color range for numeric values OR density-based coloring (heatmap/hexbin)
+    const showColorRange = isValueFieldNumeric || isHeatmap || isHexbin;
     const hasSizeField = !!validConfig.sizeFieldId;
     const colorOverrides = validConfig.colorOverrides ?? {};
 
@@ -532,6 +534,37 @@ export const Display: FC = memo(() => {
                             ]}
                             mb="md"
                         />
+                    </Config.Section>
+                </Config>
+            )}
+
+            {isHexbin && (
+                <Config>
+                    <Config.Section>
+                        <Config.Heading>Hexbin</Config.Heading>
+                        <Text size="xs" mt="sm">
+                            Opacity
+                        </Text>
+                        <Slider
+                            min={0.1}
+                            max={1}
+                            step={0.1}
+                            value={validConfig.hexbinConfig?.opacity ?? 0.7}
+                            onChange={(value) =>
+                                setHexbinConfig({ opacity: value })
+                            }
+                            marks={[
+                                { value: 0.1, label: '0.1' },
+                                { value: 0.5, label: '0.5' },
+                                { value: 1, label: '1' },
+                            ]}
+                            mb="md"
+                        />
+                        <Text size="xs" c="dimmed" mt="xs">
+                            Hex size adjusts automatically with map zoom. Bins
+                            are computed from up to 50,000 points; additional
+                            points are ignored.
+                        </Text>
                     </Config.Section>
                 </Config>
             )}
