@@ -30,6 +30,7 @@ import {
     IconBolt,
     IconBrandSlack,
     IconChartBar,
+    IconChevronRight,
     IconCircleCheck,
     IconClock,
     IconDatabase,
@@ -47,7 +48,7 @@ import {
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
-import { useCallback, useEffect, type FC, useState } from 'react';
+import { useCallback, useEffect, useMemo, type FC, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
@@ -1108,16 +1109,6 @@ const ActionRow: FC<{
             className={`${classes.row} ${selected ? classes.rowSelected : ''}`}
             onClick={() => onSelect(action)}
         >
-            <Table.Td w={90}>
-                <Tooltip
-                    label={formatAbsoluteTimestamp(action.createdAt)}
-                    withinPortal
-                >
-                    <span className={classes.timestamp}>
-                        {formatTimestamp(action.createdAt)}
-                    </span>
-                </Tooltip>
-            </Table.Td>
             <Table.Td w={100}>
                 {config.tooltip ? (
                     <Tooltip label={config.tooltip} withinPortal>
@@ -1160,6 +1151,115 @@ const ActionRow: FC<{
     );
 };
 
+// --- Run grouping ---
+
+const VISIBLE_RUN_COUNT = 3;
+
+type RunGroup = {
+    sessionId: string;
+    startedAt: string;
+    actions: ManagedAgentAction[];
+    counts: Partial<Record<ManagedAgentAction['actionType'], number>>;
+};
+
+const groupActionsBySession = (actions: ManagedAgentAction[]): RunGroup[] => {
+    const groups = new Map<string, RunGroup>();
+    for (const action of actions) {
+        const existing = groups.get(action.sessionId);
+        if (existing) {
+            existing.actions.push(action);
+            existing.counts[action.actionType] =
+                (existing.counts[action.actionType] ?? 0) + 1;
+            if (action.createdAt < existing.startedAt) {
+                existing.startedAt = action.createdAt;
+            }
+        } else {
+            groups.set(action.sessionId, {
+                sessionId: action.sessionId,
+                startedAt: action.createdAt,
+                actions: [action],
+                counts: { [action.actionType]: 1 },
+            });
+        }
+    }
+    return Array.from(groups.values());
+};
+
+const RunHeaderRow: FC<{
+    run: RunGroup;
+    isOpen: boolean;
+    onToggle: () => void;
+}> = ({ run, isOpen, onToggle }) => {
+    const totalCount = run.actions.length;
+    return (
+        <Table.Tr className={classes.runHeaderRow} onClick={onToggle}>
+            <Table.Td colSpan={3}>
+                <Group justify="space-between" gap="xs" wrap="nowrap">
+                    <Group gap="xs" wrap="nowrap">
+                        <IconChevronRight
+                            size={12}
+                            className={
+                                isOpen
+                                    ? classes.runChevronOpen
+                                    : classes.runChevron
+                            }
+                        />
+                        <Text
+                            fz={11}
+                            fw={600}
+                            tt="uppercase"
+                            c="dimmed"
+                            lts={0.4}
+                        >
+                            Run
+                        </Text>
+                        <Text fz="xs" c="dimmed">
+                            ·
+                        </Text>
+                        <Tooltip
+                            label={formatAbsoluteTimestamp(run.startedAt)}
+                            withinPortal
+                        >
+                            <Text fz="xs" c="dimmed">
+                                {formatTimestamp(run.startedAt)}
+                            </Text>
+                        </Tooltip>
+                    </Group>
+                    <Group gap={6} wrap="nowrap">
+                        {Object.entries(run.counts).map(([type, count]) => {
+                            const cfg =
+                                ACTION_CONFIG[
+                                    type as ManagedAgentAction['actionType']
+                                ];
+                            return (
+                                <Tooltip
+                                    key={type}
+                                    label={cfg.label}
+                                    withinPortal
+                                >
+                                    <span className={classes.runCountPill}>
+                                        <Box
+                                            className={classes.dot}
+                                            style={{
+                                                backgroundColor: cfg.dotColor,
+                                            }}
+                                        />
+                                        {count}
+                                    </span>
+                                </Tooltip>
+                            );
+                        })}
+                        <Text fz={11} c="dimmed">
+                            {totalCount}{' '}
+                            {totalCount === 1 ? 'action' : 'actions'}
+                        </Text>
+                    </Group>
+                </Group>
+            </Table.Td>
+        </Table.Tr>
+    );
+};
+
 // --- Page ---
 
 // ts-unused-exports:disable-next-line
@@ -1172,7 +1272,64 @@ export const ManagedAgentActivityPage: FC = () => {
         useManagedAgentSettings();
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
-    const filtered = actions ?? [];
+    const [userOpenState, setUserOpenState] = useState<Map<string, boolean>>(
+        new Map(),
+    );
+    const [defaultOpenSet, setDefaultOpenSet] = useState<Set<string>>(
+        new Set(),
+    );
+    const [showOlderRuns, setShowOlderRuns] = useState(false);
+    const runs = useMemo(() => groupActionsBySession(actions ?? []), [actions]);
+
+    useEffect(() => {
+        setDefaultOpenSet((prev) => {
+            const next = new Set(prev);
+            runs.slice(0, VISIBLE_RUN_COUNT).forEach((r) =>
+                next.add(r.sessionId),
+            );
+            return next;
+        });
+    }, [runs]);
+
+    const isRunOpen = useCallback(
+        (sessionId: string) => {
+            const userValue = userOpenState.get(sessionId);
+            if (userValue !== undefined) return userValue;
+            return defaultOpenSet.has(sessionId);
+        },
+        [userOpenState, defaultOpenSet],
+    );
+
+    const toggleRun = useCallback(
+        (sessionId: string) => {
+            setUserOpenState((prev) => {
+                const next = new Map(prev);
+                next.set(sessionId, !isRunOpen(sessionId));
+                return next;
+            });
+        },
+        [isRunOpen],
+    );
+
+    const handleSelectAction = useCallback(
+        (action: ManagedAgentAction) => {
+            setSettingsOpen(false);
+            setSelected(action);
+            const runIdx = runs.findIndex(
+                (r) => r.sessionId === action.sessionId,
+            );
+            if (runIdx >= VISIBLE_RUN_COUNT) {
+                setShowOlderRuns(true);
+            }
+            setUserOpenState((prev) => {
+                const next = new Map(prev);
+                next.set(action.sessionId, true);
+                return next;
+            });
+        },
+        [runs],
+    );
+
     const runNowMutation = useMutation<undefined, ApiError>({
         mutationFn: () => runHeartbeat(projectUuid!),
         onSuccess: () => {
@@ -1230,7 +1387,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                 }}
                             />
 
-                            {filtered.length === 0 ? (
+                            {runs.length === 0 ? (
                                 <Box className={classes.empty}>
                                     <Text fw={500} fz="sm" mt="xs">
                                         No activity yet
@@ -1245,28 +1402,92 @@ export const ManagedAgentActivityPage: FC = () => {
                                     <Table className={classes.table}>
                                         <Table.Thead>
                                             <Table.Tr>
-                                                <Table.Th />
-                                                <Table.Th>Action</Table.Th>
-                                                <Table.Th>Name</Table.Th>
+                                                <Table.Th w={140}>
+                                                    Action
+                                                </Table.Th>
+                                                <Table.Th w={260}>
+                                                    Name
+                                                </Table.Th>
                                                 <Table.Th>Message</Table.Th>
                                             </Table.Tr>
                                         </Table.Thead>
-                                        <Table.Tbody>
-                                            {filtered.map((action) => (
-                                                <ActionRow
-                                                    key={action.actionUuid}
-                                                    action={action}
-                                                    selected={
-                                                        selected?.actionUuid ===
-                                                        action.actionUuid
-                                                    }
-                                                    onSelect={(action) => {
-                                                        setSettingsOpen(false);
-                                                        setSelected(action);
-                                                    }}
-                                                />
-                                            ))}
-                                        </Table.Tbody>
+                                        {runs.map((run, idx) => {
+                                            const isOlder =
+                                                idx >= VISIBLE_RUN_COUNT;
+                                            if (isOlder && !showOlderRuns)
+                                                return null;
+                                            const open = isRunOpen(
+                                                run.sessionId,
+                                            );
+                                            return (
+                                                <Table.Tbody
+                                                    key={run.sessionId}
+                                                >
+                                                    <RunHeaderRow
+                                                        run={run}
+                                                        isOpen={open}
+                                                        onToggle={() =>
+                                                            toggleRun(
+                                                                run.sessionId,
+                                                            )
+                                                        }
+                                                    />
+                                                    {open &&
+                                                        run.actions.map(
+                                                            (action) => (
+                                                                <ActionRow
+                                                                    key={
+                                                                        action.actionUuid
+                                                                    }
+                                                                    action={
+                                                                        action
+                                                                    }
+                                                                    selected={
+                                                                        selected?.actionUuid ===
+                                                                        action.actionUuid
+                                                                    }
+                                                                    onSelect={
+                                                                        handleSelectAction
+                                                                    }
+                                                                />
+                                                            ),
+                                                        )}
+                                                </Table.Tbody>
+                                            );
+                                        })}
+                                        {!showOlderRuns &&
+                                            runs.length > VISIBLE_RUN_COUNT && (
+                                                <Table.Tbody>
+                                                    <Table.Tr
+                                                        className={
+                                                            classes.showMoreRow
+                                                        }
+                                                    >
+                                                        <Table.Td colSpan={3}>
+                                                            <UnstyledButton
+                                                                className={
+                                                                    classes.showMoreButton
+                                                                }
+                                                                onClick={() =>
+                                                                    setShowOlderRuns(
+                                                                        true,
+                                                                    )
+                                                                }
+                                                            >
+                                                                Show{' '}
+                                                                {runs.length -
+                                                                    VISIBLE_RUN_COUNT}{' '}
+                                                                older{' '}
+                                                                {runs.length -
+                                                                    VISIBLE_RUN_COUNT ===
+                                                                1
+                                                                    ? 'run'
+                                                                    : 'runs'}
+                                                            </UnstyledButton>
+                                                        </Table.Td>
+                                                    </Table.Tr>
+                                                </Table.Tbody>
+                                            )}
                                     </Table>
                                 </Box>
                             )}

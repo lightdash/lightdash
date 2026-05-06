@@ -48,10 +48,7 @@
         light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
     border-radius: var(--mantine-radius-md);
     overflow: hidden;
-    background-color: light-dark(
-        var(--mantine-color-white),
-        var(--mantine-color-dark-7)
-    );
+    background-color: transparent;
     animation: tableIn 400ms var(--ease-out-quart) both;
     animation-delay: 100ms;
 }
@@ -65,6 +62,8 @@
 
 .table {
     border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
 }
 
 .table thead th {
@@ -73,10 +72,7 @@
     text-transform: uppercase;
     letter-spacing: 0.4px;
     color: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
-    background-color: light-dark(
-        var(--mantine-color-gray-0),
-        var(--mantine-color-dark-6)
-    );
+    background-color: transparent;
     padding: 7px 12px;
     border-bottom: 1px solid
         light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
@@ -84,6 +80,10 @@
 
 /* Row — staggered entrance + smooth hover */
 .row {
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
     transition: background-color 120ms var(--ease-out-quart);
     animation: rowIn 300ms var(--ease-out-quart) both;
     cursor: pointer;
@@ -149,13 +149,6 @@
 
 .row:last-child td {
     border-bottom: none;
-}
-
-.timestamp {
-    color: light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-2));
-    white-space: nowrap;
-    font-size: 12px;
-    font-family: var(--mantine-font-family-monospace);
 }
 
 /* Heartbeat status */
@@ -245,11 +238,17 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.rowSelected {
+.rowSelected,
+.rowSelected:hover {
     background-color: light-dark(
-        var(--mantine-color-blue-0),
+        var(--mantine-color-gray-1),
         var(--mantine-color-dark-5)
     );
+}
+
+.rowSelected td:first-child {
+    box-shadow: inset 2px 0 0
+        light-dark(var(--mantine-color-gray-5), var(--mantine-color-gray-6));
 }
 
 /* Resize handle */
@@ -461,6 +460,87 @@
     flex-shrink: 0;
 }
 
+/* Run grouping */
+.runHeaderRow {
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    transition: background-color 120ms var(--ease-out-quart);
+}
+
+.runHeaderRow:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.runHeaderRow td {
+    padding: 8px 12px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+    border-top: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.runChevron {
+    color: var(--mantine-color-dimmed);
+    transition: transform 150ms var(--ease-out-quart);
+    flex-shrink: 0;
+}
+
+.runChevronOpen {
+    color: var(--mantine-color-dimmed);
+    transform: rotate(90deg);
+    transition: transform 150ms var(--ease-out-quart);
+    flex-shrink: 0;
+}
+
+.runCountPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    padding: 1px 6px;
+    border-radius: 6px;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.showMoreRow {
+    background-color: transparent;
+}
+
+.showMoreRow td {
+    padding: 10px 12px;
+    text-align: center;
+    border-top: 1px dashed
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.showMoreButton {
+    display: inline-block;
+    color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4));
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 6px;
+    transition: background-color 120ms var(--ease-out-quart);
+}
+
+.showMoreButton:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-dark-5)
+    );
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .page,
@@ -472,5 +552,10 @@
 
     .statusDotPulse {
         animation: none;
+    }
+
+    .runChevron,
+    .runChevronOpen {
+        transition: none;
     }
 }
