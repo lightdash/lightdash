@@ -11,11 +11,11 @@ import {
     GoogleSheetsTransientError,
     isDimension,
     isField,
-    isShiftableForTzExport,
     ItemsMap,
     Metric,
     MissingConfigError,
     NotFoundError,
+    shouldShiftItemTimezone,
     TableCalculation,
     toIsoWithProjectOffset,
     UnexpectedGoogleSheetsError,
@@ -340,7 +340,7 @@ export class GoogleDriveClient {
             // TIMESTAMP-base DATE intervals carry a real instant; shift them
             // alongside TIMESTAMP fields so non-pivot and pivot exports agree.
             // Calendar DATEs (no TIMESTAMP base) keep wall-clock formatting.
-            const shifted = isShiftableForTzExport(item)
+            const shifted = shouldShiftItemTimezone(item)
                 ? toIsoWithProjectOffset(value, timezone)
                 : undefined;
             formattedValue = shifted ?? formatDate(value, timeInterval);

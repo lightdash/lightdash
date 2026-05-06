@@ -15,6 +15,7 @@ import {
     pivotResultsAsCsv,
     pivotResultsAsData,
     ResultRow,
+    shouldShiftItemTimezone,
     timeIntervalToExcelNumFmt,
     toExcelWallClockDate,
     type ReadyQueryResultsPage,
@@ -43,25 +44,6 @@ export class ExcelService {
         timezone: string | undefined,
     ): timezone is string {
         return !!timezone && timezone !== 'UTC';
-    }
-
-    /**
-     * TIMESTAMP fields and TIMESTAMP-base DATE intervals carry a real
-     * instant — both shift into the project zone. DATE fields whose base is
-     * DATE (or unset) are calendar values and stay put: shifting would
-     * cross day boundaries on non-zero offsets. Mirrors the rule in
-     * `CsvService.convertRowToCsv`.
-     */
-    private static isShiftableDateField(
-        item: ItemsMap[string] | undefined,
-    ): boolean {
-        if (!isField(item)) return false;
-        if (item.type === DimensionType.TIMESTAMP) return true;
-        return (
-            item.type === DimensionType.DATE &&
-            isDimension(item) &&
-            item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
-        );
     }
 
     static convertToExcelDate(
@@ -122,7 +104,7 @@ export class ExcelService {
             ) {
                 if (
                     ExcelService.isTzActive(timezone) &&
-                    ExcelService.isShiftableDateField(item)
+                    shouldShiftItemTimezone(item)
                 ) {
                     return toExcelWallClockDate(rawValue, timezone);
                 }
@@ -239,8 +221,7 @@ export class ExcelService {
                         dateColumnFormats.set(colIndex + offset, {
                             numFmt,
                             shouldShift:
-                                tzActive &&
-                                ExcelService.isShiftableDateField(field),
+                                tzActive && shouldShiftItemTimezone(field),
                         });
                     }
                 }

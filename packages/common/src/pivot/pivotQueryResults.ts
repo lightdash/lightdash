@@ -24,7 +24,7 @@ import { getArrayValue, getObjectValue } from '../utils/accessors';
 import {
     formatItemValue,
     formatTemporalCellForSpreadsheet,
-    isShiftableForTzExport,
+    shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from '../utils/formatting';
 
@@ -1646,7 +1646,7 @@ export const pivotResultsAsData = ({
         }
         const base = (cellValue?.[formatField] as string) ?? '';
         if (!onlyRaw || !timezone) return base;
-        if (!isShiftableForTzExport(item)) return base;
+        if (!shouldShiftItemTimezone(item)) return base;
         const shifted = toIsoWithProjectOffset(cellValue?.raw, timezone);
         return shifted ?? base;
     };

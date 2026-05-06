@@ -25,7 +25,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
-    isShiftableForTzExport,
+    shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from './formatting';
 import {
@@ -875,7 +875,7 @@ describe('Formatting', () => {
             ).toEqual('2026-03-02, 14:30:00:000 (-11:00)');
         });
 
-        test('isShiftableForTzExport respects convertTimezone: false', () => {
+        test('shouldShiftItemTimezone respects convertTimezone: false', () => {
             // The function is part of the public formatting surface used by
             // pivot exports + Google Sheets — opt-out must short-circuit.
             const tsBase: Dimension = {
@@ -886,8 +886,8 @@ describe('Formatting', () => {
                 ...tsBase,
                 convertTimezone: false,
             };
-            expect(isShiftableForTzExport(tsBase)).toBe(true);
-            expect(isShiftableForTzExport(tsBaseOptOut)).toBe(false);
+            expect(shouldShiftItemTimezone(tsBase)).toBe(true);
+            expect(shouldShiftItemTimezone(tsBaseOptOut)).toBe(false);
 
             const dateOverTs: Dimension = {
                 ...dimension,
@@ -898,8 +898,8 @@ describe('Formatting', () => {
                 ...dateOverTs,
                 convertTimezone: false,
             };
-            expect(isShiftableForTzExport(dateOverTs)).toBe(true);
-            expect(isShiftableForTzExport(dateOverTsOptOut)).toBe(false);
+            expect(shouldShiftItemTimezone(dateOverTs)).toBe(true);
+            expect(shouldShiftItemTimezone(dateOverTsOptOut)).toBe(false);
         });
 
         test('formatItemValue should return the right format when field is Metric', () => {

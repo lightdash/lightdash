@@ -225,11 +225,12 @@ export const isDimensionDisplayTimezoneDisabled = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => isDimension(item) && item.convertTimezone === false;
 
-// TIMESTAMP fields and TIMESTAMP-base DATE intervals (DATE_TRUNC round-trip)
-// carry a real instant — both shift into the project tz for export.
-// Calendar DATEs (no time component) stay put. Dimensions opted out via
-// convert_timezone: false also stay put.
-export const isShiftableForTzExport = (item: Item | undefined): boolean => {
+// True when the item carries a real instant that should be shifted into the
+// project timezone before display/export. TIMESTAMP fields and TIMESTAMP-base
+// DATE intervals shift; calendar DATEs and dims with `convert_timezone: false`
+// stay put. Used by spreadsheet exports (CSV, Excel, Sheets) where the cell
+// can't carry a timezone, so the project offset has to be baked in.
+export const shouldShiftItemTimezone = (item: Item | undefined): boolean => {
     if (!isField(item)) return false;
     if (isDimensionDisplayTimezoneDisabled(item)) return false;
     if (item.type === DimensionType.TIMESTAMP) return true;
@@ -259,7 +260,7 @@ export const formatTemporalCellForSpreadsheet = (
     if (rawValue === null || rawValue === undefined || rawValue === '') {
         return undefined;
     }
-    const shouldShift = !!timezone && isShiftableForTzExport(item);
+    const shouldShift = !!timezone && shouldShiftItemTimezone(item);
     const m = shouldShift
         ? moment.utc(rawValue as MomentInput).tz(timezone!)
         : moment(rawValue as MomentInput);
