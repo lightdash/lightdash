@@ -41,7 +41,7 @@ const buildCspHeader = (config: AppRuntimeConfig): string => {
         `default-src 'none'`,
         `script-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `style-src 'self' 'unsafe-inline'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `connect-src 'self' ${lightdashOrigin} https:`,
+        `connect-src 'none'`,
         `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `font-src 'self'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `frame-ancestors ${lightdashOrigin}`,

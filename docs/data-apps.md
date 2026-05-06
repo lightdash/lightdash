@@ -294,7 +294,7 @@ Each preview response includes a strict CSP header:
 
 - `default-src 'none'` — deny everything by default
 - `script-src 'self'` — only execute scripts from the app's own origin
-- `connect-src 'self' {lightdashOrigin} https:` — allow API calls back to Lightdash
+- `connect-src 'none'` — block all `fetch`/`XHR`/`WebSocket` from the iframe; API calls reach Lightdash only through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request)
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 ---
