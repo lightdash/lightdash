@@ -162,21 +162,58 @@ export const getMantine8ThemeOverride = (
                     if (props.variant === 'dark') {
                         return {
                             root: {
-                                '--button-bg': theme.colors.ldDark[9],
-                                '--button-hover': theme.colors.ldDark[8],
-                                '--button-color': theme.colors.ldGray[0],
-                                '--button-bd': `none`,
+                                '--button-color': 'var(--mantine-color-white)',
+                                '--button-bd': 'none',
                             },
                         };
                     }
                     return { root: {} };
                 },
-                styles: (theme) => ({
-                    root: {
+                styles: (theme, props) => {
+                    const base = {
                         fontFamily: theme.fontFamily,
                         fontWeight: 500,
-                    },
-                }),
+                    };
+                    if (props.variant === 'dark') {
+                        return {
+                            root: {
+                                ...base,
+                                color: 'light-dark(var(--mantine-color-ldGray-0), var(--mantine-color-ldDark-9)) !important',
+                                backgroundColor: 'transparent',
+                                backgroundImage:
+                                    'linear-gradient(180deg,light-dark(#201E25, #252527) 0%, light-dark(#323137, #222125) 100%)',
+                                boxShadow: [
+                                    'rgb(63, 62, 62) 0px 0px 0px 1px inset',
+                                    'inset 0 -1px 0 #313036',
+                                    '0 0 0 1px #0D0D0D',
+                                    '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                ].join(', '),
+                                '&:hover': {
+                                    backgroundColor: 'transparent',
+                                    backgroundImage:
+                                        'linear-gradient(180deg, #2A2830 0%, #3C3B41 100%)',
+                                },
+                                '&:active': {
+                                    backgroundColor: 'transparent',
+                                    backgroundImage:
+                                        'linear-gradient(180deg, #1A1820 0%, #2C2B32 100%)',
+                                    boxShadow: [
+                                        'inset 0 1px 2px rgba(0, 0, 0, 0.3)',
+                                        '0 0 0 1px #0D0D0D',
+                                        '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                    ].join(', '),
+                                },
+                                '&:disabled, &[data-disabled]': {
+                                    backgroundColor: '#2A2830',
+                                    backgroundImage: 'none',
+                                    boxShadow: '0 0 0 1px #0D0D0D',
+                                    color: 'rgba(255, 255, 255, 0.4)',
+                                },
+                            },
+                        };
+                    }
+                    return { root: base };
+                },
                 defaultProps: {
                     radius: 'md',
                     variant: 'dark',
