@@ -150,7 +150,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
         if (counts.created_content)
             parts.push(`${counts.created_content} created`);
         if (counts.flagged_stale) parts.push(`${counts.flagged_stale} flagged`);
-        if (counts.soft_deleted) parts.push(`${counts.soft_deleted} cleaned`);
+        if (counts.soft_deleted) parts.push(`${counts.soft_deleted} deleted`);
         return parts.join(', ');
     }, [actions]);
 

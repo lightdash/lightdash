@@ -570,7 +570,7 @@ export class ManagedAgentService extends BaseService {
             if (counts.flagged_broken)
                 summaryParts.push(`*${counts.flagged_broken}* flagged broken`);
             if (counts.soft_deleted)
-                summaryParts.push(`*${counts.soft_deleted}* cleaned up`);
+                summaryParts.push(`*${counts.soft_deleted}* deleted`);
             if (counts.insight)
                 summaryParts.push(
                     `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,

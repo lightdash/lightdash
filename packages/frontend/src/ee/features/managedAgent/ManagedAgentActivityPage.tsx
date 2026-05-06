@@ -229,7 +229,7 @@ const ACTION_CONFIG: Record<
             'Marked as unused. Future Autopilot runs will review flagged items and clean them up.',
     },
     soft_deleted: {
-        label: 'Cleaned up',
+        label: 'Deleted',
         dotColor: 'var(--mantine-color-red-5)',
     },
     flagged_broken: {
@@ -245,7 +245,7 @@ const ACTION_CONFIG: Record<
             'Marked as slow. Future Autopilot runs will review flagged items and try to optimize them.',
     },
     fixed_broken: {
-        label: 'Auto-fixed',
+        label: 'Fixed',
         dotColor: 'var(--mantine-color-teal-5)',
     },
     created_content: {
