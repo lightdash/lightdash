@@ -2,10 +2,13 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    getFixedBrokenMetadata,
+    getManagedAgentActionCategory,
     getManagedAgentScheduleCron,
     ManagedAgentActionType,
     ManagedAgentTargetType,
     NotFoundError,
+    ParameterError,
     ProjectType,
     ServiceAccountScope,
     type ChartConfig,
@@ -517,11 +520,14 @@ export class ManagedAgentService extends BaseService {
                     );
                 }
                 break;
+            case ManagedAgentActionType.FIXED_BROKEN:
+                await this.restorePreviousChartVersion(action);
+                break;
             case ManagedAgentActionType.FLAGGED_STALE:
             case ManagedAgentActionType.FLAGGED_BROKEN:
+            case ManagedAgentActionType.FLAGGED_SLOW:
             case ManagedAgentActionType.INSIGHT:
-            case ManagedAgentActionType.FIXED_BROKEN:
-                // These are log-only entries — marking as reversed dismisses them
+                // Log-only entries — marking as reversed dismisses them
                 break;
             default:
                 break;
@@ -541,6 +547,9 @@ export class ManagedAgentService extends BaseService {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 actionType: action.actionType,
+                actionCategory: getManagedAgentActionCategory(
+                    action.actionType,
+                ),
                 targetType: action.targetType,
                 sessionId: action.sessionId,
                 actionAgeMs: Date.now() - new Date(action.createdAt).getTime(),
@@ -548,6 +557,29 @@ export class ManagedAgentService extends BaseService {
         });
 
         return reversed;
+    }
+
+    private async restorePreviousChartVersion(
+        action: ManagedAgentAction,
+    ): Promise<void> {
+        if (action.targetType !== ManagedAgentTargetType.CHART) {
+            return;
+        }
+        const metadata = getFixedBrokenMetadata(action.metadata);
+        if (!metadata) {
+            throw new ParameterError(
+                'This fix was recorded before revert support — restore manually via the chart version history.',
+            );
+        }
+        const previousChart = await this.savedChartModel.get(
+            action.targetUuid,
+            metadata.previousVersionUuid,
+        );
+        await this.savedChartModel.createVersion(
+            action.targetUuid,
+            previousChart,
+            undefined, // user — version creation doesn't require one
+        );
     }
 
     // --- Heartbeat ---
@@ -1052,6 +1084,15 @@ chartConfig:
             chartUuid,
         );
 
+        const previousVersion =
+            await this.savedChartModel.getLatestVersionSummary(chartUuid);
+        if (!previousVersion) {
+            throw new Error(
+                `Cannot fix chart ${chartUuid}: no existing version found`,
+            );
+        }
+        const previousVersionUuid = previousVersion.versionUuid;
+
         // Create a new version with the fixed config
         await this.savedChartModel.createVersion(
             chartUuid,
@@ -1080,7 +1121,7 @@ chartConfig:
             targetUuid: chartUuid,
             targetName: chartName,
             description,
-            metadata: {},
+            metadata: { previousVersionUuid },
         });
 
         return JSON.stringify({

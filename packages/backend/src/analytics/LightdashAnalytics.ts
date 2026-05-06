@@ -1391,6 +1391,7 @@ export type ManagedAgentActionReversedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         actionType: string;
+        actionCategory: 'undo' | 'dismiss';
         targetType: string;
         sessionId: string;
         actionAgeMs: number;
