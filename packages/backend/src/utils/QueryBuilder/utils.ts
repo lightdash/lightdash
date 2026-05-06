@@ -68,7 +68,14 @@ export const getDimensionFromId = ({
                 startOfWeek,
                 timezone,
             });
-            if (baseField && newTimeFrame)
+            if (baseField && newTimeFrame) {
+                // When the base dim has convertTimezone: false, drop the
+                // project timezone so the synthesized child renders in the
+                // raw warehouse value. All current callers that pass
+                // `timezone` are display sites; filter rendering uses
+                // getTimezoneAwareDimensionSql which has its own opt-out.
+                const effectiveTimezone =
+                    baseField.convertTimezone === false ? undefined : timezone;
                 return {
                     ...baseField,
                     compiledSql: getSqlForTruncatedDate(
@@ -77,10 +84,11 @@ export const getDimensionFromId = ({
                         baseField.compiledSql,
                         baseField.type,
                         startOfWeek,
-                        timezone,
+                        effectiveTimezone,
                     ),
                     timeInterval: newTimeFrame,
                 };
+            }
         }
 
         // At this point, we couldn't find the dimension with the given id

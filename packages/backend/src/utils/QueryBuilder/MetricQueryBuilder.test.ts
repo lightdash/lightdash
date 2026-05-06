@@ -5182,4 +5182,31 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
             `DATE_PART('WEEK', (("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York' - interval '2 days'))`,
         );
     });
+
+    test('convert_timezone: false on base dim — SELECT skips the wrap, WHERE keeps it', () => {
+        const explore = buildExtractExplore(DimensionType.TIMESTAMP);
+        // Mark the base dim opted out of display conversion.
+        explore.tables.events.dimensions.occurred_at.convertTimezone = false;
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: baseDowQuery([1]),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+
+        const wrapped = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
+        const bare = `DATE_PART('DOW', "events".occurred_at)`;
+
+        // Asymmetry: SELECT renders the bare expression, WHERE keeps the
+        // project-tz wrap so the filter still bounds by project-tz days.
+        const selectClause = query.slice(0, query.indexOf('WHERE'));
+        const whereClause = query.slice(query.indexOf('WHERE'));
+
+        expect(selectClause).toContain(bare);
+        expect(selectClause).not.toContain(wrapped);
+        expect(whereClause).toContain(wrapped);
+    });
 });

@@ -583,11 +583,19 @@ export class MetricQueryBuilder {
         );
     }
 
-    /** Rewrites `compiledSql` with the project-TZ wrap for truncatable and extractable intervals. */
+    /**
+     * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
+     * extractable intervals. When `respectConvertTimezone` is true (default)
+     * and the base dim has `convertTimezone: false`, the wrap is skipped so
+     * the dim renders in its raw warehouse value. Filter rendering passes
+     * `false` so filter SQL keeps converting even when the dim is opted
+     * out of display conversion.
+     */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
+        respectConvertTimezone: boolean = true,
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
@@ -614,6 +622,10 @@ export class MetricQueryBuilder {
             !baseDimension?.compiledSql ||
             baseDimension.type !== DimensionType.TIMESTAMP
         ) {
+            return dimension.compiledSql;
+        }
+
+        if (respectConvertTimezone && baseDimension.convertTimezone === false) {
             return dimension.compiledSql;
         }
 
@@ -1427,7 +1439,11 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
-        // Override filter dimension SQL to match the timezone-aware SELECT clause
+        // Override filter dimension SQL to match the timezone-aware SELECT
+        // clause. Filters always convert into the project timezone, even
+        // when the dim is opted out of display conversion via
+        // convert_timezone: false — pass respectConvertTimezone: false so
+        // the filter SQL keeps the project-tz wrap.
         const filterField = isDimension(field)
             ? {
                   ...field,
@@ -1435,6 +1451,7 @@ export class MetricQueryBuilder {
                       field,
                       adapterType,
                       startOfWeek,
+                      false,
                   ),
               }
             : field;
