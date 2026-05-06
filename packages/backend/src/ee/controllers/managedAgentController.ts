@@ -3,6 +3,7 @@ import {
     assertRegisteredAccount,
     ManagedAgentAction,
     ManagedAgentActionType,
+    ManagedAgentRun,
     ManagedAgentSettings,
     UpdateManagedAgentSettings,
 } from '@lightdash/common';
@@ -88,6 +89,22 @@ export class ManagedAgentController extends BaseController {
         );
         this.setStatus(202);
         return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/runs/latest')
+    @OperationId('getLatestManagedAgentRun')
+    async getLatestRun(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<{ status: 'ok'; results: ManagedAgentRun | null }> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getManagedAgentService().getLatestRun(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

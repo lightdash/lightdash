@@ -4,6 +4,7 @@ import {
     type ContentVerificationInfo,
     type Dashboard,
     getManagedAgentActionCategory,
+    ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
     type Project,
     type SavedChart,
@@ -50,7 +51,14 @@ import {
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
-import { useCallback, useEffect, useMemo, type FC, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
@@ -68,6 +76,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
+import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import type { ManagedAgentAction } from './types';
@@ -100,6 +109,24 @@ const runHeartbeat = async (projectUuid: string) =>
         method: 'POST',
         body: undefined,
     });
+
+const SUMMARY_SUBTITLE_MAX = 120;
+
+const summaryToSubtitle = (
+    summary: string | null | undefined,
+): string | null => {
+    if (!summary) return null;
+    const firstLine = summary
+        .split('\n')
+        .map((l) => l.trim())
+        .find(
+            (l) => l.length > 0 && !l.startsWith('#') && !l.startsWith('---'),
+        );
+    if (!firstLine) return null;
+    return firstLine.length <= SUMMARY_SUBTITLE_MAX
+        ? firstLine
+        : `${firstLine.slice(0, SUMMARY_SUBTITLE_MAX - 1)}…`;
+};
 
 const SCHEDULE_OPTIONS = [
     { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
@@ -143,6 +170,7 @@ const SetupSection: FC<{
     onOpenSettings: () => void;
     onRunNow: () => void;
     isRunNowLoading: boolean;
+    isRunning: boolean;
 }> = ({
     enabled,
     schedule: initialSchedule,
@@ -150,6 +178,7 @@ const SetupSection: FC<{
     onOpenSettings,
     onRunNow,
     isRunNowLoading,
+    isRunning,
 }) => {
     const scheduleLabel =
         SCHEDULE_OPTIONS.find((o) => o.value === initialSchedule)?.label ??
@@ -189,9 +218,11 @@ const SetupSection: FC<{
                 <Group gap="xs">
                     <Tooltip
                         label={
-                            enabled
-                                ? 'Run Autopilot now'
-                                : 'Enable Autopilot to run now'
+                            isRunning
+                                ? 'Autopilot is running…'
+                                : enabled
+                                  ? 'Run Autopilot now'
+                                  : 'Enable Autopilot to run now'
                         }
                     >
                         <ActionIcon
@@ -201,8 +232,8 @@ const SetupSection: FC<{
                             size="md"
                             radius="md"
                             onClick={onRunNow}
-                            disabled={!enabled || isRunNowLoading}
-                            loading={isRunNowLoading}
+                            disabled={!enabled || isRunNowLoading || isRunning}
+                            loading={isRunNowLoading || isRunning}
                         >
                             <MantineIcon icon={IconPlayerPlay} size="sm" />
                         </ActionIcon>
@@ -1327,12 +1358,59 @@ export const ManagedAgentActivityPage: FC = () => {
                 projectUuid,
             }),
         ) ?? false;
-    const { showToastSuccess, showToastApiError } = useToaster();
-    const { data: actions, isLoading } = useManagedAgentActions({
-        enabled: canManageAutopilot,
-    });
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
     const { data: settings, isLoading: settingsLoading } =
         useManagedAgentSettings({ enabled: canManageAutopilot });
+    const { data: latestRun } = useManagedAgentLatestRun({
+        enabled: canManageAutopilot,
+    });
+    const isRunning = latestRun?.status === ManagedAgentRunStatus.STARTED;
+    const { data: actions, isLoading } = useManagedAgentActions({
+        enabled: canManageAutopilot,
+        fastPoll: isRunning,
+    });
+    const previousRunStatus = useRef(latestRun?.status);
+    useEffect(() => {
+        const prev = previousRunStatus.current;
+        const curr = latestRun?.status;
+        if (
+            prev === ManagedAgentRunStatus.STARTED &&
+            curr &&
+            curr !== ManagedAgentRunStatus.STARTED
+        ) {
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-actions', projectUuid],
+            });
+            if (curr === ManagedAgentRunStatus.COMPLETED) {
+                const count = latestRun?.actionCount ?? 0;
+                const summarySnippet = summaryToSubtitle(latestRun?.summary);
+                const countFallback =
+                    count === 0
+                        ? 'No actions needed'
+                        : `${count} action${count === 1 ? '' : 's'} taken`;
+                showToastSuccess({
+                    title: 'Autopilot finished',
+                    subtitle: summarySnippet ?? countFallback,
+                });
+            } else if (curr === ManagedAgentRunStatus.ERROR) {
+                showToastError({
+                    title: 'Autopilot run failed',
+                    subtitle: latestRun?.error ?? 'Unknown error',
+                });
+            }
+        }
+        previousRunStatus.current = curr;
+    }, [
+        latestRun?.status,
+        latestRun?.actionCount,
+        latestRun?.error,
+        latestRun?.summary,
+        projectUuid,
+        queryClient,
+        showToastSuccess,
+        showToastError,
+    ]);
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [userOpenState, setUserOpenState] = useState<Map<string, boolean>>(
@@ -1404,6 +1482,9 @@ export const ManagedAgentActivityPage: FC = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-actions', projectUuid],
             });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-latest-run', projectUuid],
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
@@ -1447,6 +1528,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                 }
                                 settingsOpen={settingsOpen}
                                 isRunNowLoading={runNowMutation.isLoading}
+                                isRunning={isRunning}
                                 onRunNow={() => runNowMutation.mutate()}
                                 onOpenSettings={() => {
                                     setSelected(null);

@@ -6,6 +6,7 @@ import {
     getManagedAgentActionCategory,
     getManagedAgentScheduleCron,
     ManagedAgentActionType,
+    ManagedAgentRunStatus,
     ManagedAgentTargetType,
     NotFoundError,
     ParameterError,
@@ -14,6 +15,8 @@ import {
     type ChartConfig,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentRun,
+    type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type MetricQuery,
     type SavedChart,
@@ -460,6 +463,26 @@ export class ManagedAgentService extends BaseService {
         return this.managedAgentModel.getEnabledProjects();
     }
 
+    // Worker-only entry point: creates the run row at the start of a
+    // heartbeat. No permission check because the only caller is the scheduler
+    // worker (system context, no SessionUser). User-facing triggers go
+    // through `startHeartbeat` which performs `assertCanManageProject`
+    // before enqueueing the worker job.
+    async startRun(
+        projectUuid: string,
+        triggeredBy: ManagedAgentRunTriggeredBy,
+    ): Promise<ManagedAgentRun> {
+        return this.managedAgentModel.createRun({ projectUuid, triggeredBy });
+    }
+
+    async getLatestRun(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ManagedAgentRun | null> {
+        await this.assertCanViewProject(user, projectUuid);
+        return this.managedAgentModel.getLatestRun(projectUuid);
+    }
+
     async isAiAutopilotEnabledForProject(
         settings: ManagedAgentSettings,
     ): Promise<boolean> {
@@ -596,9 +619,10 @@ export class ManagedAgentService extends BaseService {
 
     // --- Heartbeat ---
 
-    async runHeartbeat(projectUuid: string): Promise<void> {
+    async runHeartbeat(projectUuid: string, runUuid: string): Promise<void> {
         const settings = await this.managedAgentModel.getSettings(projectUuid);
         if (!settings?.enabled) {
+            await this.failRunSafely(runUuid, 'Autopilot disabled');
             return;
         }
 
@@ -609,6 +633,7 @@ export class ManagedAgentService extends BaseService {
             this.logger.warn(
                 `No service account token for project ${projectUuid}, skipping heartbeat`,
             );
+            await this.failRunSafely(runUuid, 'No service account token');
             return;
         }
 
@@ -620,15 +645,31 @@ export class ManagedAgentService extends BaseService {
         );
         let sessionId = '';
         let agentSummary = '';
+        let runError: string | null = null;
 
         const onToolCall = async (
             toolName: string,
             input: Record<string, unknown>,
         ): Promise<string> =>
-            this.handleToolCall(projectUuid, sessionId, toolName, input);
+            this.handleToolCall(
+                projectUuid,
+                sessionId,
+                runUuid,
+                toolName,
+                input,
+            );
 
         const onSessionCreated = (id: string) => {
             sessionId = id;
+            void this.managedAgentModel
+                .setRunSessionId(runUuid, id)
+                .catch((e) =>
+                    this.logger.error(
+                        `Failed to set session_id on run ${runUuid}: ${
+                            e instanceof Error ? e.message : 'Unknown'
+                        }`,
+                    ),
+                );
         };
 
         try {
@@ -645,7 +686,28 @@ export class ManagedAgentService extends BaseService {
             this.logger.error(
                 `Heartbeat session error for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
             );
+            runError = error instanceof Error ? error.message : 'Unknown';
         } finally {
+            const actionCount = await this.managedAgentModel
+                .countActionsForRun(runUuid)
+                .catch(() => 0);
+            await this.managedAgentModel
+                .finishRun(runUuid, {
+                    status: runError
+                        ? ManagedAgentRunStatus.ERROR
+                        : ManagedAgentRunStatus.COMPLETED,
+                    actionCount,
+                    summary: agentSummary || null,
+                    error: runError,
+                })
+                .catch((e) =>
+                    this.logger.error(
+                        `Failed to finish run ${runUuid}: ${
+                            e instanceof Error ? e.message : 'Unknown'
+                        }`,
+                    ),
+                );
+
             // Post summary to Slack even if the session errored — actions
             // recorded via custom tools before the crash are still valuable.
             this.logger.info(
@@ -660,6 +722,23 @@ export class ManagedAgentService extends BaseService {
                 );
             }
         }
+    }
+
+    private async failRunSafely(runUuid: string, error: string): Promise<void> {
+        await this.managedAgentModel
+            .finishRun(runUuid, {
+                status: ManagedAgentRunStatus.ERROR,
+                actionCount: 0,
+                summary: null,
+                error,
+            })
+            .catch((e) =>
+                this.logger.error(
+                    `Failed to fail run ${runUuid}: ${
+                        e instanceof Error ? e.message : 'Unknown'
+                    }`,
+                ),
+            );
     }
 
     async startHeartbeat(
@@ -822,6 +901,7 @@ export class ManagedAgentService extends BaseService {
     private async handleToolCall(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         toolName: string,
         input: Record<string, unknown>,
     ): Promise<string> {
@@ -842,19 +922,44 @@ export class ManagedAgentService extends BaseService {
             case 'get_popular_content':
                 return this.handleGetPopularContent(projectUuid);
             case 'flag_content':
-                return this.handleFlagContent(projectUuid, sessionId, input);
+                return this.handleFlagContent(
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'soft_delete_content':
-                return this.handleSoftDelete(projectUuid, sessionId, input);
+                return this.handleSoftDelete(
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'log_insight':
-                return this.handleLogInsight(projectUuid, sessionId, input);
+                return this.handleLogInsight(
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'get_chart_details':
                 return this.handleGetChartDetails(projectUuid, input);
             case 'get_chart_schema':
                 return this.handleGetChartSchema();
             case 'fix_broken_chart':
-                return this.handleFixBrokenChart(projectUuid, sessionId, input);
+                return this.handleFixBrokenChart(
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'create_content_from_code':
-                return this.handleCreateContent(projectUuid, sessionId, input);
+                return this.handleCreateContent(
+                    projectUuid,
+                    sessionId,
+                    runUuid,
+                    input,
+                );
             case 'get_user_questions':
                 return this.handleGetUserQuestions(projectUuid, input);
             case 'get_slow_queries':
@@ -1114,6 +1219,7 @@ chartConfig:
     private async handleFixBrokenChart(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const chartUuid = input.chart_uuid as string;
@@ -1172,6 +1278,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.FIXED_BROKEN,
             targetType: ManagedAgentTargetType.CHART,
             targetUuid: chartUuid,
@@ -1223,6 +1330,7 @@ chartConfig:
     private async handleCreateContent(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const chartAsCode = input.chart_as_code as Record<string, unknown>;
@@ -1349,6 +1457,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.CREATED_CONTENT,
             targetType: ManagedAgentTargetType.CHART,
             targetUuid: chart.uuid,
@@ -1373,6 +1482,7 @@ chartConfig:
     private async handleFlagContent(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
@@ -1418,6 +1528,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: flagType as ManagedAgentActionType,
             targetType,
             targetUuid,
@@ -1431,6 +1542,7 @@ chartConfig:
     private async handleSoftDelete(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
@@ -1509,6 +1621,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.SOFT_DELETED,
             targetType,
             targetUuid,
@@ -1525,6 +1638,7 @@ chartConfig:
     private async handleLogInsight(
         projectUuid: string,
         sessionId: string,
+        runUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
         const targetUuid = input.target_uuid as string;
@@ -1545,6 +1659,7 @@ chartConfig:
         const action = await this.managedAgentModel.createAction({
             projectUuid,
             sessionId,
+            managedAgentRunUuid: runUuid,
             actionType: ManagedAgentActionType.INSIGHT,
             targetType,
             targetUuid,
