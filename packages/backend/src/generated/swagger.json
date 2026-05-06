@@ -10961,15 +10961,18 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "chartUsage": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
+                                                                        "fieldType": {
+                                                                            "type": "string"
                                                                         },
                                                                         "fieldType": {
                                                                             "type": "string"
@@ -11081,15 +11084,18 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "chartUsage": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
+                                                                                    "fieldType": {
+                                                                                        "type": "string"
                                                                                     },
                                                                                     "fieldType": {
                                                                                         "type": "string"
@@ -18597,6 +18603,9 @@
             },
             "SchedulerCsvOptions": {
                 "properties": {
+                    "exportPivotedData": {
+                        "type": "boolean"
+                    },
                     "asAttachment": {
                         "type": "boolean"
                     },
@@ -30303,6 +30312,9 @@
                             "type": "string"
                         },
                         "type": "array"
+                    },
+                    "exportPivotedData": {
+                        "type": "boolean"
                     },
                     "attachmentDownloadName": {
                         "type": "string"

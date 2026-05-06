@@ -474,6 +474,55 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                             </i>
                                         )}
                                     </Stack>
+                                    <Radio.Group
+                                        label={
+                                            <>
+                                                Layout
+                                                <Tooltip
+                                                    withinPortal
+                                                    maw={300}
+                                                    multiline
+                                                    label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query."
+                                                    position="top"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconHelpCircle}
+                                                        size="md"
+                                                        display="inline"
+                                                        color="gray"
+                                                        style={{
+                                                            marginLeft: '4px',
+                                                            marginBottom:
+                                                                '-4px',
+                                                        }}
+                                                    />
+                                                </Tooltip>
+                                            </>
+                                        }
+                                        value={
+                                            form.values.options
+                                                .exportPivotedData
+                                                ? 'pivoted'
+                                                : 'unpivoted'
+                                        }
+                                        onChange={(value) =>
+                                            form.setFieldValue(
+                                                'options.exportPivotedData',
+                                                value === 'pivoted',
+                                            )
+                                        }
+                                    >
+                                        <Stack gap="xxs" pt="xs">
+                                            <Radio
+                                                label="Grouped"
+                                                value="pivoted"
+                                            />
+                                            <Radio
+                                                label="Flat"
+                                                value="unpivoted"
+                                            />
+                                        </Stack>
+                                    </Radio.Group>
                                 </Group>
                             </Collapse>
                         </Stack>

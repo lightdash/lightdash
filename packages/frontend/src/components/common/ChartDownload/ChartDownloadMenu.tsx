@@ -12,6 +12,7 @@ import { memo, useCallback } from 'react';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
+import { type Limit } from '../../ExportResults/types';
 import ExportSelector from '../../ExportSelector';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -29,7 +30,7 @@ import {
 export type ChartDownloadMenuProps = {
     getDownloadQueryUuid: (
         limit: number | null,
-        exportPivotedResults: boolean,
+        exportPivotedResults?: boolean,
     ) => Promise<string>;
     projectUuid: string;
     chartName?: string;
@@ -79,10 +80,13 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
             },
         });
 
-        // ChartDownloadMenu downloads pivoted results when they are available
         const getChartDownloadQueryUuid = useCallback(
-            (limit: number | null) => {
-                return getDownloadQueryUuid(limit, true);
+            (
+                limit: number | null,
+                _limitType: Limit,
+                exportPivotedData: boolean = true,
+            ) => {
+                return getDownloadQueryUuid(limit, exportPivotedData);
             },
             [getDownloadQueryUuid],
         );

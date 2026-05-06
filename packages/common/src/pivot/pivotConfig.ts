@@ -58,3 +58,20 @@ export const getPivotConfig = (
             return undefined;
     }
 };
+
+export const getDownloadPivotConfig = (
+    savedChart: Pick<
+        CreateSavedChartVersion,
+        'chartConfig' | 'pivotConfig' | 'tableConfig'
+    >,
+    exportPivotedData: boolean = true,
+): PivotConfig | undefined => {
+    switch (savedChart.chartConfig.type) {
+        case ChartType.TABLE:
+            return getPivotConfig(savedChart);
+        case ChartType.CARTESIAN:
+            return exportPivotedData ? getPivotConfig(savedChart) : undefined;
+        default:
+            return undefined;
+    }
+};

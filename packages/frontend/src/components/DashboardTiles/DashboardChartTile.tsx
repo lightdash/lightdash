@@ -1057,6 +1057,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             chart.spaceUuid,
             ability,
         ]);
+        const downloadPivotConfig = getPivotConfig(chart);
 
         // Use the custom hook for dashboard chart downloads
         const { getDownloadQueryUuid } = useDashboardChartDownload(
@@ -1065,6 +1066,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
             projectUuid,
             dashboardUuid,
             dashboardChartReadyQuery.executeQueryResponse.queryUuid,
+            !!downloadPivotConfig,
         );
 
         const closeDataExportModal = useCallback(
@@ -1777,7 +1779,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                    pivotConfig={getPivotConfig(chart)}
+                    pivotConfig={downloadPivotConfig}
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -1928,11 +1930,13 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         () => setIsDataExportModalOpen(false),
         [],
     );
+    const downloadPivotConfig = getPivotConfig(chart);
 
     const { getDownloadQueryUuid } = useEmbedDashboardChartDownload(
         tileUuid,
         projectUuid,
         dashboardChartReadyQuery.executeQueryResponse.queryUuid,
+        !!downloadPivotConfig,
     );
 
     const chartKind = useMemo(
@@ -2073,7 +2077,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                         chart.chartConfig.config,
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
-                    pivotConfig={getPivotConfig(chart)}
+                    pivotConfig={downloadPivotConfig}
                 />
             )}
             {canExportImages && (
