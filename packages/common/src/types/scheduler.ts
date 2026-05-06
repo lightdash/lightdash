@@ -499,7 +499,11 @@ export type TraceTaskBase = {
     schedulerUuid?: string;
 };
 
-export type ManagedAgentHeartbeatPayload = TraceTaskBase;
+export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
+
+export type ManagedAgentHeartbeatPayload = TraceTaskBase & {
+    triggeredBy?: ManagedAgentHeartbeatTriggeredBy;
+};
 
 export type QueueTraceProperties = {
     traceHeader?: string;

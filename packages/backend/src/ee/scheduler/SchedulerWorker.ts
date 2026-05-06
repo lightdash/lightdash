@@ -134,6 +134,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async (payload) => {
                 const { projectUuid } = payload;
+                const triggeredBy = payload.triggeredBy ?? 'cron';
                 const settings = (
                     await this.managedAgentService.getEnabledProjects()
                 ).find((project) => project.projectUuid === projectUuid);
@@ -157,7 +158,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 }
 
                 Logger.info(
-                    `Running managed agent heartbeat for project ${projectUuid}`,
+                    `Running managed agent heartbeat for project ${projectUuid} (${triggeredBy})`,
                 );
 
                 try {
@@ -171,13 +172,15 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         error,
                     );
                 } finally {
-                    const schedule =
-                        getManagedAgentScheduleCron(settings.schedule) ??
-                        this.lightdashConfig.managedAgent.schedule;
-                    await this.schedulerClient.scheduleManagedAgentHeartbeat(
-                        schedule,
-                        projectUuid,
-                    );
+                    if (triggeredBy === 'cron') {
+                        const schedule =
+                            getManagedAgentScheduleCron(settings.schedule) ??
+                            this.lightdashConfig.managedAgent.schedule;
+                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
+                            schedule,
+                            projectUuid,
+                        );
+                    }
                 }
             },
             [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: async (

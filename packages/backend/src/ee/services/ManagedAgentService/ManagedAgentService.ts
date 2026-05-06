@@ -367,13 +367,15 @@ export class ManagedAgentService extends BaseService {
         );
 
         if (!previous?.enabled && settings.enabled) {
-            void this.startHeartbeat(user, projectUuid).catch((error) => {
-                this.logger.error(
-                    `Failed to trigger run-on-enable for project ${projectUuid}: ${
-                        error instanceof Error ? error.message : 'Unknown'
-                    }`,
-                );
-            });
+            void this.startHeartbeat(user, projectUuid, 'on_enable').catch(
+                (error) => {
+                    this.logger.error(
+                        `Failed to trigger run-on-enable for project ${projectUuid}: ${
+                            error instanceof Error ? error.message : 'Unknown'
+                        }`,
+                    );
+                },
+            );
         }
 
         return settings;
@@ -663,6 +665,7 @@ export class ManagedAgentService extends BaseService {
     async startHeartbeat(
         user: SessionUser,
         projectUuid: string,
+        triggeredBy: 'manual' | 'on_enable' = 'manual',
     ): Promise<void> {
         await this.assertCanManageProject(user, projectUuid);
 
@@ -677,15 +680,15 @@ export class ManagedAgentService extends BaseService {
                     organizationId: organizationUuid,
                     projectId: projectUuid,
                     schedule: settings.schedule,
+                    triggeredBy,
                 },
             });
         }
 
-        void this.runHeartbeat(projectUuid).catch((error) => {
-            this.logger.error(
-                `Manual heartbeat failed for project ${projectUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
-            );
-        });
+        await this.schedulerClient.triggerManagedAgentHeartbeat(
+            projectUuid,
+            triggeredBy,
+        );
     }
 
     private async postHeartbeatSummaryToSlack(
