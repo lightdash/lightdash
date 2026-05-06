@@ -29,6 +29,7 @@ import type {
     ApiGenerateAppResponse,
     ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiManagedAgentRunResponse,
     ApiMyAppsResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
@@ -1047,6 +1048,7 @@ type ApiResults =
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
     | ApiProjectColorPaletteResponse['results']
+    | ApiManagedAgentRunResponse['results']
     | DashboardPreAggregateAudit;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'

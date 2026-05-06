@@ -1,9 +1,12 @@
 import {
     getManagedAgentScheduleCron,
     getManagedAgentScheduleOption,
+    ManagedAgentRunStatus,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
+    type ManagedAgentRun,
+    type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
@@ -11,8 +14,10 @@ import { type Knex } from 'knex';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
+    ManagedAgentRunsTableName,
     ManagedAgentSettingsTableName,
     type DbManagedAgentActionWithReverser,
+    type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
 
@@ -224,6 +229,7 @@ export class ManagedAgentModel {
             .insert({
                 project_uuid: action.projectUuid,
                 session_id: action.sessionId,
+                managed_agent_run_uuid: action.managedAgentRunUuid,
                 action_type: action.actionType,
                 target_type: action.targetType,
                 target_uuid: action.targetUuid,
@@ -438,5 +444,80 @@ export class ManagedAgentModel {
                 createdAt: r.created_at,
             }),
         );
+    }
+
+    // --- Runs ---
+
+    static mapDbRun(row: DbManagedAgentRun): ManagedAgentRun {
+        return {
+            runUuid: row.managed_agent_run_uuid,
+            projectUuid: row.project_uuid,
+            triggeredBy: row.triggered_by as ManagedAgentRunTriggeredBy,
+            status: row.status as ManagedAgentRunStatus,
+            sessionId: row.session_id,
+            startedAt: row.started_at,
+            finishedAt: row.finished_at,
+            actionCount: row.action_count,
+            summary: row.summary,
+            error: row.error,
+        };
+    }
+
+    async createRun(input: {
+        projectUuid: string;
+        triggeredBy: ManagedAgentRunTriggeredBy;
+    }): Promise<ManagedAgentRun> {
+        const [row] = await this.database(ManagedAgentRunsTableName)
+            .insert({
+                project_uuid: input.projectUuid,
+                triggered_by: input.triggeredBy,
+                status: ManagedAgentRunStatus.STARTED,
+            })
+            .returning('*');
+        return ManagedAgentModel.mapDbRun(row);
+    }
+
+    async setRunSessionId(runUuid: string, sessionId: string): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({ session_id: sessionId });
+    }
+
+    async finishRun(
+        runUuid: string,
+        update: {
+            status:
+                | ManagedAgentRunStatus.COMPLETED
+                | ManagedAgentRunStatus.ERROR;
+            actionCount: number;
+            summary: string | null;
+            error: string | null;
+        },
+    ): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({
+                status: update.status,
+                finished_at: new Date(),
+                action_count: update.actionCount,
+                summary: update.summary,
+                error: update.error,
+            });
+    }
+
+    async countActionsForRun(runUuid: string): Promise<number> {
+        const result = await this.database(ManagedAgentActionsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .count<{ count: string }[]>('* as count')
+            .first();
+        return result ? Number(result.count) : 0;
+    }
+
+    async getLatestRun(projectUuid: string): Promise<ManagedAgentRun | null> {
+        const row = await this.database(ManagedAgentRunsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy('started_at', 'desc')
+            .first();
+        return row ? ManagedAgentModel.mapDbRun(row) : null;
     }
 }

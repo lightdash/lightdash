@@ -503,6 +503,7 @@ export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
 
 export type ManagedAgentHeartbeatPayload = TraceTaskBase & {
     triggeredBy?: ManagedAgentHeartbeatTriggeredBy;
+    runUuid?: string;
 };
 
 export type QueueTraceProperties = {

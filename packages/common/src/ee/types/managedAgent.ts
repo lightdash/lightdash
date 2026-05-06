@@ -1,3 +1,5 @@
+import { type ApiSuccess } from '../../types/api/success';
+
 export enum ManagedAgentActionType {
     FLAGGED_STALE = 'flagged_stale',
     SOFT_DELETED = 'soft_deleted',
@@ -123,6 +125,7 @@ export type UpdateManagedAgentSettings = {
 export type CreateManagedAgentAction = {
     projectUuid: string;
     sessionId: string;
+    managedAgentRunUuid: string | null;
     actionType: ManagedAgentActionType;
     targetType: ManagedAgentTargetType;
     targetUuid: string;
@@ -130,6 +133,29 @@ export type CreateManagedAgentAction = {
     description: string;
     metadata: Record<string, unknown>;
 };
+
+export enum ManagedAgentRunStatus {
+    STARTED = 'started',
+    COMPLETED = 'completed',
+    ERROR = 'error',
+}
+
+export type ManagedAgentRunTriggeredBy = 'cron' | 'manual' | 'on_enable';
+
+export type ManagedAgentRun = {
+    runUuid: string;
+    projectUuid: string;
+    triggeredBy: ManagedAgentRunTriggeredBy;
+    status: ManagedAgentRunStatus;
+    sessionId: string | null;
+    startedAt: Date;
+    finishedAt: Date | null;
+    actionCount: number;
+    summary: string | null;
+    error: string | null;
+};
+
+export type ApiManagedAgentRunResponse = ApiSuccess<ManagedAgentRun | null>;
 
 export type ManagedAgentActionFilters = {
     date?: string;

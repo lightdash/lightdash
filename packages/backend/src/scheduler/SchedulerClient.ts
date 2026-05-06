@@ -1616,6 +1616,7 @@ export class SchedulerClient {
     async triggerManagedAgentHeartbeat(
         projectUuid: string,
         triggeredBy: 'manual' | 'on_enable',
+        runUuid: string,
     ): Promise<void> {
         const graphileClient = await this.graphileUtils;
 
@@ -1626,6 +1627,7 @@ export class SchedulerClient {
                 organizationUuid: '',
                 userUuid: '',
                 triggeredBy,
+                runUuid,
             } satisfies ManagedAgentHeartbeatPayload,
             {
                 runAt: new Date(),
@@ -1636,7 +1638,7 @@ export class SchedulerClient {
         );
 
         Logger.info(
-            `Triggered immediate managed agent heartbeat for ${projectUuid} (${triggeredBy})`,
+            `Triggered immediate managed agent heartbeat for ${projectUuid} (${triggeredBy}, run=${runUuid})`,
         );
     }
 

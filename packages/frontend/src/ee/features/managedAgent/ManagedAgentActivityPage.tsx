@@ -4,6 +4,7 @@ import {
     type ContentVerificationInfo,
     type Dashboard,
     getManagedAgentActionCategory,
+    ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
     type Project,
     type SavedChart,
@@ -68,6 +69,7 @@ import { useProject } from '../../../hooks/useProject';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
+import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import type { ManagedAgentAction } from './types';
@@ -143,6 +145,7 @@ const SetupSection: FC<{
     onOpenSettings: () => void;
     onRunNow: () => void;
     isRunNowLoading: boolean;
+    isRunning: boolean;
 }> = ({
     enabled,
     schedule: initialSchedule,
@@ -150,6 +153,7 @@ const SetupSection: FC<{
     onOpenSettings,
     onRunNow,
     isRunNowLoading,
+    isRunning,
 }) => {
     const scheduleLabel =
         SCHEDULE_OPTIONS.find((o) => o.value === initialSchedule)?.label ??
@@ -189,9 +193,11 @@ const SetupSection: FC<{
                 <Group gap="xs">
                     <Tooltip
                         label={
-                            enabled
-                                ? 'Run Autopilot now'
-                                : 'Enable Autopilot to run now'
+                            isRunning
+                                ? 'Autopilot is running…'
+                                : enabled
+                                  ? 'Run Autopilot now'
+                                  : 'Enable Autopilot to run now'
                         }
                     >
                         <ActionIcon
@@ -201,8 +207,8 @@ const SetupSection: FC<{
                             size="md"
                             radius="md"
                             onClick={onRunNow}
-                            disabled={!enabled || isRunNowLoading}
-                            loading={isRunNowLoading}
+                            disabled={!enabled || isRunNowLoading || isRunning}
+                            loading={isRunNowLoading || isRunning}
                         >
                             <MantineIcon icon={IconPlayerPlay} size="sm" />
                         </ActionIcon>
@@ -1333,6 +1339,10 @@ export const ManagedAgentActivityPage: FC = () => {
     });
     const { data: settings, isLoading: settingsLoading } =
         useManagedAgentSettings({ enabled: canManageAutopilot });
+    const { data: latestRun } = useManagedAgentLatestRun({
+        enabled: canManageAutopilot,
+    });
+    const isRunning = latestRun?.status === ManagedAgentRunStatus.STARTED;
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [userOpenState, setUserOpenState] = useState<Map<string, boolean>>(
@@ -1404,6 +1414,9 @@ export const ManagedAgentActivityPage: FC = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-actions', projectUuid],
             });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-latest-run', projectUuid],
+            });
         },
         onError: ({ error }) => {
             showToastApiError({
@@ -1447,6 +1460,7 @@ export const ManagedAgentActivityPage: FC = () => {
                                 }
                                 settingsOpen={settingsOpen}
                                 isRunNowLoading={runNowMutation.isLoading}
+                                isRunning={isRunning}
                                 onRunNow={() => runNowMutation.mutate()}
                                 onOpenSettings={() => {
                                     setSelected(null);

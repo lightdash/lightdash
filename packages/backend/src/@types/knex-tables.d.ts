@@ -353,6 +353,8 @@ import {
 import {
     ManagedAgentActionsTable,
     ManagedAgentActionsTableName,
+    ManagedAgentRunsTable,
+    ManagedAgentRunsTableName,
     ManagedAgentSettingsTable,
     ManagedAgentSettingsTableName,
 } from '../ee/database/entities/managedAgent';
@@ -504,6 +506,7 @@ declare module 'knex/types/tables' {
         [ChangesTableName]: ChangesTable;
         [ManagedAgentSettingsTableName]: ManagedAgentSettingsTable;
         [ManagedAgentActionsTableName]: ManagedAgentActionsTable;
+        [ManagedAgentRunsTableName]: ManagedAgentRunsTable;
         [UserFavoritesTableName]: UserFavoritesTable;
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;

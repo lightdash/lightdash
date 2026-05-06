@@ -161,8 +161,20 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     `Running managed agent heartbeat for project ${projectUuid} (${triggeredBy})`,
                 );
 
+                const runUuid =
+                    payload.runUuid ??
+                    (
+                        await this.managedAgentService.startRun(
+                            projectUuid,
+                            triggeredBy,
+                        )
+                    ).runUuid;
+
                 try {
-                    await this.managedAgentService.runHeartbeat(projectUuid);
+                    await this.managedAgentService.runHeartbeat(
+                        projectUuid,
+                        runUuid,
+                    );
                     Logger.info(
                         `Heartbeat completed for project ${projectUuid}`,
                     );
