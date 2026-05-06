@@ -37,6 +37,7 @@ import {
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isDimension,
+    isDimensionDisplayTimezoneDisabled,
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
@@ -586,10 +587,10 @@ export class MetricQueryBuilder {
     /**
      * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
      * extractable intervals. When `respectConvertTimezone` is true (default)
-     * and the base dim has `convertTimezone: false`, the wrap is skipped so
-     * the dim renders in its raw warehouse value. Filter rendering passes
-     * `false` so filter SQL keeps converting even when the dim is opted
-     * out of display conversion.
+     * and the base dim opts out of display timezone conversion, the wrap is
+     * skipped so the dim renders in its raw warehouse value. Filter rendering
+     * passes `false` so filter SQL keeps converting even when the dim is
+     * opted out of display conversion.
      */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
@@ -625,7 +626,10 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        if (respectConvertTimezone && baseDimension.convertTimezone === false) {
+        if (
+            respectConvertTimezone &&
+            isDimensionDisplayTimezoneDisabled(baseDimension)
+        ) {
             return dimension.compiledSql;
         }
 
