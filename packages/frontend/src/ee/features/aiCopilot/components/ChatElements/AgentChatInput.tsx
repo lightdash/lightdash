@@ -11,7 +11,7 @@ import {
     Textarea,
 } from '@mantine-8/core';
 import { IconArrowUp, IconBrain } from '@tabler/icons-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
@@ -33,6 +33,8 @@ interface AgentChatInputProps {
     onModelChange?: (modelId: string) => void;
     extendedThinking?: boolean;
     onExtendedThinkingChange?: (enabled: boolean) => void;
+    defaultValue?: string;
+    onValueChange?: (value: string) => void;
 }
 
 export const AgentChatInput = ({
@@ -49,13 +51,22 @@ export const AgentChatInput = ({
     onModelChange,
     extendedThinking = false,
     onExtendedThinkingChange,
+    defaultValue,
+    onValueChange,
 }: AgentChatInputProps) => {
     // this is a workaround to prevent the enter key from being pressed when
     // the user is composing a character
     // see https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent for more details
     const [isComposing, setIsComposing] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [value, setValue] = useState('');
+    const [value, setValueState] = useState(defaultValue ?? '');
+    const setValue = useCallback(
+        (next: string) => {
+            setValueState(next);
+            onValueChange?.(next);
+        },
+        [onValueChange],
+    );
     const navigate = useNavigate();
 
     const hasValue = value.trim().length > 0;
@@ -92,7 +103,7 @@ export const AgentChatInput = ({
         return () => {
             elem.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onSubmit, disabled, loading, value, isComposing]);
+    }, [onSubmit, disabled, loading, value, isComposing, setValue]);
 
     useLayoutEffect(() => {
         if (!inputRef.current) return;

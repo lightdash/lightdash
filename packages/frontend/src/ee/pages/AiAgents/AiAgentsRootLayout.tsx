@@ -3,6 +3,7 @@ import { Provider } from 'react-redux';
 import { Outlet } from 'react-router';
 import NavBar from '../../../components/NavBar';
 import { MobileNavBar } from '../../../MobileRoutes';
+import { PendingPromptProvider } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { store } from '../../features/aiCopilot/store';
 import { AiAgentThreadStreamAbortControllerContextProvider } from '../../features/aiCopilot/streaming/AiAgentThreadStreamAbortControllerContextProvider';
 
@@ -13,7 +14,9 @@ export const AiAgentsRootLayout = () => {
             {isMobile ? <MobileNavBar /> : <NavBar />}
             <Provider store={store}>
                 <AiAgentThreadStreamAbortControllerContextProvider>
-                    <Outlet />
+                    <PendingPromptProvider>
+                        <Outlet />
+                    </PendingPromptProvider>
                 </AiAgentThreadStreamAbortControllerContextProvider>
             </Provider>
         </>

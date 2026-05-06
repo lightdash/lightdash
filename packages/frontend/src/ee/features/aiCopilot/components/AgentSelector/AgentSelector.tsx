@@ -7,7 +7,7 @@ import {
     useCombobox,
 } from '@mantine-8/core';
 import { IconCheck, IconCirclePlus, IconSelector } from '@tabler/icons-react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getAgentOptions, type Agent } from './AgentSelectorUtils';
@@ -24,6 +24,7 @@ export const AgentSelector = ({
     projectUuid,
 }: Props) => {
     const navigate = useNavigate();
+    const { search } = useLocation();
     const combobox = useCombobox({
         onDropdownClose: () => combobox.resetSelectedOption(),
     });
@@ -36,9 +37,15 @@ export const AgentSelector = ({
                 viewTransition: true,
             });
         } else {
-            void navigate(`/projects/${projectUuid}/ai-agents/${value}`, {
-                viewTransition: true,
-            });
+            void navigate(
+                {
+                    pathname: `/projects/${projectUuid}/ai-agents/${value}/threads`,
+                    search,
+                },
+                {
+                    viewTransition: true,
+                },
+            );
         }
         combobox.closeDropdown();
     };

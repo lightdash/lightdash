@@ -25,6 +25,7 @@ import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
+import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
@@ -128,8 +129,11 @@ const AiAgentNewThreadPage: FC = () => {
     );
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
+    const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
+
     const onSubmit = useCallback(
         (prompt: string) => {
+            setPendingPrompt('');
             void createAgentThread({
                 prompt,
                 context: contextInput.length > 0 ? contextInput : undefined,
@@ -147,6 +151,7 @@ const AiAgentNewThreadPage: FC = () => {
             });
         },
         [
+            setPendingPrompt,
             createAgentThread,
             contextInput,
             previewItems,
@@ -278,6 +283,8 @@ const AiAgentNewThreadPage: FC = () => {
                                 ? setExtendedThinking
                                 : undefined
                         }
+                        defaultValue={pendingPrompt}
+                        onValueChange={setPendingPrompt}
                     />
                 </Stack>
             </Stack>
