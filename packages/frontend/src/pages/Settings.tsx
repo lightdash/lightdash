@@ -159,14 +159,8 @@ const Settings: FC = () => {
         health?.auth.azuread.enabled ||
         health?.auth.oidc.enabled;
 
-    if (userGroupsFeatureFlagQuery.isError) {
-        console.error(userGroupsFeatureFlagQuery.error);
-        throw new Error('Error fetching user groups feature flag');
-    }
-
     const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
+        userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     // This allows us to enable service accounts in the UI for on-premise installations
     const isServiceAccountsEnabled =

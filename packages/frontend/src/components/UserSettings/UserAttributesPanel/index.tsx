@@ -62,8 +62,7 @@ const UserAttributesPanel: FC = () => {
     const { mutate: deleteUserAttribute } = useUserAttributesDeleteMutation();
 
     const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
+        userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     const columns: MRT_ColumnDef<UserAttribute>[] = useMemo(
         () => [
@@ -316,11 +315,6 @@ const UserAttributesPanel: FC = () => {
 
     if (isInitialLoading) {
         return <EmptyStateLoader my="xl" title="Loading user attributes" />;
-    }
-
-    if (userGroupsFeatureFlagQuery.isError) {
-        console.error(userGroupsFeatureFlagQuery.error);
-        throw new Error('Error fetching user groups feature flag');
     }
 
     if (!user.data) return null;
