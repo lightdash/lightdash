@@ -320,6 +320,7 @@ export interface ExplorerReduceState {
     fromDashboard?: string;
     isExploreFromHere?: boolean;
     savedChart?: SavedChart;
+    unsavedColorPaletteUuid: string | null;
 
     // Pre-aggregate check state — computed once in useExplorerQueryEffects
     preAggregate: {

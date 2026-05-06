@@ -64,6 +64,7 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'first_viewed_at'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
+            | 'color_palette_uuid'
         >
     >
 >;
@@ -85,6 +86,7 @@ export type DbSavedChart = {
     first_viewed_at: Date | null;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
+    color_palette_uuid: string | null;
 };
 
 export type DbSavedChartVersion = {

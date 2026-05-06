@@ -27,6 +27,7 @@ type Props = {
     description?: string;
     placeholder?: string;
     size?: 'xs' | 'sm' | 'md' | 'lg';
+    showPreview?: boolean;
 };
 
 type SwatchSet = {
@@ -161,6 +162,7 @@ export const PalettePicker: FC<Props> = ({
     description,
     placeholder,
     size = 'xs',
+    showPreview = true,
 }) => {
     const data = [
         { value: INHERIT_VALUE, label: `Inherit from ${parentLabel}` },
@@ -202,7 +204,7 @@ export const PalettePicker: FC<Props> = ({
                     />
                 )}
             />
-            {selectedSwatches && (
+            {showPreview && selectedSwatches && (
                 <SelectedPalettePreview swatches={selectedSwatches} />
             )}
         </Stack>

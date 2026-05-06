@@ -6,6 +6,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    getDefaultResolvedColorPalette,
     OrganizationMemberRole,
     PossibleAbilities,
     SavedChart,
@@ -165,6 +166,8 @@ export const chart: SavedChart = {
     dashboardUuid: dashboard.uuid,
     dashboardName: dashboard.name,
     colorPalette: [],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     inheritsFromOrgOrProject: true,
     access: [],
 };

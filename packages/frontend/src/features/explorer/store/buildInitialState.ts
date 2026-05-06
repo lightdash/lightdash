@@ -73,6 +73,7 @@ export const buildInitialExplorerState = ({
                 pivotConfig: savedChart.pivotConfig,
                 parameters: savedChart.parameters,
             },
+            unsavedColorPaletteUuid: savedChart.colorPaletteUuid,
             modals: defaultState.modals,
             queryExecution: defaultQueryExecution,
         };

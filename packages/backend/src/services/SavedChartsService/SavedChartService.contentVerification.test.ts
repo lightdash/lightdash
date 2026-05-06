@@ -14,6 +14,7 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -144,6 +145,7 @@ describe('SavedChartService - Content Verification', () => {
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        organizationModel: {} as unknown as OrganizationModel,
     });
 
     afterEach(() => {

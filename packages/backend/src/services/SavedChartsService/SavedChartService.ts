@@ -74,6 +74,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -109,6 +110,7 @@ type SavedChartServiceArguments = {
     userService: UserService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    organizationModel: OrganizationModel;
 };
 
 export class SavedChartService
@@ -151,6 +153,8 @@ export class SavedChartService
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
+    private readonly organizationModel: OrganizationModel;
+
     constructor(args: SavedChartServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -171,6 +175,7 @@ export class SavedChartService
         this.userService = args.userService;
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
+        this.organizationModel = args.organizationModel;
     }
 
     private async checkUpdateAccess(
@@ -732,6 +737,18 @@ export class SavedChartService
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
+        }
+
+        if (data.colorPaletteUuid) {
+            const palette = await this.organizationModel.findColorPalette(
+                organizationUuid,
+                data.colorPaletteUuid,
+            );
+            if (!palette) {
+                throw new ParameterError(
+                    'Color palette does not belong to this organization',
+                );
+            }
         }
 
         const savedChart = await this.savedChartModel.update(

@@ -36,9 +36,11 @@ import {
     selectSavedChart,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
+    selectUnsavedColorPaletteUuid,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -88,18 +90,46 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const savedChart = useExplorerSelector(selectSavedChart);
 
     const projectUuid = savedChart?.projectUuid || fallBackUUid;
+    const stagedColorPaletteUuid = useExplorerSelector(
+        selectUnsavedColorPaletteUuid,
+    );
+    const isPaletteStagedDirty =
+        savedChart !== undefined &&
+        stagedColorPaletteUuid !== savedChart.colorPaletteUuid;
+    const resolverChartUuid =
+        isPaletteStagedDirty && stagedColorPaletteUuid === null
+            ? undefined
+            : savedChart?.uuid;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
-        chartUuid: savedChart?.uuid,
+        chartUuid: resolverChartUuid,
         dashboardUuid: savedChart?.dashboardUuid ?? undefined,
         spaceUuid: savedChart?.spaceUuid,
     });
 
+    const { data: palettes } = useColorPalettes({
+        enabled: isPaletteStagedDirty && stagedColorPaletteUuid !== null,
+    });
+    const stagedPalette = useMemo(() => {
+        if (!isPaletteStagedDirty || stagedColorPaletteUuid === null) {
+            return undefined;
+        }
+        return palettes?.find(
+            (p) => p.colorPaletteUuid === stagedColorPaletteUuid,
+        );
+    }, [isPaletteStagedDirty, stagedColorPaletteUuid, palettes]);
+
     const colorPalette = useMemo(() => {
+        if (stagedPalette) {
+            if (colorScheme === 'dark' && stagedPalette.darkColors) {
+                return stagedPalette.darkColors;
+            }
+            return stagedPalette.colors;
+        }
         if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
             return resolvedPalette.darkColors;
         }
         return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, resolvedPalette]);
+    }, [colorScheme, resolvedPalette, stagedPalette]);
 
     const {
         query,

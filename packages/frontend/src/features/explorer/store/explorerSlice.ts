@@ -86,6 +86,11 @@ const explorerSlice = createSlice({
             action: PayloadAction<SavedChart | undefined>,
         ) => {
             state.savedChart = action.payload;
+            state.unsavedColorPaletteUuid =
+                action.payload?.colorPaletteUuid ?? null;
+        },
+        setColorPaletteUuid: (state, action: PayloadAction<string | null>) => {
+            state.unsavedColorPaletteUuid = action.payload;
         },
         setPreviouslyFetchedState: (
             state,

@@ -55,7 +55,6 @@ import {
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
-    ECHARTS_DEFAULT_COLORS,
     Explore,
     ExploreError,
     ExploreType,
@@ -6575,23 +6574,13 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const resolved = await this.savedChartModel.resolveColorPalette({
+        return this.savedChartModel.resolveColorPalette({
             projectUuid,
             organizationUuid,
             spaceUuid: context.spaceUuid,
             dashboardUuid: context.dashboardUuid,
             chartUuid: context.chartUuid,
         });
-
-        return (
-            resolved ?? {
-                colors: ECHARTS_DEFAULT_COLORS,
-                darkColors: null,
-                paletteUuid: null,
-                paletteName: null,
-                source: { type: 'default' },
-            }
-        );
     }
 
     async deleteProjectAccess(

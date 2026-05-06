@@ -39,6 +39,11 @@ export const selectUnsavedChartVersion = createSelector(
     (explorer) => explorer.unsavedChartVersion,
 );
 
+export const selectUnsavedColorPaletteUuid = createSelector(
+    [selectExplorerState],
+    (explorer) => explorer.unsavedColorPaletteUuid,
+);
+
 export const selectMetricQuery = createSelector(
     [selectUnsavedChartVersion],
     (unsavedChartVersion) => unsavedChartVersion.metricQuery,
@@ -504,23 +509,25 @@ const hasMapExtentChanged = (
     return latChanged || lngChanged || zoomChanged;
 };
 
-// Selector to check if unsaved chart has changes compared to saved chart
-// Returns true if there are unsaved changes, false otherwise
-export const selectHasUnsavedChanges = createSelector(
+export const selectHasPaletteChanges = createSelector(
+    [selectSavedChart, selectUnsavedColorPaletteUuid],
+    (savedChart, unsavedColorPaletteUuid) => {
+        if (!savedChart) return false;
+        return unsavedColorPaletteUuid !== savedChart.colorPaletteUuid;
+    },
+);
+
+export const selectHasVersionChanges = createSelector(
     [selectUnsavedChartVersion, selectSavedChart, selectMapExtent],
     (unsavedChartVersion, savedChart, mapExtent) => {
         if (!savedChart) {
-            // No saved chart means this is a new chart - no "unsaved changes"
             return false;
         }
 
-        // Check if map extent has changed (lightweight comparison of 3 numbers)
         if (hasMapExtentChanged(mapExtent, savedChart)) {
             return true;
         }
 
-        // Compare normalized versions of saved and unsaved
-        // Strip map extent fields since they're checked separately above
         return !deepEqual(
             removeEmptyProperties({
                 tableName: savedChart.tableName,
@@ -544,6 +551,11 @@ export const selectHasUnsavedChanges = createSelector(
             }),
         );
     },
+);
+
+export const selectHasUnsavedChanges = createSelector(
+    [selectHasVersionChanges, selectHasPaletteChanges],
+    (versionDirty, paletteDirty) => versionDirty || paletteDirty,
 );
 
 /**

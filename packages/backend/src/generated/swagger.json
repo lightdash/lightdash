@@ -6330,6 +6330,154 @@
             "ParametersValuesMap": {
                 "$ref": "#/components/schemas/Record_string.ParameterValue_"
             },
+            "ColorPaletteSource": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["config"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["default"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["organization"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["project"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["space"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Where a resolved colour palette came from. The `config` and `default` cases\ncarry no entity reference; the rest expose the UUID and human-readable name\nof the entity (organization, project, space, dashboard or chart) that owns\nthe winning palette in the resolution chain."
+            },
+            "ResolvedProjectColorPalette": {
+                "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ColorPaletteSource"
+                    },
+                    "paletteName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "paletteUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "darkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "source",
+                    "paletteName",
+                    "paletteUuid",
+                    "darkColors",
+                    "colors"
+                ],
+                "type": "object"
+            },
             "SavedChart": {
                 "properties": {
                     "deletedBy": {
@@ -6373,11 +6521,21 @@
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
                     },
+                    "resolvedColorPalette": {
+                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
+                        "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
+                    },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Chart-level palette override pointer. `null` means inherit from the\ncontaining dashboard / space / project / org. Writable via\n`UpdateSavedChart`."
+                    },
                     "colorPalette": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "deprecated": true
                     },
                     "dashboardName": {
                         "type": "string",
@@ -6477,6 +6635,8 @@
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
+                    "resolvedColorPalette",
+                    "colorPaletteUuid",
                     "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
@@ -10607,28 +10767,41 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "tableName": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -10636,9 +10809,9 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "tableName",
-                                                                        "label",
                                                                         "fieldType",
+                                                                        "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10648,16 +10821,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -10687,8 +10860,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -10732,23 +10905,23 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
-                                                                                    "searchRank": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
                                                                                     "chartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
+                                                                                    "fieldType": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldType": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -10756,9 +10929,9 @@
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "tableName",
-                                                                                    "label",
                                                                                     "fieldType",
+                                                                                    "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10786,8 +10959,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -17868,7 +18041,17 @@
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "deprecated": true
+                    },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Chart-level palette override pointer. `null` means inherit from the\ncontaining dashboard / space / project / org. Writable via\n`UpdateSavedChart`."
+                    },
+                    "resolvedColorPalette": {
+                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
+                        "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
                     }
                 },
                 "required": [
@@ -17889,7 +18072,9 @@
                     "metricQuery",
                     "tableConfig",
                     "dashboardName",
-                    "colorPalette"
+                    "colorPalette",
+                    "colorPaletteUuid",
+                    "resolvedColorPalette"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -21818,154 +22003,6 @@
                 "required": ["hasDefaultUserSpaces"],
                 "type": "object"
             },
-            "ColorPaletteSource": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": ["config"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": ["default"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["organization"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["project"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["space"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    }
-                ],
-                "description": "Where a resolved colour palette came from. The `config` and `default` cases\ncarry no entity reference; the rest expose the UUID and human-readable name\nof the entity (organization, project, space, dashboard or chart) that owns\nthe winning palette in the resolution chain."
-            },
-            "ResolvedProjectColorPalette": {
-                "properties": {
-                    "source": {
-                        "$ref": "#/components/schemas/ColorPaletteSource"
-                    },
-                    "paletteName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "paletteUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "darkColors": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "colors": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "source",
-                    "paletteName",
-                    "paletteUuid",
-                    "darkColors",
-                    "colors"
-                ],
-                "type": "object"
-            },
             "ApiProjectColorPaletteResponse": {
                 "properties": {
                     "results": {
@@ -24802,6 +24839,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "description": "The active color palette uuid for all projects in the organization"
+                    },
                     "chartColors": {
                         "items": {
                             "type": "string"
@@ -24815,10 +24856,6 @@
                         },
                         "type": "array",
                         "description": "The default dark color palette for all projects in the organization"
-                    },
-                    "colorPaletteUuid": {
-                        "type": "string",
-                        "description": "The active color palette uuid for all projects in the organization"
                     },
                     "defaultProjectUuid": {
                         "type": "string",
@@ -31732,7 +31769,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2884.3",
+        "version": "0.2887.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

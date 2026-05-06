@@ -79,6 +79,7 @@ const updateSavedQuery = async (
             name: data.name,
             description: data.description,
             spaceUuid: data.spaceUuid,
+            colorPaletteUuid: data.colorPaletteUuid,
         }),
     });
 };
@@ -282,7 +283,7 @@ export const useUpdateMutation = (
     return useMutation<
         SavedChart,
         ApiError,
-        Pick<UpdateSavedChart, 'name' | 'description'>
+        Pick<UpdateSavedChart, 'name' | 'description' | 'colorPaletteUuid'>
     >(
         (data) => {
             if (savedQueryUuid) {
@@ -304,6 +305,12 @@ export const useUpdateMutation = (
                 await queryClient.invalidateQueries(['content']);
 
                 await queryClient.invalidateQueries(['spaces']);
+
+                await queryClient.invalidateQueries([
+                    'project',
+                    data.projectUuid,
+                    'color-palette',
+                ]);
 
                 queryClient.setQueryData(
                     ['saved_query', data.uuid, data.projectUuid],
@@ -492,6 +499,12 @@ export const useAddVersionMutation = () => {
             await queryClient.invalidateQueries(['spaces']);
             await queryClient.invalidateQueries([
                 'most-popular-and-recently-updated',
+            ]);
+
+            await queryClient.invalidateQueries([
+                'project',
+                data.projectUuid,
+                'color-palette',
             ]);
 
             queryClient.setQueryData(

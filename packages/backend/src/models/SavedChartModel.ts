@@ -17,10 +17,10 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     DimensionOverrides,
-    ECHARTS_DEFAULT_COLORS,
     Filters,
     getChartKind,
     getChartType,
+    getDefaultResolvedColorPalette,
     getItemId,
     isCustomBinDimension,
     isCustomSqlDimension,
@@ -113,6 +113,7 @@ type DbSavedChartDetails = {
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
     timezone: TimeZone | null;
+    color_palette_uuid: string | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -502,7 +503,7 @@ export class SavedChartModel {
         spaceUuid?: string;
         projectUuid: string;
         organizationUuid: string;
-    }): Promise<ResolvedProjectColorPalette | null> {
+    }): Promise<ResolvedProjectColorPalette> {
         const override = this.lightdashConfig.appearance.overrideColorPalette;
         if (override && override.length > 0) {
             return {
@@ -512,6 +513,51 @@ export class SavedChartModel {
                 darkColors: null,
                 source: { type: 'config' },
             };
+        }
+
+        if (args.chartUuid) {
+            const chartPalette = await this.database(SavedChartsTableName)
+                .leftJoin(
+                    OrganizationColorPaletteTableName,
+                    `${OrganizationColorPaletteTableName}.color_palette_uuid`,
+                    `${SavedChartsTableName}.color_palette_uuid`,
+                )
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    args.chartUuid,
+                )
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .whereNotNull(`${SavedChartsTableName}.color_palette_uuid`)
+                .select<{
+                    chart_uuid: string;
+                    chart_name: string;
+                    palette_uuid: string;
+                    palette_name: string;
+                    palette_colors: string[];
+                    palette_dark_colors: string[] | null;
+                }>([
+                    `${SavedChartsTableName}.saved_query_uuid as chart_uuid`,
+                    `${SavedChartsTableName}.name as chart_name`,
+                    `${OrganizationColorPaletteTableName}.color_palette_uuid as palette_uuid`,
+                    `${OrganizationColorPaletteTableName}.name as palette_name`,
+                    `${OrganizationColorPaletteTableName}.colors as palette_colors`,
+                    `${OrganizationColorPaletteTableName}.dark_colors as palette_dark_colors`,
+                ])
+                .first();
+
+            if (chartPalette) {
+                return {
+                    paletteUuid: chartPalette.palette_uuid,
+                    paletteName: chartPalette.palette_name,
+                    colors: chartPalette.palette_colors,
+                    darkColors: chartPalette.palette_dark_colors,
+                    source: {
+                        type: 'chart',
+                        uuid: chartPalette.chart_uuid,
+                        name: chartPalette.chart_name,
+                    },
+                };
+            }
         }
 
         // Walk the space chain via parent_space_uuid (closest override wins)
@@ -639,7 +685,7 @@ export class SavedChartModel {
                   .first();
 
         if (!result) {
-            return null;
+            return getDefaultResolvedColorPalette();
         }
 
         if (
@@ -698,7 +744,7 @@ export class SavedChartModel {
             };
         }
 
-        return null;
+        return getDefaultResolvedColorPalette();
     }
 
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
@@ -967,6 +1013,7 @@ export class SavedChartModel {
                     )
                 )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
+                color_palette_uuid: data.colorPaletteUuid,
             })
             .where('saved_query_uuid', savedChartUuid)
             .whereNull('deleted_at');
@@ -1217,6 +1264,7 @@ export class SavedChartModel {
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${SavedChartsTableName}.deleted_at`,
                         `${SavedChartsTableName}.deleted_by_user_uuid`,
+                        `${SavedChartsTableName}.color_palette_uuid`,
                         'deleted_by_user.first_name as deleted_by_user_first_name',
                         'deleted_by_user.last_name as deleted_by_user_last_name',
                     ])
@@ -1531,8 +1579,9 @@ export class SavedChartModel {
                     pinnedListOrder: null,
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
-                    colorPalette:
-                        resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS,
+                    colorPalette: resolvedPalette.colors,
+                    colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
+                    resolvedColorPalette: resolvedPalette,
                     slug: savedQuery.slug,
                     verification,
                     // Soft delete fields (only populated when deleted: true)

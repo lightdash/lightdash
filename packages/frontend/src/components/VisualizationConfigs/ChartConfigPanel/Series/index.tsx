@@ -22,6 +22,7 @@ import { createPortal } from 'react-dom';
 import { getSeriesGroupedByField } from '../../../../hooks/cartesianChartConfig/utils';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
@@ -170,6 +171,8 @@ export const Series: FC<Props> = ({ items }) => {
 
     return (
         <Stack spacing="md">
+            <ColorPaletteSection />
+            <Divider />
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="results-table-sort-fields">
                     {(dropProps) => (

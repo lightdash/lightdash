@@ -160,6 +160,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     first_viewed_at: null,
     deleted_at: null,
     deleted_by_user_uuid: null,
+    color_palette_uuid: null,
 };
 
 export const dashboardEntry: DashboardTable['base'] = {

@@ -543,12 +543,10 @@ export class EmbedService extends BaseService {
                 projectUuid: dashboard.projectUuid,
                 organizationUuid: dashboard.organizationUuid,
             });
-            if (resolved) {
-                selectedPalette = {
-                    colors: resolved.colors,
-                    darkColors: resolved.darkColors,
-                };
-            }
+            selectedPalette = {
+                colors: resolved.colors,
+                darkColors: resolved.darkColors,
+            };
         }
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {

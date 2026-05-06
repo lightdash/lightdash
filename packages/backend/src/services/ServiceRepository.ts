@@ -743,6 +743,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    organizationModel: this.models.getOrganizationModel(),
                 }),
         );
     }

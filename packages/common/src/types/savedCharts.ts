@@ -7,6 +7,7 @@ import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
@@ -840,7 +841,25 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    /**
+     * @deprecated Use `resolvedColorPalette.colors` instead. This field carries
+     * only the resolved colors and will be removed once renderers migrate to
+     * `resolvedColorPalette`, which also exposes the source entity, palette
+     * UUID/name, and dark colors.
+     */
     colorPalette: string[];
+    /**
+     * Chart-level palette override pointer. `null` means inherit from the
+     * containing dashboard / space / project / org. Writable via
+     * `UpdateSavedChart`.
+     */
+    colorPaletteUuid: string | null;
+    /**
+     * Fully resolved palette for this chart, computed from the
+     * org → project → space → dashboard → chart hierarchy. Read-only — set
+     * the chart's own palette via `colorPaletteUuid`.
+     */
+    readonly resolvedColorPalette: ResolvedProjectColorPalette;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
     /** Unique identifier slug for this chart */
@@ -894,6 +913,8 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
+    | 'colorPaletteUuid'
+    | 'resolvedColorPalette'
     | 'inheritsFromOrgOrProject'
     | 'access'
     | 'slug'
@@ -903,7 +924,7 @@ export type CreateSavedChartVersion = Omit<
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
-    Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<
@@ -987,6 +1008,15 @@ export const ECHARTS_DEFAULT_COLORS = [
 
 export const getDefaultSeriesColor = (index: number) =>
     ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
+
+export const getDefaultResolvedColorPalette =
+    (): ResolvedProjectColorPalette => ({
+        colors: ECHARTS_DEFAULT_COLORS,
+        darkColors: null,
+        paletteUuid: null,
+        paletteName: null,
+        source: { type: 'default' },
+    });
 
 export const isSeriesWithMixedChartTypes = (
     series: Series[] | undefined,

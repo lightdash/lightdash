@@ -7,17 +7,23 @@ import {
     useGenerateChartMetadata,
 } from '../../../ee/features/ambientAi';
 import {
+    selectHasPaletteChanges,
     selectHasUnsavedChanges,
+    selectHasVersionChanges,
     selectIsValidQuery,
     selectSavedChart,
     selectUnsavedChartVersion,
     selectUnsavedChartVersionForSave,
+    selectUnsavedColorPaletteUuid,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useAddVersionMutation } from '../../../hooks/useSavedQuery';
+import {
+    useAddVersionMutation,
+    useUpdateMutation,
+} from '../../../hooks/useSavedQuery';
 import useSearchParams from '../../../hooks/useSearchParams';
 import MantineIcon from '../../common/MantineIcon';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
@@ -67,8 +73,23 @@ const SaveChartButton: FC<{
     };
 
     const update = useAddVersionMutation();
+    const updateMetadata = useUpdateMutation(
+        savedChart?.dashboardUuid ?? undefined,
+        savedChart?.uuid,
+    );
+    const stagedColorPaletteUuid = useExplorerSelector(
+        selectUnsavedColorPaletteUuid,
+    );
+    const hasVersionChanges = useExplorerSelector(selectHasVersionChanges);
+    const hasPaletteChanges = useExplorerSelector(selectHasPaletteChanges);
     const handleSavedQueryUpdate = () => {
-        if (savedChart?.uuid && unsavedChartVersionForSave) {
+        if (!savedChart?.uuid || !unsavedChartVersionForSave) return;
+        if (hasPaletteChanges) {
+            updateMetadata.mutate({
+                colorPaletteUuid: stagedColorPaletteUuid,
+            });
+        }
+        if (hasVersionChanges) {
             update.mutate({
                 uuid: savedChart.uuid,
                 payload: unsavedChartVersionForSave,

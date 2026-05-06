@@ -1,4 +1,7 @@
-import { SavedChartDAO } from '@lightdash/common';
+import {
+    getDefaultResolvedColorPalette,
+    SavedChartDAO,
+} from '@lightdash/common';
 import { createRenameFactory } from './rename';
 
 export const tableRename = createRenameFactory({
@@ -119,6 +122,8 @@ export const chartWithCustomMetric = {
         '#9a60b4',
         '#ea7ccc',
     ],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     slug: 'min-customer-id-1',
     verification: null,
 } as SavedChartDAO;
@@ -228,6 +233,8 @@ export const expectedRenamedChartWithCustomMetric = {
         '#9a60b4',
         '#ea7ccc',
     ],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     slug: 'min-customer-id-1',
     verification: null,
 } as SavedChartDAO;
@@ -443,6 +450,8 @@ export const chartMocked = {
     dashboardUuid: null,
     dashboardName: null,
     colorPalette: ['#7162FF'],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     slug: 'custom-metric-filter',
     verification: null,
 } as SavedChartDAO;
@@ -659,6 +668,8 @@ export const expectedRenamedChartMocked = {
     dashboardUuid: null,
     dashboardName: null,
     colorPalette: ['#7162FF'],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     slug: 'custom-metric-filter',
     verification: null,
 } as SavedChartDAO;
@@ -761,6 +772,8 @@ export const chartWithCustomMetricWithSimilarName = {
         '#9a60b4',
         '#ea7ccc',
     ],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     slug: 'min-customer-id-1',
     verification: null,
 } as SavedChartDAO;
