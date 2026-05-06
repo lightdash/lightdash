@@ -1,5 +1,335 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { SEED_PROJECT } from '@lightdash/common';
+import {
+    CartesianSeriesType,
+    ChartType,
+    SEED_PROJECT,
+    TableCalculationType,
+} from '@lightdash/common';
+
+type QueryResultRow = Record<
+    string,
+    { value?: { raw?: unknown; formatted?: string } }
+>;
+
+type ReadyQueryResults = {
+    status: 'ready';
+    columns?: Record<string, unknown>;
+    rows: QueryResultRow[];
+    pivotDetails?: {
+        indexColumn?:
+            | { reference: string }
+            | Array<{ reference: string }>
+            | undefined;
+        valuesColumns?: Array<{ referenceField: string }>;
+    } | null;
+};
+
+type PivotConfiguration = {
+    indexColumn?:
+        | { reference: string }
+        | Array<{ reference: string }>
+        | undefined;
+    valuesColumns?: Array<{ reference: string }>;
+    sortOnlyColumns?: Array<{ reference: string }>;
+    sortBy?: Array<{ reference: string }>;
+};
+
+const buildExploreUrl = (chartState: Record<string, unknown>) =>
+    `/projects/${SEED_PROJECT.project_uuid}/tables/orders?create_saved_chart_version=${encodeURIComponent(
+        JSON.stringify(chartState),
+    )}`;
+
+const fieldReference = (fieldId: string) => `\${${fieldId}}`;
+
+const getRequestBody = (body: any) =>
+    typeof body === 'string' ? JSON.parse(body) : body;
+
+const getReferences = (columns?: Array<{ reference: string }>) =>
+    columns?.map((column) => column.reference) ?? [];
+
+const getIndexReferences = (indexColumn: PivotConfiguration['indexColumn']) => {
+    if (!indexColumn) return [];
+    return Array.isArray(indexColumn)
+        ? indexColumn.map((column) => column.reference)
+        : [indexColumn.reference];
+};
+
+const getRawValues = (rows: QueryResultRow[], fieldId: string) =>
+    rows
+        .map((row) => row[fieldId]?.value?.raw)
+        .filter((value) => value !== undefined && value !== null);
+
+const getColumnIds = (results: ReadyQueryResults) => [
+    ...Object.keys(results.columns ?? {}),
+    ...results.rows.flatMap((row) => Object.keys(row)),
+];
+
+const unusedTableCalculationName = 'unused_revenue_label';
+
+const waitForReadyPivotResults = (
+    assertResults: (results: ReadyQueryResults) => void,
+) => {
+    cy.wait('@pivotQueryResults', { timeout: 60000 }).then((interception) => {
+        const results = interception.response?.body?.results;
+
+        if (results?.error) {
+            throw new Error(`Query failed: ${results.error}`);
+        }
+
+        if (results?.status !== 'ready') {
+            waitForReadyPivotResults(assertResults);
+            return;
+        }
+
+        assertResults(results);
+    });
+};
+
+const runPivotChart = (
+    chartState: Record<string, unknown>,
+    assertPivotConfiguration: (pivotConfiguration: PivotConfiguration) => void,
+    assertResults: (results: ReadyQueryResults) => void,
+) => {
+    // Only alias requests that carry a pivotConfiguration. The
+    // useSqlPivotResults feature flag resolves async, so an auto-fetch
+    // can fire before the flag lands and produce a metric-query POST
+    // without pivotConfiguration — which would race the Run-query click
+    // and make cy.wait pick up the wrong request.
+    cy.intercept('POST', '**/api/v2/projects/*/query/metric-query', (req) => {
+        const body = getRequestBody(req.body);
+        if (body?.pivotConfiguration !== undefined) {
+            req.alias = 'runPivotQuery';
+        }
+    });
+    cy.intercept('GET', '**/api/v2/projects/*/query/*').as('pivotQueryResults');
+
+    cy.visit(buildExploreUrl(chartState));
+    cy.get('button').contains('Run query').click();
+
+    cy.wait('@runPivotQuery', { timeout: 60000 }).then((interception) => {
+        const body = getRequestBody(interception.request.body);
+        expect(body.pivotConfiguration).to.not.equal(undefined);
+        assertPivotConfiguration(body.pivotConfiguration);
+    });
+
+    waitForReadyPivotResults(assertResults);
+
+    cy.get('[data-testid="visualization"]').as('chartArea');
+    cy.get('@chartArea').findByText('Loading chart').should('not.exist');
+    cy.get('@chartArea')
+        .find('.echarts-for-react canvas, .echarts-for-react svg')
+        .should('exist');
+};
+
+const hiddenMetricSortChartState = {
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: ['customers_customer_id', 'orders_is_completed'],
+        metrics: ['orders_total_order_amount', 'orders_unique_order_count'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_total_order_amount', descending: true }],
+        limit: 500,
+        tableCalculations: [
+            {
+                name: unusedTableCalculationName,
+                displayName: 'Unused revenue label',
+                type: TableCalculationType.NUMBER,
+                sql: fieldReference('orders.total_order_amount'),
+            },
+        ],
+        additionalMetrics: [],
+        metricOverrides: {},
+    },
+    pivotConfig: { columns: ['orders_is_completed'] },
+    tableConfig: {
+        columnOrder: [
+            'customers_customer_id',
+            'orders_is_completed',
+            'orders_total_order_amount',
+            'orders_unique_order_count',
+            unusedTableCalculationName,
+        ],
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'customers_customer_id',
+                yField: ['orders_unique_order_count'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        encode: {
+                            xRef: { field: 'customers_customer_id' },
+                            yRef: { field: 'orders_unique_order_count' },
+                        },
+                    },
+                ],
+            },
+        },
+    },
+};
+
+const sortOnlyTableCalculationChartState = {
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: ['customers_customer_id', 'orders_is_completed'],
+        metrics: ['orders_total_order_amount'],
+        filters: {},
+        sorts: [{ fieldId: 'revenue_rank', descending: false }],
+        limit: 500,
+        tableCalculations: [
+            {
+                name: 'revenue_rank',
+                displayName: 'Revenue rank',
+                type: TableCalculationType.NUMBER,
+                sql: `rank() over (order by ${fieldReference(
+                    'orders.total_order_amount',
+                )} desc)`,
+            },
+        ],
+        additionalMetrics: [],
+        metricOverrides: {},
+    },
+    pivotConfig: { columns: ['orders_is_completed'] },
+    tableConfig: {
+        columnOrder: [
+            'customers_customer_id',
+            'orders_is_completed',
+            'orders_total_order_amount',
+            'revenue_rank',
+        ],
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'customers_customer_id',
+                yField: ['orders_total_order_amount'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        encode: {
+                            xRef: { field: 'customers_customer_id' },
+                            yRef: { field: 'orders_total_order_amount' },
+                        },
+                    },
+                ],
+            },
+        },
+    },
+};
+
+const xAxisTableCalculationChartState = {
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: [
+            'customers_first_name',
+            'customers_last_name',
+            'orders_order_date_week',
+        ],
+        metrics: ['orders_total_order_amount'],
+        filters: {},
+        sorts: [{ fieldId: 'customer_label', descending: false }],
+        limit: 500,
+        tableCalculations: [
+            {
+                name: 'customer_label',
+                displayName: 'Customer label',
+                type: TableCalculationType.STRING,
+                sql: `concat(${fieldReference(
+                    'customers.first_name',
+                )}, ' ', ${fieldReference('customers.last_name')})`,
+            },
+        ],
+        additionalMetrics: [],
+        metricOverrides: {},
+    },
+    pivotConfig: { columns: ['orders_order_date_week'] },
+    tableConfig: {
+        columnOrder: [
+            'customers_first_name',
+            'customers_last_name',
+            'orders_order_date_week',
+            'orders_total_order_amount',
+            'customer_label',
+        ],
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'customer_label',
+                yField: ['orders_total_order_amount'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.BAR,
+                        yAxisIndex: 0,
+                        encode: {
+                            xRef: { field: 'customer_label' },
+                            yRef: { field: 'orders_total_order_amount' },
+                        },
+                    },
+                ],
+            },
+        },
+    },
+};
+
+const xAxisMetricChartState = {
+    tableName: 'orders',
+    metricQuery: {
+        exploreName: 'orders',
+        dimensions: ['orders_is_completed'],
+        metrics: ['orders_unique_order_count', 'orders_total_order_amount'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_unique_order_count', descending: true }],
+        limit: 500,
+        tableCalculations: [],
+        additionalMetrics: [],
+        metricOverrides: {},
+    },
+    pivotConfig: { columns: ['orders_is_completed'] },
+    tableConfig: {
+        columnOrder: [
+            'orders_is_completed',
+            'orders_unique_order_count',
+            'orders_total_order_amount',
+        ],
+    },
+    chartConfig: {
+        type: ChartType.CARTESIAN,
+        config: {
+            layout: {
+                xField: 'orders_unique_order_count',
+                yField: ['orders_total_order_amount'],
+            },
+            eChartsConfig: {
+                series: [
+                    {
+                        type: CartesianSeriesType.SCATTER,
+                        yAxisIndex: 0,
+                        encode: {
+                            xRef: { field: 'orders_unique_order_count' },
+                            yRef: { field: 'orders_total_order_amount' },
+                        },
+                    },
+                ],
+            },
+        },
+    },
+};
 
 describe('Pivot Tables', () => {
     beforeEach(() => {
@@ -45,6 +375,121 @@ describe('Pivot Tables', () => {
 
         cy.get('@chartArea').findByText('Loading chart').should('not.exist');
         cy.get('@chartArea').contains('Is completed'); // Check that the chart updated successfully with the pivot table(containing 'is completed' column)
+    });
+
+    it('Can render a pivoted cartesian chart sorted by a metric that is not displayed', () => {
+        runPivotChart(
+            hiddenMetricSortChartState,
+            (pivotConfiguration) => {
+                expect(getReferences(pivotConfiguration.valuesColumns)).to.eql([
+                    'orders_unique_order_count',
+                ]);
+                expect(
+                    getIndexReferences(pivotConfiguration.indexColumn),
+                ).not.to.include(unusedTableCalculationName);
+                expect(
+                    getReferences(pivotConfiguration.valuesColumns),
+                ).not.to.include(unusedTableCalculationName);
+                expect(
+                    getReferences(pivotConfiguration.sortOnlyColumns),
+                ).to.include('orders_total_order_amount');
+                expect(
+                    getReferences(pivotConfiguration.sortOnlyColumns),
+                ).not.to.include(unusedTableCalculationName);
+                expect(getReferences(pivotConfiguration.sortBy)).to.include(
+                    'orders_total_order_amount',
+                );
+                expect(getReferences(pivotConfiguration.sortBy)).not.to.include(
+                    unusedTableCalculationName,
+                );
+            },
+            (results) => {
+                expect(
+                    getRawValues(results.rows, 'customers_customer_id').length,
+                ).to.be.greaterThan(1);
+                expect(
+                    getColumnIds(results).some((columnId) =>
+                        columnId.includes('orders_total_order_amount'),
+                    ),
+                ).to.equal(false);
+            },
+        );
+    });
+
+    it('Can render a pivoted cartesian chart sorted by a table calculation that is not displayed', () => {
+        runPivotChart(
+            sortOnlyTableCalculationChartState,
+            (pivotConfiguration) => {
+                expect(getReferences(pivotConfiguration.valuesColumns)).to.eql([
+                    'orders_total_order_amount',
+                ]);
+                expect(
+                    getReferences(pivotConfiguration.sortOnlyColumns),
+                ).to.include('revenue_rank');
+                expect(getReferences(pivotConfiguration.sortBy)).to.include(
+                    'revenue_rank',
+                );
+            },
+            (results) => {
+                expect(
+                    getRawValues(results.rows, 'customers_customer_id').length,
+                ).to.be.greaterThan(1);
+                expect(
+                    results.pivotDetails?.valuesColumns?.map(
+                        (column) => column.referenceField,
+                    ) ?? [],
+                ).not.to.include('revenue_rank');
+            },
+        );
+    });
+
+    it('Can render a pivoted cartesian chart with an x-axis table calculation sorted by itself', () => {
+        runPivotChart(
+            xAxisTableCalculationChartState,
+            (pivotConfiguration) => {
+                expect(
+                    getIndexReferences(pivotConfiguration.indexColumn),
+                ).to.include('customer_label');
+                expect(
+                    getReferences(pivotConfiguration.sortOnlyColumns),
+                ).not.to.include('customer_label');
+                expect(getReferences(pivotConfiguration.sortBy)).to.include(
+                    'customer_label',
+                );
+            },
+            (results) => {
+                const customerLabels = getRawValues(
+                    results.rows,
+                    'customer_label',
+                );
+
+                expect(customerLabels.length).to.be.greaterThan(1);
+                expect(new Set(customerLabels).size).to.be.greaterThan(1);
+            },
+        );
+    });
+
+    it('Can render a pivoted scatter chart with an x-axis metric sorted by itself', () => {
+        runPivotChart(
+            xAxisMetricChartState,
+            (pivotConfiguration) => {
+                expect(
+                    getIndexReferences(pivotConfiguration.indexColumn),
+                ).to.include('orders_unique_order_count');
+                expect(
+                    getReferences(pivotConfiguration.sortOnlyColumns),
+                ).not.to.include('orders_unique_order_count');
+                expect(getReferences(pivotConfiguration.sortBy)).to.include(
+                    'orders_unique_order_count',
+                );
+            },
+            (results) => {
+                expect(
+                    getRawValues(results.rows, 'orders_unique_order_count')
+                        .length,
+                ).to.be.greaterThan(0);
+            },
+        );
     });
 
     // todo: remove

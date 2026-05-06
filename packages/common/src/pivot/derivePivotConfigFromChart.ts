@@ -284,6 +284,7 @@ function getCartesianPivotConfiguration(
         const sortOnlyMetrics = metricQuery.sorts
             .filter(
                 (sort) =>
+                    sort.fieldId !== xField &&
                     !valuesRefs.has(sort.fieldId) &&
                     (metricQuery.metrics.includes(sort.fieldId) ||
                         (metricQuery.tableCalculations || []).some(
@@ -294,6 +295,7 @@ function getCartesianPivotConfiguration(
                 reference: sort.fieldId,
                 aggregation: VizAggregationOptions.ANY,
             }));
+
         // Find columns that are not groupBy or value columns (these become index columns)
         // Include sortOnlyMetrics in the valuesColumns passed to getIndexColumn
         // so they aren't incorrectly classified as index columns.
