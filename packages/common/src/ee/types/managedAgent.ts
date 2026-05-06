@@ -80,6 +80,32 @@ export type ManagedAgentAction = {
     createdAt: Date;
 };
 
+export type ManagedAgentActionCategory = 'undo' | 'dismiss';
+
+const REVERSIBLE_ACTION_TYPES: ReadonlySet<ManagedAgentActionType> = new Set([
+    ManagedAgentActionType.SOFT_DELETED,
+    ManagedAgentActionType.CREATED_CONTENT,
+    ManagedAgentActionType.FIXED_BROKEN,
+]);
+
+export const getManagedAgentActionCategory = (
+    actionType: ManagedAgentActionType,
+): ManagedAgentActionCategory =>
+    REVERSIBLE_ACTION_TYPES.has(actionType) ? 'undo' : 'dismiss';
+
+export type FixedBrokenActionMetadata = {
+    previousVersionUuid: string;
+};
+
+export const getFixedBrokenMetadata = (
+    metadata: Record<string, unknown>,
+): FixedBrokenActionMetadata | null => {
+    const { previousVersionUuid } = metadata;
+    return typeof previousVersionUuid === 'string'
+        ? { previousVersionUuid }
+        : null;
+};
+
 export type UpdateManagedAgentSettings = {
     enabled?: boolean;
     schedule?: ManagedAgentScheduleOption;
