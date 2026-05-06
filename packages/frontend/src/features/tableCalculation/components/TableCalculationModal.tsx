@@ -305,7 +305,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const cannotAuthorCustomSql = useCannotAuthorCustomSql(projectUuid);
     const showSqlDeprecationCallout =
-        cannotAuthorCustomSql === true && editMode !== EditMode.TEMPLATE;
+        cannotAuthorCustomSql === true && editMode === EditMode.SQL;
     const canConvertExistingSqlToFormula =
         isExistingSqlCalc &&
         isFormulaSupported &&
