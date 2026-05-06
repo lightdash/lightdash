@@ -5182,4 +5182,69 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
             `DATE_PART('WEEK', (("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York' - interval '2 days'))`,
         );
     });
+
+    describe('shouldSkipTimezoneConversion (via timezoneForDateTrunc)', () => {
+        const snowflakeWarehouseClient = {
+            ...warehouseClientMock,
+            getAdapterType: () => SupportedDbtAdapter.SNOWFLAKE,
+        };
+        const buildBuilder = (
+            overrides: Partial<BuildQueryProps>,
+        ): MetricQueryBuilder =>
+            new MetricQueryBuilder({
+                explore: buildExtractExplore(DimensionType.TIMESTAMP),
+                compiledMetricQuery: baseDowQuery(),
+                warehouseSqlBuilder: snowflakeWarehouseClient,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: 'UTC',
+                parameterDefinitions: {},
+                useTimezoneAwareDateTrunc: true,
+                ...overrides,
+            });
+
+        // `timezoneForDateTrunc` returns undefined when the skip-check passes,
+        // and the project timezone otherwise. Used for DATE_TRUNC localization
+        // in PoP / custom-metric / filter dim resolution paths.
+        const tzForDateTrunc = (b: MetricQueryBuilder): string | undefined =>
+            (b as unknown as { timezoneForDateTrunc: string | undefined })
+                .timezoneForDateTrunc;
+
+        test('Snowflake + Layer 1 active + project tz === UTC → skip', () => {
+            expect(tzForDateTrunc(buildBuilder({ timezone: 'UTC' }))).toBe(
+                undefined,
+            );
+        });
+
+        test('Snowflake + Layer 1 active + project tz !== UTC → no skip', () => {
+            expect(
+                tzForDateTrunc(buildBuilder({ timezone: 'America/New_York' })),
+            ).toBe('America/New_York');
+        });
+
+        test('Snowflake + whSkipUtcNormalization + dataTimezone !== project tz → no skip', () => {
+            // Pre-fix this returned undefined (incorrectly skipped) — leaving
+            // non-UTC values to display as if they were UTC.
+            expect(
+                tzForDateTrunc(
+                    buildBuilder({
+                        timezone: 'UTC',
+                        dataTimezone: 'America/New_York',
+                        whSkipUtcNormalization: true,
+                    }),
+                ),
+            ).toBe('UTC');
+        });
+
+        test('Snowflake + whSkipUtcNormalization + dataTimezone === project tz → skip', () => {
+            expect(
+                tzForDateTrunc(
+                    buildBuilder({
+                        timezone: 'America/New_York',
+                        dataTimezone: 'America/New_York',
+                        whSkipUtcNormalization: true,
+                    }),
+                ),
+            ).toBe(undefined);
+        });
+    });
 });

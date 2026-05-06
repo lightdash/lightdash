@@ -137,6 +137,11 @@ export type BuildQueryProps = {
     useTimezoneAwareDateTrunc?: boolean;
     /** Warehouse session timezone — used to skip wrapping when it matches queryTimezone. */
     dataTimezone?: string;
+    /**
+     * Snowflake-only: when true, the compile-time CONVERT_TIMEZONE wrap is
+     * disabled, so values flow through Layer 2 in `dataTimezone` rather than UTC.
+     */
+    whSkipUtcNormalization?: boolean;
 };
 
 /**
@@ -321,14 +326,16 @@ export class MetricQueryBuilder {
 
     /**
      * Skip timezone conversion when the effective input TZ matches the query TZ.
-     * Snowflake's effective input is always UTC (convertTimezone normalizes at
-     * compile time); all others use dataTimezone (defaulting to UTC).
+     * Snowflake's effective input is UTC when the compile-time CONVERT_TIMEZONE
+     * wrap is active; when whSkipUtcNormalization is set the wrap is skipped
+     * and values flow through in dataTimezone, just like the other warehouses.
      */
     private shouldSkipTimezoneConversion(): boolean {
         const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
 
         const effectiveInputTz =
-            adapterType === SupportedDbtAdapter.SNOWFLAKE
+            adapterType === SupportedDbtAdapter.SNOWFLAKE &&
+            !this.args.whSkipUtcNormalization
                 ? 'UTC'
                 : (this.args.dataTimezone ?? 'UTC');
 

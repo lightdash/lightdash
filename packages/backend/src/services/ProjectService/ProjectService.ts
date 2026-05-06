@@ -3120,6 +3120,7 @@ export class ProjectService extends BaseService {
         continueOnError,
         useTimezoneAwareDateTrunc,
         dataTimezone,
+        whSkipUtcNormalization,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -3135,6 +3136,7 @@ export class ProjectService extends BaseService {
         continueOnError?: boolean;
         useTimezoneAwareDateTrunc?: boolean;
         dataTimezone?: string;
+        whSkipUtcNormalization?: boolean;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -3169,6 +3171,7 @@ export class ProjectService extends BaseService {
             originalExplore: dateZoom ? explore : undefined,
             useTimezoneAwareDateTrunc,
             dataTimezone,
+            whSkipUtcNormalization,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -3308,6 +3311,9 @@ export class ProjectService extends BaseService {
             continueOnError: true, // Return SQL even with compilation errors for debugging
             useTimezoneAwareDateTrunc,
             dataTimezone: warehouseCredentials.dataTimezone,
+            whSkipUtcNormalization:
+                warehouseCredentials.type === WarehouseTypes.SNOWFLAKE &&
+                warehouseCredentials.disableTimestampConversion,
         });
 
         // Generate pivot query if pivot configuration is provided
@@ -4302,6 +4308,11 @@ export class ProjectService extends BaseService {
                         pivotDimensions: metricQueryWithLimit.pivotDimensions,
                         useTimezoneAwareDateTrunc,
                         dataTimezone: warehouseClient.credentials.dataTimezone,
+                        whSkipUtcNormalization:
+                            warehouseClient.credentials.type ===
+                                WarehouseTypes.SNOWFLAKE &&
+                            warehouseClient.credentials
+                                .disableTimestampConversion,
                     });
 
                     const { query } = fullQuery;
@@ -4871,6 +4882,9 @@ export class ProjectService extends BaseService {
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
             dataTimezone: warehouseClient.credentials.dataTimezone,
+            whSkipUtcNormalization:
+                warehouseClient.credentials.type === WarehouseTypes.SNOWFLAKE &&
+                warehouseClient.credentials.disableTimestampConversion,
         });
 
         const isUserCacheEnabled =
