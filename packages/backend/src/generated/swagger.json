@@ -1294,11 +1294,34 @@
                 "type": "object",
                 "description": "Construct a type with a set of properties K of type T"
             },
+            "ManagedAgentActionUser": {
+                "properties": {
+                    "lastName": {
+                        "type": "string"
+                    },
+                    "firstName": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["lastName", "firstName", "userUuid"],
+                "type": "object"
+            },
             "ManagedAgentAction": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "reversedByUser": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ManagedAgentActionUser"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "reversedByUserUuid": {
                         "type": "string",
@@ -1339,6 +1362,7 @@
                 },
                 "required": [
                     "createdAt",
+                    "reversedByUser",
                     "reversedByUserUuid",
                     "reversedAt",
                     "metadata",
@@ -31708,7 +31732,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2877.0",
+        "version": "0.2879.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

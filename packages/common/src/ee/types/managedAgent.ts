@@ -65,6 +65,12 @@ export type ManagedAgentSettings = {
     updatedAt: Date;
 };
 
+export type ManagedAgentActionUser = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+};
+
 export type ManagedAgentAction = {
     actionUuid: string;
     projectUuid: string;
@@ -77,6 +83,7 @@ export type ManagedAgentAction = {
     metadata: Record<string, unknown>;
     reversedAt: Date | null;
     reversedByUserUuid: string | null;
+    reversedByUser: ManagedAgentActionUser | null;
     createdAt: Date;
 };
 

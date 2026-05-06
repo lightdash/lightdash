@@ -3,6 +3,12 @@ import {
     type ManagedAgentTargetType,
 } from '@lightdash/common';
 
+export type ManagedAgentActionUser = {
+    userUuid: string;
+    firstName: string;
+    lastName: string;
+};
+
 export type ManagedAgentAction = {
     actionUuid: string;
     projectUuid: string;
@@ -15,5 +21,6 @@ export type ManagedAgentAction = {
     metadata: Record<string, unknown>;
     reversedAt: string | null;
     reversedByUserUuid: string | null;
+    reversedByUser: ManagedAgentActionUser | null;
     createdAt: string;
 };

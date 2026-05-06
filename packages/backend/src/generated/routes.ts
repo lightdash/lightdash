@@ -1248,12 +1248,33 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedAgentActionUser: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                lastName: { dataType: 'string', required: true },
+                firstName: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentAction: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 createdAt: { dataType: 'datetime', required: true },
+                reversedByUser: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ManagedAgentActionUser' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 reversedByUserUuid: {
                     dataType: 'union',
                     subSchemas: [

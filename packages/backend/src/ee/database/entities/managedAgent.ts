@@ -81,6 +81,11 @@ export type DbManagedAgentAction = {
     created_at: Date;
 };
 
+export type DbManagedAgentActionWithReverser = DbManagedAgentAction & {
+    reversed_by_first_name: string | null;
+    reversed_by_last_name: string | null;
+};
+
 export type DbManagedAgentActionCreate = Omit<
     DbManagedAgentAction,
     'action_uuid' | 'reversed_at' | 'reversed_by_user_uuid' | 'created_at'

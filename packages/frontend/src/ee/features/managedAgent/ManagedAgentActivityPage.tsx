@@ -683,6 +683,14 @@ const DetailSidebar: FC<{
             : null;
     const hasProjectDetails = !!targetProject;
 
+    const reversedLabel = action.reversedAt
+        ? `${formatDistanceToNowStrict(new Date(action.reversedAt))} ago${
+              action.reversedByUser
+                  ? ` by ${action.reversedByUser.firstName} ${action.reversedByUser.lastName}`
+                  : ''
+          }`
+        : null;
+
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
             {/* Header */}
@@ -757,6 +765,20 @@ const DetailSidebar: FC<{
                     )}
                 </Group>
             </Stack>
+
+            {reversedLabel && (
+                <Group gap={6} className={classes.reversedBanner} wrap="nowrap">
+                    <MantineIcon
+                        icon={IconArrowBackUp}
+                        size="sm"
+                        color="var(--mantine-color-dimmed)"
+                    />
+                    <Text fz="xs" c="dimmed">
+                        {category === 'undo' ? 'Undone' : 'Dismissed'}{' '}
+                        {reversedLabel}
+                    </Text>
+                </Group>
+            )}
 
             {/* Content */}
             <Stack gap="md" p="md" style={{ overflow: 'auto', flex: 1 }}>
@@ -1123,10 +1145,17 @@ const ActionRow: FC<{
 }> = ({ action, selected, onSelect }) => {
     const config = ACTION_CONFIG[action.actionType];
     const TargetIcon = TARGET_ICON[action.targetType];
+    const isReversed = !!action.reversedAt;
 
     return (
         <Table.Tr
-            className={`${classes.row} ${selected ? classes.rowSelected : ''}`}
+            className={[
+                classes.row,
+                selected && classes.rowSelected,
+                isReversed && classes.rowReversed,
+            ]
+                .filter(Boolean)
+                .join(' ')}
             onClick={() => onSelect(action)}
         >
             <Table.Td w={100}>

@@ -12,7 +12,7 @@ import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
     ManagedAgentSettingsTableName,
-    type DbManagedAgentAction,
+    type DbManagedAgentActionWithReverser,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
 
@@ -174,7 +174,23 @@ export class ManagedAgentModel {
 
     // --- Actions ---
 
-    static mapDbAction(row: DbManagedAgentAction): ManagedAgentAction {
+    private actionsQuery() {
+        return this.database(ManagedAgentActionsTableName)
+            .leftJoin(
+                'users as reversed_by',
+                `${ManagedAgentActionsTableName}.reversed_by_user_uuid`,
+                'reversed_by.user_uuid',
+            )
+            .select<DbManagedAgentActionWithReverser[]>([
+                `${ManagedAgentActionsTableName}.*`,
+                'reversed_by.first_name as reversed_by_first_name',
+                'reversed_by.last_name as reversed_by_last_name',
+            ]);
+    }
+
+    static mapDbAction(
+        row: DbManagedAgentActionWithReverser,
+    ): ManagedAgentAction {
         return {
             actionUuid: row.action_uuid,
             projectUuid: row.project_uuid,
@@ -187,6 +203,16 @@ export class ManagedAgentModel {
             metadata: row.metadata,
             reversedAt: row.reversed_at,
             reversedByUserUuid: row.reversed_by_user_uuid,
+            reversedByUser:
+                row.reversed_by_user_uuid &&
+                row.reversed_by_first_name !== null &&
+                row.reversed_by_last_name !== null
+                    ? {
+                          userUuid: row.reversed_by_user_uuid,
+                          firstName: row.reversed_by_first_name,
+                          lastName: row.reversed_by_last_name,
+                      }
+                    : null,
             createdAt: row.created_at,
         };
     }
@@ -206,25 +232,39 @@ export class ManagedAgentModel {
                 metadata: action.metadata,
             })
             .returning('*');
-        return ManagedAgentModel.mapDbAction(row);
+        // New actions have no reverser yet
+        return ManagedAgentModel.mapDbAction({
+            ...row,
+            reversed_by_first_name: null,
+            reversed_by_last_name: null,
+        });
     }
 
     async getActions(
         projectUuid: string,
         filters: ManagedAgentActionFilters = {},
     ): Promise<ManagedAgentAction[]> {
-        let query = this.database(ManagedAgentActionsTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'desc');
+        let query = this.actionsQuery()
+            .where(`${ManagedAgentActionsTableName}.project_uuid`, projectUuid)
+            .orderBy(`${ManagedAgentActionsTableName}.created_at`, 'desc');
 
         if (filters.date) {
-            query = query.whereRaw('created_at::date = ?', [filters.date]);
+            query = query.whereRaw(
+                `${ManagedAgentActionsTableName}.created_at::date = ?`,
+                [filters.date],
+            );
         }
         if (filters.actionType) {
-            query = query.where({ action_type: filters.actionType });
+            query = query.where(
+                `${ManagedAgentActionsTableName}.action_type`,
+                filters.actionType,
+            );
         }
         if (filters.sessionId) {
-            query = query.where({ session_id: filters.sessionId });
+            query = query.where(
+                `${ManagedAgentActionsTableName}.session_id`,
+                filters.sessionId,
+            );
         }
 
         const rows = await query;
@@ -235,16 +275,16 @@ export class ManagedAgentModel {
         projectUuid: string,
         limit: number = 50,
     ): Promise<ManagedAgentAction[]> {
-        const rows = await this.database(ManagedAgentActionsTableName)
-            .where({ project_uuid: projectUuid })
-            .orderBy('created_at', 'desc')
+        const rows = await this.actionsQuery()
+            .where(`${ManagedAgentActionsTableName}.project_uuid`, projectUuid)
+            .orderBy(`${ManagedAgentActionsTableName}.created_at`, 'desc')
             .limit(limit);
         return rows.map(ManagedAgentModel.mapDbAction);
     }
 
     async getAction(actionUuid: string): Promise<ManagedAgentAction | null> {
-        const row = await this.database(ManagedAgentActionsTableName)
-            .where({ action_uuid: actionUuid })
+        const row = await this.actionsQuery()
+            .where(`${ManagedAgentActionsTableName}.action_uuid`, actionUuid)
             .first();
         return row ? ManagedAgentModel.mapDbAction(row) : null;
     }
@@ -253,20 +293,23 @@ export class ManagedAgentModel {
         actionUuid: string,
         userUuid: string,
     ): Promise<ManagedAgentAction> {
-        const [row] = await this.database(ManagedAgentActionsTableName)
+        const updated = await this.database(ManagedAgentActionsTableName)
             .where({ action_uuid: actionUuid })
             .whereNull('reversed_at')
             .update({
                 reversed_at: new Date(),
                 reversed_by_user_uuid: userUuid,
-            })
-            .returning('*');
-        if (!row) {
+            });
+        if (updated === 0) {
             throw new Error(
                 `Action ${actionUuid} not found or already reversed`,
             );
         }
-        return ManagedAgentModel.mapDbAction(row);
+        const action = await this.getAction(actionUuid);
+        if (!action) {
+            throw new Error(`Action ${actionUuid} disappeared after reversal`);
+        }
+        return action;
     }
 
     async getUserQuestions(

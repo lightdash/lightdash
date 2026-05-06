@@ -251,6 +251,18 @@
         light-dark(var(--mantine-color-gray-5), var(--mantine-color-gray-6));
 }
 
+.rowReversed {
+    opacity: 0.55;
+}
+
+.rowReversed .actionPill {
+    text-decoration: line-through;
+    text-decoration-color: light-dark(
+        var(--mantine-color-gray-5),
+        var(--mantine-color-gray-6)
+    );
+}
+
 /* Resize handle */
 .resizeHandle {
     width: 1px;
@@ -277,6 +289,16 @@
 
 .sidebarHeader {
     padding: 12px 16px;
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
+}
+
+.reversedBanner {
+    padding: 8px 16px;
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-6)
+    );
     border-bottom: 1px solid
         light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
 }
