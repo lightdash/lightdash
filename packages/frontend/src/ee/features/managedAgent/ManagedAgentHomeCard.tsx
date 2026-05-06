@@ -1,4 +1,8 @@
-import { FeatureFlags, ManagedAgentScheduleOption } from '@lightdash/common';
+import {
+    assertUnreachable,
+    FeatureFlags,
+    ManagedAgentScheduleOption,
+} from '@lightdash/common';
 import {
     Box,
     Button,
@@ -40,7 +44,20 @@ const formatRelative = (dateStr: string) => {
 };
 
 const formatSchedule = (schedule: ManagedAgentScheduleOption) => {
-    return schedule === ManagedAgentScheduleOption.DAILY ? '24h' : '1h';
+    switch (schedule) {
+        case ManagedAgentScheduleOption.EVERY_6_HOURS:
+            return '6h';
+        case ManagedAgentScheduleOption.EVERY_12_HOURS:
+            return '12h';
+        case ManagedAgentScheduleOption.DAILY:
+            return '24h';
+        case ManagedAgentScheduleOption.EVERY_2_DAYS:
+            return '2d';
+        case ManagedAgentScheduleOption.WEEKLY:
+            return '7d';
+        default:
+            return assertUnreachable(schedule, 'Unknown schedule option');
+    }
 };
 
 /** Generates a deterministic grid of subtle squares */

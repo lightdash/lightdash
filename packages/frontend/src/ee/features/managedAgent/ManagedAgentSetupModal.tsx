@@ -24,8 +24,14 @@ const updateSettings = async (
     });
 
 const SCHEDULE_OPTIONS = [
-    { value: ManagedAgentScheduleOption.HOURLY, label: 'Hourly' },
+    { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
+    {
+        value: ManagedAgentScheduleOption.EVERY_12_HOURS,
+        label: 'Every 12 hours',
+    },
     { value: ManagedAgentScheduleOption.DAILY, label: 'Daily' },
+    { value: ManagedAgentScheduleOption.EVERY_2_DAYS, label: 'Every 2 days' },
+    { value: ManagedAgentScheduleOption.WEEKLY, label: 'Weekly' },
 ];
 
 const CAPABILITIES = [

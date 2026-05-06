@@ -16,17 +16,25 @@ export enum ManagedAgentTargetType {
 }
 
 export enum ManagedAgentScheduleOption {
-    HOURLY = 'hourly',
+    EVERY_6_HOURS = 'every_6_hours',
+    EVERY_12_HOURS = 'every_12_hours',
     DAILY = 'daily',
+    EVERY_2_DAYS = 'every_2_days',
+    WEEKLY = 'weekly',
 }
 
 export const ManagedAgentScheduleCronByOption: Record<
     ManagedAgentScheduleOption,
     string
 > = {
-    [ManagedAgentScheduleOption.HOURLY]: '0 * * * *',
+    [ManagedAgentScheduleOption.EVERY_6_HOURS]: '0 */6 * * *',
+    [ManagedAgentScheduleOption.EVERY_12_HOURS]: '0 */12 * * *',
     [ManagedAgentScheduleOption.DAILY]: '0 0 * * *',
+    [ManagedAgentScheduleOption.EVERY_2_DAYS]: '0 0 */2 * *',
+    [ManagedAgentScheduleOption.WEEKLY]: '0 0 * * 0',
 };
+
+const LEGACY_HOURLY_CRON = '0 * * * *';
 
 export const getManagedAgentScheduleCron = (
     schedule: ManagedAgentScheduleOption = ManagedAgentScheduleOption.DAILY,
@@ -34,11 +42,17 @@ export const getManagedAgentScheduleCron = (
 
 export const getManagedAgentScheduleOption = (
     scheduleCron: string | null | undefined,
-) =>
-    scheduleCron ===
-    ManagedAgentScheduleCronByOption[ManagedAgentScheduleOption.DAILY]
-        ? ManagedAgentScheduleOption.DAILY
-        : ManagedAgentScheduleOption.HOURLY;
+): ManagedAgentScheduleOption => {
+    if (scheduleCron === LEGACY_HOURLY_CRON) {
+        return ManagedAgentScheduleOption.EVERY_6_HOURS;
+    }
+    const match = (
+        Object.entries(ManagedAgentScheduleCronByOption) as Array<
+            [ManagedAgentScheduleOption, string]
+        >
+    ).find(([, cron]) => cron === scheduleCron);
+    return match ? match[0] : ManagedAgentScheduleOption.DAILY;
+};
 
 export type ManagedAgentSettings = {
     projectUuid: string;

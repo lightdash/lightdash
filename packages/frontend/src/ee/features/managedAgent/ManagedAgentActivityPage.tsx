@@ -97,8 +97,14 @@ const runHeartbeat = async (projectUuid: string) =>
     });
 
 const SCHEDULE_OPTIONS = [
-    { value: ManagedAgentScheduleOption.HOURLY, label: 'Hourly' },
+    { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
+    {
+        value: ManagedAgentScheduleOption.EVERY_12_HOURS,
+        label: 'Every 12 hours',
+    },
     { value: ManagedAgentScheduleOption.DAILY, label: 'Daily' },
+    { value: ManagedAgentScheduleOption.EVERY_2_DAYS, label: 'Every 2 days' },
+    { value: ManagedAgentScheduleOption.WEEKLY, label: 'Weekly' },
 ];
 
 const CAPABILITY_GROUPS = [
@@ -142,7 +148,7 @@ const SetupSection: FC<{
 }) => {
     const scheduleLabel =
         SCHEDULE_OPTIONS.find((o) => o.value === initialSchedule)?.label ??
-        'Hourly';
+        'Daily';
 
     return (
         <Stack gap={0}>
