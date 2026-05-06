@@ -112,6 +112,34 @@ A "Day of week" or "Month number" dimension grouped next to a DATE_TRUNC sibling
 
 **Files:** `packages/common/src/utils/timeFrames.ts`, `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts`
 
+### Per-dimension display opt-out (`convert_timezone: false`)
+
+By default every TIMESTAMP dimension follows the project timezone for display. Some columns (system timestamps, audit logs, pre-converted values) need to render in their raw warehouse value instead. Set `convert_timezone: false` on the dimension's YAML meta to opt that single column out:
+
+```yaml
+- name: created_at_utc
+  meta:
+    dimension:
+      type: timestamp
+      convert_timezone: false
+```
+
+The flag is asymmetric: it affects **display** only.
+
+| Layer                                              | Honors `convert_timezone: false`? | Reason                                                              |
+| -------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------- |
+| SELECT — DATE_TRUNC                                | ✅                                | Wrap is skipped, raw `DATE_TRUNC` is emitted                        |
+| SELECT — EXTRACT-based                             | ✅                                | Wrap is skipped, bare EXTRACT is emitted                            |
+| SELECT — base TIMESTAMP value                      | ✅                                | Result formatting renders the UTC instant as-is                     |
+| WHERE — filter rendering                           | ❌                                | Filters always convert into the project TZ (filter literals do too) |
+| Result formatting (table cells, exports)           | ✅                                | `formatItemValue` / `formatTemporalCellForSpreadsheet` short-circuit |
+
+The override propagates to all time-interval children of the base dim (`_day`, `_month`, `_day_of_week_index`, `_month_num`, …). Both Layer 2 SQL paths look up the **base** dim by `timeIntervalBaseDimensionName` and read `convertTimezone` from there, so child dims inherit the opt-out automatically.
+
+**Footgun.** Because filter SQL keeps converting while the displayed value does not, custom date filters on a `convert_timezone: false` column may behave surprisingly: the user sees raw warehouse values but filters bound by project-TZ midnights. This is the documented trade-off — flag it in dimension descriptions when you opt out.
+
+**Files:** `packages/common/src/compiler/translator.ts` (compile-time wiring), `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` (`getTimezoneAwareDimensionSql`'s `respectConvertTimezone` parameter), `packages/backend/src/utils/QueryBuilder/utils.ts` (`getDimensionFromId`), `packages/common/src/utils/formatting.ts` (`isDimensionDisplayTimezoneDisabled`).
+
 ### WHERE — Filter boundaries
 
 Filter boundaries are computed in Node.js. All relative date filter operators use the project timezone via `.tz(timezone)`:
