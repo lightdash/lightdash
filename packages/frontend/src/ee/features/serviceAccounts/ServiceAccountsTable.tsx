@@ -4,27 +4,35 @@ import {
     type ServiceAccount,
 } from '@lightdash/common';
 import {
+    ActionIcon,
     Badge,
-    Button,
     Group,
     HoverCard,
+    Menu,
     Stack,
     Table,
     Text,
     Tooltip,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconInfoCircle, IconTrash } from '@tabler/icons-react';
+import {
+    IconDots,
+    IconInfoCircle,
+    IconKey,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
+import { ServiceAccountPermissionsModal } from './ServiceAccountPermissionsModal';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
 
 const TableRow: FC<{
     onClickDelete: (serviceAccount: ServiceAccount) => void;
+    onClickInfo: (serviceAccount: ServiceAccount) => void;
     serviceAccount: ServiceAccount;
-}> = ({ onClickDelete, serviceAccount }) => {
+}> = ({ onClickDelete, onClickInfo, serviceAccount }) => {
     const { description, scopes, lastUsedAt, rotatedAt, expiresAt } =
         serviceAccount;
     const stale = isServiceAccountStale(serviceAccount);
@@ -119,15 +127,32 @@ const TableRow: FC<{
                 )}
             </td>
             <td width="1%">
-                <Button
-                    px="xs"
-                    variant="outline"
-                    size="xs"
-                    color="red"
-                    onClick={() => onClickDelete(serviceAccount)}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </Button>
+                <Menu position="bottom-end" withinPortal>
+                    <Menu.Target>
+                        <ActionIcon
+                            variant="transparent"
+                            size="sm"
+                            color="ldGray.6"
+                        >
+                            <MantineIcon icon={IconDots} />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconKey} />}
+                            onClick={() => onClickInfo(serviceAccount)}
+                        >
+                            Permissions
+                        </Menu.Item>
+                        <Menu.Item
+                            icon={<MantineIcon icon={IconTrash} />}
+                            color="red"
+                            onClick={() => onClickDelete(serviceAccount)}
+                        >
+                            Delete
+                        </Menu.Item>
+                    </Menu.Dropdown>
+                </Menu>
             </td>
         </tr>
     );
@@ -146,8 +171,15 @@ export const ServiceAccountsTable: FC<TableProps> = ({
 }) => {
     const { cx, classes } = useTableStyles();
     const [opened, { open, close }] = useDisclosure(false);
+    const [
+        permissionsOpened,
+        { open: openPermissions, close: closePermissions },
+    ] = useDisclosure(false);
 
     const [serviceAccountToDelete, setServiceAccountToDelete] = useState<
+        ServiceAccount | undefined
+    >();
+    const [serviceAccountToView, setServiceAccountToView] = useState<
         ServiceAccount | undefined
     >();
 
@@ -165,6 +197,16 @@ export const ServiceAccountsTable: FC<TableProps> = ({
     const handleCloseModal = () => {
         setServiceAccountToDelete(undefined);
         close();
+    };
+
+    const handleOpenPermissions = (serviceAccount: ServiceAccount) => {
+        setServiceAccountToView(serviceAccount);
+        openPermissions();
+    };
+
+    const handleClosePermissions = () => {
+        setServiceAccountToView(undefined);
+        closePermissions();
     };
 
     return (
@@ -191,6 +233,7 @@ export const ServiceAccountsTable: FC<TableProps> = ({
                             key={serviceAccount.uuid}
                             serviceAccount={serviceAccount}
                             onClickDelete={handleOpenModal}
+                            onClickInfo={handleOpenPermissions}
                         />
                     ))}
                 </tbody>
@@ -202,6 +245,12 @@ export const ServiceAccountsTable: FC<TableProps> = ({
                 isDeleting={isDeleting}
                 onDelete={handleDelete}
                 serviceAccount={serviceAccountToDelete!}
+            />
+
+            <ServiceAccountPermissionsModal
+                isOpen={permissionsOpened}
+                onClose={handleClosePermissions}
+                serviceAccount={serviceAccountToView}
             />
         </>
     );
