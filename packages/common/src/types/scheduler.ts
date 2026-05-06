@@ -16,6 +16,7 @@ export type SchedulerCsvOptions = {
     formatted: boolean;
     limit: 'table' | 'all' | number;
     asAttachment?: boolean;
+    exportPivotedData?: boolean;
 };
 
 export type SchedulerImageOptions = {
@@ -719,6 +720,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     encodedJwt?: string;
 };

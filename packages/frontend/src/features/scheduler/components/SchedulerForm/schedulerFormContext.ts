@@ -33,6 +33,7 @@ export interface SchedulerFormValues {
         customLimit: number;
         withPdf: boolean;
         asAttachment: boolean;
+        exportPivotedData: boolean;
     };
     emailTargets: string[];
     slackTargets: string[];
@@ -68,6 +69,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
         customLimit: 1,
         withPdf: false,
         asAttachment: false,
+        exportPivotedData: true,
     },
     emailTargets: [],
     slackTargets: [],
@@ -136,6 +138,7 @@ export const getFormValuesFromScheduler = (
             formOptions.customLimit = options.limit as number;
         }
         formOptions.asAttachment = options.asAttachment || false;
+        formOptions.exportPivotedData = options.exportPivotedData !== false;
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
     }
@@ -198,6 +201,7 @@ export const transformFormValues = (
                 (values.emailTargets?.length || 0) > 0
                     ? values.options.asAttachment
                     : false,
+            exportPivotedData: values.options.exportPivotedData,
         } satisfies SchedulerCsvOptions;
     } else if (values.format === SchedulerFormat.IMAGE) {
         options = {

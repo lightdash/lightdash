@@ -22,6 +22,8 @@ import {
     getColumnOrderFromVizTableConfig,
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
+    getDownloadPivotConfig,
+    getDownloadPivotOptions,
     getErrorMessage,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
@@ -529,6 +531,8 @@ export default class SchedulerTask {
                     format === SchedulerFormat.XLSX
                         ? DownloadFileType.XLSX
                         : DownloadFileType.CSV;
+                const exportPivotedData =
+                    csvOptions?.exportPivotedData !== false;
 
                 const baseAnalyticsProperties: DownloadCsv['properties'] = {
                     jobId,
@@ -556,6 +560,15 @@ export default class SchedulerTask {
                             userId: account.user.id,
                             properties: baseAnalyticsProperties,
                         });
+                        const chart =
+                            await this.schedulerService.savedChartModel.get(
+                                savedChartUuid,
+                            );
+                        const {
+                            pivotConfig: downloadPivotConfig,
+                            exportPivotedData: effectiveExportPivotedData,
+                        } = getDownloadPivotOptions(chart, exportPivotedData);
+                        const shouldPivotResults = !!downloadPivotConfig;
                         const query =
                             await this.asyncQueryService.executeAsyncSavedChartQuery(
                                 {
@@ -566,13 +579,10 @@ export default class SchedulerTask {
                                     context:
                                         QueryExecutionContext.SCHEDULED_DELIVERY,
                                     limit: getSchedulerCsvLimit(csvOptions),
-                                    pivotResults: pivotResultsFlag.enabled,
+                                    pivotResults:
+                                        pivotResultsFlag.enabled &&
+                                        shouldPivotResults,
                                 },
-                            );
-
-                        const chart =
-                            await this.schedulerService.savedChartModel.get(
-                                savedChartUuid,
                             );
                         const downloadResult =
                             await this.asyncQueryService.downloadSyncQueryResults(
@@ -589,7 +599,9 @@ export default class SchedulerTask {
                                     hiddenFields: getHiddenTableFields(
                                         chart.chartConfig,
                                     ),
-                                    pivotConfig: getPivotConfig(chart),
+                                    pivotConfig: downloadPivotConfig,
+                                    exportPivotedData:
+                                        effectiveExportPivotedData,
                                     columnOrder: chart.tableConfig.columnOrder,
                                     expirationSecondsOverride,
                                 },
@@ -691,6 +703,20 @@ export default class SchedulerTask {
                             async ({ chartUuid, tileUuid }) => {
                                 const chartLimit =
                                     getSchedulerCsvLimit(csvOptions);
+                                const chart =
+                                    await this.schedulerService.savedChartModel.get(
+                                        chartUuid,
+                                    );
+                                const {
+                                    pivotConfig: downloadPivotConfig,
+                                    exportPivotedData:
+                                        effectiveExportPivotedData,
+                                } = getDownloadPivotOptions(
+                                    chart,
+                                    exportPivotedData,
+                                );
+                                const shouldPivotResults =
+                                    !!downloadPivotConfig;
                                 const query =
                                     await this.asyncQueryService.executeAsyncDashboardChartQuery(
                                         {
@@ -707,12 +733,9 @@ export default class SchedulerTask {
                                             parameters: finalParameters,
                                             limit: chartLimit,
                                             pivotResults:
-                                                pivotResultsFlag.enabled,
+                                                pivotResultsFlag.enabled &&
+                                                shouldPivotResults,
                                         },
-                                    );
-                                const chart =
-                                    await this.schedulerService.savedChartModel.get(
-                                        chartUuid,
                                     );
                                 const downloadResult =
                                     await this.asyncQueryService.downloadSyncQueryResults(
@@ -730,7 +753,9 @@ export default class SchedulerTask {
                                             hiddenFields: getHiddenTableFields(
                                                 chart.chartConfig,
                                             ),
-                                            pivotConfig: getPivotConfig(chart),
+                                            pivotConfig: downloadPivotConfig,
+                                            exportPivotedData:
+                                                effectiveExportPivotedData,
                                             columnOrder:
                                                 chart.tableConfig.columnOrder,
                                             expirationSecondsOverride,
@@ -4224,6 +4249,10 @@ export default class SchedulerTask {
         fileUrl: string;
         s3FileUrl?: string;
     }> {
+        const chart =
+            await this.schedulerService.savedChartModel.get(chartUuid);
+        const downloadPivotConfig = getDownloadPivotConfig(chart);
+        const shouldPivotResults = !!downloadPivotConfig;
         const query =
             await this.asyncQueryService.executeAsyncDashboardChartQuery({
                 account,
@@ -4240,10 +4269,8 @@ export default class SchedulerTask {
                     formatted: true,
                     limit: 'table',
                 }),
-                pivotResults: pivotResultsFlag.enabled,
+                pivotResults: pivotResultsFlag.enabled && shouldPivotResults,
             });
-        const chart =
-            await this.schedulerService.savedChartModel.get(chartUuid);
         const downloadResult =
             await this.asyncQueryService.downloadSyncQueryResults(
                 {
@@ -4256,7 +4283,7 @@ export default class SchedulerTask {
                         chart.chartConfig.config,
                     ),
                     hiddenFields: getHiddenTableFields(chart.chartConfig),
-                    pivotConfig: getPivotConfig(chart),
+                    pivotConfig: downloadPivotConfig,
                     columnOrder: chart.tableConfig.columnOrder,
                 },
                 SCHEDULER_POLLING_OPTIONS,

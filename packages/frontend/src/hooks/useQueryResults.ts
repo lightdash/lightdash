@@ -100,6 +100,7 @@ export const scheduleDownloadQuery = async (
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
             pivotConfig: options.pivotConfig,
+            exportPivotedData: options.exportPivotedData,
             attachmentDownloadName: options.attachmentDownloadName,
         }),
         version: 'v2',

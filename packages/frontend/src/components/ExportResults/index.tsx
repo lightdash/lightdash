@@ -14,9 +14,14 @@ import {
     SegmentedControl,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
 import { notifications } from '@mantine/notifications';
-import { IconInfoCircle, IconTableExport } from '@tabler/icons-react';
+import {
+    IconHelpCircle,
+    IconInfoCircle,
+    IconTableExport,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { memo, useState, type FC, type ReactNode } from 'react';
 import { pollJobStatus } from '../../features/scheduler/hooks/useScheduler';
@@ -33,6 +38,11 @@ type ExportCsvRenderProps = {
     isExporting: boolean;
 };
 
+const EXPORT_DATA_LAYOUT = {
+    PIVOTED: 'pivoted',
+    UNPIVOTED: 'unpivoted',
+} as const;
+
 enum Values {
     FORMATTED = 'formatted',
     RAW = 'raw',
@@ -44,6 +54,7 @@ export type ExportResultsProps = {
     getDownloadQueryUuid: (
         limit: number | null,
         limitType: Limit,
+        exportPivotedData?: boolean,
     ) => Promise<string>;
     columnOrder?: string[];
     customLabels?: Record<string, string>;
@@ -81,6 +92,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
         const [limit, setLimit] = useState<Limit>(Limit.TABLE);
         const [customLimit, setCustomLimit] = useState<number>(1);
         const [format, setFormat] = useState<string>(Values.FORMATTED);
+        const [exportPivotedData, setExportPivotedData] = useState(true);
         const [fileType, setFileType] = useState<DownloadFileType>(
             DownloadFileType.CSV,
         );
@@ -96,6 +108,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
                               ? (totalResults ?? 0)
                               : null,
                         limit,
+                        exportPivotedData,
                     );
 
                     const downloadOptions: DownloadOptions = {
@@ -105,7 +118,10 @@ const ExportResults: FC<ExportResultsProps> = memo(
                         customLabels,
                         hiddenFields,
                         showTableNames,
-                        pivotConfig,
+                        pivotConfig: exportPivotedData
+                            ? pivotConfig
+                            : undefined,
+                        exportPivotedData,
                         attachmentDownloadName: chartName
                             ? `${chartName}_${formatDate(new Date())}`
                             : undefined,
@@ -176,7 +192,7 @@ const ExportResults: FC<ExportResultsProps> = memo(
 
         const csvCellsLimit = health.data?.query?.csvCellsLimit || 100000;
         const maxColumnLimit = health.data?.pivotTable?.maxColumnLimit || 60;
-        const isPivotTable = !!pivotConfig;
+        const isPivotTable = exportPivotedData && !!pivotConfig;
         const isDialog = !!renderDialogActions;
         const showLimitNote =
             isPivotTable ||
@@ -220,6 +236,61 @@ const ExportResults: FC<ExportResultsProps> = memo(
                 )}
             </Stack>
         );
+
+        const layoutSelection = pivotConfig ? (
+            <Stack gap="sm">
+                <Stack gap={4}>
+                    <Group gap={4}>
+                        <Text fw={600} fz="sm">
+                            Layout
+                        </Text>
+                        <Tooltip
+                            withinPortal
+                            maw={300}
+                            multiline
+                            label="Grouped keeps the chart's pivoted columns. Flat exports the raw rows behind the chart."
+                            position="top"
+                        >
+                            <div>
+                                <MantineIcon
+                                    icon={IconHelpCircle}
+                                    size="sm"
+                                    color="gray"
+                                />
+                            </div>
+                        </Tooltip>
+                    </Group>
+                    <Text fz="xs" c="dimmed">
+                        Choose whether to export the chart&apos;s grouped layout
+                        or the underlying flat rows.
+                    </Text>
+                </Stack>
+                <SegmentedControl
+                    size="sm"
+                    fullWidth
+                    value={
+                        exportPivotedData
+                            ? EXPORT_DATA_LAYOUT.PIVOTED
+                            : EXPORT_DATA_LAYOUT.UNPIVOTED
+                    }
+                    onChange={(value) =>
+                        setExportPivotedData(
+                            value === EXPORT_DATA_LAYOUT.PIVOTED,
+                        )
+                    }
+                    data={[
+                        {
+                            label: 'Grouped',
+                            value: EXPORT_DATA_LAYOUT.PIVOTED,
+                        },
+                        {
+                            label: 'Flat',
+                            value: EXPORT_DATA_LAYOUT.UNPIVOTED,
+                        },
+                    ]}
+                />
+            </Stack>
+        ) : null;
 
         return (
             <Stack gap="md" miw="20rem">
@@ -291,6 +362,8 @@ const ExportResults: FC<ExportResultsProps> = memo(
                                 ]}
                             />
                         </Stack>
+
+                        {layoutSelection}
 
                         {!hideLimitSelection &&
                             (forceShowLimitSelection ? (
