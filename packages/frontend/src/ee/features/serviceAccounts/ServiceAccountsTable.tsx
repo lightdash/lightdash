@@ -68,7 +68,7 @@ const TableRow: FC<{
                     )}
                 </Group>
             </td>
-            <td width="200px">
+            <td style={{ whiteSpace: 'nowrap' }}>
                 {scopes.length > 2 ? (
                     <HoverCard offset={-20}>
                         <HoverCard.Target>
@@ -85,7 +85,7 @@ const TableRow: FC<{
                     <Group spacing="xs">{scopeBadges}</Group>
                 )}
             </td>
-            <td>
+            <td style={{ whiteSpace: 'nowrap' }}>
                 <Group align="center" position="left" spacing="xs">
                     {expiresAt ? formatDate(expiresAt) : 'No expiration date'}
                     {rotatedAt && (
@@ -106,7 +106,7 @@ const TableRow: FC<{
                     )}
                 </Group>
             </td>
-            <td>
+            <td style={{ whiteSpace: 'nowrap' }}>
                 {lastUsedAt && (
                     <Tooltip
                         withinPortal
@@ -173,10 +173,16 @@ export const ServiceAccountsTable: FC<TableProps> = ({
                 <thead>
                     <tr>
                         <th>Description</th>
-                        <th>Scopes</th>
-                        <th>Expires at</th>
-                        <th>Last used at</th>
-                        <th></th>
+                        <th style={{ whiteSpace: 'nowrap', width: '1%' }}>
+                            Scopes
+                        </th>
+                        <th style={{ whiteSpace: 'nowrap', width: '1%' }}>
+                            Expires at
+                        </th>
+                        <th style={{ whiteSpace: 'nowrap', width: '1%' }}>
+                            Last used at
+                        </th>
+                        <th style={{ width: '1%' }}></th>
                     </tr>
                 </thead>
                 <tbody>
