@@ -1,6 +1,7 @@
 import {
     AnyType,
     DbtProjectType,
+    GroupType,
     ProjectDefaults,
     ProjectType,
     TableSelectionType,
@@ -32,6 +33,7 @@ export type DbProject = {
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
     color_palette_uuid: string | null;
+    table_groups: Record<string, GroupType> | null;
 };
 
 type CreateDbProject = Pick<
@@ -65,6 +67,7 @@ type UpdateDbProject = Partial<
         | 'has_default_user_spaces'
         | 'project_defaults'
         | 'color_palette_uuid'
+        | 'table_groups'
     >
 >;
 

@@ -207,7 +207,7 @@ import {
     type SortBy,
 } from './sqlRunner';
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
-import { type TableBase } from './table';
+import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import {
     type LightdashUser,
@@ -279,6 +279,8 @@ export type ApiCompiledQueryResults = {
 export type ApiExploresResults = SummaryExplore[];
 
 export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
+
+export type ApiTableGroupsResults = Record<string, GroupType>;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 

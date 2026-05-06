@@ -78,6 +78,7 @@ import {
     getPreAggregateExploreName,
     getTimeDimensionsMap,
     getTimezoneLabel,
+    GroupType,
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
@@ -2215,6 +2216,10 @@ export class ProjectService extends BaseService {
                         projectUuid: newProjectUuid,
                         parameters: lightdashProjectConfig.parameters,
                     });
+                    await this.projectModel.setTableGroups(
+                        newProjectUuid,
+                        lightdashProjectConfig.table_groups,
+                    );
                     await this.saveExploresToCacheAndIndexCatalog({
                         userUuid: user.userUuid,
                         projectUuid: newProjectUuid,
@@ -2698,6 +2703,10 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 parameters: lightdashProjectConfig.parameters,
                             });
+                            await this.projectModel.setTableGroups(
+                                projectUuid,
+                                lightdashProjectConfig.table_groups,
+                            );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
                             await this.saveExploresToCacheAndIndexCatalog({
@@ -5463,6 +5472,10 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             parameters: lightdashProjectConfig.parameters,
                         });
+                        await this.projectModel.setTableGroups(
+                            projectUuid,
+                            lightdashProjectConfig.table_groups,
+                        );
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();
                         const result = this.saveExploresToCacheAndIndexCatalog({
@@ -7715,6 +7728,28 @@ export class ProjectService extends BaseService {
         }
 
         return this.tagsModel.list(projectUuid);
+    }
+
+    async getTableGroups(
+        account: Account,
+        projectUuid: string,
+    ): Promise<Record<string, GroupType>> {
+        const { organizationUuid, type } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                    type,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectModel.getTableGroups(projectUuid);
     }
 
     async replaceProjectParameters({

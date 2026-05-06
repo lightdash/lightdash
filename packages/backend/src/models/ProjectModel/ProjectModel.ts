@@ -17,6 +17,7 @@ import {
     ExploreError,
     ExploreType,
     getLtreePathFromSlug,
+    GroupType,
     IdContentMapping,
     isExploreError,
     NotFoundError,
@@ -157,6 +158,7 @@ type RawSummaryRow = {
     label: Explore['label'];
     tags: Explore['tags'];
     groupLabel: Explore['groupLabel'] | null;
+    groups: Explore['groups'] | null;
     type: Explore['type'] | null;
     preAggregateSource: Explore['preAggregateSource'] | null;
     errors: ExploreError['errors'] | null; // Fatal errors from ExploreError
@@ -592,6 +594,29 @@ export class ProjectModel {
         await this.database('projects')
             .update({
                 color_palette_uuid: colorPaletteUuid,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
+    async getTableGroups(
+        projectUuid: string,
+    ): Promise<Record<string, GroupType>> {
+        const [row] = await this.database(ProjectTableName)
+            .select('table_groups')
+            .where('project_uuid', projectUuid);
+        return row?.table_groups ?? {};
+    }
+
+    async setTableGroups(
+        projectUuid: string,
+        tableGroups: Record<string, GroupType> | undefined,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                table_groups:
+                    tableGroups && Object.keys(tableGroups).length > 0
+                        ? tableGroups
+                        : null,
             })
             .where('project_uuid', projectUuid);
     }
@@ -1218,6 +1243,7 @@ export class ProjectModel {
                     explore->'label' as label,
                     explore->'tags' as tags,
                     explore->'groupLabel' as "groupLabel",
+                    explore->'groups' as "groups",
                     explore->'type' as type,
                     explore->'preAggregateSource' as "preAggregateSource",
                     explore->'errors' as errors,
@@ -1238,6 +1264,7 @@ export class ProjectModel {
             label: row.label,
             tags: row.tags,
             groupLabel: row.groupLabel ?? undefined,
+            groups: row.groups ?? undefined,
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,

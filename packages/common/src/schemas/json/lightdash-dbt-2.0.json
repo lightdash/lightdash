@@ -474,6 +474,20 @@
                     "type": "string",
                     "enum": ["index", "label"]
                 },
+                "group_label": {
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
+                },
+                "groups": {
+                    "type": "array",
+                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 3 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "maxItems": 3
+                },
                 "group_details": {
                     "type": "object",
                     "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 3 levels",
@@ -1068,6 +1082,20 @@
                                 "sql_where": {
                                     "type": "string",
                                     "description": "Alias for sql_filter (deprecated, use sql_filter instead)"
+                                },
+                                "group_label": {
+                                    "type": "string",
+                                    "deprecated": true,
+                                    "description": "Deprecated: use groups instead"
+                                },
+                                "groups": {
+                                    "type": "array",
+                                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 3 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
+                                    "items": {
+                                        "type": "string",
+                                        "minLength": 1
+                                    },
+                                    "maxItems": 3
                                 }
                             }
                         }

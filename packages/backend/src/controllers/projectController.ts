@@ -44,6 +44,7 @@ import {
     type ApiGetTagsResponse,
     type ApiRefreshResults,
     type ApiSuccess,
+    type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
     type ApiVerifiedContentListResponse,
     type CalculateSubtotalsFromQuery,
@@ -661,6 +662,31 @@ export class ProjectController extends BaseController {
      * they become available.
      * @summary Get project color palette
      */
+    /**
+     * Project-level table-group definitions (label & description for each
+     * group key referenced by models in their `meta.groups` array). Sourced
+     * from `table_groups` in lightdash.config.yml.
+     * @summary Get project table groups
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/table-groups')
+    @OperationId('getProjectTableGroups')
+    async getProjectTableGroups(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiTableGroupsResults>> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const tableGroups = await this.services
+            .getProjectService()
+            .getTableGroups(req.account, projectUuid);
+        return {
+            status: 'ok',
+            results: tableGroups,
+        };
+    }
+
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/colorPalette')

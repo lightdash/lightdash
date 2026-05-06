@@ -25,6 +25,9 @@ export const preAggregatePostProcessor: ExplorePostProcessor = (
                     name: explore.name,
                     label: explore.label,
                     groupLabel: explore.groupLabel,
+                    ...(explore.groups && explore.groups.length > 0
+                        ? { groups: explore.groups }
+                        : {}),
                     errors: [
                         {
                             type: InlineErrorType.METADATA_PARSE_ERROR,

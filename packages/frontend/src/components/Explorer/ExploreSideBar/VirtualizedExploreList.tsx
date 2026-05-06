@@ -1,24 +1,39 @@
 import { type SummaryExplore } from '@lightdash/common';
 import { Divider } from '@mantine-8/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import {
+    collectMatchingGroupPathsFromArray,
+    type ExploreNode,
+} from './exploreTree';
 import ExploreNavLink from './ExploreNavLink';
 import GroupHeader from './GroupHeader';
 import SectionHeader from './SectionHeader';
 
-// Define item types for the virtualized list
+const INDENT_PER_DEPTH = 16;
+
 export type VirtualListItem =
     | {
           type: 'group-header';
           id: string;
           label: string;
+          path: string;
+          depth: number;
           isExpanded: boolean;
       }
     | {
           type: 'explore';
           id: string;
           explore: SummaryExplore;
-          groupLabel?: string;
+          depth: number;
       }
     | { type: 'divider'; id: string }
     | {
@@ -29,8 +44,7 @@ export type VirtualListItem =
       };
 
 interface VirtualizedExploreListProps {
-    sortedGroupLabels: string[];
-    exploreGroupMap: Record<string, SummaryExplore[]>;
+    groupedExploreTree: ExploreNode[];
     defaultUngroupedExplores: SummaryExplore[];
     customUngroupedExplores: SummaryExplore[];
     preAggregateExplores: SummaryExplore[];
@@ -38,21 +52,34 @@ interface VirtualizedExploreListProps {
     onExploreClick: (explore: SummaryExplore) => void;
 }
 
-const ITEM_HEIGHT = 40; // Base height for most items
+const ITEM_HEIGHT = 40;
 const GROUP_HEADER_HEIGHT = 40;
 const SECTION_HEADER_HEIGHT = 32;
 const DIVIDER_HEIGHT = 16;
 
+const collectExploreNamesInTree = (
+    nodes: ExploreNode[],
+    out: Set<string>,
+): Set<string> => {
+    for (const node of nodes) {
+        if (node.type === 'explore') {
+            out.add(node.key);
+        } else {
+            collectExploreNamesInTree(Object.values(node.children), out);
+        }
+    }
+    return out;
+};
+
 const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
-    sortedGroupLabels,
-    exploreGroupMap,
+    groupedExploreTree,
     defaultUngroupedExplores,
     customUngroupedExplores,
     preAggregateExplores,
     searchQuery,
     onExploreClick,
 }) => {
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
+    const [expandedGroupPaths, setExpandedGroupPaths] = useState<Set<string>>(
         new Set(),
     );
     // Sections are collapsed by default (empty set means all collapsed)
@@ -61,119 +88,132 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     );
     const parentRef = useRef<HTMLDivElement>(null);
 
-    const toggleGroup = useCallback((groupLabel: string) => {
-        setExpandedGroups((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(groupLabel)) {
-                newSet.delete(groupLabel);
+    const toggleGroup = useCallback((path: string) => {
+        setExpandedGroupPaths((prev) => {
+            const next = new Set(prev);
+            if (next.has(path)) {
+                next.delete(path);
             } else {
-                newSet.add(groupLabel);
+                next.add(path);
             }
-            return newSet;
+            return next;
         });
     }, []);
 
     const toggleSection = useCallback((sectionLabel: string) => {
         setExpandedSections((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(sectionLabel)) {
-                newSet.delete(sectionLabel);
+            const next = new Set(prev);
+            if (next.has(sectionLabel)) {
+                next.delete(sectionLabel);
             } else {
-                newSet.add(sectionLabel);
+                next.add(sectionLabel);
             }
-            return newSet;
+            return next;
         });
     }, []);
 
-    // Create flattened list of items for virtualization
-    const virtualItems = useMemo((): VirtualListItem[] => {
+    // Auto-expand group paths whose subtree contains a search match.
+    // groupedExploreTree was already filtered by the search in the parent,
+    // so every explore in the tree counts as a match.
+    const searchMatchPaths = useMemo<Set<string>>(() => {
+        if (!searchQuery) return new Set();
+        const matching = new Set<string>();
+        collectExploreNamesInTree(groupedExploreTree, matching);
+        return collectMatchingGroupPathsFromArray(
+            groupedExploreTree,
+            matching,
+        );
+    }, [groupedExploreTree, searchQuery]);
+
+    useEffect(() => {
+        if (searchMatchPaths.size === 0) return;
+        setExpandedGroupPaths((prev) => {
+            const next = new Set(prev);
+            searchMatchPaths.forEach((path) => next.add(path));
+            return next;
+        });
+    }, [searchMatchPaths]);
+
+    const virtualItems = useMemo<VirtualListItem[]>(() => {
         const items: VirtualListItem[] = [];
         let itemId = 0;
 
-        // Add grouped explores
-        for (const groupLabel of sortedGroupLabels) {
-            const explores = exploreGroupMap[groupLabel] || [];
-            const isExpanded = expandedGroups.has(groupLabel);
-
-            // Add group header
-            items.push({
-                type: 'group-header',
-                id: `group-${itemId++}`,
-                label: groupLabel,
-                isExpanded,
-            });
-
-            // Add explores if group is expanded
-            if (isExpanded) {
-                for (const explore of explores) {
+        const visit = (nodes: ExploreNode[], depth: number): void => {
+            for (const node of nodes) {
+                if (node.type === 'group') {
+                    const isExpanded = expandedGroupPaths.has(node.path);
+                    items.push({
+                        type: 'group-header',
+                        id: `group-${itemId++}`,
+                        label: node.label,
+                        path: node.path,
+                        depth,
+                        isExpanded,
+                    });
+                    if (isExpanded) {
+                        visit(Object.values(node.children), depth + 1);
+                    }
+                } else {
                     items.push({
                         type: 'explore',
                         id: `explore-${itemId++}`,
-                        explore,
-                        groupLabel,
+                        explore: node.explore,
+                        depth,
                     });
                 }
             }
-        }
+        };
 
-        // Add ungrouped explores
+        visit(groupedExploreTree, 0);
+
         for (const explore of defaultUngroupedExplores) {
             items.push({
                 type: 'explore',
                 id: `ungrouped-${itemId++}`,
                 explore,
+                depth: 0,
             });
         }
 
-        // Add virtual views section if there are custom explores
         if (customUngroupedExplores.length > 0) {
             const isVirtualViewsExpanded =
                 expandedSections.has('Virtual Views');
-
-            items.push({
-                type: 'divider',
-                id: `divider-${itemId++}`,
-            });
+            items.push({ type: 'divider', id: `divider-${itemId++}` });
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'Virtual Views',
                 isExpanded: isVirtualViewsExpanded,
             });
-
             if (isVirtualViewsExpanded) {
                 for (const explore of customUngroupedExplores) {
                     items.push({
                         type: 'explore',
                         id: `virtual-${itemId++}`,
                         explore,
+                        depth: 0,
                     });
                 }
             }
         }
 
-        // Add pre-aggregates section if there are pre-aggregate explores
         if (preAggregateExplores.length > 0) {
             const isPreAggregatesExpanded =
                 expandedSections.has('Pre-aggregates');
-
-            items.push({
-                type: 'divider',
-                id: `divider-${itemId++}`,
-            });
+            items.push({ type: 'divider', id: `divider-${itemId++}` });
             items.push({
                 type: 'section-header',
                 id: `section-${itemId++}`,
                 label: 'Pre-aggregates',
                 isExpanded: isPreAggregatesExpanded,
             });
-
             if (isPreAggregatesExpanded) {
                 for (const explore of preAggregateExplores) {
                     items.push({
                         type: 'explore',
                         id: `pre-aggregate-${itemId++}`,
                         explore,
+                        depth: 0,
                     });
                 }
             }
@@ -181,12 +221,11 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
 
         return items;
     }, [
-        sortedGroupLabels,
-        exploreGroupMap,
+        groupedExploreTree,
         defaultUngroupedExplores,
         customUngroupedExplores,
         preAggregateExplores,
-        expandedGroups,
+        expandedGroupPaths,
         expandedSections,
     ]);
 
@@ -194,7 +233,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         (index: number) => {
             const item = virtualItems[index];
             if (!item) return ITEM_HEIGHT;
-
             switch (item.type) {
                 case 'group-header':
                     return GROUP_HEADER_HEIGHT;
@@ -227,16 +265,16 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                             key={item.id}
                             label={item.label}
                             isExpanded={item.isExpanded}
-                            onToggle={() => toggleGroup(item.label)}
+                            depth={item.depth}
+                            onToggle={() => toggleGroup(item.path)}
                         />
                     );
-
                 case 'explore':
                     return (
                         <div
                             key={item.id}
                             style={{
-                                paddingLeft: item.groupLabel ? '16px' : '0px',
+                                paddingLeft: `${item.depth * INDENT_PER_DEPTH}px`,
                             }}
                         >
                             <ExploreNavLink
@@ -246,7 +284,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                             />
                         </div>
                     );
-
                 case 'divider':
                     return (
                         <Divider
@@ -256,7 +293,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                             my="xs"
                         />
                     );
-
                 case 'section-header':
                     return (
                         <SectionHeader
@@ -266,7 +302,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                             onToggle={() => toggleSection(item.label)}
                         />
                     );
-
                 default:
                     return null;
             }
@@ -291,7 +326,6 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                 {virtualizer.getVirtualItems().map((virtualItem) => {
                     const item = virtualItems[virtualItem.index];
                     if (!item) return null;
-
                     return (
                         <div
                             key={virtualItem.key}

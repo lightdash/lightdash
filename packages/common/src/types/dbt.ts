@@ -100,7 +100,14 @@ export type DbtExploreLightdashAdditionalDimension =
 type ExploreConfig = {
     label?: string;
     description?: string;
+    /** @deprecated Use groups instead */
     group_label?: string;
+    /**
+     * Nested groups for tables in the sidebar (max 3 levels). Group keys
+     * resolve to labels via `table_groups` in lightdash.config.yml; missing
+     * keys fall back to using the key as the label.
+     */
+    groups?: string[];
     joins?: DbtModelJoin[];
     case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
     sql_filter?: string;

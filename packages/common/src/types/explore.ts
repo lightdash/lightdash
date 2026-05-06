@@ -89,7 +89,15 @@ export type Explore = {
     name: string; // Must be sql friendly (a-Z, 0-9, _)
     label: string; // Friendly name
     tags: string[];
+    /** @deprecated Use `groups` instead */
     groupLabel?: string;
+    /**
+     * Nested groups for the sidebar (max 3 levels). Group keys resolve to
+     * labels/descriptions via the project-level `table_groups` config
+     * (fetched separately); missing keys fall back to using the key as
+     * the label.
+     */
+    groups?: string[];
     baseTable: string; // Must match a tableName in tables
     joinedTables: CompiledExploreJoin[]; // Must match a tableName in tables
     tables: { [tableName: string]: CompiledTable }; // All tables in this explore, potentially filtered by user attributes
@@ -121,7 +129,7 @@ export type Explore = {
 };
 
 export type ExploreError = Partial<Explore> &
-    Pick<Explore, 'name' | 'label' | 'groupLabel'> & {
+    Pick<Explore, 'name' | 'label' | 'groupLabel' | 'groups'> & {
         errors: InlineError[];
     };
 
@@ -138,6 +146,7 @@ type SummaryExploreFields =
     | 'label'
     | 'tags'
     | 'groupLabel'
+    | 'groups'
     | 'type'
     | 'preAggregateSource'
     | 'aiHint'
@@ -147,6 +156,7 @@ type SummaryExploreErrorFields =
     | 'label'
     | 'tags'
     | 'groupLabel'
+    | 'groups'
     | 'type'
     | 'aiHint'
     | 'errors';

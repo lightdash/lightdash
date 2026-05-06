@@ -242,7 +242,9 @@ export type UncompiledExplore = {
     label: string;
     tags: string[];
     baseTable: string;
+    /** @deprecated Use groups instead */
     groupLabel?: string;
+    groups?: string[];
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
@@ -295,6 +297,7 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
+        groups,
         warehouse,
         ymlPath,
         sqlPath,
@@ -632,6 +635,7 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
+            ...(groups && groups.length > 0 ? { groups } : {}),
             warehouse,
             ymlPath,
             sqlPath,

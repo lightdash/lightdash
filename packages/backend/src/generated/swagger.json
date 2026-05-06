@@ -6330,154 +6330,6 @@
             "ParametersValuesMap": {
                 "$ref": "#/components/schemas/Record_string.ParameterValue_"
             },
-            "ColorPaletteSource": {
-                "anyOf": [
-                    {
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": ["config"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "enum": ["default"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["organization"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["project"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["space"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["dashboard"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "name": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            },
-                            "type": {
-                                "type": "string",
-                                "enum": ["chart"],
-                                "nullable": false
-                            }
-                        },
-                        "required": ["name", "uuid", "type"],
-                        "type": "object"
-                    }
-                ],
-                "description": "Where a resolved colour palette came from. The `config` and `default` cases\ncarry no entity reference; the rest expose the UUID and human-readable name\nof the entity (organization, project, space, dashboard or chart) that owns\nthe winning palette in the resolution chain."
-            },
-            "ResolvedProjectColorPalette": {
-                "properties": {
-                    "source": {
-                        "$ref": "#/components/schemas/ColorPaletteSource"
-                    },
-                    "paletteName": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "paletteUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "darkColors": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "nullable": true
-                    },
-                    "colors": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    }
-                },
-                "required": [
-                    "source",
-                    "paletteName",
-                    "paletteUuid",
-                    "darkColors",
-                    "colors"
-                ],
-                "type": "object"
-            },
             "SavedChart": {
                 "properties": {
                     "deletedBy": {
@@ -6521,21 +6373,11 @@
                     "inheritsFromOrgOrProject": {
                         "type": "boolean"
                     },
-                    "resolvedColorPalette": {
-                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
-                    },
-                    "colorPaletteUuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Chart-level palette override pointer. `null` means inherit from the\ncontaining dashboard / space / project / org. Writable via\n`UpdateSavedChart`."
-                    },
                     "colorPalette": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array",
-                        "deprecated": true
+                        "type": "array"
                     },
                     "dashboardName": {
                         "type": "string",
@@ -6635,8 +6477,6 @@
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
-                    "resolvedColorPalette",
-                    "colorPaletteUuid",
                     "colorPalette",
                     "dashboardName",
                     "dashboardUuid",
@@ -7543,8 +7383,16 @@
                     "baseTable": {
                         "type": "string"
                     },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                    },
                     "groupLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
                     },
                     "tags": {
                         "items": {
@@ -10798,10 +10646,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -10810,8 +10658,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10821,16 +10669,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -10918,10 +10766,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -10930,8 +10778,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -18041,17 +17889,7 @@
                         "items": {
                             "type": "string"
                         },
-                        "type": "array",
-                        "deprecated": true
-                    },
-                    "colorPaletteUuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Chart-level palette override pointer. `null` means inherit from the\ncontaining dashboard / space / project / org. Writable via\n`UpdateSavedChart`."
-                    },
-                    "resolvedColorPalette": {
-                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
+                        "type": "array"
                     }
                 },
                 "required": [
@@ -18072,9 +17910,7 @@
                     "metricQuery",
                     "tableConfig",
                     "dashboardName",
-                    "colorPalette",
-                    "colorPaletteUuid",
-                    "resolvedColorPalette"
+                    "colorPalette"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -22003,6 +21839,171 @@
                 "required": ["hasDefaultUserSpaces"],
                 "type": "object"
             },
+            "ApiTableGroupsResults": {
+                "$ref": "#/components/schemas/Record_string.GroupType_"
+            },
+            "ApiSuccess_ApiTableGroupsResults_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiTableGroupsResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ColorPaletteSource": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["config"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["default"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["organization"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["project"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["space"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["dashboard"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["chart"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "uuid", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Where a resolved colour palette came from. The `config` and `default` cases\ncarry no entity reference; the rest expose the UUID and human-readable name\nof the entity (organization, project, space, dashboard or chart) that owns\nthe winning palette in the resolution chain."
+            },
+            "ResolvedProjectColorPalette": {
+                "properties": {
+                    "source": {
+                        "$ref": "#/components/schemas/ColorPaletteSource"
+                    },
+                    "paletteName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "paletteUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "darkColors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "colors": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "source",
+                    "paletteName",
+                    "paletteUuid",
+                    "darkColors",
+                    "colors"
+                ],
+                "type": "object"
+            },
             "ApiProjectColorPaletteResponse": {
                 "properties": {
                     "results": {
@@ -23931,7 +23932,15 @@
                         "type": "array"
                     },
                     "groupLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "baseTable": {
                         "type": "string"
@@ -24035,7 +24044,7 @@
                 "type": "object",
                 "description": "Make all properties in T optional"
             },
-            "Pick_Explore.name-or-label-or-groupLabel_": {
+            "Pick_Explore.name-or-label-or-groupLabel-or-groups_": {
                 "properties": {
                     "name": {
                         "type": "string"
@@ -24044,7 +24053,15 @@
                         "type": "string"
                     },
                     "groupLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     }
                 },
                 "required": ["name", "label"],
@@ -24057,7 +24074,7 @@
                         "$ref": "#/components/schemas/Partial_Explore_"
                     },
                     {
-                        "$ref": "#/components/schemas/Pick_Explore.name-or-label-or-groupLabel_"
+                        "$ref": "#/components/schemas/Pick_Explore.name-or-label-or-groupLabel-or-groups_"
                     },
                     {
                         "properties": {
@@ -24839,10 +24856,6 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "colorPaletteUuid": {
-                        "type": "string",
-                        "description": "The active color palette uuid for all projects in the organization"
-                    },
                     "chartColors": {
                         "items": {
                             "type": "string"
@@ -24856,6 +24869,10 @@
                         },
                         "type": "array",
                         "description": "The default dark color palette for all projects in the organization"
+                    },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "description": "The active color palette uuid for all projects in the organization"
                     },
                     "defaultProjectUuid": {
                         "type": "string",
@@ -26879,7 +26896,15 @@
                         "type": "array"
                     },
                     "groupLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "aiHint": {
                         "anyOf": [
@@ -26942,7 +26967,15 @@
                         "type": "array"
                     },
                     "groupLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "aiHint": {
                         "anyOf": [
@@ -27059,7 +27092,15 @@
                         "type": "boolean"
                     },
                     "groupLabel": {
-                        "type": "string"
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "baseTable": {
                         "type": "string"
@@ -31769,7 +31810,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2887.0",
+        "version": "0.2888.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -40896,6 +40937,47 @@
                 }
             }
         },
+        "/api/v1/projects/{projectUuid}/table-groups": {
+            "get": {
+                "operationId": "getProjectTableGroups",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ApiTableGroupsResults_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the resolved color palette for a project, walking the\nchart -> dashboard -> space -> project -> organization fallback chain\n(matches saved-chart resolution). The optional UUIDs let unsaved\nrenderers (Explore, AI viz, sql runner) opt into deeper layers as\nthey become available.",
+                "summary": "Get project color palette",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/projects/{projectUuid}/colorPalette": {
             "get": {
                 "operationId": "getProjectColorPalette",
@@ -40921,8 +41003,6 @@
                         }
                     }
                 },
-                "description": "Get the resolved color palette for a project, walking the\nchart -> dashboard -> space -> project -> organization fallback chain\n(matches saved-chart resolution). The optional UUIDs let unsaved\nrenderers (Explore, AI viz, sql runner) opt into deeper layers as\nthey become available.",
-                "summary": "Get project color palette",
                 "tags": ["Projects"],
                 "security": [],
                 "parameters": [
