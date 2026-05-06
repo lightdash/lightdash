@@ -1320,6 +1320,12 @@ export type AppRuntimeConfig = {
      * the preview-router prefix.
      */
     previewOrigin: string | null;
+    /**
+     * Additional origins allowed in the preview iframe CSP for style-src
+     * and font-src directives. Parsed from a comma-separated env var
+     * (e.g. `https://fonts.googleapis.com,https://fonts.gstatic.com`).
+     */
+    cspAllowedOrigins: string[];
     s3: S3Config | null;
     e2bApiKey: string | null;
     e2bTemplateName: string;
@@ -1535,6 +1541,10 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
+        cspAllowedOrigins: (process.env.APP_RUNTIME_CSP_ALLOWED_ORIGINS || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
         e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',

@@ -31,15 +31,19 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
 };
 
 const buildCspHeader = (config: AppRuntimeConfig): string => {
-    const { lightdashOrigin, cdnOrigin } = config;
+    const { lightdashOrigin, cdnOrigin, cspAllowedOrigins } = config;
+
+    const extra = cspAllowedOrigins.length
+        ? ` ${cspAllowedOrigins.join(' ')}`
+        : '';
 
     const directives: string[] = [
         `default-src 'none'`,
         `script-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `style-src 'self' 'unsafe-inline'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
+        `style-src 'self' 'unsafe-inline'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `connect-src 'self' ${lightdashOrigin} https:`,
         `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `font-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
+        `font-src 'self'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `frame-ancestors ${lightdashOrigin}`,
         `object-src 'none'`,
         `base-uri 'none'`,
@@ -377,6 +381,7 @@ export const createAppPreviewRouter = (
             // Allow cross-origin loading from sandboxed iframes (opaque origin).
             // Safe because assets are static build artifacts, not user data.
             res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
             res.setHeader('Content-Type', contentType);
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader(
