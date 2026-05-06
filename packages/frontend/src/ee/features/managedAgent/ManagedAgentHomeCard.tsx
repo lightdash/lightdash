@@ -4,11 +4,13 @@ import {
     ManagedAgentScheduleOption,
 } from '@lightdash/common';
 import {
+    Badge,
     Box,
     Button,
     Group,
     Stack,
     Text,
+    Tooltip,
     UnstyledButton,
 } from '@mantine-8/core';
 import {
@@ -26,7 +28,6 @@ import {
     useState,
 } from 'react';
 import { useNavigate } from 'react-router';
-import { BetaBadge } from '../../../components/common/BetaBadge';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
@@ -38,6 +39,14 @@ const FEATURES = [
     { icon: IconTrendingUp, label: 'Flags stale content' },
     { icon: IconChartBar, label: 'Creates visualizations' },
 ];
+
+const SubtleBetaBadge: FC = () => (
+    <Tooltip label="This feature is currently in beta. It might cause unexpected results and is subject to change.">
+        <Badge color="dark" variant="light" size="xs" radius="sm" fz="xs">
+            Beta
+        </Badge>
+    </Tooltip>
+);
 
 const formatRelative = (dateStr: string) => {
     const diff = Date.now() - new Date(dateStr).getTime();
@@ -184,7 +193,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                                 <Text fz="lg" fw={700}>
                                     Autopilot
                                 </Text>
-                                <BetaBadge />
+                                <SubtleBetaBadge />
                                 <Box className={classes.activePill}>
                                     <Box className={classes.activeDotSmall} />
                                     Active &middot; {formatSchedule(schedule)}
@@ -236,7 +245,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                                 <Text fz="lg" fw={700}>
                                     Autopilot
                                 </Text>
-                                <BetaBadge />
+                                <SubtleBetaBadge />
                             </Group>
                             <Group
                                 gap={6}
