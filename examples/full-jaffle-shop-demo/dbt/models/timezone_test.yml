@@ -46,6 +46,26 @@ models:
             count:
               type: count
               description: Total number of events
+      - name: event_timestamp_raw_utc
+        description: >
+          Same instants as event_timestamp, but the dimension opts out of
+          project-timezone conversion via `convert_timezone: false`. Use it
+          alongside event_timestamp to verify the per-dimension override:
+          DAY/HOUR buckets here always reflect raw UTC, regardless of the
+          project timezone.
+
+          Interior-rows DAY counts (always UTC):
+            Jan 15 = 6, Jan 16 = 4
+        meta:
+          dimension:
+            type: timestamp
+            convert_timezone: false
+            time_intervals: [
+              RAW, MILLISECOND, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, QUARTER, YEAR,
+              DAY_OF_WEEK_INDEX, DAY_OF_MONTH_NUM, DAY_OF_YEAR_NUM, WEEK_NUM,
+              MONTH_NUM, QUARTER_NUM, YEAR_NUM, HOUR_OF_DAY_NUM, MINUTE_OF_HOUR_NUM,
+              DAY_OF_WEEK_NAME, MONTH_NAME, QUARTER_NAME,
+            ]
       - name: event_timestamp_ntz
         description: >
           Snowflake only. Same events as event_timestamp cast to TIMESTAMP_NTZ

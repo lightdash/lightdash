@@ -26,6 +26,18 @@ seeds:
           {%- else -%}
             timestamp
           {%- endif -%}
+        event_timestamp_raw_utc: >-
+          {%- if target.type == 'snowflake' -%}
+            timestamp_tz
+          {%- elif target.type == 'clickhouse' -%}
+            DateTime64(3, 'UTC')
+          {%- elif target.type in ['databricks', 'spark', 'bigquery'] -%}
+            timestamp
+          {%- elif target.type in ['trino', 'athena'] -%}
+            timestamp with time zone
+          {%- else -%}
+            timestamptz
+          {%- endif -%}
   - name: raw_events
     config:
       column_types:
