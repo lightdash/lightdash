@@ -1383,6 +1383,10 @@
                             "type": "string",
                             "minLength": 1
                         },
+                        "convert_timezone": {
+                            "type": "boolean",
+                            "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                        },
                         "hidden": {
                             "type": "boolean"
                         },
@@ -1655,6 +1659,10 @@
                                             "enum": ["default", "OFF"]
                                         }
                                     ]
+                                },
+                                "convert_timezone": {
+                                    "type": "boolean",
+                                    "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
                                 },
                                 "hidden": {
                                     "type": "boolean"

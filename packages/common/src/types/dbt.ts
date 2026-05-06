@@ -222,6 +222,7 @@ export type DbtColumnLightdashDimension = {
     description?: string;
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
+    convert_timezone?: boolean;
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
