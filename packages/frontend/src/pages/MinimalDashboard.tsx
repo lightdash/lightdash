@@ -15,6 +15,7 @@ import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
+import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
@@ -80,6 +81,15 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     );
     const screenshotErroredTilesCount = useDashboardTileStatusContext(
         (c) => c.screenshotErroredTilesCount,
+    );
+    const expectedScreenshotTileUuids = useDashboardTileStatusContext(
+        (c) => c.expectedScreenshotTileUuids,
+    );
+    const screenshotReadyTileUuids = useDashboardTileStatusContext(
+        (c) => c.screenshotReadyTileUuids,
+    );
+    const screenshotErroredTileUuids = useDashboardTileStatusContext(
+        (c) => c.screenshotErroredTileUuids,
     );
 
     useEffect(() => {
@@ -175,6 +185,11 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                 </ResponsiveGridLayout>
             )}
 
+            <ScreenshotProgressIndicator
+                expectedTileUuids={expectedScreenshotTileUuids}
+                readyTileUuids={screenshotReadyTileUuids}
+                erroredTileUuids={screenshotErroredTileUuids}
+            />
             {isReadyForScreenshot && (
                 <ScreenshotReadyIndicator
                     tilesTotal={expectedScreenshotTilesCount}

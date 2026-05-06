@@ -288,6 +288,9 @@ const DashboardTileStatusProvider: React.FC<
             screenshotReadyTilesCount: screenshotReadyTiles.size,
             screenshotErroredTilesCount: screenshotErroredTiles.size,
             expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
+            expectedScreenshotTileUuids,
+            screenshotReadyTileUuids: Array.from(screenshotReadyTiles),
+            screenshotErroredTileUuids: Array.from(screenshotErroredTiles),
         }),
         [
             oldestCacheTime,
@@ -308,9 +311,9 @@ const DashboardTileStatusProvider: React.FC<
             markTileScreenshotReady,
             markTileScreenshotErrored,
             isReadyForScreenshot,
-            screenshotReadyTiles.size,
-            screenshotErroredTiles.size,
-            expectedScreenshotTileUuids.length,
+            screenshotReadyTiles,
+            screenshotErroredTiles,
+            expectedScreenshotTileUuids,
         ],
     );
 
