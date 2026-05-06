@@ -113,6 +113,47 @@ describe('addDashboardFiltersToMetricQuery', () => {
         ).toHaveLength(0);
     });
 
+    test('should ignore dashboard filters without values when overriding chart filters', () => {
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            {
+                dimensions: [
+                    {
+                        id: 'empty-filter',
+                        label: undefined,
+                        target: {
+                            fieldId: 'a_dim1',
+                            tableName: 'test',
+                        },
+                        operator: FilterOperator.EQUALS,
+                        values: [],
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            },
+        );
+
+        expect(result.filters.dimensions).toEqual({
+            id: 'uuid',
+            and: [
+                {
+                    id: '1',
+                    target: {
+                        fieldId: 'a_dim1',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: [0],
+                },
+            ],
+        });
+        expect(result.filters.metrics).toEqual({ id: 'uuid', and: [] });
+        expect(result.filters.tableCalculations).toEqual({
+            id: 'uuid',
+            and: [],
+        });
+    });
+
     test('should not affect dimension filters when adding metric filters', () => {
         const result = addDashboardFiltersToMetricQuery(
             metricQueryWithAndFilters,
@@ -1091,6 +1132,31 @@ describe('applyDashboardFiltersForTile', () => {
                 metricQuery: baseMetricQuery,
                 dashboardFilters: {
                     dimensions: [disabledRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('drops rules without values before applying them to the tile query', () => {
+        const emptyValueRule: DashboardFilterRule = {
+            ...statusRule,
+            values: [],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [emptyValueRule],
                     metrics: [],
                     tableCalculations: [],
                 },

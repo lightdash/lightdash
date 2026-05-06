@@ -837,6 +837,54 @@ export const getDashboardFilterRulesForTables = (
 ): DashboardFilterRule[] =>
     rules.filter((f) => availableFieldIds.includes(f.target.fieldId));
 
+const hasDashboardFilterRuleValue = (filterRule: DashboardFilterRule) => {
+    switch (filterRule.operator) {
+        case FilterOperator.NULL:
+        case FilterOperator.NOT_NULL:
+        case FilterOperator.IN_PERIOD_TO_DATE:
+            return true;
+        case FilterOperator.EQUALS:
+        case FilterOperator.NOT_EQUALS:
+        case FilterOperator.LESS_THAN:
+        case FilterOperator.GREATER_THAN:
+        case FilterOperator.ENDS_WITH:
+        case FilterOperator.STARTS_WITH:
+        case FilterOperator.INCLUDE:
+        case FilterOperator.NOT_INCLUDE:
+        case FilterOperator.LESS_THAN_OR_EQUAL:
+        case FilterOperator.GREATER_THAN_OR_EQUAL:
+            return !!filterRule.values && filterRule.values.length > 0;
+        case FilterOperator.IN_THE_PAST:
+        case FilterOperator.NOT_IN_THE_PAST:
+        case FilterOperator.IN_THE_NEXT:
+            return (
+                !!filterRule.settings?.unitOfTime &&
+                !!filterRule.values &&
+                filterRule.values.length > 0
+            );
+        case FilterOperator.IN_THE_CURRENT:
+        case FilterOperator.NOT_IN_THE_CURRENT:
+            return !!filterRule.settings?.unitOfTime;
+        case FilterOperator.IN_BETWEEN:
+        case FilterOperator.NOT_IN_BETWEEN:
+            return (
+                !!filterRule.values &&
+                filterRule.values.length === 2 &&
+                filterRule.values.every(
+                    (value) => value != null && value !== '',
+                )
+            );
+        default:
+            return assertUnreachable(
+                filterRule.operator,
+                'Unknown dashboard filter operator',
+            );
+    }
+};
+
+const shouldApplyDashboardFilterRule = (filterRule: DashboardFilterRule) =>
+    !filterRule.disabled && hasDashboardFilterRuleValue(filterRule);
+
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
     availableFieldIds: string[],
@@ -845,7 +893,7 @@ export const getDashboardFilterRulesForTileAndTables = (
     getDashboardFilterRulesForTables(
         availableFieldIds,
         getDashboardFilterRulesForTile(tileUuid, rules),
-    );
+    ).filter(shouldApplyDashboardFilterRule);
 
 export const getDashboardFiltersForTileAndTables = (
     tileUuid: string,
@@ -1161,7 +1209,18 @@ export const addDashboardFiltersToMetricQuery = (
 ): MetricQuery => {
     const timeBasedOverrideMap: TimeBasedOverrideMap = {};
 
-    const processedDimensionFilters = dashboardFilters.dimensions
+    const appliedDimensionFilters = dashboardFilters.dimensions.filter(
+        shouldApplyDashboardFilterRule,
+    );
+    const appliedMetricFilters = dashboardFilters.metrics.filter(
+        shouldApplyDashboardFilterRule,
+    );
+    const appliedTableCalculationFilters =
+        dashboardFilters.tableCalculations.filter(
+            shouldApplyDashboardFilterRule,
+        );
+
+    const processedDimensionFilters = appliedDimensionFilters
         .map((filter) => {
             const result = trackWhichTimeBasedMetricFiltersToOverride(
                 metricQuery.filters?.dimensions,
@@ -1185,14 +1244,14 @@ export const addDashboardFiltersToMetricQuery = (
             ),
             metrics: overrideFilterGroupWithFilterRules(
                 metricQuery.filters?.metrics,
-                dashboardFilters.metrics.map(
+                appliedMetricFilters.map(
                     convertDashboardFilterRuleToFilterRule,
                 ),
                 undefined,
             ),
             tableCalculations: overrideFilterGroupWithFilterRules(
                 metricQuery.filters?.tableCalculations,
-                dashboardFilters.tableCalculations.map(
+                appliedTableCalculationFilters.map(
                     convertDashboardFilterRuleToFilterRule,
                 ),
                 undefined,
