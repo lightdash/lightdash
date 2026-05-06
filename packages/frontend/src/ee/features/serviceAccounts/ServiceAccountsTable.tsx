@@ -65,10 +65,10 @@ const TableRow: FC<{
                         >
                             <Badge
                                 variant="light"
-                                color="yellow"
-                                radius="xs"
+                                color="red"
+                                radius="md"
                                 sx={{ textTransform: 'none' }}
-                                px="xs"
+                                px="xxs"
                             >
                                 Stale
                             </Badge>
