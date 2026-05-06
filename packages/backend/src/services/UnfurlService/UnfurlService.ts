@@ -1053,11 +1053,32 @@ export class UnfurlService extends BaseService {
                     page.on('console', (msg) => {
                         const type = msg.type();
                         if (type === 'error') {
-                            this.logger.warn(
-                                `Headless browser console error - file: ${
-                                    msg.location().url
-                                }, text ${msg.text()}`,
-                            );
+                            const location = msg.location();
+                            const text = msg.text();
+                            // Suppress known-benign noise (Google Fonts CORS,
+                            // CSP report-only directives) so real JS errors
+                            // dominate the error stream.
+                            const isBenign =
+                                /upgrade-insecure-requests.*report-only/i.test(
+                                    text,
+                                ) ||
+                                /Cross-Origin-Opener-Policy.*ignored/i.test(
+                                    text,
+                                ) ||
+                                /fonts\.gstatic\.com.*ERR_FAILED/i.test(text) ||
+                                /Failed to load resource: net::ERR_FAILED.*fonts\.gstatic\.com/i.test(
+                                    text,
+                                );
+
+                            if (isBenign) {
+                                this.logger.debug(
+                                    `Headless browser console error (benign) - file: ${location.url}, text: ${text}`,
+                                );
+                            } else {
+                                this.logger.error(
+                                    `Headless browser console error - unfurlId: ${imageId}, pageUrl: ${url}, file: ${location.url}:${location.lineNumber}:${location.columnNumber}, text: ${text}`,
+                                );
+                            }
                         }
                     });
 
@@ -1548,7 +1569,7 @@ export class UnfurlService extends BaseService {
                         this.logger.info(
                             `Retrying screenshot (attempt ${retryCount + 2}/${
                                 maxRetries + 1
-                            }) after ${delay}ms for url ${url}, type: ${lightdashPage}. Error: ${getErrorMessage(
+                            }) after ${delay}ms for url ${url}, type: ${lightdashPage}, unfurlId: ${imageId}. Error: ${getErrorMessage(
                                 e,
                             )}`,
                         );
@@ -1591,7 +1612,7 @@ export class UnfurlService extends BaseService {
                     hasError = true;
 
                     this.logger.error(
-                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}. Message: ${getErrorMessage(
+                        `Unable to fetch screenshots for scheduler with url ${url}, of type: ${lightdashPage}, unfurlId: ${imageId}. Message: ${getErrorMessage(
                             e,
                         )}`,
                     );
@@ -1634,7 +1655,7 @@ export class UnfurlService extends BaseService {
 
                     const executionTime = Date.now() - startTime;
                     this.logger.info(
-                        `UnfurlService saveScreenshot took ${executionTime} ms`,
+                        `UnfurlService saveScreenshot took ${executionTime} ms - unfurlId: ${imageId}`,
                     );
                 }
             },
