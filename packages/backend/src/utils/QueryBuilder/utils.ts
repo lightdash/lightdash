@@ -70,11 +70,11 @@ export const getDimensionFromId = ({
                 timezone,
             });
             if (baseField && newTimeFrame) {
-                // When the base dim opts out of display timezone conversion,
-                // drop the project timezone so the synthesized child renders
-                // in the raw warehouse value. All current callers that pass
-                // `timezone` are display sites; filter rendering uses
-                // getTimezoneAwareDimensionSql which has its own opt-out.
+                // Base dims with `convert_timezone: false` drop the project
+                // timezone so the synthesized child renders in the raw
+                // warehouse value. Filter rendering goes through
+                // getTimezoneAwareDimensionSql instead, which has its own
+                // opt-out.
                 const effectiveTimezone = isDimensionDisplayTimezoneDisabled(
                     baseField,
                 )

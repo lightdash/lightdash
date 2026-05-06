@@ -586,11 +586,11 @@ export class MetricQueryBuilder {
 
     /**
      * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
-     * extractable intervals. When `respectConvertTimezone` is true (default)
-     * and the base dim opts out of display timezone conversion, the wrap is
-     * skipped so the dim renders in its raw warehouse value. Filter rendering
-     * passes `false` so filter SQL keeps converting even when the dim is
-     * opted out of display conversion.
+     * extractable intervals.
+     *
+     * Base dims with `convert_timezone: false` are skipped — the dim renders
+     * in its raw warehouse value. Pass `respectConvertTimezone: false` from
+     * filter rendering so WHERE clauses keep wrapping regardless.
      */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
@@ -1444,10 +1444,8 @@ export class MetricQueryBuilder {
         }
 
         // Override filter dimension SQL to match the timezone-aware SELECT
-        // clause. Filters always convert into the project timezone, even
-        // when the dim is opted out of display conversion via
-        // convert_timezone: false — pass respectConvertTimezone: false so
-        // the filter SQL keeps the project-tz wrap.
+        // clause. Filters always wrap by project tz — even for dims with
+        // `convert_timezone: false` — so pass `respectConvertTimezone: false`.
         const filterField = isDimension(field)
             ? {
                   ...field,
