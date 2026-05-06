@@ -21,12 +21,21 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
 
+const STALE_THRESHOLD_DAYS = 30;
+const STALE_THRESHOLD_MS = STALE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
+
+const isStale = (serviceAccount: ServiceAccount): boolean => {
+    const reference = serviceAccount.lastUsedAt ?? serviceAccount.createdAt;
+    return Date.now() - new Date(reference).getTime() > STALE_THRESHOLD_MS;
+};
+
 const TableRow: FC<{
     onClickDelete: (serviceAccount: ServiceAccount) => void;
     serviceAccount: ServiceAccount;
 }> = ({ onClickDelete, serviceAccount }) => {
     const { description, scopes, lastUsedAt, rotatedAt, expiresAt } =
         serviceAccount;
+    const stale = isStale(serviceAccount);
 
     const scopeBadges = scopes.map((scope) => (
         <Badge
@@ -45,7 +54,28 @@ const TableRow: FC<{
 
     return (
         <tr>
-            <td>{description}</td>
+            <td>
+                <Group spacing="xs" noWrap>
+                    <Text>{description}</Text>
+                    {stale && (
+                        <Tooltip
+                            withinPortal
+                            position="top"
+                            label={`Not used in the last ${STALE_THRESHOLD_DAYS} days`}
+                        >
+                            <Badge
+                                variant="light"
+                                color="yellow"
+                                radius="xs"
+                                sx={{ textTransform: 'none' }}
+                                px="xs"
+                            >
+                                Stale
+                            </Badge>
+                        </Tooltip>
+                    )}
+                </Group>
+            </td>
             <td width="200px">
                 {scopes.length > 2 ? (
                     <HoverCard offset={-20}>
