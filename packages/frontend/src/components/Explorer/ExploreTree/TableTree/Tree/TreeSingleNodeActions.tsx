@@ -37,10 +37,7 @@ import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useFilteredFields } from '../../../../../hooks/useFilters';
 import { useProjectUuid } from '../../../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSql } from '../../../../../hooks/user/useCannotAuthorCustomSql';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -87,9 +84,10 @@ const TreeSingleNodeActions: FC<Props> = ({
     const isWriteBackCustomBinDimensionsEnabled =
         writeBackCustomBinDimensionsFlag?.enabled ?? false;
 
-    const isCustomGroupBinsEnabled = useClientFeatureFlag(
+    const { data: customGroupBinsFlag } = useServerFeatureFlag(
         FeatureFlags.CustomGroupBins,
     );
+    const isCustomGroupBinsEnabled = customGroupBinsFlag?.enabled ?? false;
 
     const duplicateCustomMetric = (customMetric: AdditionalMetric) => {
         const newDeepCopyItem = JSON.parse(JSON.stringify(customMetric));
