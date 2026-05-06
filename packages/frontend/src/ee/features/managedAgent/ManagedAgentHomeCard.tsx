@@ -18,7 +18,13 @@ import {
     IconShieldCheck,
     IconTrendingUp,
 } from '@tabler/icons-react';
-import { type FC, useEffect, useMemo, useState } from 'react';
+import {
+    type CSSProperties,
+    type FC,
+    useEffect,
+    useMemo,
+    useState,
+} from 'react';
 import { useNavigate } from 'react-router';
 import { BetaBadge } from '../../../components/common/BetaBadge';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -69,7 +75,7 @@ const PixelGrid: FC = () => {
             6, 7, 2, 9, 5, 0, 4, 8, 1, 6, 3, 7, 9, 2, 5, 0, 8, 4, 1, 6, 3, 7, 9,
             2, 5, 8, 0, 4, 1, 3, 6, 7, 9,
         ];
-        for (let row = 0; row < 12; row++) {
+        for (let row = 0; row < 30; row++) {
             for (let col = 0; col < 28; col++) {
                 const idx = row * 28 + col;
                 const val = seed[idx % seed.length];
@@ -86,13 +92,7 @@ const PixelGrid: FC = () => {
     }, []);
 
     return (
-        <svg
-            className={classes.pixelGrid}
-            width="252"
-            height="100%"
-            viewBox="0 0 252 108"
-            preserveAspectRatio="xMaxYMid slice"
-        >
+        <svg className={classes.pixelGrid} width="252" height="270">
             {cells.map((cell, i) => (
                 <rect
                     key={i}
@@ -102,7 +102,11 @@ const PixelGrid: FC = () => {
                     height="7"
                     rx="1.5"
                     fill="currentColor"
-                    opacity={cell.opacity}
+                    style={
+                        {
+                            '--rect-opacity': cell.opacity,
+                        } as CSSProperties
+                    }
                 />
             ))}
         </svg>

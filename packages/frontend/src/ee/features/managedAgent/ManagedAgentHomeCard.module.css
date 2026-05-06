@@ -66,20 +66,66 @@
     position: absolute;
     top: 0;
     right: 0;
-    bottom: 0;
     color: light-dark(
         var(--mantine-color-violet-4),
         var(--mantine-color-violet-6)
     );
     pointer-events: none;
-    transition:
-        transform 300ms var(--ease-out-quart),
-        opacity 300ms var(--ease-out-quart);
+    transition: opacity 300ms var(--ease-out-quart);
     opacity: 0.6;
+    animation: pixelDrift 22s ease-in-out infinite;
 }
 
 .card:hover .pixelGrid {
     opacity: 1;
+}
+
+@keyframes pixelDrift {
+    0%,
+    100% {
+        transform: translate(0, 0);
+    }
+    33% {
+        transform: translate(-4px, 2px);
+    }
+    66% {
+        transform: translate(3px, -2px);
+    }
+}
+
+.pixelGrid rect {
+    opacity: var(--rect-opacity, 0.1);
+}
+
+/* Staggered twinkle on overlapping subsets — different cycles + delays
+   give each cell a unique-feeling rhythm without per-cell rules. */
+.pixelGrid rect:nth-child(5n + 1) {
+    animation: twinkle 5s ease-in-out infinite;
+}
+
+.pixelGrid rect:nth-child(7n + 3) {
+    animation: twinkle 6s ease-in-out infinite;
+    animation-delay: 1.4s;
+}
+
+.pixelGrid rect:nth-child(11n + 4) {
+    animation: twinkle 4.5s ease-in-out infinite;
+    animation-delay: 2.7s;
+}
+
+.pixelGrid rect:nth-child(13n + 7) {
+    animation: twinkle 7s ease-in-out infinite;
+    animation-delay: 0.6s;
+}
+
+@keyframes twinkle {
+    0%,
+    100% {
+        opacity: var(--rect-opacity, 0.1);
+    }
+    50% {
+        opacity: calc(var(--rect-opacity, 0.1) * 3.2);
+    }
 }
 
 .card:hover {
@@ -239,5 +285,9 @@
     }
     .pixelGrid {
         transition: none;
+        animation: none;
+    }
+    .pixelGrid rect {
+        animation: none;
     }
 }
