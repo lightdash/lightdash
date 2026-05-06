@@ -1222,8 +1222,8 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "scheduleCron": {
-                        "type": "string"
+                    "schedule": {
+                        "$ref": "#/components/schemas/ManagedAgentScheduleOption"
                     },
                     "enabled": {
                         "type": "boolean"
@@ -1238,7 +1238,7 @@
                     "toolSettings",
                     "slackChannelId",
                     "enabledByUserUuid",
-                    "scheduleCron",
+                    "schedule",
                     "enabled",
                     "projectUuid"
                 ],

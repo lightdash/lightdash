@@ -1,6 +1,7 @@
 import {
     EE_SCHEDULER_TASKS,
     getErrorMessage,
+    getManagedAgentScheduleCron,
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
@@ -171,7 +172,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     );
                 } finally {
                     const schedule =
-                        settings.scheduleCron ??
+                        getManagedAgentScheduleCron(settings.schedule) ??
                         this.lightdashConfig.managedAgent.schedule;
                     await this.schedulerClient.scheduleManagedAgentHeartbeat(
                         schedule,

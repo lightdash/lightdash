@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    getManagedAgentScheduleCron,
     ManagedAgentActionType,
     ManagedAgentTargetType,
     NotFoundError,
@@ -334,7 +335,7 @@ export class ManagedAgentService extends BaseService {
 
             // Schedule the first heartbeat job
             const schedule =
-                settings.scheduleCron ??
+                getManagedAgentScheduleCron(settings.schedule) ??
                 this.lightdashConfig.managedAgent.schedule;
             await this.schedulerClient.scheduleManagedAgentHeartbeat(
                 schedule,

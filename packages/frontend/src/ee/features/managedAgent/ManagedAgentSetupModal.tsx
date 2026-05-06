@@ -59,7 +59,7 @@ export const ManagedAgentSetupModal: FC<{
     onEnabled: () => void;
 }> = ({ projectUuid, opened, onClose, onEnabled }) => {
     const queryClient = useQueryClient();
-    const [schedule, setSchedule] = useState(ManagedAgentScheduleOption.HOURLY);
+    const [schedule, setSchedule] = useState(ManagedAgentScheduleOption.DAILY);
 
     const mutation = useMutation({
         mutationFn: () =>

@@ -1181,7 +1181,10 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                scheduleCron: { dataType: 'string', required: true },
+                schedule: {
+                    ref: 'ManagedAgentScheduleOption',
+                    required: true,
+                },
                 enabled: { dataType: 'boolean', required: true },
                 projectUuid: { dataType: 'string', required: true },
             },

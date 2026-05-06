@@ -29,7 +29,7 @@ export const ManagedAgentScheduleCronByOption: Record<
 };
 
 export const getManagedAgentScheduleCron = (
-    schedule: ManagedAgentScheduleOption = ManagedAgentScheduleOption.HOURLY,
+    schedule: ManagedAgentScheduleOption = ManagedAgentScheduleOption.DAILY,
 ) => ManagedAgentScheduleCronByOption[schedule];
 
 export const getManagedAgentScheduleOption = (
@@ -43,7 +43,7 @@ export const getManagedAgentScheduleOption = (
 export type ManagedAgentSettings = {
     projectUuid: string;
     enabled: boolean;
-    scheduleCron: string;
+    schedule: ManagedAgentScheduleOption;
     enabledByUserUuid: string | null;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;

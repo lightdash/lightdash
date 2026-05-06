@@ -1,3 +1,4 @@
+import { type ManagedAgentScheduleOption } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
@@ -5,7 +6,7 @@ import { lightdashApi } from '../../../../api';
 type ManagedAgentSettings = {
     projectUuid: string;
     enabled: boolean;
-    scheduleCron: string;
+    schedule: ManagedAgentScheduleOption;
     enabledByUserUuid: string | null;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;

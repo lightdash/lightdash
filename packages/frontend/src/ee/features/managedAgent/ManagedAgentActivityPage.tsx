@@ -6,7 +6,6 @@ import {
     type Project,
     type SavedChart,
     type UpdatedByUser,
-    getManagedAgentScheduleOption,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -128,7 +127,7 @@ const CAPABILITY_GROUPS = [
 
 const SetupSection: FC<{
     enabled: boolean;
-    schedule: string;
+    schedule: ManagedAgentScheduleOption;
     settingsOpen: boolean;
     onOpenSettings: () => void;
     onRunNow: () => void;
@@ -141,9 +140,9 @@ const SetupSection: FC<{
     onRunNow,
     isRunNowLoading,
 }) => {
-    const schedule = getManagedAgentScheduleOption(initialSchedule);
     const scheduleLabel =
-        SCHEDULE_OPTIONS.find((o) => o.value === schedule)?.label ?? 'Hourly';
+        SCHEDULE_OPTIONS.find((o) => o.value === initialSchedule)?.label ??
+        'Hourly';
 
     return (
         <Stack gap={0}>
@@ -790,7 +789,7 @@ const DetailSidebar: FC<{
 const SettingsSidebar: FC<{
     projectUuid: string;
     enabled: boolean;
-    schedule: string;
+    schedule: ManagedAgentScheduleOption;
     slackChannelId: string | null;
     toolSettings: Record<string, boolean>;
     isLoading: boolean;
@@ -807,7 +806,6 @@ const SettingsSidebar: FC<{
     const queryClient = useQueryClient();
     const { data: slackInstallation } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
-    const selectedSchedule = getManagedAgentScheduleOption(schedule);
     const [slackNotificationsEnabled, setSlackNotificationsEnabled] =
         useState(!!slackChannelId);
 
@@ -926,7 +924,7 @@ const SettingsSidebar: FC<{
                             </Text>
                             <Select
                                 data={SCHEDULE_OPTIONS}
-                                value={selectedSchedule}
+                                value={schedule}
                                 onChange={handleScheduleChange}
                                 size="sm"
                                 disabled={isLoading || mutation.isLoading}
@@ -1213,7 +1211,10 @@ export const ManagedAgentActivityPage: FC = () => {
                         <Stack gap="lg">
                             <SetupSection
                                 enabled={settings?.enabled ?? false}
-                                schedule={settings?.scheduleCron ?? '0 * * * *'}
+                                schedule={
+                                    settings?.schedule ??
+                                    ManagedAgentScheduleOption.DAILY
+                                }
                                 settingsOpen={settingsOpen}
                                 isRunNowLoading={runNowMutation.isLoading}
                                 onRunNow={() => runNowMutation.mutate()}
@@ -1288,7 +1289,8 @@ export const ManagedAgentActivityPage: FC = () => {
                                     projectUuid={projectUuid!}
                                     enabled={settings?.enabled ?? false}
                                     schedule={
-                                        settings?.scheduleCron ?? '0 * * * *'
+                                        settings?.schedule ??
+                                        ManagedAgentScheduleOption.DAILY
                                     }
                                     slackChannelId={
                                         settings?.slackChannelId ?? null

@@ -35,13 +35,10 @@ export class ManagedAgentModel {
     // --- Settings ---
 
     static mapDbSettings(row: DbManagedAgentSettings): ManagedAgentSettings {
-        const scheduleCron = getManagedAgentScheduleCron(
-            getManagedAgentScheduleOption(row.schedule_cron),
-        );
         return {
             projectUuid: row.project_uuid,
             enabled: row.enabled,
-            scheduleCron,
+            schedule: getManagedAgentScheduleOption(row.schedule_cron),
             enabledByUserUuid: row.enabled_by_user_uuid,
             slackChannelId: row.slack_channel_id,
             toolSettings: row.tool_settings ?? {},
