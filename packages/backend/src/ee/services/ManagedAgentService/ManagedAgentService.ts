@@ -366,6 +366,16 @@ export class ManagedAgentService extends BaseService {
             settings,
         );
 
+        if (!previous?.enabled && settings.enabled) {
+            void this.startHeartbeat(user, projectUuid).catch((error) => {
+                this.logger.error(
+                    `Failed to trigger run-on-enable for project ${projectUuid}: ${
+                        error instanceof Error ? error.message : 'Unknown'
+                    }`,
+                );
+            });
+        }
+
         return settings;
     }
 
