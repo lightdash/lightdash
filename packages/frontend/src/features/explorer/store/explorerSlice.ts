@@ -962,7 +962,7 @@ const explorerSlice = createSlice({
         // Convenience action: Clear query but preserve tableName
         // Note: Components should also handle navigation side effects
         clearQuery: (
-            _state,
+            state,
             {
                 payload: { defaultState: d, tableName },
             }: PayloadAction<{
@@ -970,9 +970,12 @@ const explorerSlice = createSlice({
                 tableName: string;
             }>,
         ) => {
+            const { isEditMode, isMinimal } = state;
             return createNextState(d, (draft: ExplorerSliceState) => {
                 draft.unsavedChartVersion.tableName = tableName;
                 draft.unsavedChartVersion.metricQuery.exploreName = tableName;
+                draft.isEditMode = isEditMode;
+                draft.isMinimal = isMinimal;
             });
         },
 
