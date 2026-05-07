@@ -790,6 +790,12 @@ const DetailSidebar: FC<{
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-actions', action.projectUuid],
             });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-runs', action.projectUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-latest-run', action.projectUuid],
+            });
         },
         onError: ({ error }) => {
             const isHardDeleted =
