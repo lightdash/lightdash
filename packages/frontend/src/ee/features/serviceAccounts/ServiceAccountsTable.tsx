@@ -32,6 +32,7 @@ import {
     IconDots,
     IconFilter,
     IconInfoCircle,
+    IconRefresh,
     IconSearch,
     IconShieldLock,
     IconTextCaption,
@@ -49,6 +50,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
+import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
 
@@ -130,6 +132,8 @@ export const ServiceAccountsTable: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const [opened, { open, close }] = useDisclosure(false);
+    const [rotateOpened, { open: openRotate, close: closeRotate }] =
+        useDisclosure(false);
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -186,6 +190,9 @@ export const ServiceAccountsTable: FC<Props> = ({
     const [serviceAccountToDelete, setServiceAccountToDelete] = useState<
         ServiceAccount | undefined
     >();
+    const [serviceAccountToRotate, setServiceAccountToRotate] = useState<
+        ServiceAccount | undefined
+    >();
 
     const handleOpenDelete = useCallback(
         (sa: ServiceAccount) => {
@@ -205,6 +212,19 @@ export const ServiceAccountsTable: FC<Props> = ({
         setServiceAccountToDelete(undefined);
         close();
     }, [onDelete, serviceAccountToDelete, close]);
+
+    const handleOpenRotate = useCallback(
+        (sa: ServiceAccount) => {
+            setServiceAccountToRotate(sa);
+            openRotate();
+        },
+        [openRotate],
+    );
+
+    const handleCloseRotate = useCallback(() => {
+        setServiceAccountToRotate(undefined);
+        closeRotate();
+    }, [closeRotate]);
 
     const columns: MRT_ColumnDef<ServiceAccount>[] = useMemo(
         () => [
@@ -498,20 +518,30 @@ export const ServiceAccountsTable: FC<Props> = ({
                             </Menu.Target>
                             <Menu.Dropdown>
                                 {sa.roleUuid && (
-                                    <>
-                                        <Menu.Item
-                                            component={Link}
-                                            to={`/generalSettings/customRoles/${sa.roleUuid}`}
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconShieldLock}
-                                                />
-                                            }
-                                        >
-                                            View custom role
-                                        </Menu.Item>
-                                        <Menu.Divider />
-                                    </>
+                                    <Menu.Item
+                                        component={Link}
+                                        to={`/generalSettings/customRoles/${sa.roleUuid}`}
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconShieldLock}
+                                            />
+                                        }
+                                    >
+                                        View custom role
+                                    </Menu.Item>
+                                )}
+                                {sa.expiresAt && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconRefresh} />
+                                        }
+                                        onClick={() => handleOpenRotate(sa)}
+                                    >
+                                        Rotate token
+                                    </Menu.Item>
+                                )}
+                                {(sa.roleUuid || sa.expiresAt) && (
+                                    <Menu.Divider />
                                 )}
                                 <Menu.Item
                                     color="red"
@@ -528,7 +558,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
             },
         ],
-        [rolesByUuid, handleOpenDelete],
+        [rolesByUuid, handleOpenRotate, handleOpenDelete],
     );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -829,6 +859,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isDeleting={isDeleting}
                 onDelete={handleConfirmDelete}
                 serviceAccount={serviceAccountToDelete!}
+            />
+
+            <ServiceAccountsRotateModal
+                isOpen={rotateOpened}
+                onClose={handleCloseRotate}
+                serviceAccount={serviceAccountToRotate}
             />
         </>
     );
