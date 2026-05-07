@@ -1409,9 +1409,12 @@ export class DashboardService
         dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
+        // 'any' so this works whether called directly on a soft-deleted
+        // dashboard (restore-then-purge flow) or via `delete()` on a
+        // not-yet-deleted dashboard (when softDelete config is off).
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: true },
+            { deleted: 'any' },
         );
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
