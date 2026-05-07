@@ -176,7 +176,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
 
     const handleClick = () => {
         if (isEnabled) {
-            void navigate(`/projects/${projectUuid}/improve`);
+            void navigate(`/projects/${projectUuid}/autopilot`);
         } else {
             setSetupOpen(true);
         }
@@ -285,7 +285,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
                 onClose={() => setSetupOpen(false)}
                 onEnabled={() => {
                     setSetupOpen(false);
-                    void navigate(`/projects/${projectUuid}/improve`);
+                    void navigate(`/projects/${projectUuid}/autopilot`);
                 }}
             />
         </>

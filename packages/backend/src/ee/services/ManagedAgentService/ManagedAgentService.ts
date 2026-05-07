@@ -707,7 +707,7 @@ export class ManagedAgentService extends BaseService {
             const { organizationUuid } =
                 await this.projectModel.getSummary(projectUuid);
             const { siteUrl } = this.lightdashConfig;
-            const activityUrl = `${siteUrl}/projects/${projectUuid}/improve`;
+            const activityUrl = `${siteUrl}/projects/${projectUuid}/autopilot`;
 
             // Build compact action counts
             const counts: Record<string, number> = {};

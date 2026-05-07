@@ -339,12 +339,16 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         ),
     },
     {
-        path: 'improve',
+        path: 'autopilot',
         lazy: async () => {
             const { ManagedAgentActivityPage } =
                 await import('./ee/features/managedAgent/ManagedAgentActivityPage');
             return { Component: ManagedAgentActivityPage };
         },
+    },
+    {
+        path: 'improve',
+        element: <Navigate to="../autopilot" replace />,
     },
     {
         path: 'apps/generate',
