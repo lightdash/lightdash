@@ -579,6 +579,24 @@ describe('TimeFrames', () => {
                 `toTimeZone(toDateTime(truncated, 'Asia/Tokyo'), 'UTC')`,
             );
         });
+
+        test('Snowflake toProjectTz defaults sourceTimezone to UTC', () => {
+            const { toProjectTz } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.SNOWFLAKE];
+            expect(toProjectTz('col', 'America/New_York')).toEqual(
+                `CONVERT_TIMEZONE('UTC', 'America/New_York', col)`,
+            );
+        });
+
+        test('Snowflake toProjectTz threads explicit sourceTimezone into CONVERT_TIMEZONE', () => {
+            const { toProjectTz } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.SNOWFLAKE];
+            expect(
+                toProjectTz('col', 'America/New_York', 'America/New_York'),
+            ).toEqual(
+                `CONVERT_TIMEZONE('America/New_York', 'America/New_York', col)`,
+            );
+        });
     });
 
     describe('getSqlForTruncatedDate type guard for DATE', () => {
@@ -639,6 +657,27 @@ describe('TimeFrames', () => {
                 `CONVERT_TIMEZONE('${tz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', '${tz}', ${col})))`,
             );
         });
+
+        // When Snowflake's translator wrap is disabled and columns are stored
+        // in dataTimezone, the inner CONVERT_TIMEZONE source must be that data
+        // timezone — not the hardcoded 'UTC'.
+        test('Snowflake threads non-UTC sourceTimezone into both CONVERT_TIMEZONE wraps', () => {
+            const sourceTz = 'America/New_York';
+            const queryTz = 'America/Los_Angeles';
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    queryTz,
+                    sourceTz,
+                ),
+            ).toEqual(
+                `CONVERT_TIMEZONE('${queryTz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('${sourceTz}', '${queryTz}', ${col})))`,
+            );
+        });
     });
 
     describe('extractableTimeFrames', () => {
@@ -679,6 +718,20 @@ describe('TimeFrames', () => {
                     SupportedDbtAdapter.SNOWFLAKE
                 ].toExtractInputTz('col', 'America/New_York'),
             ).toEqual(`CONVERT_TIMEZONE('UTC', 'America/New_York', col)`);
+        });
+
+        test('Snowflake threads explicit sourceTimezone into CONVERT_TIMEZONE', () => {
+            expect(
+                dateExtractsTimezoneConversions[
+                    SupportedDbtAdapter.SNOWFLAKE
+                ].toExtractInputTz(
+                    'col',
+                    'America/New_York',
+                    'America/New_York',
+                ),
+            ).toEqual(
+                `CONVERT_TIMEZONE('America/New_York', 'America/New_York', col)`,
+            );
         });
 
         test('Postgres / Redshift / DuckDB share the timestamptz cast form', () => {
@@ -938,6 +991,26 @@ describe('TimeFrames', () => {
                 ),
             ).toEqual(
                 `MOD(EXTRACT(DAYOFWEEK FROM TIMESTAMP(${col}) AT TIME ZONE '${tz}') - 2 + 7, 7) + 1`,
+            );
+        });
+
+        // Snowflake EXTRACT path must use the column's actual source timezone
+        // when the translator wrap is disabled.
+        test('Snowflake threads non-UTC sourceTimezone into EXTRACT input wrap', () => {
+            const sourceTz = 'America/New_York';
+            const queryTz = 'America/Los_Angeles';
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    queryTz,
+                    sourceTz,
+                ),
+            ).toEqual(
+                `DATE_PART('MONTH', CONVERT_TIMEZONE('${sourceTz}', '${queryTz}', ${col}))`,
             );
         });
     });

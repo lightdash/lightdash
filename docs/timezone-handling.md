@@ -90,9 +90,11 @@ flowchart LR
 
 With `useTimezoneAwareDateTrunc` on, truncation is timezone-aware. The base dimension SQL is round-tripped through the project timezone so boundaries fall on project-local wall-clock midnights, but the returned value is still a real UTC instant:
 
-1. Shift the UTC value into project wall-clock
+1. Shift the column value from its source TZ into project wall-clock
 2. Truncate on that wall-clock
 3. Convert the truncated wall-clock back to UTC
+
+The source TZ for step 1 is derived once per query at the service boundary via `getColumnTimezone(credentials)` (in `packages/common/src/types/projects.ts`) and threaded through `timeFrames.ts` as `sourceTimezone`. It returns `'UTC'` for Snowflake when the translator wrap is active, `dataTimezone` when Snowflake's `disableTimestampConversion` opts out of that wrap, and `dataTimezone` (defaulting to UTC) for every other adapter. Most warehouses ignore it because their `toProjectTz` doesn't take a source TZ; Snowflake threads it into the inner `CONVERT_TIMEZONE`.
 
 The SQL differs per warehouse (some have native TZ-aware truncation, others compose `AT TIME ZONE` / `CONVERT_TIMEZONE` / `to_utc_timestamp`), but the shape is identical everywhere. Flag off → falls back to raw `DATE_TRUNC` grouping in UTC (old behavior).
 
@@ -102,7 +104,7 @@ The SQL differs per warehouse (some have native TZ-aware truncation, others comp
 
 ### SELECT — EXTRACT-based grouping
 
-EXTRACT/DATE_PART intervals (`DAY_OF_WEEK_INDEX`, `DAY_OF_MONTH_NUM`, `DAY_OF_YEAR_NUM`, `WEEK_NUM`, `MONTH_NUM`, `QUARTER_NUM`, `YEAR_NUM`, `HOUR_OF_DAY_NUM`, `MINUTE_OF_HOUR_NUM`) and the format/name variants (`DAY_OF_WEEK_NAME`, `MONTH_NAME`, `QUARTER_NAME`) compile to UTC-only SQL and are rewritten at query time to extract calendar components in the project timezone. Unlike DATE_TRUNC there is no round-trip — EXTRACT returns a number/string, not a timestamp — so the input is shifted *into* the project zone once before extracting. The shift expression is the same per-warehouse pattern used by DATE_TRUNC's `toProjectTz`, except for BigQuery, whose native form is `<expr> AT TIME ZONE 'tz'` concatenated inside `EXTRACT(... FROM ...)`. Defined in `dateExtractsTimezoneConversions`.
+EXTRACT/DATE_PART intervals (`DAY_OF_WEEK_INDEX`, `DAY_OF_MONTH_NUM`, `DAY_OF_YEAR_NUM`, `WEEK_NUM`, `MONTH_NUM`, `QUARTER_NUM`, `YEAR_NUM`, `HOUR_OF_DAY_NUM`, `MINUTE_OF_HOUR_NUM`) and the format/name variants (`DAY_OF_WEEK_NAME`, `MONTH_NAME`, `QUARTER_NAME`) compile to UTC-only SQL and are rewritten at query time to extract calendar components in the project timezone. Unlike DATE_TRUNC there is no round-trip — EXTRACT returns a number/string, not a timestamp — so the input is shifted from its source TZ into the project zone once before extracting. The source TZ comes from the same `getColumnTimezone(credentials)` helper described above. The shift expression is the same per-warehouse pattern used by DATE_TRUNC's `toProjectTz`, except for BigQuery, whose native form is `<expr> AT TIME ZONE 'tz'` concatenated inside `EXTRACT(... FROM ...)`. Defined in `dateExtractsTimezoneConversions`.
 
 A "Day of week" or "Month number" dimension grouped next to a DATE_TRUNC sibling now buckets rows on the same project-TZ calendar — the previous gap where the two could disagree (e.g. one row showing under "Tue" and the other under "Mon" for the same instant) is closed.
 
@@ -326,7 +328,7 @@ For Postgres **timestamptz** columns, the `+00:00` offset ensures the literal is
 
 ### Impact on DATE_TRUNC
 
-The timezone-aware DATE_TRUNC round-trip uses `baseDimension.compiledSql` as input. On Snowflake the input is already UTC-normalized by the wrapper, so the round-trip sees clean UTC instants. On other warehouses the input is the raw column and correctness comes from two different mechanisms:
+The timezone-aware DATE_TRUNC round-trip uses `baseDimension.compiledSql` as input. On Snowflake the input is normally UTC-normalized by the wrapper, so the round-trip sees clean UTC instants. When `disableTimestampConversion: true` opts out of the wrap, the column is in `dataTimezone` instead — the round-trip's inner `CONVERT_TIMEZONE` then uses `dataTimezone` as its source TZ (resolved via `getColumnTimezone(credentials)`) so the shift still lands on the right wall-clock. On other warehouses the input is the raw column and correctness comes from two different mechanisms:
 
 - **Session-TZ-aware warehouses** (Postgres, Redshift, Databricks, DuckDB, Trino) rely on the warehouse reading naive values through the session timezone — `::timestamptz` casts on Postgres, `current_timezone()` on Databricks, etc.
 - **BigQuery** uses the native `TIMESTAMP_TRUNC(col, part, 'tz')` directly; the `toProjectTz`/`toUTC` helpers are deliberate no-ops because the truncation itself accepts the zone. TIMESTAMP columns (UTC instants) round-trip correctly this way.
@@ -379,6 +381,6 @@ flowchart TD
 | AsyncQueryService       | `packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts` |
 | Project timezone config | `packages/backend/src/services/ProjectService/ProjectService.ts`       |
 | Feature flags           | `packages/common/src/types/featureFlags.ts`                            |
-| Warehouse credentials   | `packages/common/src/types/projects.ts`                                |
+| Warehouse credentials   | `packages/common/src/types/projects.ts` (incl. `getColumnTimezone`)    |
 | Result formatting       | `packages/common/src/utils/formatting.ts`                              |
 | Warehouse clients       | `packages/warehouses/src/warehouseClients/`                            |

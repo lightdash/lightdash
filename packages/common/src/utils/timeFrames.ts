@@ -83,11 +83,11 @@ type WarehouseConfig = {
 
 /** Per-warehouse SQL for the DATE_TRUNC timezone round-trip. `toProjectTz`
  *  shifts into project-local wall-clock before truncation; `toUTC` converts
- *  the truncated value back into a proper UTC instant. `sourceTz` is the
- *  timezone the column is in — only Snowflake uses it explicitly (in
+ *  the truncated value back into a proper UTC instant. `sourceTimezone` is
+ *  the timezone the column is in — only Snowflake uses it explicitly (in
  *  `CONVERT_TIMEZONE`); other adapters ignore it. */
 type DateTruncTimezoneConversion = {
-    toProjectTz: (sql: string, tz: string, sourceTz?: string) => string;
+    toProjectTz: (sql: string, tz: string, sourceTimezone?: string) => string;
     toUTC: (sql: string, tz: string) => string;
 };
 
@@ -102,8 +102,8 @@ export const dateTruncTimezoneConversions: Record<
         toUTC: (sql) => sql,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
-        toProjectTz: (sql, tz, sourceTz = 'UTC') =>
-            `CONVERT_TIMEZONE('${sourceTz}', '${tz}', ${sql})`,
+        toProjectTz: (sql, tz, sourceTimezone = 'UTC') =>
+            `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
         toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
     },
     [SupportedDbtAdapter.POSTGRES]: {
@@ -149,9 +149,13 @@ export const dateTruncTimezoneConversions: Record<
 };
 
 // EXTRACT returns a number/string, so no `toUTC` inverse — one-way shift only.
-// `sourceTz` semantics match `DateTruncTimezoneConversion.toProjectTz`.
+// `sourceTimezone` semantics match `DateTruncTimezoneConversion.toProjectTz`.
 type DateExtractTimezoneConversion = {
-    toExtractInputTz: (sql: string, tz: string, sourceTz?: string) => string;
+    toExtractInputTz: (
+        sql: string,
+        tz: string,
+        sourceTimezone?: string,
+    ) => string;
 };
 
 export const dateExtractsTimezoneConversions: Record<
@@ -164,8 +168,8 @@ export const dateExtractsTimezoneConversions: Record<
         toExtractInputTz: (sql, tz) => `TIMESTAMP(${sql}) AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
-        toExtractInputTz: (sql, tz, sourceTz = 'UTC') =>
-            `CONVERT_TIMEZONE('${sourceTz}', '${tz}', ${sql})`,
+        toExtractInputTz: (sql, tz, sourceTimezone = 'UTC') =>
+            `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
     },
     [SupportedDbtAdapter.POSTGRES]: {
         toExtractInputTz: (sql, tz) =>
