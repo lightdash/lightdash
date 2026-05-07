@@ -943,21 +943,64 @@ export class ManagedAgentService extends BaseService {
     private async handleGetPopularContent(
         projectUuid: string,
     ): Promise<string> {
-        // getUnusedContent returns all content sorted by least-viewed first.
-        // We invert: take items with views, sort descending, and cap at 20.
-        const unused = await this.analyticsModel.getUnusedContent(projectUuid);
-        const allItems = [...unused.charts, ...unused.dashboards]
-            .filter((item) => item.viewsCount > 0)
-            .sort((a, b) => b.viewsCount - a.viewsCount)
-            .slice(0, 20);
+        const spaces = await this.spaceModel.find({ projectUuid });
+        const spaceUuids = spaces.map((space) => space.uuid);
+        const [popularCharts, popularDashboards] = await Promise.all([
+            this.spaceModel.getSpaceQueries(spaceUuids, {
+                mostPopular: true,
+            }),
+            this.spaceModel.getSpaceDashboards(spaceUuids, {
+                mostPopular: true,
+            }),
+        ]);
+
+        const allItems = [
+            ...popularCharts.map((item) => ({
+                uuid: item.uuid,
+                name: item.name,
+                type: 'chart' as const,
+                views_count: item.views,
+                created_by: item.updatedByUser
+                    ? `${item.updatedByUser.firstName} ${item.updatedByUser.lastName}`.trim()
+                    : '',
+            })),
+            ...popularDashboards.map((item) => ({
+                uuid: item.uuid,
+                name: item.name,
+                type: 'dashboard' as const,
+                views_count: item.views,
+                created_by: item.updatedByUser
+                    ? `${item.updatedByUser.firstName} ${item.updatedByUser.lastName}`.trim()
+                    : '',
+            })),
+        ]
+            .sort((a, b) => b.views_count - a.views_count)
+            .slice(0, this.spaceModel.MOST_POPULAR_OR_RECENTLY_UPDATED_LIMIT);
+
+        const chartUuids = allItems
+            .filter((item) => item.type === 'chart')
+            .map((item) => item.uuid);
+        const dashboardUuids = allItems
+            .filter((item) => item.type === 'dashboard')
+            .map((item) => item.uuid);
+
+        const [chartViews, dashboardViews] = await Promise.all([
+            this.analyticsModel.getLastViewedAtForCharts(chartUuids),
+            this.analyticsModel.getLastViewedAtForDashboards(dashboardUuids),
+        ]);
+
         return JSON.stringify(
             allItems.map((item) => ({
-                uuid: item.contentUuid,
-                name: item.contentName,
-                type: item.contentType,
-                views_count: item.viewsCount,
-                last_viewed_at: item.lastViewedAt?.toISOString() ?? null,
-                created_by: item.createdByUserName,
+                uuid: item.uuid,
+                name: item.name,
+                type: item.type,
+                views_count: item.views_count,
+                last_viewed_at:
+                    (item.type === 'chart'
+                        ? chartViews.get(item.uuid)
+                        : dashboardViews.get(item.uuid)
+                    )?.toISOString?.() ?? null,
+                created_by: item.created_by,
             })),
         );
     }
