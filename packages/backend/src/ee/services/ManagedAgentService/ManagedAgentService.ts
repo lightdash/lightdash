@@ -1088,7 +1088,7 @@ export class ManagedAgentService extends BaseService {
                 }
                 break;
             case ManagedAgentActionType.FIXED_BROKEN:
-                await this.restorePreviousChartVersion(action);
+                await this.restorePreviousChartVersion(action, user);
                 break;
             case ManagedAgentActionType.FLAGGED_STALE:
             case ManagedAgentActionType.FLAGGED_BROKEN:
@@ -1128,6 +1128,7 @@ export class ManagedAgentService extends BaseService {
 
     private async restorePreviousChartVersion(
         action: ManagedAgentAction,
+        user: SessionUser,
     ): Promise<void> {
         if (action.targetType !== ManagedAgentTargetType.CHART) {
             return;
@@ -1145,7 +1146,7 @@ export class ManagedAgentService extends BaseService {
         await this.savedChartModel.createVersion(
             action.targetUuid,
             previousChart,
-            undefined, // user — version creation doesn't require one
+            user,
         );
     }
 
@@ -1924,7 +1925,7 @@ chartConfig:
                 pivotConfig: chart.pivotConfig,
                 parameters: chart.parameters,
             },
-            undefined, // user — not needed for version creation
+            actor,
         );
 
         // Clear stale validation errors for this chart — the fix should resolve them.
