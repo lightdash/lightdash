@@ -25,6 +25,12 @@ const BASE_ROLE_SCOPES = {
         'view:Tags',
         'manage:ExportCsv',
 
+        // Org-context view scopes — every member-or-above can see the
+        // org's own metadata + the list of fellow members. Granted by
+        // `applyOrganizationMemberStaticAbilities.member` / `viewer`.
+        'view:Organization',
+        'view:OrganizationMemberProfile',
+
         // Enterprise scopes (when available)
         'view:MetricsTree',
         'view:SpotlightTableConfig',
@@ -43,9 +49,16 @@ const BASE_ROLE_SCOPES = {
         'create:DashboardComments',
         'manage:GoogleSheets',
 
+        // Job tracking — orchestrating queries/exports/etc. Granted at
+        // `applyOrganizationMemberStaticAbilities.interactive_viewer`.
+        'create:Job',
+        'view:Job',
+        'view:Job@self',
+
         // Space-level content management (requires space admin/editor role)
         'manage:Dashboard@space', // Via space access
         'manage:SavedChart@space', // Via space access
+        'manage:SemanticViewer@space', // Via space access (paired w/ @space content)
         'manage:DataApp@space', // Via space access
         'manage:Space@assigned', // Via space access (admin role)
 
@@ -66,6 +79,16 @@ const BASE_ROLE_SCOPES = {
         'manage:DashboardComments',
         'manage:Tags',
 
+        // Broad SemanticViewer mgmt — promoted from the @space variant
+        // when the user reaches editor tier. Granted at
+        // `applyOrganizationMemberStaticAbilities.editor`.
+        'manage:SemanticViewer',
+
+        // View-only access to org warehouse creds — needed before admin
+        // tier so editors can see what's already configured. Granted at
+        // `applyOrganizationMemberStaticAbilities.editor`.
+        'view:OrganizationWarehouseCredentials',
+
         // Enterprise scopes
         'manage:MetricsTree',
         'manage:AiAgentThread@self', // User's own threads
@@ -75,6 +98,11 @@ const BASE_ROLE_SCOPES = {
         // Developer-specific permissions
         'manage:PreAggregation',
         'manage:VirtualView',
+        // Granular create/delete companions to manage:VirtualView. Both
+        // covered by the broader manage at runtime, but listed
+        // explicitly so the role-builder UI shows them ticked.
+        'create:VirtualView',
+        'delete:VirtualView',
         'manage:CustomSql',
         'manage:CustomFields',
         'manage:SqlRunner',
@@ -89,6 +117,13 @@ const BASE_ROLE_SCOPES = {
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',
+
+        // Promote to upstream project. Both broad + @space variants
+        // surface in `applyOrganizationMemberStaticAbilities.developer`.
+        'promote:Dashboard',
+        'promote:Dashboard@space',
+        'promote:SavedChart',
+        'promote:SavedChart@space',
 
         // Enterprise scopes
         'manage:SpotlightTableConfig',
@@ -111,6 +146,34 @@ const BASE_ROLE_SCOPES = {
         'manage:AiAgentThread', // All threads in project
         'manage:ScheduledDeliveries',
         'manage:ContentVerification',
+
+        // Organization-management scopes. These are no-ops at project
+        // assignment (CASL conditions match `organizationUuid`-keyed
+        // subjects only) but are necessary at the role's intended ORG
+        // assignment — service accounts with `roleUuid`, or any future
+        // org-level human assignment. See `docs/authentication-and-roles.md`
+        // → "Project vs organization assignment of custom roles".
+        // Granted at `applyOrganizationMemberStaticAbilities.admin`.
+        'manage:OrganizationMemberProfile',
+        'manage:Group',
+        'manage:InviteLink',
+        'manage:GitIntegration',
+        'manage:OrganizationWarehouseCredentials',
+        'manage:Organization',
+        'impersonate:User',
+
+        // PAT management. Granted dynamically at runtime via
+        // `applyOrganizationMemberDynamicAbilities` based on the
+        // deployment-wide `PAT_ALLOWED_ORG_ROLES` env var — that path
+        // remains the source of truth for system roles. Listing it
+        // here lets admin-clone custom roles surface the toggle in the
+        // role builder. **Caveat:** toggling it in a custom role
+        // *bypasses* the dynamic gate, since CASL is additive (the
+        // static scope-built rule wins regardless of deployment
+        // config). Operators who clone admin into a lower-privilege
+        // role should untick it manually if their deployment intends
+        // to restrict PAT to specific tiers.
+        'manage:PersonalAccessToken',
     ],
 } as const;
 

@@ -473,6 +473,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:OrganizationWarehouseCredentials',
+        description: 'View organization warehouse credentials',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationWarehouseCredentials',
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
@@ -619,29 +626,6 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
-    },
-
-    // Sharing Scopes
-    {
-        name: 'export:DashboardCsv',
-        description: 'Can export dashboards and charts to CSV',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardImage',
-        description: 'Can export dashboards and charts to images',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardPdf',
-        description: 'Can export dashboards and charts to PDF',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
     },
 
     // AI Agent

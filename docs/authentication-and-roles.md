@@ -115,10 +115,36 @@ The full checklist for adding a CASL subject + scope is in the root
 3. Add `can(...)` calls to the relevant system role functions
    (`projectMemberAbility.ts`, `organizationMemberAbility.ts`).
 4. Update `roleToScopeMapping.ts` so system roles still map to the same scope
-   sets (the parity test enforces this).
+   sets (the parity tests enforce this — see below).
 5. Decide whether service accounts need it: add to
    `serviceAccountAbility.ts` (legacy scope path) and/or rely on the system-role
    delegation (`SYSTEM_*` SA scopes inherit from `applyOrganizationMemberStaticAbilities`).
+
+### Drift safeguards (`roleToScopeParity.test.ts`)
+
+Three independent tests run on every commit and fire if any of these
+sources of truth drift apart:
+
+1. **Project parity (per role)** — every action+subject the project
+   ability builder grants must also be reachable through some scope in
+   `BASE_ROLE_SCOPES` for that role. Catches "I added a `can(...)` in
+   `projectMemberAbility.ts` but forgot to add a matching scope to a
+   role tier."
+2. **Org parity (per role)** — same check against
+   `applyOrganizationMemberStaticAbilities`. This is the test that *was
+   missing* before the org-management scopes drifted out of the
+   vocabulary; it's the safeguard going forward.
+3. **Scope-vocabulary coverage** — every scope in `scopes.ts` must
+   appear in some `BASE_ROLE_SCOPES` tier OR be on an explicit
+   `INTENTIONALLY_UNWIRED_SCOPES` allowlist (with a justification).
+   Catches "I added a scope to the vocabulary but forgot to wire it
+   into any tier"
+
+If you add a new ability or scope, the relevant test will fail with a
+specific message pointing at what to update. Treat it as a checklist —
+fix the wiring, don't add to the ignore list unless there's a real
+reason (e.g. dynamic deployment-config-gated abilities like
+`manage:PersonalAccessToken`).
 
 ### Sources of truth and how `system:*` SA scopes avoid drift
 
@@ -172,23 +198,65 @@ go through CASL:
 
 ## Project vs organization assignment of custom roles
 
-A custom role can include any subset of scopes from `scopes.ts`. What
-actually takes effect at runtime depends on **where the role is assigned**:
+A custom role is a single bundle of scopes. The same role row can be
+assigned at **either level** of the membership stack — and the resulting
+runtime behavior differs by level. The role-builder UI doesn't
+distinguish; it surfaces every scope from `scopes.ts` (gated by your
+license tier), and the operator picks which to toggle.
+
+### What "the same role works at both levels" actually means
 
 - **`organization_memberships.role_uuid`** — `buildAbilityFromScopes` is
   called with `{ organizationUuid }` context. Org-management scopes
-  (`manage:OrganizationMemberProfile`, `manage:InviteLink`, etc.) take
-  effect; project-only scopes still compile but only match subjects whose
-  conditions include the org uuid.
+  (`manage:OrganizationMemberProfile`, `manage:InviteLink`,
+  `manage:Group`, …) take effect on the org-keyed subjects they're
+  intended for. Project-content scopes (`view:Dashboard`,
+  `manage:Space`, …) also fire for *every* project in the org because
+  their conditions match subjects via `inheritsFromOrgOrProject` /
+  org-uuid keying.
 - **`project_memberships.role_uuid`** — context is `{ projectUuid }`.
-  Project-scoped subjects match; org-management scopes silently no-op
-  because their target subjects (`OrganizationMemberProfile` etc.) don't
-  carry a `projectUuid`.
+  Project-content scopes match the project's own subjects. Org-management
+  scopes silently no-op: their target subjects (`OrganizationMemberProfile`
+  etc.) carry `organizationUuid`, so a `{ projectUuid }`-keyed condition
+  can never match. CASL's additivity is an architectural safeguard here
+  — a project-level role assignment can never escalate to org-level
+  abilities the user doesn't already have at the org layer.
 
-This is a known UX trap: the role builder shows all scopes regardless of
-intended assignment level. An admin who toggles `manage:OrganizationMemberProfile`
-on a project-only role gets nothing — no error, just no effect. There's no
-filter or warning today; intent is preserved by convention only.
+This means the **same custom role** behaves differently:
+
+| Role: "CI deployer" with `manage:DeployProject` + `manage:ContentAsCode` + `manage:OrganizationMemberProfile` |  |
+|---|---|
+| Bound to `organization_memberships.role_uuid` (e.g. an SA token) | Can deploy any project + manage org members |
+| Bound to `project_memberships.role_uuid` for project A | Can deploy project A + content-as-code on project A; **silently cannot** manage org members |
+
+### What `BASE_ROLE_SCOPES` returns when you duplicate "Admin"
+
+When an operator clicks **Duplicate role** on a system role, the new
+custom role gets the union of project-level *and* org-level abilities
+that role grants — i.e. every scope a human admin (or editor / developer
+/ etc.) can effectively use across both layers. That's intentional and
+mirrors the user's expectation that "the role does what the system role
+does." The trade-off is the project-level no-op above: an admin clone
+assigned at the project level will still show org-management toggles
+ticked, but those toggles are dead at runtime in that context.
+
+### Known UX gap (revisit)
+
+The role builder shows **all** scopes regardless of intended assignment
+level. An admin who toggles `manage:OrganizationMemberProfile` on a
+project-only role gets nothing — no error, no warning, just no effect.
+Possible future improvements (none implemented today):
+
+- Mark each scope's "applicable level" (`project | org | both`) and
+  filter the role-builder UI by intended assignment context.
+- Two distinct role flavors at the API level — "project role" vs
+  "org role" — each with its own scope catalog.
+- Inline hint in the role builder ("only effective at org assignment")
+  when an org-only scope is toggled.
+
+Each option trades simplicity (one shared role-builder UI) for
+discoverability. The current design preserves the simpler UX at the cost
+of the silent-no-op trap.
 
 ## Code references
 
