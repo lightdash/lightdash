@@ -37,6 +37,7 @@ const dashboard = {
     dashboardVersionId: 1,
     versionUuid: 'version-uuid',
     verification: null,
+    colorPaletteUuid: null,
 } as DashboardDAO;
 
 const makeCommentRow = (userUuid: string) => ({

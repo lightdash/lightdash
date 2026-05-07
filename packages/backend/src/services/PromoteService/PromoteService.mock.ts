@@ -240,6 +240,7 @@ export const promotedDashboard: PromotedDashboard = {
         firstViewedAt: new Date(),
         updatedByUser,
         slug: 'dashboard',
+        colorPaletteUuid: null,
     },
     projectUuid: promotedProjectUuid,
     space: promotedSpace,

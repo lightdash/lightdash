@@ -31,6 +31,7 @@ export type DbDashboard = {
     first_viewed_at: Date | null;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
+    color_palette_uuid: string | null;
 };
 
 type DbDashboardVersion = {
@@ -86,6 +87,7 @@ export type DashboardTable = Knex.CompositeTableType<
             | 'slug'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
+            | 'color_palette_uuid'
         >
     >
 >;

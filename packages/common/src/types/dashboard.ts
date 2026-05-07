@@ -127,6 +127,7 @@ export type CreateDashboard = {
     spaceUuid?: string;
     tabs: DashboardTab[];
     config?: DashboardConfig;
+    colorPaletteUuid?: string | null;
 };
 
 export type DashboardTile =
@@ -207,6 +208,7 @@ export type Dashboard = {
     access: SpaceAccess[] | null;
     slug: string;
     config?: DashboardConfig;
+    colorPaletteUuid: string | null;
     deletedAt?: Date;
     deletedBy?: {
         userUuid: string;
@@ -260,7 +262,7 @@ export type SpaceDashboard = DashboardBasicDetails;
 
 export type DashboardUnversionedFields = Pick<
     CreateDashboard,
-    'name' | 'description' | 'spaceUuid'
+    'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'
 >;
 
 export type DashboardVersionedFields = Pick<

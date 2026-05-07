@@ -770,6 +770,7 @@ export class DashboardModel {
                     deleted_by_user_uuid: string | null;
                     deleted_by_user_first_name: string | null;
                     deleted_by_user_last_name: string | null;
+                    color_palette_uuid: string | null;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -794,6 +795,7 @@ export class DashboardModel {
                 `${DashboardsTableName}.first_viewed_at`,
                 `${DashboardsTableName}.deleted_at`,
                 `${DashboardsTableName}.deleted_by_user_uuid`,
+                `${DashboardsTableName}.color_palette_uuid`,
                 'deleted_by_user.first_name as deleted_by_user_first_name',
                 'deleted_by_user.last_name as deleted_by_user_last_name',
             ])
@@ -1164,6 +1166,7 @@ export class DashboardModel {
             },
             slug: dashboard.slug,
             config: dashboard?.config,
+            colorPaletteUuid: dashboard.color_palette_uuid ?? null,
             ...(dashboard.deleted_at
                 ? {
                       deletedAt: dashboard.deleted_at,
@@ -1242,11 +1245,16 @@ export class DashboardModel {
                   )?.spaceId,
               }
             : {};
+        const withColorPalette =
+            dashboard.colorPaletteUuid !== undefined
+                ? { color_palette_uuid: dashboard.colorPaletteUuid }
+                : {};
         const query = this.database(DashboardsTableName)
             .update({
                 name: dashboard.name,
                 description: dashboard.description,
                 ...withSpaceId,
+                ...withColorPalette,
             })
             .whereNull('deleted_at');
 
@@ -1793,6 +1801,7 @@ export class DashboardModel {
                 (GetDashboardQuery & {
                     space_uuid: string;
                     space_name: string;
+                    color_palette_uuid: string | null;
                 })[]
             >([
                 `${ProjectTableName}.project_uuid`,
@@ -1815,6 +1824,7 @@ export class DashboardModel {
                 `${PinnedDashboardTableName}.order`,
                 `${DashboardsTableName}.views_count`,
                 `${DashboardsTableName}.first_viewed_at`,
+                `${DashboardsTableName}.color_palette_uuid`,
             ])
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
             .andWhere(
@@ -2148,6 +2158,7 @@ export class DashboardModel {
             },
             slug: dashboard.slug,
             config: dashboard?.config,
+            colorPaletteUuid: dashboard.color_palette_uuid ?? null,
         };
     }
 

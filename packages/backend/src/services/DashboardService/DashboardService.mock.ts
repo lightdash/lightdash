@@ -132,6 +132,7 @@ export const dashboard: Dashboard = {
     inheritsFromOrgOrProject: true,
     access: [],
     tabs: [],
+    colorPaletteUuid: null,
 };
 
 export const chart: SavedChart = {

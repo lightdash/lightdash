@@ -178,6 +178,7 @@ export const dashboardEntry: DashboardTable['base'] = {
 
     deleted_at: null,
     deleted_by_user_uuid: null,
+    color_palette_uuid: null,
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
@@ -335,6 +336,7 @@ export const expectedDashboard: DashboardDAO = {
     views: 1,
     firstViewedAt: new Date(1),
     tabs: [],
+    colorPaletteUuid: null,
 };
 
 export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [

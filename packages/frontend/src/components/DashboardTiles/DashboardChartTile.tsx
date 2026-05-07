@@ -69,6 +69,7 @@ import React, {
 } from 'react';
 import { useParams } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import { useProjectColorPalette } from '../../hooks/appearance/useProjectColorPalette';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { getDashboardChartColorPalette } from './getDashboardChartColorPalette';
 
@@ -1941,6 +1942,25 @@ export const GenericDashboardChartTile: FC<
     }>();
     const { user } = useApp();
 
+    // Resolve the dashboard-aware palette via the shared resolver endpoint.
+    // The resolver returns chart > dashboard > space > project > org, so the
+    // result is always at least as correct as `chart.colorPalette` (which
+    // doesn't know about the container dashboard for standalone charts).
+    // React Query dedupes by key, so all tiles in the same dashboard with
+    // the same chartUuid share one in-flight request.
+    const dashboardUuidFromContext = useDashboardContext(
+        (c) => c.dashboard?.uuid,
+    );
+    const chartUuid = dashboardChartReadyQuery?.chart.uuid;
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
+        dashboardUuid: dashboardUuidFromContext,
+        chartUuid,
+    });
+    const effectiveColorPaletteOverride =
+        colorPaletteOverride ?? resolvedPalette?.colors;
+    const effectiveDarkColorPaletteOverride =
+        darkColorPaletteOverride ?? resolvedPalette?.darkColors;
+
     const markTileScreenshotErrored = useDashboardTileStatusContext(
         (c) => c.markTileScreenshotErrored,
     );
@@ -2049,8 +2069,8 @@ export const GenericDashboardChartTile: FC<
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
                     onExplore={onExplore}
-                    colorPaletteOverride={colorPaletteOverride}
-                    darkColorPaletteOverride={darkColorPaletteOverride}
+                    colorPaletteOverride={effectiveColorPaletteOverride}
+                    darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
                 />
             ) : (
                 <DashboardChartTileMain
@@ -2060,8 +2080,8 @@ export const GenericDashboardChartTile: FC<
                     resultsData={resultsData}
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     onExplore={onExplore}
-                    colorPaletteOverride={colorPaletteOverride}
-                    darkColorPaletteOverride={darkColorPaletteOverride}
+                    colorPaletteOverride={effectiveColorPaletteOverride}
+                    darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
                 />
             )}
             <UnderlyingDataModal />

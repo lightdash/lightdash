@@ -65,6 +65,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -97,6 +98,7 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
+    organizationModel: OrganizationModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
 };
@@ -129,6 +131,8 @@ export class DashboardService
 
     projectModel: ProjectModel;
 
+    organizationModel: OrganizationModel;
+
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -152,6 +156,7 @@ export class DashboardService
         slackClient,
         projectModel,
         catalogModel,
+        organizationModel,
         spacePermissionService,
         contentVerificationModel,
     }: DashboardServiceArguments) {
@@ -168,6 +173,7 @@ export class DashboardService
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
+        this.organizationModel = organizationModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
@@ -828,12 +834,25 @@ export class DashboardService
                 }
             }
 
+            if (dashboard.colorPaletteUuid) {
+                const palette = await this.organizationModel.findColorPalette(
+                    existingDashboardDao.organizationUuid,
+                    dashboard.colorPaletteUuid,
+                );
+                if (!palette) {
+                    throw new ParameterError(
+                        'Color palette does not belong to this organization',
+                    );
+                }
+            }
+
             const updatedDashboard = await this.dashboardModel.update(
                 existingDashboardDao.uuid,
                 {
                     name: dashboard.name,
                     description: dashboard.description,
                     spaceUuid: dashboard.spaceUuid,
+                    colorPaletteUuid: dashboard.colorPaletteUuid,
                 },
             );
 
