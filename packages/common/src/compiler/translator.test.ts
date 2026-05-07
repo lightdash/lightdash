@@ -1741,28 +1741,32 @@ describe('convert_timezone dimension override', () => {
         },
     });
 
-    it('writes convertTimezone: false onto the compiled dimension and its time-interval children', () => {
+    it('writes skipTimezoneConversion: true onto the compiled dimension and its time-interval children', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             buildModel(false),
             [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
-        expect(result.dimensions.created_at.convertTimezone).toBe(false);
-        expect(result.dimensions.created_at_day.convertTimezone).toBe(false);
-        expect(result.dimensions.created_at_month_num.convertTimezone).toBe(
-            false,
+        expect(result.dimensions.created_at.skipTimezoneConversion).toBe(true);
+        expect(result.dimensions.created_at_day.skipTimezoneConversion).toBe(
+            true,
         );
+        expect(
+            result.dimensions.created_at_month_num.skipTimezoneConversion,
+        ).toBe(true);
     });
 
-    it('omits convertTimezone when not set or set to true (default behavior)', () => {
+    it('omits skipTimezoneConversion when convert_timezone is unset or true (default behavior)', () => {
         const undef = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             buildModel(undefined),
             [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
-        expect(undef.dimensions.created_at.convertTimezone).toBeUndefined();
+        expect(
+            undef.dimensions.created_at.skipTimezoneConversion,
+        ).toBeUndefined();
 
         const truthy = convertTable(
             SupportedDbtAdapter.BIGQUERY,
@@ -1770,6 +1774,8 @@ describe('convert_timezone dimension override', () => {
             [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
-        expect(truthy.dimensions.created_at.convertTimezone).toBeUndefined();
+        expect(
+            truthy.dimensions.created_at.skipTimezoneConversion,
+        ).toBeUndefined();
     });
 });

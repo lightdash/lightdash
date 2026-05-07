@@ -222,6 +222,7 @@ export type DbtColumnLightdashDimension = {
     description?: string;
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
+    /** Set to false to opt this dim out of display-tz conversion. Defaults to true. */
     convert_timezone?: boolean;
     hidden?: boolean;
     // @deprecated Use format expression instead

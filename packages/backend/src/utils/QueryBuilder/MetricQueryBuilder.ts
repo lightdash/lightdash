@@ -37,7 +37,6 @@ import {
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
     isDimension,
-    isDimensionDisplayTimezoneDisabled,
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
@@ -626,10 +625,7 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        if (
-            respectConvertTimezone &&
-            isDimensionDisplayTimezoneDisabled(baseDimension)
-        ) {
+        if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
             return dimension.compiledSql;
         }
 

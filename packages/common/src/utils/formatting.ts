@@ -218,21 +218,11 @@ export const toIsoWithProjectOffset = (
     return m.tz(timezone).toISOString(true);
 };
 
-// True when the dimension is explicitly opted out of the project timezone
-// for display (convert_timezone: false in YAML). Filter SQL is generated
-// separately and is unaffected by this flag.
-export const isDimensionDisplayTimezoneDisabled = (
-    item: Item | AdditionalMetric | undefined,
-): boolean => isDimension(item) && item.convertTimezone === false;
-
-// True when the item carries a real instant that should be shifted into the
-// project timezone before display/export. TIMESTAMP fields and TIMESTAMP-base
-// DATE intervals shift; calendar DATEs and dims with `convert_timezone: false`
-// stay put. Used by spreadsheet exports (CSV, Excel, Sheets) where the cell
-// can't carry a timezone, so the project offset has to be baked in.
+// TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and
+// dims with `skipTimezoneConversion` stay put. Used by spreadsheet exports.
 export const shouldShiftItemTimezone = (item: Item | undefined): boolean => {
     if (!isField(item)) return false;
-    if (isDimensionDisplayTimezoneDisabled(item)) return false;
+    if (isDimension(item) && item.skipTimezoneConversion) return false;
     if (item.type === DimensionType.TIMESTAMP) return true;
     return (
         item.type === DimensionType.DATE &&
@@ -932,12 +922,10 @@ export function formatItemValue(
 
         if (isCustomSqlDimension(item) || 'type' in item) {
             const type = getItemType(item);
-            // Strip the display timezone for dims opted out via
-            // convert_timezone: false so values render in the raw
-            // warehouse instant.
-            const effectiveTimezone = isDimensionDisplayTimezoneDisabled(item)
-                ? undefined
-                : timezone;
+            const effectiveTimezone =
+                isDimension(item) && item.skipTimezoneConversion
+                    ? undefined
+                    : timezone;
 
             // Date/Timestamp table calculations may carry a CUSTOM format
             // expression (e.g. "mmmm d, yyyy"). The default switch path

@@ -212,8 +212,12 @@ const convertDimension = (
             ? { richText: meta.dimension.richText }
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
+        // Polarity flip: YAML reads `convert_timezone: false` (defaults true,
+        // matches dbt convention); in-memory we store the inverse so truthiness
+        // matches the semantic — `if (dim.skipTimezoneConversion)` is correct,
+        // no `=== false` trap, and absent collapses to the default.
         ...(meta.dimension?.convert_timezone === false
-            ? { convertTimezone: false }
+            ? { skipTimezoneConversion: true }
             : {}),
         groups,
         isIntervalBase,

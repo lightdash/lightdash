@@ -828,15 +828,15 @@ describe('Formatting', () => {
             ).toEqual('2026-03-02');
         });
 
-        test('formatItemValue ignores display timezone when convertTimezone is false', () => {
+        test('formatItemValue ignores display timezone when skipTimezoneConversion is set', () => {
             const value = new Date('2026-03-03T01:30:00.000Z');
-            // TIMESTAMP dim with convertTimezone: false renders in raw UTC
+            // TIMESTAMP dim with skipTimezoneConversion renders in raw UTC
             expect(
                 formatItemValue(
                     {
                         ...dimension,
                         type: DimensionType.TIMESTAMP,
-                        convertTimezone: false,
+                        skipTimezoneConversion: true,
                     },
                     value,
                     false,
@@ -852,7 +852,7 @@ describe('Formatting', () => {
                         type: DimensionType.DATE,
                         timeInterval: TimeFrames.DAY,
                         timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
-                        convertTimezone: false,
+                        skipTimezoneConversion: true,
                     },
                     value,
                     false,
@@ -860,7 +860,7 @@ describe('Formatting', () => {
                     'Pacific/Pago_Pago',
                 ),
             ).toEqual('2026-03-03');
-            // Sanity: same dim with convertTimezone === true (default) still shifts
+            // Sanity: same dim without the marker (default) still shifts
             expect(
                 formatItemValue(
                     {
@@ -875,7 +875,7 @@ describe('Formatting', () => {
             ).toEqual('2026-03-02, 14:30:00:000 (-11:00)');
         });
 
-        test('shouldShiftItemTimezone respects convertTimezone: false', () => {
+        test('shouldShiftItemTimezone respects skipTimezoneConversion', () => {
             // The function is part of the public formatting surface used by
             // pivot exports + Google Sheets — opt-out must short-circuit.
             const tsBase: Dimension = {
@@ -884,7 +884,7 @@ describe('Formatting', () => {
             };
             const tsBaseOptOut: Dimension = {
                 ...tsBase,
-                convertTimezone: false,
+                skipTimezoneConversion: true,
             };
             expect(shouldShiftItemTimezone(tsBase)).toBe(true);
             expect(shouldShiftItemTimezone(tsBaseOptOut)).toBe(false);
@@ -896,7 +896,7 @@ describe('Formatting', () => {
             };
             const dateOverTsOptOut: Dimension = {
                 ...dateOverTs,
-                convertTimezone: false,
+                skipTimezoneConversion: true,
             };
             expect(shouldShiftItemTimezone(dateOverTs)).toBe(true);
             expect(shouldShiftItemTimezone(dateOverTsOptOut)).toBe(false);

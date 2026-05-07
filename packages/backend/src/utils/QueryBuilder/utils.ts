@@ -27,7 +27,6 @@ import {
     getUserAttributeRegex,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
-    isDimensionDisplayTimezoneDisabled,
     JoinRelationship,
     MetricType,
     parseAllReferences,
@@ -70,14 +69,7 @@ export const getDimensionFromId = ({
                 timezone,
             });
             if (baseField && newTimeFrame) {
-                // Base dims with `convert_timezone: false` drop the project
-                // timezone so the synthesized child renders in the raw
-                // warehouse value. Filter rendering goes through
-                // getTimezoneAwareDimensionSql instead, which has its own
-                // opt-out.
-                const effectiveTimezone = isDimensionDisplayTimezoneDisabled(
-                    baseField,
-                )
+                const effectiveTimezone = baseField.skipTimezoneConversion
                     ? undefined
                     : timezone;
                 return {

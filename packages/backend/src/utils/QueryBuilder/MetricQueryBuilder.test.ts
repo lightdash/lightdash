@@ -5186,7 +5186,7 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
     test('convert_timezone: false on base dim — SELECT skips the wrap, WHERE keeps it', () => {
         const explore = buildExtractExplore(DimensionType.TIMESTAMP);
         // Mark the base dim opted out of display conversion.
-        explore.tables.events.dimensions.occurred_at.convertTimezone = false;
+        explore.tables.events.dimensions.occurred_at.skipTimezoneConversion = true;
 
         const { query } = buildQuery({
             explore,
