@@ -534,6 +534,12 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
+                    path: '/generalSettings/serviceAccounts',
+                },
+                location.pathname,
+            ) &&
+            !matchPath(
+                {
                     path: '/generalSettings/projectManagement/:projectUuid/preAggregates/*',
                 },
                 location.pathname,

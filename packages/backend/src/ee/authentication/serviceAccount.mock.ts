@@ -24,6 +24,7 @@ export const mockServiceAccount: ServiceAccount = {
     scopes: [ServiceAccountScope.ORG_ADMIN],
     userUuid: 'sa-dedicated-user-uuid',
     roleUuid: null,
+    createdBy: null,
 };
 
 export const mockExpiredServiceAccount: ServiceAccount = {

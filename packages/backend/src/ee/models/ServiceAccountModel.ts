@@ -22,6 +22,12 @@ import {
 
 type DbServiceAccountWithRole = DbServiceAccounts & {
     role_uuid: string | null;
+    // Joined from `users` via `created_by_user_uuid`. All three are null
+    // when the FK is itself null OR when the creator's row has been
+    // deleted (the FK is `ON DELETE SET NULL`).
+    creator_user_uuid: string | null;
+    creator_first_name: string | null;
+    creator_last_name: string | null;
 };
 
 export class ServiceAccountModel {
@@ -53,6 +59,13 @@ export class ServiceAccountModel {
             lastUsedAt: data.last_used_at,
             rotatedAt: data.rotated_at,
             createdByUserUuid: data.created_by_user_uuid,
+            createdBy: data.creator_user_uuid
+                ? {
+                      userUuid: data.creator_user_uuid,
+                      firstName: data.creator_first_name ?? '',
+                      lastName: data.creator_last_name ?? '',
+                  }
+                : null,
             scopes: data.scopes as ServiceAccountScope[],
             userUuid: data.service_account_user_uuid,
             roleUuid: data.role_uuid ?? null,
@@ -62,7 +75,9 @@ export class ServiceAccountModel {
     /**
      * Returns the SELECT shape used by all read paths. Joins
      * `organization_memberships` to surface the SA's optional org-level
-     * custom role assignment alongside the service_accounts columns.
+     * custom role assignment, and joins `users` a second time on
+     * `created_by_user_uuid` so the listing UI can render "Created by …"
+     * without a follow-up lookup.
      */
     private serviceAccountSelectQuery() {
         return this.database(ServiceAccountsTableName)
@@ -76,9 +91,17 @@ export class ServiceAccountModel {
                 `${OrganizationMembershipsTableName}.user_id`,
                 'users.user_id',
             )
+            .leftJoin(
+                { creator: 'users' },
+                'creator.user_uuid',
+                `${ServiceAccountsTableName}.created_by_user_uuid`,
+            )
             .select<DbServiceAccountWithRole[]>(
                 `${ServiceAccountsTableName}.*`,
                 `${OrganizationMembershipsTableName}.role_uuid`,
+                { creator_user_uuid: 'creator.user_uuid' },
+                { creator_first_name: 'creator.first_name' },
+                { creator_last_name: 'creator.last_name' },
             );
     }
 
@@ -248,10 +271,17 @@ export class ServiceAccountModel {
                     'Could not create service account token',
                 );
             }
+            // Hydrate the creator triple from the calling user — the
+            // INSERT…RETURNING above doesn't carry it (no JOIN on the
+            // write path). For SAs minted without a SessionUser (e.g.
+            // first-run setup token), all three fields stay null.
             return {
                 ...ServiceAccountModel.mapDbObjectToServiceAccount({
                     ...row,
                     role_uuid: data.roleUuid ?? null,
+                    creator_user_uuid: user?.userUuid ?? null,
+                    creator_first_name: user?.firstName ?? null,
+                    creator_last_name: user?.lastName ?? null,
                 }),
                 token,
             };

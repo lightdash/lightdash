@@ -22,6 +22,15 @@ export enum ServiceAccountScope {
 export type ServiceAccount = {
     uuid: string;
     createdByUserUuid: string | null;
+    // Resolved creator identity. Null when `createdByUserUuid` is unset
+    // (e.g. SA minted via SCIM bootstrap or backfilled before the column
+    // existed) or when the creator's user row no longer exists. Filled by
+    // the model's join so the listing UI doesn't need a follow-up lookup.
+    createdBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
     organizationUuid: string;
     createdAt: Date;
     expiresAt: Date | null;
