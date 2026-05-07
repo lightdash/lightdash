@@ -559,8 +559,10 @@ export class SavedChartModel {
         //   back to the owning-dashboard's space for dashboard-owned charts).
         // dashboard_origin: seed space derived from the explicit container
         //   dashboard.
-        // Seed precedence: explicit spaceUuid wins (caller's intent — e.g.
-        //   nested-space preview), then chart-derived, then dashboard-derived.
+        // Seed precedence (caller intent first): explicit spaceUuid →
+        //   explicit dashboardUuid → chart-derived. Both spaceUuid and
+        //   dashboardUuid are caller-passed render context, so they outrank
+        //   the chart-derived seed which is implicit.
         // space_chain: recursive walk up parent_space_uuid; chosen_space picks
         //   the closest override.
         const result: ResolverRow | undefined = await this.database
@@ -591,8 +593,8 @@ export class SavedChartModel {
                 seed AS (
                     SELECT COALESCE(
                         :spaceUuid::uuid,
-                        (SELECT seed_space_uuid FROM chart_origin),
-                        (SELECT seed_space_uuid FROM dashboard_origin)
+                        (SELECT seed_space_uuid FROM dashboard_origin),
+                        (SELECT seed_space_uuid FROM chart_origin)
                     ) AS space_uuid
                 ),
                 space_chain AS (
