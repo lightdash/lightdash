@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     type ApiError,
     type ContentVerificationInfo,
@@ -58,12 +59,14 @@ import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
+import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
 import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
@@ -1315,10 +1318,21 @@ const RunHeaderRow: FC<{
 export const ManagedAgentActivityPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
+    const { user } = useApp();
+    const canManageAutopilot =
+        user.data?.ability?.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
     const { showToastSuccess, showToastApiError } = useToaster();
-    const { data: actions, isLoading } = useManagedAgentActions();
+    const { data: actions, isLoading } = useManagedAgentActions({
+        enabled: canManageAutopilot,
+    });
     const { data: settings, isLoading: settingsLoading } =
-        useManagedAgentSettings();
+        useManagedAgentSettings({ enabled: canManageAutopilot });
     const [selected, setSelected] = useState<ManagedAgentAction | null>(null);
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [userOpenState, setUserOpenState] = useState<Map<string, boolean>>(
@@ -1398,6 +1412,10 @@ export const ManagedAgentActivityPage: FC = () => {
             });
         },
     });
+
+    if (!canManageAutopilot) {
+        return <ForbiddenPanel />;
+    }
 
     if (isLoading || settingsLoading) {
         return (

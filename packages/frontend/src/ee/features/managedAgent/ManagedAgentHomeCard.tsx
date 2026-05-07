@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import {
     assertUnreachable,
     FeatureFlags,
@@ -28,6 +29,7 @@ import {
 import { useNavigate } from 'react-router';
 import { BetaBadge } from '../../../components/common/BetaBadge';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentHomeCard.module.css';
@@ -118,15 +120,24 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => {
     const navigate = useNavigate();
+    const { user } = useApp();
+    const canManageAutopilot =
+        user.data?.ability?.can(
+            'manage',
+            subject('AiAgent', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) ?? false;
     const { data: aiAutopilotFlag } = useServerFeatureFlag(
         FeatureFlags.AiAutopilot,
     );
     const managedAgentEnabled = !!aiAutopilotFlag?.enabled;
     const { data: settings } = useManagedAgentSettings({
-        enabled: managedAgentEnabled,
+        enabled: managedAgentEnabled && canManageAutopilot,
     });
     const { data: actions } = useManagedAgentActions({
-        enabled: managedAgentEnabled,
+        enabled: managedAgentEnabled && canManageAutopilot,
     });
 
     const isEnabled = settings?.enabled ?? false;
@@ -161,6 +172,7 @@ export const ManagedAgentHomeCard: FC<{ projectUuid: string }> = ({
     const [setupOpen, setSetupOpen] = useState(false);
 
     if (!managedAgentEnabled) return null;
+    if (!canManageAutopilot) return null;
 
     const handleClick = () => {
         if (isEnabled) {
