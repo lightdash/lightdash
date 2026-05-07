@@ -136,7 +136,7 @@ The flag is asymmetric: it affects **display** only.
 
 The override propagates to all time-interval children of the base dim (`_day`, `_month`, `_day_of_week_index`, `_month_num`, …). Both Layer 2 SQL paths look up the **base** dim by `timeIntervalBaseDimensionName` and read `convertTimezone` from there, so child dims inherit the opt-out automatically.
 
-**Footgun.** Because filter SQL keeps converting while the displayed value does not, custom date filters on a `convert_timezone: false` column may behave surprisingly: the user sees raw warehouse values but filters bound by project-TZ midnights. This is the documented trade-off — flag it in dimension descriptions when you opt out.
+**Caveat.** Because filter SQL keeps converting while the displayed value does not, absolute date filters on a `convert_timezone: false` column may behave surprisingly: the user sees raw warehouse values but filters bound by project-TZ midnights. This is the documented trade-off — flag it in dimension descriptions when you opt out.
 
 **Files:** `packages/common/src/compiler/translator.ts` (compile-time wiring), `packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.ts` (`getTimezoneAwareDimensionSql`'s `respectConvertTimezone` parameter), `packages/backend/src/utils/QueryBuilder/utils.ts` (`getDimensionFromId`), `packages/common/src/utils/formatting.ts` (`isDimensionDisplayTimezoneDisabled`).
 
