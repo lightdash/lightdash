@@ -538,10 +538,8 @@ export class EmbedService extends BaseService {
             }
         } else {
             const resolved = await this.savedChartModel.resolveColorPalette({
-                dashboardUuid: dashboard.uuid,
-                spaceUuid: dashboard.spaceUuid,
                 projectUuid: dashboard.projectUuid,
-                organizationUuid: dashboard.organizationUuid,
+                dashboardUuid: dashboard.uuid,
             });
             selectedPalette = {
                 colors: resolved.colors,

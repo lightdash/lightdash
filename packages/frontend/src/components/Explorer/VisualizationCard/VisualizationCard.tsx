@@ -103,7 +103,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
         chartUuid: resolverChartUuid,
         dashboardUuid: savedChart?.dashboardUuid ?? undefined,
-        spaceUuid: savedChart?.spaceUuid,
     });
 
     const { data: palettes } = useColorPalettes({

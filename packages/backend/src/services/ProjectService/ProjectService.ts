@@ -6589,7 +6589,6 @@ export class ProjectService extends BaseService {
 
         return this.savedChartModel.resolveColorPalette({
             projectUuid,
-            organizationUuid,
             spaceUuid: context.spaceUuid,
             dashboardUuid: context.dashboardUuid,
             chartUuid: context.chartUuid,

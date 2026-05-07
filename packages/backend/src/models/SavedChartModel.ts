@@ -496,13 +496,20 @@ export class SavedChartModel {
      *
      * The lightdashConfig.appearance.overrideColorPalette wins over everything,
      * matching OrganizationModel.get() behaviour.
+     *
+     * `dashboardUuid` is render context ("currently shown inside"), NOT derived
+     * from `saved_queries.dashboard_uuid` (the "owned by" FK) — callers must
+     * pass it explicitly when known. The seed space for the recursive walk is
+     * derived internally from chart.space_id, falling back to the owning
+     * dashboard's space_id when the chart is dashboard-owned. `spaceUuid` is
+     * accepted for explicit space-only previews (e.g. settings UI showing
+     * what palette would resolve for a nested space).
      */
     async resolveColorPalette(args: {
+        projectUuid: string;
         chartUuid?: string;
         dashboardUuid?: string;
         spaceUuid?: string;
-        projectUuid: string;
-        organizationUuid: string;
     }): Promise<ResolvedProjectColorPalette> {
         const override = this.lightdashConfig.appearance.overrideColorPalette;
         if (override && override.length > 0) {
@@ -515,64 +522,17 @@ export class SavedChartModel {
             };
         }
 
-        if (args.chartUuid) {
-            const chartPalette = await this.database(SavedChartsTableName)
-                .leftJoin(
-                    OrganizationColorPaletteTableName,
-                    `${OrganizationColorPaletteTableName}.color_palette_uuid`,
-                    `${SavedChartsTableName}.color_palette_uuid`,
-                )
-                .where(
-                    `${SavedChartsTableName}.saved_query_uuid`,
-                    args.chartUuid,
-                )
-                .whereNull(`${SavedChartsTableName}.deleted_at`)
-                .whereNotNull(`${SavedChartsTableName}.color_palette_uuid`)
-                .select<{
-                    chart_uuid: string;
-                    chart_name: string;
-                    palette_uuid: string;
-                    palette_name: string;
-                    palette_colors: string[];
-                    palette_dark_colors: string[] | null;
-                }>([
-                    `${SavedChartsTableName}.saved_query_uuid as chart_uuid`,
-                    `${SavedChartsTableName}.name as chart_name`,
-                    `${OrganizationColorPaletteTableName}.color_palette_uuid as palette_uuid`,
-                    `${OrganizationColorPaletteTableName}.name as palette_name`,
-                    `${OrganizationColorPaletteTableName}.colors as palette_colors`,
-                    `${OrganizationColorPaletteTableName}.dark_colors as palette_dark_colors`,
-                ])
-                .first();
-
-            if (chartPalette) {
-                return {
-                    paletteUuid: chartPalette.palette_uuid,
-                    paletteName: chartPalette.palette_name,
-                    colors: chartPalette.palette_colors,
-                    darkColors: chartPalette.palette_dark_colors,
-                    source: {
-                        type: 'chart',
-                        uuid: chartPalette.chart_uuid,
-                        name: chartPalette.chart_name,
-                    },
-                };
-            }
-        }
-
-        // Walk the space chain via parent_space_uuid (closest override wins)
-        // and LEFT JOIN palettes for dashboard / space / project / org so we can
-        // surface which entity owns the resolved palette. When no space is in
-        // scope (embed / unsaved chart explore), skip the CTE — same query
-        // plan as before, with NULL space_* columns to keep the row shape
-        // uniform. The dashboard JOIN fires off `args.dashboardUuid` and is
-        // present in both branches so callers without a space in scope
-        // (embed dashboard view) still pick up the dashboard override.
         type ResolverRow = {
             project_uuid: string;
             project_name: string;
             organization_uuid: string;
             organization_name: string;
+            chart_uuid: string | null;
+            chart_name: string | null;
+            chart_palette_uuid: string | null;
+            chart_palette_name: string | null;
+            chart_palette_colors: string[] | null;
+            chart_palette_dark_colors: string[] | null;
             space_uuid: string | null;
             space_name: string | null;
             space_palette_uuid: string | null;
@@ -595,16 +555,50 @@ export class SavedChartModel {
             org_palette_dark_colors: string[] | null;
         };
 
-        const dashboardUuidArg = args.dashboardUuid ?? null;
-
-        const result: ResolverRow | undefined = args.spaceUuid
-            ? await this.database
-                  .raw<{ rows: ResolverRow[] }>(
-                      `
-                WITH RECURSIVE space_chain AS (
+        // chart_origin: chart-level palette + seed space (chart's space, falling
+        //   back to the owning-dashboard's space for dashboard-owned charts).
+        // dashboard_origin: seed space derived from the explicit container
+        //   dashboard.
+        // Seed precedence: explicit spaceUuid wins (caller's intent — e.g.
+        //   nested-space preview), then chart-derived, then dashboard-derived.
+        // space_chain: recursive walk up parent_space_uuid; chosen_space picks
+        //   the closest override.
+        const result: ResolverRow | undefined = await this.database
+            .raw<{ rows: ResolverRow[] }>(
+                `
+                WITH chart_origin AS (
+                    SELECT
+                        sq.saved_query_uuid AS chart_uuid,
+                        sq.name AS chart_name,
+                        sq.color_palette_uuid AS chart_palette_uuid,
+                        COALESCE(s.space_uuid, ds.space_uuid) AS seed_space_uuid
+                    FROM ${SavedChartsTableName} sq
+                    LEFT JOIN ${SpaceTableName} s
+                        ON s.space_id = sq.space_id AND s.deleted_at IS NULL
+                    LEFT JOIN ${DashboardsTableName} owning_d
+                        ON owning_d.dashboard_uuid = sq.dashboard_uuid AND owning_d.deleted_at IS NULL
+                    LEFT JOIN ${SpaceTableName} ds
+                        ON ds.space_id = owning_d.space_id AND ds.deleted_at IS NULL
+                    WHERE sq.saved_query_uuid = :chartUuid AND sq.deleted_at IS NULL
+                ),
+                dashboard_origin AS (
+                    SELECT s.space_uuid AS seed_space_uuid
+                    FROM ${DashboardsTableName} d
+                    LEFT JOIN ${SpaceTableName} s
+                        ON s.space_id = d.space_id AND s.deleted_at IS NULL
+                    WHERE d.dashboard_uuid = :dashboardUuid AND d.deleted_at IS NULL
+                ),
+                seed AS (
+                    SELECT COALESCE(
+                        :spaceUuid::uuid,
+                        (SELECT seed_space_uuid FROM chart_origin),
+                        (SELECT seed_space_uuid FROM dashboard_origin)
+                    ) AS space_uuid
+                ),
+                space_chain AS (
                     SELECT space_uuid, name, parent_space_uuid, color_palette_uuid, 0 AS depth
                     FROM ${SpaceTableName}
-                    WHERE space_uuid = ? AND deleted_at IS NULL
+                    WHERE space_uuid = (SELECT space_uuid FROM seed) AND deleted_at IS NULL
 
                     UNION ALL
 
@@ -625,6 +619,12 @@ export class SavedChartModel {
                     p.name AS project_name,
                     o.organization_uuid AS organization_uuid,
                     o.organization_name AS organization_name,
+                    co.chart_uuid AS chart_uuid,
+                    co.chart_name AS chart_name,
+                    cp.color_palette_uuid AS chart_palette_uuid,
+                    cp.name AS chart_palette_name,
+                    cp.colors AS chart_palette_colors,
+                    cp.dark_colors AS chart_palette_dark_colors,
                     cs.space_uuid AS space_uuid,
                     cs.name AS space_name,
                     sp.color_palette_uuid AS space_palette_uuid,
@@ -648,80 +648,53 @@ export class SavedChartModel {
                 FROM ${ProjectTableName} p
                 INNER JOIN ${OrganizationTableName} o
                     ON o.organization_id = p.organization_id
+                LEFT JOIN chart_origin co ON true
+                LEFT JOIN ${OrganizationColorPaletteTableName} cp
+                    ON cp.color_palette_uuid = co.chart_palette_uuid
                 LEFT JOIN chosen_space cs ON true
                 LEFT JOIN ${OrganizationColorPaletteTableName} sp
                     ON sp.color_palette_uuid = cs.color_palette_uuid
                 LEFT JOIN ${DashboardsTableName} d
-                    ON d.dashboard_uuid = ? AND d.deleted_at IS NULL
+                    ON d.dashboard_uuid = :dashboardUuid AND d.deleted_at IS NULL
                 LEFT JOIN ${OrganizationColorPaletteTableName} dp
                     ON dp.color_palette_uuid = d.color_palette_uuid
                 LEFT JOIN ${OrganizationColorPaletteTableName} pp
                     ON pp.color_palette_uuid = p.color_palette_uuid
                 LEFT JOIN ${OrganizationColorPaletteTableName} op
                     ON op.color_palette_uuid = o.color_palette_uuid
-                WHERE p.project_uuid = ?
+                WHERE p.project_uuid = :projectUuid
                 `,
-                      [args.spaceUuid, dashboardUuidArg, args.projectUuid],
-                  )
-                  .then((res) => res.rows[0])
-            : await this.database(ProjectTableName)
-                  .innerJoin(
-                      OrganizationTableName,
-                      `${OrganizationTableName}.organization_id`,
-                      `${ProjectTableName}.organization_id`,
-                  )
-                  .joinRaw(
-                      `LEFT JOIN ${DashboardsTableName} AS dashboard_for_palette ON dashboard_for_palette.dashboard_uuid = ? AND dashboard_for_palette.deleted_at IS NULL`,
-                      [dashboardUuidArg],
-                  )
-                  .leftJoin(
-                      `${OrganizationColorPaletteTableName} as dashboard_palette`,
-                      'dashboard_palette.color_palette_uuid',
-                      'dashboard_for_palette.color_palette_uuid',
-                  )
-                  .leftJoin(
-                      `${OrganizationColorPaletteTableName} as project_palette`,
-                      'project_palette.color_palette_uuid',
-                      `${ProjectTableName}.color_palette_uuid`,
-                  )
-                  .leftJoin(
-                      `${OrganizationColorPaletteTableName} as org_palette`,
-                      'org_palette.color_palette_uuid',
-                      `${OrganizationTableName}.color_palette_uuid`,
-                  )
-                  .where(`${ProjectTableName}.project_uuid`, args.projectUuid)
-                  .select<ResolverRow>([
-                      `${ProjectTableName}.project_uuid as project_uuid`,
-                      `${ProjectTableName}.name as project_name`,
-                      `${OrganizationTableName}.organization_uuid as organization_uuid`,
-                      `${OrganizationTableName}.organization_name as organization_name`,
-                      this.database.raw('NULL::uuid as space_uuid'),
-                      this.database.raw('NULL::text as space_name'),
-                      this.database.raw('NULL::uuid as space_palette_uuid'),
-                      this.database.raw('NULL::text as space_palette_name'),
-                      this.database.raw('NULL::text[] as space_palette_colors'),
-                      this.database.raw(
-                          'NULL::text[] as space_palette_dark_colors',
-                      ),
-                      'dashboard_for_palette.dashboard_uuid as dashboard_uuid',
-                      'dashboard_for_palette.name as dashboard_name',
-                      'dashboard_palette.color_palette_uuid as dashboard_palette_uuid',
-                      'dashboard_palette.name as dashboard_palette_name',
-                      'dashboard_palette.colors as dashboard_palette_colors',
-                      'dashboard_palette.dark_colors as dashboard_palette_dark_colors',
-                      'project_palette.color_palette_uuid as project_palette_uuid',
-                      'project_palette.name as project_palette_name',
-                      'project_palette.colors as project_palette_colors',
-                      'project_palette.dark_colors as project_palette_dark_colors',
-                      'org_palette.color_palette_uuid as org_palette_uuid',
-                      'org_palette.name as org_palette_name',
-                      'org_palette.colors as org_palette_colors',
-                      'org_palette.dark_colors as org_palette_dark_colors',
-                  ])
-                  .first();
+                {
+                    chartUuid: args.chartUuid ?? null,
+                    dashboardUuid: args.dashboardUuid ?? null,
+                    spaceUuid: args.spaceUuid ?? null,
+                    projectUuid: args.projectUuid,
+                },
+            )
+            .then((res) => res.rows[0]);
 
         if (!result) {
             return getDefaultResolvedColorPalette();
+        }
+
+        if (
+            result.chart_palette_uuid &&
+            result.chart_palette_colors &&
+            result.chart_palette_name &&
+            result.chart_uuid &&
+            result.chart_name
+        ) {
+            return {
+                paletteUuid: result.chart_palette_uuid,
+                paletteName: result.chart_palette_name,
+                colors: result.chart_palette_colors,
+                darkColors: result.chart_palette_dark_colors,
+                source: {
+                    type: 'chart',
+                    uuid: result.chart_uuid,
+                    name: result.chart_name,
+                },
+            };
         }
 
         if (
@@ -1459,11 +1432,9 @@ export class SavedChartModel {
                     customBinDimensionsQuery,
                     customSqlDimensionsQuery,
                     this.resolveColorPalette({
+                        projectUuid: savedQuery.project_uuid,
                         chartUuid: savedQuery.saved_query_uuid,
                         dashboardUuid: savedQuery.dashboard_uuid ?? undefined,
-                        spaceUuid: savedQuery.space_uuid,
-                        projectUuid: savedQuery.project_uuid,
-                        organizationUuid: savedQuery.organization_uuid,
                     }),
                 ]);
 
