@@ -112,11 +112,12 @@ const PUBLIC_ROUTES: RouteObject[] = [
             </TrackPage>
         ),
     },
-];
+].map((r) => ({ ...r, handle: { hideAILauncher: true } }));
 
 const MINIMAL_ROUTES: RouteObject[] = [
     {
         path: '/minimal',
+        handle: { hideAILauncher: true },
         children: [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
@@ -352,18 +353,22 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'apps/generate',
+        handle: { hideAILauncher: true },
         element: <AppGenerate />,
     },
     {
         path: 'apps/:appUuid',
+        handle: { hideAILauncher: true },
         element: <AppGenerate />,
     },
     {
         path: 'apps/:appUuid/versions/:version/preview',
+        handle: { hideAILauncher: true },
         element: <AppPreviewTest />,
     },
     {
         path: 'apps/:appUuid/preview',
+        handle: { hideAILauncher: true },
         element: <AppPreviewTest />,
     },
     {
@@ -376,6 +381,7 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
     },
     {
         path: 'funnel-builder',
+        handle: { hideAILauncher: true },
         element: (
             <TrackPage name={PageName.FUNNEL_BUILDER}>
                 <FunnelBuilder />
@@ -455,6 +461,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/createProjectSettings/:projectUuid',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -466,6 +473,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/generalSettings/*',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -477,6 +485,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/no-access',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -488,6 +497,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/no-project-access',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -499,6 +509,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/share/:shareNanoid',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />

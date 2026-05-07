@@ -1,7 +1,7 @@
 import { Transition } from '@mantine-8/core';
 import { useMediaQuery } from '@mantine-8/hooks';
 import { useEffect, useRef, type FC } from 'react';
-import { useLocation } from 'react-router';
+import { useLocation, useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
 import { openPanel, resetActivePanel } from '../../store/aiAgentLauncherSlice';
@@ -17,36 +17,31 @@ import { launcherSession } from './launcherSession';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
 
-const HIDDEN_ROUTE_PREFIXES = [
-    '/minimal',
-    '/embed',
-    '/generalSettings',
-    '/createProjectSettings',
-];
-
-const isFullscreenAiAgentRoute = (pathname: string) =>
-    /^\/projects\/[^/]+\/ai-agents(\/|$)/.test(pathname);
-
-const isHiddenRoute = (pathname: string) =>
-    HIDDEN_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+// Routes opt out of the launcher by setting `handle: { hideAILauncher: true }`
+// on their RouteObject; the flag is inherited by all child routes.
+const useIsLauncherHidden = () => {
+    const matches = useMatches();
+    return matches.some(
+        (m) =>
+            (m.handle as { hideAILauncher?: boolean } | undefined)
+                ?.hideAILauncher,
+    );
+};
 
 export const AiAgentsLauncher: FC = () => {
-    const location = useLocation();
-    const { pathname, search } = location;
+    const { pathname, search } = useLocation();
     const isMobile = useMediaQuery('(max-width: 768px)');
+    const isHidden = useIsLauncherHidden();
 
     useEffect(() => {
-        if (isFullscreenAiAgentRoute(pathname)) return;
-        if (isHiddenRoute(pathname)) return;
+        if (isHidden) return;
         launcherSession.rememberLastNonAgentUrl(`${pathname}${search}`);
         // Non-agent routes are the restore target. Clear the expanded marker
         // so direct fullscreen visits don't show Minimize.
         launcherSession.clearExpandedFromBubble();
-    }, [pathname, search]);
+    }, [isHidden, pathname, search]);
 
-    if (isMobile) return null;
-    if (isHiddenRoute(pathname)) return null;
-    if (isFullscreenAiAgentRoute(pathname)) return null;
+    if (isMobile || isHidden) return null;
     return <AiAgentsLauncherInner />;
 };
 
