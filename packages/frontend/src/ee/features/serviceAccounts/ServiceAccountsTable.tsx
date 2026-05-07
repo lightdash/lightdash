@@ -32,7 +32,6 @@ import {
     IconDots,
     IconFilter,
     IconInfoCircle,
-    IconKey,
     IconSearch,
     IconShieldLock,
     IconTextCaption,
@@ -46,9 +45,9 @@ import {
     type MRT_ColumnDef,
 } from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
-import { ServiceAccountPermissionsModal } from './ServiceAccountPermissionsModal';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
@@ -131,10 +130,6 @@ export const ServiceAccountsTable: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
     const [opened, { open, close }] = useDisclosure(false);
-    const [
-        permissionsOpened,
-        { open: openPermissions, close: closePermissions },
-    ] = useDisclosure(false);
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -191,9 +186,6 @@ export const ServiceAccountsTable: FC<Props> = ({
     const [serviceAccountToDelete, setServiceAccountToDelete] = useState<
         ServiceAccount | undefined
     >();
-    const [serviceAccountToView, setServiceAccountToView] = useState<
-        ServiceAccount | undefined
-    >();
 
     const handleOpenDelete = useCallback(
         (sa: ServiceAccount) => {
@@ -213,19 +205,6 @@ export const ServiceAccountsTable: FC<Props> = ({
         setServiceAccountToDelete(undefined);
         close();
     }, [onDelete, serviceAccountToDelete, close]);
-
-    const handleOpenPermissions = useCallback(
-        (sa: ServiceAccount) => {
-            setServiceAccountToView(sa);
-            openPermissions();
-        },
-        [openPermissions],
-    );
-
-    const handleClosePermissions = useCallback(() => {
-        setServiceAccountToView(undefined);
-        closePermissions();
-    }, [closePermissions]);
 
     const columns: MRT_ColumnDef<ServiceAccount>[] = useMemo(
         () => [
@@ -518,13 +497,22 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 </ActionIcon>
                             </Menu.Target>
                             <Menu.Dropdown>
-                                <Menu.Item
-                                    leftSection={<MantineIcon icon={IconKey} />}
-                                    onClick={() => handleOpenPermissions(sa)}
-                                >
-                                    Permissions
-                                </Menu.Item>
-                                <Menu.Divider />
+                                {sa.roleUuid && (
+                                    <>
+                                        <Menu.Item
+                                            component={Link}
+                                            to={`/generalSettings/customRoles/${sa.roleUuid}`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconShieldLock}
+                                                />
+                                            }
+                                        >
+                                            View custom role
+                                        </Menu.Item>
+                                        <Menu.Divider />
+                                    </>
+                                )}
                                 <Menu.Item
                                     color="red"
                                     leftSection={
@@ -540,7 +528,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
             },
         ],
-        [rolesByUuid, handleOpenPermissions, handleOpenDelete],
+        [rolesByUuid, handleOpenDelete],
     );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -841,12 +829,6 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isDeleting={isDeleting}
                 onDelete={handleConfirmDelete}
                 serviceAccount={serviceAccountToDelete!}
-            />
-
-            <ServiceAccountPermissionsModal
-                isOpen={permissionsOpened}
-                onClose={handleClosePermissions}
-                serviceAccount={serviceAccountToView}
             />
         </>
     );
