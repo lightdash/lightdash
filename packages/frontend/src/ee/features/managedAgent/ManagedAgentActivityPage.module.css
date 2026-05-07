@@ -307,6 +307,16 @@
         light-dark(var(--mantine-color-gray-2), var(--mantine-color-dark-4));
 }
 
+.deletedBanner {
+    padding: 8px 12px 8px 16px;
+    background-color: light-dark(
+        var(--mantine-color-red-0),
+        var(--mantine-color-dark-6)
+    );
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-red-2), var(--mantine-color-dark-4));
+}
+
 .closeBtn {
     display: flex;
     align-items: center;

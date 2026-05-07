@@ -4,6 +4,7 @@ import {
     type ContentVerificationInfo,
     type Dashboard,
     getManagedAgentActionCategory,
+    ManagedAgentActionType,
     type ManagedAgentRun,
     ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
@@ -607,6 +608,21 @@ const DetailSidebar: FC<{
     const isProjectTarget = action.targetType === 'project';
     const category = getManagedAgentActionCategory(action.actionType);
 
+    // Target is currently soft-deleted in two cases:
+    // 1. Autopilot soft-deleted it and the action hasn't been undone yet.
+    // 2. Autopilot created it and an admin clicked Undo (which soft-deletes
+    //    the agent-created chart via reverseAction).
+    // In both cases, fetching the chart/dashboard 404s and the "Open" link
+    // would lead to a deleted-resource page.
+    const isTargetDeleted =
+        (action.actionType === ManagedAgentActionType.SOFT_DELETED &&
+            !isReversed) ||
+        (action.actionType === ManagedAgentActionType.CREATED_CONTENT &&
+            isReversed);
+    const showRestoreBanner =
+        action.actionType === ManagedAgentActionType.SOFT_DELETED &&
+        !isReversed;
+
     const revertMutation = useMutation<unknown, ApiError>({
         mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
         onSuccess: () => {
@@ -615,35 +631,46 @@ const DetailSidebar: FC<{
             });
         },
         onError: ({ error }) => {
+            const isHardDeleted =
+                showRestoreBanner && error?.statusCode === 404;
             showToastApiError({
-                title:
-                    category === 'undo'
-                        ? 'Could not undo action'
-                        : 'Could not dismiss action',
+                title: isHardDeleted
+                    ? 'Could not restore — the original was permanently deleted'
+                    : category === 'undo'
+                      ? 'Could not undo action'
+                      : 'Could not dismiss action',
                 apiError: error,
             });
         },
     });
 
-    const targetLink = isProjectTarget
-        ? `/projects/${action.targetUuid}`
-        : action.targetType === 'chart'
-          ? `/projects/${action.projectUuid}/saved/${action.targetUuid}`
-          : action.targetType === 'dashboard'
-            ? `/projects/${action.projectUuid}/dashboards/${action.targetUuid}`
-            : null;
+    const targetLink = isTargetDeleted
+        ? null
+        : isProjectTarget
+          ? `/projects/${action.targetUuid}`
+          : action.targetType === 'chart'
+            ? `/projects/${action.projectUuid}/saved/${action.targetUuid}`
+            : action.targetType === 'dashboard'
+              ? `/projects/${action.projectUuid}/dashboards/${action.targetUuid}`
+              : null;
 
     const TargetIcon = TARGET_ICON[action.targetType];
 
-    // Fetch chart description from the API when viewing a chart action
+    // Skip the chart/dashboard fetch when the target is currently deleted —
+    // the action row already carries `target_name` + `description` captured at
+    // action time, which is the truth about what was deleted.
     const { data: savedChart } = useSavedQuery({
         uuidOrSlug:
-            action.targetType === 'chart' ? action.targetUuid : undefined,
+            !isTargetDeleted && action.targetType === 'chart'
+                ? action.targetUuid
+                : undefined,
         projectUuid: action.projectUuid,
     });
     const { data: dashboard } = useDashboardQuery({
         uuidOrSlug:
-            action.targetType === 'dashboard' ? action.targetUuid : undefined,
+            !isTargetDeleted && action.targetType === 'dashboard'
+                ? action.targetUuid
+                : undefined,
         projectUuid: action.projectUuid,
         useQueryOptions: {
             onError: () => undefined,
@@ -796,6 +823,35 @@ const DetailSidebar: FC<{
                         {category === 'undo' ? 'Undone' : 'Dismissed'}{' '}
                         {reversedLabel}
                     </Text>
+                </Group>
+            )}
+
+            {showRestoreBanner && (
+                <Group
+                    gap={8}
+                    className={classes.deletedBanner}
+                    justify="space-between"
+                    wrap="nowrap"
+                >
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon
+                            icon={IconTrash}
+                            size="sm"
+                            color="var(--mantine-color-red-6)"
+                        />
+                        <Text fz="xs" c="dimmed">
+                            Deleted by Autopilot
+                        </Text>
+                    </Group>
+                    <Button
+                        size="xs"
+                        variant="default"
+                        leftSection={<IconArrowBackUp size={14} />}
+                        loading={revertMutation.isLoading}
+                        onClick={() => revertMutation.mutate()}
+                    >
+                        Restore
+                    </Button>
                 </Group>
             )}
 
