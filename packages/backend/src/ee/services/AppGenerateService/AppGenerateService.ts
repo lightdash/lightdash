@@ -15,6 +15,7 @@ import {
     getErrorMessage,
     isDashboardChartTileType,
     MissingConfigError,
+    NotFoundError,
     ParameterError,
     QueryExecutionContext,
     type AppChartReference,
@@ -535,17 +536,24 @@ export class AppGenerateService extends BaseService {
         imageId: string,
     ): Promise<{ imageUrl: string }> {
         await this.assertDataAppsEnabled(user);
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
-        this.assertDataAppAbility(
-            user,
-            'manage',
-            organizationUuid,
-            projectUuid,
-            'Insufficient permissions to view app images',
-        );
 
         if (!isValidUuid(imageId)) {
             throw new ParameterError('Invalid imageId: must be a valid UUID');
+        }
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to view app images',
+        );
+
+        const belongsToApp = await this.appModel.appImageExists(
+            appUuid,
+            imageId,
+        );
+        if (!belongsToApp) {
+            throw new NotFoundError(`Image not found: ${imageId}`);
         }
 
         const { client: s3Client, bucket } = this.getS3Client();

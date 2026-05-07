@@ -241,6 +241,17 @@ export class AppModel {
         return row ?? null;
     }
 
+    async appImageExists(appId: string, imageId: string): Promise<boolean> {
+        const row = await this.database(AppVersionsTableName)
+            .where('app_id', appId)
+            .whereRaw(`resources->'images' @> ?::jsonb`, [
+                JSON.stringify([{ imageId }]),
+            ])
+            .select(this.database.raw('1'))
+            .first();
+        return !!row;
+    }
+
     async createVersion(
         appId: string,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
