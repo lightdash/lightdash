@@ -1,7 +1,7 @@
+import { type ManagedAgentAction } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../../api';
-import type { ManagedAgentAction } from '../types';
 
 const getActions = async (
     projectUuid: string,

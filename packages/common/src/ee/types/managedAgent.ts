@@ -159,6 +159,8 @@ export type ManagedAgentRun = {
 
 export type ApiManagedAgentRunResponse = ApiSuccess<ManagedAgentRun | null>;
 
+export type ApiManagedAgentActionResponse = ApiSuccess<ManagedAgentAction>;
+
 export type ManagedAgentRunsListResponse = {
     runs: ManagedAgentRun[];
     nextCursor: string | null;

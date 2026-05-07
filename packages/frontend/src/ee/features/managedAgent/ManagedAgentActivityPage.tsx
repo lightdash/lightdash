@@ -6,6 +6,7 @@ import {
     type Dashboard,
     getFixedBrokenMetadata,
     getManagedAgentActionCategory,
+    type ManagedAgentAction,
     ManagedAgentActionType,
     type ManagedAgentRun,
     ManagedAgentRunStatus,
@@ -85,10 +86,12 @@ import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import { ToolActivityBadge } from './ToolActivityBadge';
-import type { ManagedAgentAction } from './types';
 
-const reverseAction = async (projectUuid: string, actionUuid: string) =>
-    lightdashApi({
+const reverseAction = async (
+    projectUuid: string,
+    actionUuid: string,
+): Promise<ManagedAgentAction> =>
+    lightdashApi<ManagedAgentAction>({
         url: `/projects/${projectUuid}/managed-agent/actions/${actionUuid}/reverse`,
         method: 'POST',
         body: undefined,
@@ -758,33 +761,7 @@ const DetailSidebar: FC<{
 }> = ({ action, onClose }) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
-    const config = ACTION_CONFIG[action.actionType];
-    const isReversed = !!action.reversedAt;
-    const isProjectTarget = action.targetType === 'project';
-    const category = getManagedAgentActionCategory(action.actionType);
-
-    // Target is currently soft-deleted in two cases:
-    // 1. Autopilot soft-deleted it and the action hasn't been undone yet.
-    // 2. Autopilot created it and an admin clicked Undo (which soft-deletes
-    //    the agent-created chart via reverseAction).
-    // In both cases, fetching the chart/dashboard 404s and the "Open" link
-    // would lead to a deleted-resource page.
-    const isTargetDeleted =
-        (action.actionType === ManagedAgentActionType.SOFT_DELETED &&
-            !isReversed) ||
-        (action.actionType === ManagedAgentActionType.CREATED_CONTENT &&
-            isReversed);
-    const showRestoreBanner =
-        action.actionType === ManagedAgentActionType.SOFT_DELETED &&
-        !isReversed;
-    const isFixedBroken =
-        action.actionType === ManagedAgentActionType.FIXED_BROKEN;
-    const previousVersionUuid = isFixedBroken
-        ? (getFixedBrokenMetadata(action.metadata)?.previousVersionUuid ?? null)
-        : null;
-    const showFixedBanner = isFixedBroken && !isReversed;
-
-    const revertMutation = useMutation<unknown, ApiError>({
+    const revertMutation = useMutation<ManagedAgentAction, ApiError>({
         mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
         onSuccess: () => {
             void queryClient.invalidateQueries({
@@ -804,6 +781,40 @@ const DetailSidebar: FC<{
             });
         },
     });
+
+    // The parent stores `selected` as a reference to one item from the actions
+    // list and doesn't re-derive when that list refetches — so the prop here
+    // can be stale immediately after a successful revert. Prefer the
+    // mutation's response (the authoritative post-revert action) when present.
+    // The DetailSidebar gets a `key={action.actionUuid}` from the parent so
+    // mutation state resets cleanly when the user picks a different action.
+    const liveAction: ManagedAgentAction = revertMutation.data ?? action;
+    const config = ACTION_CONFIG[liveAction.actionType];
+    const isReversed = !!liveAction.reversedAt;
+    const isProjectTarget = liveAction.targetType === 'project';
+    const category = getManagedAgentActionCategory(liveAction.actionType);
+
+    // Target is currently soft-deleted in two cases:
+    // 1. Autopilot soft-deleted it and the action hasn't been undone yet.
+    // 2. Autopilot created it and an admin clicked Undo (which soft-deletes
+    //    the agent-created chart via reverseAction).
+    // In both cases, fetching the chart/dashboard 404s and the "Open" link
+    // would lead to a deleted-resource page.
+    const isTargetDeleted =
+        (liveAction.actionType === ManagedAgentActionType.SOFT_DELETED &&
+            !isReversed) ||
+        (liveAction.actionType === ManagedAgentActionType.CREATED_CONTENT &&
+            isReversed);
+    const showRestoreBanner =
+        liveAction.actionType === ManagedAgentActionType.SOFT_DELETED &&
+        !isReversed;
+    const isFixedBroken =
+        liveAction.actionType === ManagedAgentActionType.FIXED_BROKEN;
+    const previousVersionUuid = isFixedBroken
+        ? (getFixedBrokenMetadata(liveAction.metadata)?.previousVersionUuid ??
+          null)
+        : null;
+    const showFixedBanner = isFixedBroken && !isReversed;
 
     const targetLink = isTargetDeleted
         ? null
@@ -2041,6 +2052,7 @@ export const ManagedAgentActivityPage: FC = () => {
                         >
                             {selected ? (
                                 <DetailSidebar
+                                    key={selected.actionUuid}
                                     action={selected}
                                     onClose={() => setSelected(null)}
                                 />
