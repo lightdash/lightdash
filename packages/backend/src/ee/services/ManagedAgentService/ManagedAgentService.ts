@@ -16,6 +16,7 @@ import {
     type ManagedAgentAction,
     type ManagedAgentActionFilters,
     type ManagedAgentRun,
+    type ManagedAgentRunsListResponse,
     type ManagedAgentRunTriggeredBy,
     type ManagedAgentSettings,
     type MetricQuery,
@@ -45,6 +46,59 @@ import {
 } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+
+type RunsCursor = { startedAt: Date; runUuid: string };
+
+const encodeRunsCursor = (cursor: RunsCursor | null): string | null => {
+    if (!cursor) return null;
+    return Buffer.from(
+        JSON.stringify({
+            startedAt: cursor.startedAt.toISOString(),
+            runUuid: cursor.runUuid,
+        }),
+    ).toString('base64');
+};
+
+const decodeRunsCursor = (raw: string | null): RunsCursor | null => {
+    if (!raw) return null;
+    try {
+        const decoded = JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+        if (
+            typeof decoded?.startedAt !== 'string' ||
+            typeof decoded?.runUuid !== 'string'
+        ) {
+            return null;
+        }
+        return {
+            startedAt: new Date(decoded.startedAt),
+            runUuid: decoded.runUuid,
+        };
+    } catch {
+        return null;
+    }
+};
+
+const FRIENDLY_TOOL_LABELS: Record<string, string> = {
+    get_recent_actions: 'Reviewing recent activity',
+    get_stale_charts: 'Looking for stale charts',
+    get_stale_dashboards: 'Looking for stale dashboards',
+    get_broken_content: 'Looking for broken content',
+    get_preview_projects: 'Inspecting preview projects',
+    get_popular_content: 'Checking popular content',
+    get_chart_details: 'Inspecting chart details',
+    get_chart_schema: 'Loading chart schema',
+    flag_content: 'Flagging content',
+    soft_delete_content: 'Cleaning up stale content',
+    log_insight: 'Logging an insight',
+    fix_broken_chart: 'Fixing a broken chart',
+    create_content_from_code: 'Creating chart suggestion',
+    get_user_questions: 'Reviewing user questions',
+    get_slow_queries: 'Checking slow queries',
+    reverse_own_action: 'Reverting earlier change',
+};
+
+const friendlyToolLabel = (toolName: string): string =>
+    FRIENDLY_TOOL_LABELS[toolName] ?? `Running ${toolName}`;
 
 type ManagedAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
@@ -483,6 +537,20 @@ export class ManagedAgentService extends BaseService {
         return this.managedAgentModel.getLatestRun(projectUuid);
     }
 
+    async getRuns(
+        user: SessionUser,
+        projectUuid: string,
+        opts: { limit: number; cursor: string | null },
+    ): Promise<ManagedAgentRunsListResponse> {
+        await this.assertCanViewProject(user, projectUuid);
+        const decodedCursor = decodeRunsCursor(opts.cursor);
+        const { runs, nextCursor } = await this.managedAgentModel.getRuns(
+            projectUuid,
+            { limit: opts.limit, cursor: decodedCursor },
+        );
+        return { runs, nextCursor: encodeRunsCursor(nextCursor) };
+    }
+
     async isAiAutopilotEnabledForProject(
         settings: ManagedAgentSettings,
     ): Promise<boolean> {
@@ -905,6 +973,15 @@ export class ManagedAgentService extends BaseService {
         toolName: string,
         input: Record<string, unknown>,
     ): Promise<string> {
+        void this.managedAgentModel
+            .setCurrentActivity(runUuid, friendlyToolLabel(toolName))
+            .catch((e) =>
+                this.logger.warn(
+                    `Failed to update current_activity for run ${runUuid}: ${
+                        e instanceof Error ? e.message : 'Unknown'
+                    }`,
+                ),
+            );
         switch (toolName) {
             case 'get_recent_actions':
                 return this.handleGetRecentActions(

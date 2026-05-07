@@ -151,14 +151,25 @@ export type ManagedAgentRun = {
     startedAt: Date;
     finishedAt: Date | null;
     actionCount: number;
+    actionCountsByType: Partial<Record<ManagedAgentActionType, number>>;
     summary: string | null;
     error: string | null;
+    currentActivity: string | null;
 };
 
 export type ApiManagedAgentRunResponse = ApiSuccess<ManagedAgentRun | null>;
+
+export type ManagedAgentRunsListResponse = {
+    runs: ManagedAgentRun[];
+    nextCursor: string | null;
+};
+
+export type ApiManagedAgentRunsListResponse =
+    ApiSuccess<ManagedAgentRunsListResponse>;
 
 export type ManagedAgentActionFilters = {
     date?: string;
     actionType?: ManagedAgentActionType;
     sessionId?: string;
+    runUuid?: string;
 };

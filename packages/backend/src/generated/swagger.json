@@ -1310,8 +1310,46 @@
                 "enum": ["started", "completed", "error"],
                 "type": "string"
             },
+            "Partial_Record_ManagedAgentActionType.number__": {
+                "properties": {
+                    "flagged_stale": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "soft_deleted": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "flagged_broken": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "flagged_slow": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "fixed_broken": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "created_content": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "insight": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
             "ManagedAgentRun": {
                 "properties": {
+                    "currentActivity": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "error": {
                         "type": "string",
                         "nullable": true
@@ -1319,6 +1357,9 @@
                     "summary": {
                         "type": "string",
                         "nullable": true
+                    },
+                    "actionCountsByType": {
+                        "$ref": "#/components/schemas/Partial_Record_ManagedAgentActionType.number__"
                     },
                     "actionCount": {
                         "type": "number",
@@ -1351,8 +1392,10 @@
                     }
                 },
                 "required": [
+                    "currentActivity",
                     "error",
                     "summary",
+                    "actionCountsByType",
                     "actionCount",
                     "finishedAt",
                     "startedAt",
@@ -1362,6 +1405,22 @@
                     "projectUuid",
                     "runUuid"
                 ],
+                "type": "object"
+            },
+            "ManagedAgentRunsListResponse": {
+                "properties": {
+                    "nextCursor": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "runs": {
+                        "items": {
+                            "$ref": "#/components/schemas/ManagedAgentRun"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextCursor", "runs"],
                 "type": "object"
             },
             "ManagedAgentActionType": {
@@ -2549,6 +2608,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
                     },
@@ -2653,6 +2716,7 @@
                     }
                 },
                 "required": [
+                    "colorPaletteUuid",
                     "slug",
                     "access",
                     "inheritsFromOrgOrProject",
@@ -17929,6 +17993,10 @@
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
                     },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -17968,7 +18036,8 @@
                     "spaceName",
                     "views",
                     "firstViewedAt",
-                    "tabs"
+                    "tabs",
+                    "colorPaletteUuid"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
@@ -18065,6 +18134,11 @@
                     "spaceName": {
                         "type": "string"
                     },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Chart-level palette override pointer. `null` means inherit from the\ncontaining dashboard / space / project / org. Writable via\n`UpdateSavedChart`."
+                    },
                     "deletedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -18130,11 +18204,6 @@
                         "type": "array",
                         "deprecated": true
                     },
-                    "colorPaletteUuid": {
-                        "type": "string",
-                        "nullable": true,
-                        "description": "Chart-level palette override pointer. `null` means inherit from the\ncontaining dashboard / space / project / org. Writable via\n`UpdateSavedChart`."
-                    },
                     "resolvedColorPalette": {
                         "$ref": "#/components/schemas/ResolvedProjectColorPalette",
                         "description": "Fully resolved palette for this chart, computed from the\norg → project → space → dashboard → chart hierarchy. Read-only — set\nthe chart's own palette via `colorPaletteUuid`."
@@ -18154,12 +18223,12 @@
                     "slug",
                     "verification",
                     "spaceName",
+                    "colorPaletteUuid",
                     "tableName",
                     "metricQuery",
                     "tableConfig",
                     "dashboardName",
                     "colorPalette",
-                    "colorPaletteUuid",
                     "resolvedColorPalette"
                 ],
                 "type": "object",
@@ -22276,6 +22345,10 @@
             },
             "CreateDashboard": {
                 "properties": {
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "config": {
                         "$ref": "#/components/schemas/DashboardConfig"
                     },
@@ -30209,7 +30282,7 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateDashboard.name-or-description-or-spaceUuid_": {
+            "Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_": {
                 "properties": {
                     "description": {
                         "type": "string"
@@ -30219,6 +30292,10 @@
                     },
                     "spaceUuid": {
                         "type": "string"
+                    },
+                    "colorPaletteUuid": {
+                        "type": "string",
+                        "nullable": true
                     }
                 },
                 "required": ["name"],
@@ -30226,7 +30303,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "DashboardUnversionedFields": {
-                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid_"
+                "$ref": "#/components/schemas/Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_"
             },
             "Pick_CreateDashboard.tiles-or-filters-or-parameters-or-updatedByUser-or-tabs-or-config_": {
                 "properties": {

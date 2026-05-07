@@ -4,6 +4,7 @@ import {
     ManagedAgentAction,
     ManagedAgentActionType,
     ManagedAgentRun,
+    ManagedAgentRunsListResponse,
     ManagedAgentSettings,
     UpdateManagedAgentSettings,
 } from '@lightdash/common';
@@ -108,6 +109,26 @@ export class ManagedAgentController extends BaseController {
     }
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/runs')
+    @OperationId('getManagedAgentRuns')
+    async getRuns(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() limit?: number,
+        @Query() cursor?: string,
+    ): Promise<{ status: 'ok'; results: ManagedAgentRunsListResponse }> {
+        assertRegisteredAccount(req.account);
+        const safeLimit = Math.min(Math.max(limit ?? 20, 1), 100);
+        const results = await this.getManagedAgentService().getRuns(
+            toSessionUser(req.account),
+            projectUuid,
+            { limit: safeLimit, cursor: cursor ?? null },
+        );
+        this.setStatus(200);
+        return { status: 'ok', results };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @Get('/actions')
     @OperationId('getManagedAgentActions')
     async getActions(
@@ -116,6 +137,7 @@ export class ManagedAgentController extends BaseController {
         @Query() date?: string,
         @Query() actionType?: string,
         @Query() sessionId?: string,
+        @Query() runUuid?: string,
     ): Promise<{ status: 'ok'; results: ManagedAgentAction[] }> {
         assertRegisteredAccount(req.account);
         const results = await this.getManagedAgentService().getActions(
@@ -125,6 +147,7 @@ export class ManagedAgentController extends BaseController {
                 date,
                 actionType: actionType as ManagedAgentActionType | undefined,
                 sessionId,
+                runUuid,
             },
         );
         this.setStatus(200);

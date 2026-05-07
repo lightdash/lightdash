@@ -272,6 +272,12 @@ export class ManagedAgentModel {
                 filters.sessionId,
             );
         }
+        if (filters.runUuid) {
+            query = query.where(
+                `${ManagedAgentActionsTableName}.managed_agent_run_uuid`,
+                filters.runUuid,
+            );
+        }
 
         const rows = await query;
         return rows.map(ManagedAgentModel.mapDbAction);
@@ -454,7 +460,17 @@ export class ManagedAgentModel {
     // locked forever.
     private static readonly STALE_RUN_THRESHOLD_MS = 15 * 60 * 1000;
 
-    static mapDbRun(row: DbManagedAgentRun): ManagedAgentRun {
+    // Backfilled historical runs (see 20260507114958_backfill_managed_agent_runs.ts)
+    // tag `error` with this sentinel so the down migration can distinguish them
+    // from future legitimate runs that happen to share the same fingerprint.
+    // We strip the sentinel here so it never reaches the API or UI.
+    private static readonly BACKFILL_ERROR_MARKER = '__backfilled__';
+
+    static mapDbRun(
+        row: DbManagedAgentRun & {
+            action_counts_by_type?: Record<string, number> | null;
+        },
+    ): ManagedAgentRun {
         const rawStatus = row.status as ManagedAgentRunStatus;
         const isStale =
             rawStatus === ManagedAgentRunStatus.STARTED &&
@@ -467,6 +483,10 @@ export class ManagedAgentModel {
         const synthesisedFinishedAt = new Date(
             row.started_at.getTime() + ManagedAgentModel.STALE_RUN_THRESHOLD_MS,
         );
+        const cleanError =
+            row.error === ManagedAgentModel.BACKFILL_ERROR_MARKER
+                ? null
+                : row.error;
         return {
             runUuid: row.managed_agent_run_uuid,
             projectUuid: row.project_uuid,
@@ -479,10 +499,14 @@ export class ManagedAgentModel {
                     ? synthesisedFinishedAt
                     : row.finished_at,
             actionCount: row.action_count,
+            actionCountsByType:
+                (row.action_counts_by_type as ManagedAgentRun['actionCountsByType']) ??
+                {},
             summary: row.summary,
             error: isStale
-                ? (row.error ?? 'Run timed out — worker may have crashed')
-                : row.error,
+                ? (cleanError ?? 'Run timed out — worker may have crashed')
+                : cleanError,
+            currentActivity: row.current_activity,
         };
     }
 
@@ -506,6 +530,15 @@ export class ManagedAgentModel {
             .update({ session_id: sessionId });
     }
 
+    async setCurrentActivity(
+        runUuid: string,
+        activity: string | null,
+    ): Promise<void> {
+        await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .update({ current_activity: activity });
+    }
+
     async finishRun(
         runUuid: string,
         update: {
@@ -525,6 +558,7 @@ export class ManagedAgentModel {
                 action_count: update.actionCount,
                 summary: update.summary,
                 error: update.error,
+                current_activity: null,
             });
     }
 
@@ -542,5 +576,56 @@ export class ManagedAgentModel {
             .orderBy('started_at', 'desc')
             .first();
         return row ? ManagedAgentModel.mapDbRun(row) : null;
+    }
+
+    async getRuns(
+        projectUuid: string,
+        opts: {
+            limit: number;
+            cursor: { startedAt: Date; runUuid: string } | null;
+        },
+    ): Promise<{
+        runs: ManagedAgentRun[];
+        nextCursor: { startedAt: Date; runUuid: string } | null;
+    }> {
+        let query = this.database(ManagedAgentRunsTableName)
+            .where({ project_uuid: projectUuid })
+            .orderBy([
+                { column: 'started_at', order: 'desc' },
+                { column: 'managed_agent_run_uuid', order: 'desc' },
+            ])
+            .limit(opts.limit + 1)
+            .select(
+                `${ManagedAgentRunsTableName}.*`,
+                this.database.raw(
+                    `(SELECT json_object_agg(action_type, cnt) FROM (
+                        SELECT action_type, COUNT(*) AS cnt
+                        FROM ${ManagedAgentActionsTableName}
+                        WHERE managed_agent_run_uuid = ${ManagedAgentRunsTableName}.managed_agent_run_uuid
+                        GROUP BY action_type
+                    ) sub) AS action_counts_by_type`,
+                ),
+            );
+        if (opts.cursor) {
+            query = query.whereRaw(
+                '(started_at, managed_agent_run_uuid) < (?, ?)',
+                [opts.cursor.startedAt, opts.cursor.runUuid],
+            );
+        }
+        const rows: (DbManagedAgentRun & {
+            action_counts_by_type: Record<string, number> | null;
+        })[] = await query;
+        const hasMore = rows.length > opts.limit;
+        const page = hasMore ? rows.slice(0, opts.limit) : rows;
+        const last = hasMore ? page[page.length - 1] : null;
+        return {
+            runs: page.map(ManagedAgentModel.mapDbRun),
+            nextCursor: last
+                ? {
+                      startedAt: last.started_at,
+                      runUuid: last.managed_agent_run_uuid,
+                  }
+                : null,
+        };
     }
 }

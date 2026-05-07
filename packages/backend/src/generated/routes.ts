@@ -1278,11 +1278,78 @@ const models: TsoaRoute.Models = {
         enums: ['started', 'completed', 'error'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Partial_Record_ManagedAgentActionType.number__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                flagged_stale: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                soft_deleted: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                flagged_broken: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                flagged_slow: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                fixed_broken: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                created_content: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                insight: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ManagedAgentRun: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                currentActivity: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 error: {
                     dataType: 'union',
                     subSchemas: [
@@ -1297,6 +1364,10 @@ const models: TsoaRoute.Models = {
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
+                    required: true,
+                },
+                actionCountsByType: {
+                    ref: 'Partial_Record_ManagedAgentActionType.number__',
                     required: true,
                 },
                 actionCount: { dataType: 'double', required: true },
@@ -1324,6 +1395,29 @@ const models: TsoaRoute.Models = {
                 },
                 projectUuid: { dataType: 'string', required: true },
                 runUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ManagedAgentRunsListResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                nextCursor: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                runs: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'ManagedAgentRun' },
+                    required: true,
+                },
             },
             validators: {},
         },
@@ -2399,6 +2493,14 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 deletedAt: { dataType: 'datetime' },
+                colorPaletteUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 config: { ref: 'DashboardConfig' },
                 slug: { dataType: 'string', required: true },
                 access: {
@@ -16951,6 +17053,14 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    colorPaletteUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     deletedAt: {
                         dataType: 'union',
                         subSchemas: [
@@ -17089,6 +17199,14 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     spaceName: { dataType: 'string', required: true },
+                    colorPaletteUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                        ],
+                        required: true,
+                    },
                     deletedAt: {
                         dataType: 'union',
                         subSchemas: [
@@ -17160,14 +17278,6 @@ const models: TsoaRoute.Models = {
                     colorPalette: {
                         dataType: 'array',
                         array: { dataType: 'string' },
-                        required: true,
-                    },
-                    colorPaletteUuid: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'enum', enums: [null] },
-                        ],
                         required: true,
                     },
                     resolvedColorPalette: {
@@ -20875,6 +20985,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                colorPaletteUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 config: { ref: 'DashboardConfig' },
                 tabs: {
                     dataType: 'array',
@@ -29032,35 +29149,44 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Pick_CreateDashboard.name-or-description-or-spaceUuid_': {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                description: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
+    'Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    description: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    name: { dataType: 'string', required: true },
+                    spaceUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    colorPaletteUuid: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'enum', enums: [null] },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                 },
-                name: { dataType: 'string', required: true },
-                spaceUuid: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
+                validators: {},
             },
-            validators: {},
         },
-    },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     DashboardUnversionedFields: {
         dataType: 'refAlias',
         type: {
-            ref: 'Pick_CreateDashboard.name-or-description-or-spaceUuid_',
+            ref: 'Pick_CreateDashboard.name-or-description-or-spaceUuid-or-colorPaletteUuid_',
             validators: {},
         },
     },
@@ -32715,6 +32841,69 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsManagedAgentController_getRuns: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        limit: { in: 'query', name: 'limit', dataType: 'double' },
+        cursor: { in: 'query', name: 'cursor', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/managed-agent/runs',
+        ...fetchMiddlewares<RequestHandler>(ManagedAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            ManagedAgentController.prototype.getRuns,
+        ),
+
+        async function ManagedAgentController_getRuns(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsManagedAgentController_getRuns,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ManagedAgentController>(
+                        ManagedAgentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getRuns',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsManagedAgentController_getActions: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -32729,6 +32918,7 @@ export function RegisterRoutes(app: Router) {
         date: { in: 'query', name: 'date', dataType: 'string' },
         actionType: { in: 'query', name: 'actionType', dataType: 'string' },
         sessionId: { in: 'query', name: 'sessionId', dataType: 'string' },
+        runUuid: { in: 'query', name: 'runUuid', dataType: 'string' },
     };
     app.get(
         '/api/v1/projects/:projectUuid/managed-agent/actions',

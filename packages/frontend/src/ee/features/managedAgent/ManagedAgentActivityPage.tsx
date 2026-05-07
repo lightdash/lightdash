@@ -4,6 +4,7 @@ import {
     type ContentVerificationInfo,
     type Dashboard,
     getManagedAgentActionCategory,
+    type ManagedAgentRun,
     ManagedAgentRunStatus,
     ManagedAgentScheduleOption,
     type Project,
@@ -77,6 +78,7 @@ import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
+import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
 import type { ManagedAgentAction } from './types';
@@ -109,24 +111,6 @@ const runHeartbeat = async (projectUuid: string) =>
         method: 'POST',
         body: undefined,
     });
-
-const SUMMARY_SUBTITLE_MAX = 120;
-
-const summaryToSubtitle = (
-    summary: string | null | undefined,
-): string | null => {
-    if (!summary) return null;
-    const firstLine = summary
-        .split('\n')
-        .map((l) => l.trim())
-        .find(
-            (l) => l.length > 0 && !l.startsWith('#') && !l.startsWith('---'),
-        );
-    if (!firstLine) return null;
-    return firstLine.length <= SUMMARY_SUBTITLE_MAX
-        ? firstLine
-        : `${firstLine.slice(0, SUMMARY_SUBTITLE_MAX - 1)}…`;
-};
 
 const SCHEDULE_OPTIONS = [
     { value: ManagedAgentScheduleOption.EVERY_6_HOURS, label: 'Every 6 hours' },
@@ -1234,51 +1218,48 @@ const ActionRow: FC<{
     );
 };
 
-// --- Run grouping ---
+// --- Run row ---
 
-const VISIBLE_RUN_COUNT = 3;
+const BoltPulseLoader: FC<{ size?: number }> = ({ size = 12 }) => (
+    <Box className={classes.boltPulseLoader} aria-label="Running">
+        <IconBolt size={size} fill="currentColor" stroke={0} />
+    </Box>
+);
 
-type RunGroup = {
-    sessionId: string;
-    startedAt: string;
-    actions: ManagedAgentAction[];
-    counts: Partial<Record<ManagedAgentAction['actionType'], number>>;
+const TRIGGERED_BY_ICON: Record<
+    ManagedAgentRun['triggeredBy'],
+    { icon: typeof IconClock; tooltip: string }
+> = {
+    cron: { icon: IconClock, tooltip: 'Scheduled run' },
+    manual: { icon: IconPlayerPlay, tooltip: 'Manual run' },
+    on_enable: { icon: IconClock, tooltip: 'Scheduled run' },
 };
 
-const groupActionsBySession = (actions: ManagedAgentAction[]): RunGroup[] => {
-    const groups = new Map<string, RunGroup>();
-    for (const action of actions) {
-        const existing = groups.get(action.sessionId);
-        if (existing) {
-            existing.actions.push(action);
-            existing.counts[action.actionType] =
-                (existing.counts[action.actionType] ?? 0) + 1;
-            if (action.createdAt < existing.startedAt) {
-                existing.startedAt = action.createdAt;
-            }
-        } else {
-            groups.set(action.sessionId, {
-                sessionId: action.sessionId,
-                startedAt: action.createdAt,
-                actions: [action],
-                counts: { [action.actionType]: 1 },
-            });
-        }
-    }
-    return Array.from(groups.values());
+const runVariant = (
+    run: ManagedAgentRun,
+): 'live' | 'completed' | 'completed-empty' | 'errored' => {
+    if (run.status === ManagedAgentRunStatus.STARTED) return 'live';
+    if (run.status === ManagedAgentRunStatus.ERROR) return 'errored';
+    if (run.actionCount === 0) return 'completed-empty';
+    return 'completed';
 };
 
 const RunHeaderRow: FC<{
-    run: RunGroup;
+    run: ManagedAgentRun;
+    variant: ReturnType<typeof runVariant>;
     isOpen: boolean;
+    expandable: boolean;
     onToggle: () => void;
-}> = ({ run, isOpen, onToggle }) => {
-    const totalCount = run.actions.length;
-    return (
-        <Table.Tr className={classes.runHeaderRow} onClick={onToggle}>
-            <Table.Td colSpan={3}>
-                <Group justify="space-between" gap="xs" wrap="nowrap">
-                    <Group gap="xs" wrap="nowrap">
+}> = ({ run, variant, isOpen, expandable, onToggle }) => (
+    <Table.Tr
+        className={classes.runHeaderRow}
+        onClick={expandable ? onToggle : undefined}
+        style={expandable ? undefined : { cursor: 'default' }}
+    >
+        <Table.Td colSpan={3}>
+            <Group justify="space-between" gap="xs" wrap="nowrap">
+                <Group gap="xs" wrap="nowrap">
+                    {expandable ? (
                         <IconChevronRight
                             size={12}
                             className={
@@ -1287,59 +1268,194 @@ const RunHeaderRow: FC<{
                                     : classes.runChevron
                             }
                         />
-                        <Text
-                            fz={11}
-                            fw={600}
-                            tt="uppercase"
-                            c="dimmed"
-                            lts={0.4}
-                        >
-                            Run
-                        </Text>
-                        <Text fz="xs" c="dimmed">
-                            ·
-                        </Text>
+                    ) : (
+                        <Box w={12} />
+                    )}
+                    {variant === 'live' ? (
+                        <BoltPulseLoader size={12} />
+                    ) : variant === 'errored' ? (
+                        <IconAlertTriangle
+                            size={12}
+                            color="var(--mantine-color-red-6)"
+                        />
+                    ) : (
                         <Tooltip
-                            label={formatAbsoluteTimestamp(run.startedAt)}
+                            label={TRIGGERED_BY_ICON[run.triggeredBy].tooltip}
                             withinPortal
                         >
-                            <Text fz="xs" c="dimmed">
-                                {formatTimestamp(run.startedAt)}
-                            </Text>
+                            <Box style={{ display: 'inline-flex' }}>
+                                <MantineIcon
+                                    icon={
+                                        TRIGGERED_BY_ICON[run.triggeredBy].icon
+                                    }
+                                    size={12}
+                                    color="dimmed"
+                                />
+                            </Box>
                         </Tooltip>
-                    </Group>
-                    <Group gap={6} wrap="nowrap">
-                        {Object.entries(run.counts).map(([type, count]) => {
-                            const cfg =
-                                ACTION_CONFIG[
-                                    type as ManagedAgentAction['actionType']
-                                ];
-                            return (
-                                <Tooltip
-                                    key={type}
-                                    label={cfg.label}
-                                    withinPortal
-                                >
-                                    <span className={classes.runCountPill}>
-                                        <Box
-                                            className={classes.dot}
-                                            style={{
-                                                backgroundColor: cfg.dotColor,
-                                            }}
-                                        />
-                                        {count}
-                                    </span>
-                                </Tooltip>
-                            );
-                        })}
-                        <Text fz={11} c="dimmed">
-                            {totalCount}{' '}
-                            {totalCount === 1 ? 'action' : 'actions'}
-                        </Text>
-                    </Group>
+                    )}
+                    <Text fz={11} fw={600} tt="uppercase" c="dimmed" lts={0.4}>
+                        Run
+                    </Text>
+                    {variant !== 'live' && (
+                        <>
+                            <Text fz="xs" c="dimmed">
+                                ·
+                            </Text>
+                            <Tooltip
+                                label={formatAbsoluteTimestamp(
+                                    run.startedAt.toString(),
+                                )}
+                                withinPortal
+                            >
+                                <Text fz="xs" c="dimmed">
+                                    {formatTimestamp(run.startedAt.toString())}
+                                </Text>
+                            </Tooltip>
+                        </>
+                    )}
+                    {variant === 'errored' && (
+                        <>
+                            <Text fz="xs" c="dimmed">
+                                ·
+                            </Text>
+                            <Text fz="xs" c="red.6">
+                                Failed
+                            </Text>
+                        </>
+                    )}
                 </Group>
-            </Table.Td>
-        </Table.Tr>
+                <Group gap={6} wrap="nowrap">
+                    {variant === 'completed-empty' ? (
+                        <Text fz={11} c="dimmed">
+                            No actions
+                        </Text>
+                    ) : run.actionCount > 0 ? (
+                        <>
+                            {Object.entries(run.actionCountsByType).map(
+                                ([type, count]) => {
+                                    const cfg =
+                                        ACTION_CONFIG[
+                                            type as ManagedAgentAction['actionType']
+                                        ];
+                                    if (!cfg || !count) return null;
+                                    return (
+                                        <Tooltip
+                                            key={type}
+                                            label={cfg.label}
+                                            withinPortal
+                                        >
+                                            <span
+                                                className={classes.runCountPill}
+                                            >
+                                                <Box
+                                                    className={classes.dot}
+                                                    style={{
+                                                        backgroundColor:
+                                                            cfg.dotColor,
+                                                    }}
+                                                />
+                                                {count}
+                                            </span>
+                                        </Tooltip>
+                                    );
+                                },
+                            )}
+                            <Text fz={11} c="dimmed">
+                                {run.actionCount}{' '}
+                                {run.actionCount === 1 ? 'action' : 'actions'}
+                            </Text>
+                        </>
+                    ) : null}
+                </Group>
+            </Group>
+        </Table.Td>
+    </Table.Tr>
+);
+
+const RunRow: FC<{
+    run: ManagedAgentRun;
+    isOpen: boolean;
+    onToggle: () => void;
+    selectedActionUuid: string | null;
+    onSelectAction: (action: ManagedAgentAction) => void;
+}> = ({ run, isOpen, onToggle, selectedActionUuid, onSelectAction }) => {
+    const variant = runVariant(run);
+    const expandable = variant !== 'completed-empty';
+    const isLive = variant === 'live';
+    const { data: actions } = useManagedAgentActions({
+        enabled: expandable && isOpen,
+        fastPoll: isLive,
+        runUuid: run.runUuid,
+    });
+    return (
+        <Table.Tbody>
+            <RunHeaderRow
+                run={run}
+                variant={variant}
+                isOpen={isOpen}
+                expandable={expandable}
+                onToggle={onToggle}
+            />
+            {variant === 'errored' && run.error && (
+                <Table.Tr>
+                    <Table.Td colSpan={3}>
+                        <Text fz="xs" c="red.6" px="md" py={6}>
+                            {run.error}
+                        </Text>
+                    </Table.Td>
+                </Table.Tr>
+            )}
+            {expandable && isOpen && (
+                <>
+                    {isLive && (
+                        <Table.Tr className={classes.liveActivityRow}>
+                            <Table.Td colSpan={3}>
+                                <Group gap="xs" justify="center" py="xs">
+                                    <BoltPulseLoader size={14} />
+                                    <Text
+                                        key={run.currentActivity ?? 'idle'}
+                                        className={classes.activityText}
+                                        fz="xs"
+                                        c="dimmed"
+                                    >
+                                        {run.currentActivity ??
+                                            'Autopilot is working…'}
+                                    </Text>
+                                </Group>
+                            </Table.Td>
+                        </Table.Tr>
+                    )}
+                    {actions === undefined
+                        ? !isLive && (
+                              <Table.Tr className={classes.thinkingRow}>
+                                  <Table.Td colSpan={3}>
+                                      <Group gap="xs" justify="center" py="xs">
+                                          <Loader
+                                              size={8}
+                                              type="dots"
+                                              color="dark"
+                                          />
+                                          <Text fz="xs" c="dimmed">
+                                              Loading actions…
+                                          </Text>
+                                      </Group>
+                                  </Table.Td>
+                              </Table.Tr>
+                          )
+                        : actions.map((action) => (
+                              <ActionRow
+                                  key={action.actionUuid}
+                                  action={action}
+                                  selected={
+                                      selectedActionUuid === action.actionUuid
+                                  }
+                                  onSelect={onSelectAction}
+                              />
+                          ))}
+                </>
+            )}
+        </Table.Tbody>
     );
 };
 
@@ -1366,10 +1482,17 @@ export const ManagedAgentActivityPage: FC = () => {
         enabled: canManageAutopilot,
     });
     const isRunning = latestRun?.status === ManagedAgentRunStatus.STARTED;
-    const { data: actions, isLoading } = useManagedAgentActions({
-        enabled: canManageAutopilot,
-        fastPoll: isRunning,
-    });
+    const {
+        data: runsData,
+        isLoading,
+        hasNextPage,
+        fetchNextPage,
+        isFetchingNextPage,
+    } = useManagedAgentRuns({ enabled: canManageAutopilot });
+    const runs = useMemo<ManagedAgentRun[]>(
+        () => runsData?.pages.flatMap((p) => p.runs) ?? [],
+        [runsData],
+    );
     const previousRunStatus = useRef(latestRun?.status);
     useEffect(() => {
         const prev = previousRunStatus.current;
@@ -1382,16 +1505,17 @@ export const ManagedAgentActivityPage: FC = () => {
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-actions', projectUuid],
             });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-runs', projectUuid],
+            });
             if (curr === ManagedAgentRunStatus.COMPLETED) {
                 const count = latestRun?.actionCount ?? 0;
-                const summarySnippet = summaryToSubtitle(latestRun?.summary);
-                const countFallback =
-                    count === 0
-                        ? 'No actions needed'
-                        : `${count} action${count === 1 ? '' : 's'} taken`;
                 showToastSuccess({
                     title: 'Autopilot finished',
-                    subtitle: summarySnippet ?? countFallback,
+                    subtitle:
+                        count === 0
+                            ? 'No actions needed'
+                            : `${count} action${count === 1 ? '' : 's'} taken`,
                 });
             } else if (curr === ManagedAgentRunStatus.ERROR) {
                 showToastError({
@@ -1405,7 +1529,6 @@ export const ManagedAgentActivityPage: FC = () => {
         latestRun?.status,
         latestRun?.actionCount,
         latestRun?.error,
-        latestRun?.summary,
         projectUuid,
         queryClient,
         showToastSuccess,
@@ -1419,33 +1542,33 @@ export const ManagedAgentActivityPage: FC = () => {
     const [defaultOpenSet, setDefaultOpenSet] = useState<Set<string>>(
         new Set(),
     );
-    const [showOlderRuns, setShowOlderRuns] = useState(false);
-    const runs = useMemo(() => groupActionsBySession(actions ?? []), [actions]);
-
     useEffect(() => {
         setDefaultOpenSet((prev) => {
             const next = new Set(prev);
-            runs.slice(0, VISIBLE_RUN_COUNT).forEach((r) =>
-                next.add(r.sessionId),
-            );
+            runs.filter((r) => runVariant(r) !== 'completed-empty')
+                .slice(0, 3)
+                .forEach((r) => {
+                    next.add(r.runUuid);
+                });
             return next;
         });
     }, [runs]);
 
     const isRunOpen = useCallback(
-        (sessionId: string) => {
-            const userValue = userOpenState.get(sessionId);
+        (runUuid: string, isLive: boolean) => {
+            const userValue = userOpenState.get(runUuid);
             if (userValue !== undefined) return userValue;
-            return defaultOpenSet.has(sessionId);
+            if (isLive) return true;
+            return defaultOpenSet.has(runUuid);
         },
         [userOpenState, defaultOpenSet],
     );
 
     const toggleRun = useCallback(
-        (sessionId: string) => {
+        (runUuid: string, isLive: boolean) => {
             setUserOpenState((prev) => {
                 const next = new Map(prev);
-                next.set(sessionId, !isRunOpen(sessionId));
+                next.set(runUuid, !isRunOpen(runUuid, isLive));
                 return next;
             });
         },
@@ -1453,22 +1576,16 @@ export const ManagedAgentActivityPage: FC = () => {
     );
 
     const handleSelectAction = useCallback(
-        (action: ManagedAgentAction) => {
+        (action: ManagedAgentAction, runUuid: string) => {
             setSettingsOpen(false);
             setSelected(action);
-            const runIdx = runs.findIndex(
-                (r) => r.sessionId === action.sessionId,
-            );
-            if (runIdx >= VISIBLE_RUN_COUNT) {
-                setShowOlderRuns(true);
-            }
             setUserOpenState((prev) => {
                 const next = new Map(prev);
-                next.set(action.sessionId, true);
+                next.set(runUuid, true);
                 return next;
             });
         },
-        [runs],
+        [],
     );
 
     const runNowMutation = useMutation<undefined, ApiError>({
@@ -1484,6 +1601,9 @@ export const ManagedAgentActivityPage: FC = () => {
             });
             void queryClient.invalidateQueries({
                 queryKey: ['managed-agent-latest-run', projectUuid],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['managed-agent-runs', projectUuid],
             });
         },
         onError: ({ error }) => {
@@ -1560,83 +1680,64 @@ export const ManagedAgentActivityPage: FC = () => {
                                                 <Table.Th>Message</Table.Th>
                                             </Table.Tr>
                                         </Table.Thead>
-                                        {runs.map((run, idx) => {
-                                            const isOlder =
-                                                idx >= VISIBLE_RUN_COUNT;
-                                            if (isOlder && !showOlderRuns)
-                                                return null;
-                                            const open = isRunOpen(
-                                                run.sessionId,
-                                            );
+                                        {runs.map((run) => {
+                                            const isLive =
+                                                run.status ===
+                                                ManagedAgentRunStatus.STARTED;
                                             return (
-                                                <Table.Tbody
-                                                    key={run.sessionId}
-                                                >
-                                                    <RunHeaderRow
-                                                        run={run}
-                                                        isOpen={open}
-                                                        onToggle={() =>
-                                                            toggleRun(
-                                                                run.sessionId,
-                                                            )
-                                                        }
-                                                    />
-                                                    {open &&
-                                                        run.actions.map(
-                                                            (action) => (
-                                                                <ActionRow
-                                                                    key={
-                                                                        action.actionUuid
-                                                                    }
-                                                                    action={
-                                                                        action
-                                                                    }
-                                                                    selected={
-                                                                        selected?.actionUuid ===
-                                                                        action.actionUuid
-                                                                    }
-                                                                    onSelect={
-                                                                        handleSelectAction
-                                                                    }
-                                                                />
-                                                            ),
-                                                        )}
-                                                </Table.Tbody>
+                                                <RunRow
+                                                    key={run.runUuid}
+                                                    run={run}
+                                                    isOpen={isRunOpen(
+                                                        run.runUuid,
+                                                        isLive,
+                                                    )}
+                                                    onToggle={() =>
+                                                        toggleRun(
+                                                            run.runUuid,
+                                                            isLive,
+                                                        )
+                                                    }
+                                                    selectedActionUuid={
+                                                        selected?.actionUuid ??
+                                                        null
+                                                    }
+                                                    onSelectAction={(action) =>
+                                                        handleSelectAction(
+                                                            action,
+                                                            run.runUuid,
+                                                        )
+                                                    }
+                                                />
                                             );
                                         })}
-                                        {!showOlderRuns &&
-                                            runs.length > VISIBLE_RUN_COUNT && (
-                                                <Table.Tbody>
-                                                    <Table.Tr
-                                                        className={
-                                                            classes.showMoreRow
-                                                        }
-                                                    >
-                                                        <Table.Td colSpan={3}>
-                                                            <UnstyledButton
-                                                                className={
-                                                                    classes.showMoreButton
-                                                                }
-                                                                onClick={() =>
-                                                                    setShowOlderRuns(
-                                                                        true,
-                                                                    )
-                                                                }
-                                                            >
-                                                                Show{' '}
-                                                                {runs.length -
-                                                                    VISIBLE_RUN_COUNT}{' '}
-                                                                older{' '}
-                                                                {runs.length -
-                                                                    VISIBLE_RUN_COUNT ===
-                                                                1
-                                                                    ? 'run'
-                                                                    : 'runs'}
-                                                            </UnstyledButton>
-                                                        </Table.Td>
-                                                    </Table.Tr>
-                                                </Table.Tbody>
-                                            )}
+                                        {hasNextPage && (
+                                            <Table.Tbody>
+                                                <Table.Tr
+                                                    className={
+                                                        classes.showMoreRow
+                                                    }
+                                                >
+                                                    <Table.Td colSpan={3}>
+                                                        <UnstyledButton
+                                                            className={
+                                                                classes.showMoreButton
+                                                            }
+                                                            onClick={() =>
+                                                                void fetchNextPage()
+                                                            }
+                                                            disabled={
+                                                                isFetchingNextPage
+                                                            }
+                                                        >
+                                                            {isFetchingNextPage
+                                                                ? 'Loading…'
+                                                                : 'Load older runs'}
+                                                        </UnstyledButton>
+                                                    </Table.Td>
+                                                </Table.Tr>
+                                            </Table.Tbody>
+                                        )}
                                     </Table>
                                 </Box>
                             )}
