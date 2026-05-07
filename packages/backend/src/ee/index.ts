@@ -410,7 +410,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     unfurlService: repository.getUnfurlService(),
                     aiAgentService: repository.getAiAgentService(),
                 }),
-            managedAgentService: ({ context, models, clients }) =>
+            managedAgentService: ({ context, models, clients, repository }) =>
                 new ManagedAgentService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -422,6 +422,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     dashboardModel: models.getDashboardModel(),
                     spaceModel: models.getSpaceModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     serviceAccountModel: models.getServiceAccountModel(),
