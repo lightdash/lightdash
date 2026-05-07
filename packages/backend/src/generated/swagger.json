@@ -188,6 +188,22 @@
                     }
                 ]
             },
+            "ServiceAccountWithToken": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ServiceAccount"
+                    },
+                    {
+                        "properties": {
+                            "token": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["token"],
+                        "type": "object"
+                    }
+                ]
+            },
             "ScimSchemaType.LIST_RESPONSE": {
                 "enum": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
                 "type": "string"
@@ -1052,22 +1068,6 @@
             },
             "ApiCreateScimServiceAccountRequest": {
                 "$ref": "#/components/schemas/Pick_ServiceAccount.expiresAt-or-description_"
-            },
-            "ServiceAccountWithToken": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/ServiceAccount"
-                    },
-                    {
-                        "properties": {
-                            "token": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["token"],
-                        "type": "object"
-                    }
-                ]
             },
             "ScimGroupMember": {
                 "properties": {
@@ -10778,6 +10778,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -31850,7 +31863,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2890.1",
+        "version": "0.2891.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

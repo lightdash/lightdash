@@ -5,6 +5,7 @@ import {
     AuthTokenPrefix,
     ServiceAccount,
     ServiceAccountScope,
+    ServiceAccountWithToken,
 } from '@lightdash/common';
 import {
     Body,
@@ -13,11 +14,13 @@ import {
     Hidden,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
     Response,
     Route,
+    SuccessResponse,
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
@@ -25,6 +28,7 @@ import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
@@ -115,6 +119,42 @@ export class ServiceAccountsController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Rotate a service account token by UUID
+     * @summary Rotate service account
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{tokenUuid}/rotate')
+    @OperationId('RotateServiceAccount')
+    async rotateServiceAccount(
+        @Path() tokenUuid: string,
+        @Request() req: express.Request,
+        @Body()
+        body: {
+            expiresAt: Date;
+        },
+    ): Promise<{
+        status: 'ok';
+        results: ServiceAccountWithToken;
+    }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getServiceAccountService().rotate({
+                user: toSessionUser(req.account),
+                tokenUuid,
+                update: body,
+                prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
+            }),
         };
     }
 
