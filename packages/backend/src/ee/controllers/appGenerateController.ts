@@ -97,6 +97,9 @@ export class AppGenerateController extends BaseController {
             projectUuid,
             body.prompt,
             body.template,
+            body.charts,
+            body.dashboard,
+            body.imageIds,
         );
         return {
             status: 'ok',

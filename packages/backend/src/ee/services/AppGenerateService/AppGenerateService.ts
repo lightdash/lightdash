@@ -2418,6 +2418,9 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         prompt: string,
         template?: DataAppTemplate,
+        charts?: AppChartReference[],
+        dashboard?: AppDashboardReference,
+        imageIds?: string[],
     ): Promise<{ questions: string[] }> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2453,8 +2456,11 @@ export class AppGenerateService extends BaseService {
             enableReasoning: false,
         });
 
-        const catalogSummary =
-            await this.buildCatalogSummaryForClarifier(projectUuid);
+        const [catalogSummary, attachedResources] = await Promise.all([
+            this.buildCatalogSummaryForClarifier(projectUuid),
+            this.buildAttachedResourcesForClarifier(charts, dashboard, user),
+        ]);
+        const imageCount = imageIds?.length ?? 0;
 
         // No `.max()` on the array — Anthropic's structured-output mode
         // rejects `maxItems` in the schema. The prompt already pins the
@@ -2506,14 +2512,25 @@ Do NOT ask about:
 - Things you can look up in the catalog (table names, field names).
 - Picking between two readings of a phrase when one is the obvious interpretation.
 - Multi-part or open-ended — each question must be answerable in one short line.
+- Which chart, dashboard, or image to use, when the user has already attached resources — those are listed under "Resources the user attached".
 
 Each question, when asked, must be a single sentence, 5–15 words.`,
                     },
                     {
                         role: 'user',
-                        content: `App kind: ${template ?? 'custom'}\n\nUser prompt:\n${trimmed}\n\nAvailable tables and key fields:\n${
-                            catalogSummary || '(no catalog available)'
-                        }`,
+                        content: [
+                            `App kind: ${template ?? 'custom'}`,
+                            `\nUser prompt:\n${trimmed}`,
+                            `\nResources the user attached:\n${
+                                AppGenerateService.formatAttachedResourcesForClarifier(
+                                    attachedResources,
+                                    imageCount,
+                                ) || '(none)'
+                            }`,
+                            `\nAvailable tables and key fields:\n${
+                                catalogSummary || '(no catalog available)'
+                            }`,
+                        ].join('\n'),
                     },
                 ],
             });
@@ -2535,6 +2552,88 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         );
 
         return { questions };
+    }
+
+    /**
+     * Light resolution of attached resources for `clarifyApp`. Returns chart
+     * names + explore names and the dashboard name, but does NOT run sample
+     * queries or read any image bytes — sample rows and pixel content don't
+     * change *whether* a clarifying question is worth asking, and the clarify
+     * call has a 15s budget. Charts the user can't view, that don't exist, or
+     * that fail to load are skipped silently (same forgiving behavior as the
+     * generate path).
+     */
+    private async buildAttachedResourcesForClarifier(
+        charts: AppChartReference[] | undefined,
+        dashboard: AppDashboardReference | undefined,
+        user: SessionUser,
+    ): Promise<{
+        charts: { name: string; exploreName: string }[];
+        dashboardName: string | null;
+    }> {
+        const uuids = new Set<string>();
+        for (const c of charts ?? []) uuids.add(c.uuid);
+        let dashboardName: string | null = null;
+        if (dashboard) {
+            try {
+                const result = await this.resolveDashboardToChartUuids(
+                    dashboard.uuid,
+                    user,
+                );
+                dashboardName = result.dashboardName;
+                for (const uuid of result.chartUuids) uuids.add(uuid);
+            } catch (error) {
+                this.logger.warn(
+                    `Clarifier: dashboard ${dashboard.uuid} could not be resolved: ${getErrorMessage(error)}`,
+                );
+            }
+        }
+        if (uuids.size === 0) {
+            return { charts: [], dashboardName };
+        }
+        const account = fromSession(user);
+        const chartResults = await Promise.allSettled(
+            [...uuids].map((uuid) => this.savedChartService.get(uuid, account)),
+        );
+        const resolvedCharts: { name: string; exploreName: string }[] = [];
+        for (const result of chartResults) {
+            if (result.status === 'fulfilled') {
+                resolvedCharts.push({
+                    name: result.value.name,
+                    exploreName: result.value.tableName,
+                });
+            }
+        }
+        return { charts: resolvedCharts, dashboardName };
+    }
+
+    /**
+     * Render the resolved attached-resources context as a short bullet list
+     * for the clarifier's user message. Empty string when nothing was
+     * attached — the caller handles the "(none)" fallback.
+     */
+    private static formatAttachedResourcesForClarifier(
+        attached: {
+            charts: { name: string; exploreName: string }[];
+            dashboardName: string | null;
+        },
+        imageCount: number,
+    ): string {
+        const lines: string[] = [];
+        if (attached.dashboardName) {
+            lines.push(`- Dashboard: "${attached.dashboardName}"`);
+        }
+        for (const chart of attached.charts) {
+            lines.push(
+                `- Chart: "${chart.name}" (explore: ${chart.exploreName})`,
+            );
+        }
+        if (imageCount > 0) {
+            lines.push(
+                `- ${imageCount} image${imageCount === 1 ? '' : 's'} attached as design reference`,
+            );
+        }
+        return lines.join('\n');
     }
 
     /**

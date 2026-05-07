@@ -107,6 +107,15 @@ export type GenerateAppRequestBody = {
 export type ApiClarifyAppRequest = {
     prompt: string;
     template?: DataAppTemplate;
+    // Resources the user has already attached in the picker. The clarifier
+    // resolves them lightly (names + explore only — no sample queries, no S3
+    // image reads) and surfaces them to the LLM so it doesn't ask "which
+    // chart?" when the user already pinned one. `includeSampleData` on the
+    // refs is ignored at this stage; sample rows don't change *whether* a
+    // question is worth asking.
+    charts?: AppChartReference[];
+    dashboard?: AppDashboardReference;
+    imageIds?: string[];
 };
 
 export type ApiClarifyAppResponse = ApiSuccess<{

@@ -95,6 +95,30 @@ Where the template metadata lives:
 | Frontend metadata + prompt composition | `packages/frontend/src/features/apps/templates.ts`                                           |
 | Wizard UI                              | `AppTemplatePicker.tsx`, `AppTemplateQuestions.tsx`; orchestrated by `pages/AppGenerate.tsx` |
 
+### Pre-build clarifying questions
+
+There is a **second** clarifying-question flow that runs after the template wizard and before code generation. It's a
+single LLM call (`POST /api/v1/ee/projects/{projectUuid}/apps/clarify`) that returns 0–4 short questions whose answers
+would materially change what gets built. The user answers them inline in the chat before the build kicks off; their
+answers are sent back as `clarifications` on the eventual generate request and persisted on
+`app_versions.resources.clarifications` for chat rendering.
+
+Properties of this flow:
+
+- **Stateless and best-effort.** No DB writes, no sandbox spin-up. The frontend ignores errors and falls through to
+  build without clarifications — a clarifier outage must not block the actual feature. Capped at a 15s LLM timeout.
+- **First-build only.** Iteration prompts (v2+) skip clarify entirely; intent is already grounded in the prior version.
+- **Inputs the LLM sees.** Prompt + template + a compact catalog summary (top 30 tables, up to 5 dimensions/metrics
+  each) + the resources the user has already attached in the picker (chart names + their explores, dashboard name,
+  count of attached images).
+- **What it deliberately doesn't do.** No sample-data fetch and no S3 image read for the clarify call. Sample rows and
+  pixel content don't change *whether* a question is worth asking, and skipping them keeps the call inside the 15s
+  budget. Both happen later in the generate pipeline if opted in.
+- **Resources flow.** The frontend forwards the same `charts: { uuid, includeSampleData }[]`,
+  `dashboard: { uuid, includeSampleData }`, and `imageIds` already in scope at the chat input. `includeSampleData` is
+  ignored at this stage. The system prompt explicitly tells the model not to ask which chart/dashboard/image to use
+  when the resources block is non-empty.
+
 ### Sample data (opt-in)
 
 Chart and dashboard references are passed to Claude as **structure only by default** — the metric query JSON tells the

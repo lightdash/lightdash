@@ -1060,6 +1060,9 @@ const AppGenerate: FC = () => {
                         projectUuid: projectUuid!,
                         prompt: trimmed,
                         template: selectedTemplate ?? undefined,
+                        charts,
+                        dashboard,
+                        imageIds,
                     });
                     if (questions.length > 0) {
                         setPendingClarification({

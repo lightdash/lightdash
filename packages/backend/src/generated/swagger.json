@@ -8646,6 +8646,21 @@
             },
             "ApiClarifyAppRequest": {
                 "properties": {
+                    "imageIds": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "dashboard": {
+                        "$ref": "#/components/schemas/AppDashboardReference"
+                    },
+                    "charts": {
+                        "items": {
+                            "$ref": "#/components/schemas/AppChartReference"
+                        },
+                        "type": "array"
+                    },
                     "template": {
                         "$ref": "#/components/schemas/DataAppTemplate"
                     },
@@ -10793,6 +10808,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -10821,10 +10849,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -10833,8 +10861,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10844,16 +10872,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -10941,10 +10969,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -10953,8 +10981,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -10984,19 +11012,6 @@
                                                         "enum": [
                                                             "error",
                                                             "success"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -31881,7 +31896,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2893.1",
+        "version": "0.2893.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
