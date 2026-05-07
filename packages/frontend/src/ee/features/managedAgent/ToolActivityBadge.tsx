@@ -18,7 +18,7 @@ import {
     IconTool,
     IconTrash,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import classes from './ToolActivityBadge.module.css';
 
 // Mirrors backend FRIENDLY_TOOL_LABELS values from
@@ -49,6 +49,44 @@ const FALLBACK_LABEL = 'Autopilot is working';
 
 const stripTrailingEllipsis = (s: string) => s.replace(/[…\.]+$/, '').trimEnd();
 
+// Rotated when the agent is between tool calls (LLM thinking time).
+// Snaps back to the real activity label as soon as a new tool fires.
+const THINKING_VERBS = [
+    'Pondering',
+    'Synthesizing',
+    'Reasoning',
+    'Cross-referencing',
+    'Reflecting',
+    'Analyzing',
+    'Connecting metrics',
+    'Weighing options',
+    'Mulling it over',
+    'Tracing patterns',
+    'Triangulating',
+    'Distilling',
+    'Zapping',
+    'Lightdashing',
+    'Sparking insights',
+    'Crunching numbers',
+    'Following the data',
+    'Exploring',
+    'Refactoring',
+    'Tidying up',
+    'Pruning',
+    'Auditing',
+    'Triaging',
+];
+
+const IDLE_THRESHOLD_MS = 4000;
+const ROTATE_INTERVAL_MS = 2500;
+
+const pickRandomVerb = (exclude: string | null): string => {
+    const pool = exclude
+        ? THINKING_VERBS.filter((v) => v !== exclude)
+        : THINKING_VERBS;
+    return pool[Math.floor(Math.random() * pool.length)];
+};
+
 const AnimatedDots: FC = () => (
     <span className={classes.dots} aria-hidden>
         <span className={classes.dot}>.</span>
@@ -60,8 +98,27 @@ const AnimatedDots: FC = () => (
 export const ToolActivityBadge: FC<{ currentActivity: string | null }> = ({
     currentActivity,
 }) => {
+    const [thinkingVerb, setThinkingVerb] = useState<string | null>(null);
+
+    useEffect(() => {
+        setThinkingVerb(null);
+        let rotateInterval: ReturnType<typeof setInterval> | null = null;
+        const startTimeout = setTimeout(() => {
+            setThinkingVerb(pickRandomVerb(null));
+            rotateInterval = setInterval(() => {
+                setThinkingVerb((prev) => pickRandomVerb(prev));
+            }, ROTATE_INTERVAL_MS);
+        }, IDLE_THRESHOLD_MS);
+        return () => {
+            clearTimeout(startTimeout);
+            if (rotateInterval) clearInterval(rotateInterval);
+        };
+    }, [currentActivity]);
+
     const ActiveIcon = currentActivity ? iconFor(currentActivity) : IconBolt;
-    const label = stripTrailingEllipsis(currentActivity ?? FALLBACK_LABEL);
+    const label =
+        thinkingVerb ??
+        stripTrailingEllipsis(currentActivity ?? FALLBACK_LABEL);
     return (
         <Box className={classes.badge} role="status" aria-live="polite">
             <Box className={classes.iconSlot} aria-hidden>
