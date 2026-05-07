@@ -53,17 +53,6 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeAgentUuid = null;
             state.pendingContext = null;
         },
-        setActiveThread: (
-            state,
-            action: PayloadAction<{
-                threadId: string;
-                agentUuid: string;
-            }>,
-        ) => {
-            state.activeThreadId = action.payload.threadId;
-            state.activeAgentUuid = action.payload.agentUuid;
-            state.pendingContext = null;
-        },
         // Cascade-reset the active panel when a dock item is removed externally
         // (the dock itself is owned by `LauncherDockProvider`/localStorage).
         dockItemRemoved: (
@@ -80,10 +69,5 @@ export const aiAgentLauncherSlice = createSlice({
     },
 });
 
-export const {
-    openPanel,
-    closePanel,
-    resetActivePanel,
-    setActiveThread,
-    dockItemRemoved,
-} = aiAgentLauncherSlice.actions;
+export const { openPanel, closePanel, resetActivePanel, dockItemRemoved } =
+    aiAgentLauncherSlice.actions;

@@ -4,7 +4,7 @@ import {
     IconCheck,
     IconChevronDown,
     IconWindowMaximize,
-    IconX,
+    IconMinus,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate } from 'react-router';
@@ -164,7 +164,7 @@ export const PanelHeader: FC<Props> = ({
                     onClick={handleClose}
                     aria-label="Close panel"
                 >
-                    <MantineIcon icon={IconX} size={16} />
+                    <MantineIcon icon={IconMinus} size={16} />
                 </ActionIcon>
             </Group>
         </div>

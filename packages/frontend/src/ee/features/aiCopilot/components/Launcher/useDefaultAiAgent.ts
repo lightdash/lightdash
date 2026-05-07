@@ -3,12 +3,11 @@ import { useProjectAiAgents } from '../../hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../hooks/useUserAgentPreferences';
 
 export const useDefaultAiAgent = (projectUuid: string | undefined) => {
-    const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
+    const { data: agents } = useProjectAiAgents({
         projectUuid,
         redirectOnUnauthorized: false,
     });
-    const { data: preferences, isLoading: isLoadingPreferences } =
-        useGetUserAgentPreferences(projectUuid);
+    const { data: preferences } = useGetUserAgentPreferences(projectUuid);
 
     const agent = useMemo(() => {
         if (!agents || agents.length === 0) return null;
@@ -18,9 +17,5 @@ export const useDefaultAiAgent = (projectUuid: string | undefined) => {
         );
     }, [agents, preferences?.defaultAgentUuid]);
 
-    return {
-        agent,
-        agents: agents ?? [],
-        isLoading: isLoadingAgents || isLoadingPreferences,
-    };
+    return { agent, agents: agents ?? [] };
 };

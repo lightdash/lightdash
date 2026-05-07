@@ -4,7 +4,7 @@ import { useEffect, useRef, type FC } from 'react';
 import { useLocation, useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
-import { openPanel, resetActivePanel } from '../../store/aiAgentLauncherSlice';
+import { resetActivePanel } from '../../store/aiAgentLauncherSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -12,7 +12,6 @@ import {
 import styles from './AiAgentsLauncher.module.css';
 import { LauncherDock } from './LauncherDock';
 import { LauncherPanel } from './LauncherPanel';
-import { LauncherPill } from './LauncherPill';
 import { launcherSession } from './launcherSession';
 import { useDefaultAiAgent } from './useDefaultAiAgent';
 import { useLauncherDock } from './useLauncherDock';
@@ -50,7 +49,7 @@ const AiAgentsLauncherInner: FC = () => {
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agent, agents } = useDefaultAiAgent(activeProjectUuid);
+    const { agents } = useDefaultAiAgent(activeProjectUuid);
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
@@ -82,10 +81,8 @@ const AiAgentsLauncherInner: FC = () => {
         }
     }, [activeAgentUuid, agents, dispatch]);
 
-    const isVisible =
+    const isAllowed =
         Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
-
-    if (!isVisible || !activeProjectUuid) return null;
 
     // Only mount the panel when the active agent/thread belongs to this project;
     // mounting an existing-thread panel starts the thread query.
@@ -108,36 +105,33 @@ const AiAgentsLauncherInner: FC = () => {
         mode === 'panel-open' &&
         (safeActiveThreadId !== null || safeActiveAgentUuid !== null);
 
-    const panelAgent =
-        agents.find((a) => a.uuid === safeActiveAgentUuid) ?? agent;
+    // The launcher has no persistent affordance: it appears only when the
+    // user opens a panel (via AskAiAgentMenuItem) or has active dock items.
+    if (!isAllowed || !activeProjectUuid) return null;
+    if (!isPanelOpenSafe && dock.length === 0) return null;
 
-    const handlePillClick = () => {
-        if (!agent) return;
-        dispatch(openPanel({ threadId: null, agentUuid: agent.uuid }));
-    };
+    const panelAgent =
+        agents.find((a) => a.uuid === safeActiveAgentUuid) ?? null;
 
     return (
         <div className={styles.root}>
             <LauncherDock projectUuid={activeProjectUuid} agents={agents} />
-            <div className={styles.pillWrapper}>
-                <LauncherPill agent={agent} onClick={handlePillClick} />
-                <Transition
-                    mounted={isPanelOpenSafe}
-                    transition="fade-up"
-                    duration={180}
-                    timingFunction="ease"
-                >
-                    {(transitionStyle) => (
-                        <LauncherPanel
-                            projectUuid={activeProjectUuid}
-                            agent={panelAgent}
-                            agents={agents}
-                            activeThreadId={safeActiveThreadId}
-                            style={transitionStyle}
-                        />
-                    )}
-                </Transition>
-            </div>
+            <Transition
+                mounted={isPanelOpenSafe}
+                transition="slide-up"
+                duration={180}
+                timingFunction="ease"
+            >
+                {(transitionStyle) => (
+                    <LauncherPanel
+                        projectUuid={activeProjectUuid}
+                        agent={panelAgent}
+                        agents={agents}
+                        activeThreadId={safeActiveThreadId}
+                        style={transitionStyle}
+                    />
+                )}
+            </Transition>
         </div>
     );
 };

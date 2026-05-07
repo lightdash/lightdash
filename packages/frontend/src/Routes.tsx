@@ -112,7 +112,7 @@ const PUBLIC_ROUTES: RouteObject[] = [
             </TrackPage>
         ),
     },
-].map((r) => ({ ...r, handle: { hideAILauncher: true } }));
+];
 
 const MINIMAL_ROUTES: RouteObject[] = [
     {

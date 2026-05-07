@@ -14,7 +14,6 @@ import {
     BANNER_HEIGHT,
     FOOTER_HEIGHT,
     FOOTER_MARGIN,
-    AI_LAUNCHER_RESERVED_HEIGHT,
     NAVBAR_HEIGHT,
     PAGE_CONTENT_MAX_WIDTH_LARGE,
     PAGE_CONTENT_WIDTH,
@@ -64,9 +63,6 @@ const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
 
     return {
         root: {
-            ...(params.withFullHeight
-                ? {}
-                : { paddingBottom: AI_LAUNCHER_RESERVED_HEIGHT }),
             ...(params.fullPageScroll
                 ? {
                       minHeight: '100%',

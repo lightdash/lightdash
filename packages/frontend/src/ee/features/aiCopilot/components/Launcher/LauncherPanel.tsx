@@ -10,7 +10,7 @@ import {
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
-import { setActiveThread } from '../../store/aiAgentLauncherSlice';
+import { openPanel } from '../../store/aiAgentLauncherSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -103,7 +103,7 @@ const NewThreadPanel: FC<{
                     title: thread.firstMessage.message,
                 });
                 dispatch(
-                    setActiveThread({
+                    openPanel({
                         threadId: thread.uuid,
                         agentUuid: agent.uuid,
                     }),
