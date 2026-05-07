@@ -2,6 +2,7 @@ import {
     type ApiError,
     type CreateRole,
     type Role,
+    type RoleAssignee,
     type RoleWithScopes,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -171,4 +172,31 @@ export const useCustomRoles = () => {
             duplicateRole,
         };
     }, [listRoles, createRole, deleteRole, getAllRoles, duplicateRole]);
+};
+
+export const useRoleAssignees = (roleUuid: string | undefined) => {
+    const { data: organization } = useOrganization();
+
+    return useQuery<RoleAssignee[], ApiError>({
+        queryKey: [
+            CACHE_KEY,
+            organization?.organizationUuid,
+            roleUuid,
+            'assignees',
+        ],
+        queryFn: async () => {
+            if (!organization?.organizationUuid) {
+                throw new Error('Organization UUID not available');
+            }
+            if (!roleUuid) {
+                throw new Error('Role UUID not provided');
+            }
+            return lightdashApi<RoleAssignee[]>({
+                method: 'GET',
+                url: `/orgs/${organization.organizationUuid}/roles/${roleUuid}/assignees`,
+                version: 'v2',
+            });
+        },
+        enabled: !!organization?.organizationUuid && !!roleUuid,
+    });
 };
