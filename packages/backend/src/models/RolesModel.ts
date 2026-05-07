@@ -17,6 +17,7 @@ import {
 import { Knex } from 'knex';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
+import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -351,18 +352,20 @@ export class RolesModel {
                 `${ProjectTableName}.name as projectName`,
             );
 
-        const projectGroupRows = await this.database('project_group_access')
+        const projectGroupRows = await this.database(
+            ProjectGroupAccessTableName,
+        )
             .join(
                 GroupTableName,
-                'project_group_access.group_uuid',
+                `${ProjectGroupAccessTableName}.group_uuid`,
                 `${GroupTableName}.group_uuid`,
             )
             .join(
                 ProjectTableName,
-                'project_group_access.project_uuid',
+                `${ProjectGroupAccessTableName}.project_uuid`,
                 `${ProjectTableName}.project_uuid`,
             )
-            .where('project_group_access.role_uuid', roleUuid)
+            .where(`${ProjectGroupAccessTableName}.role_uuid`, roleUuid)
             .select<
                 Array<{
                     groupUuid: string;

@@ -139,7 +139,7 @@ export type RoleAssigneeKind =
 
 export type RoleAssignee = {
     kind: RoleAssigneeKind;
-    assigneeId: string;
+    assigneeId: string; // userUuid | groupUuid | serviceAccountUuid
     assigneeName: string;
     projectUuid: string | null;
     projectName: string | null;
