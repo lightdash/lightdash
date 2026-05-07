@@ -676,7 +676,6 @@ export interface Dimension extends Field {
     timeIntervalBaseDimensionType?: DimensionType;
     customTimeInterval?: string;
     isAdditionalDimension?: boolean;
-    /** Set when YAML carries `convert_timezone: false`. Filter SQL still wraps. */
     skipTimezoneConversion?: boolean;
     colors?: Record<string, string>;
     isIntervalBase?: boolean;

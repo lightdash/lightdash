@@ -3146,8 +3146,7 @@
                         "type": "boolean"
                     },
                     "skipTimezoneConversion": {
-                        "type": "boolean",
-                        "description": "Set when YAML carries `convert_timezone: false`. Filter SQL still wraps."
+                        "type": "boolean"
                     },
                     "colors": {
                         "$ref": "#/components/schemas/Record_string.string_"
@@ -7051,8 +7050,7 @@
                         "type": "boolean"
                     },
                     "skipTimezoneConversion": {
-                        "type": "boolean",
-                        "description": "Set when YAML carries `convert_timezone: false`. Filter SQL still wraps."
+                        "type": "boolean"
                     },
                     "colors": {
                         "$ref": "#/components/schemas/Record_string.string_"

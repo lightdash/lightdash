@@ -1794,6 +1794,28 @@ describe('convert_timezone dimension override', () => {
         ).toBe(true);
     });
 
+    it('still propagates skipTimezoneConversion when disableTimestampConversion is also set', () => {
+        // The two flags are independent — both should compose.
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel(false),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            true,
+        );
+        expect(result.dimensions.created_at.skipTimezoneConversion).toBe(true);
+        expect(result.dimensions.created_at_day.skipTimezoneConversion).toBe(
+            true,
+        );
+        expect(
+            result.dimensions.created_at_month_num.skipTimezoneConversion,
+        ).toBe(true);
+        expect(result.dimensions.created_at.sql).not.toContain(
+            'CONVERT_TIMEZONE',
+        );
+    });
+
     it('omits skipTimezoneConversion when convert_timezone is unset or true (default behavior)', () => {
         const undef = convertTable(
             SupportedDbtAdapter.BIGQUERY,
