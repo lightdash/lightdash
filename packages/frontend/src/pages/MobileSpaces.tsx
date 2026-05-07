@@ -37,8 +37,11 @@ const MobileSpaces: FC = () => {
     );
     const [search, setSearch] = useState<string>('');
     const visibleItems = useMemo(() => {
+        const rootSpaces = spaces.filter(
+            (space) => space.parentSpaceUuid === null,
+        );
         const items = wrapResourceView(
-            spaces.map(spaceToResourceViewItem),
+            rootSpaces.map(spaceToResourceViewItem),
             ResourceViewItemType.SPACE,
         );
         if (search && search !== '') {
