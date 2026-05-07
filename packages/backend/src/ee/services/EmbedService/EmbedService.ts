@@ -29,6 +29,7 @@ import {
     formatRawRows,
     formatRows,
     getAvailableFilterFieldIds,
+    getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
@@ -919,7 +920,7 @@ export class EmbedService extends BaseService {
             parameters: combinedParameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
-            dataTimezone: warehouseClient.credentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseClient.credentials),
         });
 
         const results =

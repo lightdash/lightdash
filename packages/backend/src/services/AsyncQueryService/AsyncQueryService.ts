@@ -36,6 +36,7 @@ import {
     formatRawValue,
     formatRow,
     getAvailableFilterFieldIds,
+    getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
     getDimensions,
@@ -2845,7 +2846,7 @@ export class AsyncQueryService extends ProjectService {
         pivotConfiguration,
         userAttributeOverrides,
         materializationRole,
-        dataTimezone,
+        columnTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2859,7 +2860,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
-        dataTimezone?: string;
+        columnTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -2902,7 +2903,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             pivotDimensions: metricQuery.pivotDimensions,
             useTimezoneAwareDateTrunc,
-            dataTimezone,
+            columnTimezone,
         });
 
         const resolvedMetricOverrides =
@@ -3684,7 +3685,7 @@ export class AsyncQueryService extends ProjectService {
             pivotConfiguration,
             userAttributeOverrides,
             materializationRole,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -3843,7 +3844,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             userAttributeOverrides,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
         const requestParameters: ExecuteAsyncFieldValueSearchRequestParams = {
@@ -4085,7 +4086,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -4403,7 +4404,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -4743,7 +4744,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             parameters: combinedParameters,
             projectUuid,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
@@ -5543,7 +5544,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             projectUuid,
             materializationRole: userAccessControls,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({

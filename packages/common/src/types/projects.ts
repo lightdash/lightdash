@@ -315,6 +315,21 @@ export type WarehouseCredentials =
     | AthenaCredentials
     | DuckdbCredentials;
 
+// Returns the timezone the column data is in when the query runs.
+// Snowflake's dbt translator wraps timestamps with CONVERT_TIMEZONE('UTC', col),
+// so columns are UTC unless `disableTimestampConversion` opts out of that wrap.
+export const getColumnTimezone = (
+    credentials: CreateWarehouseCredentials | WarehouseCredentials,
+): string => {
+    if (
+        credentials.type === WarehouseTypes.SNOWFLAKE &&
+        !credentials.disableTimestampConversion
+    ) {
+        return 'UTC';
+    }
+    return credentials.dataTimezone ?? 'UTC';
+};
+
 export type CreatePostgresLikeCredentials =
     | CreateRedshiftCredentials
     | CreatePostgresCredentials;

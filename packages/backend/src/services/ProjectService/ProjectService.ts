@@ -66,6 +66,7 @@ import {
     getAllDimensionsMap,
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
+    getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDimensions,
     getErrorMessage,
@@ -3127,7 +3128,7 @@ export class ProjectService extends BaseService {
         pivotDimensions,
         continueOnError,
         useTimezoneAwareDateTrunc,
-        dataTimezone,
+        columnTimezone,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -3142,7 +3143,7 @@ export class ProjectService extends BaseService {
         pivotDimensions?: string[];
         continueOnError?: boolean;
         useTimezoneAwareDateTrunc?: boolean;
-        dataTimezone?: string;
+        columnTimezone?: string;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -3176,7 +3177,7 @@ export class ProjectService extends BaseService {
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
             useTimezoneAwareDateTrunc,
-            dataTimezone,
+            columnTimezone,
         });
 
         return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
@@ -3315,7 +3316,7 @@ export class ProjectService extends BaseService {
             pivotDimensions,
             continueOnError: true, // Return SQL even with compilation errors for debugging
             useTimezoneAwareDateTrunc,
-            dataTimezone: warehouseCredentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseCredentials),
         });
 
         // Generate pivot query if pivot configuration is provided
@@ -4309,7 +4310,9 @@ export class ProjectService extends BaseService {
                         availableParameterDefinitions,
                         pivotDimensions: metricQueryWithLimit.pivotDimensions,
                         useTimezoneAwareDateTrunc,
-                        dataTimezone: warehouseClient.credentials.dataTimezone,
+                        columnTimezone: getColumnTimezone(
+                            warehouseClient.credentials,
+                        ),
                     });
 
                     const { query } = fullQuery;
@@ -4878,7 +4881,7 @@ export class ProjectService extends BaseService {
             parameters: combinedParameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
-            dataTimezone: warehouseClient.credentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseClient.credentials),
         });
 
         const isUserCacheEnabled =
