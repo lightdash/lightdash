@@ -1688,10 +1688,9 @@ export class DashboardService
             );
         }
 
-        const versions =
-            await this.dashboardModel.getLatestVersionSummaries(
-                dashboardDao.uuid,
-            );
+        const versions = await this.dashboardModel.getLatestVersionSummaries(
+            dashboardDao.uuid,
+        );
 
         this.analytics.track({
             event: 'dashboard_history.view',
