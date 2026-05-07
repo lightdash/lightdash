@@ -2,7 +2,9 @@ import { subject } from '@casl/ability';
 import {
     type ApiError,
     type ContentVerificationInfo,
+    countTotalFilterRules,
     type Dashboard,
+    getFixedBrokenMetadata,
     getManagedAgentActionCategory,
     ManagedAgentActionType,
     type ManagedAgentRun,
@@ -75,7 +77,7 @@ import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
-import { useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
 import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
@@ -446,6 +448,159 @@ const SlowDetails: FC<{ metadata: Record<string, unknown> }> = ({
     );
 };
 
+type FieldDiff = {
+    label: string;
+    added: string[];
+    removed: string[];
+};
+
+const computeFieldDiff = (
+    label: string,
+    previous: readonly string[],
+    current: readonly string[],
+): FieldDiff => {
+    const previousSet = new Set(previous);
+    const currentSet = new Set(current);
+    return {
+        label,
+        added: current.filter((f) => !previousSet.has(f)),
+        removed: previous.filter((f) => !currentSet.has(f)),
+    };
+};
+
+const FieldDiffRow: FC<{ diff: FieldDiff }> = ({ diff }) => {
+    if (diff.added.length === 0 && diff.removed.length === 0) return null;
+    return (
+        <Stack gap={4}>
+            <MetadataLabel label={diff.label} />
+            <Group gap={4}>
+                {diff.removed.map((f) => (
+                    <Text
+                        key={`removed-${f}`}
+                        fz={11}
+                        ff="monospace"
+                        className={classes.fieldPillRemoved}
+                    >
+                        {f}
+                    </Text>
+                ))}
+                {diff.added.map((f) => (
+                    <Text
+                        key={`added-${f}`}
+                        fz={11}
+                        ff="monospace"
+                        className={classes.fieldPillAdded}
+                    >
+                        {f}
+                    </Text>
+                ))}
+            </Group>
+        </Stack>
+    );
+};
+
+const FixedBrokenDiff: FC<{
+    previousChart: SavedChart | undefined;
+    currentChart: SavedChart | undefined;
+    historyHref: string;
+}> = ({ previousChart, currentChart, historyHref }) => {
+    const historyLink = (
+        <Anchor href={historyHref} target="_blank" rel="noreferrer" fz="xs">
+            View full chart history
+        </Anchor>
+    );
+
+    if (!previousChart || !currentChart) {
+        return (
+            <Stack gap="sm">
+                <MetadataLabel label="Changes applied" />
+                <Text fz="xs" c="dimmed" lh={1.6}>
+                    Diff unavailable for this fix — see chart history for
+                    details.
+                </Text>
+                {historyLink}
+            </Stack>
+        );
+    }
+
+    const dimensionsDiff = computeFieldDiff(
+        'Dimensions',
+        previousChart.metricQuery.dimensions,
+        currentChart.metricQuery.dimensions,
+    );
+    const metricsDiff = computeFieldDiff(
+        'Metrics',
+        previousChart.metricQuery.metrics,
+        currentChart.metricQuery.metrics,
+    );
+    const tableCalcsDiff = computeFieldDiff(
+        'Table calculations',
+        previousChart.metricQuery.tableCalculations.map((tc) => tc.name),
+        currentChart.metricQuery.tableCalculations.map((tc) => tc.name),
+    );
+
+    const previousExplore = previousChart.metricQuery.exploreName;
+    const currentExplore = currentChart.metricQuery.exploreName;
+    const exploreChanged = previousExplore !== currentExplore;
+
+    const previousType = previousChart.chartConfig.type;
+    const currentType = currentChart.chartConfig.type;
+    const typeChanged = previousType !== currentType;
+
+    const previousFilterCount = countTotalFilterRules(
+        previousChart.metricQuery.filters,
+    );
+    const currentFilterCount = countTotalFilterRules(
+        currentChart.metricQuery.filters,
+    );
+    const filtersChanged = previousFilterCount !== currentFilterCount;
+
+    const hasFieldDiffs =
+        dimensionsDiff.added.length + dimensionsDiff.removed.length > 0 ||
+        metricsDiff.added.length + metricsDiff.removed.length > 0 ||
+        tableCalcsDiff.added.length + tableCalcsDiff.removed.length > 0;
+    const hasMeaningfulDiff =
+        hasFieldDiffs || exploreChanged || typeChanged || filtersChanged;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label="Changes applied" />
+            {hasMeaningfulDiff ? (
+                <Stack gap={10}>
+                    <FieldDiffRow diff={dimensionsDiff} />
+                    <FieldDiffRow diff={metricsDiff} />
+                    <FieldDiffRow diff={tableCalcsDiff} />
+                    {exploreChanged && (
+                        <InfoRow icon={IconDatabase} label="Explore">
+                            <Text fz="xs" component="span">
+                                {previousExplore} → {currentExplore}
+                            </Text>
+                        </InfoRow>
+                    )}
+                    {typeChanged && (
+                        <InfoRow icon={IconChartBar} label="Chart type">
+                            <Text fz="xs" component="span">
+                                {previousType} → {currentType}
+                            </Text>
+                        </InfoRow>
+                    )}
+                    {filtersChanged && (
+                        <InfoRow icon={IconHash} label="Filters">
+                            {previousFilterCount} → {currentFilterCount}
+                        </InfoRow>
+                    )}
+                </Stack>
+            ) : (
+                <Text fz="xs" c="dimmed" lh={1.6}>
+                    This fix touched fields not surfaced in this view — see
+                    chart history for details.
+                </Text>
+            )}
+            {historyLink}
+        </Stack>
+    );
+};
+
 type ContentContext = {
     description: string | null;
     projectUuid: string;
@@ -622,6 +777,12 @@ const DetailSidebar: FC<{
     const showRestoreBanner =
         action.actionType === ManagedAgentActionType.SOFT_DELETED &&
         !isReversed;
+    const isFixedBroken =
+        action.actionType === ManagedAgentActionType.FIXED_BROKEN;
+    const previousVersionUuid = isFixedBroken
+        ? (getFixedBrokenMetadata(action.metadata)?.previousVersionUuid ?? null)
+        : null;
+    const showFixedBanner = isFixedBroken && !isReversed;
 
     const revertMutation = useMutation<unknown, ApiError>({
         mutationFn: () => reverseAction(action.projectUuid, action.actionUuid),
@@ -678,6 +839,12 @@ const DetailSidebar: FC<{
     });
     const { data: chartViewStats } = useChartViewStats(
         action.targetType === 'chart' ? action.targetUuid : undefined,
+    );
+    const { data: previousChartVersion } = useChartVersion(
+        showFixedBanner && previousVersionUuid ? action.targetUuid : undefined,
+        showFixedBanner && previousVersionUuid
+            ? previousVersionUuid
+            : undefined,
     );
     const { data: targetProject } = useProject(
         isProjectTarget ? action.targetUuid : undefined,
@@ -857,6 +1024,62 @@ const DetailSidebar: FC<{
                 </Group>
             )}
 
+            {showFixedBanner && (
+                <Group
+                    gap={8}
+                    className={classes.fixedBanner}
+                    justify="space-between"
+                    wrap="nowrap"
+                >
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon
+                            icon={IconTool}
+                            size="sm"
+                            color="var(--mantine-color-teal-6)"
+                        />
+                        <Text fz="xs" c="dimmed">
+                            Auto-fixed by Autopilot
+                        </Text>
+                    </Group>
+                    {previousVersionUuid ? (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            leftSection={
+                                <MantineIcon icon={IconArrowBackUp} size={14} />
+                            }
+                            loading={revertMutation.isLoading}
+                            onClick={() => revertMutation.mutate()}
+                        >
+                            Revert
+                        </Button>
+                    ) : (
+                        <Tooltip
+                            label="This fix was recorded before revert support — restore manually via chart history."
+                            withinPortal
+                            multiline
+                            w={240}
+                        >
+                            <Button
+                                size="xs"
+                                variant="default"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconArrowBackUp}
+                                        size={14}
+                                    />
+                                }
+                                disabled
+                                data-disabled
+                                onClick={(e) => e.preventDefault()}
+                            >
+                                Revert
+                            </Button>
+                        </Tooltip>
+                    )}
+                </Group>
+            )}
+
             {/* Content */}
             <Stack gap="md" p="md" style={{ overflow: 'auto', flex: 1 }}>
                 {/* Resource-side metadata (space, last updated, verified, deleted) */}
@@ -890,11 +1113,19 @@ const DetailSidebar: FC<{
                 {hasBrokenDetails && (
                     <BrokenDetails metadata={action.metadata} />
                 )}
+                {showFixedBanner && (
+                    <FixedBrokenDiff
+                        previousChart={previousChartVersion?.chart}
+                        currentChart={savedChart}
+                        historyHref={`/projects/${action.projectUuid}/saved/${action.targetUuid}/history`}
+                    />
+                )}
 
                 {/* Divider if we showed details above */}
                 {(hasChartDetails ||
                     hasBrokenDetails ||
                     hasSlowDetails ||
+                    showFixedBanner ||
                     !!contentContext ||
                     hasProjectDetails) && (
                     <Box className={classes.headerDivider} />
