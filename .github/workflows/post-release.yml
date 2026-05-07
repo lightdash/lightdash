@@ -511,12 +511,17 @@ jobs:
           echo "source_tag=$SOURCE_TAG" >> "$GITHUB_OUTPUT"
 
   data-app-template-build:
-    name: Build E2B template
+    name: Build E2B template (${{ matrix.region }})
     needs: data-app-template-resolve
     if: needs.data-app-template-resolve.outputs.action == 'build'
     runs-on: depot-ubuntu-24.04-4
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [us, eu]
     env:
-      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+      E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
+      E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
       E2B_TEMPLATE_NAME: lightdash-data-app
       E2B_TEMPLATE_TAG: ${{ needs.data-app-template-resolve.outputs.primary_tag }}
       E2B_TEMPLATE_EXTRA_TAGS: latest
@@ -550,12 +555,17 @@ jobs:
         run: pnpm run build
 
   data-app-template-retag:
-    name: Re-tag existing E2B build
+    name: Re-tag existing E2B build (${{ matrix.region }})
     needs: data-app-template-resolve
     if: needs.data-app-template-resolve.outputs.action == 'retag'
     runs-on: depot-ubuntu-24.04-4
+    strategy:
+      fail-fast: false
+      matrix:
+        region: [us, eu]
     env:
-      E2B_API_KEY: ${{ secrets.E2B_API_KEY }}
+      E2B_API_KEY: ${{ matrix.region == 'eu' && secrets.E2B_API_KEY_EU || secrets.E2B_API_KEY }}
+      E2B_DOMAIN: ${{ matrix.region == 'eu' && 'e2b-juliett.dev' || '' }}
       E2B_TEMPLATE_NAME: lightdash-data-app
       E2B_TEMPLATE_TAG: ${{ needs.data-app-template-resolve.outputs.primary_tag }}
       E2B_TEMPLATE_SOURCE_TAG: ${{ needs.data-app-template-resolve.outputs.source_tag }}
