@@ -31,6 +31,7 @@ import { LockedDashboardModal } from '../../components/common/modal/LockedDashbo
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
+import { useAiAgentButtonVisibility } from '../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import useToaster from '../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -332,6 +333,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         useState<boolean>(false);
 
     const [isHeaderStuck, setIsHeaderStuck] = useState<boolean>(false);
+
+    const isAiLauncherVisible = useAiAgentButtonVisibility();
 
     // tabs state
     const [isEditingTab, setEditingTab] = useState<boolean>(false);
@@ -1289,7 +1292,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 )}
             </Droppable>
 
-            <ScrollToTop show={isHeaderStuck} />
+            <ScrollToTop
+                show={isHeaderStuck}
+                bottom={isAiLauncherVisible ? 52 : 24}
+            />
         </DragDropContext>
     );
 };

@@ -1,17 +1,16 @@
 import { Center, Loader } from '@mantine-8/core';
-import { useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
@@ -50,23 +49,12 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid,
         threadUuid,
     );
-    const isPending = thread?.messages?.some(
-        (message) =>
-            message.role === 'assistant' && message.status === 'pending',
+
+    const { isStreaming, isPending } = usePendingThreadRefetch(
+        thread,
+        threadUuid!,
+        refetch,
     );
-
-    const isStreaming = useAiAgentThreadStreaming(threadUuid!);
-
-    useEffect(() => {
-        if (!isPending) return;
-        if (isStreaming) return;
-
-        const interval = setInterval(() => {
-            void refetch();
-        }, 2000);
-
-        return () => clearInterval(interval);
-    }, [isPending, refetch, isStreaming]);
 
     const handleSubmit = (prompt: string) => {
         // Use modelConfig from first assistant message for follow-up messages

@@ -1,6 +1,5 @@
 import { rem } from '@mantine-8/core';
 import { useCallback, useLayoutEffect, useRef } from 'react';
-import { useParams } from 'react-router';
 import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStreamQuery';
 
@@ -50,13 +49,15 @@ function useAutoScroll(scrollAreaRef: React.RefObject<HTMLDivElement | null>) {
 
 const ThreadScrollToBottom = ({
     scrollAreaRef,
+    projectUuid,
+    agentUuid,
+    threadUuid,
 }: {
     scrollAreaRef: React.RefObject<HTMLDivElement | null>;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
 }) => {
-    const { agentUuid, threadUuid, projectUuid } = useParams();
-    if (!agentUuid || !threadUuid || !projectUuid)
-        throw new Error('Agent, thread and project UUIDs are required');
-
     const streamingState = useAiAgentThreadStreamQuery(threadUuid);
     const thread = useAiAgentThread(projectUuid, agentUuid, threadUuid);
 

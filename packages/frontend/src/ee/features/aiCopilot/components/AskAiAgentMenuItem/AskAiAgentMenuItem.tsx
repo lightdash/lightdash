@@ -1,14 +1,15 @@
 import { Menu } from '@mantine-8/core';
 import { IconMessageCircleStar } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useApp from '../../../../../providers/App/useApp';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
-import { useAskAiAgentUrl } from '../../hooks/useAskAiAgentUrl';
+import { store as aiAgentStore } from '../../store';
+import { openPanel } from '../../store/aiAgentLauncherSlice';
+import { useDefaultAiAgent } from '../Launcher/useDefaultAiAgent';
 
 type Props = {
     projectUuid: string | undefined;
@@ -23,10 +24,9 @@ type Props = {
 };
 
 /**
- * Menu item that links to the user's preferred AI agent's new-thread page,
- * with the given chart/dashboard pinned as context. Renders nothing when AI
- * agents are not enabled, the user lacks permission, or no agent is yet
- * resolved.
+ * Menu item that opens the AI agent launcher panel for a new conversation.
+ * Renders nothing when AI agents are not enabled, the user lacks permission,
+ * or no default agent can be resolved.
  */
 export const AskAiAgentMenuItem: FC<Props> = ({
     projectUuid,
@@ -36,29 +36,38 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     withDivider = false,
 }) => {
     const isVisible = useAiAgentButtonVisibility();
-    const url = useAskAiAgentUrl({ projectUuid, chartUuid, dashboardUuid });
+    const { agent } = useDefaultAiAgent(projectUuid);
     const { user } = useApp();
     const { track } = useTracking();
 
-    if (!isVisible || !url) return null;
+    if (!isVisible || !agent) return null;
+
+    const handleClick = () => {
+        track({
+            name: EventName.AI_AGENT_ASK_CLICKED,
+            properties: {
+                userId: user?.data?.userUuid,
+                organizationId: user?.data?.organizationUuid,
+                projectId: projectUuid,
+                clickedFrom,
+            },
+        });
+        const pendingContext =
+            chartUuid || dashboardUuid ? { chartUuid, dashboardUuid } : null;
+        aiAgentStore.dispatch(
+            openPanel({
+                threadId: null,
+                agentUuid: agent.uuid,
+                pendingContext,
+            }),
+        );
+    };
 
     return (
         <>
             <Menu.Item
-                component={Link}
-                to={url}
                 leftSection={<MantineIcon icon={IconMessageCircleStar} />}
-                onClick={() => {
-                    track({
-                        name: EventName.AI_AGENT_ASK_CLICKED,
-                        properties: {
-                            userId: user?.data?.userUuid,
-                            organizationId: user?.data?.organizationUuid,
-                            projectId: projectUuid,
-                            clickedFrom,
-                        },
-                    });
-                }}
+                onClick={handleClick}
             >
                 Ask AI Agent
             </Menu.Item>

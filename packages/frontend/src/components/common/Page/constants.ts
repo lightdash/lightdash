@@ -8,6 +8,8 @@ export const BANNER_HEIGHT = 35;
 export const FOOTER_HEIGHT = 80;
 export const FOOTER_MARGIN: MantineSize = 'lg';
 
+export const AI_LAUNCHER_RESERVED_HEIGHT = 56;
+
 export const PAGE_CONTENT_WIDTH = 900;
 export const PAGE_CONTENT_MAX_WIDTH_LARGE = 1600;
 export const PAGE_MIN_CONTENT_WIDTH = 600;

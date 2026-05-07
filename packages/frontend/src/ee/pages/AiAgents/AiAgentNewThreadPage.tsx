@@ -1,9 +1,4 @@
 import {
-    getChartKind,
-    type AiPromptContextInput,
-    type AiPromptContextItem,
-} from '@lightdash/common';
-import {
     ActionIcon,
     Center,
     Group,
@@ -20,8 +15,6 @@ import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
-import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
-import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
@@ -29,6 +22,7 @@ import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPro
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
+import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
 import {
     useCreateAgentThreadMutation,
     useVerifiedQuestions,
@@ -41,49 +35,11 @@ const AiAgentNewThreadPage: FC = () => {
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
 
-    const { data: chart } = useSavedQuery({
-        uuidOrSlug: chartUuid ?? undefined,
+    const { contextInput, previewItems } = usePinnedContext({
         projectUuid,
+        chartUuid,
+        dashboardUuid,
     });
-    const { data: dashboard } = useDashboardQuery({
-        uuidOrSlug: dashboardUuid ?? undefined,
-        projectUuid,
-    });
-
-    const contextInput: AiPromptContextInput = useMemo(() => {
-        const items: AiPromptContextInput = [];
-        if (chartUuid) items.push({ type: 'chart', chartUuid });
-        if (dashboardUuid) items.push({ type: 'dashboard', dashboardUuid });
-        return items;
-    }, [chartUuid, dashboardUuid]);
-
-    const previewItems: AiPromptContextItem[] = useMemo(() => {
-        const items: AiPromptContextItem[] = [];
-        if (chartUuid) {
-            items.push({
-                type: 'chart',
-                chartUuid,
-                displayName: chart?.name ?? null,
-                pinnedVersionUuid: null,
-                chartKind: chart?.chartConfig
-                    ? (getChartKind(
-                          chart.chartConfig.type,
-                          chart.chartConfig.config,
-                      ) ?? null)
-                    : null,
-                runtimeOverrides: null,
-            });
-        }
-        if (dashboardUuid) {
-            items.push({
-                type: 'dashboard',
-                dashboardUuid,
-                displayName: dashboard?.name ?? null,
-                pinnedVersionUuid: null,
-            });
-        }
-        return items;
-    }, [chartUuid, dashboardUuid, chart, dashboard?.name]);
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
         useCreateAgentThreadMutation(agentUuid, projectUuid!);

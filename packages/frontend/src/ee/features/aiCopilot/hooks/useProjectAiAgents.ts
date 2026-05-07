@@ -498,6 +498,9 @@ const createAgentThread = async (
 export const useCreateAgentThreadMutation = (
     agentUuid: string | undefined,
     projectUuid: string,
+    options?: {
+        onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
+    },
 ) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -591,12 +594,16 @@ export const useCreateAgentThreadMutation = (
                     }),
             });
 
-            void navigate(
-                `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
-                {
-                    viewTransition: true,
-                },
-            );
+            if (options?.onCreated) {
+                options.onCreated(thread);
+            } else {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
+                    {
+                        viewTransition: true,
+                    },
+                );
+            }
         },
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
