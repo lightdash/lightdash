@@ -846,7 +846,9 @@ const DetailSidebar: FC<{
                     <Button
                         size="xs"
                         variant="default"
-                        leftSection={<IconArrowBackUp size={14} />}
+                        leftSection={
+                            <MantineIcon icon={IconArrowBackUp} size={14} />
+                        }
                         loading={revertMutation.isLoading}
                         onClick={() => revertMutation.mutate()}
                     >
