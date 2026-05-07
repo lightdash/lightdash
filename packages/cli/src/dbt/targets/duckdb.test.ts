@@ -22,6 +22,23 @@ describe('convertDuckdbSchema', () => {
         });
     });
 
+    test('should parse MotherDuck duckdb targets with token in path query string', () => {
+        expect(
+            convertDuckdbSchema({
+                type: 'duckdb',
+                path: 'md:analytics?motherduck_token=motherduck_token',
+                schema: 'main',
+                threads: 4,
+            }),
+        ).toEqual({
+            type: WarehouseTypes.DUCKDB,
+            database: 'analytics',
+            schema: 'main',
+            token: 'motherduck_token',
+            threads: 4,
+        });
+    });
+
     test('should reject non-MotherDuck duckdb targets', () => {
         expect(() =>
             convertDuckdbSchema({
