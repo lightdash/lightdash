@@ -182,10 +182,10 @@ export class DashboardService
 
     async verifyDashboard(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<ContentVerificationInfo> {
         const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { organizationUuid, projectUuid } = dashboard;
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -205,14 +205,14 @@ export class DashboardService
 
         await this.contentVerificationModel.verify(
             ContentType.DASHBOARD,
-            dashboardUuid,
+            dashboard.uuid,
             projectUuid,
             user.userUuid,
         );
 
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DASHBOARD,
-            dashboardUuid,
+            dashboard.uuid,
         );
 
         if (!verification) {
@@ -226,7 +226,7 @@ export class DashboardService
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.DASHBOARD,
-                contentId: dashboardUuid,
+                contentId: dashboard.uuid,
             },
         });
 
@@ -235,10 +235,10 @@ export class DashboardService
 
     async unverifyDashboard(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<void> {
         const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { organizationUuid, projectUuid } = dashboard;
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -260,7 +260,7 @@ export class DashboardService
 
         await this.contentVerificationModel.unverify(
             ContentType.DASHBOARD,
-            dashboardUuid,
+            dashboard.uuid,
         );
 
         this.analytics.track({
@@ -270,7 +270,7 @@ export class DashboardService
                 organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.DASHBOARD,
-                contentId: dashboardUuid,
+                contentId: dashboard.uuid,
             },
         });
     }
@@ -1018,10 +1018,10 @@ export class DashboardService
 
     async togglePinning(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1069,12 +1069,12 @@ export class DashboardService
         if (pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
                 pinnedListUuid,
-                dashboardUuid,
+                dashboardUuid: existingDashboard.uuid,
             });
         } else {
             await this.pinnedListModel.addItem({
                 projectUuid,
-                dashboardUuid,
+                dashboardUuid: existingDashboard.uuid,
             });
         }
 
@@ -1099,7 +1099,7 @@ export class DashboardService
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
             isPinned: !!pinnedList.items.find(
-                (item) => item.dashboardUuid === dashboardUuid,
+                (item) => item.dashboardUuid === existingDashboard.uuid,
             ),
         };
     }
@@ -1297,18 +1297,18 @@ export class DashboardService
 
     async softDelete(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'Dashboard',
-                metadata: { dashboardUuid },
+                metadata: { dashboardUuid: dashboard.uuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
-            const dashboard =
-                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
@@ -1323,7 +1323,7 @@ export class DashboardService
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        metadata: { dashboardUuid },
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )
             ) {
@@ -1334,13 +1334,13 @@ export class DashboardService
         }
 
         const deletedDashboard = await this.dashboardModel.softDelete(
-            dashboardUuid,
+            dashboard.uuid,
             user.userUuid,
         );
 
         await this.schedulerService.softDeleteByDashboardUuid(
             user,
-            dashboardUuid,
+            dashboard.uuid,
             {
                 projectUuid: deletedDashboard.projectUuid,
                 organizationUuid: deletedDashboard.organizationUuid,
@@ -1351,18 +1351,18 @@ export class DashboardService
 
     async restore(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardUuidOrSlug,
             { deleted: true },
         );
 
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                metadata: { dashboardUuid },
+                metadata: { dashboardUuid: dashboard.uuid },
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
             });
@@ -1374,7 +1374,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        metadata: { dashboardUuid },
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )
             ) {
@@ -1382,11 +1382,11 @@ export class DashboardService
             }
         }
 
-        await this.dashboardModel.restore(dashboardUuid);
+        await this.dashboardModel.restore(dashboard.uuid);
 
         await this.schedulerService.restoreByDashboardUuid(
             user,
-            dashboardUuid,
+            dashboard.uuid,
             {
                 projectUuid: dashboard.projectUuid,
                 organizationUuid: dashboard.organizationUuid,
@@ -1398,7 +1398,7 @@ export class DashboardService
             event: 'dashboard.restored',
             userId: user.userUuid,
             properties: {
-                dashboardId: dashboardUuid,
+                dashboardId: dashboard.uuid,
                 projectId: dashboard.projectUuid,
             },
         });
@@ -1406,20 +1406,20 @@ export class DashboardService
 
     async permanentDelete(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { deleted: true },
+        );
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                metadata: { dashboardUuid },
+                metadata: { dashboardUuid: dashboard.uuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
-            const dashboard = await this.dashboardModel.getByIdOrSlug(
-                dashboardUuid,
-                { deleted: true },
-            );
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -1427,7 +1427,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        metadata: { dashboardUuid },
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )
             ) {
@@ -1435,7 +1435,7 @@ export class DashboardService
             }
         }
 
-        await this.dashboardModel.permanentDelete(dashboardUuid);
+        await this.dashboardModel.permanentDelete(dashboard.uuid);
     }
 
     async getSchedulers(
@@ -1659,10 +1659,10 @@ export class DashboardService
 
     async getHistory(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<DashboardHistory> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1689,7 +1689,9 @@ export class DashboardService
         }
 
         const versions =
-            await this.dashboardModel.getLatestVersionSummaries(dashboardUuid);
+            await this.dashboardModel.getLatestVersionSummaries(
+                dashboardDao.uuid,
+            );
 
         this.analytics.track({
             event: 'dashboard_history.view',
@@ -1706,11 +1708,11 @@ export class DashboardService
 
     async getVersion(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         versionUuid: string,
     ): Promise<DashboardVersion> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1738,10 +1740,13 @@ export class DashboardService
 
         const [versionSummary, dashboard] = await Promise.all([
             this.dashboardModel.getVersionSummaryByUuid(
-                dashboardUuid,
+                dashboardDao.uuid,
                 versionUuid,
             ),
-            this.dashboardModel.getVersionByUuid(dashboardUuid, versionUuid),
+            this.dashboardModel.getVersionByUuid(
+                dashboardDao.uuid,
+                versionUuid,
+            ),
         ]);
 
         if (!dashboard) {
@@ -1843,16 +1848,16 @@ export class DashboardService
 
     async rollback(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         versionUuid: string,
     ): Promise<void> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
         // Check if trying to rollback to current version
         if (dashboardDao.versionUuid === versionUuid) {
             this.logger.info(
-                `Ignoring rollback request - version ${versionUuid} is already the current version for dashboard ${dashboardUuid}`,
+                `Ignoring rollback request - version ${versionUuid} is already the current version for dashboard ${dashboardDao.uuid}`,
             );
             return;
         }
@@ -1883,7 +1888,7 @@ export class DashboardService
         }
 
         const targetVersion = await this.dashboardModel.getVersionByUuid(
-            dashboardUuid,
+            dashboardDao.uuid,
             versionUuid,
         );
 
@@ -1895,7 +1900,7 @@ export class DashboardService
         await this.savedChartModel.transaction(async (tx) => {
             // Rollback dashboard version
             await this.dashboardModel.addVersion(
-                dashboardUuid,
+                dashboardDao.uuid,
                 {
                     tiles: targetVersion.tiles,
                     filters: targetVersion.filters,
