@@ -148,6 +148,7 @@ const BigQueryForm: FC<{
     const executionProjectField = form.getInputProps(
         'warehouse.executionProject',
     );
+    const accessUrlField = form.getInputProps('warehouse.accessUrl');
     if (form.values.warehouse?.type !== WarehouseTypes.BIGQUERY) {
         throw new Error('Bigquery form is not used for this warehouse type');
     }
@@ -518,6 +519,21 @@ const BigQueryForm: FC<{
                             onChange={onChangeFactory(
                                 executionProjectField.onChange,
                             )}
+                            disabled={disabled}
+                        />
+                        <TextInput
+                            name="warehouse.accessUrl"
+                            label="BigQuery URL override"
+                            placeholder="e.g. https://bigquery.googleapis.com"
+                            description={
+                                <p>
+                                    Override the default BigQuery API endpoint.
+                                    This is useful for Private Service Connect,
+                                    custom proxies, or local emulators.
+                                </p>
+                            }
+                            {...accessUrlField}
+                            onChange={onChangeFactory(accessUrlField.onChange)}
                             disabled={disabled}
                         />
 

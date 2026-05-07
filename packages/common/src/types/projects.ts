@@ -60,6 +60,7 @@ export type CreateBigqueryCredentials = {
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
     executionProject?: string;
+    accessUrl?: string;
 };
 export const sensitiveCredentialsFieldNames = [
     'user',
