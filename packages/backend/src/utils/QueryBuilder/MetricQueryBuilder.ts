@@ -315,16 +315,16 @@ export class MetricQueryBuilder {
     /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise. */
     private get timezoneForDateTrunc(): string | undefined {
         if (!this.args.useTimezoneAwareDateTrunc) return undefined;
-        if (this.shouldSkipTimezoneConversion()) return undefined;
+        if (this.isDataInQueryTimezone()) return undefined;
         return this.args.timezone;
     }
 
     /**
-     * Skip timezone conversion when the effective input TZ matches the query TZ.
-     * Snowflake's effective input is always UTC (convertTimezone normalizes at
-     * compile time); all others use dataTimezone (defaulting to UTC).
+     * True when the warehouse's effective input TZ already equals the query TZ,
+     * so the project-TZ wrap would be a no-op. Snowflake's input is always UTC
+     * (convertTimezone normalizes at compile time); others use dataTimezone.
      */
-    private shouldSkipTimezoneConversion(): boolean {
+    private isDataInQueryTimezone(): boolean {
         const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
 
         const effectiveInputTz =

@@ -803,6 +803,9 @@ export const convertTable = (
                                 isIntervalBase: false,
                                 isAdditionalDimension:
                                     dim.isAdditionalDimension,
+                                ...(dim.skipTimezoneConversion
+                                    ? { skipTimezoneConversion: true }
+                                    : {}),
                             } satisfies Dimension,
                         };
                     }, {});

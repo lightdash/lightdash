@@ -1757,6 +1757,43 @@ describe('convert_timezone dimension override', () => {
         ).toBe(true);
     });
 
+    it('propagates skipTimezoneConversion onto custom-granularity children', () => {
+        const modelWithCustom: DbtModelNode & { relation_name: string } = {
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    description: 'when the row was created',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            convert_timezone: false,
+                            time_intervals: ['my_quarter'],
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            modelWithCustom,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            {
+                my_quarter: {
+                    label: 'My Quarter',
+                    sql: "DATE_TRUNC(${COLUMN}, 'QUARTER')",
+                },
+            },
+        );
+        expect(
+            result.dimensions.created_at_my_quarter.skipTimezoneConversion,
+        ).toBe(true);
+    });
+
     it('omits skipTimezoneConversion when convert_timezone is unset or true (default behavior)', () => {
         const undef = convertTable(
             SupportedDbtAdapter.BIGQUERY,
