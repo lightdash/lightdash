@@ -1398,11 +1398,57 @@ export type ManagedAgentActionReversedEvent = BaseTrack & {
     };
 };
 
+export type ManagedAgentRunStartedEvent = BaseTrack & {
+    event: 'managed_agent.run_started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        schedule: string;
+        hasSlackChannel: boolean;
+    };
+};
+
+export type ManagedAgentRunCompletedEvent = BaseTrack & {
+    event: 'managed_agent.run_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        status: 'completed' | 'error';
+        durationMs: number;
+        actionCount: number;
+        actionCountsByType: Record<string, number>;
+        slackPosted: boolean;
+        error: string | null;
+    };
+};
+
+export type ManagedAgentActionCreatedEvent = BaseTrack & {
+    event: 'managed_agent.action_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string | null;
+        sessionId: string;
+        actionType: string;
+        targetType: string;
+    };
+};
+
 export type ManagedAgentEvent =
     | ManagedAgentSettingsCreatedEvent
     | ManagedAgentSettingsUpdatedEvent
     | ManagedAgentRunNowTriggeredEvent
-    | ManagedAgentActionReversedEvent;
+    | ManagedAgentActionReversedEvent
+    | ManagedAgentRunStartedEvent
+    | ManagedAgentRunCompletedEvent
+    | ManagedAgentActionCreatedEvent;
 
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,

@@ -570,6 +570,28 @@ export class ManagedAgentModel {
         return result ? Number(result.count) : 0;
     }
 
+    async getActionCountsByTypeForRun(
+        runUuid: string,
+    ): Promise<Record<string, number>> {
+        const rows = await this.database(ManagedAgentActionsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .groupBy('action_type')
+            .select<{ action_type: string; count: string }[]>(
+                'action_type',
+                this.database.raw('COUNT(*) AS count'),
+            );
+        return Object.fromEntries(
+            rows.map(({ action_type, count }) => [action_type, Number(count)]),
+        );
+    }
+
+    async getRun(runUuid: string): Promise<ManagedAgentRun | null> {
+        const row = await this.database(ManagedAgentRunsTableName)
+            .where({ managed_agent_run_uuid: runUuid })
+            .first();
+        return row ? ManagedAgentModel.mapDbRun(row) : null;
+    }
+
     async getLatestRun(projectUuid: string): Promise<ManagedAgentRun | null> {
         const row = await this.database(ManagedAgentRunsTableName)
             .where({ project_uuid: projectUuid })

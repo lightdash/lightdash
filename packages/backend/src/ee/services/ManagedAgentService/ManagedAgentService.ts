@@ -50,6 +50,16 @@ import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
 type RunsCursor = { startedAt: Date; runUuid: string };
 
+type HeartbeatContext = {
+    runUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    settings: ManagedAgentSettings | null;
+    triggeredBy: ManagedAgentRunTriggeredBy;
+    startedAtMs: number;
+    analyticsUserId: string | null;
+};
+
 const encodeRunsCursor = (cursor: RunsCursor | null): string | null => {
     if (!cursor) return null;
     return Buffer.from(
@@ -1153,20 +1163,23 @@ export class ManagedAgentService extends BaseService {
     // --- Heartbeat ---
 
     async runHeartbeat(projectUuid: string, runUuid: string): Promise<void> {
-        const settings = await this.managedAgentModel.getSettings(projectUuid);
-        if (!settings?.enabled) {
-            await this.failRunSafely(runUuid, 'Autopilot disabled');
+        const ctx = await this.loadHeartbeatContext(projectUuid, runUuid);
+        if (!ctx) return;
+
+        this.trackRunStarted(ctx);
+
+        if (!ctx.settings?.enabled) {
+            await this.failRunSafely(ctx, 'Autopilot disabled');
             return;
         }
 
-        // Get the auto-created PAT for MCP auth
         const serviceAccountToken =
             await this.managedAgentModel.getServiceAccountToken(projectUuid);
         if (!serviceAccountToken) {
             this.logger.warn(
                 `No service account token for project ${projectUuid}, skipping heartbeat`,
             );
-            await this.failRunSafely(runUuid, 'No service account token');
+            await this.failRunSafely(ctx, 'No service account token');
             return;
         }
 
@@ -1221,9 +1234,13 @@ export class ManagedAgentService extends BaseService {
             );
             runError = error instanceof Error ? error.message : 'Unknown';
         } finally {
-            const actionCount = await this.managedAgentModel
-                .countActionsForRun(runUuid)
-                .catch(() => 0);
+            const actionCountsByType = await this.managedAgentModel
+                .getActionCountsByTypeForRun(runUuid)
+                .catch(() => ({}) as Record<string, number>);
+            const actionCount = Object.values(actionCountsByType).reduce(
+                (sum, n) => sum + n,
+                0,
+            );
             await this.managedAgentModel
                 .finishRun(runUuid, {
                     status: runError
@@ -1243,23 +1260,159 @@ export class ManagedAgentService extends BaseService {
 
             // Post summary to Slack even if the session errored — actions
             // recorded via custom tools before the crash are still valuable.
-            this.logger.info(
-                `Slack notification check: slackChannelId=${settings.slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
+            const slackPosted = await this.maybePostHeartbeatSlackSummary(
+                ctx,
+                sessionId,
+                agentSummary,
             );
-            if (settings.slackChannelId && sessionId) {
-                await this.postHeartbeatSummaryToSlack(
-                    projectUuid,
-                    sessionId,
-                    settings.slackChannelId,
-                    agentSummary,
-                );
-            }
+
+            this.trackRunCompleted(ctx, {
+                status: runError ? 'error' : 'completed',
+                actionCount,
+                actionCountsByType,
+                slackPosted,
+                error: runError,
+            });
         }
     }
 
-    private async failRunSafely(runUuid: string, error: string): Promise<void> {
+    private async loadHeartbeatContext(
+        projectUuid: string,
+        runUuid: string,
+    ): Promise<HeartbeatContext | null> {
+        const run = await this.managedAgentModel.getRun(runUuid);
+        if (!run) {
+            this.logger.error(`Run ${runUuid} not found, aborting heartbeat`);
+            return null;
+        }
+        const settings = await this.managedAgentModel.getSettings(projectUuid);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        return {
+            runUuid,
+            projectUuid,
+            organizationUuid,
+            settings,
+            triggeredBy: run.triggeredBy,
+            startedAtMs: run.startedAt.getTime(),
+            analyticsUserId: settings?.enabledByUserUuid ?? null,
+        };
+    }
+
+    private trackRunStarted(ctx: HeartbeatContext): void {
+        if (!ctx.analyticsUserId) {
+            this.logger.warn(
+                `Skipping run_started analytics — no enabledByUserUuid for run ${ctx.runUuid}`,
+            );
+            return;
+        }
+        this.analytics.track({
+            event: 'managed_agent.run_started',
+            userId: ctx.analyticsUserId,
+            properties: {
+                organizationId: ctx.organizationUuid,
+                projectId: ctx.projectUuid,
+                runUuid: ctx.runUuid,
+                triggeredBy: ctx.triggeredBy,
+                schedule: ctx.settings?.schedule ?? 'unknown',
+                hasSlackChannel: !!ctx.settings?.slackChannelId,
+            },
+        });
+    }
+
+    private trackActionCreated(
+        actor: SessionUser,
+        runUuid: string,
+        action: ManagedAgentAction,
+    ): void {
+        if (!actor.userUuid || !actor.organizationUuid) {
+            this.logger.warn(
+                `Skipping action_created analytics — actor missing userUuid or organizationUuid (action ${action.actionUuid})`,
+            );
+            return;
+        }
+        this.analytics.track({
+            event: 'managed_agent.action_created',
+            userId: actor.userUuid,
+            properties: {
+                organizationId: actor.organizationUuid,
+                projectId: action.projectUuid,
+                runUuid,
+                sessionId: action.sessionId,
+                actionType: action.actionType,
+                targetType: action.targetType,
+            },
+        });
+    }
+
+    private trackRunCompleted(
+        ctx: HeartbeatContext,
+        outcome: {
+            status: 'completed' | 'error';
+            actionCount: number;
+            actionCountsByType: Record<string, number>;
+            slackPosted: boolean;
+            error: string | null;
+        },
+    ): void {
+        if (!ctx.analyticsUserId) {
+            this.logger.warn(
+                `Skipping run_completed analytics — no enabledByUserUuid for run ${ctx.runUuid}`,
+            );
+            return;
+        }
+        this.analytics.track({
+            event: 'managed_agent.run_completed',
+            userId: ctx.analyticsUserId,
+            properties: {
+                organizationId: ctx.organizationUuid,
+                projectId: ctx.projectUuid,
+                runUuid: ctx.runUuid,
+                triggeredBy: ctx.triggeredBy,
+                status: outcome.status,
+                durationMs: Date.now() - ctx.startedAtMs,
+                actionCount: outcome.actionCount,
+                actionCountsByType: outcome.actionCountsByType,
+                slackPosted: outcome.slackPosted,
+                error: outcome.error ? outcome.error.slice(0, 500) : null,
+            },
+        });
+    }
+
+    private async maybePostHeartbeatSlackSummary(
+        ctx: HeartbeatContext,
+        sessionId: string,
+        agentSummary: string,
+    ): Promise<boolean> {
+        const slackChannelId = ctx.settings?.slackChannelId;
+        this.logger.info(
+            `Slack notification check: slackChannelId=${slackChannelId ?? 'null'}, sessionId=${sessionId || 'empty'}`,
+        );
+        if (!slackChannelId || !sessionId) return false;
+        try {
+            await this.postHeartbeatSummaryToSlack(
+                ctx.projectUuid,
+                sessionId,
+                slackChannelId,
+                agentSummary,
+            );
+            return true;
+        } catch (e) {
+            this.logger.error(
+                `Failed to post Slack heartbeat summary for ${ctx.projectUuid}: ${
+                    e instanceof Error ? e.message : 'Unknown'
+                }`,
+            );
+            return false;
+        }
+    }
+
+    private async failRunSafely(
+        ctx: HeartbeatContext,
+        error: string,
+    ): Promise<void> {
         await this.managedAgentModel
-            .finishRun(runUuid, {
+            .finishRun(ctx.runUuid, {
                 status: ManagedAgentRunStatus.ERROR,
                 actionCount: 0,
                 summary: null,
@@ -1267,11 +1420,18 @@ export class ManagedAgentService extends BaseService {
             })
             .catch((e) =>
                 this.logger.error(
-                    `Failed to fail run ${runUuid}: ${
+                    `Failed to fail run ${ctx.runUuid}: ${
                         e instanceof Error ? e.message : 'Unknown'
                     }`,
                 ),
             );
+        this.trackRunCompleted(ctx, {
+            status: 'error',
+            actionCount: 0,
+            actionCountsByType: {},
+            slackPosted: false,
+            error,
+        });
     }
 
     async startHeartbeat(
@@ -1943,6 +2103,7 @@ chartConfig:
             description,
             metadata: { previousVersionUuid },
         });
+        this.trackActionCreated(actor, runUuid, action);
 
         return JSON.stringify({
             action_uuid: action.actionUuid,
@@ -2138,6 +2299,7 @@ chartConfig:
             description,
             metadata: { chart_as_code: chartAsCode },
         });
+        this.trackActionCreated(actor, runUuid, action);
 
         return JSON.stringify({
             action_uuid: action.actionUuid,
@@ -2222,6 +2384,7 @@ chartConfig:
             description,
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
+        this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
@@ -2319,6 +2482,7 @@ chartConfig:
             description,
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
+        this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({
             action_uuid: action.actionUuid,
             recoverable: true,
@@ -2370,6 +2534,7 @@ chartConfig:
             description,
             metadata: (input.metadata as Record<string, unknown>) ?? {},
         });
+        this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
     }
 
