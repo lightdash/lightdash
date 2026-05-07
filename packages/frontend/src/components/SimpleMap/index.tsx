@@ -1034,6 +1034,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                     colorScale={mapConfig.colors.scale}
                                     opacity={mapConfig.hexbinConfig.opacity}
                                     valueFieldLabel={mapConfig.valueFieldLabel}
+                                    sizingMode={
+                                        mapConfig.hexbinConfig.sizingMode
+                                    }
+                                    fixedResolution={
+                                        mapConfig.hexbinConfig.fixedResolution
+                                    }
                                     onTruncated={setHexbinTruncated}
                                 />
                             </Suspense>

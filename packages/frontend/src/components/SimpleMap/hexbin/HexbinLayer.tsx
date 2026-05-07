@@ -1,3 +1,4 @@
+import { MapHexbinSizingMode } from '@lightdash/common';
 import { scaleLinear } from 'd3-scale';
 import { useEffect, useMemo, useState } from 'react';
 import { Polygon, Tooltip, useMap, useMapEvents } from 'react-leaflet';
@@ -10,6 +11,9 @@ type Props = {
     colorScale: string[];
     opacity: number;
     valueFieldLabel: string | null;
+    sizingMode: MapHexbinSizingMode;
+    /** Used when sizingMode === FIXED. */
+    fixedResolution: number;
     onTruncated?: (info: { totalPoints: number } | null) => void;
 };
 
@@ -18,6 +22,8 @@ const HexbinLayer = ({
     colorScale,
     opacity,
     valueFieldLabel,
+    sizingMode,
+    fixedResolution,
     onTruncated,
 }: Props) => {
     const map = useMap();
@@ -28,9 +34,12 @@ const HexbinLayer = ({
     });
 
     const result = useMemo(() => {
-        const resolution = zoomToResolution(zoom);
+        const resolution =
+            sizingMode === MapHexbinSizingMode.FIXED
+                ? fixedResolution
+                : zoomToResolution(zoom);
         return computeHexbinsWithMeta(points, resolution);
-    }, [points, zoom]);
+    }, [points, zoom, sizingMode, fixedResolution]);
 
     useEffect(() => {
         if (result.truncated) {

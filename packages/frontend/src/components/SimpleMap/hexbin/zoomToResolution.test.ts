@@ -7,15 +7,15 @@ describe('zoomToResolution', () => {
     });
 
     it('increases resolution as zoom increases', () => {
-        expect(zoomToResolution(3)).toBe(2);
-        expect(zoomToResolution(5)).toBe(4);
-        expect(zoomToResolution(10)).toBe(7);
-        expect(zoomToResolution(12)).toBe(9);
+        expect(zoomToResolution(3)).toBe(1);
+        expect(zoomToResolution(5)).toBe(3);
+        expect(zoomToResolution(10)).toBe(6);
+        expect(zoomToResolution(12)).toBe(8);
     });
 
-    it('caps at res 12 for very high zoom', () => {
-        expect(zoomToResolution(15)).toBe(12);
-        expect(zoomToResolution(20)).toBe(12);
+    it('caps at res 11 for very high zoom', () => {
+        expect(zoomToResolution(15)).toBe(11);
+        expect(zoomToResolution(20)).toBe(11);
     });
 
     it('handles fractional zoom by flooring', () => {

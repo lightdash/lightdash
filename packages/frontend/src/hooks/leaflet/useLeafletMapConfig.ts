@@ -3,6 +3,7 @@ import {
     isNumericItem,
     MapChartLocation,
     MapChartType,
+    MapHexbinSizingMode,
     MapTileBackground,
     type MapFieldConfig,
 } from '@lightdash/common';
@@ -78,6 +79,9 @@ export type LeafletMapConfig = {
     };
     hexbinConfig: {
         opacity: number;
+        sizingMode: MapHexbinSizingMode;
+        /** Resolution to use when sizingMode === FIXED. */
+        fixedResolution: number;
     };
     tile: TileConfig;
     tileBackground: MapTileBackground;
@@ -592,6 +596,9 @@ const useLeafletMapConfig = ({
             },
             hexbinConfig: {
                 opacity: hexbinConfig?.opacity ?? 0.7,
+                sizingMode:
+                    hexbinConfig?.sizingMode ?? MapHexbinSizingMode.DYNAMIC,
+                fixedResolution: hexbinConfig?.fixedResolution ?? 4,
             },
             tile: getTileConfig(
                 colorScheme === 'dark'

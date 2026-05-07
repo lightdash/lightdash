@@ -50,7 +50,9 @@ type MapChartConfig = {
             | { radius?: number; blur?: number; opacity?: number }
             | undefined,
     ) => void;
-    setHexbinConfig: (config: { opacity?: number } | undefined) => void;
+    setHexbinConfig: (
+        config: NonNullable<MapChart['hexbinConfig']> | undefined,
+    ) => void;
     setTileBackground: (background: MapTileBackground | undefined) => void;
     setDarkModeTileBackground: (
         background: MapTileBackground | undefined,
@@ -409,14 +411,11 @@ const useMapChartConfig = (
     );
 
     const setHexbinConfig = useCallback(
-        (config: { opacity?: number } | undefined) => {
+        (config: NonNullable<MapChart['hexbinConfig']> | undefined) => {
             if (config === undefined) {
                 setHexbinConfigState(undefined);
             } else {
-                setHexbinConfigState((prev) => ({
-                    opacity: prev?.opacity ?? 0.7,
-                    ...config,
-                }));
+                setHexbinConfigState((prev) => ({ ...prev, ...config }));
             }
         },
         [],

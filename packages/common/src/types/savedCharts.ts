@@ -228,6 +228,13 @@ export enum MapChartType {
     HEXBIN = 'hexbin',
 }
 
+export enum MapHexbinSizingMode {
+    /** Resolution is derived from current map zoom level. */
+    DYNAMIC = 'dynamic',
+    /** Resolution is fixed by the user, independent of zoom. */
+    FIXED = 'fixed',
+}
+
 export enum MapTileBackground {
     NONE = 'none',
     OPENSTREETMAP = 'openstreetmap',
@@ -292,6 +299,10 @@ export type MapChart = {
     hexbinConfig?: {
         /** Opacity of hex polygons (0.1 to 1) */
         opacity?: number;
+        /** How bin size is determined. Defaults to DYNAMIC if unset. */
+        sizingMode?: MapHexbinSizingMode;
+        /** H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise. */
+        fixedResolution?: number;
     };
     /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;

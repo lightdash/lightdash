@@ -7,6 +7,7 @@ import {
     isNumericItem,
     isTableCalculation,
     MapChartType,
+    MapHexbinSizingMode,
     MapTileBackground,
 } from '@lightdash/common';
 import {
@@ -16,6 +17,7 @@ import {
     RangeSlider,
     ScrollArea,
     Select,
+    SegmentedControl,
     Slider,
     Stack,
     Switch,
@@ -30,8 +32,67 @@ import FieldSelect from '../../common/FieldSelect';
 import GradientBar from '../../common/GradientBar';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import {
+    DEFAULT_FIXED_RESOLUTION,
+    HEXBIN_SIZE_PRESETS,
+} from '../../SimpleMap/hexbin/zoomToResolution';
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
+
+const findPresetIdxByResolution = (resolution: number): number => {
+    const idx = HEXBIN_SIZE_PRESETS.findIndex(
+        (p) => p.resolution === resolution,
+    );
+    if (idx >= 0) return idx;
+    const fallback = HEXBIN_SIZE_PRESETS.findIndex(
+        (p) => p.resolution === DEFAULT_FIXED_RESOLUTION,
+    );
+    return fallback >= 0 ? fallback : 0;
+};
+
+type HexbinSizeSliderProps = {
+    storedResolution: number;
+    onCommit: (resolution: number) => void;
+};
+
+// Hex binning is expensive enough that updating on every drag tick feels
+// laggy. We keep the slider's value in local state during drag (cheap, only
+// re-renders the slider/label) and commit to the chart config on release via
+// onChangeEnd, which kicks off the actual rebin + re-render.
+//
+// External changes to `storedResolution` (e.g. switching sizing mode, loading
+// a saved chart) are picked up by the parent passing a fresh `key` based on
+// the stored value, which remounts this component with the new initial state.
+// That avoids the useEffect-syncs-state anti-pattern.
+const HexbinSizeSlider: FC<HexbinSizeSliderProps> = ({
+    storedResolution,
+    onCommit,
+}) => {
+    const [draftIdx, setDraftIdx] = useState<number>(() =>
+        findPresetIdxByResolution(storedResolution),
+    );
+
+    return (
+        <>
+            <Text size="xs" mt="sm">
+                Bin scale: {HEXBIN_SIZE_PRESETS[draftIdx]?.label}
+            </Text>
+            <Slider
+                min={0}
+                max={HEXBIN_SIZE_PRESETS.length - 1}
+                step={1}
+                value={draftIdx}
+                onChange={setDraftIdx}
+                onChangeEnd={(idx) =>
+                    onCommit(HEXBIN_SIZE_PRESETS[idx].resolution)
+                }
+                label={(idx) => HEXBIN_SIZE_PRESETS[idx]?.label}
+                marks={HEXBIN_SIZE_PRESETS.map((_, i) => ({ value: i }))}
+                mb="md"
+            />
+        </>
+    );
+};
 
 type ColorItemProps = {
     color: string;
@@ -543,6 +604,56 @@ export const Display: FC = memo(() => {
                     <Config.Section>
                         <Config.Heading>Hexbin</Config.Heading>
                         <Text size="xs" mt="sm">
+                            Bin size
+                        </Text>
+                        <SegmentedControl
+                            data={[
+                                {
+                                    value: MapHexbinSizingMode.FIXED,
+                                    label: 'Fixed',
+                                },
+                                {
+                                    value: MapHexbinSizingMode.DYNAMIC,
+                                    label: 'Dynamic',
+                                },
+                            ]}
+                            value={
+                                validConfig.hexbinConfig?.sizingMode ??
+                                MapHexbinSizingMode.DYNAMIC
+                            }
+                            onChange={(value) =>
+                                setHexbinConfig({
+                                    sizingMode: value as MapHexbinSizingMode,
+                                })
+                            }
+                            fullWidth
+                            mb="xs"
+                        />
+                        {(validConfig.hexbinConfig?.sizingMode ??
+                            MapHexbinSizingMode.DYNAMIC) ===
+                            MapHexbinSizingMode.FIXED && (
+                            <HexbinSizeSlider
+                                // Remount when the stored resolution changes
+                                // outside of a drag — e.g. switching sizing
+                                // mode or loading a saved chart — so the
+                                // slider's local draft state resets without
+                                // needing a useEffect-syncs-state pattern.
+                                key={
+                                    validConfig.hexbinConfig?.fixedResolution ??
+                                    DEFAULT_FIXED_RESOLUTION
+                                }
+                                storedResolution={
+                                    validConfig.hexbinConfig?.fixedResolution ??
+                                    DEFAULT_FIXED_RESOLUTION
+                                }
+                                onCommit={(resolution) =>
+                                    setHexbinConfig({
+                                        fixedResolution: resolution,
+                                    })
+                                }
+                            />
+                        )}
+                        <Text size="xs" mt="sm">
                             Opacity
                         </Text>
                         <Slider
@@ -561,9 +672,8 @@ export const Display: FC = memo(() => {
                             mb="md"
                         />
                         <Text size="xs" c="dimmed" mt="xs">
-                            Hex size adjusts automatically with map zoom. Bins
-                            are computed from up to 50,000 points; additional
-                            points are ignored.
+                            Bins are computed from up to 50,000 points;
+                            additional points are ignored.
                         </Text>
                     </Config.Section>
                 </Config>
