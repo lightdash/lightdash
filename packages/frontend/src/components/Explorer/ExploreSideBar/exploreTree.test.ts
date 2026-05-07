@@ -17,7 +17,7 @@ const explore = (
         schemaName: 'schema',
         groups: options.groups,
         groupLabel: options.groupLabel,
-    } as unknown as SummaryExplore);
+    }) as unknown as SummaryExplore;
 
 describe('buildExploreTree', () => {
     it('groups explores by their nested `groups` array', () => {

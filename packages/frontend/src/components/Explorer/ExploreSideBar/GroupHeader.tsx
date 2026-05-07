@@ -1,4 +1,4 @@
-import { Group, NavLink, Text } from '@mantine-8/core';
+import { Box, Group, NavLink, Text } from '@mantine-8/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -19,7 +19,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
     depth = 0,
 }) => {
     return (
-        <div style={{ paddingLeft: `${depth * INDENT_PER_DEPTH}px` }}>
+        <Box style={{ paddingLeft: `${depth * INDENT_PER_DEPTH}px` }}>
             <NavLink
                 opened={isExpanded}
                 onClick={onToggle}
@@ -29,9 +29,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
                 rightSection={<></>}
                 leftSection={
                     <MantineIcon
-                        icon={
-                            isExpanded ? IconChevronDown : IconChevronRight
-                        }
+                        icon={isExpanded ? IconChevronDown : IconChevronRight}
                         size={14}
                         style={{
                             margin: 1,
@@ -47,7 +45,7 @@ const GroupHeader: FC<GroupHeaderProps> = ({
                     </Group>
                 }
             />
-        </div>
+        </Box>
     );
 };
 

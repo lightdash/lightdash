@@ -1,7 +1,4 @@
-import {
-    type ApiError,
-    type ApiTableGroupsResults,
-} from '@lightdash/common';
+import { type ApiError, type ApiTableGroupsResults } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
 

@@ -80,7 +80,12 @@ const BasePanel = () => {
         sortedPreAggregateExplores,
     ] = useMemo(() => {
         if (!filteredExplores) {
-            return [[], [] as SummaryExplore[], [] as SummaryExplore[], [] as SummaryExplore[]];
+            return [
+                [],
+                [] as SummaryExplore[],
+                [] as SummaryExplore[],
+                [] as SummaryExplore[],
+            ];
         }
         const groupedExplores: SummaryExplore[] = [];
         const defaultExplores: SummaryExplore[] = [];

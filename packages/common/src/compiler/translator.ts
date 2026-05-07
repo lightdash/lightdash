@@ -1254,8 +1254,7 @@ export const convertExplores = async (
                               (meta.groups && meta.groups.length > 0)
                                   ? {
                                         groups:
-                                            exploreConfig.groups ||
-                                            meta.groups,
+                                            exploreConfig.groups || meta.groups,
                                     }
                                   : {}),
                               // Inherit joins from base model if not specified in explore config

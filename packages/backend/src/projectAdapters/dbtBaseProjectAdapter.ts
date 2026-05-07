@@ -371,8 +371,7 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     if (model.resource_type === 'seed') {
                         return [validModels, invalidModels];
                     }
-                    const metaGroups: string[] | undefined =
-                        model.meta.groups;
+                    const metaGroups: string[] | undefined = model.meta.groups;
                     const exploreError: ExploreError = {
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),

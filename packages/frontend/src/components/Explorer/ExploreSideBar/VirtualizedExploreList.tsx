@@ -1,20 +1,12 @@
 import { type SummaryExplore } from '@lightdash/common';
-import { Divider } from '@mantine-8/core';
+import { Box, Divider } from '@mantine-8/core';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-    memo,
-    useCallback,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-    type FC,
-} from 'react';
+import { memo, useCallback, useMemo, useRef, useState, type FC } from 'react';
+import ExploreNavLink from './ExploreNavLink';
 import {
     collectMatchingGroupPathsFromArray,
     type ExploreNode,
 } from './exploreTree';
-import ExploreNavLink from './ExploreNavLink';
 import GroupHeader from './GroupHeader';
 import SectionHeader from './SectionHeader';
 
@@ -112,36 +104,28 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         });
     }, []);
 
-    // Auto-expand group paths whose subtree contains a search match.
-    // groupedExploreTree was already filtered by the search in the parent,
-    // so every explore in the tree counts as a match.
-    const searchMatchPaths = useMemo<Set<string>>(() => {
-        if (!searchQuery) return new Set();
-        const matching = new Set<string>();
-        collectExploreNamesInTree(groupedExploreTree, matching);
-        return collectMatchingGroupPathsFromArray(
-            groupedExploreTree,
-            matching,
-        );
-    }, [groupedExploreTree, searchQuery]);
-
-    useEffect(() => {
-        if (searchMatchPaths.size === 0) return;
-        setExpandedGroupPaths((prev) => {
-            const next = new Set(prev);
-            searchMatchPaths.forEach((path) => next.add(path));
-            return next;
-        });
-    }, [searchMatchPaths]);
-
     const virtualItems = useMemo<VirtualListItem[]>(() => {
+        // Auto-expand any group whose subtree contains a search match.
+        // Derived inline (rather than via setState in an effect) so the
+        // expansion is purely visual and resets when search clears.
+        const searchExpansion = searchQuery
+            ? collectMatchingGroupPathsFromArray(
+                  groupedExploreTree,
+                  collectExploreNamesInTree(groupedExploreTree, new Set()),
+              )
+            : null;
+
+        const isPathExpanded = (path: string): boolean =>
+            expandedGroupPaths.has(path) ||
+            (searchExpansion?.has(path) ?? false);
+
         const items: VirtualListItem[] = [];
         let itemId = 0;
 
         const visit = (nodes: ExploreNode[], depth: number): void => {
             for (const node of nodes) {
                 if (node.type === 'group') {
-                    const isExpanded = expandedGroupPaths.has(node.path);
+                    const isExpanded = isPathExpanded(node.path);
                     items.push({
                         type: 'group-header',
                         id: `group-${itemId++}`,
@@ -227,6 +211,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
         preAggregateExplores,
         expandedGroupPaths,
         expandedSections,
+        searchQuery,
     ]);
 
     const getItemHeight = useCallback(
@@ -271,7 +256,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     );
                 case 'explore':
                     return (
-                        <div
+                        <Box
                             key={item.id}
                             style={{
                                 paddingLeft: `${item.depth * INDENT_PER_DEPTH}px`,
@@ -282,7 +267,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                                 query={searchQuery}
                                 onClick={() => onExploreClick(item.explore)}
                             />
-                        </div>
+                        </Box>
                     );
                 case 'divider':
                     return (
@@ -310,14 +295,14 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
     );
 
     return (
-        <div
+        <Box
             ref={parentRef}
             style={{
                 height: '100%',
                 overflow: 'auto',
             }}
         >
-            <div
+            <Box
                 style={{
                     height: virtualizer.getTotalSize() + 16,
                     position: 'relative',
@@ -327,7 +312,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                     const item = virtualItems[virtualItem.index];
                     if (!item) return null;
                     return (
-                        <div
+                        <Box
                             key={virtualItem.key}
                             style={{
                                 position: 'absolute',
@@ -339,11 +324,11 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                             }}
                         >
                             {renderItem(item)}
-                        </div>
+                        </Box>
                     );
                 })}
-            </div>
-        </div>
+            </Box>
+        </Box>
     );
 };
 

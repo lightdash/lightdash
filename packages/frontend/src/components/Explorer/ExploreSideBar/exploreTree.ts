@@ -1,6 +1,6 @@
 import { type GroupType, type SummaryExplore } from '@lightdash/common';
 
-export const MAX_EXPLORE_GROUP_DEPTH = 3;
+const MAX_EXPLORE_GROUP_DEPTH = 3;
 
 export type ExploreLeafNode = {
     type: 'explore';
