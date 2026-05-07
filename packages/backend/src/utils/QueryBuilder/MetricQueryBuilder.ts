@@ -470,6 +470,7 @@ export class MetricQueryBuilder {
             adapterType,
             startOfWeek,
             timezone: this.timezoneForDateTrunc,
+            columnTimezone: this.columnTimezone,
         });
         const popDimensionBaseId = `${popDimension.table}_${
             popDimension.timeIntervalBaseDimensionName ?? popDimension.name
@@ -725,6 +726,7 @@ export class MetricQueryBuilder {
                         adapterType,
                         startOfWeek,
                         timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
                     });
 
                     assertValidDimensionRequiredAttribute(
@@ -1065,6 +1067,7 @@ export class MetricQueryBuilder {
                     adapterType,
                     startOfWeek,
                     timezone: this.timezoneForDateTrunc,
+                    columnTimezone: this.columnTimezone,
                 });
 
                 assertValidDimensionRequiredAttribute(
@@ -2234,6 +2237,7 @@ export class MetricQueryBuilder {
                             adapterType,
                             startOfWeek,
                             timezone: this.timezoneForDateTrunc,
+                            columnTimezone: this.columnTimezone,
                         });
                         const popDimensionFilters =
                             this.getPopDimensionsFilterSQL(popFieldId);
@@ -2449,6 +2453,7 @@ export class MetricQueryBuilder {
                         adapterType,
                         startOfWeek,
                         timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
                     });
                     const popDimensionFilters =
                         this.getPopDimensionsFilterSQL(popFieldId);
@@ -3996,6 +4001,7 @@ export class MetricQueryBuilder {
                     adapterType,
                     startOfWeek,
                     timezone: this.timezoneForDateTrunc,
+                    columnTimezone: this.columnTimezone,
                 });
                 const popDimensionFilters =
                     this.getPopDimensionsFilterSQL(popFieldId);

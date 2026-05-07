@@ -46,6 +46,7 @@ export const getDimensionFromId = ({
     adapterType,
     startOfWeek,
     timezone,
+    columnTimezone,
 }: {
     dimId: FieldId;
     dimensions: Record<string, CompiledDimension>;
@@ -53,6 +54,7 @@ export const getDimensionFromId = ({
     adapterType: SupportedDbtAdapter;
     startOfWeek: WeekDay | null | undefined;
     timezone?: string;
+    columnTimezone?: string;
 }): CompiledDimension => {
     const dimension = dimensions[dimId];
 
@@ -67,6 +69,7 @@ export const getDimensionFromId = ({
                 adapterType,
                 startOfWeek,
                 timezone,
+                columnTimezone,
             });
             if (baseField && newTimeFrame) {
                 const effectiveTimezone = baseField.skipTimezoneConversion
@@ -81,6 +84,7 @@ export const getDimensionFromId = ({
                         baseField.type,
                         startOfWeek,
                         effectiveTimezone,
+                        columnTimezone,
                     ),
                     timeInterval: newTimeFrame,
                 };
