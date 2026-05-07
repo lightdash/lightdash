@@ -34,7 +34,14 @@ export class AppModel {
     async createWithVersion(
         app: Pick<DbApp, 'project_uuid' | 'created_by_user_uuid'> &
             Partial<
-                Pick<DbApp, 'app_id' | 'name' | 'description' | 'template'>
+                Pick<
+                    DbApp,
+                    | 'app_id'
+                    | 'name'
+                    | 'description'
+                    | 'template'
+                    | 'space_uuid'
+                >
             >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,

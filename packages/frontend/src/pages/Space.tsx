@@ -132,6 +132,22 @@ const Space: FC = () => {
         subject('SavedChart', { ...space }),
     );
 
+    // Data apps have a project-level `create:DataApp` scope (no @space variant
+    // for create), so we combine it with `manage:DataApp` against the space —
+    // the latter is only granted to space EDITOR/ADMIN (or project admins),
+    // mirroring the implicit space-role check that dashboards/charts get for
+    // free via their space-scoped create scope.
+    const userCanCreateDataApps =
+        dataAppsEnabled &&
+        user.data?.ability?.can(
+            'create',
+            subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) &&
+        user.data?.ability?.can('manage', subject('DataApp', { ...space }));
+
     const userCanManageProject = user.data?.ability?.can(
         'manage',
         subject('Project', {
@@ -233,6 +249,7 @@ const Space: FC = () => {
                             {!isDemo &&
                                 (userCanCreateDashboards ||
                                     userCanCreateCharts ||
+                                    userCanCreateDataApps ||
                                     userCanManageSpace) && (
                                     <Menu
                                         position="bottom-end"
@@ -310,6 +327,23 @@ const Space: FC = () => {
                                                     }}
                                                 >
                                                     Create new chart
+                                                </Menu.Item>
+                                            ) : null}
+
+                                            {userCanCreateDataApps ? (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconPlus}
+                                                        />
+                                                    }
+                                                    onClick={() => {
+                                                        void navigate(
+                                                            `/projects/${projectUuid}/apps/generate?spaceUuid=${space.uuid}`,
+                                                        );
+                                                    }}
+                                                >
+                                                    Create new data app
                                                 </Menu.Item>
                                             ) : null}
                                         </Menu.Dropdown>

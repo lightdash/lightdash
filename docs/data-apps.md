@@ -34,7 +34,10 @@ flowchart LR
 ### Step-by-step
 
 1. **App creation** — The API creates a `DbApp` record and a v1 `DbAppVersion` with `status='building'`, then returns
-   immediately with `{ appUuid, version }`. The pipeline runs asynchronously in the background.
+   immediately with `{ appUuid, version }`. The pipeline runs asynchronously in the background. The create request
+   accepts an optional `spaceUuid`: when present, the app is created with `space_uuid` populated and the caller must
+   have manage rights on that space (space EDITOR/ADMIN, or project admin); when omitted, the app is created as a
+   personal app (`space_uuid IS NULL`) and can be moved into a space later.
 
 2. **Sandbox setup** — An [E2B](https://e2b.dev/) sandbox is created from the `lightdash-data-app` template (override
    with `E2B_TEMPLATE_NAME` for development). The template contains a pre-configured React + Vite project with the
@@ -474,7 +477,7 @@ scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 | Scope                  | Granted to          | Effect                                                                                                       |
 | ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).               |
-| `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. Newly-created apps are personal until moved into a space.                     |
+| `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. By default the app is personal until moved into a space; passing `spaceUuid` on the create request creates it directly in a space (also requires `manage:DataApp@space` on that space). |
 | `view:DataApp@self`    | interactive_viewer+ | View own personal apps (matched on `createdByUserUuid`).                                                     |
 | `manage:DataApp@self`  | interactive_viewer+ | Iterate, edit, pin (n/a for personal), move, and delete own personal apps.                                   |
 | `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role. |
@@ -505,8 +508,10 @@ helpers in `AppGenerateService.ts` carry the context-aware logic:
 - `assertCanManageApp(user, app, msg)` — used by `iterateApp`, `cancelVersion`, `updateApp`, `togglePinning`,
   `deleteApp`, `moveToSpace`, and `uploadImage` (when the app exists). Same subject shape, checks the `manage` action.
 
-`generateApp` (creation) checks the `create` action against a project-scoped subject — no app exists yet to provide
-space or creator context.
+`generateApp` (creation) checks the `create` action against a project-scoped subject. When the request carries a
+`spaceUuid` (the app should be created directly in a space, e.g. via the space's "+ Add" menu), it additionally
+checks the `manage` action against a subject that includes that space's access context — so a user creating in a
+space must be EDITOR/ADMIN of it, the same gate dashboards/charts get implicitly via their space-scoped create scope.
 
 `restoreApp` and `permanentDeleteApp` deliberately bypass the context-aware helper and use the bare project-wide
 `manage:DataApp` check, since restoring deleted content is an admin-only recovery flow.

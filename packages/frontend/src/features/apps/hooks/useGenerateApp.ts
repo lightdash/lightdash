@@ -18,6 +18,7 @@ type GenerateAppParams = {
     charts?: AppChartReference[];
     dashboard?: AppDashboardReference;
     clarifications?: AppClarification[];
+    spaceUuid?: string; // create directly inside this space (skips the personal-app step)
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -31,6 +32,7 @@ const generateApp = async ({
     charts,
     dashboard,
     clarifications,
+    spaceUuid,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
@@ -43,6 +45,7 @@ const generateApp = async ({
             charts,
             dashboard,
             clarifications,
+            spaceUuid,
         }),
     });
     return data;

@@ -8705,6 +8705,9 @@
             },
             "GenerateAppRequestBody": {
                 "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
                     "clarifications": {
                         "items": {
                             "$ref": "#/components/schemas/AppClarification"
@@ -10919,19 +10922,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -32017,7 +32007,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2893.2",
+        "version": "0.2897.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

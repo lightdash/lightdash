@@ -67,6 +67,7 @@ export class AppGenerateController extends BaseController {
             body.dashboard,
             body.template,
             body.clarifications,
+            body.spaceUuid,
         );
         return {
             status: 'ok',

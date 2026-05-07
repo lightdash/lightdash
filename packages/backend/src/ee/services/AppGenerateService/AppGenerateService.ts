@@ -2706,6 +2706,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         dashboard?: AppDashboardReference,
         template?: DataAppTemplate,
         clarifications?: AppClarification[],
+        spaceUuid?: string,
     ): Promise<GenerateAppResult> {
         await this.assertDataAppsEnabled(user);
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
@@ -2716,6 +2717,25 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             'Insufficient permissions to create data apps',
         );
+
+        // When the caller wants the app to live in a space directly, also
+        // require manage rights on that space — same gate space EDITOR/ADMIN
+        // (or project admin) already pass through `manage:DataApp@space`.
+        if (spaceUuid) {
+            const spaceContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    spaceUuid,
+                );
+            this.assertDataAppAbility(
+                user,
+                'manage',
+                organizationUuid,
+                projectUuid,
+                'Insufficient permissions to create a data app in this space',
+                spaceContext,
+            );
+        }
 
         AppGenerateService.validateImageIds(imageIds);
 
@@ -2767,6 +2787,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     project_uuid: projectUuid,
                     created_by_user_uuid: user.userUuid,
                     template: persistedTemplate,
+                    space_uuid: spaceUuid ?? null,
                 },
                 { version, prompt },
                 'pending',

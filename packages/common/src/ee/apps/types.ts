@@ -102,6 +102,11 @@ export type GenerateAppRequestBody = {
     charts?: AppChartReference[]; // saved charts to resolve, optionally with sample rows
     dashboard?: AppDashboardReference; // dashboard — resolved server-side to its chart tiles
     clarifications?: AppClarification[]; // pre-build Q&A folded into the prompt server-side
+    // Optional target space. When set, the app is created with `space_uuid`
+    // populated and the caller must have manage rights on that space (space
+    // EDITOR/ADMIN, or project admin). When omitted, the app is created as
+    // personal and can be moved into a space later.
+    spaceUuid?: string;
 };
 
 export type ApiClarifyAppRequest = {

@@ -261,6 +261,15 @@ const AppGenerate: FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const queryClient = useQueryClient();
+    // When the user lands here from a space's "+ Add" menu we get
+    // ?spaceUuid=<uuid> on the URL. We only honour it for first-time creation
+    // (urlAppUuid undefined) — once we're editing an existing app the space
+    // assignment is already on the app row and this query param is ignored.
+    const targetSpaceUuid = useMemo(() => {
+        if (urlAppUuid) return undefined;
+        const value = new URLSearchParams(location.search).get('spaceUuid');
+        return value ?? undefined;
+    }, [urlAppUuid, location.search]);
     // Editor handle (TipTap-based) — replaces the previous controlled
     // textarea + `prompt` state. The editor owns its content; the parent
     // reads on submit via `getText()` and tracks emptiness via the
@@ -432,6 +441,7 @@ const AppGenerate: FC = () => {
         appUuid: string;
         charts: AppChartReference[] | undefined;
         dashboard: AppDashboardReference | undefined;
+        spaceUuid: string | undefined;
     } | null>(null);
     const [clarificationAnswers, setClarificationAnswers] = useState<string[]>(
         [],
@@ -1073,6 +1083,7 @@ const AppGenerate: FC = () => {
                             appUuid: newAppUuid,
                             charts,
                             dashboard,
+                            spaceUuid: targetSpaceUuid,
                         });
                         setClarificationAnswers(
                             new Array(questions.length).fill(''),
@@ -1116,6 +1127,7 @@ const AppGenerate: FC = () => {
                         appUuid: newAppUuid,
                         charts,
                         dashboard,
+                        spaceUuid: targetSpaceUuid,
                     },
                     callbacks,
                 );
@@ -1182,6 +1194,7 @@ const AppGenerate: FC = () => {
                 dashboard: captured.dashboard,
                 clarifications:
                     clarifications.length > 0 ? clarifications : undefined,
+                spaceUuid: captured.spaceUuid,
             },
             buildSubmitCallbacks(),
         );
