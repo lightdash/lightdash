@@ -11,6 +11,13 @@ import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
+const EXPLORE_DESCRIPTION_MAX_CHARS = 600;
+
+const truncateDescription = (description: string) =>
+    description.length > EXPLORE_DESCRIPTION_MAX_CHARS
+        ? `${description.slice(0, EXPLORE_DESCRIPTION_MAX_CHARS)}…`
+        : description;
+
 type Dependencies = {
     fieldSearchSize: number;
     findExplores: FindExploresFn;
@@ -40,7 +47,9 @@ const generateExploreResponse = ({
                         searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
                     >
                         {result.description && (
-                            <description>{result.description}</description>
+                            <description>
+                                {truncateDescription(result.description)}
+                            </description>
                         )}
                         {result.aiHints && result.aiHints.length > 0 && (
                             <aiHints>
@@ -74,7 +83,9 @@ const generateExploreResponse = ({
                 <note>
                     Here are the top matching fields across all explores. Use
                     this to determine which explore is most relevant by applying
-                    Rule 2 (ambiguity check).
+                    Rule 2 (ambiguity check). Call findFields on the chosen
+                    explore to retrieve full field metadata including
+                    descriptions.
                 </note>
                 {topMatchingFields.map((field) => (
                     <field
@@ -84,11 +95,7 @@ const generateExploreResponse = ({
                         fieldType={field.fieldType}
                         searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
                         usageInCharts={field.chartUsage ?? 0}
-                    >
-                        {field.description && (
-                            <description>{field.description}</description>
-                        )}
-                    </field>
+                    />
                 ))}
             </topMatchingFields>
         ) : null;
