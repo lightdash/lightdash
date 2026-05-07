@@ -78,6 +78,8 @@ const updateDashboard = async (
         body: JSON.stringify(data),
     });
 
+export const updateDashboardApi = updateDashboard;
+
 const deleteDashboard = async (id: string, projectUuid: string) =>
     lightdashApi<null>({
         url: `/projects/${projectUuid}/dashboards/${id}`,
