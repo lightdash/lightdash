@@ -3,6 +3,7 @@ import {
     ApiDefaultRoleResponse,
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
+    ApiRoleAssigneesResponse,
     ApiUnassignRoleFromUserResponse,
     CreateRole,
     UpdateRole,
@@ -10,6 +11,7 @@ import {
 import {
     Body,
     Delete,
+    Get,
     Middlewares,
     OperationId,
     Patch,
@@ -139,6 +141,33 @@ export class CustomRolesController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * List the users, groups, and service accounts currently assigned to a role.
+     * Used by the delete-confirmation modal to explain why a role cannot
+     * be deleted while still in use.
+     * @summary List role assignees
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{roleUuid}/assignees')
+    @OperationId('GetOrganizationRoleAssignees')
+    async getOrganizationRoleAssignees(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Path() roleUuid: string,
+    ): Promise<ApiRoleAssigneesResponse> {
+        const assignees = await this.getRolesService().getRoleAssignees(
+            req.account!,
+            roleUuid,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: assignees,
         };
     }
 
