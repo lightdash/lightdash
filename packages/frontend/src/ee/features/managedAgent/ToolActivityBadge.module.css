@@ -1,0 +1,207 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 12px 4px 6px;
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-ldDark-3));
+    border-radius: 999px;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-ldDark-1)
+    );
+    color: light-dark(
+        var(--mantine-color-gray-7),
+        var(--mantine-color-ldDark-9)
+    );
+    box-shadow: light-dark(
+        0 1px 2px rgba(0, 0, 0, 0.04),
+        0 1px 2px rgba(0, 0, 0, 0.4)
+    );
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.badge::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        110deg,
+        transparent 35%,
+        light-dark(rgba(207, 207, 207, 0.122), rgba(255, 255, 255, 0.077)) 50%,
+        transparent 65%
+    );
+    transform: translateX(-100%);
+    animation: glisten 4.2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes glisten {
+    0%,
+    70%,
+    100% {
+        transform: translateX(-100%);
+    }
+    45% {
+        transform: translateX(100%);
+    }
+}
+
+.iconSlot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background-color: light-dark(
+        var(--mantine-color-gray-1),
+        var(--mantine-color-ldDark-3)
+    );
+    color: light-dark(
+        var(--mantine-color-gray-7),
+        var(--mantine-color-ldGray-4)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-ldDark-4));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    animation: iconPulse 2.2s ease-in-out infinite;
+}
+
+.iconInner {
+    display: inline-flex;
+    animation: iconRollIn 320ms var(--ease-out-quart);
+}
+
+@keyframes iconRollIn {
+    from {
+        opacity: 0;
+        transform: translateY(60%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes iconPulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.92;
+    }
+    50% {
+        transform: scale(1.06);
+        opacity: 1;
+    }
+}
+
+.spinnerRing {
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    border-top-color: light-dark(
+        rgba(0, 0, 0, 0.35),
+        rgba(255, 255, 255, 0.45)
+    );
+    animation: spinRing 1.6s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes spinRing {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.activityText {
+    display: inline-block;
+    animation: textRollIn 320ms var(--ease-out-quart) both;
+    color: light-dark(
+        var(--mantine-color-gray-6),
+        var(--mantine-color-ldDark-7)
+    );
+}
+
+.srOnlyEllipsis {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@keyframes textRollIn {
+    from {
+        opacity: 0;
+        transform: translateY(30%);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dots {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 1px;
+    margin-left: 1px;
+    color: light-dark(
+        var(--mantine-color-gray-6),
+        var(--mantine-color-ldDark-7)
+    );
+    line-height: 1;
+}
+
+.dot {
+    animation: dotPulse 1.4s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+    animation-delay: 0.18s;
+}
+
+.dot:nth-child(3) {
+    animation-delay: 0.36s;
+}
+
+@keyframes dotPulse {
+    0%,
+    100% {
+        opacity: 0.25;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .badge::before,
+    .spinnerRing,
+    .iconSlot,
+    .dot {
+        animation: none;
+    }
+    /* `iconInner` and `activityText` use entrance keyframes that start at
+       opacity:0; setting `animation: none` alone strands them invisible. */
+    .iconInner,
+    .activityText {
+        animation: none;
+        opacity: 1;
+        transform: none;
+    }
+    .dot {
+        opacity: 1;
+    }
+}

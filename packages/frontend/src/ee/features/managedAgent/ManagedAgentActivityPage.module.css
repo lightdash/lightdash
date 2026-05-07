@@ -564,23 +564,10 @@
     padding: 8px 12px;
     border-bottom: 1px solid
         light-dark(var(--mantine-color-gray-1), var(--mantine-color-dark-5));
-    animation: liveBreathing 2.4s ease-in-out infinite;
-}
-
-@keyframes liveBreathing {
-    0%,
-    100% {
-        background-color: light-dark(
-            var(--mantine-color-white),
-            var(--mantine-color-dark-7)
-        );
-    }
-    50% {
-        background-color: light-dark(
-            var(--mantine-color-gray-0),
-            var(--mantine-color-dark-6)
-        );
-    }
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-ldDark-1)
+    );
 }
 
 .activityText {

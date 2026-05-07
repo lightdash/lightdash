@@ -81,6 +81,7 @@ import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
 import { useManagedAgentRuns } from './hooks/useManagedAgentRuns';
 import { useManagedAgentSettings } from './hooks/useManagedAgentSettings';
 import classes from './ManagedAgentActivityPage.module.css';
+import { ToolActivityBadge } from './ToolActivityBadge';
 import type { ManagedAgentAction } from './types';
 
 const reverseAction = async (projectUuid: string, actionUuid: string) =>
@@ -1412,16 +1413,9 @@ const RunRow: FC<{
                         <Table.Tr className={classes.liveActivityRow}>
                             <Table.Td colSpan={3}>
                                 <Group gap="xs" justify="center" py="xs">
-                                    <BoltPulseLoader size={14} />
-                                    <Text
-                                        key={run.currentActivity ?? 'idle'}
-                                        className={classes.activityText}
-                                        fz="xs"
-                                        c="dimmed"
-                                    >
-                                        {run.currentActivity ??
-                                            'Autopilot is working…'}
-                                    </Text>
+                                    <ToolActivityBadge
+                                        currentActivity={run.currentActivity}
+                                    />
                                 </Group>
                             </Table.Td>
                         </Table.Tr>
