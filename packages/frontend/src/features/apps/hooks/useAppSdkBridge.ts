@@ -98,9 +98,12 @@ export function useAppSdkBridge(
     /**
      * The origin this iframe is expected to load from. When previews are
      * served cross-origin this is `https://{customer}.lightdash.app`; in
-     * same-origin dev it's `window.location.origin`. The bridge rejects any
-     * inbound message whose `event.origin` doesn't match, and uses this
-     * value as the `targetOrigin` on every outbound `postMessage` (no `'*'`).
+     * same-origin dev it's `window.location.origin`. The bridge accepts
+     * either this origin or the literal `"null"` — the latter is what
+     * sandboxed iframes without `allow-same-origin` report, since they
+     * have an opaque origin. Identity is established by `event.source`
+     * matching our iframe's contentWindow (unforgeable); origin is a
+     * defence-in-depth check for the non-sandboxed/dev case.
      */
     expectedPreviewOrigin: string,
     onQueryEvent?: (event: QueryEvent) => void,
@@ -110,7 +113,16 @@ export function useAppSdkBridge(
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
-            if (event.origin !== expectedPreviewOrigin) return;
+            // Sandboxed iframes without `allow-same-origin` report `"null"`
+            // as their origin. The `event.source` check above is the strong
+            // identity guarantee; this is defence-in-depth for the
+            // non-sandboxed dev path.
+            if (
+                event.origin !== expectedPreviewOrigin &&
+                event.origin !== 'null'
+            ) {
+                return;
+            }
 
             const { data } = event;
 

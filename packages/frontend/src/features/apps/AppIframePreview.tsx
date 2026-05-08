@@ -118,7 +118,7 @@ const AppIframePreview: FC<Props> = ({
             src={src}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="App preview"
-            sandbox="allow-scripts allow-modals allow-same-origin"
+            sandbox="allow-scripts allow-modals"
             allow=""
             onLoad={handleLoad}
         />
