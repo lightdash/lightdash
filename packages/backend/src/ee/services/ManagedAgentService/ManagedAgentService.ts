@@ -3,9 +3,11 @@ import {
     FeatureFlags,
     ForbiddenError,
     getFixedBrokenMetadata,
+    getGovernanceInsightMetadata,
     getManagedAgentActionCategory,
     getManagedAgentScheduleCron,
     GovernanceDefinitionType,
+    GovernanceInsightKind,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
@@ -1124,6 +1126,8 @@ export class ManagedAgentService extends BaseService {
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const governanceProps =
+            ManagedAgentService.governanceAnalyticsProperties(action);
         this.analytics.track({
             event: 'managed_agent.action_reversed',
             userId: userUuid,
@@ -1137,6 +1141,7 @@ export class ManagedAgentService extends BaseService {
                 targetType: action.targetType,
                 sessionId: action.sessionId,
                 actionAgeMs: Date.now() - new Date(action.createdAt).getTime(),
+                ...governanceProps,
             },
         });
 
@@ -1338,6 +1343,8 @@ export class ManagedAgentService extends BaseService {
             );
             return;
         }
+        const governanceProps =
+            ManagedAgentService.governanceAnalyticsProperties(action);
         this.analytics.track({
             event: 'managed_agent.action_created',
             userId: actor.userUuid,
@@ -1348,8 +1355,37 @@ export class ManagedAgentService extends BaseService {
                 sessionId: action.sessionId,
                 actionType: action.actionType,
                 targetType: action.targetType,
+                ...governanceProps,
             },
         });
+    }
+
+    private static governanceAnalyticsProperties(
+        action: ManagedAgentAction,
+    ): Record<string, unknown> {
+        if (
+            action.actionType !== ManagedAgentActionType.INSIGHT ||
+            action.targetType !== ManagedAgentTargetType.PROJECT
+        ) {
+            return {};
+        }
+        const governance = getGovernanceInsightMetadata(action.metadata);
+        if (!governance) return {};
+        if (
+            governance.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
+        ) {
+            return {
+                insightKind: governance.insightKind,
+                totalRemaining: governance.totalRemaining,
+            };
+        }
+        return {
+            insightKind: governance.insightKind,
+            definitionType: governance.definitionType,
+            variantCount: governance.variants.length,
+            totalUsageCount: governance.totalUsageCount,
+            hasCanonical: governance.suggestion?.canonicalSql != null,
+        };
     }
 
     private trackRunCompleted(
@@ -1503,9 +1539,21 @@ export class ManagedAgentService extends BaseService {
 
             // Build compact action counts
             const counts: Record<string, number> = {};
+            let governanceCount = 0;
             for (const a of actions) {
                 counts[a.actionType] = (counts[a.actionType] || 0) + 1;
+                if (
+                    a.actionType === ManagedAgentActionType.INSIGHT &&
+                    a.targetType === ManagedAgentTargetType.PROJECT &&
+                    getGovernanceInsightMetadata(a.metadata) !== null
+                ) {
+                    governanceCount += 1;
+                }
             }
+            const nonGovernanceInsightCount = Math.max(
+                0,
+                (counts.insight ?? 0) - governanceCount,
+            );
 
             const summaryParts: string[] = [];
             if (counts.fixed_broken)
@@ -1518,9 +1566,13 @@ export class ManagedAgentService extends BaseService {
                 summaryParts.push(`*${counts.flagged_broken}* flagged broken`);
             if (counts.soft_deleted)
                 summaryParts.push(`*${counts.soft_deleted}* deleted`);
-            if (counts.insight)
+            if (nonGovernanceInsightCount)
                 summaryParts.push(
-                    `*${counts.insight}* insight${counts.insight > 1 ? 's' : ''}`,
+                    `*${nonGovernanceInsightCount}* insight${nonGovernanceInsightCount > 1 ? 's' : ''}`,
+                );
+            if (governanceCount)
+                summaryParts.push(
+                    `*${governanceCount}* governance finding${governanceCount > 1 ? 's' : ''}`,
                 );
 
             // Convert agent's markdown summary to Slack mrkdwn
