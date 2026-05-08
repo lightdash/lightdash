@@ -42,7 +42,7 @@ export const DockTab: FC<Props> = ({
             role="button"
             tabIndex={0}
             title={item.title}
-            className={`${styles.dockTab} ${isActive ? styles.dockTabActive : ''}`}
+            className={`${styles.dockTab} ${isActive ? styles.dockTabActive : ''} ${isStreaming ? styles.dockTabStreaming : ''}`}
             onClick={() => onSelect(item)}
             onKeyDown={handleKeyDown}
         >

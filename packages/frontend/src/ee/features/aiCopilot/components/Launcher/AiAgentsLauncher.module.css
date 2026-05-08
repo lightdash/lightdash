@@ -52,6 +52,15 @@
     border-color: var(--mantine-color-dimmed);
 }
 
+.dockTabStreaming {
+    composes: glisten from '../../../../../styles/glisten.module.css';
+}
+
+.dockTabStreaming > * {
+    position: relative;
+    z-index: 1;
+}
+
 .dockTabTitle {
     overflow: hidden;
     text-overflow: ellipsis;
