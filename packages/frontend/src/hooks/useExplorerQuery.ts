@@ -28,8 +28,7 @@ import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 export const useExplorerQuery = () => {
     // Get all state and runQuery from manager (single source of truth)
     const manager = useExplorerQueryManager();
-    const { queryResults, runQuery, validQueryArgs, unpivotedQueryResults } =
-        manager;
+    const { queryResults, validQueryArgs, unpivotedQueryResults } = manager;
 
     // Redux dispatch and query client for actions
     const dispatch = useExplorerDispatch();
@@ -63,8 +62,8 @@ export const useExplorerQuery = () => {
     // Action: Fetch results (force refresh - bypasses auto-fetch setting)
     const fetchResults = useCallback(() => {
         resetQueryResults();
-        runQuery();
-    }, [resetQueryResults, runQuery]);
+        dispatch(explorerActions.requestQueryExecution());
+    }, [resetQueryResults, dispatch]);
 
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
