@@ -647,5 +647,5 @@ export type UpdateSchedulerSettings = {
 
 export type UpdateQueryTimezoneSettings = {
     queryTimezone: string | null;
-    useProjectTimezoneInFilters: boolean | null;
+    useProjectTimezoneInFilters?: boolean | null;
 };

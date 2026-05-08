@@ -7698,7 +7698,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         queryTimezone: string | null,
-        useProjectTimezoneInFilters: boolean | null,
+        useProjectTimezoneInFilters: boolean | null | undefined,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 

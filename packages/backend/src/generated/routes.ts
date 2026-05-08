@@ -21502,7 +21502,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'boolean' },
                         { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
                 },
                 queryTimezone: {
                     dataType: 'union',

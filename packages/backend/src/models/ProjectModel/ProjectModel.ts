@@ -3216,12 +3216,15 @@ export class ProjectModel {
     async updateQueryTimezone(
         projectUuid: string,
         timezone: string | null,
-        useProjectTimezoneInFilters: boolean | null,
+        useProjectTimezoneInFilters: boolean | null | undefined,
     ): Promise<DbProject> {
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
                 query_timezone: timezone,
-                use_project_timezone_in_filters: useProjectTimezoneInFilters,
+                ...(useProjectTimezoneInFilters !== undefined && {
+                    use_project_timezone_in_filters:
+                        useProjectTimezoneInFilters,
+                }),
             })
             .where('project_uuid', projectUuid)
             .returning('*');
