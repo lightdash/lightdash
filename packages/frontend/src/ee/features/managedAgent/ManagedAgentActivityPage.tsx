@@ -1661,6 +1661,99 @@ const SettingsSidebar: FC<{
     );
 };
 
+// --- Governance combined-snippet copy ---
+
+const buildCombinedGovernanceSnippet = (
+    snippets: Array<{ targetModel: string | null; yamlSnippet: string }>,
+): string => {
+    const grouped = new Map<string, string[]>();
+    for (const s of snippets) {
+        const key = s.targetModel ?? '__unspecified__';
+        const list = grouped.get(key);
+        if (list) {
+            list.push(s.yamlSnippet);
+        } else {
+            grouped.set(key, [s.yamlSnippet]);
+        }
+    }
+    const sections: string[] = [];
+    for (const [model, blocks] of grouped) {
+        const heading =
+            model === '__unspecified__'
+                ? '# (model not inferred — review before pasting)'
+                : `# ${model}.yml — additions`;
+        sections.push(`${heading}\n${blocks.join('\n')}`);
+    }
+    return sections.join('\n\n');
+};
+
+const GovernanceCopyAllRow: FC<{
+    actions: readonly ManagedAgentAction[];
+}> = ({ actions }) => {
+    const snippets = useMemo(() => {
+        const out: Array<{
+            targetModel: string | null;
+            yamlSnippet: string;
+        }> = [];
+        for (const action of actions) {
+            if (
+                action.actionType !== ManagedAgentActionType.INSIGHT ||
+                action.targetType !== 'project' ||
+                action.reversedAt
+            ) {
+                continue;
+            }
+            const parsed = getGovernanceInsightMetadata(action.metadata);
+            if (
+                !parsed ||
+                parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
+            ) {
+                continue;
+            }
+            const suggestion = parsed.suggestion;
+            if (suggestion?.yamlSnippet) {
+                out.push({
+                    targetModel: suggestion.targetModel,
+                    yamlSnippet: suggestion.yamlSnippet,
+                });
+            }
+        }
+        return out;
+    }, [actions]);
+
+    if (snippets.length < 2) return null;
+
+    const combined = buildCombinedGovernanceSnippet(snippets);
+
+    return (
+        <Table.Tr>
+            <Table.Td colSpan={3}>
+                <Group justify="flex-end" px="md" py={6}>
+                    <CopyButton value={combined}>
+                        {({ copied, copy }) => (
+                            <Button
+                                size="compact-xs"
+                                variant="default"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={copied ? IconCheck : IconCopy}
+                                        size={12}
+                                    />
+                                }
+                                onClick={copy}
+                            >
+                                {copied
+                                    ? 'Copied'
+                                    : `Copy all governance YAML (${snippets.length})`}
+                            </Button>
+                        )}
+                    </CopyButton>
+                </Group>
+            </Table.Td>
+        </Table.Tr>
+    );
+};
+
 // --- Table Row ---
 
 const ActionRow: FC<{
@@ -1943,16 +2036,22 @@ const RunRow: FC<{
                                   </Table.Td>
                               </Table.Tr>
                           )
-                        : actions.map((action) => (
-                              <ActionRow
-                                  key={action.actionUuid}
-                                  action={action}
-                                  selected={
-                                      selectedActionUuid === action.actionUuid
-                                  }
-                                  onSelect={onSelectAction}
-                              />
-                          ))}
+                        : actions && (
+                              <>
+                                  <GovernanceCopyAllRow actions={actions} />
+                                  {actions.map((action) => (
+                                      <ActionRow
+                                          key={action.actionUuid}
+                                          action={action}
+                                          selected={
+                                              selectedActionUuid ===
+                                              action.actionUuid
+                                          }
+                                          onSelect={onSelectAction}
+                                      />
+                                  ))}
+                              </>
+                          )}
                 </>
             )}
         </Table.Tbody>
