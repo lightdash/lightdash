@@ -3218,6 +3218,15 @@ export class ProjectModel {
         timezone: string | null | undefined,
         useProjectTimezoneInFilters: boolean | null | undefined,
     ): Promise<DbProject> {
+        if (
+            timezone === undefined &&
+            useProjectTimezoneInFilters === undefined
+        ) {
+            throw new ParameterError(
+                'Must provide queryTimezone or useProjectTimezoneInFilters',
+            );
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
                 ...(timezone !== undefined && {
