@@ -996,6 +996,21 @@ export class ProjectService extends BaseService {
             : undefined;
     }
 
+    private static getRotationSourceUuid(
+        source: RefreshTokenRotationSource,
+    ): string {
+        switch (source.kind) {
+            case 'project':
+                return source.projectUuid;
+            case 'organization':
+                return source.organizationWarehouseCredentialsUuid;
+            case 'user':
+                return source.userWarehouseCredentialsUuid;
+            default:
+                return assertUnreachable(source, 'Unknown source kind');
+        }
+    }
+
     private async persistRefreshTokenRotation({
         source,
         oldRefreshToken,
@@ -1036,11 +1051,11 @@ export class ProjectService extends BaseService {
             }
         } catch (error) {
             // Don't fail the in-flight query: the freshly minted access token is still usable.
-            this.logger.error(
-                `Failed to persist rotated OAuth refresh token for ${
-                    source.kind
-                }: ${getErrorMessage(error)}`,
-            );
+            this.logger.error('Failed to persist rotated OAuth refresh token', {
+                sourceKind: source.kind,
+                sourceUuid: ProjectService.getRotationSourceUuid(source),
+                error: getErrorMessage(error),
+            });
         }
     }
 
