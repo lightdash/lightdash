@@ -16,10 +16,12 @@ import {
     selectIsValidQuery,
     selectPreAggVisible,
     selectQueryLimit,
+    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
 import useHealth from '../hooks/health/useHealth';
+import { useExplore } from '../hooks/useExplore';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -37,11 +39,18 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     // Get state and actions from Redux
     const limit = useExplorerSelector(selectQueryLimit);
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
+    const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
     const preAggVisible = useExplorerSelector(selectPreAggVisible);
 
     // Get query state and actions from hooks
     const { isLoading, fetchResults, cancelQuery } = useExplorerQuery();
+
+    // buildQueryArgs returns null without explore — disable until loaded.
+    const { data: explore } = useExplore(tableName, {
+        refetchOnMount: false,
+        refetchOnWindowFocus: false,
+    });
 
     const setRowLimit = useCallback(
         (newLimit: number) => {
@@ -50,7 +59,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         [dispatch],
     );
 
-    const canRunQuery = isValidQuery;
+    const canRunQuery = isValidQuery && !!explore;
 
     const { track } = useTracking();
 
@@ -81,12 +90,12 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                     position="bottom"
                     withArrow
                     withinPortal
-                    disabled={isLoading || !isValidQuery}
+                    disabled={isLoading || !canRunQuery}
                 >
                     <Button
                         size={size}
                         pr={limit ? 'xs' : undefined}
-                        disabled={!isValidQuery}
+                        disabled={!canRunQuery}
                         leftSection={<MantineIcon icon={IconPlayerPlay} />}
                         loading={isLoading}
                         onClick={onClick}
