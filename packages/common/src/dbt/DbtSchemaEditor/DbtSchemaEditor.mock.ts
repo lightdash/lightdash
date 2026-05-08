@@ -171,7 +171,6 @@ models:
               label: New metric
               description: description
               type: average
-              format: "#,##0.###"
           additional_dimensions:
             id:
               label: Sql dimension

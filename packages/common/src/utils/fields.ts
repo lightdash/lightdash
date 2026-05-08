@@ -157,7 +157,9 @@ export const getFields = (explore: Explore): CompiledField[] => [
 // would produce `undefined` for the default-typed formatOptions case but a phantom
 // number-format string (e.g., `'0'`) for items with no formatOptions at all that
 // happen to be numeric — and those two states should compare as equivalent.
-const hasMeaningfulFormat = (item: Metric | AdditionalMetric): boolean => {
+export const hasMeaningfulFormat = (
+    item: Metric | AdditionalMetric,
+): boolean => {
     if (hasFormatOptions(item)) {
         return item.formatOptions.type !== CustomFormatType.DEFAULT;
     }
