@@ -11,6 +11,7 @@ import {
     type GovernanceInsightMetadata,
     GovernanceInsightKind,
     type GovernanceRollupMetadata,
+    isCustomSqlDimension,
     getManagedAgentActionCategory,
     type ManagedAgentAction,
     ManagedAgentActionType,
@@ -57,6 +58,7 @@ import {
     IconExternalLink,
     IconEye,
     IconFolder,
+    IconGitPullRequest,
     IconHash,
     IconLayoutDashboard,
     IconMathFunction,
@@ -87,6 +89,11 @@ import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
 import { SlackChannelSelect } from '../../../components/common/SlackChannelSelect';
 import TruncatedText from '../../../components/common/TruncatedText';
+import {
+    useIsGitProject,
+    useWriteBackCustomDimensions,
+    useWriteBackCustomMetrics,
+} from '../../../components/Explorer/WriteBackModal/hooks';
 import ForbiddenPanel from '../../../components/ForbiddenPanel';
 import { useChartViewStats } from '../../../hooks/chart/useChartViewStats';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
@@ -602,6 +609,53 @@ const GovernanceDetails: FC<{
     );
     const replaceOnCompileEnabled = !!replaceOnCompileFlag?.enabled;
 
+    const isGitProject = useIsGitProject(projectUuid);
+    const canonicalVariant = metadata.variants[0];
+    const canonicalChartUuid = canonicalVariant?.charts[0]?.savedQueryUuid;
+    const isMetricKind =
+        metadata.definitionType === GovernanceDefinitionType.METRIC;
+    const isSqlDimensionKind =
+        metadata.definitionType === GovernanceDefinitionType.SQL_DIMENSION;
+    const canOpenPr = isGitProject && !!suggestion?.canonicalSql;
+    const { data: canonicalChart } = useSavedQuery({
+        uuidOrSlug: canOpenPr ? canonicalChartUuid : undefined,
+        projectUuid,
+    });
+    const canonicalAdditionalMetric = useMemo(() => {
+        if (!canOpenPr || !isMetricKind || !canonicalChart) return null;
+        return (
+            canonicalChart.metricQuery.additionalMetrics?.find(
+                (m) =>
+                    m.name === canonicalVariant.name &&
+                    m.sql === canonicalVariant.sql,
+            ) ?? null
+        );
+    }, [canOpenPr, isMetricKind, canonicalChart, canonicalVariant]);
+    const canonicalCustomDimension = useMemo(() => {
+        if (!canOpenPr || !isSqlDimensionKind || !canonicalChart) return null;
+        return (
+            canonicalChart.metricQuery.customDimensions?.find(
+                (d) =>
+                    d.name === canonicalVariant.name &&
+                    isCustomSqlDimension(d) &&
+                    d.sql === canonicalVariant.sql,
+            ) ?? null
+        );
+    }, [canOpenPr, isSqlDimensionKind, canonicalChart, canonicalVariant]);
+    const writeBackMetric = useWriteBackCustomMetrics(projectUuid);
+    const writeBackDimension = useWriteBackCustomDimensions(projectUuid);
+    const writeBackLoading =
+        writeBackMetric.isLoading || writeBackDimension.isLoading;
+    const handleOpenPr = () => {
+        if (canonicalAdditionalMetric) {
+            writeBackMetric.mutate([canonicalAdditionalMetric]);
+        } else if (canonicalCustomDimension) {
+            writeBackDimension.mutate([canonicalCustomDimension]);
+        }
+    };
+    const prButtonAvailable =
+        canOpenPr && (canonicalAdditionalMetric || canonicalCustomDimension);
+
     return (
         <Stack gap="md">
             <Stack gap="sm">
@@ -651,6 +705,22 @@ const GovernanceDetails: FC<{
                             )}
                         </CopyButton>
                     </Box>
+                    {prButtonAvailable && (
+                        <Button
+                            size="compact-sm"
+                            variant="default"
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconGitPullRequest}
+                                    size={14}
+                                />
+                            }
+                            loading={writeBackLoading}
+                            onClick={handleOpenPr}
+                        >
+                            Open pull request in dbt repo
+                        </Button>
+                    )}
                     {suggestion.rationale && (
                         <Text fz="xs" c="dimmed" lh={1.6}>
                             {suggestion.rationale}
