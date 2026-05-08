@@ -1,15 +1,10 @@
-import {
-    AnyType,
-    CommercialFeatureFlags,
-    FeatureFlags,
-} from '@lightdash/common';
+import { CommercialFeatureFlags } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
     FeatureFlagLogicArgs,
     FeatureFlagModel,
 } from '../../models/FeatureFlagModel/FeatureFlagModel';
-import { isFeatureFlagEnabled } from '../../postHog';
 
 export class CommercialFeatureFlagModel extends FeatureFlagModel {
     constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {

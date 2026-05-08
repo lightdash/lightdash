@@ -1,9 +1,4 @@
-import {
-    FeatureFlag,
-    FeatureFlags,
-    isFeatureFlags,
-    LightdashUser,
-} from '@lightdash/common';
+import { FeatureFlag, FeatureFlags, LightdashUser } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -11,7 +6,6 @@ import {
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
-import { isFeatureFlagEnabled } from '../../postHog';
 
 export type FeatureFlagLogicArgs = {
     user?: Pick<
@@ -67,34 +61,9 @@ export class FeatureFlagModel {
             return dbResult;
         }
 
-        // 4. Fallback to PostHog (temporary, will be removed after migration)
-        if (args.user && isFeatureFlags(args.featureFlagId)) {
-            return FeatureFlagModel.getPosthogFeatureFlag(
-                args.user,
-                args.featureFlagId,
-            );
-        }
-
         // Unknown flags default to disabled.
         // See: GLITCH-331
         return { id: args.featureFlagId, enabled: false };
-    }
-
-    static async getPosthogFeatureFlag(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
-        featureFlagId: FeatureFlags,
-    ): Promise<FeatureFlag> {
-        const enabled = await isFeatureFlagEnabled(featureFlagId, {
-            userUuid: user.userUuid,
-            organizationUuid: user.organizationUuid,
-        });
-        return {
-            id: featureFlagId,
-            enabled,
-        };
     }
 
     private async getEditYamlInUiEnabled({

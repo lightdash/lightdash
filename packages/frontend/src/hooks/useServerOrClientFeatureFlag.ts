@@ -4,8 +4,8 @@ import { lightdashApi } from '../api';
 
 /**
  * Get a feature flag value from the backend, which resolves through the
- * unified DB-backed flag system (env-var allowlists → DB → optional PostHog
- * fallback).
+ * unified DB-backed flag system (env-var allowlists → per-flag config
+ * handlers → DB).
  */
 export const useServerFeatureFlag = (featureFlagId: string) => {
     return useQuery<FeatureFlag, ApiError>(
