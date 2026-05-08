@@ -30,7 +30,9 @@ describe('User attributes sql_filter', () => {
         cy.findByText('First name').click();
 
         // run query
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
 
         cy.contains('Error loading results');
 
@@ -61,7 +63,9 @@ describe('User attributes sql_filter', () => {
         cy.findByText('First name').click();
 
         // run query
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
         cy.contains('Anna');
     });
 
@@ -82,7 +86,9 @@ describe('User attributes sql_filter', () => {
         cy.findByText('First name').click();
 
         // run query
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
         cy.contains('Christina', { timeout: 30000 });
     });
 });
@@ -156,7 +162,9 @@ describe('User attributes dimension required_attribute', () => {
         cy.findByText('Last name').click();
 
         // run query
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
         cy.contains('W.', { timeout: 30000 });
     });
 

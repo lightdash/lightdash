@@ -175,7 +175,9 @@ describe('Download CSV on Explore', () => {
         cy.findByText('Unique order count').click();
 
         // run query
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
 
         // wait for the chart to finish loading
         cy.findByText('Loading chart').should('not.exist');
@@ -310,7 +312,9 @@ describe('Download CSV on Explore', () => {
         cy.findByText('Unique order count').click();
 
         // run query
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
 
         // wait for chart to be expanded and configure button to be available, then change chart type to Table
         cy.get('body').then(($body) => {
