@@ -1,5 +1,5 @@
 import { ChartType } from '../types/savedCharts';
-import { getPivotConfig } from './pivotConfig';
+import { getDownloadPivotOptions, getPivotConfig } from './pivotConfig';
 
 describe('getPivotConfig', () => {
     describe('Cartesian chart pivot config', () => {
@@ -59,5 +59,47 @@ describe('getPivotConfig', () => {
             expect(result).toBeDefined();
             expect(result?.visibleMetricFieldIds).toBeUndefined();
         });
+    });
+});
+
+describe('getDownloadPivotOptions', () => {
+    it('disables pivoting for flat cartesian downloads', () => {
+        const result = getDownloadPivotOptions(
+            {
+                chartConfig: {
+                    type: ChartType.CARTESIAN,
+                    config: {
+                        layout: {
+                            xField: 'dim_a',
+                            yField: ['metric_a'],
+                        },
+                        eChartsConfig: { series: [] },
+                    },
+                },
+                pivotConfig: { columns: ['dim_b'] },
+                tableConfig: { columnOrder: [] },
+            },
+            false,
+        );
+
+        expect(result.pivotConfig).toBeUndefined();
+        expect(result.shouldPivotResults).toBe(false);
+    });
+
+    it('keeps pivoting enabled for table downloads', () => {
+        const result = getDownloadPivotOptions(
+            {
+                chartConfig: {
+                    type: ChartType.TABLE,
+                    config: {},
+                },
+                pivotConfig: { columns: ['dim_b'] },
+                tableConfig: { columnOrder: [] },
+            },
+            false,
+        );
+
+        expect(result.pivotConfig).toBeDefined();
+        expect(result.shouldPivotResults).toBe(true);
     });
 });

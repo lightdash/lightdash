@@ -1780,6 +1780,9 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
+                    canExportUnpivotedData={
+                        chart.chartConfig.type === ChartType.CARTESIAN
+                    }
                 />
                 <ExportImageModal
                     echartRef={echartRef}
@@ -2078,6 +2081,9 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
                     )}
                     hiddenFields={getHiddenTableFields(chart.chartConfig)}
                     pivotConfig={downloadPivotConfig}
+                    canExportUnpivotedData={
+                        chart.chartConfig.type === ChartType.CARTESIAN
+                    }
                 />
             )}
             {canExportImages && (

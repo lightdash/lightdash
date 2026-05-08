@@ -23,6 +23,7 @@ import {
     getCustomLabelsFromTableConfig,
     getCustomLabelsFromVizTableConfig,
     getDownloadPivotConfig,
+    getDownloadPivotOptions,
     getErrorMessage,
     getHiddenFieldsFromVizTableConfig,
     getHiddenTableFields,
@@ -563,11 +564,10 @@ export default class SchedulerTask {
                             await this.schedulerService.savedChartModel.get(
                                 savedChartUuid,
                             );
-                        const downloadPivotConfig = getDownloadPivotConfig(
-                            chart,
-                            exportPivotedData,
-                        );
-                        const shouldPivotResults = !!downloadPivotConfig;
+                        const {
+                            pivotConfig: downloadPivotConfig,
+                            shouldPivotResults,
+                        } = getDownloadPivotOptions(chart, exportPivotedData);
                         const query =
                             await this.asyncQueryService.executeAsyncSavedChartQuery(
                                 {
@@ -599,7 +599,6 @@ export default class SchedulerTask {
                                         chart.chartConfig,
                                     ),
                                     pivotConfig: downloadPivotConfig,
-                                    exportPivotedData,
                                     columnOrder: chart.tableConfig.columnOrder,
                                     expirationSecondsOverride,
                                 },
@@ -705,13 +704,13 @@ export default class SchedulerTask {
                                     await this.schedulerService.savedChartModel.get(
                                         chartUuid,
                                     );
-                                const downloadPivotConfig =
-                                    getDownloadPivotConfig(
-                                        chart,
-                                        exportPivotedData,
-                                    );
-                                const shouldPivotResults =
-                                    !!downloadPivotConfig;
+                                const {
+                                    pivotConfig: downloadPivotConfig,
+                                    shouldPivotResults,
+                                } = getDownloadPivotOptions(
+                                    chart,
+                                    exportPivotedData,
+                                );
                                 const query =
                                     await this.asyncQueryService.executeAsyncDashboardChartQuery(
                                         {
@@ -749,7 +748,6 @@ export default class SchedulerTask {
                                                 chart.chartConfig,
                                             ),
                                             pivotConfig: downloadPivotConfig,
-                                            exportPivotedData,
                                             columnOrder:
                                                 chart.tableConfig.columnOrder,
                                             expirationSecondsOverride,

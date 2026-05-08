@@ -1132,7 +1132,6 @@ export class AsyncQueryService extends ProjectService {
         columnOrder = [],
         hiddenFields = [],
         pivotConfig,
-        exportPivotedData = true,
         attachmentDownloadName,
         expirationSecondsOverride,
     }: DownloadAsyncQueryResultsArgs): Promise<DownloadAsyncQueryResultsInternal> {
@@ -1264,12 +1263,11 @@ export class AsyncQueryService extends ProjectService {
                       ),
                   )
                 : fields;
-        const downloadPivotConfig = exportPivotedData ? pivotConfig : undefined;
 
         switch (type) {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
-                if (downloadPivotConfig && queryHistory.metricQuery) {
+                if (pivotConfig && queryHistory.metricQuery) {
                     return this.pivotTableService.downloadAsyncPivotTableCsv({
                         resultsFileName,
                         fields,
@@ -1286,7 +1284,7 @@ export class AsyncQueryService extends ProjectService {
                             customLabels,
                             columnOrder: validColumnOrder,
                             hiddenFields,
-                            pivotConfig: downloadPivotConfig,
+                            pivotConfig,
                             attachmentDownloadName,
                         },
                         organizationUuid,
@@ -1311,7 +1309,7 @@ export class AsyncQueryService extends ProjectService {
                         customLabels,
                         columnOrder: validColumnOrder,
                         hiddenFields,
-                        pivotConfig: downloadPivotConfig,
+                        pivotConfig,
                     },
                     attachmentDownloadName,
                     {
@@ -1328,7 +1326,7 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
                 const xlsxResult =
-                    downloadPivotConfig && queryHistory.metricQuery
+                    pivotConfig && queryHistory.metricQuery
                         ? await ExcelService.downloadAsyncPivotTableXlsx({
                               resultsFileName,
                               fields,
@@ -1346,7 +1344,7 @@ export class AsyncQueryService extends ProjectService {
                                   customLabels,
                                   columnOrder: validColumnOrder,
                                   hiddenFields,
-                                  pivotConfig: downloadPivotConfig,
+                                  pivotConfig,
                                   attachmentDownloadName,
                               },
                               timezone: displayTimezone ?? undefined,

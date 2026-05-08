@@ -523,6 +523,8 @@ export class QueryController extends BaseController {
         >
     > {
         this.setStatus(200);
+        const downloadPivotConfig =
+            body.exportPivotedData === false ? undefined : body.pivotConfig;
 
         const results = await this.services.getAsyncQueryService().download({
             account: req.account!,
@@ -534,8 +536,7 @@ export class QueryController extends BaseController {
             customLabels: body.customLabels,
             columnOrder: body.columnOrder,
             hiddenFields: body.hiddenFields,
-            pivotConfig: body.pivotConfig,
-            exportPivotedData: body.exportPivotedData,
+            pivotConfig: downloadPivotConfig,
             attachmentDownloadName: body.attachmentDownloadName,
         });
 
@@ -561,6 +562,8 @@ export class QueryController extends BaseController {
         @Body() body: Omit<DownloadAsyncQueryResultsRequestParams, 'queryUuid'>,
     ): Promise<ApiJobScheduledResponse> {
         this.setStatus(200);
+        const downloadPivotConfig =
+            body.exportPivotedData === false ? undefined : body.pivotConfig;
 
         const jobId = await this.services
             .getAsyncQueryService()
@@ -574,7 +577,7 @@ export class QueryController extends BaseController {
                 customLabels: body.customLabels,
                 columnOrder: body.columnOrder,
                 hiddenFields: body.hiddenFields,
-                pivotConfig: body.pivotConfig,
+                pivotConfig: downloadPivotConfig,
                 exportPivotedData: body.exportPivotedData,
                 attachmentDownloadName: body.attachmentDownloadName,
             });

@@ -147,6 +147,9 @@ const ChartDownloadMenu: React.FC<ChartDownloadMenuProps> = memo(
                             }
                             chartName={chartName}
                             pivotConfig={pivotConfig}
+                            canExportUnpivotedData={
+                                chartConfig.type === ChartType.CARTESIAN
+                            }
                             getGsheetLink={
                                 getGsheetLink === undefined
                                     ? undefined

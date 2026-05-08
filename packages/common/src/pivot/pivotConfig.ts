@@ -75,3 +75,21 @@ export const getDownloadPivotConfig = (
             return undefined;
     }
 };
+
+export const getDownloadPivotOptions = (
+    savedChart: Pick<
+        CreateSavedChartVersion,
+        'chartConfig' | 'pivotConfig' | 'tableConfig'
+    >,
+    exportPivotedData: boolean = true,
+): {
+    pivotConfig: PivotConfig | undefined;
+    shouldPivotResults: boolean;
+} => {
+    const pivotConfig = getDownloadPivotConfig(savedChart, exportPivotedData);
+
+    return {
+        pivotConfig,
+        shouldPivotResults: !!pivotConfig,
+    };
+};

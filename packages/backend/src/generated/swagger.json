@@ -2449,9 +2449,6 @@
             },
             "DashboardTab": {
                 "properties": {
-                    "hidden": {
-                        "type": "boolean"
-                    },
                     "order": {
                         "type": "number",
                         "format": "double"
@@ -2463,7 +2460,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["hidden", "order", "name", "uuid"],
+                "required": ["order", "name", "uuid"],
                 "type": "object"
             },
             "SpaceMemberRole": {
@@ -10974,9 +10971,6 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "tableName": {
                                                                             "type": "string"
                                                                         },
@@ -11000,16 +10994,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -11093,9 +11087,6 @@
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
-                                                                                    },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
                                                                                     },
                                                                                     "fieldType": {
                                                                                         "type": "string"
@@ -32088,7 +32079,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2903.4",
+        "version": "0.2904.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
