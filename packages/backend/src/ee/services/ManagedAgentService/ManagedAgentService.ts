@@ -106,6 +106,7 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     get_user_questions: 'Reviewing user questions',
     get_slow_queries: 'Checking slow queries',
     reverse_own_action: 'Reverting earlier change',
+    find_repeated_custom_definitions: 'Auditing custom definitions',
 };
 
 const friendlyToolLabel = (toolName: string): string =>
@@ -1680,6 +1681,11 @@ export class ManagedAgentService extends BaseService {
                 return this.handleGetSlowQueries(actor, projectUuid, input);
             case 'reverse_own_action':
                 return this.handleReverseOwnAction(actor, projectUuid, input);
+            case 'find_repeated_custom_definitions':
+                return this.handleFindRepeatedCustomDefinitions(
+                    actor,
+                    projectUuid,
+                );
             default:
                 return JSON.stringify({ error: `Unknown tool: ${toolName}` });
         }
@@ -2536,6 +2542,80 @@ chartConfig:
         });
         this.trackActionCreated(actor, runUuid, action);
         return JSON.stringify({ action_uuid: action.actionUuid });
+    }
+
+    private async handleFindRepeatedCustomDefinitions(
+        actor: SessionUser,
+        projectUuid: string,
+    ): Promise<string> {
+        const featureFlag = await this.featureFlagModel.get({
+            user: actor,
+            featureFlagId: FeatureFlags.ManagedAgentGovernanceInsights,
+        });
+        if (!featureFlag.enabled) {
+            return JSON.stringify({ topFindings: [], totalCount: 0 });
+        }
+
+        const findings =
+            await this.managedAgentModel.findRepeatedCustomDefinitions(
+                projectUuid,
+            );
+
+        const activeKeys =
+            await this.managedAgentModel.findActiveGovernanceInsightKeys(
+                projectUuid,
+            );
+
+        const fresh = findings.filter(
+            (f) =>
+                !activeKeys.has(
+                    `${f.insightKind}|${f.definitionType}|${f.nameSlug}`,
+                ),
+        );
+
+        const { canViewChartUuid } = this.createContentVisibilityChecker(actor);
+        const visibleFindings = await Promise.all(
+            fresh.map(async (finding) => {
+                const visibleVariants = await Promise.all(
+                    finding.variants.map(async (variant) => {
+                        const visibleCharts: typeof variant.charts = [];
+                        for (const chart of variant.charts) {
+                            // eslint-disable-next-line no-await-in-loop
+                            if (await canViewChartUuid(chart.savedQueryUuid)) {
+                                visibleCharts.push(chart);
+                            }
+                        }
+                        return {
+                            ...variant,
+                            chartCount: visibleCharts.length,
+                            charts: visibleCharts,
+                        };
+                    }),
+                );
+                const filteredVariants = visibleVariants.filter(
+                    (v) => v.chartCount > 0,
+                );
+                const totalUsageCount = filteredVariants.reduce(
+                    (sum, v) => sum + v.chartCount,
+                    0,
+                );
+                if (totalUsageCount < 3) return null;
+                return {
+                    ...finding,
+                    variants: filteredVariants,
+                    totalUsageCount,
+                };
+            }),
+        );
+
+        const topFindings = visibleFindings.filter(
+            (f): f is NonNullable<typeof f> => f !== null,
+        );
+
+        return JSON.stringify({
+            topFindings,
+            totalCount: topFindings.length,
+        });
     }
 
     private async handleGetUserQuestions(

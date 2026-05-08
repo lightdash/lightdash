@@ -115,6 +115,116 @@ export const getFixedBrokenMetadata = (
         : null;
 };
 
+export enum GovernanceInsightKind {
+    HEAVY_CUSTOM_USAGE = 'heavy_custom_usage',
+    INCONSISTENT_DEFINITIONS = 'inconsistent_definitions',
+    GOVERNANCE_ROLLUP = 'governance_rollup',
+}
+
+export enum GovernanceDefinitionType {
+    METRIC = 'metric',
+    SQL_DIMENSION = 'sql_dimension',
+}
+
+export type GovernanceVariantChart = {
+    savedQueryUuid: string;
+    savedQueryName: string;
+    spaceUuid: string;
+};
+
+export type GovernanceVariant = {
+    sql: string;
+    name: string;
+    chartCount: number;
+    charts: GovernanceVariantChart[];
+};
+
+export type PromoteToDbtSuggestion = {
+    kind: 'promote_to_dbt';
+    canonicalSql: string | null;
+    targetModel: string | null;
+    proposedMetricName: string;
+    yamlSnippet: string | null;
+    rationale: string;
+};
+
+export type GovernanceInsightMetadata = {
+    insightKind:
+        | GovernanceInsightKind.HEAVY_CUSTOM_USAGE
+        | GovernanceInsightKind.INCONSISTENT_DEFINITIONS;
+    definitionType: GovernanceDefinitionType;
+    nameSlug: string;
+    variants: GovernanceVariant[];
+    totalUsageCount: number;
+    suggestion: PromoteToDbtSuggestion | null;
+};
+
+export type GovernanceRollupMetadata = {
+    insightKind: GovernanceInsightKind.GOVERNANCE_ROLLUP;
+    remainingByKind: Partial<
+        Record<
+            Exclude<
+                GovernanceInsightKind,
+                GovernanceInsightKind.GOVERNANCE_ROLLUP
+            >,
+            number
+        >
+    >;
+    totalRemaining: number;
+};
+
+export const getGovernanceInsightMetadata = (
+    metadata: Record<string, unknown>,
+): GovernanceInsightMetadata | GovernanceRollupMetadata | null => {
+    const { insightKind } = metadata;
+    if (typeof insightKind !== 'string') return null;
+
+    if (insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP) {
+        const { totalRemaining, remainingByKind } = metadata;
+        if (
+            typeof totalRemaining !== 'number' ||
+            typeof remainingByKind !== 'object' ||
+            remainingByKind === null
+        ) {
+            return null;
+        }
+        return {
+            insightKind: GovernanceInsightKind.GOVERNANCE_ROLLUP,
+            totalRemaining,
+            remainingByKind:
+                remainingByKind as GovernanceRollupMetadata['remainingByKind'],
+        };
+    }
+
+    if (
+        insightKind !== GovernanceInsightKind.HEAVY_CUSTOM_USAGE &&
+        insightKind !== GovernanceInsightKind.INCONSISTENT_DEFINITIONS
+    ) {
+        return null;
+    }
+
+    const { definitionType, nameSlug, variants, totalUsageCount, suggestion } =
+        metadata;
+    if (
+        (definitionType !== GovernanceDefinitionType.METRIC &&
+            definitionType !== GovernanceDefinitionType.SQL_DIMENSION) ||
+        typeof nameSlug !== 'string' ||
+        !Array.isArray(variants) ||
+        typeof totalUsageCount !== 'number'
+    ) {
+        return null;
+    }
+
+    return {
+        insightKind,
+        definitionType,
+        nameSlug,
+        variants: variants as GovernanceVariant[],
+        totalUsageCount,
+        suggestion: (suggestion as PromoteToDbtSuggestion | null) ?? null,
+    };
+};
+
 export type UpdateManagedAgentSettings = {
     enabled?: boolean;
     schedule?: ManagedAgentScheduleOption;

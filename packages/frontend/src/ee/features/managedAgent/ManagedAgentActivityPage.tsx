@@ -5,6 +5,9 @@ import {
     countTotalFilterRules,
     type Dashboard,
     getFixedBrokenMetadata,
+    getGovernanceInsightMetadata,
+    type GovernanceInsightMetadata,
+    GovernanceInsightKind,
     getManagedAgentActionCategory,
     type ManagedAgentAction,
     ManagedAgentActionType,
@@ -20,6 +23,8 @@ import {
     Anchor,
     Box,
     Button,
+    Code,
+    CopyButton,
     Group,
     Loader,
     Menu,
@@ -38,9 +43,11 @@ import {
     IconBolt,
     IconBrandSlack,
     IconChartBar,
+    IconCheck,
     IconChevronRight,
     IconCircleCheck,
     IconClock,
+    IconCopy,
     IconDatabase,
     IconDots,
     IconExternalLink,
@@ -451,6 +458,87 @@ const SlowDetails: FC<{ metadata: Record<string, unknown> }> = ({
     );
 };
 
+const GovernanceDetails: FC<{
+    projectUuid: string;
+    metadata: GovernanceInsightMetadata;
+}> = ({ projectUuid, metadata }) => {
+    const variant = metadata.variants[0];
+    const suggestion = metadata.suggestion;
+
+    return (
+        <Stack gap="md">
+            <Stack gap="sm">
+                <MetadataLabel label="Affected charts" />
+                <InfoRow icon={IconChartBar} label="Total usage">
+                    {metadata.totalUsageCount} charts
+                </InfoRow>
+                {variant?.charts && variant.charts.length > 0 && (
+                    <Stack gap={4}>
+                        {variant.charts.slice(0, 5).map((chart) => (
+                            <Anchor
+                                key={chart.savedQueryUuid}
+                                href={`/projects/${projectUuid}/saved/${chart.savedQueryUuid}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                fz="xs"
+                            >
+                                {chart.savedQueryName}
+                            </Anchor>
+                        ))}
+                        {variant.charts.length > 5 && (
+                            <Text fz="xs" c="dimmed">
+                                + {variant.charts.length - 5} more
+                            </Text>
+                        )}
+                    </Stack>
+                )}
+            </Stack>
+
+            {variant?.sql && (
+                <Stack gap={4}>
+                    <MetadataLabel label="Current SQL" />
+                    <Code block fz="xs">
+                        {variant.sql}
+                    </Code>
+                </Stack>
+            )}
+
+            {suggestion?.yamlSnippet && (
+                <Stack gap={4}>
+                    <Group justify="space-between" align="center">
+                        <MetadataLabel label="Proposed dbt YAML" />
+                        <CopyButton value={suggestion.yamlSnippet}>
+                            {({ copied, copy }) => (
+                                <Button
+                                    size="compact-xs"
+                                    variant="default"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={copied ? IconCheck : IconCopy}
+                                            size={12}
+                                        />
+                                    }
+                                    onClick={copy}
+                                >
+                                    {copied ? 'Copied' : 'Copy'}
+                                </Button>
+                            )}
+                        </CopyButton>
+                    </Group>
+                    <Code block fz="xs">
+                        {suggestion.yamlSnippet}
+                    </Code>
+                    {suggestion.rationale && (
+                        <Text fz="xs" c="dimmed" lh={1.6}>
+                            {suggestion.rationale}
+                        </Text>
+                    )}
+                </Stack>
+            )}
+        </Stack>
+    );
+};
+
 type FieldDiff = {
     label: string;
     added: string[];
@@ -816,6 +904,21 @@ const DetailSidebar: FC<{
         : null;
     const showFixedBanner = isFixedBroken && !isReversed;
 
+    const governanceMetadata = useMemo(() => {
+        if (
+            liveAction.actionType !== ManagedAgentActionType.INSIGHT ||
+            liveAction.targetType !== 'project'
+        ) {
+            return null;
+        }
+        const parsed = getGovernanceInsightMetadata(liveAction.metadata);
+        if (!parsed) return null;
+        if (parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP) {
+            return null;
+        }
+        return parsed;
+    }, [liveAction.actionType, liveAction.targetType, liveAction.metadata]);
+
     const targetLink = isTargetDeleted
         ? null
         : isProjectTarget
@@ -1131,12 +1234,19 @@ const DetailSidebar: FC<{
                         historyHref={`/projects/${action.projectUuid}/saved/${action.targetUuid}/history`}
                     />
                 )}
+                {governanceMetadata && (
+                    <GovernanceDetails
+                        projectUuid={action.projectUuid}
+                        metadata={governanceMetadata}
+                    />
+                )}
 
                 {/* Divider if we showed details above */}
                 {(hasChartDetails ||
                     hasBrokenDetails ||
                     hasSlowDetails ||
                     showFixedBanner ||
+                    !!governanceMetadata ||
                     !!contentContext ||
                     hasProjectDetails) && (
                     <Box className={classes.headerDivider} />

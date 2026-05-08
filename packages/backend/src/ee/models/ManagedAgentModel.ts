@@ -1,6 +1,9 @@
 import {
+    generateSlug,
     getManagedAgentScheduleCron,
     getManagedAgentScheduleOption,
+    GovernanceDefinitionType,
+    GovernanceInsightKind,
     ManagedAgentRunStatus,
     type CreateManagedAgentAction,
     type ManagedAgentAction,
@@ -11,6 +14,13 @@ import {
     type UpdateManagedAgentSettings,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { ProjectTableName } from '../../database/entities/projects';
+import {
+    SavedChartAdditionalMetricTableName,
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../../database/entities/savedCharts';
+import { SpaceTableName } from '../../database/entities/spaces';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     ManagedAgentActionsTableName,
@@ -20,6 +30,28 @@ import {
     type DbManagedAgentRun,
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
+
+export type RepeatedCustomDefinitionFinding = {
+    insightKind:
+        | GovernanceInsightKind.HEAVY_CUSTOM_USAGE
+        | GovernanceInsightKind.INCONSISTENT_DEFINITIONS;
+    definitionType: GovernanceDefinitionType;
+    nameSlug: string;
+    canonicalCandidate: { sql: string; name: string } | null;
+    variants: Array<{
+        sql: string;
+        name: string;
+        chartCount: number;
+        charts: Array<{
+            savedQueryUuid: string;
+            savedQueryName: string;
+            spaceUuid: string;
+        }>;
+    }>;
+    totalUsageCount: number;
+};
+
+const HEAVY_USAGE_THRESHOLD = 3;
 
 export class ManagedAgentModel {
     private readonly database: Knex;
@@ -649,5 +681,113 @@ export class ManagedAgentModel {
                   }
                 : null,
         };
+    }
+
+    async findRepeatedCustomDefinitions(
+        projectUuid: string,
+    ): Promise<RepeatedCustomDefinitionFinding[]> {
+        type Row = {
+            name: string;
+            sql: string;
+            chart_count: string;
+            charts: Array<{
+                savedQueryUuid: string;
+                savedQueryName: string;
+                spaceUuid: string;
+            }>;
+        };
+
+        const result = await this.database.raw<{ rows: Row[] }>(
+            `
+            WITH latest_versions AS (
+                SELECT DISTINCT ON (sq.saved_query_id)
+                    sq.saved_query_id,
+                    sq.saved_query_uuid,
+                    sq.name AS chart_name,
+                    sqv.saved_queries_version_id,
+                    s.space_uuid
+                FROM ?? sq
+                JOIN ?? sqv
+                    ON sqv.saved_query_id = sq.saved_query_id
+                JOIN ?? s ON s.space_id = sq.space_id
+                JOIN ?? p ON p.project_id = s.project_id
+                WHERE p.project_uuid = ?
+                  AND sq.deleted_at IS NULL
+                ORDER BY sq.saved_query_id, sqv.saved_queries_version_id DESC
+            )
+            SELECT
+                am.name,
+                am.sql,
+                COUNT(DISTINCT lv.saved_query_id)::text AS chart_count,
+                jsonb_agg(DISTINCT jsonb_build_object(
+                    'savedQueryUuid', lv.saved_query_uuid,
+                    'savedQueryName', lv.chart_name,
+                    'spaceUuid', lv.space_uuid
+                )) AS charts
+            FROM ?? am
+            JOIN latest_versions lv
+                ON lv.saved_queries_version_id = am.saved_queries_version_id
+            GROUP BY am.name, am.sql
+            HAVING COUNT(DISTINCT lv.saved_query_id) >= ?
+            ORDER BY COUNT(DISTINCT lv.saved_query_id) DESC
+            `,
+            [
+                SavedChartsTableName,
+                SavedChartVersionsTableName,
+                SpaceTableName,
+                ProjectTableName,
+                projectUuid,
+                SavedChartAdditionalMetricTableName,
+                HEAVY_USAGE_THRESHOLD,
+            ],
+        );
+
+        return result.rows.map((row) => {
+            const chartCount = Number(row.chart_count);
+            return {
+                insightKind: GovernanceInsightKind.HEAVY_CUSTOM_USAGE,
+                definitionType: GovernanceDefinitionType.METRIC,
+                nameSlug: generateSlug(row.name),
+                canonicalCandidate: { sql: row.sql, name: row.name },
+                variants: [
+                    {
+                        sql: row.sql,
+                        name: row.name,
+                        chartCount,
+                        charts: row.charts,
+                    },
+                ],
+                totalUsageCount: chartCount,
+            };
+        });
+    }
+
+    async findActiveGovernanceInsightKeys(
+        projectUuid: string,
+    ): Promise<Set<string>> {
+        const rows = await this.database<DbManagedAgentActionWithReverser>(
+            ManagedAgentActionsTableName,
+        )
+            .where({
+                project_uuid: projectUuid,
+                action_type: 'insight',
+                target_type: 'project',
+            })
+            .whereNull('reversed_at')
+            .select('metadata');
+
+        const keys = new Set<string>();
+        for (const row of rows) {
+            const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+            const { insightKind, definitionType, nameSlug } = metadata;
+            if (
+                typeof insightKind === 'string' &&
+                typeof definitionType === 'string' &&
+                typeof nameSlug === 'string'
+            ) {
+                keys.add(`${insightKind}|${definitionType}|${nameSlug}`);
+            }
+        }
+        return keys;
     }
 }

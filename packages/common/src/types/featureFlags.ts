@@ -107,6 +107,13 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
+     * Gate the autopilot governance-insights tool (detects repeated custom
+     * definitions and proposes promoting them to dbt). Delivery-only flag —
+     * removed once all stacked PRs land.
+     */
+    ManagedAgentGovernanceInsights = 'managed-agent-governance-insights',
+
+    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.
