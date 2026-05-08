@@ -1907,6 +1907,65 @@ export class ProjectModel {
         }
     }
 
+    /** Compare-and-swap on the credential's stored refreshToken. Invalidates the warehouse credentials cache on swap. */
+    async rotateRefreshToken(
+        projectUuid: string,
+        expectedOldRefreshToken: string,
+        newRefreshToken: string,
+    ): Promise<boolean> {
+        const swapped = await this.database.transaction(async (trx) => {
+            const row = await trx('warehouse_credentials')
+                .innerJoin(
+                    'projects',
+                    'warehouse_credentials.project_id',
+                    'projects.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select<
+                    { project_id: number; encrypted_credentials: Buffer }[]
+                >([
+                    'warehouse_credentials.project_id',
+                    'warehouse_credentials.encrypted_credentials',
+                ])
+                .forUpdate()
+                .first();
+            if (!row) {
+                return false;
+            }
+
+            let credentials: CreateWarehouseCredentials;
+            try {
+                credentials = JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials;
+            } catch {
+                return false;
+            }
+
+            const stored = (credentials as Partial<{ refreshToken: string }>)
+                .refreshToken;
+            if (stored !== expectedOldRefreshToken) {
+                return false;
+            }
+
+            (credentials as { refreshToken: string }).refreshToken =
+                newRefreshToken;
+            const encryptedCredentials = this.encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            );
+            await trx('warehouse_credentials')
+                .update({ encrypted_credentials: encryptedCredentials })
+                .where('project_id', row.project_id);
+            return true;
+        });
+
+        if (swapped) {
+            warehouseCredentialsCache?.del(projectUuid);
+        }
+
+        return swapped;
+    }
+
     async duplicateContent(
         projectUuid: string,
         previewProjectUuid: string,

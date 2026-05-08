@@ -2044,7 +2044,7 @@ export class UserService extends BaseService {
                 user.userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
-            const accessToken =
+            const { accessToken } =
                 await UserService.generateSnowflakeAccessToken(refreshToken);
             return accessToken;
         }
@@ -2076,17 +2076,24 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
-    ): Promise<string> {
+    ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
                 'snowflake',
                 refreshToken,
-                (err: AnyType, accessToken: string, _refreshToken, result) => {
+                (
+                    err: AnyType,
+                    accessToken: string,
+                    newRefreshToken: string | undefined,
+                ) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;
                     }
-                    resolve(accessToken);
+                    resolve({
+                        accessToken,
+                        refreshToken: newRefreshToken || refreshToken,
+                    });
                 },
             );
         });

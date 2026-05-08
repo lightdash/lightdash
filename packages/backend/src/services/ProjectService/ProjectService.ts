@@ -270,6 +270,14 @@ import { UserService } from '../UserService';
 import { getFieldValuesMetricQuery } from './fieldValuesQueryBuilder';
 import { getAvailableParameterDefinitions } from './parameters';
 
+type RefreshTokenRotationSource =
+    | { kind: 'project'; projectUuid: string }
+    | {
+          kind: 'organization';
+          organizationWarehouseCredentialsUuid: string;
+      }
+    | { kind: 'user'; userWarehouseCredentialsUuid: string };
+
 export type ProjectServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -768,7 +776,7 @@ export class ProjectService extends BaseService {
                 );
                 // If we try to generate access token from token instead of refreshToken
                 // it will throw an error: The request was invalid.
-                const accessToken =
+                const { accessToken, refreshToken: newRefreshToken } =
                     await UserService.generateSnowflakeAccessToken(
                         refreshToken,
                     );
@@ -776,6 +784,7 @@ export class ProjectService extends BaseService {
                     ...args,
                     authenticationType: SnowflakeAuthenticationType.SSO,
                     token: accessToken,
+                    refreshToken: newRefreshToken,
                 };
             } catch (e: unknown) {
                 if (e instanceof LightdashError) {
@@ -946,6 +955,93 @@ export class ProjectService extends BaseService {
         }
 
         return args;
+    }
+
+    private async refreshCredentialsAndPersistRotation<
+        T extends CreateWarehouseCredentials,
+    >(
+        args: T,
+        userUuid: string,
+        source: RefreshTokenRotationSource,
+    ): Promise<T> {
+        const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
+
+        const refreshed = await this.refreshCredentials(args, userUuid);
+
+        const newRefreshToken =
+            ProjectService.getCredentialsRefreshToken(refreshed);
+
+        if (
+            oldRefreshToken &&
+            newRefreshToken &&
+            newRefreshToken !== oldRefreshToken
+        ) {
+            await this.persistRefreshTokenRotation({
+                source,
+                oldRefreshToken,
+                newRefreshToken,
+            });
+        }
+
+        return refreshed;
+    }
+
+    private static getCredentialsRefreshToken(
+        creds: CreateWarehouseCredentials,
+    ): string | undefined {
+        const candidate = (creds as Partial<{ refreshToken: string }>)
+            .refreshToken;
+        return typeof candidate === 'string' && candidate.length > 0
+            ? candidate
+            : undefined;
+    }
+
+    private async persistRefreshTokenRotation({
+        source,
+        oldRefreshToken,
+        newRefreshToken,
+    }: {
+        source: RefreshTokenRotationSource;
+        oldRefreshToken: string;
+        newRefreshToken: string;
+    }): Promise<void> {
+        try {
+            switch (source.kind) {
+                case 'project':
+                    await this.projectModel.rotateRefreshToken(
+                        source.projectUuid,
+                        oldRefreshToken,
+                        newRefreshToken,
+                    );
+                    break;
+                case 'organization':
+                    await this.organizationWarehouseCredentialsModel.rotateRefreshToken(
+                        source.organizationWarehouseCredentialsUuid,
+                        oldRefreshToken,
+                        newRefreshToken,
+                    );
+                    break;
+                case 'user':
+                    await this.userWarehouseCredentialsModel.rotateRefreshToken(
+                        source.userWarehouseCredentialsUuid,
+                        oldRefreshToken,
+                        newRefreshToken,
+                    );
+                    break;
+                default:
+                    assertUnreachable(
+                        source,
+                        'Unknown OAuth refresh token rotation source',
+                    );
+            }
+        } catch (error) {
+            // Don't fail the in-flight query: the freshly minted access token is still usable.
+            this.logger.error(
+                `Failed to persist rotated OAuth refresh token for ${
+                    source.kind
+                }: ${getErrorMessage(error)}`,
+            );
+        }
     }
 
     /*
@@ -1289,9 +1385,13 @@ export class ProjectService extends BaseService {
             this.logger.debug(
                 `Refreshing warehouse credentials from organization credentials`,
             );
-            credentials = await this.refreshCredentials(
+            credentials = await this.refreshCredentialsAndPersistRotation(
                 credentials, // This credentials are already loaded from organization
                 userId,
+                {
+                    kind: 'organization',
+                    organizationWarehouseCredentialsUuid,
+                },
             );
         }
 
@@ -1348,9 +1448,14 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Using user warehouse credentials for user ${userId}`,
                 );
-                credentials = await this.refreshCredentials(
+                credentials = await this.refreshCredentialsAndPersistRotation(
                     credentials,
                     userId,
+                    {
+                        kind: 'user',
+                        userWarehouseCredentialsUuid:
+                            userWarehouseCredentials.uuid,
+                    },
                 );
                 userWarehouseCredentialsUuid = userWarehouseCredentials.uuid;
             } else if (credentials.requireUserCredentials) {
@@ -1365,9 +1470,10 @@ export class ProjectService extends BaseService {
                 this.logger.debug(
                     `Refreshing warehouse credentials for session user ${userId}`,
                 );
-                credentials = await this.refreshCredentials(
+                credentials = await this.refreshCredentialsAndPersistRotation(
                     credentials,
                     userId,
+                    { kind: 'project', projectUuid },
                 );
             }
         } else if (credentials.requireUserCredentials) {
@@ -1382,7 +1488,11 @@ export class ProjectService extends BaseService {
             this.logger.debug(
                 `Refreshing warehouse credentials for embed user ${userId}`,
             );
-            credentials = await this.refreshCredentials(credentials, userId);
+            credentials = await this.refreshCredentialsAndPersistRotation(
+                credentials,
+                userId,
+                { kind: 'project', projectUuid },
+            );
         }
 
         return {
@@ -2873,10 +2983,18 @@ export class ProjectService extends BaseService {
             this.logger.debug(
                 `Refreshing snowflake warehouse credentials from refresh token on buildAdapter`,
             );
-            const accessToken = await UserService.generateSnowflakeAccessToken(
-                project.warehouseConnection.refreshToken,
-            );
+            const oldRefreshToken = project.warehouseConnection.refreshToken;
+            const { accessToken, refreshToken: newRefreshToken } =
+                await UserService.generateSnowflakeAccessToken(oldRefreshToken);
             project.warehouseConnection.token = accessToken;
+            project.warehouseConnection.refreshToken = newRefreshToken;
+            if (newRefreshToken !== oldRefreshToken) {
+                await this.persistRefreshTokenRotation({
+                    source: { kind: 'project', projectUuid },
+                    oldRefreshToken,
+                    newRefreshToken,
+                });
+            }
         }
 
         if (
