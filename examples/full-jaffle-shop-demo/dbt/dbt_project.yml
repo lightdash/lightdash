@@ -55,6 +55,15 @@ models:
     airports:
       +meta:
         group_label: maps
+    world_cities:
+      +meta:
+        group_label: maps
+    european_cities:
+      +meta:
+        group_label: maps
+    spanish_cities:
+      +meta:
+        group_label: maps
 seeds:
   jaffle_shop:
     raw_customers:
