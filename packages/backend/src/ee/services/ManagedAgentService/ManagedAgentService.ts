@@ -5,6 +5,7 @@ import {
     getFixedBrokenMetadata,
     getManagedAgentActionCategory,
     getManagedAgentScheduleCron,
+    GovernanceDefinitionType,
     ManagedAgentActionType,
     ManagedAgentRunStatus,
     ManagedAgentTargetType,
@@ -45,7 +46,10 @@ import {
     ManagedAgentClient,
     type ManagedAgentSessionConfig,
 } from '../../clients/ManagedAgentClient';
-import { ManagedAgentModel } from '../../models/ManagedAgentModel';
+import {
+    classifyRepeatedDefinitions,
+    ManagedAgentModel,
+} from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 
 type RunsCursor = { startedAt: Date; runUuid: string };
@@ -2556,10 +2560,28 @@ chartConfig:
             return JSON.stringify({ topFindings: [], totalCount: 0 });
         }
 
-        const findings =
-            await this.managedAgentModel.findRepeatedCustomDefinitions(
+        const rawRows =
+            await this.managedAgentModel.fetchAdditionalMetricDefinitionRows(
                 projectUuid,
             );
+
+        const { canViewChartUuid } = this.createContentVisibilityChecker(actor);
+        const visibleRows: typeof rawRows = [];
+        const visibilityCache = new Map<string, boolean>();
+        for (const row of rawRows) {
+            let visible = visibilityCache.get(row.chart.savedQueryUuid);
+            if (visible === undefined) {
+                // eslint-disable-next-line no-await-in-loop
+                visible = await canViewChartUuid(row.chart.savedQueryUuid);
+                visibilityCache.set(row.chart.savedQueryUuid, visible);
+            }
+            if (visible) visibleRows.push(row);
+        }
+
+        const findings = classifyRepeatedDefinitions(
+            visibleRows,
+            GovernanceDefinitionType.METRIC,
+        );
 
         const activeKeys =
             await this.managedAgentModel.findActiveGovernanceInsightKeys(
@@ -2573,48 +2595,9 @@ chartConfig:
                 ),
         );
 
-        const { canViewChartUuid } = this.createContentVisibilityChecker(actor);
-        const visibleFindings = await Promise.all(
-            fresh.map(async (finding) => {
-                const visibleVariants = await Promise.all(
-                    finding.variants.map(async (variant) => {
-                        const visibleCharts: typeof variant.charts = [];
-                        for (const chart of variant.charts) {
-                            // eslint-disable-next-line no-await-in-loop
-                            if (await canViewChartUuid(chart.savedQueryUuid)) {
-                                visibleCharts.push(chart);
-                            }
-                        }
-                        return {
-                            ...variant,
-                            chartCount: visibleCharts.length,
-                            charts: visibleCharts,
-                        };
-                    }),
-                );
-                const filteredVariants = visibleVariants.filter(
-                    (v) => v.chartCount > 0,
-                );
-                const totalUsageCount = filteredVariants.reduce(
-                    (sum, v) => sum + v.chartCount,
-                    0,
-                );
-                if (totalUsageCount < 3) return null;
-                return {
-                    ...finding,
-                    variants: filteredVariants,
-                    totalUsageCount,
-                };
-            }),
-        );
-
-        const topFindings = visibleFindings.filter(
-            (f): f is NonNullable<typeof f> => f !== null,
-        );
-
         return JSON.stringify({
-            topFindings,
-            totalCount: topFindings.length,
+            topFindings: fresh,
+            totalCount: fresh.length,
         });
     }
 

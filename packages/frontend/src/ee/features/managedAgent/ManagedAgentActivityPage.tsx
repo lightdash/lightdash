@@ -458,52 +458,85 @@ const SlowDetails: FC<{ metadata: Record<string, unknown> }> = ({
     );
 };
 
+const GovernanceVariantBlock: FC<{
+    projectUuid: string;
+    variant: GovernanceInsightMetadata['variants'][number];
+    showName: boolean;
+}> = ({ projectUuid, variant, showName }) => (
+    <Stack gap={4}>
+        <Group gap={6} align="center" wrap="nowrap">
+            {showName && (
+                <Text fz="xs" fw={500} ff="monospace">
+                    {variant.name}
+                </Text>
+            )}
+            <Text fz="xs" c="dimmed">
+                {variant.chartCount} chart
+                {variant.chartCount === 1 ? '' : 's'}
+            </Text>
+        </Group>
+        <Code block fz="xs">
+            {variant.sql}
+        </Code>
+        {variant.charts.length > 0 && (
+            <Stack gap={2} pl="sm">
+                {variant.charts.slice(0, 3).map((chart) => (
+                    <Anchor
+                        key={chart.savedQueryUuid}
+                        href={`/projects/${projectUuid}/saved/${chart.savedQueryUuid}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        fz="xs"
+                    >
+                        {chart.savedQueryName}
+                    </Anchor>
+                ))}
+                {variant.charts.length > 3 && (
+                    <Text fz="xs" c="dimmed">
+                        + {variant.charts.length - 3} more
+                    </Text>
+                )}
+            </Stack>
+        )}
+    </Stack>
+);
+
 const GovernanceDetails: FC<{
     projectUuid: string;
     metadata: GovernanceInsightMetadata;
 }> = ({ projectUuid, metadata }) => {
-    const variant = metadata.variants[0];
     const suggestion = metadata.suggestion;
+    const isInconsistent =
+        metadata.insightKind === GovernanceInsightKind.INCONSISTENT_DEFINITIONS;
+    const variantsLabel = isInconsistent
+        ? `${metadata.variants.length} distinct definitions`
+        : 'Current SQL';
+    const showVariantNames = metadata.variants.some(
+        (v, i) => i > 0 && v.name !== metadata.variants[0].name,
+    );
 
     return (
         <Stack gap="md">
             <Stack gap="sm">
-                <MetadataLabel label="Affected charts" />
-                <InfoRow icon={IconChartBar} label="Total usage">
-                    {metadata.totalUsageCount} charts
+                <MetadataLabel label="Usage" />
+                <InfoRow icon={IconChartBar} label="Total charts">
+                    {metadata.totalUsageCount}
                 </InfoRow>
-                {variant?.charts && variant.charts.length > 0 && (
-                    <Stack gap={4}>
-                        {variant.charts.slice(0, 5).map((chart) => (
-                            <Anchor
-                                key={chart.savedQueryUuid}
-                                href={`/projects/${projectUuid}/saved/${chart.savedQueryUuid}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                fz="xs"
-                            >
-                                {chart.savedQueryName}
-                            </Anchor>
-                        ))}
-                        {variant.charts.length > 5 && (
-                            <Text fz="xs" c="dimmed">
-                                + {variant.charts.length - 5} more
-                            </Text>
-                        )}
-                    </Stack>
-                )}
             </Stack>
 
-            {variant?.sql && (
-                <Stack gap={4}>
-                    <MetadataLabel label="Current SQL" />
-                    <Code block fz="xs">
-                        {variant.sql}
-                    </Code>
-                </Stack>
-            )}
+            <Stack gap="sm">
+                <MetadataLabel label={variantsLabel} />
+                {metadata.variants.map((variant) => (
+                    <GovernanceVariantBlock
+                        key={`${variant.name}\0${variant.sql}`}
+                        projectUuid={projectUuid}
+                        variant={variant}
+                        showName={isInconsistent && showVariantNames}
+                    />
+                ))}
+            </Stack>
 
-            {suggestion?.yamlSnippet && (
+            {suggestion?.yamlSnippet ? (
                 <Stack gap={4}>
                     <Group justify="space-between" align="center">
                         <MetadataLabel label="Proposed dbt YAML" />
@@ -534,6 +567,16 @@ const GovernanceDetails: FC<{
                         </Text>
                     )}
                 </Stack>
+            ) : (
+                isInconsistent && (
+                    <Stack gap={4}>
+                        <MetadataLabel label="Proposed dbt YAML" />
+                        <Text fz="xs" c="dimmed" lh={1.6}>
+                            {suggestion?.rationale ??
+                                'Multiple variants are equally common — pick a canonical definition before promoting to dbt.'}
+                        </Text>
+                    </Stack>
+                )
             )}
         </Stack>
     );

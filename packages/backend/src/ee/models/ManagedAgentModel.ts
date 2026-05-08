@@ -31,6 +31,18 @@ import {
     type DbManagedAgentSettings,
 } from '../database/entities/managedAgent';
 
+type DefinitionChart = {
+    savedQueryUuid: string;
+    savedQueryName: string;
+    spaceUuid: string;
+};
+
+export type RepeatedDefinitionRow = {
+    name: string;
+    sql: string;
+    chart: DefinitionChart;
+};
+
 export type RepeatedCustomDefinitionFinding = {
     insightKind:
         | GovernanceInsightKind.HEAVY_CUSTOM_USAGE
@@ -42,16 +54,145 @@ export type RepeatedCustomDefinitionFinding = {
         sql: string;
         name: string;
         chartCount: number;
-        charts: Array<{
-            savedQueryUuid: string;
-            savedQueryName: string;
-            spaceUuid: string;
-        }>;
+        charts: DefinitionChart[];
     }>;
     totalUsageCount: number;
 };
 
 const HEAVY_USAGE_THRESHOLD = 3;
+
+const normalizeSql = (sql: string): string =>
+    sql.toLowerCase().replace(/\s+/g, ' ').trim();
+
+const findRoot = (parent: Map<string, string>, key: string): string => {
+    if (!parent.has(key)) {
+        parent.set(key, key);
+        return key;
+    }
+    let root = key;
+    while (parent.get(root) !== root) {
+        root = parent.get(root) as string;
+    }
+    let cur = key;
+    while (parent.get(cur) !== root) {
+        const next = parent.get(cur) as string;
+        parent.set(cur, root);
+        cur = next;
+    }
+    return root;
+};
+
+const unionKeys = (parent: Map<string, string>, a: string, b: string): void => {
+    const ra = findRoot(parent, a);
+    const rb = findRoot(parent, b);
+    if (ra !== rb) parent.set(ra, rb);
+};
+
+export const classifyRepeatedDefinitions = (
+    rows: RepeatedDefinitionRow[],
+    definitionType: GovernanceDefinitionType,
+): RepeatedCustomDefinitionFinding[] => {
+    if (rows.length === 0) return [];
+
+    const enriched = rows.map((r) => ({
+        ...r,
+        nameSlug: generateSlug(r.name),
+        normalizedSql: normalizeSql(r.sql),
+    }));
+
+    const parent = new Map<string, string>();
+    for (const row of enriched) {
+        unionKeys(parent, `name:${row.nameSlug}`, `sql:${row.normalizedSql}`);
+    }
+
+    const groupedByRoot = new Map<string, typeof enriched>();
+    for (const row of enriched) {
+        const root = findRoot(parent, `name:${row.nameSlug}`);
+        const existing = groupedByRoot.get(root);
+        if (existing) {
+            existing.push(row);
+        } else {
+            groupedByRoot.set(root, [row]);
+        }
+    }
+
+    const findings: RepeatedCustomDefinitionFinding[] = [];
+
+    for (const groupRows of groupedByRoot.values()) {
+        const variantMap = new Map<
+            string,
+            {
+                sql: string;
+                name: string;
+                charts: Map<string, DefinitionChart>;
+            }
+        >();
+        for (const row of groupRows) {
+            const variantKey = `${row.name}\0${row.sql}`;
+            let variant = variantMap.get(variantKey);
+            if (!variant) {
+                variant = {
+                    sql: row.sql,
+                    name: row.name,
+                    charts: new Map(),
+                };
+                variantMap.set(variantKey, variant);
+            }
+            variant.charts.set(row.chart.savedQueryUuid, row.chart);
+        }
+
+        const variants = Array.from(variantMap.values()).map((v) => ({
+            sql: v.sql,
+            name: v.name,
+            chartCount: v.charts.size,
+            charts: Array.from(v.charts.values()),
+        }));
+
+        const allChartUuids = new Set<string>();
+        for (const v of variants) {
+            for (const c of v.charts) {
+                allChartUuids.add(c.savedQueryUuid);
+            }
+        }
+        const totalUsageCount = allChartUuids.size;
+
+        const distinctNameSlugs = new Set(groupRows.map((r) => r.nameSlug))
+            .size;
+        const distinctNormalizedSqls = new Set(
+            groupRows.map((r) => r.normalizedSql),
+        ).size;
+        const isInconsistent =
+            distinctNameSlugs > 1 || distinctNormalizedSqls > 1;
+
+        const meetsThreshold =
+            isInconsistent || totalUsageCount >= HEAVY_USAGE_THRESHOLD;
+
+        if (meetsThreshold) {
+            const sortedVariants = [...variants].sort(
+                (a, b) => b.chartCount - a.chartCount,
+            );
+            const top = sortedVariants[0];
+            const runnerUp = sortedVariants[1];
+            const canonicalCandidate =
+                !runnerUp || top.chartCount > runnerUp.chartCount
+                    ? { sql: top.sql, name: top.name }
+                    : null;
+
+            findings.push({
+                insightKind: isInconsistent
+                    ? GovernanceInsightKind.INCONSISTENT_DEFINITIONS
+                    : GovernanceInsightKind.HEAVY_CUSTOM_USAGE,
+                definitionType,
+                nameSlug: generateSlug(top.name),
+                canonicalCandidate,
+                variants: sortedVariants,
+                totalUsageCount,
+            });
+        }
+    }
+
+    return findings.sort((a, b) => b.totalUsageCount - a.totalUsageCount);
+};
 
 export class ManagedAgentModel {
     private readonly database: Knex;
@@ -683,18 +824,15 @@ export class ManagedAgentModel {
         };
     }
 
-    async findRepeatedCustomDefinitions(
+    async fetchAdditionalMetricDefinitionRows(
         projectUuid: string,
-    ): Promise<RepeatedCustomDefinitionFinding[]> {
+    ): Promise<RepeatedDefinitionRow[]> {
         type Row = {
             name: string;
             sql: string;
-            chart_count: string;
-            charts: Array<{
-                savedQueryUuid: string;
-                savedQueryName: string;
-                spaceUuid: string;
-            }>;
+            saved_query_uuid: string;
+            chart_name: string;
+            space_uuid: string;
         };
 
         const result = await this.database.raw<{ rows: Row[] }>(
@@ -718,18 +856,12 @@ export class ManagedAgentModel {
             SELECT
                 am.name,
                 am.sql,
-                COUNT(DISTINCT lv.saved_query_id)::text AS chart_count,
-                jsonb_agg(DISTINCT jsonb_build_object(
-                    'savedQueryUuid', lv.saved_query_uuid,
-                    'savedQueryName', lv.chart_name,
-                    'spaceUuid', lv.space_uuid
-                )) AS charts
+                lv.saved_query_uuid,
+                lv.chart_name,
+                lv.space_uuid
             FROM ?? am
             JOIN latest_versions lv
                 ON lv.saved_queries_version_id = am.saved_queries_version_id
-            GROUP BY am.name, am.sql
-            HAVING COUNT(DISTINCT lv.saved_query_id) >= ?
-            ORDER BY COUNT(DISTINCT lv.saved_query_id) DESC
             `,
             [
                 SavedChartsTableName,
@@ -738,28 +870,18 @@ export class ManagedAgentModel {
                 ProjectTableName,
                 projectUuid,
                 SavedChartAdditionalMetricTableName,
-                HEAVY_USAGE_THRESHOLD,
             ],
         );
 
-        return result.rows.map((row) => {
-            const chartCount = Number(row.chart_count);
-            return {
-                insightKind: GovernanceInsightKind.HEAVY_CUSTOM_USAGE,
-                definitionType: GovernanceDefinitionType.METRIC,
-                nameSlug: generateSlug(row.name),
-                canonicalCandidate: { sql: row.sql, name: row.name },
-                variants: [
-                    {
-                        sql: row.sql,
-                        name: row.name,
-                        chartCount,
-                        charts: row.charts,
-                    },
-                ],
-                totalUsageCount: chartCount,
-            };
-        });
+        return result.rows.map((r) => ({
+            name: r.name,
+            sql: r.sql,
+            chart: {
+                savedQueryUuid: r.saved_query_uuid,
+                savedQueryName: r.chart_name,
+                spaceUuid: r.space_uuid,
+            },
+        }));
     }
 
     async findActiveGovernanceInsightKeys(
