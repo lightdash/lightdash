@@ -1,10 +1,17 @@
 import { useMemo } from 'react';
+import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import { useProjectAiAgents } from '../../hooks/useProjectAiAgents';
 import { useGetUserAgentPreferences } from '../../hooks/useUserAgentPreferences';
 
 export const useDefaultAiAgent = (projectUuid: string | undefined) => {
+    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
     const { data: agents } = useProjectAiAgents({
         projectUuid,
+        options: {
+            enabled:
+                aiOrganizationSettingsQuery.isSuccess &&
+                aiOrganizationSettingsQuery.data?.aiAgentsVisible,
+        },
         redirectOnUnauthorized: false,
     });
     const { data: preferences } = useGetUserAgentPreferences(projectUuid);
