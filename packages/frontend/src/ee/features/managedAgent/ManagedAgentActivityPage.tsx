@@ -1231,6 +1231,10 @@ const DetailSidebar: FC<{
             : null;
     const hasProjectDetails = !!targetProject;
 
+    const isAutoResolved =
+        action.reversedAt !== null &&
+        (action.metadata as Record<string, unknown> | undefined)
+            ?.autoResolved === true;
     const reversedLabel = action.reversedAt
         ? `${formatDistanceToNowStrict(new Date(action.reversedAt))} ago${
               action.reversedByUser
@@ -1238,6 +1242,11 @@ const DetailSidebar: FC<{
                   : ''
           }`
         : null;
+    const reversedVerb = isAutoResolved
+        ? 'Auto-resolved'
+        : category === 'undo'
+          ? 'Undone'
+          : 'Dismissed';
 
     return (
         <Stack gap={0} h="100%" className={classes.sidebar}>
@@ -1322,8 +1331,7 @@ const DetailSidebar: FC<{
                         color="var(--mantine-color-dimmed)"
                     />
                     <Text fz="xs" c="dimmed">
-                        {category === 'undo' ? 'Undone' : 'Dismissed'}{' '}
-                        {reversedLabel}
+                        {reversedVerb} {reversedLabel}
                     </Text>
                 </Group>
             )}

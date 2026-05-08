@@ -2657,6 +2657,16 @@ chartConfig:
                 a.totalUsageCount * Math.max(1, a.variants.length),
         );
 
+        const currentKeys = new Set(
+            findings.map(
+                (f) => `${f.insightKind}|${f.definitionType}|${f.nameSlug}`,
+            ),
+        );
+        await this.managedAgentModel.autoResolveStaleGovernanceInsights(
+            projectUuid,
+            currentKeys,
+        );
+
         const activeKeys =
             await this.managedAgentModel.findActiveGovernanceInsightKeys(
                 projectUuid,

@@ -922,6 +922,62 @@ export class ManagedAgentModel {
         );
     }
 
+    async autoResolveStaleGovernanceInsights(
+        projectUuid: string,
+        currentKeys: Set<string>,
+    ): Promise<number> {
+        const rows = await this.database<DbManagedAgentActionWithReverser>(
+            ManagedAgentActionsTableName,
+        )
+            .where({
+                project_uuid: projectUuid,
+                action_type: 'insight',
+                target_type: 'project',
+            })
+            .whereNull('reversed_at')
+            .select('action_uuid', 'metadata');
+
+        const isStale = (
+            row: Pick<DbManagedAgentActionWithReverser, 'metadata'>,
+        ): boolean => {
+            const metadata = (row.metadata ?? {}) as Record<string, unknown>;
+            const { insightKind, definitionType, nameSlug } = metadata;
+            if (typeof insightKind !== 'string') return false;
+            if (insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP) {
+                return true;
+            }
+            if (
+                (insightKind === GovernanceInsightKind.HEAVY_CUSTOM_USAGE ||
+                    insightKind ===
+                        GovernanceInsightKind.INCONSISTENT_DEFINITIONS) &&
+                typeof definitionType === 'string' &&
+                typeof nameSlug === 'string'
+            ) {
+                const key = `${insightKind}|${definitionType}|${nameSlug}`;
+                return !currentKeys.has(key);
+            }
+            return false;
+        };
+
+        const staleUuids: string[] = rows
+            .filter(isStale)
+            .map((r) => r.action_uuid);
+
+        if (staleUuids.length === 0) return 0;
+
+        await this.database.raw(
+            `
+            UPDATE ?? SET
+                reversed_at = NOW(),
+                metadata = metadata || '{"autoResolved": true}'::jsonb
+            WHERE action_uuid = ANY(?::uuid[])
+            `,
+            [ManagedAgentActionsTableName, staleUuids],
+        );
+
+        return staleUuids.length;
+    }
+
     async findActiveGovernanceInsightKeys(
         projectUuid: string,
     ): Promise<Set<string>> {
