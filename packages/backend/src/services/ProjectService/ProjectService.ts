@@ -7698,6 +7698,7 @@ export class ProjectService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         queryTimezone: string | null,
+        useProjectTimezoneInFilters: boolean | null,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
@@ -7710,7 +7711,11 @@ export class ProjectService extends BaseService {
             throw new ParameterError(`Invalid timezone: "${queryTimezone}"`);
         }
 
-        await this.projectModel.updateQueryTimezone(projectUuid, queryTimezone);
+        await this.projectModel.updateQueryTimezone(
+            projectUuid,
+            queryTimezone,
+            useProjectTimezoneInFilters,
+        );
 
         this.analytics.track({
             event: 'query_timezone.updated',
@@ -7722,6 +7727,8 @@ export class ProjectService extends BaseService {
                     queryTimezone !== null
                         ? getTimezoneLabel(queryTimezone)
                         : null,
+                useProjectTimezoneInFilters:
+                    useProjectTimezoneInFilters === true,
             },
         });
     }

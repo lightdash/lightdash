@@ -1037,6 +1037,7 @@ export class ProjectController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 body.queryTimezone,
+                body.useProjectTimezoneInFilters,
             );
 
         return {

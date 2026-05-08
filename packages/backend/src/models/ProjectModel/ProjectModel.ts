@@ -534,6 +534,9 @@ export class ProjectModel {
                               scheduler_timezone:
                                   copiedProjects[0].scheduler_timezone,
                               query_timezone: copiedProjects[0].query_timezone,
+                              use_project_timezone_in_filters:
+                                  copiedProjects[0]
+                                      .use_project_timezone_in_filters,
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
@@ -714,6 +717,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
+                  use_project_timezone_in_filters: boolean | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -732,6 +736,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
+                  use_project_timezone_in_filters: boolean | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -792,6 +797,9 @@ export class ProjectModel {
                             .ref('query_timezone')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('use_project_timezone_in_filters')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('created_by_user_uuid')
                             .withSchema(ProjectTableName),
                         this.database
@@ -842,6 +850,8 @@ export class ProjectModel {
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     schedulerTimezone: project.scheduler_timezone,
                     queryTimezone: project.query_timezone,
+                    useProjectTimezoneInFilters:
+                        project.use_project_timezone_in_filters,
                     createdByUserUuid: project.created_by_user_uuid,
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
@@ -1046,6 +1056,7 @@ export class ProjectModel {
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             schedulerTimezone: project.schedulerTimezone,
             queryTimezone: project.queryTimezone,
+            useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
@@ -3205,10 +3216,12 @@ export class ProjectModel {
     async updateQueryTimezone(
         projectUuid: string,
         timezone: string | null,
+        useProjectTimezoneInFilters: boolean | null,
     ): Promise<DbProject> {
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
                 query_timezone: timezone,
+                use_project_timezone_in_filters: useProjectTimezoneInFilters,
             })
             .where('project_uuid', projectUuid)
             .returning('*');
