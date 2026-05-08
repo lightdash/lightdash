@@ -17,6 +17,7 @@ import { type Knex } from 'knex';
 import { ProjectTableName } from '../../database/entities/projects';
 import {
     SavedChartAdditionalMetricTableName,
+    SavedChartCustomSqlDimensionsTableName,
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
@@ -824,8 +825,9 @@ export class ManagedAgentModel {
         };
     }
 
-    async fetchAdditionalMetricDefinitionRows(
+    private async fetchCustomDefinitionRows(
         projectUuid: string,
+        definitionTableName: string,
     ): Promise<RepeatedDefinitionRow[]> {
         type Row = {
             name: string;
@@ -854,14 +856,14 @@ export class ManagedAgentModel {
                 ORDER BY sq.saved_query_id, sqv.saved_queries_version_id DESC
             )
             SELECT
-                am.name,
-                am.sql,
+                d.name,
+                d.sql,
                 lv.saved_query_uuid,
                 lv.chart_name,
                 lv.space_uuid
-            FROM ?? am
+            FROM ?? d
             JOIN latest_versions lv
-                ON lv.saved_queries_version_id = am.saved_queries_version_id
+                ON lv.saved_queries_version_id = d.saved_queries_version_id
             `,
             [
                 SavedChartsTableName,
@@ -869,7 +871,7 @@ export class ManagedAgentModel {
                 SpaceTableName,
                 ProjectTableName,
                 projectUuid,
-                SavedChartAdditionalMetricTableName,
+                definitionTableName,
             ],
         );
 
@@ -882,6 +884,24 @@ export class ManagedAgentModel {
                 spaceUuid: r.space_uuid,
             },
         }));
+    }
+
+    async fetchAdditionalMetricDefinitionRows(
+        projectUuid: string,
+    ): Promise<RepeatedDefinitionRow[]> {
+        return this.fetchCustomDefinitionRows(
+            projectUuid,
+            SavedChartAdditionalMetricTableName,
+        );
+    }
+
+    async fetchCustomSqlDimensionDefinitionRows(
+        projectUuid: string,
+    ): Promise<RepeatedDefinitionRow[]> {
+        return this.fetchCustomDefinitionRows(
+            projectUuid,
+            SavedChartCustomSqlDimensionsTableName,
+        );
     }
 
     async findActiveGovernanceInsightKeys(

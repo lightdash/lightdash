@@ -2560,28 +2560,44 @@ chartConfig:
             return JSON.stringify({ topFindings: [], totalCount: 0 });
         }
 
-        const rawRows =
-            await this.managedAgentModel.fetchAdditionalMetricDefinitionRows(
+        const [metricRows, sqlDimensionRows] = await Promise.all([
+            this.managedAgentModel.fetchAdditionalMetricDefinitionRows(
                 projectUuid,
-            );
+            ),
+            this.managedAgentModel.fetchCustomSqlDimensionDefinitionRows(
+                projectUuid,
+            ),
+        ]);
 
         const { canViewChartUuid } = this.createContentVisibilityChecker(actor);
-        const visibleRows: typeof rawRows = [];
         const visibilityCache = new Map<string, boolean>();
-        for (const row of rawRows) {
-            let visible = visibilityCache.get(row.chart.savedQueryUuid);
-            if (visible === undefined) {
-                // eslint-disable-next-line no-await-in-loop
-                visible = await canViewChartUuid(row.chart.savedQueryUuid);
-                visibilityCache.set(row.chart.savedQueryUuid, visible);
+        const filterVisible = async (rows: typeof metricRows) => {
+            const out: typeof metricRows = [];
+            for (const row of rows) {
+                let visible = visibilityCache.get(row.chart.savedQueryUuid);
+                if (visible === undefined) {
+                    // eslint-disable-next-line no-await-in-loop
+                    visible = await canViewChartUuid(row.chart.savedQueryUuid);
+                    visibilityCache.set(row.chart.savedQueryUuid, visible);
+                }
+                if (visible) out.push(row);
             }
-            if (visible) visibleRows.push(row);
-        }
+            return out;
+        };
 
-        const findings = classifyRepeatedDefinitions(
-            visibleRows,
-            GovernanceDefinitionType.METRIC,
-        );
+        const visibleMetricRows = await filterVisible(metricRows);
+        const visibleSqlDimensionRows = await filterVisible(sqlDimensionRows);
+
+        const findings = [
+            ...classifyRepeatedDefinitions(
+                visibleMetricRows,
+                GovernanceDefinitionType.METRIC,
+            ),
+            ...classifyRepeatedDefinitions(
+                visibleSqlDimensionRows,
+                GovernanceDefinitionType.SQL_DIMENSION,
+            ),
+        ].sort((a, b) => b.totalUsageCount - a.totalUsageCount);
 
         const activeKeys =
             await this.managedAgentModel.findActiveGovernanceInsightKeys(
