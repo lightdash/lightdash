@@ -33,6 +33,7 @@ const getProjectColorPalette = (
 export const useProjectColorPalette = (
     projectUuid: string | undefined,
     context: ProjectColorPaletteContext = {},
+    options: { enabled?: boolean } = {},
 ) =>
     useQuery<ResolvedPalette, ApiError>({
         queryKey: [
@@ -44,5 +45,5 @@ export const useProjectColorPalette = (
             context.chartUuid ?? null,
         ],
         queryFn: () => getProjectColorPalette(projectUuid!, context),
-        enabled: Boolean(projectUuid),
+        enabled: Boolean(projectUuid) && options.enabled !== false,
     });

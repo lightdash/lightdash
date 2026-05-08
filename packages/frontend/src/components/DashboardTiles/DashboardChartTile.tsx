@@ -2138,10 +2138,14 @@ export const GenericDashboardChartTile: FC<
         (c) => c.dashboard?.uuid,
     );
     const chartUuid = dashboardChartReadyQuery?.chart.uuid;
-    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
-        dashboardUuid: dashboardUuidFromContext,
-        chartUuid,
-    });
+    // Skip the resolver fetch when the parent already supplied a palette
+    // (embeds, screenshots, SDK minimal): the override always wins below,
+    // and the endpoint 403s for JWT/embed auth.
+    const { data: resolvedPalette } = useProjectColorPalette(
+        projectUuid,
+        { dashboardUuid: dashboardUuidFromContext, chartUuid },
+        { enabled: !colorPaletteOverride },
+    );
     const effectiveColorPaletteOverride =
         colorPaletteOverride ?? resolvedPalette?.colors;
     const effectiveDarkColorPaletteOverride =
