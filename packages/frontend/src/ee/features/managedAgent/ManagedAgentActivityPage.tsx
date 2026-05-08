@@ -7,6 +7,7 @@ import {
     FeatureFlags,
     getFixedBrokenMetadata,
     getGovernanceInsightMetadata,
+    GovernanceDefinitionType,
     type GovernanceInsightMetadata,
     GovernanceInsightKind,
     type GovernanceRollupMetadata,
@@ -49,6 +50,7 @@ import {
     IconChevronRight,
     IconCircleCheck,
     IconClock,
+    IconColumns,
     IconCopy,
     IconDatabase,
     IconDots,
@@ -57,6 +59,7 @@ import {
     IconFolder,
     IconHash,
     IconLayoutDashboard,
+    IconMathFunction,
     IconPlayerPlay,
     IconSettings,
     IconTool,
@@ -64,6 +67,9 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import MarkdownPreview, {
+    type MarkdownPreviewProps,
+} from '@uiw/react-markdown-preview';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import {
     useCallback,
@@ -467,26 +473,45 @@ const GovernanceVariantBlock: FC<{
     projectUuid: string;
     variant: GovernanceInsightMetadata['variants'][number];
     showName: boolean;
-}> = ({ projectUuid, variant, showName }) => {
+    showCount: boolean;
+}> = ({ projectUuid, variant, showName, showCount }) => {
     const [expanded, setExpanded] = useState(false);
     const visibleCharts = expanded
         ? variant.charts
         : variant.charts.slice(0, VARIANT_CHART_PREVIEW_LIMIT);
     const hiddenCount = variant.charts.length - VARIANT_CHART_PREVIEW_LIMIT;
+    const showHeaderRow = showName || showCount;
 
     return (
         <Stack gap={4}>
-            <Group gap={6} align="center" wrap="nowrap">
-                {showName && (
-                    <Text fz="xs" fw={500} ff="monospace">
-                        {variant.name}
-                    </Text>
-                )}
-                <Text fz="xs" c="dimmed">
-                    {variant.chartCount} chart
-                    {variant.chartCount === 1 ? '' : 's'}
-                </Text>
-            </Group>
+            {showHeaderRow && (
+                <Group
+                    gap={6}
+                    align="center"
+                    wrap="nowrap"
+                    justify="space-between"
+                >
+                    {showName && (
+                        <Stack gap={0}>
+                            <Text fz="xs" fw={500}>
+                                {variant.label ?? variant.name}
+                            </Text>
+                            {variant.label &&
+                                variant.label !== variant.name && (
+                                    <Text fz={10} c="dimmed" ff="monospace">
+                                        {variant.name}
+                                    </Text>
+                                )}
+                        </Stack>
+                    )}
+                    {showCount && (
+                        <Text fz="xs" c="dimmed">
+                            {variant.chartCount} chart
+                            {variant.chartCount === 1 ? '' : 's'}
+                        </Text>
+                    )}
+                </Group>
+            )}
             <Box style={{ position: 'relative' }}>
                 <Code block fz="xs">
                     {variant.sql}
@@ -566,12 +591,12 @@ const GovernanceDetails: FC<{
     const suggestion = metadata.suggestion;
     const isInconsistent =
         metadata.insightKind === GovernanceInsightKind.INCONSISTENT_DEFINITIONS;
-    const variantsLabel = isInconsistent
-        ? `${metadata.variants.length} distinct definitions`
-        : 'Current SQL';
     const showVariantNames = metadata.variants.some(
         (v, i) => i > 0 && v.name !== metadata.variants[0].name,
     );
+    const sectionLabel = isInconsistent
+        ? `${metadata.variants.length} distinct definitions across ${metadata.totalUsageCount} chart${metadata.totalUsageCount === 1 ? '' : 's'}`
+        : `Used in ${metadata.totalUsageCount} chart${metadata.totalUsageCount === 1 ? '' : 's'}`;
     const { data: replaceOnCompileFlag } = useServerFeatureFlag(
         FeatureFlags.ReplaceCustomMetricsOnCompile,
     );
@@ -580,20 +605,14 @@ const GovernanceDetails: FC<{
     return (
         <Stack gap="md">
             <Stack gap="sm">
-                <MetadataLabel label="Usage" />
-                <InfoRow icon={IconChartBar} label="Total charts">
-                    {metadata.totalUsageCount}
-                </InfoRow>
-            </Stack>
-
-            <Stack gap="sm">
-                <MetadataLabel label={variantsLabel} />
+                <MetadataLabel label={sectionLabel} />
                 {metadata.variants.map((variant) => (
                     <GovernanceVariantBlock
                         key={`${variant.name}\0${variant.sql}`}
                         projectUuid={projectUuid}
                         variant={variant}
                         showName={isInconsistent && showVariantNames}
+                        showCount={isInconsistent}
                     />
                 ))}
             </Stack>
@@ -1703,97 +1722,80 @@ const SettingsSidebar: FC<{
     );
 };
 
-// --- Governance combined-snippet copy ---
-
-const buildCombinedGovernanceSnippet = (
-    snippets: Array<{ targetModel: string | null; yamlSnippet: string }>,
-): string => {
-    const grouped = new Map<string, string[]>();
-    for (const s of snippets) {
-        const key = s.targetModel ?? '__unspecified__';
-        const list = grouped.get(key);
-        if (list) {
-            list.push(s.yamlSnippet);
-        } else {
-            grouped.set(key, [s.yamlSnippet]);
-        }
-    }
-    const sections: string[] = [];
-    for (const [model, blocks] of grouped) {
-        const heading =
-            model === '__unspecified__'
-                ? '# (model not inferred — review before pasting)'
-                : `# ${model}.yml — additions`;
-        sections.push(`${heading}\n${blocks.join('\n')}`);
-    }
-    return sections.join('\n\n');
-};
-
-const collectGovernanceSnippets = (
-    actions: readonly ManagedAgentAction[] | undefined,
-): Array<{ targetModel: string | null; yamlSnippet: string }> => {
-    if (!actions) return [];
-    const out: Array<{ targetModel: string | null; yamlSnippet: string }> = [];
-    for (const action of actions) {
-        if (
-            action.actionType !== ManagedAgentActionType.INSIGHT ||
-            action.targetType !== 'project' ||
-            action.reversedAt
-        ) {
-            continue;
-        }
-        const parsed = getGovernanceInsightMetadata(action.metadata);
-        if (
-            !parsed ||
-            parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
-        ) {
-            continue;
-        }
-        const suggestion = parsed.suggestion;
-        if (suggestion?.yamlSnippet) {
-            out.push({
-                targetModel: suggestion.targetModel,
-                yamlSnippet: suggestion.yamlSnippet,
-            });
-        }
-    }
-    return out;
-};
-
-const GovernanceCopyAllButton: FC<{
-    snippets: Array<{ targetModel: string | null; yamlSnippet: string }>;
-}> = ({ snippets }) => {
-    if (snippets.length < 2) return null;
-    const combined = buildCombinedGovernanceSnippet(snippets);
-    return (
-        <CopyButton value={combined}>
-            {({ copied, copy }) => (
-                <Tooltip
-                    label={`Copy combined YAML for ${snippets.length} governance findings`}
-                    withinPortal
-                >
-                    <ActionIcon
-                        size="sm"
-                        variant="subtle"
-                        color="gray"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            copy();
-                        }}
-                        aria-label="Copy all governance YAML"
-                    >
-                        <MantineIcon
-                            icon={copied ? IconCheck : IconCopy}
-                            size={14}
-                        />
-                    </ActionIcon>
-                </Tooltip>
-            )}
-        </CopyButton>
-    );
-};
-
 // --- Table Row ---
+
+const ACTION_MESSAGE_MARKDOWN_PROPS: MarkdownPreviewProps = {
+    style: {
+        backgroundColor: 'transparent',
+        color: 'inherit',
+        fontSize: 'inherit',
+        lineHeight: 'inherit',
+    },
+    components: {
+        p: ({ children }) => <span>{children}</span>,
+        code: ({ children }) => (
+            <Code component="span" fz="xs">
+                {children}
+            </Code>
+        ),
+    },
+    disallowedElements: ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'img'],
+};
+
+const humanizeName = (name: string): string =>
+    name.replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+
+const getGovernanceTopVariant = (
+    action: ManagedAgentAction,
+): GovernanceInsightMetadata['variants'][number] | null => {
+    if (
+        action.actionType !== ManagedAgentActionType.INSIGHT ||
+        action.targetType !== 'project'
+    ) {
+        return null;
+    }
+    const parsed = getGovernanceInsightMetadata(action.metadata);
+    if (
+        !parsed ||
+        parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
+    ) {
+        return null;
+    }
+    return parsed.variants[0] ?? null;
+};
+
+const getActionRowIcon = (action: ManagedAgentAction): typeof IconChartBar => {
+    if (
+        action.actionType === ManagedAgentActionType.INSIGHT &&
+        action.targetType === 'project'
+    ) {
+        const parsed = getGovernanceInsightMetadata(action.metadata);
+        if (parsed) {
+            if (
+                parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
+            ) {
+                return IconHash;
+            }
+            if (parsed.definitionType === GovernanceDefinitionType.METRIC) {
+                return IconMathFunction;
+            }
+            if (
+                parsed.definitionType === GovernanceDefinitionType.SQL_DIMENSION
+            ) {
+                return IconColumns;
+            }
+        }
+    }
+    return TARGET_ICON[action.targetType];
+};
+
+const getActionRowName = (action: ManagedAgentAction): string => {
+    const topVariant = getGovernanceTopVariant(action);
+    if (topVariant) {
+        return topVariant.label ?? humanizeName(topVariant.name);
+    }
+    return action.targetName;
+};
 
 const ActionRow: FC<{
     action: ManagedAgentAction;
@@ -1801,7 +1803,7 @@ const ActionRow: FC<{
     onSelect: (action: ManagedAgentAction) => void;
 }> = ({ action, selected, onSelect }) => {
     const config = ACTION_CONFIG[action.actionType];
-    const TargetIcon = TARGET_ICON[action.targetType];
+    const TargetIcon = getActionRowIcon(action);
     const isReversed = !!action.reversedAt;
 
     return (
@@ -1844,14 +1846,17 @@ const ActionRow: FC<{
                         style={{ flexShrink: 0 }}
                     />
                     <TruncatedText maxWidth={220} fz="xs" fw={500}>
-                        {action.targetName}
+                        {getActionRowName(action)}
                     </TruncatedText>
                 </Group>
             </Table.Td>
             <Table.Td className={classes.messageCell}>
-                <TruncatedText maxWidth={9999} fz="xs" c="dimmed">
-                    {action.description}
-                </TruncatedText>
+                <Text fz="xs" c="dimmed" lineClamp={1}>
+                    <MarkdownPreview
+                        source={action.description}
+                        {...ACTION_MESSAGE_MARKDOWN_PROPS}
+                    />
+                </Text>
             </Table.Td>
         </Table.Tr>
     );
@@ -1889,11 +1894,7 @@ const RunHeaderRow: FC<{
     isOpen: boolean;
     expandable: boolean;
     onToggle: () => void;
-    governanceSnippets: Array<{
-        targetModel: string | null;
-        yamlSnippet: string;
-    }>;
-}> = ({ run, variant, isOpen, expandable, onToggle, governanceSnippets }) => (
+}> = ({ run, variant, isOpen, expandable, onToggle }) => (
     <Table.Tr
         className={classes.runHeaderRow}
         onClick={expandable ? onToggle : undefined}
@@ -2008,9 +2009,6 @@ const RunHeaderRow: FC<{
                                 {run.actionCount}{' '}
                                 {run.actionCount === 1 ? 'action' : 'actions'}
                             </Text>
-                            <GovernanceCopyAllButton
-                                snippets={governanceSnippets}
-                            />
                         </>
                     ) : null}
                 </Group>
@@ -2034,10 +2032,6 @@ const RunRow: FC<{
         fastPoll: isLive,
         runUuid: run.runUuid,
     });
-    const governanceSnippets = useMemo(
-        () => collectGovernanceSnippets(actions),
-        [actions],
-    );
     return (
         <Table.Tbody>
             <RunHeaderRow
@@ -2046,7 +2040,6 @@ const RunRow: FC<{
                 isOpen={isOpen}
                 expandable={expandable}
                 onToggle={onToggle}
-                governanceSnippets={governanceSnippets}
             />
             {variant === 'errored' && run.error && (
                 <Table.Tr>

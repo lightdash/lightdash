@@ -135,6 +135,7 @@ export type GovernanceVariantChart = {
 export type GovernanceVariant = {
     sql: string;
     name: string;
+    label: string | null;
     chartCount: number;
     charts: GovernanceVariantChart[];
 };

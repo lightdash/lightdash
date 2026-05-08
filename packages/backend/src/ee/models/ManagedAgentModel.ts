@@ -40,6 +40,7 @@ type DefinitionChart = {
 
 export type RepeatedDefinitionRow = {
     name: string;
+    label: string | null;
     sql: string;
     chart: DefinitionChart;
 };
@@ -50,10 +51,15 @@ export type RepeatedCustomDefinitionFinding = {
         | GovernanceInsightKind.INCONSISTENT_DEFINITIONS;
     definitionType: GovernanceDefinitionType;
     nameSlug: string;
-    canonicalCandidate: { sql: string; name: string } | null;
+    canonicalCandidate: {
+        sql: string;
+        name: string;
+        label: string | null;
+    } | null;
     variants: Array<{
         sql: string;
         name: string;
+        label: string | null;
         chartCount: number;
         charts: DefinitionChart[];
     }>;
@@ -125,6 +131,7 @@ export const classifyRepeatedDefinitions = (
             {
                 sql: string;
                 name: string;
+                label: string | null;
                 charts: Map<string, DefinitionChart>;
             }
         >();
@@ -135,9 +142,12 @@ export const classifyRepeatedDefinitions = (
                 variant = {
                     sql: row.sql,
                     name: row.name,
+                    label: row.label,
                     charts: new Map(),
                 };
                 variantMap.set(variantKey, variant);
+            } else if (!variant.label && row.label) {
+                variant.label = row.label;
             }
             variant.charts.set(row.chart.savedQueryUuid, row.chart);
         }
@@ -145,6 +155,7 @@ export const classifyRepeatedDefinitions = (
         const variants = Array.from(variantMap.values()).map((v) => ({
             sql: v.sql,
             name: v.name,
+            label: v.label,
             chartCount: v.charts.size,
             charts: Array.from(v.charts.values()),
         }));
@@ -176,7 +187,7 @@ export const classifyRepeatedDefinitions = (
             const runnerUp = sortedVariants[1];
             const canonicalCandidate =
                 !runnerUp || top.chartCount > runnerUp.chartCount
-                    ? { sql: top.sql, name: top.name }
+                    ? { sql: top.sql, name: top.name, label: top.label }
                     : null;
 
             findings.push({
@@ -828,15 +839,18 @@ export class ManagedAgentModel {
     private async fetchCustomDefinitionRows(
         projectUuid: string,
         definitionTableName: string,
+        hasLabel: boolean,
     ): Promise<RepeatedDefinitionRow[]> {
         type Row = {
             name: string;
+            label: string | null;
             sql: string;
             saved_query_uuid: string;
             chart_name: string;
             space_uuid: string;
         };
 
+        const labelExpr = hasLabel ? 'd.label' : 'NULL::text';
         const result = await this.database.raw<{ rows: Row[] }>(
             `
             WITH latest_versions AS (
@@ -857,6 +871,7 @@ export class ManagedAgentModel {
             )
             SELECT
                 d.name,
+                ${labelExpr} AS label,
                 d.sql,
                 lv.saved_query_uuid,
                 lv.chart_name,
@@ -877,6 +892,7 @@ export class ManagedAgentModel {
 
         return result.rows.map((r) => ({
             name: r.name,
+            label: r.label,
             sql: r.sql,
             chart: {
                 savedQueryUuid: r.saved_query_uuid,
@@ -892,6 +908,7 @@ export class ManagedAgentModel {
         return this.fetchCustomDefinitionRows(
             projectUuid,
             SavedChartAdditionalMetricTableName,
+            true,
         );
     }
 
@@ -901,6 +918,7 @@ export class ManagedAgentModel {
         return this.fetchCustomDefinitionRows(
             projectUuid,
             SavedChartCustomSqlDimensionsTableName,
+            false,
         );
     }
 
