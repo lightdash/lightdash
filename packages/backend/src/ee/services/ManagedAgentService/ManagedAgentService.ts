@@ -116,6 +116,8 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
 const friendlyToolLabel = (toolName: string): string =>
     FRIENDLY_TOOL_LABELS[toolName] ?? `Running ${toolName}`;
 
+const GOVERNANCE_TOP_K = 10;
+
 type ManagedAgentServiceDependencies = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -2597,7 +2599,11 @@ chartConfig:
                 visibleSqlDimensionRows,
                 GovernanceDefinitionType.SQL_DIMENSION,
             ),
-        ].sort((a, b) => b.totalUsageCount - a.totalUsageCount);
+        ].sort(
+            (a, b) =>
+                b.totalUsageCount * Math.max(1, b.variants.length) -
+                a.totalUsageCount * Math.max(1, a.variants.length),
+        );
 
         const activeKeys =
             await this.managedAgentModel.findActiveGovernanceInsightKeys(
@@ -2611,9 +2617,19 @@ chartConfig:
                 ),
         );
 
+        const topFindings = fresh.slice(0, GOVERNANCE_TOP_K);
+        const remaining = fresh.slice(GOVERNANCE_TOP_K);
+        const remainingByKind: Partial<Record<string, number>> = {};
+        for (const f of remaining) {
+            remainingByKind[f.insightKind] =
+                (remainingByKind[f.insightKind] ?? 0) + 1;
+        }
+
         return JSON.stringify({
-            topFindings: fresh,
+            topFindings,
             totalCount: fresh.length,
+            remainingByKind,
+            remainingCount: remaining.length,
         });
     }
 

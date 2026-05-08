@@ -8,6 +8,7 @@ import {
     getGovernanceInsightMetadata,
     type GovernanceInsightMetadata,
     GovernanceInsightKind,
+    type GovernanceRollupMetadata,
     getManagedAgentActionCategory,
     type ManagedAgentAction,
     ManagedAgentActionType,
@@ -501,6 +502,43 @@ const GovernanceVariantBlock: FC<{
     </Stack>
 );
 
+const GOVERNANCE_KIND_LABEL: Record<string, string> = {
+    heavy_custom_usage: 'Heavy custom usage',
+    inconsistent_definitions: 'Inconsistent definitions',
+};
+
+const GovernanceRollupDetails: FC<{
+    metadata: GovernanceRollupMetadata;
+}> = ({ metadata }) => {
+    const entries = Object.entries(metadata.remainingByKind ?? {}).filter(
+        ([, count]) => typeof count === 'number' && count > 0,
+    ) as Array<[string, number]>;
+
+    return (
+        <Stack gap="sm">
+            <MetadataLabel label="Remaining findings" />
+            <Text fz="xs" c="dimmed" lh={1.6}>
+                Autopilot found {metadata.totalRemaining} additional governance
+                findings beyond the ones surfaced individually this run. They
+                will appear in subsequent runs as the top findings get resolved.
+            </Text>
+            {entries.length > 0 && (
+                <Stack gap={4}>
+                    {entries.map(([kind, count]) => (
+                        <InfoRow
+                            key={kind}
+                            icon={IconHash}
+                            label={GOVERNANCE_KIND_LABEL[kind] ?? kind}
+                        >
+                            {count}
+                        </InfoRow>
+                    ))}
+                </Stack>
+            )}
+        </Stack>
+    );
+};
+
 const GovernanceDetails: FC<{
     projectUuid: string;
     metadata: GovernanceInsightMetadata;
@@ -947,20 +985,29 @@ const DetailSidebar: FC<{
         : null;
     const showFixedBanner = isFixedBroken && !isReversed;
 
-    const governanceMetadata = useMemo(() => {
+    const governanceParsedMetadata = useMemo(() => {
         if (
             liveAction.actionType !== ManagedAgentActionType.INSIGHT ||
             liveAction.targetType !== 'project'
         ) {
             return null;
         }
-        const parsed = getGovernanceInsightMetadata(liveAction.metadata);
-        if (!parsed) return null;
-        if (parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP) {
-            return null;
-        }
-        return parsed;
+        return getGovernanceInsightMetadata(liveAction.metadata);
     }, [liveAction.actionType, liveAction.targetType, liveAction.metadata]);
+
+    const governanceMetadata =
+        governanceParsedMetadata &&
+        governanceParsedMetadata.insightKind !==
+            GovernanceInsightKind.GOVERNANCE_ROLLUP
+            ? governanceParsedMetadata
+            : null;
+
+    const governanceRollupMetadata =
+        governanceParsedMetadata &&
+        governanceParsedMetadata.insightKind ===
+            GovernanceInsightKind.GOVERNANCE_ROLLUP
+            ? governanceParsedMetadata
+            : null;
 
     const targetLink = isTargetDeleted
         ? null
@@ -1283,6 +1330,11 @@ const DetailSidebar: FC<{
                         metadata={governanceMetadata}
                     />
                 )}
+                {governanceRollupMetadata && (
+                    <GovernanceRollupDetails
+                        metadata={governanceRollupMetadata}
+                    />
+                )}
 
                 {/* Divider if we showed details above */}
                 {(hasChartDetails ||
@@ -1290,6 +1342,7 @@ const DetailSidebar: FC<{
                     hasSlowDetails ||
                     showFixedBanner ||
                     !!governanceMetadata ||
+                    !!governanceRollupMetadata ||
                     !!contentContext ||
                     hasProjectDetails) && (
                     <Box className={classes.headerDivider} />
