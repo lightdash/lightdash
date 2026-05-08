@@ -671,8 +671,58 @@ export const Display: FC = memo(() => {
                             ]}
                             mb="md"
                         />
+                        <Config.Group>
+                            <Config.Label>Show empty bins</Config.Label>
+                            <Switch
+                                checked={
+                                    validConfig.hexbinConfig?.showEmptyBins ??
+                                    false
+                                }
+                                onChange={(e) =>
+                                    setHexbinConfig({
+                                        showEmptyBins: e.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Config.Group>
+                        {(validConfig.hexbinConfig?.showEmptyBins ?? false) && (
+                            <Group my="xs">
+                                <ColorSelector
+                                    // The "no fill" state is the transparent
+                                    // gray swatch — Mantine renders it with
+                                    // the checkered transparency pattern, so
+                                    // it visually reads as no-fill without
+                                    // any separate toggle. Other swatches
+                                    // emit hex6; users can drag the alpha
+                                    // slider in the picker for partial fill.
+                                    color={
+                                        validConfig.hexbinConfig
+                                            ?.emptyBinColor ?? '#adb5bd00'
+                                    }
+                                    swatches={[
+                                        '#adb5bd00',
+                                        ...ECHARTS_DEFAULT_COLORS,
+                                    ]}
+                                    withAlpha
+                                    onColorChange={(c) => {
+                                        // alpha=00 → no fill (null).
+                                        // Otherwise store as picked (hex6 or
+                                        // hex8); HexbinLayer parses alpha.
+                                        const isTransparent =
+                                            c.length === 9 && c.endsWith('00');
+                                        setHexbinConfig({
+                                            emptyBinColor: isTransparent
+                                                ? null
+                                                : c,
+                                        });
+                                    }}
+                                />
+                                <Config.Label>Empty bin fill</Config.Label>
+                            </Group>
+                        )}
                         <Text size="xs" c="dimmed" mt="xs">
-                            Bins are computed from up to 50,000 points;
+                            Empty bins fill the visible area at the current
+                            zoom. Bins are computed from up to 50,000 points;
                             additional points are ignored.
                         </Text>
                     </Config.Section>

@@ -1,6 +1,8 @@
 import type { ScatterPoint } from '../../../hooks/leaflet/useLeafletMapConfig';
 import {
     computeHexbins,
+    computeHexbinsWithMeta,
+    computeViewportEmptyBins,
     MAX_HEXBIN_POINTS,
     splitAntimeridianRing,
     type LatLng,
@@ -85,6 +87,27 @@ describe('computeHexbins', () => {
         expect(typeof bins[0].centroid[1]).toBe('number');
     });
 
+    it('adds k=1 neighbor cells as count-0 bins when includeEmptyNeighbors is set', () => {
+        // One isolated point at res 7 should yield 1 populated bin + 6 empty
+        // neighbor bins (h3 cells have 6 neighbors at non-pentagon locations).
+        const { bins } = computeHexbinsWithMeta(
+            [mkPoint(40.7128, -74.006)],
+            7,
+            { includeEmptyNeighbors: true },
+        );
+        const populated = bins.filter((b) => b.count > 0);
+        const empty = bins.filter((b) => b.count === 0);
+        expect(populated).toHaveLength(1);
+        expect(empty).toHaveLength(6);
+        expect(empty.every((b) => b.sum === null)).toBe(true);
+    });
+
+    it('does not include neighbors when includeEmptyNeighbors is unset', () => {
+        const { bins } = computeHexbinsWithMeta([mkPoint(40.7128, -74.006)], 7);
+        expect(bins).toHaveLength(1);
+        expect(bins[0].count).toBe(1);
+    });
+
     it('truncates input above MAX_HEXBIN_POINTS', () => {
         const points = Array.from({ length: MAX_HEXBIN_POINTS + 100 }, (_, i) =>
             mkPoint(40 + i * 0.0001, -74),
@@ -92,6 +115,51 @@ describe('computeHexbins', () => {
         const bins = computeHexbins(points, 9);
         const total = bins.reduce((acc, b) => acc + b.count, 0);
         expect(total).toBe(MAX_HEXBIN_POINTS);
+    });
+});
+
+describe('computeViewportEmptyBins', () => {
+    const populated = new Set<string>();
+
+    it('returns cells covering the viewport, excluding populated', () => {
+        const empties = computeViewportEmptyBins(
+            { south: 40, west: -75, north: 41, east: -73 },
+            5,
+            populated,
+        );
+        expect(empties.length).toBeGreaterThan(0);
+        const ids = new Set(empties.map((b) => b.h3Index));
+        expect(ids.size).toBe(empties.length);
+    });
+
+    it('omits a populated cell from the empties', () => {
+        const sample = computeViewportEmptyBins(
+            { south: 40, west: -75, north: 41, east: -73 },
+            5,
+            new Set(),
+        );
+        const populatedOne = new Set([sample[0].h3Index]);
+        const filtered = computeViewportEmptyBins(
+            { south: 40, west: -75, north: 41, east: -73 },
+            5,
+            populatedOne,
+        );
+        expect(
+            filtered.find((b) => b.h3Index === sample[0].h3Index),
+        ).toBeUndefined();
+        expect(filtered.length).toBe(sample.length - 1);
+    });
+
+    it('handles near-world viewports without inverting the polygon', () => {
+        // Polygons spanning > 180° of longitude trip an h3-js bug where it
+        // returns cells outside the polygon. cellsInViewport must split.
+        const empties = computeViewportEmptyBins(
+            { south: 5, west: -65, north: 85, east: 155 },
+            1,
+            new Set(),
+        );
+        // At res 1 there are 842 cells globally; this viewport covers ~⅓.
+        expect(empties.length).toBeGreaterThan(50);
     });
 });
 

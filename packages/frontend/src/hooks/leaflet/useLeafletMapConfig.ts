@@ -82,6 +82,9 @@ export type LeafletMapConfig = {
         sizingMode: MapHexbinSizingMode;
         /** Resolution to use when sizingMode === FIXED. */
         fixedResolution: number;
+        showEmptyBins: boolean;
+        /** Hex6 or hex8 color string for empty-bin fill, or null = outline only. */
+        emptyBinColor: string | null;
     };
     tile: TileConfig;
     tileBackground: MapTileBackground;
@@ -599,6 +602,8 @@ const useLeafletMapConfig = ({
                 sizingMode:
                     hexbinConfig?.sizingMode ?? MapHexbinSizingMode.DYNAMIC,
                 fixedResolution: hexbinConfig?.fixedResolution ?? 4,
+                showEmptyBins: hexbinConfig?.showEmptyBins ?? false,
+                emptyBinColor: hexbinConfig?.emptyBinColor ?? null,
             },
             tile: getTileConfig(
                 colorScheme === 'dark'

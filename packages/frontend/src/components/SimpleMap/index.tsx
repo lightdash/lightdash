@@ -1040,6 +1040,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                     fixedResolution={
                                         mapConfig.hexbinConfig.fixedResolution
                                     }
+                                    showEmptyBins={
+                                        mapConfig.hexbinConfig.showEmptyBins
+                                    }
+                                    emptyBinColor={
+                                        mapConfig.hexbinConfig.emptyBinColor
+                                    }
                                     onTruncated={setHexbinTruncated}
                                 />
                             </Suspense>

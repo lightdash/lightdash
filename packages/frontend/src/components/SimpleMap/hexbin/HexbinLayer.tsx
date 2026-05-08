@@ -1,9 +1,15 @@
 import { MapHexbinSizingMode } from '@lightdash/common';
 import { scaleLinear } from 'd3-scale';
+import type * as L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
 import { Polygon, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import type { ScatterPoint } from '../../../hooks/leaflet/useLeafletMapConfig';
-import { computeHexbinsWithMeta, type HexBin } from './hexbinUtils';
+import {
+    computeHexbinsWithMeta,
+    computeViewportEmptyBins,
+    type HexBin,
+    type ViewportBounds,
+} from './hexbinUtils';
 import { zoomToResolution } from './zoomToResolution';
 
 type Props = {
@@ -14,8 +20,32 @@ type Props = {
     sizingMode: MapHexbinSizingMode;
     /** Used when sizingMode === FIXED. */
     fixedResolution: number;
+    showEmptyBins: boolean;
+    /** Empty-bin fill color, hex6 or hex8, or null = outline-only. */
+    emptyBinColor: string | null;
     onTruncated?: (info: { totalPoints: number } | null) => void;
 };
+
+const EMPTY_BIN_STROKE = '#6c757d';
+
+/** Split a hex6 or hex8 color into a Leaflet-friendly {hex6, alpha} pair. */
+const parseHexColor = (
+    color: string,
+): { hex: string; alpha: number } | null => {
+    if (color.length === 9) {
+        const alpha = parseInt(color.slice(7, 9), 16) / 255;
+        return { hex: color.slice(0, 7), alpha };
+    }
+    if (color.length === 7) return { hex: color, alpha: 1 };
+    return null;
+};
+
+const boundsToViewport = (bounds: L.LatLngBounds): ViewportBounds => ({
+    south: bounds.getSouth(),
+    west: bounds.getWest(),
+    north: bounds.getNorth(),
+    east: bounds.getEast(),
+});
 
 const HexbinLayer = ({
     points,
@@ -24,40 +54,69 @@ const HexbinLayer = ({
     valueFieldLabel,
     sizingMode,
     fixedResolution,
+    showEmptyBins,
+    emptyBinColor,
     onTruncated,
 }: Props) => {
+    const emptyFill = emptyBinColor ? parseHexColor(emptyBinColor) : null;
     const map = useMap();
     const [zoom, setZoom] = useState<number>(map.getZoom());
+    const [viewport, setViewport] = useState<ViewportBounds>(() =>
+        boundsToViewport(map.getBounds()),
+    );
 
+    // moveend covers both pan and zoom — fires once per gesture, no debouncing needed.
     useMapEvents({
-        zoomend: () => setZoom(map.getZoom()),
+        moveend: () => {
+            setZoom(map.getZoom());
+            setViewport(boundsToViewport(map.getBounds()));
+        },
     });
 
-    const result = useMemo(() => {
-        const resolution =
+    const resolution = useMemo(
+        () =>
             sizingMode === MapHexbinSizingMode.FIXED
                 ? fixedResolution
-                : zoomToResolution(zoom);
-        return computeHexbinsWithMeta(points, resolution);
-    }, [points, zoom, sizingMode, fixedResolution]);
+                : zoomToResolution(zoom),
+        [sizingMode, fixedResolution, zoom],
+    );
+
+    // Populated bins are the expensive part (one h3 lookup per point), so we
+    // memoize them independently of viewport changes. Pan doesn't recompute
+    // them — only resolution or input data changes do.
+    const populatedResult = useMemo(
+        () => computeHexbinsWithMeta(points, resolution),
+        [points, resolution],
+    );
+    const populatedBins = populatedResult.bins;
+
+    const populatedSet = useMemo(
+        () => new Set(populatedBins.map((b) => b.h3Index)),
+        [populatedBins],
+    );
+
+    const emptyBins = useMemo(() => {
+        if (!showEmptyBins) return [];
+        return computeViewportEmptyBins(viewport, resolution, populatedSet);
+    }, [showEmptyBins, viewport, resolution, populatedSet]);
 
     useEffect(() => {
-        if (result.truncated) {
-            onTruncated?.({ totalPoints: result.totalPoints });
+        if (populatedResult.truncated) {
+            onTruncated?.({ totalPoints: populatedResult.totalPoints });
         } else {
             onTruncated?.(null);
         }
-    }, [result.truncated, result.totalPoints, onTruncated]);
+    }, [populatedResult.truncated, populatedResult.totalPoints, onTruncated]);
 
-    // Color by sum if any bin has a numeric sum, else fall back to count.
+    // Color by sum if any populated bin has a numeric sum, else fall back to count.
     const colorBy: 'sum' | 'count' = useMemo(
-        () => (result.bins.some((b) => b.sum !== null) ? 'sum' : 'count'),
-        [result.bins],
+        () => (populatedBins.some((b) => b.sum !== null) ? 'sum' : 'count'),
+        [populatedBins],
     );
 
     const scale = useMemo(() => {
-        if (result.bins.length === 0) return null;
-        const values = result.bins.map((b) =>
+        if (populatedBins.length === 0) return null;
+        const values = populatedBins.map((b) =>
             colorBy === 'sum' ? (b.sum ?? 0) : b.count,
         );
         const min = Math.min(...values);
@@ -70,13 +129,29 @@ const HexbinLayer = ({
             .domain(domain)
             .range(colorScale)
             .clamp(true);
-    }, [result.bins, colorScale, colorBy]);
+    }, [populatedBins, colorScale, colorBy]);
 
-    if (!scale || result.bins.length === 0) return null;
+    if (!scale || populatedBins.length === 0) return null;
 
     return (
         <>
-            {result.bins.flatMap((bin: HexBin) => {
+            {emptyBins.flatMap((bin: HexBin) =>
+                bin.rings.map((ring, ringIdx) => (
+                    <Polygon
+                        key={`empty-${bin.h3Index}-${ringIdx}`}
+                        positions={ring}
+                        pathOptions={{
+                            color: EMPTY_BIN_STROKE,
+                            fillColor: emptyFill?.hex,
+                            fillOpacity: emptyFill?.alpha ?? 0,
+                            weight: 1,
+                            opacity: 0.7,
+                            interactive: false,
+                        }}
+                    />
+                )),
+            )}
+            {populatedBins.flatMap((bin: HexBin) => {
                 const metric = colorBy === 'sum' ? (bin.sum ?? 0) : bin.count;
                 const color = scale(metric);
                 return bin.rings.map((ring, ringIdx) => (

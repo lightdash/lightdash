@@ -303,6 +303,12 @@ export type MapChart = {
         sizingMode?: MapHexbinSizingMode;
         /** H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise. */
         fixedResolution?: number;
+        /** Render outlined empty cells across the visible map area, so the user
+         *  can see "where there is no data" relative to the hex grid. */
+        showEmptyBins?: boolean;
+        /** Fill color for empty bins. Hex6 (#rrggbb) = solid fill, hex8
+         *  (#rrggbbaa) = fill with alpha, null/undefined = outline only. */
+        emptyBinColor?: string | null;
     };
     /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;
