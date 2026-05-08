@@ -616,6 +616,14 @@ const GovernanceDetails: FC<{
                     </Stack>
                 )
             )}
+
+            {suggestion?.yamlSnippet && (
+                <Text fz="xs" c="dimmed" lh={1.6} fs="italic">
+                    Once this metric is added to dbt, the next project compile
+                    will automatically replace the affected charts&apos; custom
+                    metrics with the new dbt metric.
+                </Text>
+            )}
         </Stack>
     );
 };

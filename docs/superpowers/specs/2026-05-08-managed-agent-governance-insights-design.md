@@ -26,23 +26,46 @@ Customers like Wise are hitting governance debt at scale and asking us to surfac
 - High-views-but-unverified detection (PROD-7392 capability #1).
 - Optimisation suggestions: pre-aggregates, joins, indexes, default filters (PROD-7392 capability #5).
 - Customer-defined guidelines as free-form policy (PROD-7392 capability #2).
-- Auto-applying chart fixes after canonical metric appears in dbt (Step 3). Day-1 ships proposal-with-confirm; auto-apply is a phase-2 follow-up gated on telemetry.
+- **Auto-applying chart fixes after the canonical metric appears in dbt.** This is already implemented by the existing `replace-custom-metrics-on-compile` system — see "What already works" below. Earlier drafts of this spec proposed building a Step 3 here; that's redundant and has been removed.
 - Chat-on-demand invocation. Tool is called by the scheduled autopilot run only.
 - Per-project threshold configuration. N=3 is fixed for v1.
-- Feature flag. Autopilot itself is opt-in; re-gating inside is redundant.
 
 ## What already works (don't rebuild)
+
+### Existing primitives we plug into
 
 - `ManagedAgentActionType.INSIGHT` exists (`packages/common/src/ee/types/managedAgent.ts:10`).
 - `ManagedAgentTargetType.PROJECT` is already a valid target (`managedAgent.ts:17`).
 - `handleLogInsight` accepts arbitrary `target_type` + opaque `metadata` and creates the action via `managedAgentModel.createAction` (`ManagedAgentService.ts:2492`). No new persistence path needed.
 - Custom definitions live in dedicated tables — no JSONB scan required:
   - `saved_queries_version_additional_metrics`
-  - `saved_queries_version_custom_dimensions`
+  - `saved_queries_version_custom_sql_dimensions`
   - `saved_queries_version_table_calculations` (out of scope here)
 - `DbtSchemaEditor` already knows how to write `additional_metrics` and SQL-type `custom_dimensions` into dbt YAML (`DbtSchemaEditor.ts:270`).
 - `trackActionCreated` exists and fires on every `createAction` call.
 - The reversal flow (`reversed_at` / `reversed_by_user_uuid`) doubles as dismissal for `INSIGHT` actions per `getManagedAgentActionCategory`.
+
+### The post-promotion cleanup loop already exists
+
+`FeatureFlags.ReplaceCustomMetricsOnCompile` gates a scheduler task that fires after every dbt project compile (`SchedulerTask.ts:1748`):
+
+1. `findReplaceableCustomFields` (`ProjectService.ts:7875`) scans every chart in the project and looks for custom metrics whose name + SQL + filter conditions exactly match a real metric in the explore. Match logic in `findReplaceableCustomMetrics` (`fields.ts:250`) → `compareMetricAndCustomMetric`.
+2. `replaceCustomFields` (`ProjectService.ts:7915`) calls `maybeReplaceFieldsInChartVersion` to remove the now-redundant custom metric from each chart's `metricQuery.additionalMetrics`. Has a `skipChartsUpdatedAfter` freshness check.
+3. Tracks `custom_fields.replaced` analytics.
+
+**This is the post-promotion cleanup phase.** Once a customer takes the YAML our governance INSIGHT proposes and adds it to their dbt project, the next compile fires this task and the affected charts auto-clean themselves. We do not need to re-implement this — the governance INSIGHT system completes the loop:
+
+```
+governance INSIGHT (this spec)        — surfaces "this should be in dbt"
+       ↓
+user copies YAML into dbt repo        — manual or PR (phase-2)
+       ↓
+dbt compile                            — existing infra
+       ↓
+replace-custom-metrics-on-compile     — existing scheduler task auto-cleans charts
+```
+
+**Implication for the UI:** The action sidebar's governance INSIGHT should set this expectation explicitly, so users understand they don't need to manually edit each affected chart. See "Frontend → Sidebar — INSIGHT" below for the "What happens next" caption.
 
 ## Data model
 
@@ -256,14 +279,11 @@ Handler:
 
 The existing flag-suggestion spec's apply endpoint stays separate — different action type, different suggestion shape, different validation.
 
-### Phase-2 Step 3 (chart-fix proposals after dbt sync)
+### Post-promotion chart cleanup — already exists
 
-Out of day-1 scope. Sketch:
+Removed from this spec. The post-promotion step ("once the canonical metric is in dbt, clean up the affected charts") is implemented today by `replace-custom-metrics-on-compile` (see "What already works" above). Customers with that flag enabled get the cleanup automatically on the next dbt compile after they merge the YAML.
 
-1. On each autopilot run, look up active (non-reversed) INSIGHT actions with `metadata.suggestion.kind === 'promote_to_dbt'` and non-null `canonicalSql` + `targetModel`.
-2. For each, check the catalog: does `targetModel` now expose a metric/dimension whose SQL normalises to `canonicalSql` and whose name slug matches `proposedMetricName`?
-3. If yes: for each `variants[*].charts[*]`, log a `INSIGHT` with `targetType: CHART` and `metadata.suggestion = { kind: 'replace_field', metricQuery, chartConfig, confidence: 'high' }` proposing the swap. Apply path reuses the chart-version write helper (extract from `applyFlagSuggestion` at this point — see Decisions §3).
-4. The original PROJECT-targeted INSIGHT is **not** mutated; the new chart-targeted INSIGHTs are children of the same `runUuid`. The audit trail links them via `metadata.parentInsightActionUuid`.
+Customers without that flag get a one-time manual cleanup pass: open each affected chart, switch the custom metric for the new dbt metric, save. The governance INSIGHT's variant list links directly to the affected charts to make this fast. The "What happens next" caption (see Frontend) sets the right expectation depending on flag state.
 
 ## Frontend
 
@@ -288,10 +308,13 @@ Render branch keyed on `action.actionType === INSIGHT && action.targetType === P
 4. **No-canonical state** (when `suggestion.canonicalSql === null`):
    - Banner: `Multiple variants are equally common — pick a canonical to generate a YAML proposal`.
    - Day-1: read-only — caption only, no picker. Phase-2 wires up the picker.
-5. **Multi-select checkbox** at the top of each insight card (day-1 — combined-snippet path):
+5. **What happens next caption** — below the suggestion, a small `c="dimmed"` paragraph that sets the right expectation for chart cleanup:
+   - "Once you add this metric to your dbt project, the next compile will automatically replace the affected charts' custom metrics with the new dbt metric (via `replace-custom-metrics-on-compile`)."
+   - This is the only place in the UI that references the existing scheduler task by name. Day-1 is unconditional copy; phase-2 could read the project's flag state and adjust copy ("…if `replace-custom-metrics-on-compile` is enabled for this project") but that's overkill for v1.
+6. **Multi-select checkbox** at the top of each insight card (day-1 — combined-snippet path):
    - Sidebar gains a "Copy combined snippet" CTA at the top when ≥1 insight is selected.
    - Concatenates selected `yamlSnippet`s, grouping by `targetModel` with one heading per model.
-6. **Reversal** stays in the dots menu. Add an alias label "Mark as applied" alongside "Dismiss" — same backend action, different copy.
+7. **Reversal** stays in the dots menu. Add an alias label "Mark as applied" alongside "Dismiss" — same backend action, different copy.
 
 ### Sidebar — `governance_rollup`
 
