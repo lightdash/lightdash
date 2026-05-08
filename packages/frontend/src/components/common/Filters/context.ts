@@ -26,6 +26,7 @@ export type FiltersContext<T extends DefaultFieldsMap = DefaultFieldsMap> = {
     ) => AndFilterGroup | undefined;
     popoverProps?: Omit<PopoverProps, 'children'>;
     parameterValues?: ParametersValuesMap;
+    metricQueryTimezone?: string;
 };
 
 const Context = createContext<FiltersContext | undefined>(undefined);

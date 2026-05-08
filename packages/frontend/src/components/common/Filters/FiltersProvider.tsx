@@ -23,6 +23,7 @@ type Props<T extends DefaultFieldsMap> = {
     popoverProps?: Omit<PopoverProps, 'children'>;
     parameterValues?: ParametersValuesMap;
     activeTabUuid?: string;
+    metricQueryTimezone?: string;
     children?: ReactNode;
 };
 
@@ -37,6 +38,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
     popoverProps,
     parameterValues,
     activeTabUuid,
+    metricQueryTimezone,
     children,
 }: Props<T>) => {
     const getField = useCallback(
@@ -77,6 +79,7 @@ const FiltersProvider = <T extends DefaultFieldsMap = DefaultFieldsMap>({
                 getAutocompleteFilterGroup: getAutocompleteFilterGroupCallback,
                 popoverProps,
                 parameterValues,
+                metricQueryTimezone,
             }}
         >
             {children}
