@@ -16,12 +16,10 @@ import {
     selectIsValidQuery,
     selectPreAggVisible,
     selectQueryLimit,
-    selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../features/explorer/store';
 import useHealth from '../hooks/health/useHealth';
-import { useExplore } from '../hooks/useExplore';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import useTracking from '../providers/Tracking/useTracking';
 import { EventName } from '../types/Events';
@@ -39,18 +37,12 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
     // Get state and actions from Redux
     const limit = useExplorerSelector(selectQueryLimit);
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
-    const tableName = useExplorerSelector(selectTableName);
     const dispatch = useExplorerDispatch();
     const preAggVisible = useExplorerSelector(selectPreAggVisible);
 
     // Get query state and actions from hooks
-    const { isLoading, fetchResults, cancelQuery } = useExplorerQuery();
-
-    // buildQueryArgs returns null without explore — disable until loaded.
-    const { data: explore } = useExplore(tableName, {
-        refetchOnMount: false,
-        refetchOnWindowFocus: false,
-    });
+    const { isLoading, fetchResults, cancelQuery, explore } =
+        useExplorerQuery();
 
     const setRowLimit = useCallback(
         (newLimit: number) => {
@@ -59,6 +51,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
         [dispatch],
     );
 
+    // buildQueryArgs returns null without explore — disable until loaded.
     const canRunQuery = isValidQuery && !!explore;
 
     const { track } = useTracking();
