@@ -1883,6 +1883,33 @@ const ActionRow: FC<{
     const config = ACTION_CONFIG[action.actionType];
     const TargetIcon = getActionRowIcon(action);
     const isReversed = !!action.reversedAt;
+    const isActionAutoResolved =
+        isReversed &&
+        (action.metadata as Record<string, unknown> | undefined)
+            ?.autoResolved === true;
+    const reversedTooltip = isActionAutoResolved
+        ? 'Auto-resolved'
+        : getManagedAgentActionCategory(action.actionType) === 'undo'
+          ? 'Undone'
+          : 'Dismissed';
+    const pillTooltip = isReversed ? reversedTooltip : config.tooltip;
+    const pillContents = (
+        <span className={classes.actionPill}>
+            {isReversed ? (
+                <MantineIcon
+                    icon={IconCheck}
+                    size={10}
+                    color="var(--mantine-color-dimmed)"
+                />
+            ) : (
+                <Box
+                    className={classes.dot}
+                    style={{ backgroundColor: config.dotColor }}
+                />
+            )}
+            {config.label}
+        </span>
+    );
 
     return (
         <Table.Tr
@@ -1896,24 +1923,12 @@ const ActionRow: FC<{
             onClick={() => onSelect(action)}
         >
             <Table.Td w={100}>
-                {config.tooltip ? (
-                    <Tooltip label={config.tooltip} withinPortal>
-                        <span className={classes.actionPill}>
-                            <Box
-                                className={classes.dot}
-                                style={{ backgroundColor: config.dotColor }}
-                            />
-                            {config.label}
-                        </span>
+                {pillTooltip ? (
+                    <Tooltip label={pillTooltip} withinPortal>
+                        {pillContents}
                     </Tooltip>
                 ) : (
-                    <span className={classes.actionPill}>
-                        <Box
-                            className={classes.dot}
-                            style={{ backgroundColor: config.dotColor }}
-                        />
-                        {config.label}
-                    </span>
+                    pillContents
                 )}
             </Table.Td>
             <Table.Td w={250}>
