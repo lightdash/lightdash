@@ -7697,7 +7697,7 @@ export class ProjectService extends BaseService {
     async updateQueryTimezone(
         user: SessionUser,
         projectUuid: string,
-        queryTimezone: string | null,
+        queryTimezone: string | null | undefined,
         useProjectTimezoneInFilters: boolean | null | undefined,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
@@ -7707,8 +7707,24 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (queryTimezone !== null && !isValidTimezone(queryTimezone)) {
+        if (
+            queryTimezone !== null &&
+            queryTimezone !== undefined &&
+            !isValidTimezone(queryTimezone)
+        ) {
             throw new ParameterError(`Invalid timezone: "${queryTimezone}"`);
+        }
+
+        if (useProjectTimezoneInFilters === true) {
+            const resultingTimezone =
+                queryTimezone !== undefined
+                    ? queryTimezone
+                    : await this.projectModel.getQueryTimezone(projectUuid);
+            if (resultingTimezone === null) {
+                throw new ParameterError(
+                    'Cannot enable useProjectTimezoneInFilters without a project query timezone',
+                );
+            }
         }
 
         await this.projectModel.updateQueryTimezone(
@@ -7724,7 +7740,7 @@ export class ProjectService extends BaseService {
                 projectId: projectUuid,
                 organizationUuid: project.organizationUuid,
                 queryTimezone:
-                    queryTimezone !== null
+                    queryTimezone !== null && queryTimezone !== undefined
                         ? getTimezoneLabel(queryTimezone)
                         : null,
                 useProjectTimezoneInFilters:

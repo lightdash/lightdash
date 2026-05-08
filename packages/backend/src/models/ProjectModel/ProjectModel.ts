@@ -3215,12 +3215,14 @@ export class ProjectModel {
 
     async updateQueryTimezone(
         projectUuid: string,
-        timezone: string | null,
+        timezone: string | null | undefined,
         useProjectTimezoneInFilters: boolean | null | undefined,
     ): Promise<DbProject> {
         const [updatedProject] = await this.database(ProjectTableName)
             .update({
-                query_timezone: timezone,
+                ...(timezone !== undefined && {
+                    query_timezone: timezone,
+                }),
                 ...(useProjectTimezoneInFilters !== undefined && {
                     use_project_timezone_in_filters:
                         useProjectTimezoneInFilters,

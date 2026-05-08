@@ -22923,7 +22923,6 @@
                         "nullable": true
                     }
                 },
-                "required": ["queryTimezone"],
                 "type": "object"
             },
             "ApiCreateTagResponse": {

@@ -21509,7 +21509,6 @@ const models: TsoaRoute.Models = {
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
                 },
             },
             validators: {},
