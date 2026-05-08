@@ -355,17 +355,30 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const setParameter = useCallback(
         (key: string, value: ParameterValue | null) => {
-            if (
+            const isEmpty =
                 value === null ||
                 value === undefined ||
                 value === '' ||
-                (Array.isArray(value) && value.length === 0)
-            ) {
-                setParameters((prev) => {
-                    const newParams = { ...prev };
-                    delete newParams[key];
-                    return newParams;
-                });
+                (Array.isArray(value) && value.length === 0);
+
+            if (isEmpty) {
+                // In view mode, reverting to "no value" should fall back to the
+                // dashboard-saved default (which the tile queries also use), keeping
+                // the widget and queries in sync. In edit mode, clearing fully removes
+                // the override so authors can drop it.
+                const savedParam = savedParameters[key];
+                if (!isEditMode && savedParam) {
+                    setParameters((prev) => ({
+                        ...prev,
+                        [key]: savedParam,
+                    }));
+                } else {
+                    setParameters((prev) => {
+                        const newParams = { ...prev };
+                        delete newParams[key];
+                        return newParams;
+                    });
+                }
             } else {
                 setParameters((prev) => ({
                     ...prev,
@@ -376,7 +389,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 }));
             }
         },
-        [],
+        [isEditMode, savedParameters],
     );
 
     const clearAllParameters = useCallback(() => {
