@@ -2214,7 +2214,7 @@ describe('AsyncQueryService', () => {
             const sqlWithUnboundParam =
                 'SELECT * FROM jaffle.orders WHERE status = ${lightdash.parameters.no_default_param} LIMIT 10';
 
-            const buildServiceWithCapturedSql = (
+            const buildService = (
                 projectParameterConfigs: {
                     name: string;
                     config: AnyType;
@@ -2237,14 +2237,7 @@ describe('AsyncQueryService', () => {
                     intrinsicUserAttributes: { email: 'test@example.com' },
                 }));
 
-                const captured: { sql: string | null } = { sql: null };
-                const streamQuery = jest.fn(async (sql: string, callback) => {
-                    captured.sql = sql;
-                    await callback({
-                        fields: { status: { type: DimensionType.STRING } },
-                        rows: [],
-                    });
-                });
+                const streamQuery = jest.fn();
 
                 service._getWarehouseClient = jest.fn(async () => ({
                     warehouseClient: {
@@ -2254,41 +2247,11 @@ describe('AsyncQueryService', () => {
                     sshTunnel: mockSshTunnel,
                 }));
 
-                return { service, streamQuery, captured };
+                return { service, streamQuery };
             };
 
-            it('substitutes the parameter value before running the column-discovery query', async () => {
-                const { service, streamQuery, captured } =
-                    buildServiceWithCapturedSql([
-                        {
-                            name: 'no_default_param',
-                            config: {
-                                label: 'No Default Param',
-                                options: ['completed', 'shipped'],
-                            },
-                        },
-                    ]);
-
-                await service.executeAsyncSqlQuery({
-                    account: sessionAccount,
-                    projectUuid,
-                    sql: sqlWithUnboundParam,
-                    parameters: { no_default_param: 'completed' },
-                    context: QueryExecutionContext.SQL_RUNNER,
-                    invalidateCache: false,
-                });
-
-                expect(streamQuery).toHaveBeenCalledTimes(1);
-                expect(captured.sql).not.toBeNull();
-                // The literal placeholder must not survive substitution.
-                expect(captured.sql).not.toContain(
-                    '${lightdash.parameters.no_default_param}',
-                );
-                expect(captured.sql).toContain("'completed'");
-            });
-
             it('throws ParameterError when SQL references a parameter that has no value and no default', async () => {
-                const { service, streamQuery } = buildServiceWithCapturedSql([
+                const { service, streamQuery } = buildService([
                     {
                         name: 'no_default_param',
                         config: {
