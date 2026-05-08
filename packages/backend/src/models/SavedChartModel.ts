@@ -568,7 +568,7 @@ export class SavedChartModel {
         const result: ResolverRow | undefined = await this.database
             .raw<{ rows: ResolverRow[] }>(
                 `
-                WITH chart_origin AS (
+                WITH RECURSIVE chart_origin AS (
                     SELECT
                         sq.saved_query_uuid AS chart_uuid,
                         sq.name AS chart_name,
