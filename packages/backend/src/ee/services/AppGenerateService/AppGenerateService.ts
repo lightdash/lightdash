@@ -2990,10 +2990,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // so no spurious failed analytics event fires on top of the cancel.
         if (app.sandbox_id) {
             try {
-                const sandbox = await Sandbox.connect(app.sandbox_id, {
+                await Sandbox.pause(app.sandbox_id, {
                     apiKey: this.getE2bApiKey(),
                 });
-                await sandbox.pause();
                 this.logger.info(
                     `App ${appUuid}: sandbox paused after cancel (sandboxId=${app.sandbox_id})`,
                 );
@@ -3418,10 +3417,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<void> {
         if (!sandboxId) return;
         try {
-            const sandbox = await Sandbox.connect(sandboxId, {
+            await Sandbox.pause(sandboxId, {
                 apiKey: this.getE2bApiKey(),
             });
-            await sandbox.pause();
             this.logger.info(
                 `App ${appUuid}: sandbox paused during delete (sandboxId=${sandboxId})`,
             );
@@ -3438,10 +3436,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<void> {
         if (!sandboxId) return;
         try {
-            const sandbox = await Sandbox.connect(sandboxId, {
+            await Sandbox.kill(sandboxId, {
                 apiKey: this.getE2bApiKey(),
             });
-            await sandbox.kill();
             this.logger.info(
                 `App ${appUuid}: sandbox killed during hard delete (sandboxId=${sandboxId})`,
             );
