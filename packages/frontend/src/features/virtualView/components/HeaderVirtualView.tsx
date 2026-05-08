@@ -356,7 +356,11 @@ export const HeaderVirtualView: FC<{
         let columnsFromQuery: VizColumn[];
         // Get columns from query regardless of whether the query has run or not
         try {
-            const results = await runQuery({ sql, limit: 1 });
+            const results = await runQuery({
+                sql,
+                limit: 1,
+                parameterValues: savedParameterValues,
+            });
 
             if (results) {
                 columnsFromQuery = results.columns;

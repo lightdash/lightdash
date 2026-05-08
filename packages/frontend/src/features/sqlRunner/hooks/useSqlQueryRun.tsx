@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type ParametersValuesMap,
     type RawResultRow,
     type SqlRunnerBody,
     type VizColumn,
@@ -17,6 +18,7 @@ export type ResultsAndColumns = {
 type UseSqlQueryRunParams = {
     sql: SqlRunnerBody['sql'];
     limit: SqlRunnerBody['limit'];
+    parameterValues?: ParametersValuesMap;
 };
 
 /**
@@ -35,8 +37,12 @@ export const useSqlQueryRun = (
         ResultsAndColumns | undefined,
         ApiError,
         UseSqlQueryRunParams
-    >(async ({ sql, limit }) => executeSqlQuery(projectUuid, sql, limit), {
-        mutationKey: ['sqlRunner', 'run'],
-        ...useMutationOptions,
-    });
+    >(
+        async ({ sql, limit, parameterValues }) =>
+            executeSqlQuery(projectUuid, sql, limit, parameterValues),
+        {
+            mutationKey: ['sqlRunner', 'run'],
+            ...useMutationOptions,
+        },
+    );
 };

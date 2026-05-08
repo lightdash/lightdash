@@ -2204,6 +2204,123 @@ describe('AsyncQueryService', () => {
             });
         });
 
+        describe('parameter resolution', () => {
+            // Regression for PROD-7497: virtual view "Save" sent the
+            // column-discovery query without parameter values. The placeholder
+            // ${lightdash.parameters.X} reached Postgres and produced a
+            // confusing `syntax error at or near "$"`. The service should
+            // detect unbound parameter references before hitting the warehouse
+            // and surface a clean ParameterError instead.
+            const sqlWithUnboundParam =
+                'SELECT * FROM jaffle.orders WHERE status = ${lightdash.parameters.no_default_param} LIMIT 10';
+
+            const buildServiceWithCapturedSql = (
+                projectParameterConfigs: {
+                    name: string;
+                    config: AnyType;
+                }[] = [],
+            ) => {
+                const mockProjectParametersModel = {
+                    find: jest.fn(async () => projectParameterConfigs),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectParametersModel:
+                            mockProjectParametersModel as unknown as ProjectParametersModel,
+                    },
+                );
+
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+
+                const captured: { sql: string | null } = { sql: null };
+                const streamQuery = jest.fn(async (sql: string, callback) => {
+                    captured.sql = sql;
+                    await callback({
+                        fields: { status: { type: DimensionType.STRING } },
+                        rows: [],
+                    });
+                });
+
+                service._getWarehouseClient = jest.fn(async () => ({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        streamQuery,
+                    },
+                    sshTunnel: mockSshTunnel,
+                }));
+
+                return { service, streamQuery, captured };
+            };
+
+            it('substitutes the parameter value before running the column-discovery query', async () => {
+                const { service, streamQuery, captured } =
+                    buildServiceWithCapturedSql([
+                        {
+                            name: 'no_default_param',
+                            config: {
+                                label: 'No Default Param',
+                                options: ['completed', 'shipped'],
+                            },
+                        },
+                    ]);
+
+                await service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: sqlWithUnboundParam,
+                    parameters: { no_default_param: 'completed' },
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    invalidateCache: false,
+                });
+
+                expect(streamQuery).toHaveBeenCalledTimes(1);
+                expect(captured.sql).not.toBeNull();
+                // The literal placeholder must not survive substitution.
+                expect(captured.sql).not.toContain(
+                    '${lightdash.parameters.no_default_param}',
+                );
+                expect(captured.sql).toContain("'completed'");
+            });
+
+            it('throws ParameterError when SQL references a parameter that has no value and no default', async () => {
+                const { service, streamQuery } = buildServiceWithCapturedSql([
+                    {
+                        name: 'no_default_param',
+                        config: {
+                            label: 'No Default Param',
+                            options: ['completed', 'shipped'],
+                        },
+                    },
+                ]);
+
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: sqlWithUnboundParam,
+                        // parameters intentionally omitted to simulate the
+                        // pre-fix frontend Save flow.
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        invalidateCache: false,
+                    }),
+                ).rejects.toThrow(
+                    expect.objectContaining({
+                        name: 'ParameterError',
+                        message: expect.stringContaining('no_default_param'),
+                    }),
+                );
+
+                // Guardrail: we must not have shipped the unsubstituted SQL
+                // to the warehouse — that's the buggy behaviour we're fixing.
+                expect(streamQuery).not.toHaveBeenCalled();
+            });
+        });
+
         describe('legacy total and subtotal flows', () => {
             beforeEach(() => {
                 jest.clearAllMocks();

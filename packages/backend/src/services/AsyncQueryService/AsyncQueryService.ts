@@ -4943,12 +4943,22 @@ export class AsyncQueryService extends ProjectService {
         );
 
         // Then replace parameters in SQL before running column discovery query
-        const { replacedSql: columnDiscoverySql } =
-            safeReplaceParametersWithSqlBuilder(
-                sqlWithUserAttributes,
-                parameters ?? {},
-                warehouseConnection.warehouseClient,
+        const {
+            replacedSql: columnDiscoverySql,
+            missingReferences: columnDiscoveryMissingParameters,
+        } = safeReplaceParametersWithSqlBuilder(
+            sqlWithUserAttributes,
+            parameters ?? {},
+            warehouseConnection.warehouseClient,
+        );
+
+        if (columnDiscoveryMissingParameters.size > 0) {
+            const missing = Array.from(columnDiscoveryMissingParameters);
+            throw new ParameterError(
+                `Missing values for SQL parameter(s): ${missing.join(', ')}`,
+                { missingReferences: missing },
             );
+        }
 
         await warehouseConnection.warehouseClient.streamQuery(
             applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
