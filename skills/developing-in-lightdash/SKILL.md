@@ -225,6 +225,7 @@ The semantic layer defines your data model. See individual references for full c
 - [Metrics Reference](./resources/metrics-reference.md) — aggregated calculations (`count`, `sum`, `average`, `min`, `max`, `number`, etc.)
 - [Dimensions Reference](./resources/dimensions-reference.md) — attributes for grouping/filtering (`string`, `number`, `boolean`, `date`, `timestamp`)
 - [Joins Reference](./resources/joins-reference.md) — cross-table relationships
+- [User Attributes Reference](./resources/user-attributes-reference.md) — SQL variables, row-level security, access control
 
 ## Chart Types
 
@@ -320,6 +321,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Metrics Reference](./resources/metrics-reference.md)
 - [Tables Reference](./resources/tables-reference.md)
 - [Joins Reference](./resources/joins-reference.md)
+- [User Attributes Reference](./resources/user-attributes-reference.md)
 
 ### Charts
 - [Cartesian Chart Reference](./resources/cartesian-chart-reference.md) - Bar, line, area, scatter
