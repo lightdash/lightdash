@@ -48,7 +48,7 @@ export const DockTab: FC<Props> = ({
         >
             <Group gap="xs" wrap="nowrap" w="100%">
                 {isStreaming ? (
-                    <Loader size="xs" color="gray" />
+                    <Loader size={12} color="gray" />
                 ) : (
                     <LightdashUserAvatar
                         size="xs"

@@ -19,6 +19,8 @@
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
+    padding: rem(6px) rem(2px);
+    margin: rem(-6px) rem(-2px);
 }
 
 .dock::-webkit-scrollbar {
@@ -32,15 +34,18 @@
     padding: rem(4px) var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-xl);
     background: var(--mantine-color-body);
-    color: var(--mantine-color-text);
-    border: 1px solid var(--mantine-color-default-border);
+    color: var(--mantine-color-dimmed);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-ldDark-3));
     box-shadow: var(--mantine-shadow-sm);
     cursor: pointer;
     max-width: rem(220px);
     flex-shrink: 0;
     transition:
         background-color 120ms ease,
-        border-color 120ms ease;
+        border-color 120ms ease,
+        transform 120ms ease,
+        box-shadow 120ms ease;
 }
 
 .dockTab:hover:not(.dockTabActive) {
@@ -49,7 +54,13 @@
 
 .dockTabActive {
     background: var(--mantine-color-body);
-    border-color: var(--mantine-color-dimmed);
+    color: var(--mantine-color-text);
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-ldDark-4)
+    );
+    box-shadow: var(--mantine-shadow-md);
+    transform: translateY(rem(-2px));
 }
 
 .dockTabStreaming {
@@ -82,6 +93,7 @@
 }
 
 .panel {
+    --mantine-scale: 0.9;
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
     right: 0;
