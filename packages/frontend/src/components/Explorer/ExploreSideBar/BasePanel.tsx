@@ -52,10 +52,18 @@ const BasePanel = () => {
             if (validSearch !== '') {
                 explores = new Fuse(Object.values(exploresResult.data), {
                     keys: [
-                        'label',
-                        'name',
-                        'preAggregateSource.preAggregateName',
-                        'preAggregateSource.sourceExploreName',
+                        { name: 'label', weight: 2 },
+                        { name: 'name', weight: 2 },
+                        {
+                            name: 'preAggregateSource.preAggregateName',
+                            weight: 2,
+                        },
+                        {
+                            name: 'preAggregateSource.sourceExploreName',
+                            weight: 2,
+                        },
+                        { name: 'groupLabel', weight: 1 },
+                        { name: 'groups', weight: 1 },
                     ],
                     ignoreLocation: true,
                     threshold: 0.3,
