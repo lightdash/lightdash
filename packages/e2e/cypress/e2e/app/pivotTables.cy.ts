@@ -104,7 +104,9 @@ const runPivotChart = (
     cy.intercept('GET', '**/api/v2/projects/*/query/*').as('pivotQueryResults');
 
     cy.visit(buildExploreUrl(chartState));
-    cy.get('button').contains('Run query').should('not.be.disabled').click();
+    cy.findByTestId('RefreshButton/RunQueryButton')
+        .should('not.be.disabled')
+        .click();
 
     cy.wait('@runPivotQuery', { timeout: 60000 }).then((interception) => {
         const body = getRequestBody(interception.request.body);
@@ -342,8 +344,7 @@ describe('Pivot Tables', () => {
         );
 
         // run query
-        cy.get('button')
-            .contains('Run query')
+        cy.findByTestId('RefreshButton/RunQueryButton')
             .should('not.be.disabled')
             .click();
 
@@ -362,8 +363,7 @@ describe('Pivot Tables', () => {
         );
 
         // run query
-        cy.get('button')
-            .contains('Run query')
+        cy.findByTestId('RefreshButton/RunQueryButton')
             .should('not.be.disabled')
             .click();
 
