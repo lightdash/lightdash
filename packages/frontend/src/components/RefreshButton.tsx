@@ -27,7 +27,10 @@ import MantineIcon from './common/MantineIcon';
 import PreAggregateStatusBadge from './PreAggregateStatusBadge';
 import RunQuerySettings from './RunQuerySettings';
 
-export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
+export const RefreshButton: FC<{
+    size?: MantineSize;
+    testId?: string;
+}> = memo(({ size, testId = 'RefreshButton/RunQueryButton' }) => {
     const [, startTransition] = useTransition();
     const health = useHealth();
     const maxLimit = health.data?.query.maxLimit ?? 5000;
@@ -100,7 +103,7 @@ export const RefreshButton: FC<{ size?: MantineSize }> = memo(({ size }) => {
                             borderTopRightRadius: 0,
                             borderBottomRightRadius: 0,
                         })}
-                        data-testid="RefreshButton/RunQueryButton"
+                        data-testid={testId}
                     >
                         Run query ({limit})
                     </Button>

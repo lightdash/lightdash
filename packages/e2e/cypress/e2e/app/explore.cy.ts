@@ -551,7 +551,9 @@ describe('Explore', () => {
         cy.findByText('Create').click();
 
         // Run query
-        cy.findAllByTestId('RefreshButton/RunQueryButton').first().click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
 
         // Wait for query to finish loading
         cy.findByText('Loading results').should('not.exist');

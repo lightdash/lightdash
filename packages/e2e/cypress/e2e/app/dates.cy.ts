@@ -158,7 +158,9 @@ describe('Date tests', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
-        cy.get('button').contains('Run query').click();
+        cy.findByTestId('RefreshButton/RunQueryButton')
+            .should('not.be.disabled')
+            .click();
         cy.contains('SQL');
         cy.findAllByText('Loading chart').should('have.length', 0);
 
