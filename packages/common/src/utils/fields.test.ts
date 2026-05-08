@@ -116,6 +116,37 @@ describe('compareMetricAndCustomMetric', () => {
         },
     );
 
+    test('should treat default-typed formatOptions as equivalent to no formatOptions', async () => {
+        const result = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                formatOptions: {
+                    type: CustomFormatType.DEFAULT,
+                    separator: NumberSeparator.DEFAULT,
+                },
+            },
+            metric: {
+                ...metric,
+            },
+        });
+        expect(result.isExactMatch).toEqual(true);
+        expect(result.isSuggestedMatch).toEqual(true);
+    });
+
+    test('should treat null and undefined percentile as equivalent', async () => {
+        const result = compareMetricAndCustomMetric({
+            customMetric: {
+                ...customMetric,
+                percentile: null as unknown as undefined,
+            },
+            metric: {
+                ...metric,
+            },
+        });
+        expect(result.isExactMatch).toEqual(true);
+        expect(result.isSuggestedMatch).toEqual(true);
+    });
+
     test('should return exact match when comparing format expression with format object', async () => {
         const result = compareMetricAndCustomMetric({
             customMetric: {

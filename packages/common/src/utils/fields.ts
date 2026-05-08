@@ -1,12 +1,13 @@
 import { type Explore } from '../types/explore';
 import {
+    CustomFormatType,
     type CompiledDimension,
     type CompiledField,
     type CompiledMetric,
     type Metric,
 } from '../types/field';
 import { isDateFilterRule, type DateFilterSettings } from '../types/filter';
-import { type AdditionalMetric } from '../types/metricQuery';
+import { hasFormatOptions, type AdditionalMetric } from '../types/metricQuery';
 import type { ParametersValuesMap } from '../types/parameters';
 import {
     type ReplaceableCustomFields,
@@ -151,6 +152,23 @@ export const getFields = (explore: Explore): CompiledField[] => [
     ...getMetrics(explore),
 ];
 
+// An item has "no meaningful format" when it carries no explicit formatOptions
+// (or only `{type: 'default'}`) and no legacy format fields. `getFormatExpression`
+// would produce `undefined` for the default-typed formatOptions case but a phantom
+// number-format string (e.g., `'0'`) for items with no formatOptions at all that
+// happen to be numeric — and those two states should compare as equivalent.
+const hasMeaningfulFormat = (item: Metric | AdditionalMetric): boolean => {
+    if (hasFormatOptions(item)) {
+        return item.formatOptions.type !== CustomFormatType.DEFAULT;
+    }
+    if ('format' in item && item.format) return true;
+    if ('compact' in item && item.compact) return true;
+    if ('round' in item && item.round !== undefined && item.round !== null) {
+        return true;
+    }
+    return false;
+};
+
 export function compareMetricAndCustomMetric({
     metric,
     customMetric,
@@ -158,6 +176,13 @@ export function compareMetricAndCustomMetric({
     metric: Metric;
     customMetric: AdditionalMetric;
 }) {
+    const metricHasFormat = hasMeaningfulFormat(metric);
+    const customMetricHasFormat = hasMeaningfulFormat(customMetric);
+    const formatIsMatch =
+        !metricHasFormat && !customMetricHasFormat
+            ? true
+            : getFormatExpression(metric) === getFormatExpression(customMetric);
+
     const conditions = {
         fieldIdMatch: {
             isMatch: getItemId(metric) === getItemId(customMetric),
@@ -182,13 +207,14 @@ export function compareMetricAndCustomMetric({
             requiredForSuggestion: true,
         },
         formatMatch: {
-            isMatch:
-                getFormatExpression(metric) ===
-                getFormatExpression(customMetric),
+            isMatch: formatIsMatch,
             requiredForSuggestion: true,
         },
         percentileMatch: {
-            isMatch: metric.percentile === customMetric.percentile,
+            // Coalesce null/undefined: chart-side hydrates DB NULL as null, explore-side omits the key (undefined).
+            isMatch:
+                (metric.percentile ?? null) ===
+                (customMetric.percentile ?? null),
             requiredForSuggestion: true,
         },
         filtersMatch: {
