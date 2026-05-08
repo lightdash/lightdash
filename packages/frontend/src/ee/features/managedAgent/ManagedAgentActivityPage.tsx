@@ -594,7 +594,8 @@ const GovernanceRollupDetails: FC<{
 const GovernanceDetails: FC<{
     projectUuid: string;
     metadata: GovernanceInsightMetadata;
-}> = ({ projectUuid, metadata }) => {
+    isReversed: boolean;
+}> = ({ projectUuid, metadata, isReversed }) => {
     const suggestion = metadata.suggestion;
     const isInconsistent =
         metadata.insightKind === GovernanceInsightKind.INCONSISTENT_DEFINITIONS;
@@ -671,7 +672,7 @@ const GovernanceDetails: FC<{
                 ))}
             </Stack>
 
-            {suggestion?.yamlSnippet ? (
+            {!isReversed && suggestion?.yamlSnippet ? (
                 <Stack gap={4}>
                     <MetadataLabel label="Proposed dbt YAML" />
                     <Box style={{ position: 'relative' }}>
@@ -728,7 +729,9 @@ const GovernanceDetails: FC<{
                     )}
                 </Stack>
             ) : (
-                isInconsistent && (
+                !isReversed &&
+                isInconsistent &&
+                !suggestion?.yamlSnippet && (
                     <Stack gap={4}>
                         <MetadataLabel label="Proposed dbt YAML" />
                         <Text fz="xs" c="dimmed" lh={1.6}>
@@ -739,14 +742,16 @@ const GovernanceDetails: FC<{
                 )
             )}
 
-            {suggestion?.yamlSnippet && replaceOnCompileEnabled && (
-                <Text fz="xs" c="dimmed" lh={1.6} fs="italic">
-                    Add this to dbt with the same name and SQL, then re-compile
-                    the project. Affected charts will be cleaned up
-                    automatically on the next compile if the new dbt metric is
-                    an exact match.
-                </Text>
-            )}
+            {!isReversed &&
+                suggestion?.yamlSnippet &&
+                replaceOnCompileEnabled && (
+                    <Text fz="xs" c="dimmed" lh={1.6} fs="italic">
+                        Add this to dbt with the same name and SQL, then
+                        re-compile the project. Affected charts will be cleaned
+                        up automatically on the next compile if the new dbt
+                        metric is an exact match.
+                    </Text>
+                )}
         </Stack>
     );
 };
@@ -1467,6 +1472,7 @@ const DetailSidebar: FC<{
                     <GovernanceDetails
                         projectUuid={action.projectUuid}
                         metadata={governanceMetadata}
+                        isReversed={isReversed}
                     />
                 )}
                 {governanceRollupMetadata && (
