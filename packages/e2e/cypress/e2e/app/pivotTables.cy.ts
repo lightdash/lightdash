@@ -104,10 +104,7 @@ const runPivotChart = (
     cy.intercept('GET', '**/api/v2/projects/*/query/*').as('pivotQueryResults');
 
     cy.visit(buildExploreUrl(chartState));
-    cy.findByTestId('page-spinner').should('not.exist');
-    cy.findByTestId('RefreshButton/RunQueryButton')
-        .should('be.visible')
-        .click();
+    cy.get('button').contains('Run query').click();
 
     cy.wait('@runPivotQuery', { timeout: 60000 }).then((interception) => {
         const body = getRequestBody(interception.request.body);
@@ -345,10 +342,7 @@ describe('Pivot Tables', () => {
         );
 
         // run query
-        cy.findByTestId('page-spinner').should('not.exist');
-        cy.findByTestId('RefreshButton/RunQueryButton')
-            .should('be.visible')
-            .click();
+        cy.get('button').contains('Run query').click();
 
         // Create a pivot table
         cy.contains('placed');
@@ -365,10 +359,7 @@ describe('Pivot Tables', () => {
         );
 
         // run query
-        cy.findByTestId('page-spinner').should('not.exist');
-        cy.findByTestId('RefreshButton/RunQueryButton')
-            .should('be.visible')
-            .click();
+        cy.get('button').contains('Run query').click();
 
         cy.contains('Tables').should('be.visible'); // Ensure the sidebar has loaded before clicking configure below
         cy.contains('Configure').click();

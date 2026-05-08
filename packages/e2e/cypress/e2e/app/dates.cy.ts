@@ -158,8 +158,7 @@ describe('Date tests', () => {
         cy.visit(
             `/projects/${SEED_PROJECT.project_uuid}/tables/events${exploreStateUrlParams}`,
         );
-        cy.findByTestId('page-spinner').should('not.exist');
-        cy.get('button').contains('Run query').should('be.visible').click();
+        cy.get('button').contains('Run query').click();
         cy.contains('SQL');
         cy.findAllByText('Loading chart').should('have.length', 0);
 
