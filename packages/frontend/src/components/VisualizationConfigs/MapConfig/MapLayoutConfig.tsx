@@ -256,16 +256,27 @@ export const Layout: FC = memo(() => {
     // Get region field config based on map type
     const regionFieldConfig = getRegionFieldConfig(config.mapType);
 
+    const locationType = config.locationType || MapChartType.SCATTER;
+
+    // Show the Hexbin option whenever either: the feature flag is enabled, the
+    // flag is still loading (hides the flag fetch from the user — otherwise
+    // the segmented control briefly renders with 3 items then 4, which makes
+    // the active indicator slide mid-mount), or the chart already has hexbin
+    // selected (so saved charts always have a matching option even if the
+    // flag is off, instead of showing an empty selection).
+    const showHexbinOption =
+        isHexbinEnabled ||
+        hexbinFlag.isLoading ||
+        locationType === MapChartType.HEXBIN;
+
     const locationTypeOptions = [
         { value: MapChartType.SCATTER, label: 'Scatter' },
         { value: MapChartType.AREA, label: 'Area' },
         { value: MapChartType.HEATMAP, label: 'Heatmap' },
-        ...(isHexbinEnabled
+        ...(showHexbinOption
             ? [{ value: MapChartType.HEXBIN, label: 'Hexbin' }]
             : []),
     ];
-
-    const locationType = config.locationType || MapChartType.SCATTER;
     const isCustomMap = config.mapType === MapChartLocation.CUSTOM;
 
     // Get selected field objects
