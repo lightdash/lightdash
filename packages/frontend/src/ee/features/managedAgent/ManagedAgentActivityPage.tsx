@@ -4,6 +4,7 @@ import {
     type ContentVerificationInfo,
     countTotalFilterRules,
     type Dashboard,
+    FeatureFlags,
     getFixedBrokenMetadata,
     getGovernanceInsightMetadata,
     type GovernanceInsightMetadata,
@@ -87,6 +88,7 @@ import { useGetSlack } from '../../../hooks/slack/useSlack';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProject } from '../../../hooks/useProject';
 import { useChartVersion, useSavedQuery } from '../../../hooks/useSavedQuery';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { useManagedAgentActions } from './hooks/useManagedAgentActions';
 import { useManagedAgentLatestRun } from './hooks/useManagedAgentLatestRun';
@@ -459,48 +461,66 @@ const SlowDetails: FC<{ metadata: Record<string, unknown> }> = ({
     );
 };
 
+const VARIANT_CHART_PREVIEW_LIMIT = 3;
+
 const GovernanceVariantBlock: FC<{
     projectUuid: string;
     variant: GovernanceInsightMetadata['variants'][number];
     showName: boolean;
-}> = ({ projectUuid, variant, showName }) => (
-    <Stack gap={4}>
-        <Group gap={6} align="center" wrap="nowrap">
-            {showName && (
-                <Text fz="xs" fw={500} ff="monospace">
-                    {variant.name}
-                </Text>
-            )}
-            <Text fz="xs" c="dimmed">
-                {variant.chartCount} chart
-                {variant.chartCount === 1 ? '' : 's'}
-            </Text>
-        </Group>
-        <Code block fz="xs">
-            {variant.sql}
-        </Code>
-        {variant.charts.length > 0 && (
-            <Stack gap={2} pl="sm">
-                {variant.charts.slice(0, 3).map((chart) => (
-                    <Anchor
-                        key={chart.savedQueryUuid}
-                        href={`/projects/${projectUuid}/saved/${chart.savedQueryUuid}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        fz="xs"
-                    >
-                        {chart.savedQueryName}
-                    </Anchor>
-                ))}
-                {variant.charts.length > 3 && (
-                    <Text fz="xs" c="dimmed">
-                        + {variant.charts.length - 3} more
+}> = ({ projectUuid, variant, showName }) => {
+    const [expanded, setExpanded] = useState(false);
+    const visibleCharts = expanded
+        ? variant.charts
+        : variant.charts.slice(0, VARIANT_CHART_PREVIEW_LIMIT);
+    const hiddenCount = variant.charts.length - VARIANT_CHART_PREVIEW_LIMIT;
+
+    return (
+        <Stack gap={4}>
+            <Group gap={6} align="center" wrap="nowrap">
+                {showName && (
+                    <Text fz="xs" fw={500} ff="monospace">
+                        {variant.name}
                     </Text>
                 )}
-            </Stack>
-        )}
-    </Stack>
-);
+                <Text fz="xs" c="dimmed">
+                    {variant.chartCount} chart
+                    {variant.chartCount === 1 ? '' : 's'}
+                </Text>
+            </Group>
+            <Box style={{ position: 'relative' }}>
+                <Code block fz="xs">
+                    {variant.sql}
+                </Code>
+            </Box>
+            {variant.charts.length > 0 && (
+                <Stack gap={2} pl="sm">
+                    {visibleCharts.map((chart) => (
+                        <Anchor
+                            key={chart.savedQueryUuid}
+                            href={`/projects/${projectUuid}/saved/${chart.savedQueryUuid}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            fz="xs"
+                        >
+                            {chart.savedQueryName}
+                        </Anchor>
+                    ))}
+                    {hiddenCount > 0 && (
+                        <UnstyledButton
+                            onClick={() => setExpanded((prev) => !prev)}
+                        >
+                            <Text fz="xs" c="dimmed">
+                                {expanded
+                                    ? 'Show fewer'
+                                    : `+ ${hiddenCount} more`}
+                            </Text>
+                        </UnstyledButton>
+                    )}
+                </Stack>
+            )}
+        </Stack>
+    );
+};
 
 const GOVERNANCE_KIND_LABEL: Record<string, string> = {
     heavy_custom_usage: 'Heavy custom usage',
@@ -552,6 +572,10 @@ const GovernanceDetails: FC<{
     const showVariantNames = metadata.variants.some(
         (v, i) => i > 0 && v.name !== metadata.variants[0].name,
     );
+    const { data: replaceOnCompileFlag } = useServerFeatureFlag(
+        FeatureFlags.ReplaceCustomMetricsOnCompile,
+    );
+    const replaceOnCompileEnabled = !!replaceOnCompileFlag?.enabled;
 
     return (
         <Stack gap="md">
@@ -576,29 +600,38 @@ const GovernanceDetails: FC<{
 
             {suggestion?.yamlSnippet ? (
                 <Stack gap={4}>
-                    <Group justify="space-between" align="center">
-                        <MetadataLabel label="Proposed dbt YAML" />
+                    <MetadataLabel label="Proposed dbt YAML" />
+                    <Box style={{ position: 'relative' }}>
+                        <Code block fz="xs">
+                            {suggestion.yamlSnippet}
+                        </Code>
                         <CopyButton value={suggestion.yamlSnippet}>
                             {({ copied, copy }) => (
-                                <Button
-                                    size="compact-xs"
-                                    variant="default"
-                                    leftSection={
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy'}
+                                    withinPortal
+                                >
+                                    <ActionIcon
+                                        size="sm"
+                                        variant="subtle"
+                                        color="gray"
+                                        onClick={copy}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 4,
+                                            right: 4,
+                                        }}
+                                        aria-label="Copy YAML"
+                                    >
                                         <MantineIcon
                                             icon={copied ? IconCheck : IconCopy}
-                                            size={12}
+                                            size={14}
                                         />
-                                    }
-                                    onClick={copy}
-                                >
-                                    {copied ? 'Copied' : 'Copy'}
-                                </Button>
+                                    </ActionIcon>
+                                </Tooltip>
                             )}
                         </CopyButton>
-                    </Group>
-                    <Code block fz="xs">
-                        {suggestion.yamlSnippet}
-                    </Code>
+                    </Box>
                     {suggestion.rationale && (
                         <Text fz="xs" c="dimmed" lh={1.6}>
                             {suggestion.rationale}
@@ -617,11 +650,12 @@ const GovernanceDetails: FC<{
                 )
             )}
 
-            {suggestion?.yamlSnippet && (
+            {suggestion?.yamlSnippet && replaceOnCompileEnabled && (
                 <Text fz="xs" c="dimmed" lh={1.6} fs="italic">
-                    Once this metric is added to dbt, the next project compile
-                    will automatically replace the affected charts&apos; custom
-                    metrics with the new dbt metric.
+                    Add this to dbt with the same name and SQL, then re-compile
+                    the project. Affected charts will be cleaned up
+                    automatically on the next compile if the new dbt metric is
+                    an exact match.
                 </Text>
             )}
         </Stack>
@@ -1695,70 +1729,67 @@ const buildCombinedGovernanceSnippet = (
     return sections.join('\n\n');
 };
 
-const GovernanceCopyAllRow: FC<{
-    actions: readonly ManagedAgentAction[];
-}> = ({ actions }) => {
-    const snippets = useMemo(() => {
-        const out: Array<{
-            targetModel: string | null;
-            yamlSnippet: string;
-        }> = [];
-        for (const action of actions) {
-            if (
-                action.actionType !== ManagedAgentActionType.INSIGHT ||
-                action.targetType !== 'project' ||
-                action.reversedAt
-            ) {
-                continue;
-            }
-            const parsed = getGovernanceInsightMetadata(action.metadata);
-            if (
-                !parsed ||
-                parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
-            ) {
-                continue;
-            }
-            const suggestion = parsed.suggestion;
-            if (suggestion?.yamlSnippet) {
-                out.push({
-                    targetModel: suggestion.targetModel,
-                    yamlSnippet: suggestion.yamlSnippet,
-                });
-            }
+const collectGovernanceSnippets = (
+    actions: readonly ManagedAgentAction[] | undefined,
+): Array<{ targetModel: string | null; yamlSnippet: string }> => {
+    if (!actions) return [];
+    const out: Array<{ targetModel: string | null; yamlSnippet: string }> = [];
+    for (const action of actions) {
+        if (
+            action.actionType !== ManagedAgentActionType.INSIGHT ||
+            action.targetType !== 'project' ||
+            action.reversedAt
+        ) {
+            continue;
         }
-        return out;
-    }, [actions]);
+        const parsed = getGovernanceInsightMetadata(action.metadata);
+        if (
+            !parsed ||
+            parsed.insightKind === GovernanceInsightKind.GOVERNANCE_ROLLUP
+        ) {
+            continue;
+        }
+        const suggestion = parsed.suggestion;
+        if (suggestion?.yamlSnippet) {
+            out.push({
+                targetModel: suggestion.targetModel,
+                yamlSnippet: suggestion.yamlSnippet,
+            });
+        }
+    }
+    return out;
+};
 
+const GovernanceCopyAllButton: FC<{
+    snippets: Array<{ targetModel: string | null; yamlSnippet: string }>;
+}> = ({ snippets }) => {
     if (snippets.length < 2) return null;
-
     const combined = buildCombinedGovernanceSnippet(snippets);
-
     return (
-        <Table.Tr>
-            <Table.Td colSpan={3}>
-                <Group justify="flex-end" px="md" py={6}>
-                    <CopyButton value={combined}>
-                        {({ copied, copy }) => (
-                            <Button
-                                size="compact-xs"
-                                variant="default"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={copied ? IconCheck : IconCopy}
-                                        size={12}
-                                    />
-                                }
-                                onClick={copy}
-                            >
-                                {copied
-                                    ? 'Copied'
-                                    : `Copy all governance YAML (${snippets.length})`}
-                            </Button>
-                        )}
-                    </CopyButton>
-                </Group>
-            </Table.Td>
-        </Table.Tr>
+        <CopyButton value={combined}>
+            {({ copied, copy }) => (
+                <Tooltip
+                    label={`Copy combined YAML for ${snippets.length} governance findings`}
+                    withinPortal
+                >
+                    <ActionIcon
+                        size="sm"
+                        variant="subtle"
+                        color="gray"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            copy();
+                        }}
+                        aria-label="Copy all governance YAML"
+                    >
+                        <MantineIcon
+                            icon={copied ? IconCheck : IconCopy}
+                            size={14}
+                        />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </CopyButton>
     );
 };
 
@@ -1858,7 +1889,11 @@ const RunHeaderRow: FC<{
     isOpen: boolean;
     expandable: boolean;
     onToggle: () => void;
-}> = ({ run, variant, isOpen, expandable, onToggle }) => (
+    governanceSnippets: Array<{
+        targetModel: string | null;
+        yamlSnippet: string;
+    }>;
+}> = ({ run, variant, isOpen, expandable, onToggle, governanceSnippets }) => (
     <Table.Tr
         className={classes.runHeaderRow}
         onClick={expandable ? onToggle : undefined}
@@ -1973,6 +2008,9 @@ const RunHeaderRow: FC<{
                                 {run.actionCount}{' '}
                                 {run.actionCount === 1 ? 'action' : 'actions'}
                             </Text>
+                            <GovernanceCopyAllButton
+                                snippets={governanceSnippets}
+                            />
                         </>
                     ) : null}
                 </Group>
@@ -1996,6 +2034,10 @@ const RunRow: FC<{
         fastPoll: isLive,
         runUuid: run.runUuid,
     });
+    const governanceSnippets = useMemo(
+        () => collectGovernanceSnippets(actions),
+        [actions],
+    );
     return (
         <Table.Tbody>
             <RunHeaderRow
@@ -2004,6 +2046,7 @@ const RunRow: FC<{
                 isOpen={isOpen}
                 expandable={expandable}
                 onToggle={onToggle}
+                governanceSnippets={governanceSnippets}
             />
             {variant === 'errored' && run.error && (
                 <Table.Tr>
@@ -2044,22 +2087,17 @@ const RunRow: FC<{
                                   </Table.Td>
                               </Table.Tr>
                           )
-                        : actions && (
-                              <>
-                                  <GovernanceCopyAllRow actions={actions} />
-                                  {actions.map((action) => (
-                                      <ActionRow
-                                          key={action.actionUuid}
-                                          action={action}
-                                          selected={
-                                              selectedActionUuid ===
-                                              action.actionUuid
-                                          }
-                                          onSelect={onSelectAction}
-                                      />
-                                  ))}
-                              </>
-                          )}
+                        : actions &&
+                          actions.map((action) => (
+                              <ActionRow
+                                  key={action.actionUuid}
+                                  action={action}
+                                  selected={
+                                      selectedActionUuid === action.actionUuid
+                                  }
+                                  onSelect={onSelectAction}
+                              />
+                          ))}
                 </>
             )}
         </Table.Tbody>
