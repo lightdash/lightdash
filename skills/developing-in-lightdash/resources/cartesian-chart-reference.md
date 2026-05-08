@@ -88,6 +88,27 @@ Optional properties:
 - **`areaStyle`**: Presence indicates area chart
 - **`markLine`**: Reference line configuration
 
+### Limiting Displayed Rows
+
+Use `rowLimit` to trim the rendered chart to the first or last N rows of data without changing the underlying query. This is client-side slicing on already-fetched rows — useful for "show me the top 5" or "hide the totals row" while keeping the full dataset available for exports and tooltips.
+
+```yaml
+chartConfig:
+  config:
+    rowLimit:
+      mode: show          # "show" or "hide"
+      direction: first    # "first" or "last"
+      count: 10
+```
+
+| User intent | Config |
+|---|---|
+| "Show only the top 10 partners" | `{ mode: show, direction: first, count: 10 }` |
+| "Hide the last row (a totals row)" | `{ mode: hide, direction: last, count: 1 }` |
+| "Show the bottom 5 underperformers" (assumes ascending sort) | `{ mode: show, direction: last, count: 5 }` |
+
+**`metricQuery.limit` vs `rowLimit`**: `metricQuery.limit` constrains how many rows are *fetched* from the warehouse. `rowLimit` only trims what is *displayed* from the already-fetched rows. If the user wants to scan fewer rows in the database, use `metricQuery.limit`. Use `rowLimit` when the full dataset should remain queryable but only a subset should appear in the chart.
+
 ## Examples
 
 ### Bar Chart
