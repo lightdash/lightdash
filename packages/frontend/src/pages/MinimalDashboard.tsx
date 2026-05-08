@@ -237,9 +237,11 @@ const MinimalDashboard: FC = () => {
     const [activeTab, setActiveTab] = useState<DashboardTab | null>(null);
 
     useEffect(() => {
+        // Minimal/embed renders are always treated as view mode — hidden tabs
+        // should not be selectable. Fall back to the first visible tab.
+        const visibleTabs = dashboard?.tabs.filter((tab) => !tab.hidden) ?? [];
         const matchedTab =
-            dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
-            dashboard?.tabs[0];
+            visibleTabs.find((tab) => tab.uuid === tabUuid) ?? visibleTabs[0];
         setActiveTab(matchedTab || null);
     }, [tabUuid, dashboard?.tabs]);
 

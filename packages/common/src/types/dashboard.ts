@@ -161,6 +161,7 @@ export type DashboardTab = {
     uuid: string;
     name: string;
     order: number;
+    hidden: boolean;
 };
 
 export type DashboardTabWithUrls = DashboardTab & {

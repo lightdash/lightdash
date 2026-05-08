@@ -345,11 +345,20 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
 
     const defaultTab = dashboardTabs?.[0];
+    // In view mode, hidden tabs are excluded from the bar and from the rendered grid.
+    // In edit mode all tabs are visible (hidden tabs are styled as such).
+    const visibleTabs = useMemo(
+        () =>
+            isEditMode
+                ? dashboardTabs
+                : dashboardTabs.filter((tab) => !tab.hidden),
+        [dashboardTabs, isEditMode],
+    );
     // Context: We don't want to show the "tabs mode" if there is only one tab in state
     // This is because the tabs mode is only useful when there are multiple tabs
-    const sortedTabs = dashboardTabs.length > 1 ? dashboardTabs : [];
+    const sortedTabs = visibleTabs.length > 1 ? visibleTabs : [];
     const hasDashboardTiles = dashboardTiles && dashboardTiles.length > 0;
-    const tabsEnabled = dashboardTabs && dashboardTabs.length > 1;
+    const tabsEnabled = visibleTabs && visibleTabs.length > 1;
 
     // Track which tabs have been visited so we can lazy-mount tab content.
     // When keepTabsInMemory is enabled, tabs are mounted on first visit and
@@ -654,6 +663,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     uuid: uuid4(),
                     isDefault: true,
                     order: 0,
+                    hidden: false,
                 };
                 newTabs.push(firstTab);
                 // Move all tiles to the new default tab (immutable update)
@@ -671,6 +681,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 uuid: uuid4(),
                 isDefault: false,
                 order: lastOrd + 1,
+                hidden: false,
             };
             newTabs.push(newTab);
             setDashboardTabs(newTabs);
@@ -740,6 +751,15 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         }
     };
 
+    const handleToggleTabHidden = (tabUuid: string) => {
+        setDashboardTabs((currentTabs) =>
+            currentTabs?.map((tab) =>
+                tab.uuid === tabUuid ? { ...tab, hidden: !tab.hidden } : tab,
+            ),
+        );
+        setHaveTabsChanged(true);
+    };
+
     const handleDuplicateTab = (tabUuid: string) => {
         const tab = dashboardTabs.find((t) => t.uuid === tabUuid);
         if (tab) {
@@ -770,6 +790,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                 uuid: uuid4(),
                 isDefault: false,
                 order: lastOrd + 1,
+                hidden: false,
             };
 
             setDashboardTabs((currentTabs) => [...currentTabs, newTab]);
@@ -908,6 +929,9 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                 }
                                                                 handleDuplicateTab={
                                                                     handleDuplicateTab
+                                                                }
+                                                                handleToggleTabHidden={
+                                                                    handleToggleTabHidden
                                                                 }
                                                                 setDeletingTab={
                                                                     setDeletingTab
@@ -1056,7 +1080,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                         }
                                     >
                                         {tabsEnabled
-                                            ? dashboardTabs
+                                            ? visibleTabs
                                                   .filter((tab) =>
                                                       visitedTabs.has(tab.uuid),
                                                   )

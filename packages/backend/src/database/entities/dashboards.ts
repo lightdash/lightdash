@@ -154,6 +154,7 @@ export type DbDashboardTabs = {
     dashboard_id: number;
     dashboard_version_id: number;
     order: number;
+    hidden: boolean;
     created_at: Date;
     updated_at: Date;
 };

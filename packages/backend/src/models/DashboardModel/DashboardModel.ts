@@ -178,6 +178,7 @@ export class DashboardModel {
                     uuid: tab.uuid,
                     dashboard_id: dashboardId,
                     order: tab.order,
+                    hidden: tab.hidden ?? false,
                 })),
             );
         }
@@ -1013,6 +1014,7 @@ export class DashboardModel {
                 `${DashboardTabsTableName}.name`,
                 `${DashboardTabsTableName}.uuid`,
                 `${DashboardTabsTableName}.order`,
+                `${DashboardTabsTableName}.hidden`,
             )
             .where(
                 `${DashboardTabsTableName}.dashboard_version_id`,
@@ -2005,6 +2007,7 @@ export class DashboardModel {
                 `${DashboardTabsTableName}.name`,
                 `${DashboardTabsTableName}.uuid`,
                 `${DashboardTabsTableName}.order`,
+                `${DashboardTabsTableName}.hidden`,
             )
             .where(
                 `${DashboardTabsTableName}.dashboard_version_id`,
