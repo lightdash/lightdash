@@ -70,6 +70,32 @@ export type ViewStatistics = {
     firstViewedAt: Date | string | null;
 };
 
+export type DownloadAuditEntry = {
+    downloadUuid: string;
+    queryUuid: string;
+    userUuid: string | null;
+    userFirstName: string | null;
+    userLastName: string | null;
+    fileType: string;
+    downloadedAt: Date;
+    originalQueryContext: string | null;
+};
+
+export type DownloadActivityResults = {
+    data: DownloadAuditEntry[];
+    pagination?: {
+        page: number;
+        pageSize: number;
+        totalPageCount: number;
+        totalResults: number;
+    };
+};
+
+export type ApiDownloadActivity = {
+    status: 'ok';
+    results: DownloadActivityResults;
+};
+
 export enum QueryExecutionContext {
     DASHBOARD = 'dashboardView',
     AUTOREFRESHED_DASHBOARD = 'autorefreshedDashboard',

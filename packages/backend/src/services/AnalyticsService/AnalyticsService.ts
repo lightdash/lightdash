@@ -2,7 +2,9 @@ import { subject } from '@casl/ability';
 import {
     AnyType,
     assertIsAccountWithOrg,
+    DownloadActivityResults,
     ForbiddenError,
+    KnexPaginateArgs,
     NotFoundError,
     SchedulerJobStatus,
     UserActivity,
@@ -12,6 +14,7 @@ import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import { CsvService } from '../CsvService/CsvService';
@@ -19,6 +22,7 @@ import { CsvService } from '../CsvService/CsvService';
 type AnalyticsServiceArguments = {
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
+    downloadAuditModel: DownloadAuditModel;
     projectModel: ProjectModel;
     csvService: CsvService;
 };
@@ -27,6 +31,8 @@ export class AnalyticsService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
     private readonly analyticsModel: AnalyticsModel;
+
+    private readonly downloadAuditModel: DownloadAuditModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -37,6 +43,7 @@ export class AnalyticsService extends BaseService {
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.analyticsModel = args.analyticsModel;
+        this.downloadAuditModel = args.downloadAuditModel;
         this.csvService = args.csvService;
     }
 
@@ -134,5 +141,46 @@ export class AnalyticsService extends BaseService {
             createdByUserUuid: account.user.id,
         });
         return upload.path;
+    }
+
+    async getDownloadActivity(
+        projectUuid: string,
+        account: Account,
+        paginateArgs?: KnexPaginateArgs,
+    ): Promise<DownloadActivityResults> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Analytics', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        this.analytics.track({
+            event: 'usage_analytics.download_activity_viewed',
+            userId: account.user.id,
+            properties: {
+                projectId: projectUuid,
+                organizationId: account.organization.organizationUuid,
+            },
+        });
+
+        const { data, pagination } =
+            await this.downloadAuditModel.getDownloads(
+                organizationUuid,
+                projectUuid,
+                paginateArgs,
+            );
+
+        return { data, pagination };
     }
 }

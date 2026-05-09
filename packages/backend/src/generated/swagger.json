@@ -16205,6 +16205,103 @@
                 "required": ["status", "results"],
                 "type": "object"
             },
+            "DownloadAuditEntry": {
+                "properties": {
+                    "originalQueryContext": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fileType": {
+                        "type": "string"
+                    },
+                    "userLastName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userFirstName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    },
+                    "downloadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "originalQueryContext",
+                    "downloadedAt",
+                    "fileType",
+                    "userLastName",
+                    "userFirstName",
+                    "userUuid",
+                    "queryUuid",
+                    "downloadUuid"
+                ],
+                "type": "object"
+            },
+            "DownloadActivityResults": {
+                "properties": {
+                    "pagination": {
+                        "properties": {
+                            "totalResults": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "totalPageCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "pageSize": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "page": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "totalResults",
+                            "totalPageCount",
+                            "pageSize",
+                            "page"
+                        ],
+                        "type": "object"
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/DownloadAuditEntry"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiDownloadActivity": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DownloadActivityResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_SshKeyPair.publicKey_": {
                 "properties": {
                     "publicKey": {
@@ -35051,6 +35148,67 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/analytics/user-activity/{projectUuid}/download-activity": {
+            "get": {
+                "operationId": "getDownloadActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDownloadActivity"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get download activity log for a project, ordered by most recent first.",
+                "summary": "Get download activity log",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "page number (1-indexed)",
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "number of items per page",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]

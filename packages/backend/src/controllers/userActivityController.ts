@@ -1,18 +1,11 @@
 import {
-    AnyType,
+    ApiDownloadActivity,
     ApiErrorPayload,
-    ApiJobScheduledResponse,
     ApiUserActivity,
     ApiUserActivityDownloadCsv,
-    ApiValidateResponse,
-    ApiValidationDismissResponse,
-    getRequestMethod,
-    LightdashRequestMethodHeader,
-    ValidationTarget,
+    KnexPaginateArgs,
 } from '@lightdash/common';
 import {
-    Body,
-    Delete,
     Get,
     Middlewares,
     OperationId,
@@ -86,6 +79,42 @@ export class UserActivityController extends BaseController {
         return {
             status: 'ok',
             results: userActivity,
+        };
+    }
+
+    /**
+     * Get download activity log for a project, ordered by most recent first.
+     * @summary Get download activity log
+     * @param page page number (1-indexed)
+     * @param pageSize number of items per page
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/download-activity')
+    @OperationId('getDownloadActivity')
+    async getDownloadActivity(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() page?: number,
+        @Query() pageSize?: number,
+    ): Promise<ApiDownloadActivity> {
+        this.setStatus(200);
+
+        let paginateArgs: KnexPaginateArgs | undefined;
+        if (page && pageSize) {
+            paginateArgs = { page, pageSize };
+        }
+
+        const results = await req.services
+            .getAnalyticsService()
+            .getDownloadActivity(projectUuid, req.account!, paginateArgs);
+        return {
+            status: 'ok',
+            results,
         };
     }
 }
