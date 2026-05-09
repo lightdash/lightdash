@@ -6212,6 +6212,10 @@
                 "enum": ["scatter", "area", "heatmap", "hexbin"],
                 "type": "string"
             },
+            "MapHexbinSizingMode": {
+                "enum": ["dynamic", "fixed"],
+                "type": "string"
+            },
             "MapTileBackground": {
                 "enum": [
                     "none",
@@ -6277,6 +6281,15 @@
                     },
                     "hexbinConfig": {
                         "properties": {
+                            "fixedResolution": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise."
+                            },
+                            "sizingMode": {
+                                "$ref": "#/components/schemas/MapHexbinSizingMode",
+                                "description": "How bin size is determined. Defaults to DYNAMIC if unset."
+                            },
                             "opacity": {
                                 "type": "number",
                                 "format": "double",
@@ -10956,6 +10969,19 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
@@ -10971,13 +10997,13 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -10985,9 +11011,9 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
                                                                         "label",
+                                                                        "fieldType",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -10997,16 +11023,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -11036,8 +11062,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -11091,13 +11117,13 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "fieldType": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -11105,9 +11131,9 @@
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
                                                                                     "label",
+                                                                                    "fieldType",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -11135,8 +11161,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
+                                                            "success",
+                                                            "error"
                                                         ]
                                                     }
                                                 },
@@ -16891,6 +16917,103 @@
                     }
                 },
                 "required": ["status", "results"],
+                "type": "object"
+            },
+            "DownloadAuditEntry": {
+                "properties": {
+                    "originalQueryContext": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "fileType": {
+                        "type": "string"
+                    },
+                    "userLastName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userFirstName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "userUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "queryUuid": {
+                        "type": "string"
+                    },
+                    "downloadUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "originalQueryContext",
+                    "downloadedAt",
+                    "fileType",
+                    "userLastName",
+                    "userFirstName",
+                    "userUuid",
+                    "queryUuid",
+                    "downloadUuid"
+                ],
+                "type": "object"
+            },
+            "DownloadActivityResults": {
+                "properties": {
+                    "pagination": {
+                        "properties": {
+                            "totalResults": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "totalPageCount": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "pageSize": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "page": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": [
+                            "totalResults",
+                            "totalPageCount",
+                            "pageSize",
+                            "page"
+                        ],
+                        "type": "object"
+                    },
+                    "data": {
+                        "items": {
+                            "$ref": "#/components/schemas/DownloadAuditEntry"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["pagination", "data"],
+                "type": "object"
+            },
+            "ApiDownloadActivity": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DownloadActivityResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
                 "type": "object"
             },
             "Pick_SshKeyPair.publicKey_": {
@@ -32076,7 +32199,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2903.4",
+        "version": "0.2904.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35880,6 +36003,67 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/analytics/user-activity/{projectUuid}/download-activity": {
+            "get": {
+                "operationId": "getDownloadActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDownloadActivity"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get download activity log for a project, ordered by most recent first.\nPagination is required — both `page` and `pageSize` must be provided.",
+                "summary": "Get download activity log",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "page number (1-indexed)",
+                        "in": "query",
+                        "name": "page",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "description": "number of items per page",
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": true,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
                         }
                     }
                 ]
