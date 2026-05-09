@@ -304,6 +304,7 @@ export class ServiceRepository
                 new AnalyticsService({
                     analytics: this.context.lightdashAnalytics,
                     analyticsModel: this.models.getAnalyticsModel(),
+                    downloadAuditModel: this.models.getDownloadAuditModel(),
                     projectModel: this.models.getProjectModel(),
                     csvService: this.getCsvService(),
                 }),

@@ -1,5 +1,6 @@
 import {
     AnyType,
+    ApiDownloadActivity,
     ApiErrorPayload,
     ApiJobScheduledResponse,
     ApiUserActivity,
@@ -49,7 +50,7 @@ export class UserActivityController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Get('/{projectUuid}')
     @OperationId('getUserActivity')
-    async get(
+    async getUserActivity(
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiUserActivity> {
@@ -75,7 +76,7 @@ export class UserActivityController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Post('/{projectUuid}/download')
     @OperationId('downloadUserActivityCsv')
-    async post(
+    async exportUserActivityCsv(
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiUserActivityDownloadCsv> {
@@ -86,6 +87,37 @@ export class UserActivityController extends BaseController {
         return {
             status: 'ok',
             results: userActivity,
+        };
+    }
+
+    /**
+     * Get download activity log for a project, ordered by most recent first.
+     * Pagination is required — both `page` and `pageSize` must be provided.
+     * @summary Get download activity log
+     * @param page page number (1-indexed)
+     * @param pageSize number of items per page
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Get('/{projectUuid}/download-activity')
+    @OperationId('getDownloadActivity')
+    async getDownloadActivity(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() page: number,
+        @Query() pageSize: number,
+    ): Promise<ApiDownloadActivity> {
+        this.setStatus(200);
+        const results = await req.services
+            .getAnalyticsService()
+            .getDownloadActivity(projectUuid, req.account!, { page, pageSize });
+        return {
+            status: 'ok',
+            results,
         };
     }
 }
