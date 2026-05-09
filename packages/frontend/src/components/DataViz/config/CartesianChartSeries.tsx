@@ -14,7 +14,7 @@ import {
     Stack,
     Text,
     useMantineColorScheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useMemo } from 'react';
 import {
     useAppSelector,
@@ -26,6 +26,7 @@ import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
+import classes from './CartesianChartSeries.module.css';
 import { SingleSeriesConfiguration } from './SingleSeriesConfiguration';
 
 type ConfigurableSeries = {
@@ -159,7 +160,7 @@ export const CartesianChartSeries = ({
     };
 
     return (
-        <Stack mt="sm" spacing="xs">
+        <Stack mt="sm" gap="xs">
             {Object.keys(groupedSeries).length === 0 && (
                 <Text>No series found. Add a metric to create a series.</Text>
             )}
@@ -221,34 +222,17 @@ export const CartesianChartSeries = ({
                           <Accordion
                               key={referenceField}
                               variant="contained"
-                              sx={(theme) => ({
-                                  root: {
-                                      border: `1px solid ${theme.colors.ldGray[2]}`,
-                                  },
-                              })}
+                              className={classes.accordion}
                           >
                               <Accordion.Item value={referenceField} m={0}>
                                   <Accordion.Control
-                                      sx={(theme) => ({
-                                          backgroundColor:
-                                              theme.colorScheme === 'light'
-                                                  ? 'white'
-                                                  : 'transparent',
-                                      })}
+                                      className={classes.controlPanel}
                                   >
                                       <Config.Subheading>
                                           {friendlyName(referenceField)}
                                       </Config.Subheading>
                                   </Accordion.Control>
-                                  <Accordion.Panel
-                                      sx={(theme) => ({
-                                          backgroundColor:
-                                              theme.colorScheme === 'light'
-                                                  ? 'white'
-                                                  : 'transparent',
-                                          borderRadius: theme.radius.sm,
-                                      })}
-                                  >
+                                  <Accordion.Panel className={classes.panel}>
                                       {seriesArray.map((s, index) => (
                                           <SingleSeriesConfiguration
                                               key={`${s.reference}-${index}`}

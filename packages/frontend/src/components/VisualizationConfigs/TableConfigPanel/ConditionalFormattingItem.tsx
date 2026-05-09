@@ -31,7 +31,7 @@ import {
     Group,
     SegmentedControl,
     Stack,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
@@ -42,6 +42,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import ColorSelector from '../ColorSelector';
 import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
+import classes from './ConditionalFormattingItem.module.css';
 import ConditionalFormattingItemColorRange from './ConditionalFormattingItemColorRange';
 import ConditionalFormattingRule from './ConditionalFormattingRule';
 
@@ -360,7 +361,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 onRemove={handleRemove}
             />
             <Accordion.Panel>
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <FiltersProvider>
                         <FieldSelect
                             label="Select field"
@@ -371,7 +372,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             hasGrouping
                         />
 
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Config.Label>Color</Config.Label>
 
                             <SegmentedControl
@@ -396,10 +397,10 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                 value={getConditionalFormattingConfigType(
                                     config,
                                 )}
-                                onChange={(
-                                    newConfigType: ConditionalFormattingConfigType,
-                                ) => {
-                                    handleConfigTypeChange(newConfigType);
+                                onChange={(value) => {
+                                    handleConfigTypeChange(
+                                        value as ConditionalFormattingConfigType,
+                                    );
                                 }}
                             />
 
@@ -414,7 +415,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             ) : null}
                         </Group>
 
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Config.Label>Apply to</Config.Label>
 
                             <SegmentedControl
@@ -432,21 +433,18 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                     config.applyTo ??
                                     ConditionalFormattingColorApplyTo.CELL
                                 }
-                                onChange={handleChangeApplyTo}
+                                onChange={(value) =>
+                                    handleChangeApplyTo(
+                                        value as ConditionalFormattingColorApplyTo,
+                                    )
+                                }
                             />
                         </Group>
 
                         {isConditionalFormattingConfigWithSingleColor(
                             config,
                         ) ? (
-                            <Box
-                                p="xs"
-                                sx={(theme) => ({
-                                    backgroundColor: theme.colors.ldGray[1],
-                                    border: `1px solid ${theme.colors.ldGray[4]}`,
-                                    borderRadius: theme.radius.sm,
-                                })}
-                            >
+                            <Box p="xs" className={classes.rulesBox}>
                                 {config.rules.map((rule, ruleIndex) => (
                                     <Fragment key={ruleIndex}>
                                         <ConditionalFormattingRule
@@ -519,9 +517,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             config,
                         ) ? (
                             <Button
-                                sx={{ alignSelf: 'start' }}
+                                className={classes.addRuleButton}
                                 variant="subtle"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={handleAddRule}
                             >
                                 Add new condition

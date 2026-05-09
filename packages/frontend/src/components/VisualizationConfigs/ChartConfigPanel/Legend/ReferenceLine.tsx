@@ -23,7 +23,7 @@ import {
     Stack,
     Text,
     TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import {
     IconLayoutAlignLeft,
     IconLayoutAlignRight,
@@ -44,6 +44,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import ColorSelector from '../../ColorSelector';
 import { AccordionControl } from '../../common/AccordionControl';
 import { Config } from '../../common/Config';
+import classes from './ReferenceLine.module.css';
 
 type UpdateReferenceLineProps = {
     value?: string;
@@ -339,12 +340,10 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
 
             <Accordion.Panel>
                 <Stack
-                    bg={'ldGray.0'}
-                    spacing="xs"
+                    bg="ldGray.0"
+                    gap="xs"
                     p="xs"
-                    sx={(theme) => ({
-                        borderRadius: theme.radius.sm,
-                    })}
+                    className={classes.panelStack}
                 >
                     <FieldSelect
                         label="Field"
@@ -362,7 +361,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         hasGrouping
                     />
 
-                    <Group noWrap grow align="baseline">
+                    <Group wrap="nowrap" grow align="baseline">
                         <Box>
                             <Text fz="xs" fw={500}>
                                 Value
@@ -405,7 +404,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             }}
                         />
                     </Group>
-                    <Group noWrap position="apart">
+                    <Group wrap="nowrap" justify="space-between">
                         <Checkbox
                             label="Use series average"
                             disabled={!averageAvailable}
@@ -422,15 +421,17 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                 }
                             }}
                         />
-                        <Group noWrap>
+                        <Group wrap="nowrap">
                             <Config.Label>Position</Config.Label>
                             <SegmentedControl
                                 size="xs"
                                 id="label-position"
                                 value={labelPosition}
-                                onChange={(
-                                    newPosition: 'start' | 'middle' | 'end',
-                                ) => {
+                                onChange={(newValue) => {
+                                    const newPosition = newValue as
+                                        | 'start'
+                                        | 'middle'
+                                        | 'end';
                                     setLabelPosition(newPosition);
 
                                     updateReferenceLine({

@@ -8,10 +8,11 @@ import {
     Text,
     Tooltip,
     type AccordionControlProps as MantineAccordionControlProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconDots, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import classes from './Accordion.module.css';
 
 type Props = {
     label: string;
@@ -20,7 +21,8 @@ type Props = {
     extraControlElements?: React.ReactNode;
 } & MantineAccordionControlProps;
 
-// NOTE: Custom Accordion.Control component so that we can add more interactive elements to the control without nesting them inside the Accordion.Control component
+// Custom Accordion.Control wrapper so interactive elements (color swatch, menu)
+// can sit alongside the toggle without being nested inside the click target.
 export const AccordionControl: FC<Props> = ({
     label,
     onControlClick,
@@ -34,12 +36,7 @@ export const AccordionControl: FC<Props> = ({
             pos="relative"
             align="center"
             gap="xs"
-            sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': {
-                    backgroundColor: theme.colors.ldGray[0],
-                },
-            })}
+            className={classes.controlRow}
         >
             {extraControlElements && (
                 <Box
@@ -54,18 +51,13 @@ export const AccordionControl: FC<Props> = ({
                 fw={500}
                 size="xs"
                 truncate
-                sx={{ flex: 1 }}
+                className={classes.controlLabel}
                 onClick={onControlClick}
             >
                 {label}
             </Text>
-            <Group noWrap ml="sm" spacing="lg">
-                <Tooltip
-                    variant="xs"
-                    label={`Remove ${label}`}
-                    position="right"
-                    withinPortal
-                >
+            <Group wrap="nowrap" ml="sm" gap="lg">
+                <Tooltip label={`Remove ${label}`} position="right">
                     <Menu withArrow offset={-2}>
                         <Menu.Target>
                             <ActionIcon variant="transparent">
@@ -74,7 +66,7 @@ export const AccordionControl: FC<Props> = ({
                         </Menu.Target>
                         <Menu.Dropdown>
                             <Menu.Item
-                                icon={<MantineIcon icon={IconTrash} />}
+                                leftSection={<MantineIcon icon={IconTrash} />}
                                 color="red"
                                 onClick={onRemove}
                             >
@@ -87,7 +79,7 @@ export const AccordionControl: FC<Props> = ({
                 </Tooltip>
                 <Accordion.Control
                     w="sm"
-                    sx={{ flex: 0 }}
+                    className={classes.controlButton}
                     onClick={onControlClick}
                     {...props}
                 />
