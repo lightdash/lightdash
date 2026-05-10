@@ -16,13 +16,15 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    Box,
+    Center,
     Checkbox,
     Group,
+    type MantineRadius,
+    type MantineSize,
     SegmentedControl,
     Stack,
-    Text,
     TextInput,
+    type TextInputProps,
 } from '@mantine-8/core';
 import {
     IconLayoutAlignLeft,
@@ -80,6 +82,9 @@ type ReferenceLineValueProps = {
     startOfWeek: WeekDay | undefined;
     disabled?: boolean;
     onChange: (value: string) => void;
+    label?: TextInputProps['label'];
+    size?: MantineSize;
+    radius?: MantineRadius;
 };
 
 const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
@@ -88,7 +93,11 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     startOfWeek,
     disabled,
     onChange,
+    label,
+    size,
+    radius = 'md',
 }) => {
+    const inputProps = { label, size, radius };
     if (isCustomDimension(field)) return <></>;
     if (isDateItem(field)) {
         if (isDimension(field) && field.timeInterval) {
@@ -101,8 +110,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.WEEK:
                     return (
                         <FilterWeekPicker
+                            {...inputProps}
                             disabled={disabled}
-                            size="xs"
                             value={parsedDate}
                             firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                             onChange={(dateValue) => {
@@ -121,8 +130,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.MONTH:
                     return (
                         <FilterMonthAndYearPicker
+                            {...inputProps}
                             disabled={disabled}
-                            size="xs"
                             value={parsedDate}
                             onChange={(dateValue: Date) => {
                                 onChange(
@@ -139,8 +148,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
                 case TimeFrames.YEAR:
                     return (
                         <FilterYearPicker
+                            {...inputProps}
                             disabled={disabled}
-                            size="xs"
                             value={parsedDate}
                             onChange={(dateValue: Date) => {
                                 onChange(
@@ -157,8 +166,8 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
             return (
                 <FilterDatePicker
+                    {...inputProps}
                     disabled={disabled}
-                    size="xs"
                     value={parsedDate}
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     onChange={(newValue) => {
@@ -171,13 +180,13 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
 
     return (
         <TextInput
+            {...inputProps}
             disabled={
                 (!isNumericItem(field) &&
                     // We treat untyped table calculations as numeric
                     !(field && isTableCalculation(field) && !field.type)) ||
                 disabled
             }
-            size="xs"
             title={
                 isNumericItem(field)
                     ? ''
@@ -339,14 +348,9 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
             />
 
             <Accordion.Panel>
-                <Stack
-                    bg="ldGray.0"
-                    gap="xs"
-                    p="xs"
-                    className={classes.panelStack}
-                >
+                <Stack bg="ldGray.0" gap="xs" className={classes.panelStack}>
                     <FieldSelect
-                        label="Field"
+                        label={<Config.Label>Field</Config.Label>}
                         item={selectedField}
                         items={fieldsInAxes}
                         placeholder="Search field..."
@@ -361,30 +365,24 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         hasGrouping
                     />
 
-                    <Group wrap="nowrap" grow align="baseline">
-                        <Box>
-                            <Text fz="xs" fw={500}>
-                                Value
-                            </Text>
-
-                            <ReferenceLineValue
-                                field={selectedField}
-                                startOfWeek={startOfWeek}
-                                value={value}
-                                disabled={useAverage && averageAvailable}
-                                onChange={(newValue: string) => {
-                                    setValue(newValue);
-                                    if (selectedField !== undefined)
-                                        updateReferenceLine({
-                                            ...currentLineConfig,
-                                            value: newValue,
-                                        });
-                                }}
-                            />
-                        </Box>
+                    <Group wrap="nowrap" grow align="baseline" gap="sm">
+                        <ReferenceLineValue
+                            label={<Config.Label>Value</Config.Label>}
+                            field={selectedField}
+                            startOfWeek={startOfWeek}
+                            value={value}
+                            disabled={useAverage && averageAvailable}
+                            onChange={(newValue: string) => {
+                                setValue(newValue);
+                                if (selectedField !== undefined)
+                                    updateReferenceLine({
+                                        ...currentLineConfig,
+                                        value: newValue,
+                                    });
+                            }}
+                        />
                         <TextInput
-                            label="Label"
-                            // disabled={!value}
+                            label={<Config.Label>Label</Config.Label>}
                             value={label}
                             placeholder={
                                 useAverage && averageAvailable
@@ -404,9 +402,13 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                             }}
                         />
                     </Group>
-                    <Group wrap="nowrap" justify="space-between">
+                    <Group wrap="nowrap">
                         <Checkbox
-                            label="Use series average"
+                            flex="1"
+                            size="xs"
+                            label={
+                                <Config.Label>Use series average</Config.Label>
+                            }
                             disabled={!averageAvailable}
                             checked={useAverage && averageAvailable}
                             onChange={(newState) => {
@@ -421,9 +423,12 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                 }
                             }}
                         />
-                        <Group wrap="nowrap">
-                            <Config.Label>Position</Config.Label>
+                        <Group wrap="nowrap" flex="1" gap="sm">
+                            <Config.Label style={{ whiteSpace: 'nowrap' }}>
+                                Position
+                            </Config.Label>
                             <SegmentedControl
+                                w="100%"
                                 size="xs"
                                 id="label-position"
                                 value={labelPosition}
@@ -443,25 +448,31 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                                     {
                                         value: 'start',
                                         label: (
-                                            <MantineIcon
-                                                icon={IconLayoutAlignLeft}
-                                            />
+                                            <Center>
+                                                <MantineIcon
+                                                    icon={IconLayoutAlignLeft}
+                                                />
+                                            </Center>
                                         ),
                                     },
                                     {
                                         value: 'middle',
                                         label: (
-                                            <MantineIcon
-                                                icon={IconLayoutAlignTop}
-                                            />
+                                            <Center>
+                                                <MantineIcon
+                                                    icon={IconLayoutAlignTop}
+                                                />
+                                            </Center>
                                         ),
                                     },
                                     {
                                         value: 'end',
                                         label: (
-                                            <MantineIcon
-                                                icon={IconLayoutAlignRight}
-                                            />
+                                            <Center>
+                                                <MantineIcon
+                                                    icon={IconLayoutAlignRight}
+                                                />
+                                            </Center>
                                         ),
                                     },
                                 ]}
