@@ -1,17 +1,16 @@
 import {
     Accordion,
-    ActionIcon,
     Box,
     Flex,
     Group,
     Text,
-    Tooltip,
     type AccordionControlProps as MantineAccordionControlProps,
 } from '@mantine-8/core';
 import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './Accordion.module.css';
+import { ConfirmDeleteButton } from './ConfirmDeleteButton';
 
 type Props = {
     label: string;
@@ -58,16 +57,13 @@ export const AccordionControl: FC<Props> = ({
             </Text>
             <Group wrap="nowrap" ml="sm" gap="xs">
                 {onRemove && (
-                    <Tooltip label={`Remove ${label}`} position="left">
-                        <ActionIcon
-                            data-cf-rule-delete
-                            variant="transparent"
-                            color="red"
-                            onClick={onRemove}
-                        >
-                            <MantineIcon icon={IconTrash} />
-                        </ActionIcon>
-                    </Tooltip>
+                    <ConfirmDeleteButton
+                        data-cf-rule-delete
+                        aria-label={`Remove ${label}`}
+                        onConfirm={onRemove}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ConfirmDeleteButton>
                 )}
                 <Accordion.Control
                     px="sm"
