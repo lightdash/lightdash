@@ -15,8 +15,8 @@ import classes from './Accordion.module.css';
 
 type Props = {
     label: string;
-    onControlClick: () => void;
-    onRemove: () => void;
+    onControlClick?: () => void;
+    onRemove?: () => void;
     extraControlElements?: React.ReactNode;
 } & MantineAccordionControlProps;
 
@@ -57,16 +57,18 @@ export const AccordionControl: FC<Props> = ({
                 {label}
             </Text>
             <Group wrap="nowrap" ml="sm" gap="xs">
-                <Tooltip label={`Remove ${label}`} position="left">
-                    <ActionIcon
-                        data-cf-rule-delete
-                        variant="transparent"
-                        color="red"
-                        onClick={onRemove}
-                    >
-                        <MantineIcon icon={IconTrash} />
-                    </ActionIcon>
-                </Tooltip>
+                {onRemove && (
+                    <Tooltip label={`Remove ${label}`} position="left">
+                        <ActionIcon
+                            data-cf-rule-delete
+                            variant="transparent"
+                            color="red"
+                            onClick={onRemove}
+                        >
+                            <MantineIcon icon={IconTrash} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
                 <Accordion.Control
                     px="sm"
                     variant="transparent"

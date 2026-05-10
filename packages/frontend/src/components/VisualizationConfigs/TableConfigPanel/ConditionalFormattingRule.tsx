@@ -10,10 +10,9 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
+import { Accordion } from '@mantine-8/core';
 import {
-    ActionIcon,
     Center,
-    Collapse,
     Group,
     SegmentedControl,
     Select,
@@ -22,9 +21,8 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import differenceBy from 'lodash/differenceBy';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
@@ -33,10 +31,10 @@ import {
     getFilterOptions,
 } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
-import MantineIcon from '../../common/MantineIcon';
+import { AccordionControl } from '../common/AccordionControl';
 
 interface ConditionalFormattingRuleProps {
-    isDefaultOpen?: boolean;
+    accordionValue: string;
     ruleIndex: number;
     rule: ConditionalFormattingWithFilterOperator;
     field: FilterableItem | undefined;
@@ -51,7 +49,7 @@ interface ConditionalFormattingRuleProps {
 }
 
 const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
-    isDefaultOpen = true,
+    accordionValue,
     ruleIndex,
     rule,
     field,
@@ -63,8 +61,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     hasRemove,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
     const comparisonType = useMemo(() => {
         if (
@@ -211,37 +207,13 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     }, [rule, compareField, field]);
 
     return (
-        <Stack spacing="xs">
-            <Group noWrap position="apart">
-                <Group spacing="xs">
-                    <Text fw={500} fz="xs">
-                        Condition {ruleIndex + 1}
-                    </Text>
+        <Accordion.Item value={accordionValue}>
+            <AccordionControl
+                label={`Condition ${ruleIndex + 1}`}
+                onRemove={hasRemove ? onRemoveRule : undefined}
+            />
 
-                    {hasRemove && (
-                        <Tooltip
-                            label="Remove condition"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon
-                                data-cf-rule-delete
-                                onClick={onRemoveRule}
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-
-                <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
-                    <MantineIcon
-                        icon={isOpen ? IconChevronUp : IconChevronDown}
-                    />
-                </ActionIcon>
-            </Group>
-
-            <Collapse in={isOpen}>
+            <Accordion.Panel>
                 <Stack spacing="xs">
                     <Group noWrap spacing="xs">
                         <Text fw={500} fz="xs" c="dimmed">
@@ -289,7 +261,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                     value: ConditionalFormattingComparisonType.TARGET_TO_VALUES,
                                 },
                             ]}
-                        ></SegmentedControl>
+                        />
                     </Group>
                     {isConditionalFormattingWithCompareTarget(rule) &&
                         isConditionalFormattingWithValues(rule) && (
@@ -353,8 +325,8 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             )}
                     </Group>
                 </Stack>
-            </Collapse>
-        </Stack>
+            </Accordion.Panel>
+        </Accordion.Item>
     );
 };
 

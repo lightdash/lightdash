@@ -25,15 +25,15 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    Box,
     Button,
+    Flex,
     Group,
     SegmentedControl,
     Stack,
 } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
@@ -73,8 +73,12 @@ export const ConditionalFormattingItem: FC<Props> = ({
     addNewItem,
     removeItem,
 }) => {
-    const [isAddingRule, setIsAddingRule] = useState(false);
     const [config, setConfig] = useState<ConditionalFormattingConfig>(value);
+    const [openConditions, setOpenConditions] = useState<string[]>(() =>
+        isConditionalFormattingConfigWithSingleColor(value)
+            ? value.rules.map((_, i) => `${i}`)
+            : [],
+    );
     const { itemsMap } = useVisualizationContext();
 
     const field = useMemo(
@@ -184,9 +188,8 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     const handleAddRule = useCallback(() => {
-        setIsAddingRule(true);
-
         if (isConditionalFormattingConfigWithSingleColor(config)) {
+            const newIndex = config.rules.length;
             handleChange(
                 produce(config, (draft) => {
                     draft.rules.push(
@@ -194,6 +197,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     );
                 }),
             );
+            setOpenConditions((prev) => [...prev, `${newIndex}`]);
         }
     }, [handleChange, config]);
 
@@ -204,6 +208,14 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     produce(config, (draft) => {
                         draft.rules.splice(index, 1);
                     }),
+                );
+                setOpenConditions((prev) =>
+                    prev
+                        .filter((v) => v !== `${index}`)
+                        .map((v) => {
+                            const i = Number(v);
+                            return i > index ? `${i - 1}` : v;
+                        }),
                 );
             }
         },
@@ -446,87 +458,66 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         {isConditionalFormattingConfigWithSingleColor(
                             config,
                         ) ? (
-                            <Fragment>
-                                <Box className={classes.conditionsGroup}>
-                                    {config.rules.map((rule, ruleIndex) => (
-                                        <Fragment key={ruleIndex}>
-                                            <Box
-                                                className={
-                                                    classes.conditionItem
-                                                }
-                                            >
-                                                <ConditionalFormattingRule
-                                                    isDefaultOpen={
-                                                        config.rules.length ===
-                                                            1 || isAddingRule
-                                                    }
-                                                    hasRemove={
-                                                        config.rules.length > 1
-                                                    }
-                                                    ruleIndex={ruleIndex}
-                                                    rule={rule}
-                                                    field={field}
-                                                    fields={fields}
-                                                    onChangeRule={(newRule) =>
-                                                        handleChangeRule(
-                                                            ruleIndex,
-                                                            newRule,
-                                                        )
-                                                    }
-                                                    onChangeRuleOperator={(
-                                                        newOperator,
-                                                    ) =>
-                                                        handleChangeRuleOperator(
-                                                            ruleIndex,
-                                                            newOperator,
-                                                        )
-                                                    }
-                                                    onChangeRuleComparisonType={(
-                                                        newComparisonType,
-                                                    ) =>
-                                                        handleChangeRuleComparisonType(
-                                                            ruleIndex,
-                                                            newComparisonType,
-                                                        )
-                                                    }
-                                                    onRemoveRule={() =>
-                                                        handleRemoveRule(
-                                                            ruleIndex,
-                                                        )
-                                                    }
-                                                />
-                                            </Box>
-
-                                            {ruleIndex !==
-                                                config.rules.length - 1 && (
-                                                <div
-                                                    className={
-                                                        classes.andDivider
-                                                    }
-                                                >
-                                                    <span
-                                                        className={
-                                                            classes.andChip
-                                                        }
-                                                    >
-                                                        AND
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </Fragment>
-                                    ))}
-                                </Box>
-                                <Button
-                                    className={classes.addRuleButton}
-                                    variant="subtle"
-                                    leftSection={
-                                        <MantineIcon icon={IconPlus} />
-                                    }
-                                    onClick={handleAddRule}
+                            <>
+                                <Flex justify="space-between">
+                                    <Config.Label>Conditions</Config.Label>
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        leftSection={
+                                            <MantineIcon icon={IconPlus} />
+                                        }
+                                        onClick={handleAddRule}
+                                    >
+                                        Add
+                                    </Button>
+                                </Flex>
+                                <Accordion
+                                    multiple
+                                    chevronPosition="right"
+                                    variant="contained"
+                                    className={classes.conditionsGroup}
+                                    value={openConditions}
+                                    onChange={setOpenConditions}
                                 >
-                                    Add new condition
-                                </Button>
-                            </Fragment>
+                                    {config.rules.map((rule, ruleIndex) => (
+                                        <ConditionalFormattingRule
+                                            key={ruleIndex}
+                                            accordionValue={`${ruleIndex}`}
+                                            hasRemove={config.rules.length > 1}
+                                            ruleIndex={ruleIndex}
+                                            rule={rule}
+                                            field={field}
+                                            fields={fields}
+                                            onChangeRule={(newRule) =>
+                                                handleChangeRule(
+                                                    ruleIndex,
+                                                    newRule,
+                                                )
+                                            }
+                                            onChangeRuleOperator={(
+                                                newOperator,
+                                            ) =>
+                                                handleChangeRuleOperator(
+                                                    ruleIndex,
+                                                    newOperator,
+                                                )
+                                            }
+                                            onChangeRuleComparisonType={(
+                                                newComparisonType,
+                                            ) =>
+                                                handleChangeRuleComparisonType(
+                                                    ruleIndex,
+                                                    newComparisonType,
+                                                )
+                                            }
+                                            onRemoveRule={() =>
+                                                handleRemoveRule(ruleIndex)
+                                            }
+                                        />
+                                    ))}
+                                </Accordion>
+                            </>
                         ) : isConditionalFormattingConfigWithColorRange(
                               config,
                           ) ? (
