@@ -1,6 +1,8 @@
 import {
     createConditionalFormattingRuleWithValues,
+    isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithValues,
     type ConditionalFormattingConfig,
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
@@ -16,7 +18,8 @@ import {
 } from '@mantine-8/core';
 import { IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
@@ -142,6 +145,35 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
     const controlLabel = `Rule ${configIndex}`;
     const accordionValue = `${configIndex}`;
 
+    const description = useMemo(() => {
+        if (isConditionalFormattingConfigWithColorRange(value)) {
+            const min = value.rule.min === 'auto' ? 'auto' : value.rule.min;
+            const max = value.rule.max === 'auto' ? 'auto' : value.rule.max;
+            return `Range ${min}–${max}`;
+        }
+
+        if (
+            isConditionalFormattingConfigWithSingleColor(value) &&
+            value.rules.length > 0
+        ) {
+            const firstRule = value.rules[0];
+            const operator =
+                filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
+            const values = isConditionalFormattingWithValues(firstRule)
+                ? (firstRule.values ?? []).join(', ')
+                : '';
+            const ruleStr = values ? `${operator} ${values}` : operator;
+            const extraCount = value.rules.length - 1;
+            const extra =
+                extraCount > 0
+                    ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
+                    : '';
+            return `${ruleStr}${extra}`;
+        }
+
+        return undefined;
+    }, [value]);
+
     const lightColor = isConditionalFormattingConfigWithSingleColor(value)
         ? value.color
         : colorPalette[0];
@@ -163,6 +195,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
         <Accordion.Item value={accordionValue}>
             <AccordionControl
                 label={controlLabel}
+                description={description}
                 extraControlElements={
                     <ColorSelector
                         color={previewColor}

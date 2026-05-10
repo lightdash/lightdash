@@ -14,6 +14,7 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isConditionalFormattingWithCompareTarget,
+    isConditionalFormattingWithValues,
     isNumericItem,
     isStringDimension,
     type ConditionalFormattingColorRange,
@@ -35,6 +36,7 @@ import { IconPlus } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
+import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -346,6 +348,39 @@ export const ConditionalFormattingItem: FC<Props> = ({
     const controlLabel = `Rule ${configIndex}`;
     const accordionValue = `${configIndex}`;
 
+    const description = useMemo(() => {
+        if (!field) return 'No condition set';
+
+        if (isConditionalFormattingConfigWithColorRange(config)) {
+            const min =
+                config.rule.min === 'auto' ? 'min. in table' : config.rule.min;
+            const max =
+                config.rule.max === 'auto' ? 'max. in table' : config.rule.max;
+            return `Range ${min} – ${max}`;
+        }
+
+        if (
+            isConditionalFormattingConfigWithSingleColor(config) &&
+            config.rules.length > 0
+        ) {
+            const firstRule = config.rules[0];
+            const operator =
+                filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
+            const values = isConditionalFormattingWithValues(firstRule)
+                ? (firstRule.values ?? []).join(', ')
+                : '';
+            const ruleStr = values ? `${operator} ${values}` : operator;
+            const extraCount = config.rules.length - 1;
+            const extra =
+                extraCount > 0
+                    ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
+                    : '';
+            return `${ruleStr}${extra}`;
+        }
+
+        return 'No condition set';
+    }, [config, field]);
+
     const onControlClick = useCallback(
         () =>
             isOpen ? removeItem(accordionValue) : addNewItem(accordionValue),
@@ -361,6 +396,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 label={
                     field ? getItemLabelWithoutTableName(field) : controlLabel
                 }
+                description={description}
                 extraControlElements={
                     <ColorSelector {...colorSelected} swatches={colorPalette} />
                 }

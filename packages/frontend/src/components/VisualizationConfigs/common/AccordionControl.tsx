@@ -38,6 +38,7 @@ export const AccordionControl: FC<Props> = ({
             align="center"
             gap="xs"
             className={classes.controlRow}
+            h={description ? '45px' : undefined}
         >
             {extraControlElements && (
                 <Box
@@ -53,12 +54,12 @@ export const AccordionControl: FC<Props> = ({
                 className={classes.controlLabel}
                 onClick={onControlClick}
             >
-                <Text fw={500} size="xs" truncate lh={1}>
+                <Text fw={500} size="xs" truncate>
                     {label}
                 </Text>
                 {description && (
                     <div className={classes.controlDescriptionWrapper}>
-                        <Text size="xs" c="dimmed" truncate lh={1}>
+                        <Text size="xs" c="dimmed" truncate lh={1.1}>
                             {description}
                         </Text>
                     </div>

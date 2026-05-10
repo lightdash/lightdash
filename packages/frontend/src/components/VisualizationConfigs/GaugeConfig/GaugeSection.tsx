@@ -1,4 +1,8 @@
-import { getItemId, type GaugeSection } from '@lightdash/common';
+import {
+    getItemId,
+    getItemLabelWithoutTableName,
+    type GaugeSection,
+} from '@lightdash/common';
 import {
     Accordion,
     Center,
@@ -47,10 +51,26 @@ const GaugeSectionComponent: FC<Props> = memo(
         const maxField = getField(section.maxFieldId);
         const numericMetricsList = Object.values(numericMetrics ?? {});
 
+        const minLabel = minField
+            ? getItemLabelWithoutTableName(minField)
+            : section.min != null
+              ? String(section.min)
+              : undefined;
+        const maxLabel = maxField
+            ? getItemLabelWithoutTableName(maxField)
+            : section.max != null
+              ? String(section.max)
+              : undefined;
+        const description =
+            minLabel !== undefined && maxLabel !== undefined
+                ? `${minLabel} – ${maxLabel}`
+                : undefined;
+
         return (
             <Accordion.Item value={`${index}`}>
                 <AccordionControl
                     label={`Section ${index + 1}`}
+                    description={description}
                     onControlClick={onClick}
                     onRemove={() => onRemove(index)}
                     extraControlElements={

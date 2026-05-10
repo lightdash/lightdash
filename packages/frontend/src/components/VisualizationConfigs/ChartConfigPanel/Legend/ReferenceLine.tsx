@@ -1,6 +1,7 @@
 import {
     formatDate,
     getItemId,
+    getItemLabelWithoutTableName,
     isCustomDimension,
     isDateItem,
     isDimension,
@@ -313,6 +314,11 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
     const controlLabel = `Line ${index}`;
     const accordionValue = `${index}`;
 
+    const description = useMemo(() => {
+        if (!selectedField || !value) return undefined;
+        return `${getItemLabelWithoutTableName(selectedField)} is ${value}`;
+    }, [selectedField, value]);
+
     const onControlClick = useCallback(
         () =>
             isOpen ? removeItem(accordionValue) : addNewItem(accordionValue),
@@ -335,6 +341,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
         <Accordion.Item value={accordionValue}>
             <AccordionControl
                 label={label || controlLabel}
+                description={description}
                 onControlClick={onControlClick}
                 onRemove={() => removeReferenceLine(lineId)}
                 extraControlElements={
