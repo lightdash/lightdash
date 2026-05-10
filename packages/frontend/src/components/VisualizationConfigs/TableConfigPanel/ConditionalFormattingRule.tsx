@@ -271,6 +271,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 items={availableCompareFields}
                                 onChange={handleChangeCompareField}
                                 hasGrouping
+                                size="xs"
                                 placeholder="Compare field"
                             />
                         )}
@@ -278,6 +279,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         <Select
                             value={rule.operator}
                             data={filterOperatorOptions}
+                            size="xs"
                             onChange={(value) => {
                                 if (!value) return;
                                 onChangeRuleOperator(value as FilterOperator);
@@ -290,6 +292,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             display={field && filterType ? 'none' : 'block'}
                             placeholder="Value(s)"
                             data={[]}
+                            size="xs"
                             disabled={!field || !filterType}
                         />
 
@@ -308,6 +311,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                         <TextInput
                                             disabled={true}
                                             placeholder="Values"
+                                            size="xs"
                                         />
                                     )}
                                 </FiltersProvider>
@@ -315,6 +319,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         {isConditionalFormattingWithCompareTarget(rule) &&
                             !isConditionalFormattingWithValues(rule) && (
                                 <FieldSelect
+                                    size="xs"
                                     clearable
                                     item={compareField}
                                     items={availableCompareFields}

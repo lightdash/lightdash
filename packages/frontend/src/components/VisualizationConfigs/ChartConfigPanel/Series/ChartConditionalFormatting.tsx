@@ -134,10 +134,12 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                 <Config.Section>
                     <FieldSelect
                         disabled
+                        size="xs"
                         item={field}
                         items={field ? [field] : []}
                         onChange={() => undefined}
                         hasGrouping
+                        label={<Config.Label>Select Field</Config.Label>}
                     />
                     <Group gap="xs">
                         <Config.Label>Color</Config.Label>

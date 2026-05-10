@@ -350,6 +350,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
             <Accordion.Panel>
                 <Stack gap="xs" className={classes.panelStack}>
                     <FieldSelect
+                        size="xs"
                         label={<Config.Label>Field</Config.Label>}
                         item={selectedField}
                         items={fieldsInAxes}
@@ -369,6 +370,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         <ReferenceLineValue
                             label={<Config.Label>Value</Config.Label>}
                             field={selectedField}
+                            size="xs"
                             startOfWeek={startOfWeek}
                             value={value}
                             disabled={useAverage && averageAvailable}
@@ -384,6 +386,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
                         <TextInput
                             label={<Config.Label>Label</Config.Label>}
                             value={label}
+                            size="xs"
                             placeholder={
                                 useAverage && averageAvailable
                                     ? (value ?? 'Average')

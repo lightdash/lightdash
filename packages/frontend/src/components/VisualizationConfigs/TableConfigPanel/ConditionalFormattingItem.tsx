@@ -375,8 +375,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 <Stack gap="xs">
                     <FiltersProvider>
                         <FieldSelect
-                            label="Select field"
+                            label={<Config.Label>Select field</Config.Label>}
                             clearable
+                            size="xs"
                             item={field}
                             items={fields}
                             onChange={handleChangeField}
