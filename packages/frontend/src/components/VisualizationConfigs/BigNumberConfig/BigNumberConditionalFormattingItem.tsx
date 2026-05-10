@@ -144,7 +144,16 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
     const darkColor = isConditionalFormattingConfigWithSingleColor(value)
         ? (value.darkColor ?? value.color)
         : colorPalette[0];
-    const previewColor = colorScheme === 'dark' ? darkColor : lightColor;
+    const previewColor = isConditionalFormattingConfigWithSingleColor(value)
+        ? colorScheme === 'dark'
+            ? darkColor
+            : lightColor
+        : value.color.start;
+    const previewSecondaryColor = !isConditionalFormattingConfigWithSingleColor(
+        value,
+    )
+        ? value.color.end
+        : undefined;
 
     return (
         <Accordion.Item value={accordionValue}>
@@ -152,6 +161,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                 icon={
                     <ColorSelector
                         color={previewColor}
+                        secondaryColor={previewSecondaryColor}
                         swatches={colorPalette}
                     />
                 }

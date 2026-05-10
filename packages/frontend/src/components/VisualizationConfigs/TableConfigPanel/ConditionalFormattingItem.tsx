@@ -340,6 +340,9 @@ export const ConditionalFormattingItem: FC<Props> = ({
         [isOpen, removeItem, addNewItem, accordionValue],
     );
 
+    const colorSelected = isConditionalFormattingConfigWithSingleColor(config)
+        ? { color: config.color }
+        : { color: config.color.start, secondaryColor: config.color.end };
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
@@ -347,14 +350,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                     field ? getItemLabelWithoutTableName(field) : controlLabel
                 }
                 extraControlElements={
-                    <ColorSelector
-                        color={
-                            isConditionalFormattingConfigWithSingleColor(config)
-                                ? config.color
-                                : config.color.start
-                        }
-                        swatches={colorPalette}
-                    />
+                    <ColorSelector {...colorSelected} swatches={colorPalette} />
                 }
                 onControlClick={onControlClick}
                 onRemove={handleRemove}
