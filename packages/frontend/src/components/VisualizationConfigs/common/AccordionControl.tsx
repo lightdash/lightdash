@@ -3,6 +3,7 @@ import {
     Box,
     Flex,
     Group,
+    Stack,
     Text,
     type AccordionControlProps as MantineAccordionControlProps,
 } from '@mantine-8/core';
@@ -14,16 +15,16 @@ import { ConfirmDeleteButton } from './ConfirmDeleteButton';
 
 type Props = {
     label: string;
+    description?: string;
     onControlClick?: () => void;
     onRemove?: () => void;
     extraControlElements?: React.ReactNode;
     disabled?: boolean;
 } & MantineAccordionControlProps;
 
-// Custom Accordion.Control wrapper so interactive elements (color swatch, menu)
-// can sit alongside the toggle without being nested inside the click target.
 export const AccordionControl: FC<Props> = ({
     label,
+    description,
     onControlClick,
     onRemove,
     extraControlElements,
@@ -47,15 +48,22 @@ export const AccordionControl: FC<Props> = ({
                     {extraControlElements}
                 </Box>
             )}
-            <Text
-                fw={500}
-                size="xs"
-                truncate
+            <Stack
+                gap={0}
                 className={classes.controlLabel}
                 onClick={onControlClick}
             >
-                {label}
-            </Text>
+                <Text fw={500} size="xs" truncate lh={1}>
+                    {label}
+                </Text>
+                {description && (
+                    <div className={classes.controlDescriptionWrapper}>
+                        <Text size="xs" c="dimmed" truncate lh={1}>
+                            {description}
+                        </Text>
+                    </div>
+                )}
+            </Stack>
             <Group wrap="nowrap" ml="sm" gap="xs">
                 {onRemove && (
                     <ConfirmDeleteButton
