@@ -27,7 +27,6 @@ import {
     Accordion,
     Box,
     Button,
-    Divider,
     Group,
     SegmentedControl,
     Stack,
@@ -342,7 +341,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
     );
 
     return (
-        <Accordion.Item value={accordionValue}>
+        <Accordion.Item value={accordionValue} className={classes.ruleItem}>
             <AccordionControl
                 label={
                     field ? getItemLabelWithoutTableName(field) : controlLabel
@@ -360,7 +359,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                 onControlClick={onControlClick}
                 onRemove={handleRemove}
             />
-            <Accordion.Panel>
+            <Accordion.Panel className={classes.rulePanel}>
                 <Stack gap="xs">
                     <FiltersProvider>
                         <FieldSelect
@@ -372,10 +371,10 @@ export const ConditionalFormattingItem: FC<Props> = ({
                             hasGrouping
                         />
 
-                        <Group gap="xs">
-                            <Config.Label>Color</Config.Label>
-
+                        <Stack gap={4}>
+                            <Config.Label>Color mode</Config.Label>
                             <SegmentedControl
+                                fullWidth
                                 data={[
                                     {
                                         value: ConditionalFormattingConfigType.Single,
@@ -403,17 +402,20 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                     );
                                 }}
                             />
+                        </Stack>
 
-                            {isConditionalFormattingConfigWithSingleColor(
-                                config,
-                            ) ? (
+                        {isConditionalFormattingConfigWithSingleColor(
+                            config,
+                        ) ? (
+                            <Group gap="xs">
+                                <Config.Label>Color</Config.Label>
                                 <ColorSelector
                                     color={config.color}
                                     swatches={colorPalette}
                                     onColorChange={handleChangeSingleColor}
                                 />
-                            ) : null}
-                        </Group>
+                            </Group>
+                        ) : null}
 
                         <Group gap="xs">
                             <Config.Label>Apply to</Config.Label>
@@ -444,61 +446,87 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         {isConditionalFormattingConfigWithSingleColor(
                             config,
                         ) ? (
-                            <Box p="xs" className={classes.rulesBox}>
-                                {config.rules.map((rule, ruleIndex) => (
-                                    <Fragment key={ruleIndex}>
-                                        <ConditionalFormattingRule
-                                            isDefaultOpen={
-                                                config.rules.length === 1 ||
-                                                isAddingRule
-                                            }
-                                            hasRemove={config.rules.length > 1}
-                                            ruleIndex={ruleIndex}
-                                            rule={rule}
-                                            field={field}
-                                            fields={fields}
-                                            onChangeRule={(newRule) =>
-                                                handleChangeRule(
-                                                    ruleIndex,
-                                                    newRule,
-                                                )
-                                            }
-                                            onChangeRuleOperator={(
-                                                newOperator,
-                                            ) =>
-                                                handleChangeRuleOperator(
-                                                    ruleIndex,
-                                                    newOperator,
-                                                )
-                                            }
-                                            onChangeRuleComparisonType={(
-                                                newComparisonType,
-                                            ) =>
-                                                handleChangeRuleComparisonType(
-                                                    ruleIndex,
-                                                    newComparisonType,
-                                                )
-                                            }
-                                            onRemoveRule={() =>
-                                                handleRemoveRule(ruleIndex)
-                                            }
-                                        />
-
-                                        {ruleIndex !==
-                                            config.rules.length - 1 && (
-                                            <Divider
-                                                mt="xs"
-                                                label={
-                                                    <Config.Label>
-                                                        AND
-                                                    </Config.Label>
+                            <Fragment>
+                                <Box className={classes.conditionsGroup}>
+                                    {config.rules.map((rule, ruleIndex) => (
+                                        <Fragment key={ruleIndex}>
+                                            <Box
+                                                className={
+                                                    classes.conditionItem
                                                 }
-                                                labelPosition="center"
-                                            />
-                                        )}
-                                    </Fragment>
-                                ))}
-                            </Box>
+                                            >
+                                                <ConditionalFormattingRule
+                                                    isDefaultOpen={
+                                                        config.rules.length ===
+                                                            1 || isAddingRule
+                                                    }
+                                                    hasRemove={
+                                                        config.rules.length > 1
+                                                    }
+                                                    ruleIndex={ruleIndex}
+                                                    rule={rule}
+                                                    field={field}
+                                                    fields={fields}
+                                                    onChangeRule={(newRule) =>
+                                                        handleChangeRule(
+                                                            ruleIndex,
+                                                            newRule,
+                                                        )
+                                                    }
+                                                    onChangeRuleOperator={(
+                                                        newOperator,
+                                                    ) =>
+                                                        handleChangeRuleOperator(
+                                                            ruleIndex,
+                                                            newOperator,
+                                                        )
+                                                    }
+                                                    onChangeRuleComparisonType={(
+                                                        newComparisonType,
+                                                    ) =>
+                                                        handleChangeRuleComparisonType(
+                                                            ruleIndex,
+                                                            newComparisonType,
+                                                        )
+                                                    }
+                                                    onRemoveRule={() =>
+                                                        handleRemoveRule(
+                                                            ruleIndex,
+                                                        )
+                                                    }
+                                                />
+                                            </Box>
+
+                                            {ruleIndex !==
+                                                config.rules.length - 1 && (
+                                                <div
+                                                    className={
+                                                        classes.andDivider
+                                                    }
+                                                >
+                                                    <span
+                                                        className={
+                                                            classes.andChip
+                                                        }
+                                                    >
+                                                        AND
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </Fragment>
+                                    ))}
+                                </Box>
+                                <Button
+                                    className={classes.addRuleButton}
+                                    variant="subtle"
+                                    leftSection={
+                                        <MantineIcon icon={IconPlus} />
+                                    }
+                                    onClick={handleAddRule}
+                                >
+                                    Add new condition
+                                </Button>
+                            </Fragment>
                         ) : isConditionalFormattingConfigWithColorRange(
                               config,
                           ) ? (
@@ -512,19 +540,6 @@ export const ConditionalFormattingItem: FC<Props> = ({
                         ) : (
                             assertUnreachable(config, 'Unknown config type')
                         )}
-
-                        {isConditionalFormattingConfigWithSingleColor(
-                            config,
-                        ) ? (
-                            <Button
-                                className={classes.addRuleButton}
-                                variant="subtle"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={handleAddRule}
-                            >
-                                Add new condition
-                            </Button>
-                        ) : null}
                     </FiltersProvider>
                 </Stack>
             </Accordion.Panel>

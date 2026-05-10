@@ -4,12 +4,11 @@ import {
     Box,
     Flex,
     Group,
-    Menu,
     Text,
     Tooltip,
     type AccordionControlProps as MantineAccordionControlProps,
 } from '@mantine-8/core';
-import { IconDots, IconTrash } from '@tabler/icons-react';
+import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import classes from './Accordion.module.css';
@@ -32,7 +31,8 @@ export const AccordionControl: FC<Props> = ({
 }) => {
     return (
         <Flex
-            px="xs"
+            py="xs"
+            pl="sm"
             pos="relative"
             align="center"
             gap="xs"
@@ -56,29 +56,20 @@ export const AccordionControl: FC<Props> = ({
             >
                 {label}
             </Text>
-            <Group wrap="nowrap" ml="sm" gap="lg">
-                <Tooltip label={`Remove ${label}`} position="right">
-                    <Menu withArrow offset={-2}>
-                        <Menu.Target>
-                            <ActionIcon variant="transparent">
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={onRemove}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Delete
-                                </Text>
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
+            <Group wrap="nowrap" ml="sm" gap="xs">
+                <Tooltip label={`Remove ${label}`} position="left">
+                    <ActionIcon
+                        data-cf-rule-delete
+                        variant="transparent"
+                        color="red"
+                        onClick={onRemove}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
                 </Tooltip>
                 <Accordion.Control
-                    w="sm"
+                    px="sm"
+                    variant="transparent"
                     className={classes.controlButton}
                     onClick={onControlClick}
                     {...props}

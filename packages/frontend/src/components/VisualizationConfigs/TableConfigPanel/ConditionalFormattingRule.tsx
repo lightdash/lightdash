@@ -22,7 +22,6 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -65,7 +64,6 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
-    const { ref, hovered } = useHover();
     const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
     const comparisonType = useMemo(() => {
@@ -213,20 +211,23 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     }, [rule, compareField, field]);
 
     return (
-        <Stack spacing="xs" ref={ref}>
+        <Stack spacing="xs">
             <Group noWrap position="apart">
                 <Group spacing="xs">
                     <Text fw={500} fz="xs">
                         Condition {ruleIndex + 1}
                     </Text>
 
-                    {hasRemove && hovered && (
+                    {hasRemove && (
                         <Tooltip
                             label="Remove condition"
                             position="left"
                             withinPortal
                         >
-                            <ActionIcon onClick={onRemoveRule}>
+                            <ActionIcon
+                                data-cf-rule-delete
+                                onClick={onRemoveRule}
+                            >
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
                         </Tooltip>

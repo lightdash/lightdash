@@ -1,4 +1,5 @@
 .containedList {
+    --accordion-radius: var(--mantine-radius-md);
 }
 
 .containedList :global(.mantine-Accordion-control) {
@@ -13,22 +14,13 @@
     padding: 0;
 }
 
-.controlRow {
-    border-radius: var(--mantine-radius-sm);
-}
-
-.controlRow:hover {
-    background-color: var(--mantine-color-ldGray-0);
-
-    @mixin dark {
-        background-color: var(--mantine-color-ldDark-5);
-    }
-}
-
 .controlLabel {
     flex: 1;
 }
 
 .controlButton {
     flex: 0;
+    &:hover {
+        background-color: transparent;
+    }
 }
