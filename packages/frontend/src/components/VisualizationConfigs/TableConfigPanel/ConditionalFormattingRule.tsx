@@ -46,6 +46,7 @@ interface ConditionalFormattingRuleProps {
         comparisonType: ConditionalFormattingComparisonType,
     ) => void;
     onRemoveRule: () => void;
+    disabled?: boolean;
 }
 
 const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
@@ -59,6 +60,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     onChangeRuleComparisonType,
     onRemoveRule,
     hasRemove,
+    disabled,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
 
@@ -210,6 +212,8 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
         <Accordion.Item value={accordionValue}>
             <AccordionControl
                 label={`Condition ${ruleIndex + 1}`}
+                disabled={disabled}
+                title={disabled ? 'Select a field first' : undefined}
                 onRemove={hasRemove ? onRemoveRule : undefined}
             />
 

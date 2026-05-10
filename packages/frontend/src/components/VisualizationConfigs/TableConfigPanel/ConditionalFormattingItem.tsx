@@ -465,8 +465,17 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
+                                        disabled={!field}
+                                        title={
+                                            !field
+                                                ? 'Select a field first'
+                                                : undefined
+                                        }
                                         leftSection={
-                                            <MantineIcon icon={IconPlus} />
+                                            <MantineIcon
+                                                icon={IconPlus}
+                                                size="sm"
+                                            />
                                         }
                                         onClick={handleAddRule}
                                     >
@@ -478,7 +487,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                     chevronPosition="right"
                                     variant="contained"
                                     className={classes.conditionsGroup}
-                                    value={openConditions}
+                                    value={field ? openConditions : []}
                                     onChange={setOpenConditions}
                                 >
                                     {config.rules.map((rule, ruleIndex) => (
@@ -486,6 +495,7 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                             key={ruleIndex}
                                             accordionValue={`${ruleIndex}`}
                                             hasRemove={config.rules.length > 1}
+                                            disabled={!field}
                                             ruleIndex={ruleIndex}
                                             rule={rule}
                                             field={field}

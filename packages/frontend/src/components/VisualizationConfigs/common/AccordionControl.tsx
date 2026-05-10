@@ -17,6 +17,7 @@ type Props = {
     onControlClick?: () => void;
     onRemove?: () => void;
     extraControlElements?: React.ReactNode;
+    disabled?: boolean;
 } & MantineAccordionControlProps;
 
 // Custom Accordion.Control wrapper so interactive elements (color swatch, menu)
