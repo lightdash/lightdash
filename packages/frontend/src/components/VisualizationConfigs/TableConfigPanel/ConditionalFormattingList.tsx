@@ -136,6 +136,7 @@ const ConditionalFormattingList = ({}) => {
                     value={openItems}
                     onChange={handleAccordionChange}
                     className={accordionClasses.containedList}
+                    transparentActiveItem
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem

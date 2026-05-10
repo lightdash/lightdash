@@ -205,6 +205,7 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     <Accordion
                         multiple
                         variant="contained"
+                        transparentActiveItem
                         value={openItems}
                         onChange={handleAccordionChange}
                         className={accordionClasses.containedList}

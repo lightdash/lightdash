@@ -1,7 +1,3 @@
-.ruleItem.ruleItem {
-    background-color: transparent;
-}
-
 .conditionsGroup {
     --accordion-radius: var(--mantine-radius-md);
     margin-inline: calc(var(--mantine-spacing-xs) * -1);

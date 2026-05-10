@@ -348,7 +348,7 @@ export const ReferenceLine: FC<ReferenceLineProps> = ({
             />
 
             <Accordion.Panel>
-                <Stack bg="ldGray.0" gap="xs" className={classes.panelStack}>
+                <Stack gap="xs" className={classes.panelStack}>
                     <FieldSelect
                         label={<Config.Label>Field</Config.Label>}
                         item={selectedField}
