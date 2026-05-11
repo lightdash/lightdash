@@ -4,6 +4,7 @@ import {
     AlreadyExistsError,
     applyServiceAccountAbilities,
     buildAbilityFromScopes,
+    CommercialFeatureFlags,
     CreateUserArgs,
     CreateUserWithRole,
     ForbiddenError,
@@ -64,6 +65,7 @@ import {
     PatSessionCache,
 } from './caches/PatSessionCache';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
+import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
 
 export type DbUserDetails = {
@@ -131,6 +133,7 @@ const userDetailsQueryBuilder = (
 type UserModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    featureFlagModel: FeatureFlagModel;
 };
 
 const sessionUserCache =
@@ -146,9 +149,16 @@ export class UserModel {
 
     private readonly database: Knex;
 
-    constructor({ database, lightdashConfig }: UserModelArguments) {
+    private readonly featureFlagModel: FeatureFlagModel;
+
+    constructor({
+        database,
+        lightdashConfig,
+        featureFlagModel,
+    }: UserModelArguments) {
         this.database = database;
         this.lightdashConfig = lightdashConfig;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private canTrackingBeAnonymized() {
@@ -699,7 +709,13 @@ export class UserModel {
         const customRoleUuids = [...projectRoles, ...groupProjectRoles]
             .map((role) => role.roleUuid)
             .filter(Boolean) as string[];
-        const customRoleScopes = await this.customRoleScopes(customRoleUuids);
+        const [customRoleScopes, customRolesFlag] = await Promise.all([
+            this.customRoleScopes(customRoleUuids),
+            this.featureFlagModel.get({
+                user: lightdashUser,
+                featureFlagId: CommercialFeatureFlags.CustomRoles,
+            }),
+        ]);
         const abilityBuilder = getUserAbilityBuilder({
             user: lightdashUser,
             projectProfiles: [...projectRoles, ...groupProjectRoles],
@@ -707,7 +723,7 @@ export class UserModel {
                 pat: this.lightdashConfig.auth.pat,
             },
             customRoleScopes,
-            customRolesEnabled: this.lightdashConfig.customRoles?.enabled,
+            customRolesEnabled: customRolesFlag.enabled,
             isEnterprise: this.lightdashConfig.license.licenseKey !== undefined,
         });
 

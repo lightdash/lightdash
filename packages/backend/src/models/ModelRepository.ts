@@ -611,6 +611,7 @@ export class ModelRepository
                 new UserModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    featureFlagModel: this.getFeatureFlagModel(),
                 }),
         );
     }

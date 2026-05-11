@@ -1,4 +1,4 @@
-import { CommercialFeatureFlags } from '@lightdash/common';
+import { CommercialFeatureFlags, FeatureFlag } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -14,6 +14,8 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
             // Add new commercial handlers
             [CommercialFeatureFlags.AiCopilot]:
                 this.getAiCopilotFlag.bind(this),
+            [CommercialFeatureFlags.CustomRoles]:
+                this.getCustomRolesFlag.bind(this),
         };
     }
 
@@ -39,5 +41,15 @@ export class CommercialFeatureFlagModel extends FeatureFlagModel {
 
         const dbResult = await this.tryGetFromDatabase({ user, featureFlagId });
         return dbResult ?? { id: featureFlagId, enabled: false };
+    }
+
+    private async getCustomRolesFlag(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag> {
+        if (this.lightdashConfig.customRoles.enabled) {
+            return { id: args.featureFlagId, enabled: true };
+        }
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 }

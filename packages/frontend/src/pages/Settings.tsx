@@ -132,7 +132,11 @@ const Settings: FC = () => {
     );
     const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
 
-    const isCustomRolesEnabled = health?.isCustomRolesEnabled;
+    const { data: customRolesFlag } = useServerFeatureFlag(
+        CommercialFeatureFlags.CustomRoles,
+    );
+    const isCustomRolesEnabled =
+        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
 
     const userGroupsFeatureFlagQuery = useServerFeatureFlag(
         FeatureFlags.UserGroupsEnabled,

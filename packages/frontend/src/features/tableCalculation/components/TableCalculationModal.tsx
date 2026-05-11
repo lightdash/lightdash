@@ -1,4 +1,5 @@
 import {
+    CommercialFeatureFlags,
     CustomFormatType,
     getErrorMessage,
     getItemId,
@@ -69,6 +70,7 @@ import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
 import { useProject } from '../../../hooks/useProject';
 import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
 import { FormatRow } from './FormatRow/FormatRow';
 import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
@@ -130,7 +132,11 @@ const TableCalculationModal: FC<Props> = ({
         );
 
     const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
-    const isCustomRolesEnabled = health?.isCustomRolesEnabled === true;
+    const { data: customRolesFlag } = useServerFeatureFlag(
+        CommercialFeatureFlags.CustomRoles,
+    );
+    const isCustomRolesEnabled =
+        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
     const requestContext = useMemo(() => {
         const tcLabel =
             tableCalculation?.displayName || 'this SQL table calculation';
