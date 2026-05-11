@@ -16,6 +16,7 @@ import {
 } from './env';
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
+import { appHandler } from './handlers/app';
 import { compileHandler } from './handlers/compile';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
@@ -1279,6 +1280,18 @@ program
     )
     .option('--verbose', 'Show detailed output', false)
     .action(runChartHandler);
+
+program
+    .command('app')
+    .description(
+        'Build a data app interactively from a natural-language prompt.\nWith no flags, starts a new app. Use --resume to open a picker, or --resume <appUuid> to continue a specific app.',
+    )
+    .option(
+        '--resume [appUuid]',
+        'Resume an existing app. With no value, opens a picker; with a UUID, jumps straight to that app.',
+    )
+    .option('--verbose', 'Show detailed output', false)
+    .action(appHandler);
 
 program
     .command('set-warehouse')
