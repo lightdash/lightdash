@@ -1,5 +1,5 @@
 import { FeatureFlags, OrganizationMemberRole } from '@lightdash/common';
-import { Button, Group, Tooltip } from '@mantine-8/core';
+import { Box, Button, Group, Tooltip } from '@mantine-8/core';
 import { IconLogout } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -64,7 +64,7 @@ export const LeaveOrganizationPanel: FC = () => {
                     w={260}
                     withArrow
                 >
-                    <div>{button}</div>
+                    <Box>{button}</Box>
                 </Tooltip>
             ) : (
                 button
