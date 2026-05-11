@@ -41,6 +41,7 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateQueryTimezoneSettings,
     UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
@@ -3215,9 +3216,10 @@ export class ProjectModel {
 
     async updateQueryTimezone(
         projectUuid: string,
-        timezone: string | null | undefined,
-        useProjectTimezoneInFilters: boolean | undefined,
+        settings: UpdateQueryTimezoneSettings,
     ): Promise<DbProject> {
+        const { queryTimezone, useProjectTimezoneInFilters } = settings;
+
         return this.database.transaction(async (trx) => {
             const [current] = await trx(ProjectTableName)
                 .select('query_timezone', 'use_project_timezone_in_filters')
@@ -3231,7 +3233,9 @@ export class ProjectModel {
             }
 
             const resultingTimezone =
-                timezone !== undefined ? timezone : current.query_timezone;
+                queryTimezone !== undefined
+                    ? queryTimezone
+                    : current.query_timezone;
             const resultingUseProjectTimezoneInFilters =
                 useProjectTimezoneInFilters !== undefined
                     ? useProjectTimezoneInFilters
@@ -3248,8 +3252,8 @@ export class ProjectModel {
 
             const [updatedProject] = await trx(ProjectTableName)
                 .update({
-                    ...(timezone !== undefined && {
-                        query_timezone: timezone,
+                    ...(queryTimezone !== undefined && {
+                        query_timezone: queryTimezone,
                     }),
                     ...(useProjectTimezoneInFilters !== undefined && {
                         use_project_timezone_in_filters:

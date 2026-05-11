@@ -1033,12 +1033,7 @@ export class ProjectController extends BaseController {
 
         await this.services
             .getProjectService()
-            .updateQueryTimezone(
-                toSessionUser(req.account),
-                projectUuid,
-                body.queryTimezone,
-                body.useProjectTimezoneInFilters,
-            );
+            .updateQueryTimezone(toSessionUser(req.account), projectUuid, body);
 
         return {
             status: 'ok',

@@ -156,6 +156,7 @@ import {
     UpdateMetadata,
     UpdateProject,
     UpdateProjectMember,
+    UpdateQueryTimezoneSettings,
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
@@ -7697,8 +7698,7 @@ export class ProjectService extends BaseService {
     async updateQueryTimezone(
         user: SessionUser,
         projectUuid: string,
-        queryTimezone: string | null | undefined,
-        useProjectTimezoneInFilters: boolean | undefined,
+        settings: UpdateQueryTimezoneSettings,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
@@ -7706,6 +7706,8 @@ export class ProjectService extends BaseService {
         if (auditedAbility.cannot('update', subject('Project', project))) {
             throw new ForbiddenError();
         }
+
+        const { queryTimezone, useProjectTimezoneInFilters } = settings;
 
         if (
             queryTimezone === undefined &&
@@ -7726,8 +7728,7 @@ export class ProjectService extends BaseService {
 
         const updatedProject = await this.projectModel.updateQueryTimezone(
             projectUuid,
-            queryTimezone,
-            useProjectTimezoneInFilters,
+            settings,
         );
 
         this.analytics.track({
