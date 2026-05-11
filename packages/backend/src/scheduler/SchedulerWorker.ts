@@ -140,6 +140,7 @@ export class SchedulerWorker extends SchedulerTask {
 
     private async enqueueOwnHeartbeat(health: SchedulerWorkerHealth) {
         const taskName = SchedulerWorker.getHeartbeatTaskName(health);
+        let timeoutHandle: NodeJS.Timeout | undefined;
         try {
             const graphileClient = await this.schedulerClient.graphileUtils;
             const enqueue = graphileClient.addJob(
@@ -158,7 +159,7 @@ export class SchedulerWorker extends SchedulerTask {
             await Promise.race([
                 enqueue,
                 new Promise<never>((_resolve, reject) => {
-                    const t = setTimeout(() => {
+                    timeoutHandle = setTimeout(() => {
                         reject(
                             new Error(
                                 `addJob timeout after ${HEARTBEAT_ENQUEUE_TIMEOUT_MS}ms`,
@@ -166,7 +167,8 @@ export class SchedulerWorker extends SchedulerTask {
                         );
                     }, HEARTBEAT_ENQUEUE_TIMEOUT_MS);
                     // Don't keep the process alive solely for this timer.
-                    if (typeof t.unref === 'function') t.unref();
+                    if (typeof timeoutHandle.unref === 'function')
+                        timeoutHandle.unref();
                 }),
             ]);
             Logger.debug(
@@ -179,6 +181,11 @@ export class SchedulerWorker extends SchedulerTask {
                     e,
                 )}`,
             );
+        } finally {
+            // Clear whichever path resolved the race so the loser's timer
+            // doesn't linger as an "active timer" past this tick — Jest
+            // workers will otherwise force-exit and flag a leak.
+            if (timeoutHandle) clearTimeout(timeoutHandle);
         }
     }
 
