@@ -26,13 +26,7 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
-    // Optional. When omitted, the worker runs without health tracking:
-    // no per-pool workerHeartbeat task is registered and no enqueue
-    // interval is started. The API server's embedded scheduler (App.ts)
-    // intentionally runs in this mode — its /api/v1/health endpoint does
-    // not consume scheduler health, so any heartbeat machinery on that
-    // pool would be useless overhead and (with a stable poolId) would
-    // contend with the dedicated scheduler pod's heartbeat task name.
+    // When omitted, no per-pool workerHeartbeat task is registered and no enqueue interval runs.
     workerHealth?: SchedulerWorkerHealth;
 };
 
@@ -46,25 +40,14 @@ const workerLogger = new GraphileLogger(
     },
 );
 
-// Per-pool heartbeat enqueue cadence. The probe's job-activity staleness
-// threshold is 3 minutes, so a 60s tick gives 3x headroom for queue
-// insert -> LISTEN dispatch -> handler latency.
+// 60s vs the 3-min staleness threshold gives 3x headroom for insert -> LISTEN -> handler latency.
 const HEARTBEAT_ENQUEUE_INTERVAL_MS = 60_000;
 
-// Cap on a single addJob() attempt. A wedged pg backend can leave a write
-// hanging indefinitely; without this cap the setInterval would keep
-// scheduling new ticks that all pile up as pending promises while
-// lastJobActivityAt continues to age. With the cap, each tick fails fast
-// and the next tick gets a fresh chance — and if every tick times out for
-// the full staleness window the probe correctly trips.
+// Cap addJob: a wedged pg backend can leave the call hanging forever and pile up promises.
 const HEARTBEAT_ENQUEUE_TIMEOUT_MS = 10_000;
 
-// Per-pool heartbeat task name prefix. The full task name appended with the
-// pool id (e.g. workerHeartbeat:scheduler-app) is registered only in that
-// pool's task list, so only that pool's runner processes its own heartbeat.
-// This makes the job-activity probe signal a true proof of THIS pool's
-// insert -> LISTEN -> handler pipeline, not a contention race with other
-// pools sharing the queue.
+// Full task name `${prefix}${poolId}` is registered only in its own pool's task list,
+// so the job-activity probe proves THIS pool's insert -> LISTEN -> handler pipeline.
 const PER_POOL_HEARTBEAT_TASK_PREFIX = 'workerHeartbeat:';
 
 export class SchedulerWorker extends SchedulerTask {
@@ -131,22 +114,6 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
-    // Per-pool heartbeat strategy: every interval this pool inserts a job
-    // with a task name unique to itself (workerHeartbeat:<poolId>). Only this
-    // pool's task list registers a handler for that name, so only this pool's
-    // runner can fetch and execute it. The handler is a no-op — its purpose is
-    // to fire the job:start event listener (wireWorkerHealthEvents) which calls
-    // markJobActivity('job-event'). End result: lastJobActivityAt is a true
-    // signal that THIS pool's insert -> LISTEN -> handler pipeline is alive.
-    //
-    // If the pipeline breaks (e.g. corrupted pg client after Cloud SQL
-    // failover, the original incident this PR is meant to detect), the enqueue
-    // still succeeds but the job is never processed -> lastJobActivityAt ages
-    // past staleness -> probe trips -> kubelet restarts the pod.
-    //
-    // jobKey deduplicates: if the previous heartbeat is still pending, the new
-    // enqueue replaces its run_at rather than creating a second job. So a dead
-    // pool leaves at most ONE stale workerHeartbeat:* row in the queue.
     private startHeartbeatEnqueue(health: SchedulerWorkerHealth) {
         if (this.heartbeatEnqueueInterval) return;
         const taskName = SchedulerWorker.getHeartbeatTaskName(health);
@@ -182,25 +149,12 @@ export class SchedulerWorker extends SchedulerTask {
                     enqueuedAt: new Date().toISOString(),
                 },
                 {
-                    // jobKey + replace mode collapses pending duplicates: if
-                    // a previous heartbeat is still UNLOCKED (queued but not
-                    // started), this enqueue updates its run_at in place. If
-                    // a previous heartbeat is currently LOCKED (being run),
-                    // graphile-worker still creates a new row for this one —
-                    // replace mode only deduplicates against unlocked rows.
-                    // That bound is fine for us: in steady state the no-op
-                    // handler completes in <50ms, so locked-row pile-up is
-                    // not a realistic failure mode at a 60s cadence.
+                    // 'replace' only dedups unlocked rows; locked (in-flight) ones briefly produce a second row.
                     jobKey: taskName,
                     jobKeyMode: 'replace',
                     maxAttempts: 1,
                 },
             );
-            // Race against an explicit timeout. A wedged pg backend can leave
-            // addJob() hanging indefinitely; without this, the setInterval
-            // keeps firing and every tick adds another never-resolving
-            // promise to the event loop while lastJobActivityAt silently
-            // ages out.
             await Promise.race([
                 enqueue,
                 new Promise<never>((_resolve, reject) => {
@@ -219,9 +173,7 @@ export class SchedulerWorker extends SchedulerTask {
                 `[scheduler-health] heartbeat-enqueued poolId=${health.getPoolId()}`,
             );
         } catch (e) {
-            // Enqueue failure is itself a signal — DB write path is broken.
-            // We log and let the next tick retry; if every tick fails for 3
-            // min, lastJobActivityAt will not refresh and the probe will trip.
+            // Sustained failure ages activity past staleness -> probe trips.
             Logger.warn(
                 `[scheduler-health] heartbeat-enqueue-failed poolId=${health.getPoolId()} error=${getErrorMessage(
                     e,
@@ -274,13 +226,8 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
-            // workerHeartbeat is NOT a cron item — it's driven by a per-pool
-            // setInterval (see startSelfBeat). A cron-scheduled heartbeat can
-            // only be processed by ONE pool when multiple pools share the
-            // queue, which flaps the unlucky pool's probe to 503.
-            //
-            // Managed agent heartbeat is self-scheduling (not a static cron).
-            // See SchedulerClient.scheduleManagedAgentHeartbeat().
+            // workerHeartbeat is driven by per-pool setInterval (see startHeartbeatEnqueue);
+            // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
     }
 
@@ -292,24 +239,17 @@ export class SchedulerWorker extends SchedulerTask {
                     this.enabledTasks.includes(taskKey),
             ),
         );
-        // Register the per-pool heartbeat handler only when health tracking
-        // is enabled on this worker. The task name is dynamic
-        // (workerHeartbeat:<poolId>) so it isn't in SchedulerTaskName — cast
-        // the merged map to satisfy the typed shape. Only this pool registers
-        // this exact task name, so only this pool's runner can process it.
         if (!this.workerHealth) {
             return filteredTaskList as Partial<TypedTaskList>;
         }
+        // Task name is dynamic (workerHeartbeat:<poolId>) so it isn't in SchedulerTaskName — cast required.
         const taskName = SchedulerWorker.getHeartbeatTaskName(
             this.workerHealth,
         );
         return {
             ...filteredTaskList,
             [taskName]: (async () => {
-                // No-op handler. Activity tracking happens via the job:start
-                // listener wired in wireWorkerHealthEvents. Successful execution
-                // of THIS specific task name proves this pool's full insert ->
-                // LISTEN -> handler pipeline is alive.
+                // No-op — activity is tracked by the job:start listener in wireWorkerHealthEvents.
             }) as TypedTaskList[keyof TypedTaskList],
         } as Partial<TypedTaskList>;
     }
@@ -1307,10 +1247,7 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker
             },
-            // No-op handler retained so manual enqueues (e.g. operator
-            // inserting a workerHeartbeat job to test queue throughput) still
-            // process cleanly. Activity tracking is handled by the self-beat
-            // interval plus the wireWorkerHealthEvents job-event listeners.
+            // Fallback for manual operator enqueues; per-pool heartbeat uses workerHeartbeat:<poolId>.
             [SCHEDULER_TASKS.WORKER_HEARTBEAT]: async () => {},
         };
     }

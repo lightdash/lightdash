@@ -4,24 +4,8 @@ const LISTEN_RECOVERY_BUDGET_MS = 60_000;
 
 const JOB_ACTIVITY_STALENESS_MS = 3 * 60_000;
 
-/**
- * Derives a per-replica unique poolId from the Kubernetes pod environment.
- *
- * In multi-replica scheduler deployments, every replica must have a UNIQUE
- * poolId so that each registers its own workerHeartbeat:<poolId> task name
- * and processes its own heartbeats. Sharing a poolId (e.g. a hardcoded
- * literal) causes graphile-worker's jobKey dedup to collapse all replicas'
- * heartbeat jobs into one row — only the replica that wins the lock sees
- * the job:start event, the others' job-activity clocks age past staleness,
- * and the probe trips for every replica EXCEPT the lucky one.
- *
- * Tried in order:
- *  1. process.env.K8S_POD_NAME — explicit downward API binding (preferred).
- *  2. process.env.POD_NAME — alternative downward API binding.
- *  3. process.env.HOSTNAME — Kubernetes sets this to the pod name by
- *     default, also useful in plain Docker and PM2.
- *  4. undefined — caller falls back to SchedulerWorkerHealth's random id.
- */
+// Per-pod unique poolId — replicas sharing one would collapse to a single dedup'd heartbeat row,
+// leaving all but the lock-winning replica's activity clock to age past staleness.
 export const derivePoolIdFromEnv = (
     env: NodeJS.ProcessEnv = process.env,
 ): string | undefined =>
@@ -87,10 +71,6 @@ export class SchedulerWorkerHealth {
                 ? null
                 : now - this.lastJobActivityAt;
         this.lastJobActivityAt = now;
-        // Only real job-processing activity reaches here (via the
-        // wireWorkerHealthEvents job:start/job:complete listeners). Successful
-        // processing proves this pool's full insert -> LISTEN -> handler
-        // pipeline is alive, which is the signal the probe actually relies on.
         Logger.debug(
             `[scheduler-health] job-event poolId=${this.poolId} previousAgeMs=${ageMs}`,
         );
@@ -115,9 +95,7 @@ export class SchedulerWorkerHealth {
             };
         }
 
-        // Grace period after startup before requiring activity: the
-        // per-pool self-beat interval needs ~1 minute to fire on a fresh
-        // worker, and event-driven job activity may take longer.
+        // Startup grace — the per-pool heartbeat takes ~1 min to fire on a fresh worker.
         const sinceStart = now - this.startedAt;
         if (sinceStart < JOB_ACTIVITY_STALENESS_MS) {
             return { ok: true };

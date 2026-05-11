@@ -351,11 +351,7 @@ export const traceTask = <T extends SchedulerTaskName>(
     return tracedTask;
 };
 
-// Per-pool heartbeat tasks (workerHeartbeat:<poolId>) are no-op handlers
-// fired every 60s purely to feed lastJobActivityAt via the job:start event
-// listener. Wrapping them in a Sentry span produces ~1,440 zero-information
-// transactions per pod per day with no actionable signal. Skip the span
-// wrapper for any task name starting with this prefix.
+// Skip wrapping the per-pool heartbeat tasks — they fire every 60s and produce no actionable trace signal.
 const TRACE_SKIP_PREFIX = 'workerHeartbeat:';
 
 /**
@@ -369,8 +365,6 @@ export const traceTasks = (tasks: Partial<TypedTaskList>) => {
             const handler = tasks[
                 taskName as keyof TypedTaskList
             ] as TypedTask<unknown>;
-            // High-frequency heartbeat tasks bypass the Sentry trace wrapper
-            // — see TRACE_SKIP_PREFIX comment.
             if (taskName.startsWith(TRACE_SKIP_PREFIX)) {
                 return { ...accTasks, [taskName]: handler as Task };
             }

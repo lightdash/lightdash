@@ -115,10 +115,7 @@ const schedulerWorkerFactory = (context: {
     models: ModelRepository;
     clients: ClientRepository;
     utils: UtilRepository;
-    // The API server's embedded scheduler does not expose a probe over
-    // worker health, so it is intentionally omitted here. SchedulerApp's
-    // factory still passes one through. Kept on the context for EE
-    // override compatibility — EE callers may pass it from SchedulerApp.
+    // Optional only so the EE factory override (which reads context.workerHealth) typechecks against this shape.
     workerHealth?: SchedulerWorkerHealth;
 }) =>
     new SchedulerWorker({
@@ -150,7 +147,6 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
-        workerHealth: context.workerHealth,
     });
 
 export type AppArguments = {
@@ -895,13 +891,6 @@ export default class App {
     }
 
     private initSchedulerWorker() {
-        // Intentionally NOT constructing a SchedulerWorkerHealth here:
-        //  - /api/v1/health on the API server (Express healthCheckRouter) is
-        //    a generic readiness probe that does not consume worker health.
-        //  - Registering the heartbeat task on this pool would either share
-        //    the SchedulerApp pod's task name (collision -> probe flaps) or
-        //    waste DB writes on an unread health channel. Heartbeating from
-        //    the API process is reserved for the dedicated SchedulerApp.
         this.schedulerWorker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,

@@ -209,13 +209,6 @@ export default class SchedulerApp {
     }
 
     private async initWorker() {
-        // Per-replica unique poolId from pod environment. Without uniqueness,
-        // every replica registers the SAME workerHeartbeat:<poolId> task
-        // name and only one replica's runner ever wins the dedup'd heartbeat
-        // job — the others' lastJobActivityAt ages past staleness and their
-        // probes trip in cascade. See derivePoolIdFromEnv for the lookup
-        // chain; falls through to SchedulerWorkerHealth's random id when no
-        // pod env vars are set (local dev, tests).
         const workerHealth = new SchedulerWorkerHealth(derivePoolIdFromEnv());
         wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
