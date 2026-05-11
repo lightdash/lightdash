@@ -121,8 +121,8 @@ export const renderStringFilterSql = (
     // Apply UPPER() to both dimension and values when case insensitive (caseSensitive = false)
     const wrapDimension = (sql: string) =>
         !caseSensitive ? `UPPER(${sql})` : sql;
-    const wrapValue = (value: string) =>
-        !caseSensitive ? value.toUpperCase() : value;
+    const wrapValue = (value: unknown) =>
+        !caseSensitive ? String(value).toUpperCase() : value;
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:

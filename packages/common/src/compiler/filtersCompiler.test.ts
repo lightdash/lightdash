@@ -1695,6 +1695,37 @@ describe('case sensitivity', () => {
   UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Jerry%') OR (${stringFilterDimension}) IS NULL)`);
     });
 
+    test.each<[FilterOperator, string]>([
+        [FilterOperator.EQUALS, `(UPPER(${stringFilterDimension})) IN ('1')`],
+        [
+            FilterOperator.NOT_EQUALS,
+            `((UPPER(${stringFilterDimension})) NOT IN ('1') OR (${stringFilterDimension}) IS NULL)`,
+        ],
+        [
+            FilterOperator.STARTS_WITH,
+            `UPPER(${stringFilterDimension}) LIKE '1%'`,
+        ],
+        [FilterOperator.ENDS_WITH, `UPPER(${stringFilterDimension}) LIKE '%1'`],
+    ])(
+        'should coerce numeric values to strings when caseSensitive is false for %s',
+        (operator, expectedSql) => {
+            const filter: FilterRule = {
+                id: 'test',
+                target: { fieldId: 'test' },
+                operator,
+                values: [1],
+            };
+            expect(
+                renderStringFilterSql(
+                    stringFilterDimension,
+                    filter,
+                    "'",
+                    false, // caseSensitive = false
+                ),
+            ).toBe(expectedSql);
+        },
+    );
+
     test('should respect field-level caseSensitive over explore-level', () => {
         const field = {
             ...disabledFilterMock.field,
