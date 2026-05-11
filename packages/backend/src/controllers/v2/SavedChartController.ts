@@ -35,6 +35,9 @@ export class SavedChartControllerV2 extends BaseController {
      * @param req express request
      * @param pageSize number of items per page
      * @param page page number
+     * @param searchQuery filter schedulers by name
+     * @param formats comma-separated list of scheduler formats to include
+     * @param includeLatestRun include the most recent run for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -47,6 +50,7 @@ export class SavedChartControllerV2 extends BaseController {
         @Query() page?: number,
         @Query() searchQuery?: string,
         @Query() formats?: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiSavedChartPaginatedSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -73,6 +77,7 @@ export class SavedChartControllerV2 extends BaseController {
                     searchQuery,
                     paginateArgs,
                     filters,
+                    includeLatestRun,
                 ),
         };
     }

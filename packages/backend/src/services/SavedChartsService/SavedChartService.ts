@@ -1653,12 +1653,13 @@ export class SavedChartService
         filters?: {
             formats?: string[];
         },
+        includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         const chart = await this.checkCreateScheduledDeliveryAccess(
             user,
             chartUuid,
         );
-        return this.schedulerModel.getSchedulers({
+        const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
             organizationUuid: chart.organizationUuid,
             paginateArgs,
@@ -1669,6 +1670,12 @@ export class SavedChartService
                 formats: filters?.formats,
             },
         });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
     async createScheduler(

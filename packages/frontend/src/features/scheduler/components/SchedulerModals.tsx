@@ -36,6 +36,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers({
         dashboardUuid,
         searchQuery: debouncedSearchQuery,
+        includeLatestRun: true,
     });
     const createMutation = useDashboardSchedulerCreateMutation();
 
@@ -93,6 +94,7 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
         chartUuid,
         searchQuery: debouncedSearchQuery,
         formats: DELIVERY_FORMATS,
+        includeLatestRun: true,
     });
     const createMutation = useChartSchedulerCreateMutation();
 

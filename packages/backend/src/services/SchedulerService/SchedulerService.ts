@@ -447,34 +447,7 @@ export class SchedulerService extends BaseService {
             return schedulers;
         }
 
-        const schedulerUuids = schedulers.data.map(
-            (scheduler) => scheduler.schedulerUuid,
-        );
-
-        if (schedulerUuids.length === 0) {
-            return schedulers;
-        }
-
-        const runs = await this.schedulerModel.getRunsForSchedulers({
-            schedulers: schedulers.data,
-            sort: { column: 'scheduledTime', direction: 'desc' },
-        });
-
-        const latestRunByScheduler = new Map<string, SchedulerRun>();
-        runs.data.forEach((run) => {
-            if (!latestRunByScheduler.has(run.schedulerUuid)) {
-                latestRunByScheduler.set(run.schedulerUuid, run);
-            }
-        });
-
-        return {
-            ...schedulers,
-            data: schedulers.data.map((scheduler) => ({
-                ...scheduler,
-                latestRun:
-                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
-            })),
-        };
+        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
     async getScheduler(
@@ -524,34 +497,7 @@ export class SchedulerService extends BaseService {
             return schedulers;
         }
 
-        const schedulerUuids = schedulers.data.map(
-            (scheduler) => scheduler.schedulerUuid,
-        );
-
-        if (schedulerUuids.length === 0) {
-            return schedulers;
-        }
-
-        const runs = await this.schedulerModel.getRunsForSchedulers({
-            schedulers: schedulers.data,
-            sort: { column: 'scheduledTime', direction: 'desc' },
-        });
-
-        const latestRunByScheduler = new Map<string, SchedulerRun>();
-        runs.data.forEach((run) => {
-            if (!latestRunByScheduler.has(run.schedulerUuid)) {
-                latestRunByScheduler.set(run.schedulerUuid, run);
-            }
-        });
-
-        return {
-            ...schedulers,
-            data: schedulers.data.map((scheduler) => ({
-                ...scheduler,
-                latestRun:
-                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
-            })),
-        };
+        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
     async getSchedulerDefaultTimezone(schedulerUuid: string | undefined) {

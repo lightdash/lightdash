@@ -35,6 +35,8 @@ export class DashboardControllerV2 extends BaseController {
      * @param req express request
      * @param pageSize number of items per page
      * @param page page number
+     * @param searchQuery filter schedulers by name
+     * @param includeLatestRun include the most recent run for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -46,6 +48,7 @@ export class DashboardControllerV2 extends BaseController {
         @Query() pageSize?: number,
         @Query() page?: number,
         @Query() searchQuery?: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiDashboardPaginatedSchedulersResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -67,6 +70,7 @@ export class DashboardControllerV2 extends BaseController {
                     dashboardUuid,
                     searchQuery,
                     paginateArgs,
+                    includeLatestRun,
                 ),
         };
     }

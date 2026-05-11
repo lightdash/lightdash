@@ -7,7 +7,6 @@ import {
     isSchedulerGsheetsOptions,
     isSlackTarget,
     SchedulerFormat,
-    SchedulerRunStatus,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -21,12 +20,10 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconAlertCircle,
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
     IconChartBar,
-    IconCheck,
     IconClock,
     IconCodeDots,
     IconLayoutDashboard,
@@ -65,6 +62,7 @@ import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import { SchedulersViewTab } from './SchedulersViewConstants';
 import {
+    getRunStatusConfig,
     getSchedulerIcon,
     getSchedulerLink,
     type SchedulerItem,
@@ -83,27 +81,6 @@ interface SchedulersTableProps {
 }
 
 const fetchSize = 50;
-
-const getRunStatusConfig = (status: SchedulerRunStatus) => {
-    switch (status) {
-        case SchedulerRunStatus.COMPLETED:
-            return { color: 'green', icon: IconCheck, label: 'Completed' };
-        case SchedulerRunStatus.PARTIAL_FAILURE:
-            return {
-                color: 'yellow',
-                icon: IconAlertCircle,
-                label: 'Partial failure',
-            };
-        case SchedulerRunStatus.FAILED:
-            return { color: 'red', icon: IconAlertCircle, label: 'Failed' };
-        case SchedulerRunStatus.RUNNING:
-            return { color: 'blue', icon: IconRun, label: 'Running' };
-        case SchedulerRunStatus.SCHEDULED:
-            return { color: 'gray', icon: IconClock, label: 'Scheduled' };
-        default:
-            return assertUnreachable(status, 'Unknown scheduler run status');
-    }
-};
 
 const SchedulersTable: FC<SchedulersTableProps> = ({
     projectUuid,

@@ -1659,6 +1659,7 @@ export class SchedulerModel {
         searchQuery,
         sort,
         filters,
+        latestOnly,
     }: {
         schedulers: SchedulerAndTargets[];
         paginateArgs?: KnexPaginateArgs;
@@ -1672,6 +1673,9 @@ export class SchedulerModel {
             resourceType?: 'chart' | 'dashboard' | 'sqlChart';
             resourceUuids?: string[];
         };
+        // When true, returns at most one row per scheduler (its most recent run)
+        // by adding a per-scheduler ROW_NUMBER filter at the SQL layer.
+        latestOnly?: boolean;
     }): Promise<KnexPaginatedData<SchedulerRun[]>> {
         // Apply scheduler-level filters
         let filteredSchedulers = schedulers;
@@ -1972,7 +1976,27 @@ export class SchedulerModel {
         // (WHERE clause can't reference SELECT aliases, so we need an outer query)
         const runsWithStatusSubquery = runsQuery.as('runs_with_status');
 
-        let finalQuery = this.database(runsWithStatusSubquery).select('*');
+        let finalQuery;
+        if (latestOnly) {
+            // Add a per-scheduler ROW_NUMBER and keep only rn = 1 so we get the
+            // most recent run for each scheduler (avoids pulling N runs/scheduler
+            // just to take the first one in JS).
+            const rankedPerSchedulerSubquery = this.database(
+                runsWithStatusSubquery,
+            )
+                .select(
+                    '*',
+                    this.database.raw(
+                        'ROW_NUMBER() OVER (PARTITION BY scheduler_uuid ORDER BY scheduled_time DESC) as scheduler_rn',
+                    ),
+                )
+                .as('ranked_per_scheduler');
+            finalQuery = this.database(rankedPerSchedulerSubquery)
+                .select('*')
+                .where('scheduler_rn', 1);
+        } else {
+            finalQuery = this.database(runsWithStatusSubquery).select('*');
+        }
 
         // Apply runStatus filter on the outer query (run_status is now a real column)
         if (filters?.statuses && filters.statuses.length > 0) {
@@ -2058,6 +2082,33 @@ export class SchedulerModel {
         return {
             pagination,
             data: runs,
+        };
+    }
+
+    async attachLatestRunToSchedulers(
+        schedulers: KnexPaginatedData<SchedulerAndTargets[]>,
+    ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
+        if (schedulers.data.length === 0) {
+            return schedulers;
+        }
+
+        const runs = await this.getRunsForSchedulers({
+            schedulers: schedulers.data,
+            latestOnly: true,
+        });
+
+        const latestRunByScheduler = new Map<string, SchedulerRun>();
+        runs.data.forEach((run) => {
+            latestRunByScheduler.set(run.schedulerUuid, run);
+        });
+
+        return {
+            ...schedulers,
+            data: schedulers.data.map((scheduler) => ({
+                ...scheduler,
+                latestRun:
+                    latestRunByScheduler.get(scheduler.schedulerUuid) ?? null,
+            })),
         };
     }
 
