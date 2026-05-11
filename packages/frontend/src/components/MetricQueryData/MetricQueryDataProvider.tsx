@@ -13,7 +13,7 @@ type Props = {
     metricQuery: MetricQuery | undefined;
     queryUuid?: string;
     parameters?: ParametersValuesMap;
-    resolvedTimezone?: string;
+    resolvedTimezone?: string | null;
 };
 
 const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -71,7 +71,7 @@ const MetricQueryDataProvider: FC<React.PropsWithChildren<Props>> = ({
                 closeDrillDownModal,
                 explore,
                 queryUuid,
-                resolvedTimezone,
+                resolvedTimezone: resolvedTimezone ?? undefined,
             }}
         >
             {children}

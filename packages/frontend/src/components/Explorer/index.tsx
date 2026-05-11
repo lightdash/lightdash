@@ -220,7 +220,7 @@ const Explorer: FC<{ hideHeader?: boolean }> = memo(
                 metricQuery={metricQuery}
                 queryUuid={queryUuid}
                 parameters={parameters}
-                resolvedTimezone={query.data?.resolvedTimezone ?? undefined}
+                resolvedTimezone={query.data?.resolvedTimezone}
             >
                 <Stack style={{ flexGrow: 1 }}>
                     {!hideHeader &&

@@ -103,7 +103,7 @@ const MinimalExplorerContent = memo(() => {
             explore={explore}
             queryUuid={query.data?.queryUuid}
             parameters={query.data?.usedParametersValues}
-            resolvedTimezone={query.data?.resolvedTimezone ?? undefined}
+            resolvedTimezone={query.data?.resolvedTimezone}
         >
             <VisualizationProvider
                 minimal
