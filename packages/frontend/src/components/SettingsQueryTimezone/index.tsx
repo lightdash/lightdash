@@ -151,8 +151,7 @@ const SettingsQueryTimezone: FC<SettingsQueryTimezoneProps> = ({
                             <>
                                 The time zone used for date filters, time
                                 grouping, and how dates appear in charts and
-                                tables. Optionally also drives absolute date
-                                filter inputs. This does not change your
+                                tables. This does not change your
                                 database&apos;s session time zone.
                             </>
                         ) : (
