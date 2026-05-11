@@ -205,7 +205,7 @@ describe('SchedulerWorker — enqueueOwnHeartbeat', () => {
 });
 
 describe('SchedulerWorker — cleanWorkerHeartbeats', () => {
-    it('deletes unlocked orphan rows older than 10 minutes', async () => {
+    it('deletes orphan rows older than 10 minutes, including stale-locked ones', async () => {
         const pgClient = {
             query: jest.fn().mockResolvedValue({ rows: [{ count: '5' }] }),
         };
@@ -228,8 +228,14 @@ describe('SchedulerWorker — cleanWorkerHeartbeats', () => {
         const sql = pgClient.query.mock.calls[0][0] as string;
         expect(sql).toMatch(/DELETE FROM graphile_worker\.jobs/);
         expect(sql).toMatch(/task_identifier LIKE 'workerHeartbeat:%'/);
-        expect(sql).toMatch(/locked_at IS NULL/);
-        expect(sql).toMatch(/NOW\(\) - INTERVAL '10 minutes'/);
+        // Both gating conditions present: run_at staleness AND lock state.
+        expect(sql).toMatch(/run_at < NOW\(\) - INTERVAL '10 minutes'/);
+        // Crucially, stale locks count as orphaned — otherwise a pod that died
+        // mid-heartbeat would leave its row stuck for graphile's much longer
+        // jobTimeout window before this cron could touch it.
+        expect(sql).toMatch(
+            /locked_at IS NULL OR locked_at < NOW\(\) - INTERVAL '10 minutes'/,
+        );
     });
 
     it('rethrows on DB failure so graphile retries the cron run', async () => {

@@ -1148,8 +1148,10 @@ export class SchedulerWorker extends SchedulerTask {
                 // the pod that registered the handler. Old pods' rows then sit in
                 // graphile_worker.jobs forever — no current task list registers
                 // their task name, so get_job never fetches them. Live pools refresh
-                // their row every 60s via jobKey 'replace', so anything older than a
-                // few minutes is provably orphaned.
+                // their row every 60s via jobKey 'replace', so anything older than
+                // 10 minutes is provably orphaned — including rows still locked by
+                // a worker that died mid-heartbeat (graphile only auto-releases
+                // those after its much longer jobTimeout).
                 const graphileClient = await this.schedulerClient.graphileUtils;
                 try {
                     const result = await graphileClient.withPgClient(
@@ -1158,8 +1160,8 @@ export class SchedulerWorker extends SchedulerTask {
                                 `WITH deleted AS (
                                     DELETE FROM graphile_worker.jobs
                                     WHERE task_identifier LIKE 'workerHeartbeat:%'
-                                      AND locked_at IS NULL
                                       AND run_at < NOW() - INTERVAL '10 minutes'
+                                      AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')
                                     RETURNING id
                                 )
                                 SELECT COUNT(*)::text AS count FROM deleted`,
