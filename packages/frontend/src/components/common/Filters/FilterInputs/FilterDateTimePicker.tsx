@@ -79,7 +79,7 @@ const FilterDateTimePicker: FC<Props> = ({
         [onChange, projectTimezone],
     );
 
-    const browserTimezone = dayjs.tz.guess();
+    const browserTimezone = useMemo(() => dayjs.tz.guess(), []);
     const subtext = useMemo(() => {
         if (!value) return '';
         if (projectTimezone) {
