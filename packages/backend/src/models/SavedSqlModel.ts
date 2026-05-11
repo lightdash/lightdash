@@ -2,12 +2,15 @@ import {
     AllVizChartConfig,
     CreateSqlChart,
     NotFoundError,
+    ResolvedProjectColorPalette,
     SpaceSummary,
     SqlChart,
     UpdateSqlChart,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { LightdashConfig } from '../config/parseConfig';
 import { DashboardsTableName } from '../database/entities/dashboards';
+import { resolveColorPalette } from '../database/entities/organizationColorPalettes';
 import {
     DbOrganization,
     OrganizationTableName,
@@ -55,13 +58,33 @@ type SelectSavedSql = Pick<
 export class SavedSqlModel {
     private database: Knex;
 
-    constructor(args: { database: Knex }) {
+    private lightdashConfig: LightdashConfig;
+
+    constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {
         this.database = args.database;
+        this.lightdashConfig = args.lightdashConfig;
+    }
+
+    /**
+     * SQL charts inherit-only — call `resolveColorPalette` without
+     * `chartUuid` so the cascade skips the chart-level branch and seeds
+     * from the dashboard / space.
+     */
+    async resolveColorPalette(args: {
+        projectUuid: string;
+        dashboardUuid?: string;
+        spaceUuid?: string;
+    }): Promise<ResolvedProjectColorPalette> {
+        return resolveColorPalette({
+            ...args,
+            database: this.database,
+            lightdashConfig: this.lightdashConfig,
+        });
     }
 
     static convertSelectSavedSql(row: SelectSavedSql): Omit<
         SqlChart,
-        'space'
+        'space' | 'resolvedColorPalette'
     > & {
         space: Pick<SpaceSummary, 'uuid' | 'name'>;
     } {

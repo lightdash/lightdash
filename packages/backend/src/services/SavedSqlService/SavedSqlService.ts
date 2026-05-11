@@ -247,12 +247,21 @@ export class SavedSqlService
                 organizationId: savedChart.organization.organizationUuid,
             },
         });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
         return {
             ...savedChart,
             space: {
                 ...savedChart.space,
                 userAccess: spaceCtx.access[0],
             },
+            resolvedColorPalette,
         };
     }
 

@@ -648,7 +648,11 @@ export class ModelRepository
     public getSavedSqlModel(): SavedSqlModel {
         return this.getModel(
             'savedSqlModel',
-            () => new SavedSqlModel({ database: this.database }),
+            () =>
+                new SavedSqlModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
         );
     }
 
