@@ -1501,9 +1501,12 @@ export const getCategoryDateAxisConfig = (
     );
     const boundaryGap = hasBarSeries;
 
-    // Row values are aligned to project-TZ midnights — snap boundaries in
-    // the same zone so category strings match.
-    const tz = resolvedTimezone ?? 'UTC';
+    // DATE-base intervals are raw calendar values — snap in UTC to match.
+    const isDateBaseInterval =
+        isDimension(axisField) &&
+        axisField.timeIntervalBaseDimensionType === DimensionType.DATE;
+    const tz =
+        isDateBaseInterval || !resolvedTimezone ? 'UTC' : resolvedTimezone;
     const inTz = (v: string | number) => dayjs.tz(dayjs.utc(v).toDate(), tz);
 
     if (timeInterval === TimeFrames.WEEK) {
