@@ -59,7 +59,7 @@ export const projectMock = {
     dbt_version: DefaultSupportedDbtVersion,
     scheduler_timezone: 'UTC',
     query_timezone: null,
-    use_project_timezone_in_filters: null,
+    use_project_timezone_in_filters: false,
     has_default_user_spaces: false,
 };
 
@@ -108,7 +108,7 @@ export const expectedProject: Project = {
     dbtVersion: DefaultSupportedDbtVersion,
     schedulerTimezone: 'UTC',
     queryTimezone: null,
-    useProjectTimezoneInFilters: null,
+    useProjectTimezoneInFilters: false,
     createdByUserUuid: null,
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,

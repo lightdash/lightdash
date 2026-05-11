@@ -29,7 +29,7 @@ export type DbProject = {
     dbt_version: string;
     scheduler_timezone: string;
     query_timezone: string | null;
-    use_project_timezone_in_filters: boolean | null;
+    use_project_timezone_in_filters: boolean;
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
@@ -51,6 +51,7 @@ type CreateDbProject = Pick<
 > & {
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
+    use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
 };
 type UpdateDbProject = Partial<
     Pick<

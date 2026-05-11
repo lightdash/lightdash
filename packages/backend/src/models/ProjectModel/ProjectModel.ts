@@ -717,7 +717,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
-                  use_project_timezone_in_filters: boolean | null;
+                  use_project_timezone_in_filters: boolean;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -736,7 +736,7 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
-                  use_project_timezone_in_filters: boolean | null;
+                  use_project_timezone_in_filters: boolean;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -3216,7 +3216,7 @@ export class ProjectModel {
     async updateQueryTimezone(
         projectUuid: string,
         timezone: string | null | undefined,
-        useProjectTimezoneInFilters: boolean | null | undefined,
+        useProjectTimezoneInFilters: boolean | undefined,
     ): Promise<DbProject> {
         return this.database.transaction(async (trx) => {
             const [current] = await trx(ProjectTableName)
@@ -3238,7 +3238,7 @@ export class ProjectModel {
                     : current.use_project_timezone_in_filters;
 
             if (
-                resultingUseProjectTimezoneInFilters === true &&
+                resultingUseProjectTimezoneInFilters &&
                 resultingTimezone === null
             ) {
                 throw new ParameterError(
