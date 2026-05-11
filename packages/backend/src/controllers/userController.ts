@@ -234,6 +234,42 @@ export class UserController extends BaseController {
     }
 
     /**
+     * Remove the current user from their organization. Fails if the caller is
+     * the only admin remaining. The user record is preserved so they can join
+     * another organization later.
+     * @summary Leave organization
+     * @param req express request
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Delete('/me/leaveOrganization')
+    @OperationId('LeaveOrganization')
+    async leaveOrganization(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getUserService()
+            .leaveOrganization(toSessionUser(req.account), {
+                ip: req.ip,
+                userAgent: req.get('user-agent'),
+            });
+
+        await new Promise<void>((resolve, reject) => {
+            req.session.destroy((err) => {
+                if (err) {
+                    reject(err);
+                }
+                resolve();
+            });
+        });
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    /**
      * Delete user
      * @summary Delete user
      * @param req express request

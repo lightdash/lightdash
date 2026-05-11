@@ -440,6 +440,28 @@ export class OrganizationMemberProfileModel {
         });
     }
 
+    async deleteOrganizationMembershipByUuid({
+        organizationUuid,
+        userUuid,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+    }): Promise<void> {
+        const userIdSubquery = this.database
+            .select('user_id')
+            .from(UserTableName)
+            .where('user_uuid', userUuid);
+        const organizationIdSubquery = this.database
+            .select('organization_id')
+            .from(OrganizationTableName)
+            .where('organization_uuid', organizationUuid);
+
+        await this.database(OrganizationMembershipsTableName)
+            .where('user_id', userIdSubquery)
+            .andWhere('organization_id', organizationIdSubquery)
+            .delete();
+    }
+
     async getOrganizationMemberByUuid(
         organizationUuid: string,
         userUuid: string,

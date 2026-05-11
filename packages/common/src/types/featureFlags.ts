@@ -120,6 +120,15 @@ export enum FeatureFlags {
      * vetted customers on shared multi-org instances.
      */
     SsoOrganizationSettings = 'sso-organization-settings',
+
+    /**
+     * Expose the "Leave organization" action in the General settings danger
+     * zone and accept the corresponding API call. When disabled the panel is
+     * hidden and the endpoint returns a 403 — protects against accidental
+     * self-removal during early rollout and lets us disable the feature
+     * per-org if it causes operational issues.
+     */
+    LeaveOrganization = 'leave-organization',
 }
 
 export type FeatureFlag = {

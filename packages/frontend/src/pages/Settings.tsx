@@ -56,6 +56,7 @@ import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrgani
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
+import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
 import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
@@ -125,6 +126,11 @@ const Settings: FC = () => {
     const showImpersonationPanel =
         isUserImpersonationEnabled?.enabled &&
         user?.ability?.can('update', 'Organization');
+
+    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
+        FeatureFlags.LeaveOrganization,
+    );
+    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
 
     const isCustomRolesEnabled = health?.isCustomRolesEnabled;
 
@@ -303,17 +309,31 @@ const Settings: FC = () => {
                             </SettingsGridCard>
                         )}
 
-                        {user.ability?.can('delete', 'Organization') && (
+                        {(isLeaveOrganizationEnabled ||
+                            user.ability?.can('delete', 'Organization')) && (
                             <SettingsGridCard>
                                 <div>
                                     <Title order={4}>Danger zone </Title>
                                     <Text c="ldGray.6" fz="xs">
-                                        This action deletes the whole workspace
-                                        and all its content, including users.
-                                        This action is not reversible.
+                                        {isLeaveOrganizationEnabled &&
+                                            'Leave the organization to remove yourself from it (you cannot leave if you are the only admin). '}
+                                        {user.ability?.can(
+                                            'delete',
+                                            'Organization',
+                                        ) &&
+                                            'Deleting the organization removes the whole workspace and all its content, including users. '}
+                                        These actions are not reversible.
                                     </Text>
                                 </div>
-                                <DeleteOrganizationPanel />
+                                <Stack gap="sm" align="flex-end">
+                                    {isLeaveOrganizationEnabled && (
+                                        <LeaveOrganizationPanel />
+                                    )}
+                                    {user.ability?.can(
+                                        'delete',
+                                        'Organization',
+                                    ) && <DeleteOrganizationPanel />}
+                                </Stack>
                             </SettingsGridCard>
                         )}
                     </Stack>
@@ -502,6 +522,7 @@ const Settings: FC = () => {
         health?.hasGitlab,
         dataAppsFlag?.enabled,
         isSsoOrganizationSettingsEnabled,
+        isLeaveOrganizationEnabled,
     ]);
     const routeElements = useRoutes(routes);
 

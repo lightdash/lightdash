@@ -173,6 +173,14 @@ type UserJoinOrganizationEvent = BaseTrack & {
     };
 };
 
+type UserLeaveOrganizationEvent = BaseTrack & {
+    event: 'user.left_organization';
+    properties: {
+        organizationId: string;
+        role: OrganizationMemberRole;
+    };
+};
+
 export const getContextFromHeader = (req: Request) => {
     const method = getRequestMethod(req.header(LightdashRequestMethodHeader));
     switch (method) {
@@ -1941,6 +1949,7 @@ type TypedEvent =
     | DeleteUserEvent
     | VerifiedUserEvent
     | UserJoinOrganizationEvent
+    | UserLeaveOrganizationEvent
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent

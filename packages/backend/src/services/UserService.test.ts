@@ -14,6 +14,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import * as winston from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -124,6 +125,12 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
+        featureFlagModel: {
+            get: jest.fn(async () => ({
+                id: 'leave-organization',
+                enabled: true,
+            })),
+        } as unknown as FeatureFlagModel,
     });
 
 jest.spyOn(analyticsMock, 'track');
@@ -816,6 +823,12 @@ describe('UserService', () => {
                 warehouseAvailableTablesModel:
                     {} as WarehouseAvailableTablesModel,
                 projectModel: projectModel as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: jest.fn(async () => ({
+                        id: 'leave-organization',
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
             });
 
             await expect(
@@ -879,6 +892,12 @@ describe('UserService', () => {
                 warehouseAvailableTablesModel:
                     {} as WarehouseAvailableTablesModel,
                 projectModel: projectModel as unknown as ProjectModel,
+                featureFlagModel: {
+                    get: jest.fn(async () => ({
+                        id: 'leave-organization',
+                        enabled: true,
+                    })),
+                } as unknown as FeatureFlagModel,
             });
 
             await expect(

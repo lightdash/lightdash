@@ -937,6 +937,7 @@ export class ServiceRepository
                     warehouseAvailableTablesModel:
                         this.models.getWarehouseAvailableTablesModel(),
                     projectModel: this.models.getProjectModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }

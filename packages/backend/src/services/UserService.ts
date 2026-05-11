@@ -15,6 +15,7 @@ import {
     DeleteOpenIdentity,
     EmailStatusExpiring,
     ExpiredError,
+    FeatureFlags,
     ForbiddenError,
     getEmailDomain,
     hasInviteCode,
@@ -72,6 +73,7 @@ import Logger from '../logging/logger';
 import { logAuditEvent } from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
+import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
 import { GroupsModel } from '../models/GroupsModel';
 import { InviteLinkModel } from '../models/InviteLinkModel';
 import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
@@ -108,6 +110,7 @@ type UserServiceArguments = {
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
+    featureFlagModel: FeatureFlagModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -132,13 +135,19 @@ const emitAuthAuditEvent = ({
     context,
 }: {
     actor: AuditActor;
-    action: 'login' | 'logout' | 'impersonation_start' | 'impersonation_stop';
+    action:
+        | 'login'
+        | 'logout'
+        | 'impersonation_start'
+        | 'impersonation_stop'
+        | 'leave_organization';
     resourceType:
         | 'Session'
         | 'PersonalAccessToken'
         | 'ServiceAccount'
         | 'EmbedJwt'
-        | 'User';
+        | 'User'
+        | 'OrganizationMembership';
     status: AuditStatusType;
     reason?: string;
     organizationUuid?: string;
@@ -210,6 +219,8 @@ export class UserService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     private readonly emailOneTimePasscodeExpirySeconds = 60 * 15;
 
     private readonly emailOneTimePasscodeMaxAttempts = 5;
@@ -233,6 +244,7 @@ export class UserService extends BaseService {
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
+        featureFlagModel,
     }: UserServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -254,6 +266,7 @@ export class UserService extends BaseService {
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
+        this.featureFlagModel = featureFlagModel;
     }
 
     private identifyUser(
@@ -1744,6 +1757,118 @@ export class UserService extends BaseService {
                 projectIds: allowedEmailDomains.projects.map(
                     (project) => project.projectUuid,
                 ),
+            },
+        });
+    }
+
+    async leaveOrganization(
+        user: SessionUser,
+        context?: AuthAuditContext,
+    ): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+        const { organizationUuid } = user;
+        const actor = createActorFromUser(user);
+
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.LeaveOrganization,
+        });
+        if (!flag.enabled) {
+            this.logger.warn('Leave organization denied: feature disabled', {
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            emitAuthAuditEvent({
+                actor,
+                action: 'leave_organization',
+                resourceType: 'OrganizationMembership',
+                status: 'denied',
+                reason: 'Feature disabled',
+                organizationUuid,
+                context,
+            });
+            throw new ForbiddenError(
+                'Leaving the organization is not enabled for this instance',
+            );
+        }
+
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                user.userUuid,
+            );
+
+        this.logger.info('User attempting to leave organization', {
+            userUuid: user.userUuid,
+            organizationUuid,
+            role: member.role,
+        });
+
+        // Race condition between check and delete is acceptable here — worst
+        // case the last admin slips out concurrently, matching the same trade-off
+        // accepted in `delete()` above.
+        const admins =
+            await this.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            );
+        if (
+            member.role === OrganizationMemberRole.ADMIN &&
+            admins.length === 1 &&
+            admins[0].userUuid === user.userUuid
+        ) {
+            const reason = 'Last admin in organization';
+            this.logger.warn('Leave organization denied: last admin', {
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            emitAuthAuditEvent({
+                actor,
+                action: 'leave_organization',
+                resourceType: 'OrganizationMembership',
+                status: 'denied',
+                reason,
+                organizationUuid,
+                metadata: { role: member.role },
+                context,
+            });
+            throw new ForbiddenError(
+                'You are the only admin in this organization. Promote another member to admin before leaving.',
+            );
+        }
+
+        await this.organizationMemberProfileModel.deleteOrganizationMembershipByUuid(
+            {
+                organizationUuid,
+                userUuid: user.userUuid,
+            },
+        );
+
+        await this.sessionModel.deleteAllByUserUuid(user.userUuid);
+
+        this.logger.info('User left organization', {
+            userUuid: user.userUuid,
+            organizationUuid,
+            role: member.role,
+        });
+
+        emitAuthAuditEvent({
+            actor,
+            action: 'leave_organization',
+            resourceType: 'OrganizationMembership',
+            status: 'allowed',
+            organizationUuid,
+            metadata: { role: member.role },
+            context,
+        });
+
+        this.analytics.track({
+            userId: user.userUuid,
+            event: 'user.left_organization',
+            properties: {
+                organizationId: organizationUuid,
+                role: member.role,
             },
         });
     }
