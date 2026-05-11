@@ -1507,7 +1507,10 @@ export const getCategoryDateAxisConfig = (
         axisField.timeIntervalBaseDimensionType === DimensionType.DATE;
     const tz =
         isDateBaseInterval || !resolvedTimezone ? 'UTC' : resolvedTimezone;
-    const inTz = (v: string | number) => dayjs.tz(dayjs.utc(v).toDate(), tz);
+    // Skip dayjs.tz for UTC: .add() chains drift sub-ms vs fresh .tz() objects
+    // and break .isBefore at the boundary.
+    const inTz = (v: string | number) =>
+        tz === 'UTC' ? dayjs.utc(v) : dayjs.tz(dayjs.utc(v).toDate(), tz);
 
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];

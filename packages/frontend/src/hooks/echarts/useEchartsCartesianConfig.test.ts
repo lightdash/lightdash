@@ -409,6 +409,82 @@ describe('getCategoryDateAxisConfig', () => {
             expect(result.data).toHaveLength(4);
         });
     });
+
+    // Regression: iteration landing exactly on maxX produced a duplicate
+    // trailing category due to dayjs.tz .isBefore drift.
+    describe('no duplicate entries when range lands exactly on maxX', () => {
+        const expectStrictlyIncreasingAndUnique = (data: string[]) => {
+            expect(new Set(data).size).toBe(data.length);
+            const values = data.map((d) => new Date(d).valueOf());
+            for (let i = 1; i < values.length; i += 1) {
+                expect(values[i]).toBeGreaterThan(values[i - 1]);
+            }
+        };
+
+        test('WEEK iteration ending exactly on maxX produces no duplicate', () => {
+            // 6 weeks apart — iteration lands exactly on maxX
+            const rows = createRows([
+                '2020-06-29T01:00:00Z',
+                '2020-08-10T01:00:00Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                rows,
+                'category',
+            );
+            expect(result.data).toHaveLength(7);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('MONTH iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2024-01-15T00:00:00.000Z',
+                '2024-06-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                rows,
+                'category',
+            );
+            // Jan..Jun inclusive = 6 months
+            expect(result.data).toHaveLength(6);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('QUARTER iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2024-01-15T00:00:00.000Z',
+                '2024-10-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                rows,
+                'category',
+            );
+            // Q1..Q4 = 4 quarters
+            expect(result.data).toHaveLength(4);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('YEAR iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2020-06-15T00:00:00.000Z',
+                '2024-06-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                rows,
+                'category',
+            );
+            // 2020..2024 inclusive = 5 years
+            expect(result.data).toHaveLength(5);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+    });
 });
 
 describe('filterSeriesWithNoData', () => {
