@@ -830,6 +830,50 @@ export default class EmailClient {
         });
     }
 
+    public async sendSchedulerModifiedByOtherUserEmail({
+        recipient,
+        modifyingUserName,
+        schedulerName,
+        actionVerb,
+        timestamp,
+        resourceUrl,
+    }: {
+        recipient: string;
+        modifyingUserName: string;
+        schedulerName: string;
+        actionVerb: 'updated' | 'deleted' | 'enabled' | 'disabled';
+        timestamp: string;
+        resourceUrl: string | undefined;
+    }) {
+        const safeModifier = sanitizeHtml(modifyingUserName);
+        const safeName = sanitizeHtml(schedulerName);
+        const message = `
+            <p style="margin: 0 0 12px 0;">
+                <strong>${safeModifier}</strong>
+                ${actionVerb} your scheduled delivery
+                <strong>&ldquo;${safeName}&rdquo;</strong>
+                on ${sanitizeHtml(timestamp)}.
+            </p>${
+                resourceUrl
+                    ? `\n            <p style="margin: 0;"><a href="${resourceUrl}" style="color: #7262FF; text-decoration: underline;">View the scheduled delivery</a></p>`
+                    : ''
+            }
+        `;
+        return this.sendEmail({
+            to: recipient,
+            subject: `Your scheduled delivery "${schedulerName}" was ${actionVerb}`,
+            template: 'genericNotification',
+            context: {
+                title: `Your scheduled delivery was ${actionVerb}`,
+                message,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text: `${modifyingUserName} ${actionVerb} your scheduled delivery "${schedulerName}" on ${timestamp}.${
+                resourceUrl ? ` View it at ${resourceUrl}` : ''
+            }`,
+        });
+    }
+
     public async sendGenericNotificationEmail(
         to: string[],
         subject: string,

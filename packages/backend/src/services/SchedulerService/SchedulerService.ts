@@ -50,6 +50,7 @@ import {
     SchedulerDashboardUpsertEvent,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import EmailClient from '../../clients/EmailClient/EmailClient';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -81,6 +82,7 @@ type SchedulerServiceArguments = {
     projectModel: ProjectModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
+    emailClient: EmailClient;
     userModel: UserModel;
     googleDriveClient: GoogleDriveClient;
     userService: UserService;
@@ -114,6 +116,8 @@ export class SchedulerService extends BaseService {
 
     slackClient: SlackClient;
 
+    emailClient: EmailClient;
+
     projectModel: ProjectModel;
 
     userModel: UserModel;
@@ -135,6 +139,7 @@ export class SchedulerService extends BaseService {
         savedSqlModel,
         schedulerClient,
         slackClient,
+        emailClient,
         projectModel,
         userModel,
         googleDriveClient,
@@ -151,6 +156,7 @@ export class SchedulerService extends BaseService {
         this.savedSqlModel = savedSqlModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
+        this.emailClient = emailClient;
         this.projectModel = projectModel;
         this.userModel = userModel;
         this.googleDriveClient = googleDriveClient;
@@ -185,6 +191,79 @@ export class SchedulerService extends BaseService {
             };
         }
         throw new ParameterError('Invalid scheduler type');
+    }
+
+    private getSchedulerResourceUrl(
+        scheduler: Scheduler,
+        projectUuid: string,
+    ): string | undefined {
+        const { siteUrl } = this.lightdashConfig;
+        if (isChartScheduler(scheduler)) {
+            return `${siteUrl}/projects/${projectUuid}/saved/${scheduler.savedChartUuid}/view?scheduler_uuid=${scheduler.schedulerUuid}`;
+        }
+        if (isDashboardScheduler(scheduler)) {
+            return `${siteUrl}/projects/${projectUuid}/dashboards/${scheduler.dashboardUuid}/view?scheduler_uuid=${scheduler.schedulerUuid}`;
+        }
+        return undefined;
+    }
+
+    private async notifySchedulerOwnerOfModification(
+        modifyingUser: SessionUser,
+        scheduler: Scheduler,
+        projectUuid: string,
+        actionVerb: 'updated' | 'deleted' | 'enabled' | 'disabled',
+    ): Promise<void> {
+        if (modifyingUser.userUuid === scheduler.createdBy) {
+            return;
+        }
+        try {
+            if (!this.emailClient.canSendEmail()) {
+                this.logger.info(
+                    `Skipping scheduler-owner notification: email transporter is not configured`,
+                    {
+                        schedulerUuid: scheduler.schedulerUuid,
+                        ownerUuid: scheduler.createdBy,
+                        actionVerb,
+                    },
+                );
+                return;
+            }
+            const owner = await this.userModel.getUserDetailsByUuid(
+                scheduler.createdBy,
+            );
+            if (!owner.email) {
+                this.logger.info(
+                    `Skipping scheduler-owner notification: owner has no email on record`,
+                    {
+                        schedulerUuid: scheduler.schedulerUuid,
+                        ownerUuid: scheduler.createdBy,
+                        actionVerb,
+                    },
+                );
+                return;
+            }
+            await this.emailClient.sendSchedulerModifiedByOtherUserEmail({
+                recipient: owner.email,
+                modifyingUserName:
+                    `${modifyingUser.firstName} ${modifyingUser.lastName}`.trim(),
+                schedulerName: scheduler.name,
+                actionVerb,
+                timestamp: `${new Date().toLocaleString('en-US', {
+                    dateStyle: 'long',
+                    timeStyle: 'short',
+                    timeZone: 'UTC',
+                })} UTC`,
+                resourceUrl: this.getSchedulerResourceUrl(
+                    scheduler,
+                    projectUuid,
+                ),
+            });
+        } catch (error) {
+            this.logger.error(
+                `Failed to notify scheduler owner ${scheduler.createdBy} of ${actionVerb} action on scheduler ${scheduler.schedulerUuid}`,
+                { error },
+            );
+        }
     }
 
     private async checkUserCanUpdateSchedulerResource(
@@ -631,6 +710,13 @@ export class SchedulerService extends BaseService {
             );
         }
 
+        await this.notifySchedulerOwnerOfModification(
+            user,
+            scheduler,
+            projectUuid,
+            'updated',
+        );
+
         return scheduler;
     }
 
@@ -674,6 +760,13 @@ export class SchedulerService extends BaseService {
                 defaultTimezone,
             );
         }
+
+        await this.notifySchedulerOwnerOfModification(
+            user,
+            scheduler,
+            projectUuid,
+            enabled ? 'enabled' : 'disabled',
+        );
 
         return scheduler;
     }
@@ -843,6 +936,13 @@ export class SchedulerService extends BaseService {
                 softDelete: false,
             },
         });
+
+        await this.notifySchedulerOwnerOfModification(
+            user,
+            scheduler,
+            projectUuid,
+            'deleted',
+        );
     }
 
     /**
