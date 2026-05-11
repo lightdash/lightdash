@@ -40,6 +40,7 @@ describe('ScimService', () => {
                 userId: 0,
                 isTrackingAnonymized: false,
                 isMarketingOptedIn: false,
+                timezone: null,
                 isSetupComplete: false,
             };
 
@@ -114,6 +115,7 @@ describe('ScimService', () => {
                 userId: 0,
                 isTrackingAnonymized: false,
                 isMarketingOptedIn: false,
+                timezone: null,
                 isSetupComplete: false,
             };
 

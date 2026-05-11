@@ -25,6 +25,7 @@ export const User: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,

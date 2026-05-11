@@ -825,6 +825,9 @@ export type UpdateUserArgs = {
     isTrackingAnonymized: boolean;
     isSetupComplete: boolean;
     isActive: boolean;
+    /* IANA timezone (e.g. 'America/New_York') used as the user's per-viewer
+       default. Null clears the preference and falls back to the project. */
+    timezone: string | null;
 };
 
 export type PasswordResetLink = {

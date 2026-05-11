@@ -24,6 +24,7 @@ import {
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserWithOrg,
+    isValidTimezone,
     LightdashMode,
     LightdashUser,
     LocalIssuerTypes,
@@ -1388,6 +1389,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         const emailChanged = data.email && user.email !== data.email;
 
+        if (
+            data.timezone !== undefined &&
+            data.timezone !== null &&
+            !isValidTimezone(data.timezone)
+        ) {
+            throw new ParameterError(`Invalid timezone: ${data.timezone}`);
+        }
+
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
@@ -1397,6 +1406,7 @@ export class UserService extends BaseService {
                 email: data.email,
                 isMarketingOptedIn: data.isMarketingOptedIn,
                 isTrackingAnonymized: data.isTrackingAnonymized,
+                timezone: data.timezone,
             },
         );
         this.identifyUser(updatedUser);

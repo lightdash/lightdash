@@ -51,6 +51,7 @@ export const user: SessionUser = {
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
     isSetupComplete: true,
+    timezone: null,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([

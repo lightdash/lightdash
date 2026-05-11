@@ -37,6 +37,8 @@ export interface LightdashUser {
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
+    /* IANA timezone the user prefers query results rendered in. */
+    timezone: string | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
 }
@@ -55,6 +57,7 @@ export interface LightdashSessionUser extends AccountUser {
     isSetupComplete: boolean;
     createdAt: Date;
     updatedAt: Date;
+    timezone: string | null;
     /* Whether the user doesn't have an authentication method (password or openId) */
     isPending?: boolean;
     /* Set only when an admin is impersonating this user via session auth */

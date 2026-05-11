@@ -15695,6 +15695,10 @@
                         "type": "string",
                         "format": "date-time"
                     },
+                    "timezone": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "isPending": {
                         "type": "boolean"
                     }
@@ -15709,7 +15713,8 @@
                     "isSetupComplete",
                     "isActive",
                     "createdAt",
-                    "updatedAt"
+                    "updatedAt",
+                    "timezone"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -19484,14 +19489,14 @@
                     "enabled": {
                         "type": "boolean"
                     },
+                    "timezone": {
+                        "type": "string"
+                    },
                     "message": {
                         "type": "string"
                     },
                     "format": {
                         "$ref": "#/components/schemas/SchedulerFormat"
-                    },
-                    "timezone": {
-                        "type": "string"
                     },
                     "projectSchedulerTimezone": {
                         "type": "string"
@@ -20580,9 +20585,7 @@
                     "generateSlackChannelSyncJobs",
                     "checkForStuckJobs",
                     "cleanDeploySessions",
-                    "managedAgentHeartbeat",
-                    "workerHeartbeat",
-                    "cleanWorkerHeartbeats"
+                    "managedAgentHeartbeat"
                 ]
             },
             "BaseSchedulerLog": {
@@ -29871,9 +29874,7 @@
                     "calculateSubtotal",
                     "embed",
                     "ai",
-                    "mcp.run_metric_query",
-                    "mcp.run_sql",
-                    "mcp.search_field_values",
+                    "mcp",
                     "api",
                     "cli",
                     "metricsExplorer",
@@ -29908,6 +29909,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "timezone": {
+                        "type": "string"
+                    },
                     "filters": {
                         "properties": {
                             "tableCalculations": {},
@@ -29915,9 +29919,6 @@
                             "dimensions": {}
                         },
                         "type": "object"
-                    },
-                    "timezone": {
-                        "type": "string"
                     },
                     "exploreName": {
                         "type": "string"
@@ -32273,7 +32274,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2917.2",
+        "version": "0.2908.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -35422,38 +35423,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/user/me/leaveOrganization": {
-            "delete": {
-                "operationId": "LeaveOrganization",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Remove the current user from their organization. Fails if the caller is\nthe only admin remaining. The user record is preserved so they can join\nanother organization later.",
-                "summary": "Leave organization",
-                "tags": ["My Account"],
-                "security": [],
-                "parameters": []
             }
         },
         "/api/v1/user/me": {
@@ -50326,7 +50295,6 @@
                         }
                     },
                     {
-                        "description": "filter schedulers by name",
                         "in": "query",
                         "name": "searchQuery",
                         "required": false,
@@ -50335,21 +50303,11 @@
                         }
                     },
                     {
-                        "description": "comma-separated list of scheduler formats to include",
                         "in": "query",
                         "name": "formats",
                         "required": false,
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    {
-                        "description": "include the most recent run for each scheduler",
-                        "in": "query",
-                        "name": "includeLatestRun",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
                         }
                     }
                 ]
@@ -51838,21 +51796,11 @@
                         }
                     },
                     {
-                        "description": "filter schedulers by name",
                         "in": "query",
                         "name": "searchQuery",
                         "required": false,
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    {
-                        "description": "include the most recent run for each scheduler",
-                        "in": "query",
-                        "name": "includeLatestRun",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
                         }
                     }
                 ]

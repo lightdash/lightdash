@@ -36,6 +36,7 @@ const mockSaSessionUser = {
     organizationCreatedAt: new Date('2024-01-01T00:00:00.000Z'),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     role: OrganizationMemberRole.ADMIN,
     isActive: false,

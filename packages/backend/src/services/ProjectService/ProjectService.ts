@@ -63,6 +63,7 @@ import {
     findReplaceableCustomMetrics,
     ForbiddenError,
     formatRows,
+    getAccountUserTimezone,
     getAllDimensionsMap,
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
@@ -3450,7 +3451,11 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const timezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+            getAccountUserTimezone(account),
+        );
         const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
             userUuid: account.user.id,
             organizationUuid: account.organization.organizationUuid,
@@ -4119,6 +4124,7 @@ export class ProjectService extends BaseService {
                 const resolvedTimezone = resolveQueryTimezone(
                     metricQuery,
                     projectTimezone,
+                    getAccountUserTimezone(account),
                 );
                 const isTimezoneEnabled = await this.isTimezoneSupportEnabled({
                     userUuid: account.user.id,
@@ -4443,6 +4449,7 @@ export class ProjectService extends BaseService {
                     const timezone = resolveQueryTimezone(
                         metricQueryWithLimit,
                         projectTimezone,
+                        getAccountUserTimezone(account),
                     );
                     const useTimezoneAwareDateTrunc =
                         await this.isTimezoneSupportEnabled({
@@ -5021,7 +5028,11 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const timezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+            user.timezone,
+        );
         const useTimezoneAwareDateTrunc =
             await this.isTimezoneSupportEnabled(user);
 

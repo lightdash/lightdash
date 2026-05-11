@@ -42,6 +42,7 @@ export const mockScimAccount = {
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
+        timezone: null,
         isSetupComplete: true,
         userId: 1,
         createdAt: new Date('2024-01-01'),

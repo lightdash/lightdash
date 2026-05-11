@@ -13,6 +13,15 @@ Lightdash has two timezone settings. They look similar but solve different probl
 | **Data timezone**    | Warehouse   | "What timezone are my NTZ timestamps stored in?" | Warehouse connection → Advanced settings |
 | **Project timezone** | Application | "What timezone should my users see data in?"     | Project settings → Timezone              |
 
+In addition, two display-layer overrides sit on top of the project timezone:
+
+| Override               | Scope              | Wins over project? | Where configured                  |
+| ---------------------- | ------------------ | ------------------ | --------------------------------- |
+| **User timezone**      | Per viewer         | ✅                 | Profile settings → Default timezone |
+| **Chart timezone**     | Per saved chart    | ✅ (also wins over user) | Explorer header → Timezone picker |
+
+Resolution order: `chart → user → project → server default ('UTC')`. A viewer with no profile preference falls through to the project. A viewer with a profile timezone sees their zone on charts that don't pin one. See [User-level timezone](#user-level-timezone) below.
+
 The `EnableTimezoneSupport` feature flag (`LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true`) gates the data timezone feature — both the warehouse UI field and the session setup. The project timezone setting is always available. The flag can also be toggled per-organization (or per-user) via `feature_flag_overrides` in the database, which takes precedence over the env var, so we can roll out gradually without flipping the global switch.
 
 ### Data timezone (`dataTimezone`)
@@ -32,6 +41,26 @@ Controls where date boundaries fall for filters and grouping. When a user picks 
 
 - **Without it:** "today" = midnight UTC.
 - **With `America/New_York`:** "today" = midnight ET (4am or 5am UTC depending on DST).
+
+### User-level timezone
+
+Per-viewer override stored on the `users` row (`users.timezone`, IANA string or `NULL`). Slots between the chart-level and project-level layers in the resolution chain:
+
+```
+metricQuery.timezone  →  user.timezone  →  project.queryTimezone  →  config  →  'UTC'
+```
+
+- A viewer with `timezone = 'Asia/Tokyo'` sees charts in Tokyo whenever the chart hasn't pinned its own timezone.
+- An author can still "pin" a chart to a specific zone via the Explorer timezone picker — that wins for every viewer (matches Looker's `timezone: <fixed_zone>` behavior).
+- Charts without a pinned zone fall through per-viewer (Looker's `timezone: user_timezone` model).
+
+Resolution happens server-side in [`resolveQueryTimezone`](../packages/common/src/utils/resolveQueryTimezone.ts). Anonymous viewers (embeds / JWT) and service accounts have no profile timezone — the helper `getAccountUserTimezone(account)` returns `null` for them, so they fall through to the project default.
+
+**Worker / retrieval paths** (queued warehouse execution, pre-aggregate workers, results pagination, downloads, ready-results fetch) don't re-resolve the timezone. `executePreparedAsyncQuery` stamps the resolved chart > user > project timezone onto `metricQuery.timezone` before persisting the query history snapshot, so callers downstream read it back via `AsyncQueryService.getDisplayTimezoneForQueryHistory` — a lean helper that just checks the per-viewer `EnableTimezoneSupport` flag and returns the persisted timezone (with a project fallback for rows persisted before the stamp landed).
+
+**Pre-aggregate materialization is an exception.** Materializations build shared tables queried by every viewer, so the user-level layer is skipped. When `prepareMetricQueryAsyncQueryArgs` is called with a `materializationRole`, `userTimezone` is forced to `null` regardless of the triggering account — the materialization SQL compiles against `chart.timezone ?? project.queryTimezone`, never the triggering user's profile preference.
+
+**Files:** `packages/common/src/utils/resolveQueryTimezone.ts` (chain + `getAccountUserTimezone`), `packages/backend/src/services/UserService.ts` (validation on update), `packages/frontend/src/components/UserSettings/ProfilePanel/index.tsx` (profile UI).
 
 ### How they combine
 
@@ -64,7 +93,7 @@ End-to-end, timezone concerns are handled at four boundaries: compile in Node, e
 flowchart LR
     subgraph Compile["Compile · Node.js"]
         direction TB
-        C1["Resolve project TZ<br/><code>metricQuery.timezone ?? project.queryTimezone ?? 'UTC'</code><br/>Build SELECT (DATE_TRUNC round-trip)<br/>Build WHERE (boundaries in project TZ)"]
+        C1["Resolve timezone<br/><code>metricQuery.timezone ?? user.timezone ?? project.queryTimezone ?? 'UTC'</code><br/>Build SELECT (DATE_TRUNC round-trip)<br/>Build WHERE (boundaries in resolved TZ)"]
     end
     subgraph Execute["Execute · Warehouse"]
         direction TB

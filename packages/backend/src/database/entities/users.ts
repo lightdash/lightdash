@@ -15,6 +15,7 @@ export type DbUser = {
     // embed users, AI agents, etc. Used only to filter these rows out of
     // human-facing surfaces (org member listings, SCIM, search, login).
     is_internal: boolean;
+    timezone: string | null;
     updated_at: Date;
 };
 
@@ -27,7 +28,7 @@ export type DbUserIn = Pick<
     | 'is_setup_complete'
     | 'is_active'
 > &
-    Partial<Pick<DbUser, 'user_uuid' | 'is_internal'>>;
+    Partial<Pick<DbUser, 'user_uuid' | 'is_internal' | 'timezone'>>;
 export type DbUserUpdate = Partial<
     Pick<
         DbUser,
@@ -37,6 +38,7 @@ export type DbUserUpdate = Partial<
         | 'is_tracking_anonymized'
         | 'is_setup_complete'
         | 'is_active'
+        | 'timezone'
         | 'updated_at'
     >
 >;

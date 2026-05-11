@@ -72,6 +72,7 @@ const adminUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     userId: 1,
     role: OrganizationMemberRole.ADMIN,

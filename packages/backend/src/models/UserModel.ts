@@ -86,6 +86,7 @@ export type DbUserDetails = {
     role_uuid?: string;
     is_active: boolean;
     is_internal: boolean;
+    timezone: string | null;
     updated_at: Date;
 };
 
@@ -106,6 +107,7 @@ export const mapDbUserDetailsToLightdashUser = (
     isSetupComplete: user.is_setup_complete,
     role: user.role,
     isActive: user.is_active,
+    timezone: user.timezone,
     isPending: !hasAuthentication,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
@@ -458,6 +460,7 @@ export class UserModel {
             isTrackingAnonymized,
             isSetupComplete,
             isActive,
+            timezone,
         }: Partial<UpdateUserArgs>,
         isEmailVerified: boolean = false,
     ): Promise<LightdashUser> {
@@ -473,6 +476,7 @@ export class UserModel {
                     is_tracking_anonymized: this.canTrackingBeAnonymized()
                         ? isTrackingAnonymized
                         : false,
+                    timezone,
                     updated_at: new Date(),
                 })
                 .returning('*');

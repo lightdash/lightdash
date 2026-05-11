@@ -35,6 +35,7 @@ import {
     formatRawRows,
     formatRawValue,
     formatRow,
+    getAccountUserTimezone,
     getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
@@ -808,7 +809,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ResultsExpiredError();
         }
 
-        const { displayTimezone } = await this.resolveTimezoneContext({
+        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
             projectUuid: queryHistory.projectUuid,
             organizationUuid: account.organization.organizationUuid,
             userUuid: account.user.id,
@@ -1160,7 +1161,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const { displayTimezone } = await this.resolveTimezoneContext({
+        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
             projectUuid: queryHistory.projectUuid,
             organizationUuid: queryHistory.organizationUuid,
             userUuid:
@@ -2465,7 +2466,15 @@ export class AsyncQueryService extends ProjectService {
      * `displayTimezone` (null when timezone-aware DATE_TRUNC is off — this is
      * what reaches API responses and the row formatter).
      */
-    private async resolveTimezoneContext({
+    /**
+     * Display timezone for retrieval / worker paths that already have a
+     * persisted query history snapshot. `metricQuery.timezone` was stamped
+     * with the resolved chart > user > project timezone at execution time,
+     * so we don't need to re-resolve — only check the per-viewer feature
+     * flag. Project fallback is kept for query history rows persisted
+     * before the stamp landed.
+     */
+    private async getDisplayTimezoneForQueryHistory({
         projectUuid,
         organizationUuid,
         userUuid,
@@ -2474,6 +2483,31 @@ export class AsyncQueryService extends ProjectService {
         projectUuid: string | null;
         organizationUuid: string;
         userUuid: string;
+        metricQuery: MetricQuery;
+    }): Promise<string | null> {
+        const enabled = await this.isTimezoneSupportEnabled({
+            userUuid,
+            organizationUuid,
+        });
+        if (!enabled) return null;
+        if (metricQuery.timezone) return metricQuery.timezone;
+        const projectTimezone = projectUuid
+            ? await this.getQueryTimezoneForProject(projectUuid)
+            : 'UTC';
+        return resolveQueryTimezone(metricQuery, projectTimezone, null);
+    }
+
+    private async resolveTimezoneContext({
+        projectUuid,
+        organizationUuid,
+        userUuid,
+        userTimezone,
+        metricQuery,
+    }: {
+        projectUuid: string | null;
+        organizationUuid: string;
+        userUuid: string;
+        userTimezone: string | null;
         metricQuery: MetricQuery;
     }): Promise<{
         resolvedTimezone: string;
@@ -2486,6 +2520,7 @@ export class AsyncQueryService extends ProjectService {
         const resolvedTimezone = resolveQueryTimezone(
             metricQuery,
             projectTimezone,
+            userTimezone,
         );
         const enabled = await this.isTimezoneSupportEnabled({
             userUuid,
@@ -2506,7 +2541,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTags = AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
-        const { displayTimezone } = await this.resolveTimezoneContext({
+        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
             projectUuid: query.projectUuid,
             organizationUuid: query.organizationUuid,
             userUuid: actor.userUuid,
@@ -2547,7 +2582,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTags = AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
-        const { displayTimezone } = await this.resolveTimezoneContext({
+        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
             projectUuid: query.projectUuid,
             organizationUuid: query.organizationUuid,
             userUuid: actor.userUuid,
@@ -2893,6 +2928,13 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             organizationUuid: account.organization.organizationUuid,
             userUuid: account.user.id,
+            // Pre-aggregate materializations build shared tables queried by
+            // every viewer — they must compile against the project timezone,
+            // not the triggering user's profile preference.
+            userTimezone:
+                materializationRole !== undefined
+                    ? null
+                    : getAccountUserTimezone(account),
             metricQuery,
         });
 
@@ -3131,7 +3173,11 @@ export class AsyncQueryService extends ProjectService {
                             fields: fieldsMap,
                             compiledSql: query,
                             requestParameters,
-                            metricQuery,
+                            // Persist the fully resolved timezone (chart >
+                            // user > project fallback) on the snapshot so
+                            // worker paths read it back without re-resolving
+                            // against an absent request account.
+                            metricQuery: { ...metricQuery, timezone },
                             cacheKey,
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
@@ -5451,7 +5497,7 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
-        const { displayTimezone } = await this.resolveTimezoneContext({
+        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
             projectUuid: queryHistory.projectUuid,
             organizationUuid: queryHistory.organizationUuid,
             userUuid:

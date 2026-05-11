@@ -14788,6 +14788,14 @@ const models: TsoaRoute.Models = {
             isActive: { dataType: 'boolean', required: true },
             createdAt: { dataType: 'datetime', required: true },
             updatedAt: { dataType: 'datetime', required: true },
+            timezone: {
+                dataType: 'union',
+                subSchemas: [
+                    { dataType: 'string' },
+                    { dataType: 'enum', enums: [null] },
+                ],
+                required: true,
+            },
             isPending: { dataType: 'boolean' },
         },
         additionalProperties: true,
@@ -18341,6 +18349,13 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     enabled: { dataType: 'boolean', required: true },
+                    timezone: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
                     message: {
                         dataType: 'union',
                         subSchemas: [
@@ -18349,13 +18364,6 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     format: { ref: 'SchedulerFormat', required: true },
-                    timezone: {
-                        dataType: 'union',
-                        subSchemas: [
-                            { dataType: 'string' },
-                            { dataType: 'undefined' },
-                        ],
-                    },
                     projectSchedulerTimezone: {
                         dataType: 'union',
                         subSchemas: [
@@ -28707,6 +28715,13 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 limit: { dataType: 'double', required: true },
+                timezone: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 filters: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
@@ -28715,13 +28730,6 @@ const models: TsoaRoute.Models = {
                         dimensions: { dataType: 'any' },
                     },
                     required: true,
-                },
-                timezone: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
                 },
                 exploreName: { dataType: 'string', required: true },
                 dimensions: {
