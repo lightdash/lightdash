@@ -1,6 +1,7 @@
 import {
     ChartType,
     FilterOperator,
+    findFieldByIdInExplore,
     getDimensions,
     getItemId,
     hashFieldReference,
@@ -106,8 +107,9 @@ export const combineFilters = ({
                     : [
                           normalizeCellRawForFilter(
                               rowValue.raw,
-                              dimension,
-                              explore,
+                              explore
+                                  ? findFieldByIdInExplore(explore, dimension)
+                                  : undefined,
                               timezone,
                           ),
                       ],

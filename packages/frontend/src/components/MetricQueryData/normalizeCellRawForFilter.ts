@@ -1,8 +1,8 @@
 import {
     DimensionType,
-    findFieldByIdInExplore,
+    isField,
     shouldShiftItemTimezone,
-    type Explore,
+    type Item,
 } from '@lightdash/common';
 import moment from 'moment';
 
@@ -11,16 +11,13 @@ import moment from 'moment';
 // skipped — shifting would corrupt the calendar date / EQUALS comparison.
 export const normalizeCellRawForFilter = (
     rawValue: unknown,
-    fieldId: string,
-    explore: Explore | undefined,
+    field: Item | undefined,
     timezone: string | undefined,
 ): unknown => {
-    if (rawValue === null || rawValue === undefined || !explore)
-        return rawValue;
+    if (rawValue === null || rawValue === undefined) return rawValue;
     if (typeof rawValue !== 'string') return rawValue;
-    const field = findFieldByIdInExplore(explore, fieldId);
     if (
-        !field ||
+        !isField(field) ||
         field.type !== DimensionType.DATE ||
         !shouldShiftItemTimezone(field)
     ) {

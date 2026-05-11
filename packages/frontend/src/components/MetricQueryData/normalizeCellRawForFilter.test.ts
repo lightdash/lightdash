@@ -3,57 +3,37 @@ import {
     DimensionType,
     FieldType,
     TimeFrames,
-    type Explore,
+    type Field,
 } from '@lightdash/common';
 import { normalizeCellRawForFilter } from './normalizeCellRawForFilter';
 
-const buildExplore = (
+const buildTimeIntervalDim = (
     baseType: DimensionType.TIMESTAMP | DimensionType.DATE,
-): Explore =>
+): Field =>
     ({
-        name: 'orders',
-        label: 'Orders',
-        tags: [],
-        baseTable: 'orders',
-        joinedTables: [],
-        warehouse: '',
-        ymlPath: '',
-        tables: {
-            orders: {
-                name: 'orders',
-                label: 'Orders',
-                database: '',
-                schema: '',
-                sqlTable: 'orders',
-                dimensions: {
-                    created_at_month: {
-                        fieldType: FieldType.DIMENSION,
-                        type: DimensionType.DATE,
-                        name: 'created_at_month',
-                        table: 'orders',
-                        tableLabel: 'Orders',
-                        label: 'Created at month',
-                        sql: '',
-                        hidden: false,
-                        timeInterval: TimeFrames.MONTH,
-                        timeIntervalBaseDimensionName: 'created_at',
-                        timeIntervalBaseDimensionType: baseType,
-                    },
-                    status: {
-                        fieldType: FieldType.DIMENSION,
-                        type: DimensionType.STRING,
-                        name: 'status',
-                        table: 'orders',
-                        tableLabel: 'Orders',
-                        label: 'Status',
-                        sql: '',
-                        hidden: false,
-                    },
-                },
-                metrics: {},
-            },
-        },
-    }) as unknown as Explore;
+        fieldType: FieldType.DIMENSION,
+        type: DimensionType.DATE,
+        name: 'created_at_month',
+        table: 'orders',
+        tableLabel: 'Orders',
+        label: 'Created at month',
+        sql: '',
+        hidden: false,
+        timeInterval: TimeFrames.MONTH,
+        timeIntervalBaseDimensionName: 'created_at',
+        timeIntervalBaseDimensionType: baseType,
+    }) as unknown as Field;
+
+const stringDim: Field = {
+    fieldType: FieldType.DIMENSION,
+    type: DimensionType.STRING,
+    name: 'status',
+    table: 'orders',
+    tableLabel: 'Orders',
+    label: 'Status',
+    sql: '',
+    hidden: false,
+} as unknown as Field;
 
 // Paris Nov 2024 — UTC instant emitted by the DATE_TRUNC round-trip on a
 // TIMESTAMP-base interval.
@@ -68,8 +48,7 @@ describe('normalizeCellRawForFilter', () => {
         expect(
             normalizeCellRawForFilter(
                 parisNovInstant,
-                'orders_created_at_month',
-                buildExplore(DimensionType.TIMESTAMP),
+                buildTimeIntervalDim(DimensionType.TIMESTAMP),
                 'Europe/Paris',
             ),
         ).toBe('2024-11-01');
@@ -79,8 +58,7 @@ describe('normalizeCellRawForFilter', () => {
         expect(
             normalizeCellRawForFilter(
                 nyNovInstant,
-                'orders_created_at_month',
-                buildExplore(DimensionType.TIMESTAMP),
+                buildTimeIntervalDim(DimensionType.TIMESTAMP),
                 'America/New_York',
             ),
         ).toBe('2024-11-01');
@@ -90,8 +68,7 @@ describe('normalizeCellRawForFilter', () => {
         expect(
             normalizeCellRawForFilter(
                 dateBaseNov,
-                'orders_created_at_month',
-                buildExplore(DimensionType.DATE),
+                buildTimeIntervalDim(DimensionType.DATE),
                 'America/New_York',
             ),
         ).toBe(dateBaseNov);
@@ -101,8 +78,7 @@ describe('normalizeCellRawForFilter', () => {
         expect(
             normalizeCellRawForFilter(
                 dateBaseNov,
-                'orders_created_at_month',
-                buildExplore(DimensionType.DATE),
+                buildTimeIntervalDim(DimensionType.DATE),
                 'Asia/Tokyo',
             ),
         ).toBe(dateBaseNov);
@@ -110,40 +86,24 @@ describe('normalizeCellRawForFilter', () => {
 
     test('non-time-interval dim is left unchanged', () => {
         expect(
-            normalizeCellRawForFilter(
-                'pending',
-                'orders_status',
-                buildExplore(DimensionType.TIMESTAMP),
-                'Europe/Paris',
-            ),
+            normalizeCellRawForFilter('pending', stringDim, 'Europe/Paris'),
         ).toBe('pending');
     });
 
     test('null / undefined raw is returned as-is', () => {
-        const explore = buildExplore(DimensionType.TIMESTAMP);
+        const field = buildTimeIntervalDim(DimensionType.TIMESTAMP);
         expect(
-            normalizeCellRawForFilter(
-                null,
-                'orders_created_at_month',
-                explore,
-                'Europe/Paris',
-            ),
+            normalizeCellRawForFilter(null, field, 'Europe/Paris'),
         ).toBeNull();
         expect(
-            normalizeCellRawForFilter(
-                undefined,
-                'orders_created_at_month',
-                explore,
-                'Europe/Paris',
-            ),
+            normalizeCellRawForFilter(undefined, field, 'Europe/Paris'),
         ).toBeUndefined();
     });
 
-    test('missing explore returns the raw value unchanged', () => {
+    test('missing field returns the raw value unchanged', () => {
         expect(
             normalizeCellRawForFilter(
                 parisNovInstant,
-                'orders_created_at_month',
                 undefined,
                 'Europe/Paris',
             ),

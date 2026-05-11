@@ -181,8 +181,7 @@ const UnderlyingDataModalContent: FC = () => {
                               : [
                                     normalizeCellRawForFilter(
                                         raw,
-                                        key,
-                                        explore,
+                                        isValidDimension,
                                         resolvedTimezone,
                                     ),
                                 ],
@@ -205,8 +204,7 @@ const UnderlyingDataModalContent: FC = () => {
                               : [
                                     normalizeCellRawForFilter(
                                         value.raw,
-                                        getItemId(item),
-                                        explore,
+                                        item,
                                         resolvedTimezone,
                                     ),
                                 ],
@@ -265,7 +263,6 @@ const UnderlyingDataModalContent: FC = () => {
         metricQuery,
         allFields,
         allDimensions,
-        explore,
         resolvedTimezone,
     ]);
 
