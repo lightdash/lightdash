@@ -981,7 +981,7 @@ describe('UserService', () => {
                     inviteUser,
                 ),
             ).rejects.toThrowError(
-                'Email is already used by a user in another organization',
+                'Email is already used by a user in another organization. Ask them to leave their organisation before inviting them.',
             );
         });
         test('should throw error when email belongs to an active user in same org', async () => {

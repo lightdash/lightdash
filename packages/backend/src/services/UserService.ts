@@ -531,7 +531,7 @@ export class UserService extends BaseService {
         if (existingUserWithEmail && existingUserWithEmail.organizationUuid) {
             if (existingUserWithEmail.organizationUuid !== organizationUuid) {
                 throw new ParameterError(
-                    'Email is already used by a user in another organization',
+                    'Email is already used by a user in another organization. Ask them to leave their organisation before inviting them.',
                 );
             } else if (!existingUserWithEmail.isPending) {
                 throw new ParameterError(
