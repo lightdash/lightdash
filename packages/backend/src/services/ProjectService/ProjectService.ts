@@ -7708,23 +7708,20 @@ export class ProjectService extends BaseService {
         }
 
         if (
+            queryTimezone === undefined &&
+            useProjectTimezoneInFilters === undefined
+        ) {
+            throw new ParameterError(
+                'Must provide queryTimezone or useProjectTimezoneInFilters',
+            );
+        }
+
+        if (
             queryTimezone !== null &&
             queryTimezone !== undefined &&
             !isValidTimezone(queryTimezone)
         ) {
             throw new ParameterError(`Invalid timezone: "${queryTimezone}"`);
-        }
-
-        if (useProjectTimezoneInFilters === true) {
-            const resultingTimezone =
-                queryTimezone !== undefined
-                    ? queryTimezone
-                    : await this.projectModel.getQueryTimezone(projectUuid);
-            if (resultingTimezone === null) {
-                throw new ParameterError(
-                    'Cannot enable useProjectTimezoneInFilters without a project query timezone',
-                );
-            }
         }
 
         await this.projectModel.updateQueryTimezone(

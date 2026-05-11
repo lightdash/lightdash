@@ -3218,34 +3218,48 @@ export class ProjectModel {
         timezone: string | null | undefined,
         useProjectTimezoneInFilters: boolean | null | undefined,
     ): Promise<DbProject> {
-        if (
-            timezone === undefined &&
-            useProjectTimezoneInFilters === undefined
-        ) {
-            throw new ParameterError(
-                'Must provide queryTimezone or useProjectTimezoneInFilters',
-            );
-        }
+        return this.database.transaction(async (trx) => {
+            const [current] = await trx(ProjectTableName)
+                .select('query_timezone', 'use_project_timezone_in_filters')
+                .where('project_uuid', projectUuid)
+                .forUpdate();
 
-        const [updatedProject] = await this.database(ProjectTableName)
-            .update({
-                ...(timezone !== undefined && {
-                    query_timezone: timezone,
-                }),
-                ...(useProjectTimezoneInFilters !== undefined && {
-                    use_project_timezone_in_filters:
-                        useProjectTimezoneInFilters,
-                }),
-            })
-            .where('project_uuid', projectUuid)
-            .returning('*');
+            if (!current) {
+                throw new NotFoundError(
+                    `Cannot find project with id: ${projectUuid}`,
+                );
+            }
 
-        if (!updatedProject) {
-            throw new NotFoundError(
-                `Cannot find project with id: ${projectUuid}`,
-            );
-        }
+            const resultingTimezone =
+                timezone !== undefined ? timezone : current.query_timezone;
+            const resultingUseProjectTimezoneInFilters =
+                useProjectTimezoneInFilters !== undefined
+                    ? useProjectTimezoneInFilters
+                    : current.use_project_timezone_in_filters;
 
-        return updatedProject;
+            if (
+                resultingUseProjectTimezoneInFilters === true &&
+                resultingTimezone === null
+            ) {
+                throw new ParameterError(
+                    'Cannot enable useProjectTimezoneInFilters without a project query timezone',
+                );
+            }
+
+            const [updatedProject] = await trx(ProjectTableName)
+                .update({
+                    ...(timezone !== undefined && {
+                        query_timezone: timezone,
+                    }),
+                    ...(useProjectTimezoneInFilters !== undefined && {
+                        use_project_timezone_in_filters:
+                            useProjectTimezoneInFilters,
+                    }),
+                })
+                .where('project_uuid', projectUuid)
+                .returning('*');
+
+            return updatedProject;
+        });
     }
 }
