@@ -13,6 +13,7 @@ import {
     run as runGraphileWorker,
     Runner,
     type CronItem,
+    type JobHelpers,
 } from 'graphile-worker';
 import moment from 'moment';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
@@ -39,9 +40,18 @@ const workerLogger = new GraphileLogger(
     },
 );
 
-// Per-pool self-beat interval. The probe's job-activity staleness threshold
-// is 3 minutes, so a 60s tick gives 3x headroom.
-const SELF_BEAT_INTERVAL_MS = 60_000;
+// Per-pool heartbeat enqueue cadence. The probe's job-activity staleness
+// threshold is 3 minutes, so a 60s tick gives 3x headroom for queue
+// insert -> LISTEN dispatch -> handler latency.
+const HEARTBEAT_ENQUEUE_INTERVAL_MS = 60_000;
+
+// Per-pool heartbeat task name prefix. The full task name appended with the
+// pool id (e.g. workerHeartbeat:scheduler-app) is registered only in that
+// pool's task list, so only that pool's runner processes its own heartbeat.
+// This makes the job-activity probe signal a true proof of THIS pool's
+// insert -> LISTEN -> handler pipeline, not a contention race with other
+// pools sharing the queue.
+const PER_POOL_HEARTBEAT_TASK_PREFIX = 'workerHeartbeat:';
 
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
@@ -52,12 +62,16 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected readonly workerHealth: SchedulerWorkerHealth;
 
-    private selfBeatInterval: NodeJS.Timeout | null = null;
+    private heartbeatEnqueueInterval: NodeJS.Timeout | null = null;
 
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
+    }
+
+    private get heartbeatTaskName(): string {
+        return `${PER_POOL_HEARTBEAT_TASK_PREFIX}${this.workerHealth.getPoolId()}`;
     }
 
     async run() {
@@ -93,38 +107,78 @@ export class SchedulerWorker extends SchedulerTask {
         });
 
         this.isRunning = true;
-        this.startSelfBeat();
+        this.startHeartbeatEnqueue();
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
         void this.runner.promise.finally(() => {
             this.isRunning = false;
-            this.stopSelfBeat();
+            this.stopHeartbeatEnqueue();
         });
     }
 
-    // The self-beat is a per-pool in-process timer that keeps this pool's
-    // workerHealth.lastJobActivityAt fresh. Required because the workerHeartbeat
-    // cron task previously used for this purpose can only be processed by ONE
-    // pool per minute when multiple scheduler pools share the queue — the other
-    // pool's health goes stale and trips a false-positive 503. The self-beat
-    // proves "this pool's event loop is alive and its workerHealth is reachable";
-    // queue-throughput proof is left to the LISTEN signal plus real job traffic.
-    private startSelfBeat() {
-        if (this.selfBeatInterval) return;
-        this.workerHealth.markJobActivity('self-beat');
-        this.selfBeatInterval = setInterval(() => {
-            this.workerHealth.markJobActivity('self-beat');
-        }, SELF_BEAT_INTERVAL_MS);
+    // Per-pool heartbeat strategy: every interval this pool inserts a job
+    // with a task name unique to itself (workerHeartbeat:<poolId>). Only this
+    // pool's task list registers a handler for that name, so only this pool's
+    // runner can fetch and execute it. The handler is a no-op — its purpose is
+    // to fire the job:start event listener (wireWorkerHealthEvents) which calls
+    // markJobActivity('job-event'). End result: lastJobActivityAt is a true
+    // signal that THIS pool's insert -> LISTEN -> handler pipeline is alive.
+    //
+    // If the pipeline breaks (e.g. corrupted pg client after Cloud SQL
+    // failover, the original incident this PR is meant to detect), the enqueue
+    // still succeeds but the job is never processed -> lastJobActivityAt ages
+    // past staleness -> probe trips -> kubelet restarts the pod.
+    //
+    // jobKey deduplicates: if the previous heartbeat is still pending, the new
+    // enqueue replaces its run_at rather than creating a second job. So a dead
+    // pool leaves at most ONE stale workerHeartbeat:* row in the queue.
+    private startHeartbeatEnqueue() {
+        if (this.heartbeatEnqueueInterval) return;
+        void this.enqueueOwnHeartbeat();
+        this.heartbeatEnqueueInterval = setInterval(() => {
+            void this.enqueueOwnHeartbeat();
+        }, HEARTBEAT_ENQUEUE_INTERVAL_MS);
         Logger.info(
-            `[scheduler-health] self-beat started poolId=${this.workerHealth.getPoolId()} intervalMs=${SELF_BEAT_INTERVAL_MS}`,
+            `[scheduler-health] heartbeat-enqueue started poolId=${this.workerHealth.getPoolId()} taskName=${this.heartbeatTaskName} intervalMs=${HEARTBEAT_ENQUEUE_INTERVAL_MS}`,
         );
     }
 
-    private stopSelfBeat() {
-        if (this.selfBeatInterval) {
-            clearInterval(this.selfBeatInterval);
-            this.selfBeatInterval = null;
+    private stopHeartbeatEnqueue() {
+        if (this.heartbeatEnqueueInterval) {
+            clearInterval(this.heartbeatEnqueueInterval);
+            this.heartbeatEnqueueInterval = null;
             Logger.info(
-                `[scheduler-health] self-beat stopped poolId=${this.workerHealth.getPoolId()}`,
+                `[scheduler-health] heartbeat-enqueue stopped poolId=${this.workerHealth.getPoolId()}`,
+            );
+        }
+    }
+
+    private async enqueueOwnHeartbeat() {
+        try {
+            const graphileClient = await this.schedulerClient.graphileUtils;
+            await graphileClient.addJob(
+                this.heartbeatTaskName,
+                {
+                    poolId: this.workerHealth.getPoolId(),
+                    enqueuedAt: new Date().toISOString(),
+                },
+                {
+                    // jobKey deduplicates so we never accumulate orphaned
+                    // heartbeats — at most one pending row per pool.
+                    jobKey: this.heartbeatTaskName,
+                    maxAttempts: 1,
+                },
+            );
+            Logger.debug(
+                `[scheduler-health] heartbeat-enqueued poolId=${this.workerHealth.getPoolId()}`,
+            );
+        } catch (e) {
+            // Enqueue failure is itself a signal — DB write path is broken.
+            // We log and let the next tick retry; if every tick fails for 3
+            // min, lastJobActivityAt will not refresh and the probe will trip.
+            Logger.warn(
+                `[scheduler-health] heartbeat-enqueue-failed poolId=${this.workerHealth.getPoolId()} error=${getErrorMessage(
+                    e,
+                )}`,
             );
         }
     }
@@ -184,13 +238,26 @@ export class SchedulerWorker extends SchedulerTask {
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
-        return Object.fromEntries(
+        const filteredTaskList = Object.fromEntries(
             Object.entries(this.getFullTaskList()).filter(
                 ([taskKey]) =>
                     isSchedulerTaskName(taskKey) &&
                     this.enabledTasks.includes(taskKey),
             ),
         );
+        // Register the per-pool heartbeat handler. The task name is dynamic
+        // (workerHeartbeat:<poolId>) so it isn't in SchedulerTaskName — cast
+        // the merged map to satisfy the typed shape. Only this pool registers
+        // this exact task name, so only this pool's runner can process it.
+        return {
+            ...filteredTaskList,
+            [this.heartbeatTaskName]: (async () => {
+                // No-op handler. Activity tracking happens via the job:start
+                // listener wired in wireWorkerHealthEvents. Successful execution
+                // of THIS specific task name proves this pool's full insert ->
+                // LISTEN -> handler pipeline is alive.
+            }) as TypedTaskList[keyof TypedTaskList],
+        } as Partial<TypedTaskList>;
     }
 
     protected getFullTaskList(): TypedTaskList {

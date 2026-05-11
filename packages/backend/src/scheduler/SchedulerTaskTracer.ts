@@ -195,11 +195,15 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
 } as const;
 
-// Generic accessor function
+// Generic accessor function. Returns {} for dynamic task names that aren't
+// in the static map (e.g. per-pool heartbeat tasks named workerHeartbeat:<id>).
 const getTagsFromPayload = <T extends SchedulerTaskName>(
     taskName: T,
     payload: TaskPayloadMap[T],
-): Record<string, string> => getTagsForTask[taskName](payload);
+): Record<string, string> => {
+    const tagFn = getTagsForTask[taskName];
+    return typeof tagFn === 'function' ? tagFn(payload) : {};
+};
 
 /**
  * Traces a task and adds tags to the Sentry span

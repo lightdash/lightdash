@@ -57,25 +57,20 @@ export class SchedulerWorkerHealth {
         }
     }
 
-    markJobActivity(source: 'self-beat' | 'job-event' = 'job-event') {
+    markJobActivity() {
         const now = Date.now();
         const ageMs =
             this.lastJobActivityAt === null
                 ? null
                 : now - this.lastJobActivityAt;
         this.lastJobActivityAt = now;
-        // Self-beat ticks are high-frequency (every 60s) — keep at debug.
-        // Job-event activity is more interesting because it proves end-to-end
-        // queue throughput on this specific pool.
-        if (source === 'self-beat') {
-            Logger.debug(
-                `[scheduler-health] self-beat poolId=${this.poolId} previousAgeMs=${ageMs}`,
-            );
-        } else {
-            Logger.debug(
-                `[scheduler-health] job-event poolId=${this.poolId} previousAgeMs=${ageMs}`,
-            );
-        }
+        // Only real job-processing activity reaches here (via the
+        // wireWorkerHealthEvents job:start/job:complete listeners). Successful
+        // processing proves this pool's full insert -> LISTEN -> handler
+        // pipeline is alive, which is the signal the probe actually relies on.
+        Logger.debug(
+            `[scheduler-health] job-event poolId=${this.poolId} previousAgeMs=${ageMs}`,
+        );
     }
 
     isHealthy(now: number = Date.now()): HealthCheckResult {
