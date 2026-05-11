@@ -1,4 +1,7 @@
-import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
+import {
+    derivePoolIdFromEnv,
+    SchedulerWorkerHealth,
+} from './SchedulerWorkerHealth';
 
 const GRACE_MS = 3 * 60_000;
 const LISTEN_BUDGET_MS = 60_000;
@@ -134,5 +137,79 @@ describe('SchedulerWorkerHealth', () => {
         const result = health.isHealthy(t + 5 * 60_000);
         expect(result.ok).toBe(false);
         expect(result.reason).toMatch(/^LISTEN connection lost/);
+    });
+});
+
+describe('derivePoolIdFromEnv — multi-replica uniqueness', () => {
+    it('prefers K8S_POD_NAME when present', () => {
+        const env: NodeJS.ProcessEnv = {
+            K8S_POD_NAME: 'scheduler-7df9c-abc12',
+            POD_NAME: 'fallback-name',
+            HOSTNAME: 'scheduler-7df9c-abc12',
+        };
+        expect(derivePoolIdFromEnv(env)).toBe('scheduler-7df9c-abc12');
+    });
+
+    it('falls back to POD_NAME when K8S_POD_NAME is unset', () => {
+        const env: NodeJS.ProcessEnv = {
+            POD_NAME: 'scheduler-7df9c-xyz98',
+            HOSTNAME: 'scheduler-7df9c-xyz98',
+        };
+        expect(derivePoolIdFromEnv(env)).toBe('scheduler-7df9c-xyz98');
+    });
+
+    it('falls back to HOSTNAME when no explicit downward-API binding exists', () => {
+        const env: NodeJS.ProcessEnv = {
+            HOSTNAME: 'scheduler-7df9c-mno55',
+        };
+        expect(derivePoolIdFromEnv(env)).toBe('scheduler-7df9c-mno55');
+    });
+
+    it('returns undefined when no pod-identity env vars are set', () => {
+        const env: NodeJS.ProcessEnv = {};
+        expect(derivePoolIdFromEnv(env)).toBeUndefined();
+    });
+
+    it('treats empty-string env vars as missing (avoids "" as a poolId)', () => {
+        const env: NodeJS.ProcessEnv = {
+            K8S_POD_NAME: '',
+            POD_NAME: '',
+            HOSTNAME: 'real-hostname-fallback',
+        };
+        expect(derivePoolIdFromEnv(env)).toBe('real-hostname-fallback');
+    });
+
+    it('produces distinct poolIds for two replicas with different pod names', () => {
+        // This is THE regression being guarded — pre-fix, both replicas
+        // received the same hardcoded 'scheduler-app' poolId.
+        const replicaA = derivePoolIdFromEnv({
+            HOSTNAME: 'scheduler-deployment-7df9c-aaa11',
+        });
+        const replicaB = derivePoolIdFromEnv({
+            HOSTNAME: 'scheduler-deployment-7df9c-bbb22',
+        });
+
+        expect(replicaA).toBe('scheduler-deployment-7df9c-aaa11');
+        expect(replicaB).toBe('scheduler-deployment-7df9c-bbb22');
+        expect(replicaA).not.toBe(replicaB);
+
+        // And the downstream task names that drive the per-pool routing
+        // must also differ — this is what graphile-worker uses to decide
+        // which runner can fetch a given workerHeartbeat:* job.
+        const taskA = `workerHeartbeat:${replicaA}`;
+        const taskB = `workerHeartbeat:${replicaB}`;
+        expect(taskA).not.toBe(taskB);
+    });
+
+    it('uses the random fallback when env yields nothing — distinct replicas still differ', () => {
+        // SchedulerApp passes `derivePoolIdFromEnv()` straight into the
+        // constructor. When the helper returns undefined (e.g. local dev,
+        // test environments), the constructor's random fallback kicks in
+        // and uniqueness is still preserved per process.
+        const a = new SchedulerWorkerHealth(derivePoolIdFromEnv({}));
+        const b = new SchedulerWorkerHealth(derivePoolIdFromEnv({}));
+        expect(a.getPoolId()).toMatch(/^[a-z0-9]+$/);
+        expect(b.getPoolId()).toMatch(/^[a-z0-9]+$/);
+        expect(a.getPoolId()).not.toBe(b.getPoolId());
     });
 });

@@ -18,7 +18,10 @@ import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import schedulerWorkerEventEmitter, {
     wireWorkerHealthEvents,
 } from './scheduler/SchedulerWorkerEventEmitter';
-import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
+import {
+    derivePoolIdFromEnv,
+    SchedulerWorkerHealth,
+} from './scheduler/SchedulerWorkerHealth';
 import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
@@ -206,7 +209,14 @@ export default class SchedulerApp {
     }
 
     private async initWorker() {
-        const workerHealth = new SchedulerWorkerHealth('scheduler-app');
+        // Per-replica unique poolId from pod environment. Without uniqueness,
+        // every replica registers the SAME workerHeartbeat:<poolId> task
+        // name and only one replica's runner ever wins the dedup'd heartbeat
+        // job — the others' lastJobActivityAt ages past staleness and their
+        // probes trip in cascade. See derivePoolIdFromEnv for the lookup
+        // chain; falls through to SchedulerWorkerHealth's random id when no
+        // pod env vars are set (local dev, tests).
+        const workerHealth = new SchedulerWorkerHealth(derivePoolIdFromEnv());
         wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
