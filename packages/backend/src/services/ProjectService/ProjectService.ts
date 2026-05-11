@@ -3160,7 +3160,11 @@ export class ProjectService extends BaseService {
         warehouseSqlBuilder: WarehouseSqlBuilder,
         availableParameters: string[],
         dateZoom?: DateZoom,
-    ): { explore: Explore; dateZoomApplied: boolean } {
+    ): {
+        explore: Explore;
+        dateZoomApplied: boolean;
+        dateZoomTargetFieldId?: string;
+    } {
         if (dateZoom?.granularity) {
             const allDimensionsMap = getAllDimensionsMap(explore);
             const timeDimensionsMap = getTimeDimensionsMap(explore);
@@ -3220,6 +3224,7 @@ export class ProjectService extends BaseService {
                                 dimWithCustomOverride,
                             ),
                             dateZoomApplied: true,
+                            dateZoomTargetFieldId: timeOrDateDimension,
                         };
                     }
                     // Custom granularity not found — return unchanged explore
@@ -3240,6 +3245,7 @@ export class ProjectService extends BaseService {
                             dimWithGranularityOverride,
                         ),
                         dateZoomApplied: true,
+                        dateZoomTargetFieldId: timeOrDateDimension,
                     };
                 }
             }
@@ -3262,6 +3268,7 @@ export class ProjectService extends BaseService {
         continueOnError,
         useTimezoneAwareDateTrunc,
         columnTimezone,
+        applyDateZoomToFilters,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -3277,17 +3284,26 @@ export class ProjectService extends BaseService {
         continueOnError?: boolean;
         useTimezoneAwareDateTrunc?: boolean;
         columnTimezone?: string;
+        /**
+         * When true, WHERE filter rules targeting the date-zoom dimension are
+         * compiled against the zoom-rewritten SQL (e.g. DATE_TRUNC('MONTH', ...)).
+         * Only safe on the underlying-data path where filters are solely click-filters.
+         */
+        applyDateZoomToFilters?: boolean;
     }): Promise<CompiledQuery> {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
-        const { explore: exploreWithOverride } =
-            ProjectService.updateExploreWithDateZoom(
-                explore,
-                metricQuery,
-                warehouseSqlBuilder,
-                availableParameters,
-                dateZoom,
-            );
+        const {
+            explore: exploreWithOverride,
+            dateZoomApplied,
+            dateZoomTargetFieldId,
+        } = ProjectService.updateExploreWithDateZoom(
+            explore,
+            metricQuery,
+            warehouseSqlBuilder,
+            availableParameters,
+            dateZoom,
+        );
 
         const compiledMetricQuery = compileMetricQuery({
             explore: exploreWithOverride,
@@ -3309,6 +3325,10 @@ export class ProjectService extends BaseService {
             pivotDimensions,
             continueOnError,
             originalExplore: dateZoom ? explore : undefined,
+            dateZoomFilterTargetFieldId:
+                applyDateZoomToFilters && dateZoomApplied
+                    ? dateZoomTargetFieldId
+                    : undefined,
             useTimezoneAwareDateTrunc,
             columnTimezone,
         });

@@ -133,6 +133,12 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
+    /**
+     * FieldId of the date-zoom-rewritten dimension. When set, WHERE filter
+     * rules targeting this field are compiled against the zoom-rewritten SQL
+     * so the click-filter grain matches the zoom grain (PROD-880).
+     */
+    dateZoomFilterTargetFieldId?: string;
     /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
     useTimezoneAwareDateTrunc?: boolean;
     /** Timezone the column data is in — source for the timezone-aware wrap.
@@ -1404,8 +1410,17 @@ export class MetricQueryBuilder {
         }
 
         // Use the original (pre-date-zoom) explore for filter dimension lookups
-        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd expressions
-        const filterExplore = this.args.originalExplore ?? explore;
+        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd
+        // expressions. PROD-880: if caller opted in and this filter targets the
+        // zoom dimension, use the zoomed explore.
+        const isZoomedFilterField =
+            fieldType === FieldType.DIMENSION &&
+            this.args.dateZoomFilterTargetFieldId !== undefined &&
+            filterRuleWithParamReplacedValues.target.fieldId ===
+                this.args.dateZoomFilterTargetFieldId;
+        const filterExplore = isZoomedFilterField
+            ? explore
+            : (this.args.originalExplore ?? explore);
         const field =
             fieldType === FieldType.DIMENSION
                 ? [

@@ -2847,6 +2847,7 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         materializationRole,
         columnTimezone,
+        applyDateZoomToFilters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -2861,6 +2862,12 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
         columnTimezone?: string;
+        /**
+         * Opt-in: rewrite WHERE filter LHS to use the zoom-grain dimension
+         * for the filter that targets the zoom-rewritten field. Only the
+         * underlying-data path sets this (PROD-880). See `_compileQuery` doc.
+         */
+        applyDateZoomToFilters?: boolean;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -2904,6 +2911,7 @@ export class AsyncQueryService extends ProjectService {
             pivotDimensions: metricQuery.pivotDimensions,
             useTimezoneAwareDateTrunc,
             columnTimezone,
+            applyDateZoomToFilters,
         });
 
         const resolvedMetricOverrides =
@@ -4745,6 +4753,8 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            // PROD-880: rewrite WHERE LHS to zoom grain (safe here — filters are click-only)
+            applyDateZoomToFilters: true,
         });
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =

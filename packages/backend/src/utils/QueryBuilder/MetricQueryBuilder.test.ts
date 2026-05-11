@@ -4357,6 +4357,87 @@ describe('Date zoom with filters', () => {
         expect(result.query).toContain('"orders".created_at');
         expect(result.query).not.toContain('DATE_TRUNC');
     });
+
+    // PROD-880: WHERE LHS uses zoom grain when filter targets the zoom dim
+    test('Should use zoomed dim in WHERE for filter targeting dateZoomFilterTargetFieldId', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+            dateZoomFilterTargetFieldId: 'orders_created_at',
+        });
+
+        // SELECT uses zoom grain
+        expect(result.query).toContain(
+            `DATE_TRUNC('month', "orders".created_at) AS "orders_created_at"`,
+        );
+        // WHERE LHS also uses zoom grain (the fix)
+        expect(result.query).toContain(
+            `(DATE_TRUNC('month', "orders".created_at)) >= ('2024-09-01')`,
+        );
+        expect(result.query).toContain(
+            `(DATE_TRUNC('month', "orders".created_at)) <= ('2024-09-04')`,
+        );
+        // No raw column comparison should remain in the WHERE
+        expect(result.query).not.toContain(
+            `("orders".created_at) >= ('2024-09-01')`,
+        );
+    });
+
+    // PROD-880: guards against #12615 — range bounds must not collapse to the same value
+    test('Should preserve distinct bounds on inBetween filter after zoom rewrite', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+            dateZoomFilterTargetFieldId: 'orders_created_at',
+        });
+
+        // Upper bound must NOT have been mutated to match the lower bound.
+        expect(result.query).toContain(`('2024-09-04')`);
+        expect(result.query).not.toMatch(
+            />= \('2024-09-01'\)[\s\S]*<= \('2024-09-01'\)/,
+        );
+    });
+
+    // PROD-880: filters on non-zoom fields stay at raw grain
+    test('Should leave filters on non-zoom fields targeting the raw column', () => {
+        const metricQueryWithUnrelatedFilter: CompiledMetricQuery = {
+            ...METRIC_QUERY_WITH_DATE_FILTER,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: { fieldId: 'orders_order_id' },
+                            operator: FilterOperator.EQUALS,
+                            values: [42],
+                        },
+                    ],
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: metricQueryWithUnrelatedFilter,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+            dateZoomFilterTargetFieldId: 'orders_created_at',
+        });
+
+        expect(result.query).toContain(`"orders".order_id`);
+        expect(result.query).toMatch(/order_id.*IN \(42\)|order_id.*= \(42\)/);
+    });
 });
 
 describe('Default sort behavior', () => {
