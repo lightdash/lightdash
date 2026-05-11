@@ -9,7 +9,7 @@ endpoints:
 
 services:
     db-preview:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         restart: always
         environment:
             - POSTGRES_PASSWORD=${PGPASSWORD}
