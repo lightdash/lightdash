@@ -56,7 +56,7 @@ const FilterDateTimePicker: FC<Props> = ({
         metricQueryTimezone ?? project?.queryTimezone ?? undefined;
     const projectTimezone =
         enableTimezoneSupportFlag?.enabled &&
-        project?.useProjectTimezoneInFilters === true &&
+        project?.useProjectTimezoneInFilters &&
         candidateTimezone &&
         isValidTimezone(candidateTimezone)
             ? candidateTimezone
