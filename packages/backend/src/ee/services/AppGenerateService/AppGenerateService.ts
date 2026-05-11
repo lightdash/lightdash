@@ -9,6 +9,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     FeatureFlags,
     ForbiddenError,
     formatPromptWithClarifications,
@@ -64,6 +65,7 @@ import type { SpacePermissionService } from '../../../services/SpaceService/Spac
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
+import { ClaudeStreamProcessor } from './ClaudeStreamProcessor';
 import { getTemplateInstructions } from './templates';
 
 type AppGenerateServiceDeps = {
@@ -1117,50 +1119,6 @@ export class AppGenerateService extends BaseService {
         return sandboxPath;
     }
 
-    /**
-     * Parse a stream-json line from the Claude CLI and return a short
-     * description of tool_use events. Returns undefined for non-tool events.
-     */
-    private static parseClaudeStreamEvent(line: string): string | undefined {
-        let event: Record<string, unknown>;
-        try {
-            event = JSON.parse(line);
-        } catch {
-            return undefined;
-        }
-        if (event.type !== 'assistant') return undefined;
-
-        const msg = event.message as Record<string, unknown> | undefined;
-        const content = (msg?.content ?? []) as Array<Record<string, unknown>>;
-        const tools: string[] = [];
-        for (const block of content) {
-            if (block.type === 'tool_use') {
-                const name = String(block.name ?? '');
-                const input = (block.input ?? {}) as Record<string, unknown>;
-                if (name === 'Write' || name === 'Read' || name === 'Edit') {
-                    tools.push(`${name} ${String(input.file_path ?? '')}`);
-                } else {
-                    tools.push(name);
-                }
-            }
-        }
-        return tools.length > 0 ? tools.join(', ') : undefined;
-    }
-
-    /**
-     * Parse a stream-json `result` event and return the final response text.
-     */
-    private static parseClaudeResultText(line: string): string | undefined {
-        let event: Record<string, unknown>;
-        try {
-            event = JSON.parse(line);
-        } catch {
-            return undefined;
-        }
-        if (event.type !== 'result') return undefined;
-        return typeof event.result === 'string' ? event.result : undefined;
-    }
-
     private static readonly CODING_PHRASES = [
         'Shipping BI like we ship code',
         'Turning your metrics into pixels',
@@ -1217,8 +1175,7 @@ export class AppGenerateService extends BaseService {
         toolCallCount: number;
     }> {
         const start = performance.now();
-        let stdoutBuffer = '';
-        let toolCallCount = 0;
+        const processor = new ClaudeStreamProcessor();
         let responseText: string | null = null;
 
         // When the sandbox was resumed from a previous iteration, use
@@ -1229,7 +1186,7 @@ export class AppGenerateService extends BaseService {
         const result = await sandbox.commands.run(
             `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
                 `--model sonnet ` +
-                `--verbose --output-format stream-json ` +
+                `--verbose --output-format stream-json --include-partial-messages ` +
                 `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
                 `--append-system-prompt-file /app/skill.md`,
             {
@@ -1237,41 +1194,51 @@ export class AppGenerateService extends BaseService {
                 timeoutMs: 55 * 60 * 1000,
                 envs: { ANTHROPIC_API_KEY: anthropicApiKey },
                 onStdout: (chunk) => {
-                    stdoutBuffer += chunk;
-                    const lines = stdoutBuffer.split('\n');
-                    stdoutBuffer = lines.pop() ?? '';
-                    for (const line of lines) {
-                        if (line.trim()) {
-                            const description =
-                                AppGenerateService.parseClaudeStreamEvent(line);
-                            if (description) {
-                                toolCallCount += 1;
+                    for (const event of processor.feedChunk(chunk)) {
+                        switch (event.kind) {
+                            case 'thinking_started':
                                 this.logger.info(
-                                    `App ${appUuid}: claude tool #${toolCallCount}: ${description}`,
+                                    `App ${appUuid}: claude turn #${event.turn}: thinking`,
                                 );
-
+                                this.updateAppStatus(
+                                    appUuid,
+                                    version,
+                                    'Thinking',
+                                );
+                                break;
+                            case 'thinking_snippet':
+                                this.updateAppStatus(
+                                    appUuid,
+                                    version,
+                                    event.snippet,
+                                );
+                                break;
+                            case 'tool_use': {
+                                this.logger.info(
+                                    `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
+                                );
                                 // description can be comma-separated
                                 // (e.g. "Write foo.tsx, Read bar.tsx") —
                                 // use only the first tool for the status.
-                                const firstTool = description.split(', ')[0];
-                                const msg =
+                                const firstTool =
+                                    event.description.split(', ')[0];
+                                this.updateAppStatus(
+                                    appUuid,
+                                    version,
                                     AppGenerateService.toolDescriptionToStatusMessage(
                                         firstTool,
-                                    );
-                                void this.appModel
-                                    .updateStatusMessage(appUuid, version, msg)
-                                    .catch((e) => {
-                                        this.logger.warn(
-                                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
-                                        );
-                                    });
+                                    ),
+                                );
+                                break;
                             }
-
-                            const resultText =
-                                AppGenerateService.parseClaudeResultText(line);
-                            if (resultText) {
-                                responseText = resultText;
-                            }
+                            case 'result_text':
+                                responseText = event.text;
+                                break;
+                            default:
+                                assertUnreachable(
+                                    event,
+                                    'Unhandled Claude stream event',
+                                );
                         }
                     }
                 },
@@ -1282,6 +1249,7 @@ export class AppGenerateService extends BaseService {
                 },
             },
         );
+        const toolCallCount = processor.totalToolCalls;
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms)`,
@@ -1296,6 +1264,25 @@ export class AppGenerateService extends BaseService {
             );
         }
         return { durationMs, responseText, toolCallCount };
+    }
+
+    /**
+     * Fire-and-forget app status message update. Logs (but does not propagate)
+     * failures so transient DB errors during a long generation don't kill the
+     * pipeline.
+     */
+    private updateAppStatus(
+        appUuid: string,
+        version: number,
+        message: string,
+    ): void {
+        void this.appModel
+            .updateStatusMessage(appUuid, version, message)
+            .catch((e) => {
+                this.logger.warn(
+                    `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                );
+            });
     }
 
     /**

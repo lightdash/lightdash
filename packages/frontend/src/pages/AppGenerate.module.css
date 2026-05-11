@@ -83,6 +83,15 @@
     font-family: inherit !important;
 }
 
+.markdownDimmed,
+.markdownDimmed * {
+    color: var(--mantine-color-dimmed) !important;
+}
+
+.markdownInline p {
+    margin: 0 !important;
+}
+
 .chatInputArea {
     flex-shrink: 0;
     padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 20px;

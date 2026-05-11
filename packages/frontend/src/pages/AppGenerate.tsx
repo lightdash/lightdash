@@ -1632,13 +1632,48 @@ const AppGenerate: FC = () => {
                                                         classes.assistantBubble
                                                     }
                                                 >
-                                                    <Text size="sm" c="dimmed">
-                                                        {isClarifying
-                                                            ? 'Hold tight, I may have some questions before starting'
-                                                            : (latestBuildingVersion?.statusMessage ??
-                                                              'Generating your app')}{' '}
-                                                        <LoadingDots />
-                                                    </Text>
+                                                    {isClarifying ? (
+                                                        <Text
+                                                            size="sm"
+                                                            c="dimmed"
+                                                        >
+                                                            Hold tight, I may
+                                                            have some questions
+                                                            before starting{' '}
+                                                            <LoadingDots />
+                                                        </Text>
+                                                    ) : latestBuildingVersion?.statusMessage ? (
+                                                        <ReactMarkdownPreview
+                                                            source={
+                                                                latestBuildingVersion.statusMessage
+                                                            }
+                                                            className={`${classes.markdown} ${classes.markdownDimmed} ${classes.markdownInline}`}
+                                                            components={{
+                                                                p: ({
+                                                                    node: _node,
+                                                                    children,
+                                                                    ...rest
+                                                                }) => (
+                                                                    <p
+                                                                        {...rest}
+                                                                    >
+                                                                        {
+                                                                            children
+                                                                        }{' '}
+                                                                        <LoadingDots />
+                                                                    </p>
+                                                                ),
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <Text
+                                                            size="sm"
+                                                            c="dimmed"
+                                                        >
+                                                            Generating your app{' '}
+                                                            <LoadingDots />
+                                                        </Text>
+                                                    )}
                                                 </Box>
                                             </Box>
                                         )
