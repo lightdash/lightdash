@@ -39,6 +39,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { toSessionUser } from '../auth/account';
+import Logger from '../logging/logger';
 import { UserModel } from '../models/UserModel';
 import {
     allowApiKeyAuthentication,
@@ -254,10 +255,16 @@ export class UserController extends BaseController {
                 userAgent: req.get('user-agent'),
             });
 
-        await new Promise<void>((resolve, reject) => {
+        // Membership has already been removed and DB sessions wiped above.
+        // Soft-fail this in-memory session destroy so a callback error doesn't
+        // mask the successful leave from the client.
+        await new Promise<void>((resolve) => {
             req.session.destroy((err) => {
                 if (err) {
-                    reject(err);
+                    Logger.error(
+                        'Failed to destroy session after leaving organization',
+                        { error: err },
+                    );
                 }
                 resolve();
             });
