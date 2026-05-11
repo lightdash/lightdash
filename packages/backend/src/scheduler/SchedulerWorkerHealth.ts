@@ -59,5 +59,3 @@ export class SchedulerWorkerHealth {
         return { ok: true };
     }
 }
-
-export const schedulerWorkerHealth = new SchedulerWorkerHealth();

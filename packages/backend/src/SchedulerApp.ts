@@ -15,7 +15,10 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
-import { schedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
+import schedulerWorkerEventEmitter, {
+    wireWorkerHealthEvents,
+} from './scheduler/SchedulerWorkerEventEmitter';
+import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
 import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
@@ -47,6 +50,7 @@ const schedulerWorkerFactory = (context: {
     models: ModelRepository;
     clients: ClientRepository;
     utils: UtilRepository;
+    workerHealth: SchedulerWorkerHealth;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -77,6 +81,7 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        workerHealth: context.workerHealth,
     });
 
 export default class SchedulerApp {
@@ -182,9 +187,9 @@ export default class SchedulerApp {
             return this.toString();
         };
         await this.initSentry();
-        const worker = await this.initWorker();
+        const { worker, workerHealth } = await this.initWorker();
         this.prometheusMetrics.monitorQueues(this.clients.getSchedulerClient());
-        await this.initServer(worker);
+        await this.initServer(worker, workerHealth);
     }
 
     private async initSentry() {
@@ -201,6 +206,8 @@ export default class SchedulerApp {
     }
 
     private async initWorker() {
+        const workerHealth = new SchedulerWorkerHealth();
+        wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
@@ -208,12 +215,16 @@ export default class SchedulerApp {
             models: this.models,
             clients: this.clients,
             utils: this.utils,
+            workerHealth,
         });
         await worker.run();
-        return worker;
+        return { worker, workerHealth };
     }
 
-    private async initServer(worker: SchedulerWorker) {
+    private async initServer(
+        worker: SchedulerWorker,
+        workerHealth: SchedulerWorkerHealth,
+    ) {
         const app = express();
         const server = http.createServer(app);
 
@@ -221,7 +232,7 @@ export default class SchedulerApp {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
             healthChecks: {
                 '/api/v1/health': () => {
-                    const status = schedulerWorkerHealth.isHealthy();
+                    const status = workerHealth.isHealthy();
                     if (worker?.runner && worker.isRunning && status.ok) {
                         return Promise.resolve('Scheduler worker is running');
                     }

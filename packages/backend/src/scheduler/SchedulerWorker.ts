@@ -22,8 +22,12 @@ import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
-import { schedulerWorkerHealth } from './SchedulerWorkerHealth';
+import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
+
+export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    workerHealth: SchedulerWorkerHealth;
+};
 
 const workerLogger = new GraphileLogger(
     (scope) => (logLevel, message, meta) => {
@@ -42,9 +46,12 @@ export class SchedulerWorker extends SchedulerTask {
 
     enabledTasks: Array<SchedulerTaskName>;
 
-    constructor(schedulerTaskArgs: SchedulerTaskArguments & {}) {
-        super(schedulerTaskArgs);
+    protected readonly workerHealth: SchedulerWorkerHealth;
+
+    constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
+        super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
+        this.workerHealth = schedulerWorkerArgs.workerHealth;
     }
 
     async run() {
@@ -1151,7 +1158,7 @@ export class SchedulerWorker extends SchedulerTask {
                 // EE-only: implemented in CommercialSchedulerWorker
             },
             [SCHEDULER_TASKS.WORKER_HEARTBEAT]: async () => {
-                schedulerWorkerHealth.markJobActivity();
+                this.workerHealth.markJobActivity();
             },
         };
     }

@@ -9,8 +9,10 @@ import {
 import Logger from '../../logging/logger';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
-import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
-import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
+import {
+    SchedulerWorker,
+    SchedulerWorkerArguments,
+} from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
@@ -20,7 +22,7 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
-type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
+type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;

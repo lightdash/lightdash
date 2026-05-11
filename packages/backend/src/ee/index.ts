@@ -518,6 +518,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:
                     context.serviceRepository.getAppGenerateService(),
+                workerHealth: context.workerHealth,
             }),
         clientProviders: {
             schedulerClient: ({ context, models }) =>

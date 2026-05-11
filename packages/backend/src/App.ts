@@ -74,6 +74,10 @@ import {
     oauthProtectedResourceHandler,
 } from './routers/oauthRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import schedulerWorkerEventEmitter, {
+    wireWorkerHealthEvents,
+} from './scheduler/SchedulerWorkerEventEmitter';
+import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import {
     OperationContext,
@@ -114,6 +118,7 @@ const schedulerWorkerFactory = (context: {
     models: ModelRepository;
     clients: ClientRepository;
     utils: UtilRepository;
+    workerHealth: SchedulerWorkerHealth;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -144,6 +149,7 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        workerHealth: context.workerHealth,
     });
 
 export type AppArguments = {
@@ -888,6 +894,8 @@ export default class App {
     }
 
     private initSchedulerWorker() {
+        const workerHealth = new SchedulerWorkerHealth();
+        wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         this.schedulerWorker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
             analytics: this.analytics,
@@ -895,6 +903,7 @@ export default class App {
             models: this.models,
             clients: this.clients,
             utils: this.utils,
+            workerHealth,
         });
 
         this.schedulerWorker.run().catch((e) => {
