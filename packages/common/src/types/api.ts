@@ -518,7 +518,6 @@ export type HealthState = {
         enabled: boolean;
     };
     dataApps: {
-        enabled: boolean;
         /**
          * Origin where data-app preview iframes are served (e.g.,
          * `https://analytics.lightdash.app`). Used by the frontend to construct

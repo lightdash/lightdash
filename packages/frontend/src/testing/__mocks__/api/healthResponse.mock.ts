@@ -138,7 +138,6 @@ export default function mockHealthResponse(
             enabled: false,
         },
         dataApps: {
-            enabled: false,
             previewOrigin: null,
         },
         ...overrides,

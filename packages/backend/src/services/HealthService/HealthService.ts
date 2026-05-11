@@ -239,7 +239,6 @@ export class HealthService extends BaseService {
                 enabled: this.lightdashConfig.preAggregates.enabled,
             },
             dataApps: {
-                enabled: this.lightdashConfig.appRuntime.enabled,
                 previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
             },
         };
