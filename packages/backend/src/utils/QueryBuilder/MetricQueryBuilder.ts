@@ -3176,33 +3176,29 @@ export class MetricQueryBuilder {
 
             if (hasRawDep) {
                 // Mixed metric: replace aggregate dep refs with CTE 1 column
-                // refs manually, then let compileMetricSql resolve raw refs
-                // and ${TABLE} refs against the base table (which is in scope
-                // in CTE 3).
-                let mixedSql = preSql;
-                for (const [depId, depMetric] of aggregateInnerDeps) {
-                    const escapedName = depMetric.name.replace(
-                        /[.*+?^${}()|[\]\\]/g,
-                        '\\$&',
-                    );
-                    const escapedTable = depMetric.table.replace(
-                        /[.*+?^${}()|[\]\\]/g,
-                        '\\$&',
-                    );
-                    const cteRef = `${naCteName}.${fieldQuoteChar}${depId}${fieldQuoteChar}`;
-                    mixedSql = mixedSql
-                        .replace(
-                            new RegExp(`\\$\\{${escapedName}\\}`, 'g'),
-                            cteRef,
-                        )
-                        .replace(
-                            new RegExp(
-                                `\\$\\{${escapedTable}\\.${escapedName}\\}`,
-                                'g',
-                            ),
-                            cteRef,
+                // refs, then let compileMetricSql resolve raw refs and
+                // ${TABLE} refs against the base table (which is in scope in
+                // CTE 3). Resolve each ${ref} via getParsedReference so the
+                // short form ${name} maps to the outer metric's own table —
+                // not to a same-named metric on a joined table (PROD-7503).
+                const mixedSql = preSql.replace(
+                    lightdashVariablePattern,
+                    (fullMatch, ref) => {
+                        if (ref === 'TABLE') return fullMatch;
+                        const { refTable, refName } = getParsedReference(
+                            ref,
+                            outerMetric.table,
                         );
-                }
+                        const refItemId = getItemId({
+                            table: refTable,
+                            name: refName,
+                        });
+                        if (aggregateInnerDeps.has(refItemId)) {
+                            return `${naCteName}.${fieldQuoteChar}${refItemId}${fieldQuoteChar}`;
+                        }
+                        return fullMatch;
+                    },
+                );
 
                 // Compile remaining refs (raw metric refs, ${TABLE}, dimensions)
                 // against the explore tables — they resolve to base table columns.

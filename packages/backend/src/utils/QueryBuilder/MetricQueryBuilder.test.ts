@@ -26,6 +26,7 @@ import {
 import {
     bigqueryClientMock,
     EXPLORE,
+    EXPLORE_NESTED_AGG_NAME_COLLISION,
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
@@ -53,6 +54,7 @@ import {
     METRIC_QUERY_NESTED_AGG_MIXED_RAW,
     METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_MIXED_RAW_WITH_PURE,
+    METRIC_QUERY_NESTED_AGG_NAME_COLLISION,
     METRIC_QUERY_NESTED_AGG_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_PRODUCT,
     METRIC_QUERY_NESTED_AGG_RAW_COL,
@@ -4942,6 +4944,40 @@ describe('Nested aggregate metrics', () => {
         expect(result.query.match(/AS "my_table_max_value"/g)).toHaveLength(1);
         // The outer metric should appear once via nested_agg_results
         expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
+    });
+
+    test('should resolve short-form metric refs against the outer metric table when a joined table has a same-named aggregate (PROD-7503)', () => {
+        // Repro: base table has a hidden helper `met_active_customers`
+        // (raw column). Joined table has an aggregate metric with the SAME
+        // name. The outer mixed metric `met_active_customers_agg` on the
+        // base table uses `${met_active_customers}` (short form) which must
+        // resolve to the base table's raw helper — NOT the joined table's
+        // pre-computed AVG in the nested_agg CTE.
+        const result = buildQuery({
+            explore: EXPLORE_NESTED_AGG_NAME_COLLISION,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_NAME_COLLISION,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The mixed CTE's MAX_BY must reference the base table's raw column,
+        // not the joined table's pre-aggregated value.
+        // (compileMetricReference wraps resolved refs in parens.)
+        expect(result.query).toContain(
+            'MAX_BY(("base_tbl".active_customers), ("base_tbl".updated_on))',
+        );
+        // Negative: the buggy SQL referenced the joined table's CTE column
+        // as the first argument to MAX_BY.
+        expect(result.query).not.toMatch(
+            /MAX_BY\(\s*nested_agg\."joined_tbl_met_active_customers"/,
+        );
+
+        // The pure-agg goal metric should still resolve correctly to the
+        // joined-table CTE column.
+        expect(result.query).toContain(
+            'nested_agg."joined_tbl_met_active_customers" AS "base_tbl_met_active_customers_goal"',
+        );
     });
 });
 
