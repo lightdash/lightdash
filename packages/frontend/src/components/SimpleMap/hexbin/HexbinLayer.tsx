@@ -1,4 +1,8 @@
-import { MapHexbinSizingMode } from '@lightdash/common';
+import {
+    MapHexbinAggregation,
+    MapHexbinSizingMode,
+    MapHexbinValueBasis,
+} from '@lightdash/common';
 import { scaleLinear } from 'd3-scale';
 import type * as L from 'leaflet';
 import { useEffect, useMemo, useState } from 'react';
@@ -20,10 +24,36 @@ type Props = {
     sizingMode: MapHexbinSizingMode;
     /** Used when sizingMode === FIXED. */
     fixedResolution: number;
+    valueBasis: MapHexbinValueBasis;
+    aggregation: MapHexbinAggregation;
     showEmptyBins: boolean;
     /** Empty-bin fill color, hex6 or hex8, or null = outline-only. */
     emptyBinColor: string | null;
     onTruncated?: (info: { totalPoints: number } | null) => void;
+};
+
+/** Pull the right per-bin number for the active aggregation. */
+const aggValue = (
+    bin: {
+        sum: number | null;
+        min: number | null;
+        max: number | null;
+        avg: number | null;
+    },
+    agg: MapHexbinAggregation,
+): number | null => {
+    switch (agg) {
+        case MapHexbinAggregation.SUM:
+            return bin.sum;
+        case MapHexbinAggregation.AVG:
+            return bin.avg;
+        case MapHexbinAggregation.MIN:
+            return bin.min;
+        case MapHexbinAggregation.MAX:
+            return bin.max;
+        default:
+            return null;
+    }
 };
 
 const EMPTY_BIN_STROKE = '#6c757d';
@@ -54,6 +84,8 @@ const HexbinLayer = ({
     valueFieldLabel,
     sizingMode,
     fixedResolution,
+    valueBasis,
+    aggregation,
     showEmptyBins,
     emptyBinColor,
     onTruncated,
@@ -108,17 +140,16 @@ const HexbinLayer = ({
         }
     }, [populatedResult.truncated, populatedResult.totalPoints, onTruncated]);
 
-    // Color by sum if any populated bin has a numeric sum, else fall back to count.
-    const colorBy: 'sum' | 'count' = useMemo(
-        () => (populatedBins.some((b) => b.sum !== null) ? 'sum' : 'count'),
-        [populatedBins],
-    );
+    // Drive the per-bin metric explicitly from the user's choice. When
+    // valueBasis = FIELD we use whichever aggregation they selected; otherwise
+    // we color by count of points per cell.
+    const isFieldColor = valueBasis === MapHexbinValueBasis.FIELD;
+    const metricFor = (bin: HexBin): number =>
+        isFieldColor ? (aggValue(bin, aggregation) ?? 0) : bin.count;
 
     const scale = useMemo(() => {
         if (populatedBins.length === 0) return null;
-        const values = populatedBins.map((b) =>
-            colorBy === 'sum' ? (b.sum ?? 0) : b.count,
-        );
+        const values = populatedBins.map(metricFor);
         const min = Math.min(...values);
         const max = Math.max(...values);
         const stops = Math.max(colorScale.length - 1, 1);
@@ -129,7 +160,9 @@ const HexbinLayer = ({
             .domain(domain)
             .range(colorScale)
             .clamp(true);
-    }, [populatedBins, colorScale, colorBy]);
+        // metricFor closes over isFieldColor + aggregation; deps cover those.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [populatedBins, colorScale, isFieldColor, aggregation]);
 
     if (!scale || populatedBins.length === 0) return null;
 
@@ -152,8 +185,7 @@ const HexbinLayer = ({
                 )),
             )}
             {populatedBins.flatMap((bin: HexBin) => {
-                const metric = colorBy === 'sum' ? (bin.sum ?? 0) : bin.count;
-                const color = scale(metric);
+                const color = scale(metricFor(bin));
                 return bin.rings.map((ring, ringIdx) => (
                     <Polygon
                         key={`${bin.h3Index}-${ringIdx}`}
@@ -169,14 +201,14 @@ const HexbinLayer = ({
                         <Tooltip sticky>
                             <div>
                                 <div>Count: {bin.count}</div>
-                                {bin.sum !== null && (
-                                    <div>
-                                        {valueFieldLabel
-                                            ? `${valueFieldLabel} (sum)`
-                                            : 'Sum'}
-                                        : {bin.sum}
-                                    </div>
-                                )}
+                                {isFieldColor &&
+                                    aggValue(bin, aggregation) !== null && (
+                                        <div>
+                                            {valueFieldLabel ?? 'Value'} (
+                                            {aggregation}):{' '}
+                                            {aggValue(bin, aggregation)}
+                                        </div>
+                                    )}
                             </div>
                         </Tooltip>
                     </Polygon>

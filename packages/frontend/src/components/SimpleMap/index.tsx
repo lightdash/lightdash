@@ -1040,6 +1040,12 @@ const SimpleMap: FC<SimpleMapProps> = memo(
                                     fixedResolution={
                                         mapConfig.hexbinConfig.fixedResolution
                                     }
+                                    valueBasis={
+                                        mapConfig.hexbinConfig.valueBasis
+                                    }
+                                    aggregation={
+                                        mapConfig.hexbinConfig.aggregation
+                                    }
                                     showEmptyBins={
                                         mapConfig.hexbinConfig.showEmptyBins
                                     }

@@ -3,7 +3,9 @@ import {
     isNumericItem,
     MapChartLocation,
     MapChartType,
+    MapHexbinAggregation,
     MapHexbinSizingMode,
+    MapHexbinValueBasis,
     MapTileBackground,
     type MapFieldConfig,
 } from '@lightdash/common';
@@ -82,6 +84,8 @@ export type LeafletMapConfig = {
         sizingMode: MapHexbinSizingMode;
         /** Resolution to use when sizingMode === FIXED. */
         fixedResolution: number;
+        valueBasis: MapHexbinValueBasis;
+        aggregation: MapHexbinAggregation;
         showEmptyBins: boolean;
         /** Hex6 or hex8 color string for empty-bin fill, or null = outline only. */
         emptyBinColor: string | null;
@@ -602,6 +606,10 @@ const useLeafletMapConfig = ({
                 sizingMode:
                     hexbinConfig?.sizingMode ?? MapHexbinSizingMode.DYNAMIC,
                 fixedResolution: hexbinConfig?.fixedResolution ?? 4,
+                valueBasis:
+                    hexbinConfig?.valueBasis ?? MapHexbinValueBasis.COUNT,
+                aggregation:
+                    hexbinConfig?.aggregation ?? MapHexbinAggregation.SUM,
                 showEmptyBins: hexbinConfig?.showEmptyBins ?? false,
                 emptyBinColor: hexbinConfig?.emptyBinColor ?? null,
             },

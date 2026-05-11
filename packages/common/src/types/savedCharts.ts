@@ -235,6 +235,20 @@ export enum MapHexbinSizingMode {
     FIXED = 'fixed',
 }
 
+export enum MapHexbinValueBasis {
+    /** Color cells by the count of points they contain. */
+    COUNT = 'count',
+    /** Color cells by an aggregation over a chosen value field. */
+    FIELD = 'field',
+}
+
+export enum MapHexbinAggregation {
+    SUM = 'sum',
+    AVG = 'avg',
+    MIN = 'min',
+    MAX = 'max',
+}
+
 export enum MapTileBackground {
     NONE = 'none',
     OPENSTREETMAP = 'openstreetmap',
@@ -303,6 +317,11 @@ export type MapChart = {
         sizingMode?: MapHexbinSizingMode;
         /** H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise. */
         fixedResolution?: number;
+        /** What drives cell color: count of points (default) or an aggregation
+         *  over a chosen value field (controlled via the chart's `valueFieldId`). */
+        valueBasis?: MapHexbinValueBasis;
+        /** Aggregation applied when valueBasis = FIELD. Defaults to SUM. */
+        aggregation?: MapHexbinAggregation;
         /** Render outlined empty cells across the visible map area, so the user
          *  can see "where there is no data" relative to the hex grid. */
         showEmptyBins?: boolean;

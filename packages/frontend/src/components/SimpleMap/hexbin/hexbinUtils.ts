@@ -22,8 +22,15 @@ export type LatLng = [number, number];
 export type HexBin = {
     h3Index: string;
     count: number;
-    /** Sum of value field across points in this bin. Null if no point in this bin had a numeric value. */
+    /** Sum of the value field across points in this bin. Null when no point in
+     *  this bin had a numeric value. */
     sum: number | null;
+    /** Min of the value field across numeric points in this bin (null if none). */
+    min: number | null;
+    /** Max of the value field across numeric points in this bin (null if none). */
+    max: number | null;
+    /** Average of the value field across numeric points in this bin (null if none). */
+    avg: number | null;
     /**
      * One or more polygon rings. Most cells have a single ring, but cells that
      * cross the antimeridian (±180° longitude) are split into two so that each
@@ -97,26 +104,35 @@ export const computeHexbinsWithMeta = (
     const truncated = points.length > MAX_HEXBIN_POINTS;
     const usedPoints = truncated ? points.slice(0, MAX_HEXBIN_POINTS) : points;
 
-    const indexMap = new Map<
-        string,
-        { count: number; sum: number; sawNumeric: boolean }
-    >();
+    type Agg = {
+        count: number;
+        sum: number;
+        min: number;
+        max: number;
+        numericCount: number;
+    };
+    const indexMap = new Map<string, Agg>();
 
     for (const p of usedPoints) {
         const idx = latLngToCell(p.lat, p.lon, resolution);
         const entry = indexMap.get(idx);
         const isNumeric = p.value !== null && !Number.isNaN(p.value);
+        const v = isNumeric ? (p.value as number) : 0;
         if (entry) {
             entry.count += 1;
             if (isNumeric) {
-                entry.sum += p.value as number;
-                entry.sawNumeric = true;
+                entry.sum += v;
+                entry.numericCount += 1;
+                if (v < entry.min) entry.min = v;
+                if (v > entry.max) entry.max = v;
             }
         } else {
             indexMap.set(idx, {
                 count: 1,
-                sum: isNumeric ? (p.value as number) : 0,
-                sawNumeric: isNumeric,
+                sum: isNumeric ? v : 0,
+                min: isNumeric ? v : Infinity,
+                max: isNumeric ? v : -Infinity,
+                numericCount: isNumeric ? 1 : 0,
             });
         }
     }
@@ -124,10 +140,14 @@ export const computeHexbinsWithMeta = (
     const bins: HexBin[] = [];
     for (const [h3Index, agg] of indexMap) {
         const rawBoundary = cellToBoundary(h3Index) as LatLng[];
+        const hasNumeric = agg.numericCount > 0;
         bins.push({
             h3Index,
             count: agg.count,
-            sum: agg.sawNumeric ? agg.sum : null,
+            sum: hasNumeric ? agg.sum : null,
+            min: hasNumeric ? agg.min : null,
+            max: hasNumeric ? agg.max : null,
+            avg: hasNumeric ? agg.sum / agg.numericCount : null,
             rings: splitAntimeridianRing(rawBoundary),
             centroid: cellToLatLng(h3Index) as LatLng,
         });
@@ -154,14 +174,7 @@ const computeEmptyNeighbors = (populatedBins: HexBin[]): HexBin[] => {
         for (const neighbor of gridDisk(h3Index, 1)) {
             if (populated.has(neighbor) || seenEmpty.has(neighbor)) continue;
             seenEmpty.add(neighbor);
-            const rawBoundary = cellToBoundary(neighbor) as LatLng[];
-            empties.push({
-                h3Index: neighbor,
-                count: 0,
-                sum: null,
-                rings: splitAntimeridianRing(rawBoundary),
-                centroid: cellToLatLng(neighbor) as LatLng,
-            });
+            empties.push(emptyBinFor(neighbor));
         }
     }
     return empties;
@@ -185,6 +198,9 @@ const emptyBinFor = (h3Index: string): HexBin => ({
     h3Index,
     count: 0,
     sum: null,
+    min: null,
+    max: null,
+    avg: null,
     rings: splitAntimeridianRing(cellToBoundary(h3Index) as LatLng[]),
     centroid: cellToLatLng(h3Index) as LatLng,
 });
