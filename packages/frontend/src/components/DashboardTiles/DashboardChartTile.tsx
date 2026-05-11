@@ -99,6 +99,7 @@ import { DateZoomInfoOnTile } from '../../features/dateZoom';
 import { ExportToGoogleSheet } from '../../features/export';
 import {
     getExpectedSeriesMap,
+    isPivotSeriesOrderDeterminedByQuery,
     mergeExistingAndExpectedSeries,
 } from '../../hooks/cartesianChartConfig/utils';
 import { useDashboardChartDownload } from '../../hooks/dashboard/useDashboardChartDownload';
@@ -227,11 +228,11 @@ const computeDashboardChartSeries = (
             itemsMap,
             columnLimit: chart.chartConfig.config.columnLimit,
         });
-        const sortedByPivot =
-            !!validPivotDimensions?.length &&
-            chart.metricQuery.sorts.some((sort) =>
-                validPivotDimensions.includes(sort.fieldId),
-            );
+        const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
+            validPivotDimensions,
+            chart.chartConfig.config.layout.yField,
+            chart.metricQuery.sorts,
+        );
 
         const newSeries = mergeExistingAndExpectedSeries({
             expectedSeriesMap,
