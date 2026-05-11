@@ -1,11 +1,12 @@
 import {
     ChartType,
     FilterOperator,
-    findFieldByIdInExplore,
     getDimensions,
+    getFieldsFromMetricQuery,
     getItemId,
     hashFieldReference,
     isField,
+    normalizeCellRawForFilter,
     type CompiledDimension,
     type CreateSavedChartVersion,
     type DashboardFilters,
@@ -27,7 +28,6 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplor
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
-import { normalizeCellRawForFilter } from './normalizeCellRawForFilter';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 type CombineFiltersArgs = {
@@ -85,6 +85,10 @@ export const combineFilters = ({
         combinedMetricFilters.push(extraFilters.metrics);
     }
 
+    const itemsMap = explore
+        ? getFieldsFromMetricQuery(metricQuery, explore)
+        : undefined;
+
     const dimensionFilters: FilterRule[] = metricQuery.dimensions.reduce<
         FilterRule[]
     >((acc, dimension) => {
@@ -107,9 +111,7 @@ export const combineFilters = ({
                     : [
                           normalizeCellRawForFilter(
                               rowValue.raw,
-                              explore
-                                  ? findFieldByIdInExplore(explore, dimension)
-                                  : undefined,
+                              itemsMap?.[dimension],
                               timezone,
                           ),
                       ],

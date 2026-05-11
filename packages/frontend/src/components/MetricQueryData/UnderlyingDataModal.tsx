@@ -11,6 +11,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    normalizeCellRawForFilter,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -42,7 +43,6 @@ import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
 import { getZoomedDimFilter } from './dateZoomFilter';
-import { normalizeCellRawForFilter } from './normalizeCellRawForFilter';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 

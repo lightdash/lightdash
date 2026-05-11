@@ -1,10 +1,6 @@
-import {
-    DimensionType,
-    isField,
-    shouldShiftItemTimezone,
-    type Item,
-} from '@lightdash/common';
-import moment from 'moment';
+import moment from 'moment-timezone';
+import { DimensionType, isField, type Item } from '../types/field';
+import { shouldShiftItemTimezone } from './formatting';
 
 // Shift raw to project TZ for TIMESTAMP-base time-interval DATE dims so drill
 // filters target the displayed bucket. DATE-base dims and plain TIMESTAMPs are

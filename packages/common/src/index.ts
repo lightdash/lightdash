@@ -206,6 +206,7 @@ export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
 export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';
+export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/projectMemberRole';

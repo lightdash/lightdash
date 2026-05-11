@@ -1,10 +1,5 @@
-/// <reference types="vitest/globals" />
-import {
-    DimensionType,
-    FieldType,
-    TimeFrames,
-    type Field,
-} from '@lightdash/common';
+import { DimensionType, FieldType, type Field } from '../types/field';
+import { TimeFrames } from '../types/timeFrames';
 import { normalizeCellRawForFilter } from './normalizeCellRawForFilter';
 
 const buildTimeIntervalDim = (
