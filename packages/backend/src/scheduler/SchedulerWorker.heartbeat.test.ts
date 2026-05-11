@@ -159,4 +159,34 @@ describe('SchedulerWorker — enqueueOwnHeartbeat', () => {
             worker.enqueueHeartbeatOnce(health),
         ).resolves.toBeUndefined();
     });
+
+    it('does not hang forever when addJob never resolves (wedged pg)', async () => {
+        jest.useFakeTimers();
+        try {
+            const health = new SchedulerWorkerHealth('pod-hung');
+            // Simulate a wedged pg backend: addJob returns a promise that
+            // never resolves or rejects.
+            const addJob = jest.fn().mockImplementation(
+                () =>
+                    new Promise(() => {
+                        // intentionally pending forever
+                    }),
+            );
+            const worker = new TestableSchedulerWorker(
+                makeWorkerArgs(addJob, health),
+            );
+
+            const enqueuePromise = worker.enqueueHeartbeatOnce(health);
+
+            // Advance past the 10s timeout cap.
+            await jest.advanceTimersByTimeAsync(11_000);
+
+            // The enqueue method must resolve (catch swallows the timeout
+            // error). Without the timeout cap this test would hang.
+            await expect(enqueuePromise).resolves.toBeUndefined();
+            expect(addJob).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
 });

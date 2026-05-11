@@ -51,6 +51,14 @@ const workerLogger = new GraphileLogger(
 // insert -> LISTEN dispatch -> handler latency.
 const HEARTBEAT_ENQUEUE_INTERVAL_MS = 60_000;
 
+// Cap on a single addJob() attempt. A wedged pg backend can leave a write
+// hanging indefinitely; without this cap the setInterval would keep
+// scheduling new ticks that all pile up as pending promises while
+// lastJobActivityAt continues to age. With the cap, each tick fails fast
+// and the next tick gets a fresh chance — and if every tick times out for
+// the full staleness window the probe correctly trips.
+const HEARTBEAT_ENQUEUE_TIMEOUT_MS = 10_000;
+
 // Per-pool heartbeat task name prefix. The full task name appended with the
 // pool id (e.g. workerHeartbeat:scheduler-app) is registered only in that
 // pool's task list, so only that pool's runner processes its own heartbeat.
@@ -167,7 +175,7 @@ export class SchedulerWorker extends SchedulerTask {
         const taskName = SchedulerWorker.getHeartbeatTaskName(health);
         try {
             const graphileClient = await this.schedulerClient.graphileUtils;
-            await graphileClient.addJob(
+            const enqueue = graphileClient.addJob(
                 taskName,
                 {
                     poolId: health.getPoolId(),
@@ -180,6 +188,25 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 1,
                 },
             );
+            // Race against an explicit timeout. A wedged pg backend can leave
+            // addJob() hanging indefinitely; without this, the setInterval
+            // keeps firing and every tick adds another never-resolving
+            // promise to the event loop while lastJobActivityAt silently
+            // ages out.
+            await Promise.race([
+                enqueue,
+                new Promise<never>((_resolve, reject) => {
+                    const t = setTimeout(() => {
+                        reject(
+                            new Error(
+                                `addJob timeout after ${HEARTBEAT_ENQUEUE_TIMEOUT_MS}ms`,
+                            ),
+                        );
+                    }, HEARTBEAT_ENQUEUE_TIMEOUT_MS);
+                    // Don't keep the process alive solely for this timer.
+                    if (typeof t.unref === 'function') t.unref();
+                }),
+            ]);
             Logger.debug(
                 `[scheduler-health] heartbeat-enqueued poolId=${health.getPoolId()}`,
             );
