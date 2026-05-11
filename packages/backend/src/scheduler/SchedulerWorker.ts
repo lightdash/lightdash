@@ -226,6 +226,14 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
+            {
+                task: SCHEDULER_TASKS.CLEAN_WORKER_HEARTBEATS,
+                pattern: '17 * * * *', // Hourly, offset from other cleanup tasks
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000,
+                    maxAttempts: 3,
+                },
+            },
             // workerHeartbeat is driven by per-pool setInterval (see startHeartbeatEnqueue);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
@@ -1130,6 +1138,40 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during deploy sessions cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.CLEAN_WORKER_HEARTBEATS]: async () => {
+                // Per-pod heartbeat task names (workerHeartbeat:<poolId>) die with
+                // the pod that registered the handler. Old pods' rows then sit in
+                // graphile_worker.jobs forever — no current task list registers
+                // their task name, so get_job never fetches them. Live pools refresh
+                // their row every 60s via jobKey 'replace', so anything older than a
+                // few minutes is provably orphaned.
+                const graphileClient = await this.schedulerClient.graphileUtils;
+                try {
+                    const result = await graphileClient.withPgClient(
+                        (pgClient) =>
+                            pgClient.query<{ count: string }>(
+                                `WITH deleted AS (
+                                    DELETE FROM graphile_worker.jobs
+                                    WHERE task_identifier LIKE 'workerHeartbeat:%'
+                                      AND locked_at IS NULL
+                                      AND run_at < NOW() - INTERVAL '10 minutes'
+                                    RETURNING id
+                                )
+                                SELECT COUNT(*)::text AS count FROM deleted`,
+                            ),
+                    );
+                    const deleted = Number(result.rows[0]?.count ?? '0');
+                    Logger.info(
+                        `Orphan worker-heartbeat cleanup completed deleted=${deleted}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during orphan worker-heartbeat cleanup:',
                         error,
                     );
                     throw error;

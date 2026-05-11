@@ -1,4 +1,4 @@
-import { ALL_TASK_NAMES } from '@lightdash/common';
+import { ALL_TASK_NAMES, SCHEDULER_TASKS } from '@lightdash/common';
 import { type LightdashConfig } from '../config/parseConfig';
 import {
     SchedulerWorker,
@@ -10,6 +10,10 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 class TestableSchedulerWorker extends SchedulerWorker {
     public exposeTaskList() {
         return this.getTaskList();
+    }
+
+    public exposeFullTaskList() {
+        return this.getFullTaskList();
     }
 
     public async enqueueHeartbeatOnce(health: SchedulerWorkerHealth) {
@@ -49,9 +53,11 @@ const makeConfig = (): LightdashConfig =>
 const makeWorkerArgs = (
     addJobSpy: jest.Mock,
     workerHealth?: SchedulerWorkerHealth,
+    withPgClient?: jest.Mock,
 ): SchedulerWorkerArguments => {
     const graphileUtils = Promise.resolve({
         addJob: addJobSpy,
+        withPgClient: withPgClient ?? jest.fn(),
     });
     return {
         lightdashConfig: makeConfig(),
@@ -191,5 +197,46 @@ describe('SchedulerWorker — enqueueOwnHeartbeat', () => {
         } finally {
             jest.useRealTimers();
         }
+    });
+});
+
+describe('SchedulerWorker — cleanWorkerHeartbeats', () => {
+    it('deletes unlocked orphan rows older than 10 minutes', async () => {
+        const pgClient = {
+            query: jest.fn().mockResolvedValue({ rows: [{ count: '5' }] }),
+        };
+        const withPgClient = jest
+            .fn()
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .mockImplementation(async (fn: any) => fn(pgClient));
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(jest.fn(), undefined, withPgClient),
+        );
+
+        const tasks = worker.exposeFullTaskList();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const handler = tasks[SCHEDULER_TASKS.CLEAN_WORKER_HEARTBEATS] as any;
+        expect(handler).toBeDefined();
+
+        await handler({}, {});
+
+        expect(withPgClient).toHaveBeenCalledTimes(1);
+        const sql = pgClient.query.mock.calls[0][0] as string;
+        expect(sql).toMatch(/DELETE FROM graphile_worker\.jobs/);
+        expect(sql).toMatch(/task_identifier LIKE 'workerHeartbeat:%'/);
+        expect(sql).toMatch(/locked_at IS NULL/);
+        expect(sql).toMatch(/NOW\(\) - INTERVAL '10 minutes'/);
+    });
+
+    it('rethrows on DB failure so graphile retries the cron run', async () => {
+        const withPgClient = jest.fn().mockRejectedValue(new Error('db down'));
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(jest.fn(), undefined, withPgClient),
+        );
+
+        const tasks = worker.exposeFullTaskList();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const handler = tasks[SCHEDULER_TASKS.CLEAN_WORKER_HEARTBEATS] as any;
+        await expect(handler({}, {})).rejects.toThrow('db down');
     });
 });
