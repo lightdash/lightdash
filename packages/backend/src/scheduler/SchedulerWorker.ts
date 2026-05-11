@@ -22,6 +22,7 @@ import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
+import { schedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 const workerLogger = new GraphileLogger(
@@ -127,6 +128,18 @@ export class SchedulerWorker extends SchedulerTask {
                 options: {
                     backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
                     maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.WORKER_HEARTBEAT,
+                pattern: '* * * * *', // Every minute
+                options: {
+                    // No backfill: stale heartbeats carry no useful signal.
+                    backfillPeriod: 0,
+                    // Single attempt: this job exists to prove the full
+                    // scheduler insert -> LISTEN dispatch -> handler pipeline,
+                    // not to be retried on transient failure.
+                    maxAttempts: 1,
                 },
             },
             // Managed agent heartbeat is self-scheduling (not a static cron).
@@ -1136,6 +1149,9 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker
+            },
+            [SCHEDULER_TASKS.WORKER_HEARTBEAT]: async () => {
+                schedulerWorkerHealth.markJobActivity();
             },
         };
     }

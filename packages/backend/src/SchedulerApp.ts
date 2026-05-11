@@ -15,6 +15,7 @@ import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
+import { schedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
 import { IGNORE_ERRORS } from './sentry';
 import {
     OperationContext,
@@ -219,14 +220,17 @@ export default class SchedulerApp {
         createTerminus(server, {
             signals: ['SIGUSR2', 'SIGTERM', 'SIGINT', 'SIGHUP', 'SIGABRT'],
             healthChecks: {
-                '/api/v1/health': () =>
-                    new Promise((resolve, reject) => {
-                        if (worker && worker.runner && worker.isRunning) {
-                            resolve('Scheduler worker is running');
-                        } else {
-                            reject(new Error('Scheduler worker not running'));
-                        }
-                    }),
+                '/api/v1/health': () => {
+                    const status = schedulerWorkerHealth.isHealthy();
+                    if (worker?.runner && worker.isRunning && status.ok) {
+                        return Promise.resolve('Scheduler worker is running');
+                    }
+                    return Promise.reject(
+                        new Error(
+                            status.reason ?? 'Scheduler worker not running',
+                        ),
+                    );
+                },
                 '/api/v1/livez': () => Promise.resolve(),
             },
             beforeShutdown: async () => {

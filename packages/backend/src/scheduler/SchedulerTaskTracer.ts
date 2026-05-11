@@ -186,6 +186,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
         'managed_agent.triggered_by': payload.triggeredBy ?? 'cron',
     }),
+    [SCHEDULER_TASKS.WORKER_HEARTBEAT]: () => ({}),
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
