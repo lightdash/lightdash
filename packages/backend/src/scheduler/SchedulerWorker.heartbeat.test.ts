@@ -156,17 +156,21 @@ describe('SchedulerWorker — enqueueOwnHeartbeat', () => {
         });
     });
 
-    it('swallows addJob errors so the interval can retry on the next tick', async () => {
+    it('continues attempting heartbeats after a failed enqueue', async () => {
         const health = new SchedulerWorkerHealth('pod-failing');
-        const addJob = jest.fn().mockRejectedValue(new Error('pg wedged'));
+        const addJob = jest
+            .fn()
+            .mockRejectedValueOnce(new Error('pg wedged'))
+            .mockResolvedValueOnce(undefined);
         const worker = new TestableSchedulerWorker(
             makeWorkerArgs(addJob, health),
         );
 
-        // Must NOT throw — the catch block is what keeps setInterval alive.
-        await expect(
-            worker.enqueueHeartbeatOnce(health),
-        ).resolves.toBeUndefined();
+        await worker.enqueueHeartbeatOnce(health);
+        await worker.enqueueHeartbeatOnce(health);
+
+        // The second tick still ran — the first failure did not block subsequent enqueues.
+        expect(addJob).toHaveBeenCalledTimes(2);
     });
 
     it('does not hang forever when addJob never resolves (wedged pg)', async () => {
