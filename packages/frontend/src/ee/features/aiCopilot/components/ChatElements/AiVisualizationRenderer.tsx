@@ -183,6 +183,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
             tableName={tableName}
             explore={explore}
             queryUuid={queryExecutionHandle.data.query.queryUuid}
+            resolvedTimezone={resolvedTimezone ?? undefined}
         >
             <VisualizationProvider
                 key={selectedChartType ?? 'default'}

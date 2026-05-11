@@ -574,6 +574,9 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                         metricQuery={metricQuery}
                                         tableName={tableName}
                                         explore={explore}
+                                        resolvedTimezone={
+                                            resultsData.resolvedTimezone
+                                        }
                                     >
                                         <VisualizationProvider
                                             resultsData={resultsData}

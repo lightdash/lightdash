@@ -215,6 +215,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField | undefined,
     filterRule: T,
     values?: AnyType[] | null,
+    timezone?: string,
 ): T => {
     const filterRuleDefaults: Partial<FilterRule> = {};
 
@@ -299,10 +300,24 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             ? defaultTimeIntervalValues[fieldTimeInterval]
                             : moment();
 
+                    // DATE-base time intervals are pure calendar values — no
+                    // TZ shift (would push e.g. Mar 1 to Feb 28 on negative
+                    // offsets). TIMESTAMP-base intervals round-trip through
+                    // the project TZ, so shift before extracting the date.
+                    const isDateBaseInterval =
+                        isDimension(field) &&
+                        field.timeIntervalBaseDimensionType ===
+                            DimensionType.DATE;
+                    const effectiveZone = isDateBaseInterval
+                        ? 'UTC'
+                        : timezone || 'UTC';
+
                     const dateValue = valueIsDate
                         ? formatDate(
-                              // Treat the date as UTC, then remove its timezone information before formatting
-                              moment.utc(value).format('YYYY-MM-DD'),
+                              moment
+                                  .utc(value)
+                                  .tz(effectiveZone)
+                                  .format('YYYY-MM-DD'),
                               // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
                               fieldTimeInterval === TimeFrames.QUARTER
                                   ? undefined
@@ -342,17 +357,20 @@ export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
     values?: AnyType[] | null,
+    timezone?: string,
 ): T =>
     getFilterRuleWithDefaultValue(
         getFilterTypeFromItem(field),
         field,
         filterRule,
         values,
+        timezone,
     );
 
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
+    timezone?: string,
 ): FilterRule =>
     getFilterRuleFromFieldWithDefaultValue(
         field,
@@ -365,6 +383,7 @@ export const createFilterRuleFromField = (
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
         value ? [value] : [],
+        timezone,
     );
 
 export const matchFieldExact = (a: Field) => (b: Field) =>
@@ -518,12 +537,14 @@ type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
     value?: AnyType;
+    timezone?: string;
 };
 
 export const addFilterRule = ({
     filters,
     field,
     value,
+    timezone,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -542,7 +563,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value),
+                createFilterRuleFromField(field, value, timezone),
             ],
         },
     };

@@ -15,6 +15,7 @@ import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
     applyDashboardFiltersForTile,
+    createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
@@ -220,6 +221,71 @@ describe('addFilterRule', () => {
             field: customSqlDimension,
         });
         expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
+    });
+});
+
+describe('createFilterRuleFromField — time-interval DATE dims', () => {
+    const monthDim = (baseType: DimensionType.TIMESTAMP | DimensionType.DATE) =>
+        ({
+            ...dimension('created_at_month', 'orders'),
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.MONTH,
+            timeIntervalBaseDimensionName: 'created_at',
+            timeIntervalBaseDimensionType: baseType,
+        }) as const;
+
+    // Paris Nov 2024 = 2024-10-31T23:00:00Z (UTC instant emitted by the
+    // DATE_TRUNC round-trip for a TIMESTAMP-base interval).
+    const parisNovInstant = '2024-10-31T23:00:00Z';
+    // NY Nov 2024 = 2024-11-01T05:00:00Z.
+    const nyNovInstant = '2024-11-01T05:00:00Z';
+    // DATE-base interval emits a calendar value anchored at UTC midnight.
+    const dateBaseNov = '2024-11-01T00:00:00Z';
+
+    test('TIMESTAMP-base: positive offset filter value matches displayed month', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            parisNovInstant,
+            'Europe/Paris',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('TIMESTAMP-base: negative offset filter value matches displayed month', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            nyNovInstant,
+            'America/New_York',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('TIMESTAMP-base: no timezone falls back to UTC extraction (pre-fix behavior)', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            parisNovInstant,
+        );
+        // Without project TZ, the UTC instant's calendar month is October.
+        expect(rule.values).toEqual(['2024-10']);
+    });
+
+    test('DATE-base: negative offset must NOT shift the calendar date back', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.DATE),
+            dateBaseNov,
+            'America/New_York',
+        );
+        // Shifting "Nov 1 UTC" into NY would land on Oct 31 — must not happen.
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('DATE-base: positive offset also stays on the calendar date', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.DATE),
+            dateBaseNov,
+            'Asia/Tokyo',
+        );
+        expect(rule.values).toEqual(['2024-11']);
     });
 });
 

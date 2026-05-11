@@ -8,6 +8,7 @@ import {
     type CompiledDimension,
     type CreateSavedChartVersion,
     type DashboardFilters,
+    type Explore,
     type FieldId,
     type FilterGroupItem,
     type FilterRule,
@@ -25,6 +26,7 @@ import { getExplorerUrlFromCreateSavedChartVersion } from '../../hooks/useExplor
 import FieldSelect from '../common/FieldSelect';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
+import { normalizeCellRawForFilter } from './normalizeCellRawForFilter';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
 type CombineFiltersArgs = {
@@ -33,6 +35,8 @@ type CombineFiltersArgs = {
     pivotReference?: PivotReference;
     dashboardFilters?: DashboardFilters;
     extraFilters?: Filters;
+    explore?: Explore;
+    timezone?: string;
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -42,6 +46,8 @@ export const combineFilters = ({
     pivotReference,
     dashboardFilters,
     extraFilters,
+    explore,
+    timezone,
 }: CombineFiltersArgs): Filters => {
     const combinedDimensionFilters: Array<FilterGroupItem> = [];
     const combinedMetricFilters: Array<FilterGroupItem> = [];
@@ -94,7 +100,17 @@ export const combineFilters = ({
                 rowValue.raw === null
                     ? FilterOperator.NULL
                     : FilterOperator.EQUALS,
-            values: rowValue.raw === null ? undefined : [rowValue.raw],
+            values:
+                rowValue.raw === null
+                    ? undefined
+                    : [
+                          normalizeCellRawForFilter(
+                              rowValue.raw,
+                              dimension,
+                              explore,
+                              timezone,
+                          ),
+                      ],
         };
         return [...acc, dimensionFilter];
     }, []);
@@ -123,6 +139,8 @@ type DrillDownExploreUrlArgs = {
     drillByDimension: FieldId;
     extraFilters?: Filters;
     pivotReference?: PivotReference;
+    explore?: Explore;
+    timezone?: string;
 };
 
 const drillDownExploreUrl = ({
@@ -134,6 +152,8 @@ const drillDownExploreUrl = ({
     drillByDimension,
     extraFilters,
     pivotReference,
+    explore,
+    timezone,
 }: DrillDownExploreUrlArgs) => {
     const createSavedChartVersion: CreateSavedChartVersion = {
         tableName,
@@ -147,6 +167,8 @@ const drillDownExploreUrl = ({
                 fieldValues,
                 extraFilters,
                 pivotReference,
+                explore,
+                timezone,
             }),
             limit: 500,
             additionalMetrics: metricQuery.additionalMetrics,
@@ -186,6 +208,7 @@ export const DrillDownModal: FC = () => {
         explore,
         metricQuery,
         drillDownConfig,
+        resolvedTimezone,
     } = useMetricQueryDataContext();
 
     const dimensionsAvailable = useMemo(() => {
@@ -220,9 +243,18 @@ export const DrillDownModal: FC = () => {
                 drillByMetric: getItemId(drillDownConfig.item),
                 drillByDimension: getItemId(selectedDimension),
                 pivotReference: drillDownConfig.pivotReference,
+                explore,
+                timezone: resolvedTimezone,
             });
         }
-    }, [selectedDimension, metricQuery, explore, drillDownConfig, projectUuid]);
+    }, [
+        selectedDimension,
+        metricQuery,
+        explore,
+        drillDownConfig,
+        projectUuid,
+        resolvedTimezone,
+    ]);
 
     const onClose = useCallback(() => {
         setSelectedDimension(undefined);

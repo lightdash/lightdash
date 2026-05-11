@@ -42,6 +42,7 @@ import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
 import { getZoomedDimFilter } from './dateZoomFilter';
+import { normalizeCellRawForFilter } from './normalizeCellRawForFilter';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -55,6 +56,7 @@ const UnderlyingDataModalContent: FC = () => {
         underlyingDataConfig,
         queryUuid,
         parameters,
+        resolvedTimezone,
     } = useMetricQueryDataContext();
 
     const [sorts, setSorts] = useState<SortField[]>([]);
@@ -173,7 +175,17 @@ const UnderlyingDataModalContent: FC = () => {
                           raw === null
                               ? FilterOperator.NULL
                               : FilterOperator.EQUALS,
-                      values: raw === null ? undefined : [raw],
+                      values:
+                          raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        raw,
+                                        key,
+                                        explore,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   };
                   return [...acc, dimensionFilter];
               }, [] as FilterRule[])
@@ -187,7 +199,17 @@ const UnderlyingDataModalContent: FC = () => {
                           value.raw === null
                               ? FilterOperator.NULL
                               : FilterOperator.EQUALS,
-                      values: value.raw === null ? undefined : [value.raw],
+                      values:
+                          value.raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        value.raw,
+                                        getItemId(item),
+                                        explore,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   },
               ]);
 
@@ -238,7 +260,14 @@ const UnderlyingDataModalContent: FC = () => {
             },
             allFields,
         );
-    }, [underlyingDataConfig, metricQuery, allFields, allDimensions]);
+    }, [
+        underlyingDataConfig,
+        metricQuery,
+        allFields,
+        allDimensions,
+        explore,
+        resolvedTimezone,
+    ]);
 
     const {
         error,

@@ -22,6 +22,7 @@ export type MetricQueryDataContext = {
     openDrillDownModal: (config: DrillDownConfig) => void;
     closeDrillDownModal: () => void;
     queryUuid?: string;
+    resolvedTimezone?: string;
 };
 
 export const Context = createContext<MetricQueryDataContext | undefined>(
