@@ -112,6 +112,14 @@ export enum FeatureFlags {
      * already saved with the hexbin layer continue to render either way.
      */
     HexbinMap = 'hexbin-map',
+
+    /**
+     * Show the per-organization Single Sign-On settings panel (Azure AD and
+     * future SSO providers). Off by default while the domain-claim trust
+     * model is hardened — see security review notes. Enable per-org for
+     * vetted customers on shared multi-org instances.
+     */
+    SsoOrganizationSettings = 'sso-organization-settings',
 }
 
 export type FeatureFlag = {

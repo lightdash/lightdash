@@ -36,6 +36,7 @@ import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorer
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
+import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService/PersistentDownloadFileService';
 import { PersonalAccessTokenService } from './PersonalAccessTokenService';
@@ -86,6 +87,7 @@ interface ServiceManifest {
     oauthService: OAuthService;
 
     organizationService: OrganizationService;
+    organizationSsoService: OrganizationSsoService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
@@ -526,6 +528,21 @@ export class ServiceRepository
         );
     }
 
+    public getOrganizationSsoService(): OrganizationSsoService {
+        return this.getService(
+            'organizationSsoService',
+            () =>
+                new OrganizationSsoService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationSsoModel: this.models.getOrganizationSsoModel(),
+                    organizationAllowedEmailDomainsModel:
+                        this.models.getOrganizationAllowedEmailDomainsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
     public getPermissionsService(): PermissionsService {
         return this.getService(
             'permissionsService',
@@ -913,6 +930,7 @@ export class ServiceRepository
                         this.models.getPersonalAccessTokenModel(),
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
+                    organizationSsoModel: this.models.getOrganizationSsoModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:

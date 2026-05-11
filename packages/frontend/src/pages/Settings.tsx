@@ -60,6 +60,7 @@ import MyAppsPanel from '../components/UserSettings/MyAppsPanel';
 import { MyWarehouseConnectionsPanel } from '../components/UserSettings/MyWarehouseConnectionsPanel';
 import OAuthClientsPanel from '../components/UserSettings/OAuthClientsPanel';
 import OrganizationPanel from '../components/UserSettings/OrganizationPanel';
+import OrganizationSsoPanel from '../components/UserSettings/OrganizationSsoPanel';
 import { OrganizationWarehouseCredentialsPanel } from '../components/UserSettings/OrganizationWarehouseCredentialsPanel';
 import PasswordPanel from '../components/UserSettings/PasswordPanel';
 import ProfilePanel from '../components/UserSettings/ProfilePanel';
@@ -134,6 +135,12 @@ const Settings: FC = () => {
     const { data: dataAppsFlag } = useServerFeatureFlag(
         FeatureFlags.EnableDataApps,
     );
+
+    const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
+        FeatureFlags.SsoOrganizationSettings,
+    );
+    const isSsoOrganizationSettingsEnabled =
+        ssoOrganizationSettingsFlag?.enabled ?? false;
 
     const { track } = useTracking();
     const {
@@ -417,6 +424,29 @@ const Settings: FC = () => {
             });
         }
 
+        if (
+            user?.ability.can('manage', 'Organization') &&
+            isSsoOrganizationSettingsEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/sso',
+                element: (
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Stack gap="xs">
+                                <Title order={4}>Single Sign-On</Title>
+                                <Text c="ldGray.6" fz="xs">
+                                    Configure SSO providers for this
+                                    organization.
+                                </Text>
+                            </Stack>
+                            <OrganizationSsoPanel />
+                        </SettingsGridCard>
+                    </Stack>
+                ),
+            });
+        }
+
         // Commercial route
         if (
             user?.ability.can('manage', 'Organization') &&
@@ -471,6 +501,7 @@ const Settings: FC = () => {
         health?.hasGithub,
         health?.hasGitlab,
         dataAppsFlag?.enabled,
+        isSsoOrganizationSettingsEnabled,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -785,6 +816,18 @@ const Settings: FC = () => {
                                         }
                                     />
                                 )}
+
+                                {user.ability.can('manage', 'Organization') &&
+                                    isSsoOrganizationSettingsEnabled && (
+                                        <RouterNavLink
+                                            label="Single Sign-On"
+                                            exact
+                                            to="/generalSettings/sso"
+                                            leftSection={
+                                                <MantineIcon icon={IconLock} />
+                                            }
+                                        />
+                                    )}
 
                                 {user.ability.can(
                                     'manage',

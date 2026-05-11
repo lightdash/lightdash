@@ -6216,6 +6216,14 @@
                 "enum": ["dynamic", "fixed"],
                 "type": "string"
             },
+            "MapHexbinValueBasis": {
+                "enum": ["count", "field"],
+                "type": "string"
+            },
+            "MapHexbinAggregation": {
+                "enum": ["sum", "avg", "min", "max"],
+                "type": "string"
+            },
             "MapTileBackground": {
                 "enum": [
                     "none",
@@ -6281,6 +6289,23 @@
                     },
                     "hexbinConfig": {
                         "properties": {
+                            "emptyBinColor": {
+                                "type": "string",
+                                "nullable": true,
+                                "description": "Fill color for empty bins. Hex6 (#rrggbb) = solid fill, hex8\n(#rrggbbaa) = fill with alpha, null/undefined = outline only."
+                            },
+                            "showEmptyBins": {
+                                "type": "boolean",
+                                "description": "Render outlined empty cells across the visible map area, so the user\ncan see \"where there is no data\" relative to the hex grid."
+                            },
+                            "aggregation": {
+                                "$ref": "#/components/schemas/MapHexbinAggregation",
+                                "description": "Aggregation applied when valueBasis = FIELD. Defaults to SUM."
+                            },
+                            "valueBasis": {
+                                "$ref": "#/components/schemas/MapHexbinValueBasis",
+                                "description": "What drives cell color: count of points (default) or an aggregation\nover a chosen value field (controlled via the chart's `valueFieldId`)."
+                            },
                             "fixedResolution": {
                                 "type": "number",
                                 "format": "double",
@@ -14615,6 +14640,150 @@
                 },
                 "type": "object"
             },
+            "Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_": {
+                "properties": {
+                    "oauth2ClientId": {
+                        "type": "string"
+                    },
+                    "oauth2TenantId": {
+                        "type": "string"
+                    }
+                },
+                "required": ["oauth2ClientId", "oauth2TenantId"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "OrganizationSsoMethodFlags": {
+                "properties": {
+                    "allowPassword": {
+                        "type": "boolean",
+                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows → show password)."
+                    },
+                    "emailDomains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Strict whitelist (only consulted when `overrideEmailDomains` is true)."
+                    },
+                    "overrideEmailDomains": {
+                        "type": "boolean",
+                        "description": "When true, the method's own `emailDomains` list governs discovery.\nWhen false, the org's `allowed_email_domains` is used instead."
+                    },
+                    "enabled": {
+                        "type": "boolean",
+                        "description": "When false the method is hidden from precheck even if discovery would match."
+                    }
+                },
+                "required": [
+                    "allowPassword",
+                    "emailDomains",
+                    "overrideEmailDomains",
+                    "enabled"
+                ],
+                "type": "object",
+                "description": "Per-row flags shared by every SSO method configured at the org level.\nStored as plain columns alongside the encrypted provider-specific config."
+            },
+            "AzureAdSsoConfigSummary": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
+                    },
+                    {
+                        "properties": {
+                            "hasClientSecret": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["hasClientSecret"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiAzureAdSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AzureAdSsoConfigSummary"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiUpsertAzureAdSsoConfigResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AzureAdSsoConfigSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "Partial_OrganizationSsoMethodFlags_": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "description": "When false the method is hidden from precheck even if discovery would match."
+                    },
+                    "overrideEmailDomains": {
+                        "type": "boolean",
+                        "description": "When true, the method's own `emailDomains` list governs discovery.\nWhen false, the org's `allowed_email_domains` is used instead."
+                    },
+                    "emailDomains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Strict whitelist (only consulted when `overrideEmailDomains` is true)."
+                    },
+                    "allowPassword": {
+                        "type": "boolean",
+                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows → show password)."
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpsertAzureAdSsoConfig": {
+                "allOf": [
+                    {
+                        "properties": {
+                            "oauth2TenantId": {
+                                "type": "string"
+                            },
+                            "oauth2ClientSecret": {
+                                "type": "string",
+                                "description": "When omitted on update, the stored secret is preserved. Required on create."
+                            },
+                            "oauth2ClientId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["oauth2TenantId", "oauth2ClientId"],
+                        "type": "object"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
+                    }
+                ]
+            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -19312,6 +19481,9 @@
                         "type": "string",
                         "nullable": true
                     },
+                    "enabled": {
+                        "type": "boolean"
+                    },
                     "message": {
                         "type": "string"
                     },
@@ -19333,9 +19505,6 @@
                         },
                         "type": "array"
                     },
-                    "enabled": {
-                        "type": "boolean"
-                    },
                     "notificationFrequency": {
                         "$ref": "#/components/schemas/NotificationFrequency"
                     },
@@ -19356,9 +19525,9 @@
                 "required": [
                     "name",
                     "cron",
+                    "enabled",
                     "format",
                     "options",
-                    "enabled",
                     "includeLinks",
                     "targets"
                 ],
@@ -23197,22 +23366,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -32094,7 +32263,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2904.3",
+        "version": "0.2904.4",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -33967,6 +34136,108 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/org/sso/azuread": {
+            "get": {
+                "operationId": "GetAzureAdSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAzureAdSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Returns the current organization's Azure AD SSO configuration (sensitive\nfields are not included).",
+                "summary": "Get Azure AD SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
+            },
+            "put": {
+                "operationId": "UpsertAzureAdSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUpsertAzureAdSsoConfigResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates or updates the current organization's Azure AD SSO configuration.\nOmit `oauth2ClientSecret` to preserve the previously stored secret on\nupdates.",
+                "summary": "Upsert Azure AD SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpsertAzureAdSsoConfig"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "DeleteAzureAdSsoConfig",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Removes the current organization's Azure AD SSO configuration.",
+                "summary": "Delete Azure AD SSO configuration",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v2/orgs/{orgUuid}/roles": {

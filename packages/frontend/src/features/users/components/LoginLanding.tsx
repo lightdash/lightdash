@@ -292,7 +292,9 @@ const Login: FC<{}> = () => {
                                             key={providerName}
                                             providerName={providerName}
                                             redirect={redirectUrl}
+                                            loginHint={preCheckEmail}
                                             disabled={isFormLoading}
+                                            forceShow
                                         />
                                     ))}
                                 </Stack>

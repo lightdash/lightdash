@@ -78,6 +78,7 @@ import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
@@ -103,6 +104,7 @@ type UserServiceArguments = {
     organizationModel: OrganizationModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    organizationSsoModel: OrganizationSsoModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
@@ -200,6 +202,8 @@ export class UserService extends BaseService {
 
     private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 
+    private readonly organizationSsoModel: OrganizationSsoModel;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -225,6 +229,7 @@ export class UserService extends BaseService {
         organizationMemberProfileModel,
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
+        organizationSsoModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
@@ -245,6 +250,7 @@ export class UserService extends BaseService {
         this.personalAccessTokenModel = personalAccessTokenModel;
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
+        this.organizationSsoModel = organizationSsoModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
@@ -2427,18 +2433,84 @@ export class UserService extends BaseService {
             };
         }
 
-        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
-        const hasPassword = await this.userModel.hasPasswordByEmail(email);
-        const userOptions = hasPassword
-            ? [LocalIssuerTypes.EMAIL, ...openIdIssuers]
-            : openIdIssuers;
-        // Filter out the options that are not available for the instance. eg: user connected to google drive but google auth is not enabled
-        const validUserOptions = userOptions.filter((option) =>
-            instancesOptions.has(option),
+        // Discover all enabled per-org SSO methods whose effective whitelist
+        // matches the email's domain. When any per-org method matches, it
+        // takes precedence over instance-level SSO providers for this user.
+        const domain = email.split('@')[1]?.toLowerCase();
+        const allMatchingMethods = domain
+            ? await this.organizationSsoModel.findEnabledMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
+
+        // Security: if the email belongs to an existing Lightdash user, only
+        // surface SSO methods from orgs they actually belong to. Prevents a
+        // malicious admin of org B from silently re-routing org A's existing
+        // users to their own Azure tenant by claiming the domain. Brand-new
+        // users (no account yet) still see all matching methods — the
+        // upstream feature flag + ops vetting is the gate for that case.
+        const existingUser = await this.userModel.findUserByEmail(email);
+        let matchingPerOrgMethods = allMatchingMethods;
+        if (existingUser) {
+            const userOrgs = await this.userModel.getOrganizationsForUser(
+                existingUser.userUuid,
+            );
+            const userOrgUuids = new Set(
+                userOrgs.map((o) => o.organizationUuid),
+            );
+            matchingPerOrgMethods = allMatchingMethods.filter((m) =>
+                userOrgUuids.has(m.organizationUuid),
+            );
+        }
+
+        // Each SSO provider enum value maps 1:1 to its OpenIdIdentityIssuerType
+        // string (e.g. 'azuread'); funnel through unknown to satisfy TS.
+        const matchingPerOrgProviders = new Set<OpenIdIdentityIssuerType>(
+            matchingPerOrgMethods.map(
+                (m) => m.provider as unknown as OpenIdIdentityIssuerType,
+            ),
         );
 
-        // if user has no valid options, return instance options
-        if (validUserOptions.length === 0) {
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
+        const hasPassword = await this.userModel.hasPasswordByEmail(email);
+
+        let ssoOptionsForUser: OpenIdIdentityIssuerType[];
+        let passwordAllowedForUser: boolean;
+
+        if (matchingPerOrgMethods.length > 0) {
+            // Per-org SSO suppresses instance-level SSO providers for this
+            // email's domain. Only the matching per-org methods are offered.
+            ssoOptionsForUser = Array.from(matchingPerOrgProviders);
+            // Password visibility is governed by the SSO rows: lenient rule
+            // — ANY matching method that permits password → show password.
+            passwordAllowedForUser = matchingPerOrgMethods.some(
+                (m) => m.allowPassword,
+            );
+        } else {
+            // No per-org SSO matches: instance-level behavior preserved.
+            // Show OIDC issuers the user has previously linked (filtered to
+            // instance-supported providers).
+            ssoOptionsForUser = openIdIssuers.filter((o) =>
+                instancesOptions.has(o),
+            );
+            passwordAllowedForUser = true;
+        }
+
+        const showOptions: LoginOptionTypes[] = [...ssoOptionsForUser];
+        if (
+            passwordAllowedForUser &&
+            hasPassword &&
+            instancesOptions.has(LocalIssuerTypes.EMAIL)
+        ) {
+            showOptions.unshift(LocalIssuerTypes.EMAIL);
+        }
+
+        // If the precheck yielded nothing for this email, fall back to
+        // instance-level options so the user isn't shown an empty form.
+        // This branch only fires when no per-org SSO matched and the user
+        // has no linked identity or password — i.e. they're effectively a
+        // new signup.
+        if (showOptions.length === 0) {
             return {
                 showOptions: Array.from(instancesOptions),
                 forceRedirect: false,
@@ -2446,11 +2518,14 @@ export class UserService extends BaseService {
             };
         }
 
-        const oidcOptions = validUserOptions.filter(isOpenIdIdentityIssuerType);
-        if (oidcOptions.length === 1) {
-            // Force redirect to the only issuer option
+        const oidcOptions = showOptions.filter(isOpenIdIdentityIssuerType);
+        // Auto-redirect when there is genuinely a single option (one OIDC
+        // provider, no password input). Wrong-account loops are mitigated
+        // by forwarding `login_hint` to the provider so the right account
+        // is surfaced.
+        if (oidcOptions.length === 1 && showOptions.length === 1) {
             return {
-                showOptions: validUserOptions,
+                showOptions,
                 forceRedirect: true,
                 redirectUri: new URL(
                     `/api/v1${this.getRedirectUri(
@@ -2461,7 +2536,7 @@ export class UserService extends BaseService {
             };
         }
         return {
-            showOptions: validUserOptions,
+            showOptions,
             forceRedirect: false,
             redirectUri: undefined,
         };

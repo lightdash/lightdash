@@ -144,6 +144,7 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
+import { type AzureAdSsoConfigSummary } from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
@@ -917,6 +918,7 @@ type ApiResults =
     | FieldValueSearchResult
     | ApiDownloadCsv
     | AllowedEmailDomains
+    | AzureAdSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring

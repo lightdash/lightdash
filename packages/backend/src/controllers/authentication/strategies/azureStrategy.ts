@@ -1,6 +1,6 @@
 /// <reference path="../../../@types/passport-openidconnect.d.ts" />
 /// <reference path="../../../@types/express-session.d.ts" />
-import { OpenIdIdentityIssuerType } from '@lightdash/common';
+import { AzureAdSsoConfig, OpenIdIdentityIssuerType } from '@lightdash/common';
 import {
     BaseClient,
     Issuer,
@@ -19,6 +19,9 @@ import { genericOidcHandler } from './oidcStrategy';
  * token authentication, using openid-client.
  *
  * Requires its own strategy since this method is not supported by OpenIdConnect.
+ *
+ * Only available via the env-based config — per-org SSO config uses the
+ * standard clientId/clientSecret/tenantId flow.
  */
 const azureAdPrivateKeyJksStrategy = async (): Promise<
     OpenIdClientStrategy<unknown, BaseClient>
@@ -99,7 +102,34 @@ const azureAdPrivateKeyJksStrategy = async (): Promise<
 };
 
 /**
- * Creates the appropriate AzureAd passport strategy based on the available configuration.
+ * Builds a passport strategy from a clientId/clientSecret/tenantId config
+ * (the path used by per-org DB-stored config and by the env-based standard
+ * flow).
+ */
+export const createAzureAdOidcStrategyForConfig = (
+    config: AzureAdSsoConfig,
+): OpenIDConnectStrategy =>
+    new OpenIDConnectStrategy(
+        {
+            issuer: `https://login.microsoftonline.com/${config.oauth2TenantId}/v2.0`,
+            authorizationURL: `https://login.microsoftonline.com/${config.oauth2TenantId}/oauth2/v2.0/authorize`,
+            tokenURL: `https://login.microsoftonline.com/${config.oauth2TenantId}/oauth2/v2.0/token`,
+            userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
+            clientID: config.oauth2ClientId,
+            clientSecret: config.oauth2ClientSecret,
+            callbackURL: new URL(
+                `/api/v1${lightdashConfig.auth.azuread.callbackPath}`,
+                lightdashConfig.siteUrl,
+            ).href,
+            passReqToCallback: true,
+        },
+        genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
+    );
+
+/**
+ * Creates the appropriate AzureAd passport strategy based on the available env
+ * configuration. Kept for backwards compatibility with single-tenant
+ * env-driven instances.
  */
 export const createAzureAdPassportStrategy = () => {
     const { azuread } = lightdashConfig.auth;
@@ -113,22 +143,11 @@ export const createAzureAdPassportStrategy = () => {
         azuread.oauth2ClientSecret &&
         azuread.oauth2TenantId
     ) {
-        return new OpenIDConnectStrategy(
-            {
-                issuer: `https://login.microsoftonline.com/${azuread.oauth2TenantId}/v2.0`,
-                authorizationURL: `https://login.microsoftonline.com/${azuread.oauth2TenantId}/oauth2/v2.0/authorize`,
-                tokenURL: `https://login.microsoftonline.com/${azuread.oauth2TenantId}/oauth2/v2.0/token`,
-                userInfoURL: 'https://graph.microsoft.com/oidc/userinfo',
-                clientID: azuread.oauth2ClientId,
-                clientSecret: azuread.oauth2ClientSecret,
-                callbackURL: new URL(
-                    `/api/v1${azuread.callbackPath}`,
-                    lightdashConfig.siteUrl,
-                ).href,
-                passReqToCallback: true,
-            },
-            genericOidcHandler(OpenIdIdentityIssuerType.AZUREAD),
-        );
+        return createAzureAdOidcStrategyForConfig({
+            oauth2ClientId: azuread.oauth2ClientId,
+            oauth2ClientSecret: azuread.oauth2ClientSecret,
+            oauth2TenantId: azuread.oauth2TenantId,
+        });
     }
 
     if (
