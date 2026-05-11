@@ -104,4 +104,14 @@ describe('normalizeCellRawForFilter', () => {
             ),
         ).toBe(parisNovInstant);
     });
+
+    test('TIMESTAMP-base with no timezone returns raw value unchanged', () => {
+        expect(
+            normalizeCellRawForFilter(
+                parisNovInstant,
+                buildTimeIntervalDim(DimensionType.TIMESTAMP),
+                undefined,
+            ),
+        ).toBe(parisNovInstant);
+    });
 });

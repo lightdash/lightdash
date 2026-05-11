@@ -19,8 +19,6 @@ export const normalizeCellRawForFilter = (
     ) {
         return rawValue;
     }
-    return moment
-        .utc(rawValue)
-        .tz(timezone || 'UTC')
-        .format('YYYY-MM-DD');
+    if (!timezone) return rawValue;
+    return moment.utc(rawValue).tz(timezone).format('YYYY-MM-DD');
 };
