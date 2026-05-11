@@ -1481,6 +1481,7 @@ export const getCategoryDateAxisConfig = (
     rows?: ResultRow[],
     axisType?: string,
     series?: Series[],
+    resolvedTimezone?: string,
 ): CategoryDateAxisConfig => {
     if (!axisId || !rows || !axisField || axisType !== 'category') return {};
     if (!('timeInterval' in axisField)) return {};
@@ -1500,14 +1501,20 @@ export const getCategoryDateAxisConfig = (
     );
     const boundaryGap = hasBarSeries;
 
+    // Row values are aligned to project-TZ midnights — snap boundaries in
+    // the same zone so category strings match.
+    const tz = resolvedTimezone ?? 'UTC';
+    const inTz = (v: string | number) => dayjs.tz(dayjs.utc(v).toDate(), tz);
+
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX);
-        while (nextDate.isBefore(dayjs(maxX))) {
-            continuousRange.push(nextDate.format());
+        let nextDate = inTz(minX);
+        const endDate = inTz(maxX);
+        while (nextDate.isBefore(endDate)) {
+            continuousRange.push(nextDate.utc().format());
             nextDate = nextDate.add(1, 'week');
         }
-        continuousRange.push(dayjs.utc(maxX).format());
+        continuousRange.push(endDate.utc().format());
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
@@ -1517,10 +1524,10 @@ export const getCategoryDateAxisConfig = (
 
     if (timeInterval === TimeFrames.YEAR) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX).startOf('year');
-        const endDate = dayjs.utc(maxX).startOf('year');
+        let nextDate = inTz(minX).startOf('year');
+        const endDate = inTz(maxX).startOf('year');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.format());
+            continuousRange.push(nextDate.utc().format());
             nextDate = nextDate.add(1, 'year');
         }
         return {
@@ -1532,10 +1539,10 @@ export const getCategoryDateAxisConfig = (
 
     if (timeInterval === TimeFrames.QUARTER) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX).startOf('quarter');
-        const endDate = dayjs.utc(maxX).startOf('quarter');
+        let nextDate = inTz(minX).startOf('quarter');
+        const endDate = inTz(maxX).startOf('quarter');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.format());
+            continuousRange.push(nextDate.utc().format());
             // dayjs requires quarterOfYear plugin for .add(1, 'quarter')
             nextDate = nextDate.add(3, 'months');
         }
@@ -1548,10 +1555,10 @@ export const getCategoryDateAxisConfig = (
 
     if (timeInterval === TimeFrames.MONTH) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX).startOf('month');
-        const endDate = dayjs.utc(maxX).startOf('month');
+        let nextDate = inTz(minX).startOf('month');
+        const endDate = inTz(maxX).startOf('month');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.format());
+            continuousRange.push(nextDate.utc().format());
             nextDate = nextDate.add(1, 'month');
         }
         return {
@@ -1760,6 +1767,7 @@ const getEchartAxes = ({
         axisRows,
         bottomAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
     const topAxisExtraConfig = getCategoryDateAxisConfig(
         topAxisXId,
@@ -1767,6 +1775,7 @@ const getEchartAxes = ({
         axisRows,
         topAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
     const rightAxisExtraConfig = getCategoryDateAxisConfig(
         rightAxisYId,
@@ -1774,6 +1783,7 @@ const getEchartAxes = ({
         axisRows,
         rightAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
     const leftAxisExtraConfig = getCategoryDateAxisConfig(
         leftAxisYId,
@@ -1781,6 +1791,7 @@ const getEchartAxes = ({
         axisRows,
         leftAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
 
     const axisLabelFontSize =
