@@ -26,7 +26,14 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
-    workerHealth: SchedulerWorkerHealth;
+    // Optional. When omitted, the worker runs without health tracking:
+    // no per-pool workerHeartbeat task is registered and no enqueue
+    // interval is started. The API server's embedded scheduler (App.ts)
+    // intentionally runs in this mode — its /api/v1/health endpoint does
+    // not consume scheduler health, so any heartbeat machinery on that
+    // pool would be useless overhead and (with a stable poolId) would
+    // contend with the dedicated scheduler pod's heartbeat task name.
+    workerHealth?: SchedulerWorkerHealth;
 };
 
 const workerLogger = new GraphileLogger(
@@ -59,7 +66,7 @@ export class SchedulerWorker extends SchedulerTask {
 
     enabledTasks: Array<SchedulerTaskName>;
 
-    protected readonly workerHealth: SchedulerWorkerHealth;
+    protected readonly workerHealth: SchedulerWorkerHealth | undefined;
 
     private heartbeatEnqueueInterval: NodeJS.Timeout | null = null;
 
@@ -69,8 +76,8 @@ export class SchedulerWorker extends SchedulerTask {
         this.workerHealth = schedulerWorkerArgs.workerHealth;
     }
 
-    private get heartbeatTaskName(): string {
-        return `${PER_POOL_HEARTBEAT_TASK_PREFIX}${this.workerHealth.getPoolId()}`;
+    private static getHeartbeatTaskName(health: SchedulerWorkerHealth): string {
+        return `${PER_POOL_HEARTBEAT_TASK_PREFIX}${health.getPoolId()}`;
     }
 
     async run() {
@@ -106,7 +113,9 @@ export class SchedulerWorker extends SchedulerTask {
         });
 
         this.isRunning = true;
-        this.startHeartbeatEnqueue();
+        if (this.workerHealth) {
+            this.startHeartbeatEnqueue(this.workerHealth);
+        }
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
         void this.runner.promise.finally(() => {
             this.isRunning = false;
@@ -130,14 +139,15 @@ export class SchedulerWorker extends SchedulerTask {
     // jobKey deduplicates: if the previous heartbeat is still pending, the new
     // enqueue replaces its run_at rather than creating a second job. So a dead
     // pool leaves at most ONE stale workerHeartbeat:* row in the queue.
-    private startHeartbeatEnqueue() {
+    private startHeartbeatEnqueue(health: SchedulerWorkerHealth) {
         if (this.heartbeatEnqueueInterval) return;
-        void this.enqueueOwnHeartbeat();
+        const taskName = SchedulerWorker.getHeartbeatTaskName(health);
+        void this.enqueueOwnHeartbeat(health);
         this.heartbeatEnqueueInterval = setInterval(() => {
-            void this.enqueueOwnHeartbeat();
+            void this.enqueueOwnHeartbeat(health);
         }, HEARTBEAT_ENQUEUE_INTERVAL_MS);
         Logger.info(
-            `[scheduler-health] heartbeat-enqueue started poolId=${this.workerHealth.getPoolId()} taskName=${this.heartbeatTaskName} intervalMs=${HEARTBEAT_ENQUEUE_INTERVAL_MS}`,
+            `[scheduler-health] heartbeat-enqueue started poolId=${health.getPoolId()} taskName=${taskName} intervalMs=${HEARTBEAT_ENQUEUE_INTERVAL_MS}`,
         );
     }
 
@@ -145,37 +155,40 @@ export class SchedulerWorker extends SchedulerTask {
         if (this.heartbeatEnqueueInterval) {
             clearInterval(this.heartbeatEnqueueInterval);
             this.heartbeatEnqueueInterval = null;
-            Logger.info(
-                `[scheduler-health] heartbeat-enqueue stopped poolId=${this.workerHealth.getPoolId()}`,
-            );
+            if (this.workerHealth) {
+                Logger.info(
+                    `[scheduler-health] heartbeat-enqueue stopped poolId=${this.workerHealth.getPoolId()}`,
+                );
+            }
         }
     }
 
-    private async enqueueOwnHeartbeat() {
+    private async enqueueOwnHeartbeat(health: SchedulerWorkerHealth) {
+        const taskName = SchedulerWorker.getHeartbeatTaskName(health);
         try {
             const graphileClient = await this.schedulerClient.graphileUtils;
             await graphileClient.addJob(
-                this.heartbeatTaskName,
+                taskName,
                 {
-                    poolId: this.workerHealth.getPoolId(),
+                    poolId: health.getPoolId(),
                     enqueuedAt: new Date().toISOString(),
                 },
                 {
                     // jobKey deduplicates so we never accumulate orphaned
                     // heartbeats — at most one pending row per pool.
-                    jobKey: this.heartbeatTaskName,
+                    jobKey: taskName,
                     maxAttempts: 1,
                 },
             );
             Logger.debug(
-                `[scheduler-health] heartbeat-enqueued poolId=${this.workerHealth.getPoolId()}`,
+                `[scheduler-health] heartbeat-enqueued poolId=${health.getPoolId()}`,
             );
         } catch (e) {
             // Enqueue failure is itself a signal — DB write path is broken.
             // We log and let the next tick retry; if every tick fails for 3
             // min, lastJobActivityAt will not refresh and the probe will trip.
             Logger.warn(
-                `[scheduler-health] heartbeat-enqueue-failed poolId=${this.workerHealth.getPoolId()} error=${getErrorMessage(
+                `[scheduler-health] heartbeat-enqueue-failed poolId=${health.getPoolId()} error=${getErrorMessage(
                     e,
                 )}`,
             );
@@ -244,13 +257,20 @@ export class SchedulerWorker extends SchedulerTask {
                     this.enabledTasks.includes(taskKey),
             ),
         );
-        // Register the per-pool heartbeat handler. The task name is dynamic
+        // Register the per-pool heartbeat handler only when health tracking
+        // is enabled on this worker. The task name is dynamic
         // (workerHeartbeat:<poolId>) so it isn't in SchedulerTaskName — cast
         // the merged map to satisfy the typed shape. Only this pool registers
         // this exact task name, so only this pool's runner can process it.
+        if (!this.workerHealth) {
+            return filteredTaskList as Partial<TypedTaskList>;
+        }
+        const taskName = SchedulerWorker.getHeartbeatTaskName(
+            this.workerHealth,
+        );
         return {
             ...filteredTaskList,
-            [this.heartbeatTaskName]: (async () => {
+            [taskName]: (async () => {
                 // No-op handler. Activity tracking happens via the job:start
                 // listener wired in wireWorkerHealthEvents. Successful execution
                 // of THIS specific task name proves this pool's full insert ->

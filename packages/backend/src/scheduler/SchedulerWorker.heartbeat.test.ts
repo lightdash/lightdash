@@ -1,0 +1,162 @@
+import { ALL_TASK_NAMES } from '@lightdash/common';
+import { type LightdashConfig } from '../config/parseConfig';
+import {
+    SchedulerWorker,
+    type SchedulerWorkerArguments,
+} from './SchedulerWorker';
+import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
+
+// A subclass exposing the protected getTaskList for assertion purposes.
+class TestableSchedulerWorker extends SchedulerWorker {
+    public exposeTaskList() {
+        return this.getTaskList();
+    }
+
+    public async enqueueHeartbeatOnce(health: SchedulerWorkerHealth) {
+        // The real interval is started in run(); we call the underlying enqueue
+        // directly so tests don't have to spin up graphile.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (this as any).enqueueOwnHeartbeat(health);
+    }
+}
+
+// Minimal lightdash config covering the bits SchedulerTask + SchedulerWorker
+// touch in their constructors. Cast to LightdashConfig — instantiating the
+// full config object would pull in dozens of services we don't need here.
+const makeConfig = (): LightdashConfig =>
+    ({
+        scheduler: {
+            tasks: [...ALL_TASK_NAMES],
+            concurrency: 1,
+            pollInterval: 1000,
+            jobTimeout: 60_000,
+            queryHistory: {
+                cleanup: {
+                    enabled: false,
+                    schedule: '0 0 * * *',
+                    retentionDays: 30,
+                    batchSize: 100,
+                    delayMs: 0,
+                    maxBatches: 1,
+                },
+            },
+        },
+        database: { connectionUri: 'postgres://noop' },
+    }) as unknown as LightdashConfig;
+
+// Build a minimal args bag. All services are stubs because the heartbeat
+// path only depends on schedulerClient.graphileUtils.
+const makeWorkerArgs = (
+    addJobSpy: jest.Mock,
+    workerHealth?: SchedulerWorkerHealth,
+): SchedulerWorkerArguments => {
+    const graphileUtils = Promise.resolve({
+        addJob: addJobSpy,
+    });
+    return {
+        lightdashConfig: makeConfig(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        schedulerClient: { graphileUtils } as any,
+        workerHealth,
+        // The remaining service slots are not touched by getTaskList or
+        // enqueueOwnHeartbeat. Cast through unknown to avoid stubbing 20+
+        // dependencies that the tests under this file never call.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as unknown as SchedulerWorkerArguments;
+};
+
+describe('SchedulerWorker — per-pool heartbeat registration', () => {
+    it('registers a workerHeartbeat:<poolId> task only when workerHealth is provided', () => {
+        const health = new SchedulerWorkerHealth('pod-abc-123');
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(jest.fn(), health),
+        );
+
+        const tasks = worker.exposeTaskList();
+        const taskNames = Object.keys(tasks);
+
+        expect(taskNames).toContain('workerHeartbeat:pod-abc-123');
+        // No leakage of any other workerHeartbeat:* names from this pool.
+        const heartbeatNames = taskNames.filter((n) =>
+            n.startsWith('workerHeartbeat:'),
+        );
+        expect(heartbeatNames).toEqual(['workerHeartbeat:pod-abc-123']);
+    });
+
+    it('does NOT register any workerHeartbeat:* task when workerHealth is omitted', () => {
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(jest.fn(), undefined),
+        );
+
+        const tasks = worker.exposeTaskList();
+        const heartbeatNames = Object.keys(tasks).filter((n) =>
+            n.startsWith('workerHeartbeat:'),
+        );
+
+        expect(heartbeatNames).toEqual([]);
+    });
+
+    it('isolates two pools running in the same process with different poolIds', () => {
+        // This is the multi-replica / dual-pool scenario: two workers running
+        // side by side must each register a UNIQUE task name so that neither
+        // pool can steal the other's heartbeat job.
+        const healthA = new SchedulerWorkerHealth('pod-a');
+        const healthB = new SchedulerWorkerHealth('pod-b');
+        const workerA = new TestableSchedulerWorker(
+            makeWorkerArgs(jest.fn(), healthA),
+        );
+        const workerB = new TestableSchedulerWorker(
+            makeWorkerArgs(jest.fn(), healthB),
+        );
+
+        const namesA = Object.keys(workerA.exposeTaskList()).filter((n) =>
+            n.startsWith('workerHeartbeat:'),
+        );
+        const namesB = Object.keys(workerB.exposeTaskList()).filter((n) =>
+            n.startsWith('workerHeartbeat:'),
+        );
+
+        expect(namesA).toEqual(['workerHeartbeat:pod-a']);
+        expect(namesB).toEqual(['workerHeartbeat:pod-b']);
+        expect(namesA[0]).not.toEqual(namesB[0]);
+    });
+});
+
+describe('SchedulerWorker — enqueueOwnHeartbeat', () => {
+    it('enqueues the per-pool task name with poolId payload and matching jobKey', async () => {
+        const health = new SchedulerWorkerHealth('pod-xyz');
+        const addJob = jest.fn().mockResolvedValue(undefined);
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(addJob, health),
+        );
+
+        await worker.enqueueHeartbeatOnce(health);
+
+        expect(addJob).toHaveBeenCalledTimes(1);
+        const [taskName, payload, options] = addJob.mock.calls[0];
+        expect(taskName).toBe('workerHeartbeat:pod-xyz');
+        expect(payload).toEqual({
+            poolId: 'pod-xyz',
+            enqueuedAt: expect.stringMatching(
+                /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/,
+            ),
+        });
+        expect(options).toMatchObject({
+            jobKey: 'workerHeartbeat:pod-xyz',
+            maxAttempts: 1,
+        });
+    });
+
+    it('swallows addJob errors so the interval can retry on the next tick', async () => {
+        const health = new SchedulerWorkerHealth('pod-failing');
+        const addJob = jest.fn().mockRejectedValue(new Error('pg wedged'));
+        const worker = new TestableSchedulerWorker(
+            makeWorkerArgs(addJob, health),
+        );
+
+        // Must NOT throw — the catch block is what keeps setInterval alive.
+        await expect(
+            worker.enqueueHeartbeatOnce(health),
+        ).resolves.toBeUndefined();
+    });
+});
