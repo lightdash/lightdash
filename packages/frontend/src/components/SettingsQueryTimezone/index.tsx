@@ -43,8 +43,7 @@ const QueryTimezoneForm: FC<{
         validate: zodResolver(queryTimezoneSchema),
         initialValues: {
             timezone: project.queryTimezone ?? null,
-            useProjectTimezoneInFilters:
-                project.useProjectTimezoneInFilters === true,
+            useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,
         },
     });
 
@@ -52,7 +51,7 @@ const QueryTimezoneForm: FC<{
         () =>
             form.values.timezone !== (project.queryTimezone ?? null) ||
             form.values.useProjectTimezoneInFilters !==
-                (project.useProjectTimezoneInFilters === true),
+                project.useProjectTimezoneInFilters,
         [
             form.values.timezone,
             form.values.useProjectTimezoneInFilters,
