@@ -1,17 +1,14 @@
 import {
     DimensionType,
     findFieldByIdInExplore,
-    isDimension,
+    shouldShiftItemTimezone,
     type Explore,
 } from '@lightdash/common';
 import moment from 'moment';
 
-// Shift the raw cell value into the project TZ for TIMESTAMP-base time-interval
-// DATE dims so drill/underlying-data filters target the project-TZ bucket the
-// user saw (e.g. Paris "Nov" is stored as 2024-10-31T23:00:00Z and would
-// otherwise resolve to October). DATE-base time intervals are pure calendar
-// values and must not be shifted — that would push e.g. Mar 1 to Feb 28 on
-// negative offsets.
+// Shift raw to project TZ for TIMESTAMP-base time-interval DATE dims so drill
+// filters target the displayed bucket. DATE-base dims and plain TIMESTAMPs are
+// skipped — shifting would corrupt the calendar date / EQUALS comparison.
 export const normalizeCellRawForFilter = (
     rawValue: unknown,
     fieldId: string,
@@ -24,10 +21,8 @@ export const normalizeCellRawForFilter = (
     const field = findFieldByIdInExplore(explore, fieldId);
     if (
         !field ||
-        !isDimension(field) ||
         field.type !== DimensionType.DATE ||
-        !field.timeInterval ||
-        field.timeIntervalBaseDimensionType !== DimensionType.TIMESTAMP
+        !shouldShiftItemTimezone(field)
     ) {
         return rawValue;
     }

@@ -287,6 +287,34 @@ describe('createFilterRuleFromField — time-interval DATE dims', () => {
         );
         expect(rule.values).toEqual(['2024-11']);
     });
+
+    test('plain DATE column (no timeInterval): negative offset must NOT shift', () => {
+        const plainDateDim = {
+            ...dimension('order_date', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const rule = createFilterRuleFromField(
+            plainDateDim,
+            '2024-11-01',
+            'America/New_York',
+        );
+        // Plain DATE columns are calendar values — shifting into NY would
+        // land on Oct 31 and silently corrupt the filter.
+        expect(rule.values).toEqual(['2024-11-01']);
+    });
+
+    test('plain DATE column (no timeInterval): positive offset must NOT shift', () => {
+        const plainDateDim = {
+            ...dimension('order_date', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const rule = createFilterRuleFromField(
+            plainDateDim,
+            '2024-11-01',
+            'Asia/Tokyo',
+        );
+        expect(rule.values).toEqual(['2024-11-01']);
+    });
 });
 
 describe('createFilterRuleFromModelRequiredFilterRule', () => {

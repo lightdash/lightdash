@@ -52,7 +52,7 @@ import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
 import { getDimensionMapFromTables, getMetricsMapFromTables } from './fields';
-import { formatDate } from './formatting';
+import { formatDate, shouldShiftItemTimezone } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
@@ -300,17 +300,12 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             ? defaultTimeIntervalValues[fieldTimeInterval]
                             : moment();
 
-                    // DATE-base time intervals are pure calendar values — no
-                    // TZ shift (would push e.g. Mar 1 to Feb 28 on negative
-                    // offsets). TIMESTAMP-base intervals round-trip through
-                    // the project TZ, so shift before extracting the date.
-                    const isDateBaseInterval =
-                        isDimension(field) &&
-                        field.timeIntervalBaseDimensionType ===
-                            DimensionType.DATE;
-                    const effectiveZone = isDateBaseInterval
-                        ? 'UTC'
-                        : timezone || 'UTC';
+                    // Shift TIMESTAMP-base time-interval dims into the project
+                    // TZ before extracting the date. Plain DATE / DATE-base
+                    // intervals are calendar values and must not be shifted.
+                    const effectiveZone = shouldShiftItemTimezone(field)
+                        ? timezone || 'UTC'
+                        : 'UTC';
 
                     const dateValue = valueIsDate
                         ? formatDate(
