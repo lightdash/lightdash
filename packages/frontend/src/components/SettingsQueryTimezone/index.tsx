@@ -77,7 +77,7 @@ const QueryTimezoneForm: FC<{
                 {showFilterInputsToggle && (
                     <Switch
                         label="Use project time zone in date filter inputs"
-                        description="When on, absolute date filter pickers interpret values in the project time zone instead of the viewer's browser time zone. Existing filter values are preserved."
+                        description="Use the project time zone for absolute date filters."
                         disabled={filterToggleDisabled}
                         {...form.getInputProps('useProjectTimezoneInFilters', {
                             type: 'checkbox',
