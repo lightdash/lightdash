@@ -138,6 +138,70 @@ describe('SchedulerWorkerHealth', () => {
         expect(result.ok).toBe(false);
         expect(result.reason).toMatch(/^LISTEN connection lost/);
     });
+
+    describe('in-flight job count', () => {
+        it('starts at zero', () => {
+            const health = new SchedulerWorkerHealth();
+            expect(health.getInFlightJobCount()).toBe(0);
+        });
+
+        it('increments on markJobStarted and decrements on markJobCompleted', () => {
+            const health = new SchedulerWorkerHealth();
+            health.markJobStarted();
+            health.markJobStarted();
+            expect(health.getInFlightJobCount()).toBe(2);
+            health.markJobCompleted();
+            expect(health.getInFlightJobCount()).toBe(1);
+            health.markJobCompleted();
+            expect(health.getInFlightJobCount()).toBe(0);
+        });
+
+        it('clamps at zero so missed events cannot drive the counter negative', () => {
+            const health = new SchedulerWorkerHealth();
+            health.markJobCompleted();
+            health.markJobCompleted();
+            expect(health.getInFlightJobCount()).toBe(0);
+        });
+
+        it('stays healthy past staleness when jobs are still in flight', () => {
+            // Regression: with concurrency saturated by long-running jobs, no new
+            // job:start fires within the staleness window. Probe must not trip.
+            const health = new SchedulerWorkerHealth();
+            const t = Date.now();
+            health.markJobStarted();
+
+            // No further activity for 10 minutes — well past staleness threshold.
+            const result = health.isHealthy(t + 10 * 60_000);
+            expect(result).toEqual({ ok: true });
+        });
+
+        it('falls back to staleness check after all jobs complete', () => {
+            const health = new SchedulerWorkerHealth();
+            const t = Date.now();
+            health.markJobStarted();
+            Date.now = () => t + 30_000;
+            health.markJobCompleted();
+
+            // Past grace + past staleness with no in-flight jobs and last activity
+            // older than the staleness window.
+            const result = health.isHealthy(t + 30_000 + GRACE_MS + 1);
+            expect(result.ok).toBe(false);
+            expect(result.reason).toMatch(/job activity/i);
+        });
+
+        it('reports LISTEN failure even with jobs in flight', () => {
+            // LISTEN failure is the May-incident-class signal — in-flight jobs
+            // running mid-wedge must not suppress it.
+            const health = new SchedulerWorkerHealth();
+            const t = Date.now();
+            health.markJobStarted();
+            health.markListenLost();
+
+            const result = health.isHealthy(t + LISTEN_BUDGET_MS + 1);
+            expect(result.ok).toBe(false);
+            expect(result.reason).toMatch(/^LISTEN connection lost/);
+        });
+    });
 });
 
 describe('derivePoolIdFromEnv — multi-replica uniqueness', () => {

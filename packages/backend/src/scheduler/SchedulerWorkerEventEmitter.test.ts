@@ -85,4 +85,31 @@ describe('wireWorkerHealthEvents', () => {
         expect(result.ok).toBe(false);
         expect(result.reason).toMatch(/job activity/i);
     });
+
+    it('tracks in-flight jobs from job:start and job:complete', () => {
+        const emitter = new EventEmitter() as unknown as WorkerEvents;
+        const health = new SchedulerWorkerHealth();
+        wireWorkerHealthEvents(emitter, health);
+
+        (emitter as unknown as EventEmitter).emit('job:start', {});
+        (emitter as unknown as EventEmitter).emit('job:start', {});
+        expect(health.getInFlightJobCount()).toBe(2);
+
+        (emitter as unknown as EventEmitter).emit('job:complete', {});
+        expect(health.getInFlightJobCount()).toBe(1);
+    });
+
+    it('stays healthy past the staleness window while a long job is in flight', () => {
+        // The concurrency-saturation regression: 3 long jobs occupy all slots,
+        // no further job:start fires, and the probe must not trip.
+        const emitter = new EventEmitter() as unknown as WorkerEvents;
+        const health = new SchedulerWorkerHealth();
+        const startedAt = Date.now();
+        wireWorkerHealthEvents(emitter, health);
+
+        (emitter as unknown as EventEmitter).emit('job:start', {});
+
+        // Past grace + staleness with the job still running.
+        expect(health.isHealthy(startedAt + GRACE_MS + 60_000).ok).toBe(true);
+    });
 });

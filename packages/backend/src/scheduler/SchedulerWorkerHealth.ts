@@ -24,6 +24,8 @@ export class SchedulerWorkerHealth {
 
     private lastJobActivityAt: number | null = null;
 
+    private inFlightJobCount: number = 0;
+
     private startedAt: number = Date.now();
 
     private lastReportedState: HealthState = 'starting';
@@ -76,6 +78,22 @@ export class SchedulerWorkerHealth {
         );
     }
 
+    markJobStarted() {
+        this.inFlightJobCount += 1;
+        this.markJobActivity();
+    }
+
+    markJobCompleted() {
+        // Clamp at 0: missed/duplicate complete events shouldn't drive the counter negative
+        // and break the in-flight short-circuit on the next check.
+        this.inFlightJobCount = Math.max(0, this.inFlightJobCount - 1);
+        this.markJobActivity();
+    }
+
+    getInFlightJobCount(): number {
+        return this.inFlightJobCount;
+    }
+
     isHealthy(now: number = Date.now()): HealthCheckResult {
         const result = this.computeHealth(now);
         this.logTransitionIfChanged(result, now);
@@ -98,6 +116,13 @@ export class SchedulerWorkerHealth {
         // Startup grace — the per-pool heartbeat takes ~1 min to fire on a fresh worker.
         const sinceStart = now - this.startedAt;
         if (sinceStart < JOB_ACTIVITY_STALENESS_MS) {
+            return { ok: true };
+        }
+
+        // In-flight jobs prove the pool is still processing; long jobs that fill all
+        // concurrency slots must not trip the probe just because no new job:start has
+        // fired within the staleness window.
+        if (this.inFlightJobCount > 0) {
             return { ok: true };
         }
 
