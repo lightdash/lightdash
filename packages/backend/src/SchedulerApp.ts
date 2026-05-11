@@ -206,7 +206,7 @@ export default class SchedulerApp {
     }
 
     private async initWorker() {
-        const workerHealth = new SchedulerWorkerHealth();
+        const workerHealth = new SchedulerWorkerHealth('scheduler-app');
         wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         const worker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,
@@ -233,14 +233,19 @@ export default class SchedulerApp {
             healthChecks: {
                 '/api/v1/health': () => {
                     const status = workerHealth.isHealthy();
-                    if (worker?.runner && worker.isRunning && status.ok) {
+                    const runnerUp = Boolean(
+                        worker?.runner && worker.isRunning,
+                    );
+                    if (runnerUp && status.ok) {
                         return Promise.resolve('Scheduler worker is running');
                     }
-                    return Promise.reject(
-                        new Error(
-                            status.reason ?? 'Scheduler worker not running',
-                        ),
+                    const reason = !runnerUp
+                        ? 'runner not running (worker.isRunning=false or runner=undefined)'
+                        : (status.reason ?? 'unknown');
+                    Logger.warn(
+                        `[scheduler-health] probe=503 poolId=${workerHealth.getPoolId()} reason="${reason}" runnerUp=${runnerUp}`,
                     );
+                    return Promise.reject(new Error(reason));
                 },
                 '/api/v1/livez': () => Promise.resolve(),
             },

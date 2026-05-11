@@ -894,7 +894,7 @@ export default class App {
     }
 
     private initSchedulerWorker() {
-        const workerHealth = new SchedulerWorkerHealth();
+        const workerHealth = new SchedulerWorkerHealth('backend-app');
         wireWorkerHealthEvents(schedulerWorkerEventEmitter, workerHealth);
         this.schedulerWorker = this.schedulerWorkerFactory({
             lightdashConfig: this.lightdashConfig,

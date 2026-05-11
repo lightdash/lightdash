@@ -39,6 +39,10 @@ const workerLogger = new GraphileLogger(
     },
 );
 
+// Per-pool self-beat interval. The probe's job-activity staleness threshold
+// is 3 minutes, so a 60s tick gives 3x headroom.
+const SELF_BEAT_INTERVAL_MS = 60_000;
+
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
@@ -47,6 +51,8 @@ export class SchedulerWorker extends SchedulerTask {
     enabledTasks: Array<SchedulerTaskName>;
 
     protected readonly workerHealth: SchedulerWorkerHealth;
+
+    private selfBeatInterval: NodeJS.Timeout | null = null;
 
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
@@ -87,10 +93,40 @@ export class SchedulerWorker extends SchedulerTask {
         });
 
         this.isRunning = true;
+        this.startSelfBeat();
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
         void this.runner.promise.finally(() => {
             this.isRunning = false;
+            this.stopSelfBeat();
         });
+    }
+
+    // The self-beat is a per-pool in-process timer that keeps this pool's
+    // workerHealth.lastJobActivityAt fresh. Required because the workerHeartbeat
+    // cron task previously used for this purpose can only be processed by ONE
+    // pool per minute when multiple scheduler pools share the queue — the other
+    // pool's health goes stale and trips a false-positive 503. The self-beat
+    // proves "this pool's event loop is alive and its workerHealth is reachable";
+    // queue-throughput proof is left to the LISTEN signal plus real job traffic.
+    private startSelfBeat() {
+        if (this.selfBeatInterval) return;
+        this.workerHealth.markJobActivity('self-beat');
+        this.selfBeatInterval = setInterval(() => {
+            this.workerHealth.markJobActivity('self-beat');
+        }, SELF_BEAT_INTERVAL_MS);
+        Logger.info(
+            `[scheduler-health] self-beat started poolId=${this.workerHealth.getPoolId()} intervalMs=${SELF_BEAT_INTERVAL_MS}`,
+        );
+    }
+
+    private stopSelfBeat() {
+        if (this.selfBeatInterval) {
+            clearInterval(this.selfBeatInterval);
+            this.selfBeatInterval = null;
+            Logger.info(
+                `[scheduler-health] self-beat stopped poolId=${this.workerHealth.getPoolId()}`,
+            );
+        }
     }
 
     protected getCronItems(): CronItem[] {
@@ -137,18 +173,11 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
-            {
-                task: SCHEDULER_TASKS.WORKER_HEARTBEAT,
-                pattern: '* * * * *', // Every minute
-                options: {
-                    // No backfill: stale heartbeats carry no useful signal.
-                    backfillPeriod: 0,
-                    // Single attempt: this job exists to prove the full
-                    // scheduler insert -> LISTEN dispatch -> handler pipeline,
-                    // not to be retried on transient failure.
-                    maxAttempts: 1,
-                },
-            },
+            // workerHeartbeat is NOT a cron item — it's driven by a per-pool
+            // setInterval (see startSelfBeat). A cron-scheduled heartbeat can
+            // only be processed by ONE pool when multiple pools share the
+            // queue, which flaps the unlucky pool's probe to 503.
+            //
             // Managed agent heartbeat is self-scheduling (not a static cron).
             // See SchedulerClient.scheduleManagedAgentHeartbeat().
         ];
@@ -1157,9 +1186,11 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker
             },
-            [SCHEDULER_TASKS.WORKER_HEARTBEAT]: async () => {
-                this.workerHealth.markJobActivity();
-            },
+            // No-op handler retained so manual enqueues (e.g. operator
+            // inserting a workerHeartbeat job to test queue throughput) still
+            // process cleanly. Activity tracking is handled by the self-beat
+            // interval plus the wireWorkerHealthEvents job-event listeners.
+            [SCHEDULER_TASKS.WORKER_HEARTBEAT]: async () => {},
         };
     }
 }

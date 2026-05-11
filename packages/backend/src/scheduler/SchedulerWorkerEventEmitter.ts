@@ -130,8 +130,8 @@ export function wireWorkerHealthEvents(
 ): void {
     emitter.on('pool:listen:success', () => health.markListenUp());
     emitter.on('pool:listen:error', () => health.markListenLost());
-    emitter.on('job:start', () => health.markJobActivity());
-    emitter.on('job:complete', () => health.markJobActivity());
+    emitter.on('job:start', () => health.markJobActivity('job-event'));
+    emitter.on('job:complete', () => health.markJobActivity('job-event'));
 }
 
 export default schedulerWorkerEventEmitter;
