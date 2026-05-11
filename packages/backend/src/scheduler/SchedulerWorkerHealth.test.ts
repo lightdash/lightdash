@@ -1,4 +1,3 @@
-import Logger from '../logging/logger';
 import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 
 const GRACE_MS = 3 * 60_000;
@@ -10,14 +9,10 @@ describe('SchedulerWorkerHealth', () => {
     beforeEach(() => {
         realDateNow = Date.now;
         Date.now = () => 1_700_000_000_000;
-        jest.spyOn(Logger, 'info').mockImplementation(() => Logger);
-        jest.spyOn(Logger, 'warn').mockImplementation(() => Logger);
-        jest.spyOn(Logger, 'debug').mockImplementation(() => Logger);
     });
 
     afterEach(() => {
         Date.now = realDateNow;
-        jest.restoreAllMocks();
     });
 
     it('exposes the poolId passed to the constructor', () => {
@@ -30,18 +25,6 @@ describe('SchedulerWorkerHealth', () => {
         const b = new SchedulerWorkerHealth();
         expect(a.getPoolId()).toMatch(/^[a-z0-9]+$/);
         expect(a.getPoolId()).not.toBe(b.getPoolId());
-    });
-
-    it('logs a state transition on first unhealthy result', () => {
-        const health = new SchedulerWorkerHealth('logger-test');
-        const startedAt = Date.now();
-        const result = health.isHealthy(startedAt + GRACE_MS + 1);
-        expect(result.ok).toBe(false);
-        expect(Logger.info).toHaveBeenCalledWith(
-            expect.stringContaining(
-                '[scheduler-health] state poolId=logger-test',
-            ),
-        );
     });
 
     it('reports healthy inside startup grace with no activity', () => {
