@@ -182,9 +182,17 @@ export class SchedulerWorker extends SchedulerTask {
                     enqueuedAt: new Date().toISOString(),
                 },
                 {
-                    // jobKey deduplicates so we never accumulate orphaned
-                    // heartbeats — at most one pending row per pool.
+                    // jobKey + replace mode collapses pending duplicates: if
+                    // a previous heartbeat is still UNLOCKED (queued but not
+                    // started), this enqueue updates its run_at in place. If
+                    // a previous heartbeat is currently LOCKED (being run),
+                    // graphile-worker still creates a new row for this one —
+                    // replace mode only deduplicates against unlocked rows.
+                    // That bound is fine for us: in steady state the no-op
+                    // handler completes in <50ms, so locked-row pile-up is
+                    // not a realistic failure mode at a 60s cadence.
                     jobKey: taskName,
+                    jobKeyMode: 'replace',
                     maxAttempts: 1,
                 },
             );

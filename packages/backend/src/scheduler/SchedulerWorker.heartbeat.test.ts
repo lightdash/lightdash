@@ -143,6 +143,9 @@ describe('SchedulerWorker — enqueueOwnHeartbeat', () => {
         });
         expect(options).toMatchObject({
             jobKey: 'workerHeartbeat:pod-xyz',
+            // Explicit replace mode — collapses pending unlocked rows so a
+            // stuck pool can never leave more than one queued heartbeat.
+            jobKeyMode: 'replace',
             maxAttempts: 1,
         });
     });
