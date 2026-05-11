@@ -269,6 +269,7 @@ version: 1
 | Conversion stages | `funnel` | Visualizes drop-off between sequential steps |
 | Progress toward target | `gauge` | Shows current value relative to goal |
 | Geographic data | `map` | Plots data points or regions on a map |
+| Flow between categories | `sankey` | Shows how values move from source to target nodes |
 | Detailed records | `table` | Displays raw data with sorting and formatting |
 | Advanced custom needs | `custom` | Full Vega-Lite spec for custom visualizations |
 
@@ -282,6 +283,7 @@ version: 1
 | `gauge` | Progress indicators | [Gauge](./resources/gauge-chart-reference.md) |
 | `treemap` | Hierarchical data | [Treemap](./resources/treemap-chart-reference.md) |
 | `map` | Geographic data | [Map](./resources/map-chart-reference.md) |
+| `sankey` | Flow diagrams | [Sankey](./resources/sankey-chart-reference.md) |
 | `custom` | Vega-Lite | [Custom Viz](./resources/custom-viz-reference.md) |
 
 ## Dashboards
@@ -330,6 +332,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 - [Gauge Chart Reference](./resources/gauge-chart-reference.md)
 - [Treemap Chart Reference](./resources/treemap-chart-reference.md)
 - [Map Chart Reference](./resources/map-chart-reference.md)
+- [Sankey Chart Reference](./resources/sankey-chart-reference.md)
 - [Custom Viz Reference](./resources/custom-viz-reference.md)
 - [Period over Period Reference](./resources/period-over-period-reference.md) - PoP comparisons (YoY, MoM, etc.)
 
