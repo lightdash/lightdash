@@ -142,6 +142,21 @@ Each file contains:
   **Only strip the prefix if it matches the explore name.** If it doesn't match, it's a joined table.
 - **Table calculation names:** Do NOT strip — pass them through as-is.
 
+## Attached images
+
+The user can attach images to a prompt. They land at `/tmp/images/`. Use the
+Read tool to view each one before deciding how to use it.
+
+Two kinds, distinguished by filename:
+
+| Filename pattern | Meaning | How to use it |
+|---|---|---|
+| `screenshot-<uuid>.<ext>` | A live screenshot of the **current** built app — what the user is looking at when they wrote the prompt. | Treat as *context for the request*, not a target. The user's prompt usually says "change X" or "this looks wrong" — the screenshot tells you what the layout actually renders as right now (colors, spacing, missing data, broken charts). Do NOT try to reproduce the screenshot; the existing source files already produce it. |
+| `<uuid>.<ext>` (no prefix) | A design reference uploaded by the user — mockup, sketch, screenshot from elsewhere, or a chart they like. | Treat as a *target to approximate* for layout, color, typography, or component choice. Match the spirit, not pixel-perfect. The prompt prepend will also call these "Design reference image N". |
+
+If both are attached, the user is most likely saying "here's what it looks
+like now (screenshot) — change it to look more like this (design reference)."
+
 ## Element references in iteration prompts
 
 The Lightdash preview pane has an "Inspect" toggle. When the user clicks an

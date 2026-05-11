@@ -16,7 +16,6 @@ import {
     Badge,
     Box,
     Button,
-    Checkbox,
     Group,
     Image,
     Loader,
@@ -82,6 +81,7 @@ import {
     ImageButton,
     InspectButton,
     QueryButton,
+    ScreenshotButton,
     SelectedDashboardSection,
     SelectedImageSection,
     SelectedQuerySection,
@@ -309,6 +309,7 @@ const AppGenerate: FC = () => {
         Array<{
             file: File;
             previewUrl: string;
+            kind?: 'screenshot';
         }>
     >([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -482,10 +483,6 @@ const AppGenerate: FC = () => {
         setSelectedCharts([]);
         setSelectedDashboard(null);
         setImageAttachments([]);
-        setScreenshotAttachment((prev) => {
-            if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
-            return null;
-        });
         setIsCapturingScreenshot(false);
         setLocalMessages([]);
         setPreviewApp(null);
@@ -535,14 +532,6 @@ const AppGenerate: FC = () => {
     const ability = useAbilityContext();
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const previewRef = useRef<AppIframePreviewHandle>(null);
-    // Optional one-shot screenshot of the live preview, captured on demand and
-    // sent alongside the prompt so Claude can see what the user is looking at
-    // while iterating. Separate from `imageAttachments` because it has its own
-    // toggle UI and lifecycle (untoggling re-captures rather than restoring).
-    const [screenshotAttachment, setScreenshotAttachment] = useState<{
-        file: File;
-        previewUrl: string;
-    } | null>(null);
     const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
 
     // Fetch version history (polling is handled by the Web Worker below)
@@ -882,7 +871,7 @@ const AppGenerate: FC = () => {
         'image/webp',
     ];
 
-    const handleImageAttach = (file: File) => {
+    const handleImageAttach = (file: File, kind?: 'screenshot') => {
         if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
             showToastError({
                 title: 'Unsupported image type',
@@ -905,7 +894,10 @@ const AppGenerate: FC = () => {
                 });
                 return prev;
             }
-            return [...prev, { file, previewUrl: URL.createObjectURL(file) }];
+            return [
+                ...prev,
+                { file, previewUrl: URL.createObjectURL(file), kind },
+            ];
         });
     };
 
@@ -946,6 +938,23 @@ const AppGenerate: FC = () => {
         Array.from(e.dataTransfer.files)
             .filter((f) => f.type.startsWith('image/'))
             .forEach(handleImageAttach);
+    };
+
+    const handleCaptureScreenshot = async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture) return;
+        setIsCapturingScreenshot(true);
+        try {
+            const file = await capture();
+            handleImageAttach(file, 'screenshot');
+        } catch (err) {
+            showToastError({
+                title: 'Screenshot failed',
+                subtitle: err instanceof Error ? err.message : 'Unknown error',
+            });
+        } finally {
+            setIsCapturingScreenshot(false);
+        }
     };
 
     const buildSubmitCallbacks = () => ({
@@ -1005,15 +1014,6 @@ const AppGenerate: FC = () => {
             const newAppUuid = activeAppUuid ? undefined : uuid4();
             const targetAppUuid = activeAppUuid ?? newAppUuid;
 
-            // Combined upload list: manual attachments plus an optional one-shot
-            // screenshot of the current preview. The screenshot is treated as
-            // just another image on the wire — the backend doesn't need to know
-            // it was captured rather than picked from disk.
-            const uploadList = [
-                ...imageAttachments,
-                ...(screenshotAttachment ? [screenshotAttachment] : []),
-            ];
-
             // Upload images sequentially. Two reasons we can't run these in parallel:
             // 1. The backend buffers each body to avoid AWS SDK chunked signing,
             //    which MinIO/GCS handle unreliably (RequestTimeout).
@@ -1022,14 +1022,15 @@ const AppGenerate: FC = () => {
             //    with "A timeout occurred while trying to lock a resource".
             // Surface individual failures via toast rather than silently dropping them.
             let imageIds: string[] | undefined;
-            if (uploadList.length > 0) {
+            if (imageAttachments.length > 0) {
                 const ids: string[] = [];
-                for (const att of uploadList) {
+                for (const att of imageAttachments) {
                     try {
                         const result = await uploadImage({
                             projectUuid: projectUuid!,
                             file: att.file,
                             appUuid: targetAppUuid!,
+                            kind: att.kind,
                         });
                         ids.push(result.imageId);
                     } catch (err) {
@@ -1050,7 +1051,7 @@ const AppGenerate: FC = () => {
 
             // Capture preview URLs before clearing — they stay in the message bubble.
             // Also store in the ref so they survive the local→server transition.
-            const sentImageUrls = uploadList.map((att) => att.previewUrl);
+            const sentImageUrls = imageAttachments.map((att) => att.previewUrl);
             if (sentImageUrls.length > 0) {
                 sentImagesByPrompt.current.set(trimmed, sentImageUrls);
             }
@@ -1091,7 +1092,6 @@ const AppGenerate: FC = () => {
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
             setImageAttachments([]);
-            setScreenshotAttachment(null);
             setIsCapturingScreenshot(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
@@ -1773,6 +1773,19 @@ const AppGenerate: FC = () => {
                                                 MAX_IMAGES_PER_VERSION
                                         }
                                     />
+                                    {previewApp && (
+                                        <ScreenshotButton
+                                            onClick={() =>
+                                                void handleCaptureScreenshot()
+                                            }
+                                            disabled={
+                                                isLoading ||
+                                                imageAttachments.length >=
+                                                    MAX_IMAGES_PER_VERSION
+                                            }
+                                            loading={isCapturingScreenshot}
+                                        />
+                                    )}
                                     {inspectorAvailable && (
                                         <InspectButton
                                             enabled={inspectorEnabled}
@@ -1782,78 +1795,6 @@ const AppGenerate: FC = () => {
                                         />
                                     )}
                                 </Group>
-                                {previewApp && (
-                                    <Group gap={6} pt={4}>
-                                        <Checkbox
-                                            size="xs"
-                                            label={
-                                                isCapturingScreenshot
-                                                    ? 'Capturing screenshot...'
-                                                    : 'Include screenshot of current app'
-                                            }
-                                            checked={
-                                                !!screenshotAttachment ||
-                                                isCapturingScreenshot
-                                            }
-                                            onChange={(e) => {
-                                                if (e.currentTarget.checked) {
-                                                    setIsCapturingScreenshot(
-                                                        true,
-                                                    );
-                                                    const p =
-                                                        previewRef.current?.captureScreenshot();
-                                                    if (!p) {
-                                                        setIsCapturingScreenshot(
-                                                            false,
-                                                        );
-                                                        return;
-                                                    }
-                                                    p.then((file) => {
-                                                        setScreenshotAttachment(
-                                                            {
-                                                                file,
-                                                                previewUrl:
-                                                                    URL.createObjectURL(
-                                                                        file,
-                                                                    ),
-                                                            },
-                                                        );
-                                                    })
-                                                        .catch((err) => {
-                                                            // eslint-disable-next-line no-console
-                                                            console.warn(
-                                                                'Screenshot capture failed:',
-                                                                err,
-                                                            );
-                                                        })
-                                                        .finally(() => {
-                                                            setIsCapturingScreenshot(
-                                                                false,
-                                                            );
-                                                        });
-                                                } else {
-                                                    if (
-                                                        screenshotAttachment?.previewUrl
-                                                    ) {
-                                                        URL.revokeObjectURL(
-                                                            screenshotAttachment.previewUrl,
-                                                        );
-                                                    }
-                                                    setScreenshotAttachment(
-                                                        null,
-                                                    );
-                                                }
-                                            }}
-                                            disabled={
-                                                isLoading ||
-                                                isCapturingScreenshot
-                                            }
-                                            classNames={{
-                                                label: classes.screenshotLabel,
-                                            }}
-                                        />
-                                    </Group>
-                                )}
                                 <Box
                                     className={classes.resourceSections}
                                     onDragOver={handleDragOver}
@@ -1861,8 +1802,7 @@ const AppGenerate: FC = () => {
                                 >
                                     {selectedCharts.length > 0 ||
                                     selectedDashboard ||
-                                    imageAttachments.length > 0 ||
-                                    screenshotAttachment ? (
+                                    imageAttachments.length > 0 ? (
                                         <>
                                             {selectedCharts.length > 0 && (
                                                 <SelectedQuerySection
@@ -1922,40 +1862,17 @@ const AppGenerate: FC = () => {
                                                     disabled={isLoading}
                                                 />
                                             )}
-                                            {(imageAttachments.length > 0 ||
-                                                screenshotAttachment) && (
+                                            {imageAttachments.length > 0 && (
                                                 <SelectedImageSection
-                                                    images={[
-                                                        ...imageAttachments.map(
-                                                            (att) => ({
-                                                                previewUrl:
-                                                                    att.previewUrl,
-                                                            }),
-                                                        ),
-                                                        ...(screenshotAttachment
-                                                            ? [
-                                                                  {
-                                                                      previewUrl:
-                                                                          screenshotAttachment.previewUrl,
-                                                                  },
-                                                              ]
-                                                            : []),
-                                                    ]}
-                                                    onRemove={(previewUrl) => {
-                                                        if (
-                                                            screenshotAttachment?.previewUrl ===
-                                                            previewUrl
-                                                        ) {
-                                                            URL.revokeObjectURL(
-                                                                previewUrl,
-                                                            );
-                                                            setScreenshotAttachment(
-                                                                null,
-                                                            );
-                                                            return;
-                                                        }
-                                                        clearImage(previewUrl);
-                                                    }}
+                                                    images={imageAttachments.map(
+                                                        (att) => ({
+                                                            previewUrl:
+                                                                att.previewUrl,
+                                                        }),
+                                                    )}
+                                                    onRemove={(previewUrl) =>
+                                                        clearImage(previewUrl)
+                                                    }
                                                     disabled={isLoading}
                                                     loading={isSubmitting}
                                                 />
