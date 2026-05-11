@@ -13,7 +13,6 @@ import {
     run as runGraphileWorker,
     Runner,
     type CronItem,
-    type JobHelpers,
 } from 'graphile-worker';
 import moment from 'moment';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
