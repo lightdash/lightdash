@@ -7724,7 +7724,7 @@ export class ProjectService extends BaseService {
             throw new ParameterError(`Invalid timezone: "${queryTimezone}"`);
         }
 
-        await this.projectModel.updateQueryTimezone(
+        const updatedProject = await this.projectModel.updateQueryTimezone(
             projectUuid,
             queryTimezone,
             useProjectTimezoneInFilters,
@@ -7736,12 +7736,11 @@ export class ProjectService extends BaseService {
             properties: {
                 projectId: projectUuid,
                 organizationUuid: project.organizationUuid,
-                queryTimezone:
-                    queryTimezone !== null && queryTimezone !== undefined
-                        ? getTimezoneLabel(queryTimezone)
-                        : null,
+                queryTimezone: updatedProject.query_timezone
+                    ? getTimezoneLabel(updatedProject.query_timezone)
+                    : null,
                 useProjectTimezoneInFilters:
-                    useProjectTimezoneInFilters ?? false,
+                    updatedProject.use_project_timezone_in_filters,
             },
         });
     }
