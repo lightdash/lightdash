@@ -124,6 +124,8 @@ if (lightdashConfig.logging.outputs.includes('console')) {
             level:
                 lightdashConfig.logging.consoleLevel ||
                 lightdashConfig.logging.level,
+            handleExceptions: true,
+            handleRejections: true,
         }),
     );
 }
