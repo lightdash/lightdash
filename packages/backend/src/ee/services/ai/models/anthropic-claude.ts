@@ -21,25 +21,27 @@ export const getAnthropicModel = (
     const reasoningEnabled =
         options?.enableReasoning && preset.supportsReasoning;
 
+    const reasoningStyle = preset.reasoningStyle ?? 'budget';
+
     return {
         model,
         callOptions: {
             ...preset.callOptions,
-            // temperature is not supported when reasoning is enabled
-            ...(reasoningEnabled
-                ? { temperature: undefined }
-                : { temperature: 0.2 }),
+            ...(reasoningEnabled && { temperature: undefined }),
         },
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
-                ...(reasoningEnabled && {
-                    thinking: {
-                        type: 'enabled',
-                        /** @ref https://platform.claude.com/docs/en/build-with-claude/extended-thinking#working-with-thinking-budgets */
-                        budgetTokens: 2048,
-                    },
-                }),
+                ...(reasoningEnabled &&
+                    (reasoningStyle === 'adaptive'
+                        ? { effort: 'medium' as const }
+                        : {
+                              thinking: {
+                                  type: 'enabled' as const,
+                                  /** @ref https://platform.claude.com/docs/en/build-with-claude/extended-thinking#working-with-thinking-budgets */
+                                  budgetTokens: 2048,
+                              },
+                          })),
             },
         },
     };
