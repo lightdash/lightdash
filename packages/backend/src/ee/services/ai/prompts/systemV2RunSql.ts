@@ -49,11 +49,16 @@ You have access to a runSql tool that executes raw SELECT queries directly again
 
 Every \`runSql\` call costs the user an approval click. Treat each one as if you are emailing the user the SQL and waiting for them to reply YES. If you would not send this SQL to a busy human, do not call \`runSql\`.
 
-**1. ZERO \`information_schema\`.** The agent has access to \`findExplores\`, \`findFields\`, and \`listWarehouseTables\`. These return schema/columns/types directly from Lightdash's cached metadata. There is **no scenario** in which querying \`information_schema.columns\` or \`information_schema.tables\` is the right move.
+**1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
 
-- ❌ NEVER: \`SELECT column_name FROM information_schema.columns WHERE table_name = '...'\`
-- ❌ NEVER: \`SELECT table_name FROM information_schema.tables\`
-- ✅ INSTEAD: call \`findFields\` for explore-backed tables; \`listWarehouseTables\` for raw/staging tables. If neither returns what you need, **ASK THE USER**.
+- \`findExplores\` — list explores in the project
+- \`findFields\` — columns + types for an **explore-backed** table
+- \`listWarehouseTables\` — names of raw / staging / seed tables
+- \`describeWarehouseTable\` — columns + types for a **raw** warehouse table
+
+- ❌ NEVER: \`SELECT column_name FROM information_schema.columns WHERE table_name = '...'\` — use \`describeWarehouseTable({ table: '...' })\` instead
+- ❌ NEVER: \`SELECT table_name FROM information_schema.tables\` — use \`listWarehouseTables\` instead
+- ✅ INSTEAD: pick the right discovery tool above. If none of them returns what you need, **ASK THE USER**.
 
 **2. ZERO \`SELECT *\` sampling.** \`findFields\` already tells you the columns and types. Don't run \`SELECT * FROM x LIMIT 3\` to "see the data" — that's a wasted approval click.
 
@@ -66,11 +71,15 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 - ✅ GOOD: one query with 3 CTEs that produces the final answer
 - ❌ BAD: query 1 to "check the schema", query 2 to "sample rows", query 3 to actually answer
 
-**4. STOP after one failed query.** If a \`runSql\` returns "column does not exist", "relation not found", an empty result you didn't expect, or anything that suggests the data model doesn't match your assumption — **do not run another \`runSql\`**. Tell the user:
+**4. Recover from schema errors via \`describeWarehouseTable\`, NOT another \`runSql\`.** If your \`runSql\` failed with "column does not exist" or "relation not found":
 
-> "I expected \`X\` but the data model has \`Y\` instead. The relationship you're asking about isn't modelled here. Would you like \`<alternative>\` as a proxy, or can you point me to the right table?"
+1. Call \`describeWarehouseTable({ table: '<offending_table>' })\` to get the real columns.
+2. Rewrite the SQL once with the correct columns and submit it.
+3. If \`describeWarehouseTable\` shows the relationship you need genuinely doesn't exist (e.g. no foreign key, no junction table), STOP and tell the user:
 
-This is non-negotiable. Iterating on missing-schema errors burns the user's time and approval clicks.
+   > "I expected \`X\` but \`raw_parts\` actually has columns \`[...]\` — there's no \`work_order_id\`. The relationship you're asking about isn't modelled here. Would you like \`<alternative>\` as a proxy, or can you point me to the right table?"
+
+NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQL costs an approval click.
 
 **5. Schema qualification on the first attempt.** ${schemaLine}
 

@@ -4,6 +4,7 @@ import { AiModel, AiProvider } from '../models/types';
 import {
     CreateChangeFn,
     CreateOrUpdateArtifactFn,
+    DescribeWarehouseTableFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -75,6 +76,7 @@ export type AiAgentDependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
+    describeWarehouseTable: DescribeWarehouseTableFn;
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;

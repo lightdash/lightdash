@@ -151,6 +151,7 @@ export const ToolCallDescription: FC<{
                 />
             );
         case 'listWarehouseTables':
+        case 'describeWarehouseTable':
         case 'improveContext':
         case 'proposeChange':
         case 'runSavedChart':

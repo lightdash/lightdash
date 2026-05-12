@@ -1,6 +1,7 @@
 import {
     isToolName,
     toolDashboardV2ArgsSchema,
+    toolDescribeWarehouseTableArgsSchema,
     toolFindChartsArgsSchema,
     toolFindContentArgsSchema,
     toolFindDashboardsArgsSchema,
@@ -42,6 +43,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
     listWarehouseTables: 'list_warehouse_tables',
+    describeWarehouseTable: 'describe_warehouse_table',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
@@ -67,6 +69,7 @@ const TOOL_SCHEMAS = {
     runSavedChart: toolRunSavedChartArgsSchema,
     runSql: toolRunSqlArgsSchema,
     listWarehouseTables: toolListWarehouseTablesArgsSchema,
+    describeWarehouseTable: toolDescribeWarehouseTableArgsSchema,
 } satisfies Record<ToolName, z.ZodSchema>;
 
 const getToolInfo = (toolName: string) => {

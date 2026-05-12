@@ -196,6 +196,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-runQuery':
                             case 'tool-runSql':
                             case 'tool-listWarehouseTables':
+                            case 'tool-describeWarehouseTable':
                             case 'tool-generateDashboard':
                                 if (part.state !== 'input-available') {
                                     // Whenever a runSql tool result lands

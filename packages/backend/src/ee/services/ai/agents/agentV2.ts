@@ -11,6 +11,7 @@ import {
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
@@ -143,6 +144,12 @@ const getAgentTools = (
           })
         : null;
 
+    const describeWarehouseTable = args.canRunSql
+        ? getDescribeWarehouseTable({
+              describeWarehouseTable: dependencies.describeWarehouseTable,
+          })
+        : null;
+
     const generateDashboard = getGenerateDashboardV2({
         getPrompt: dependencies.getPrompt,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -174,6 +181,7 @@ const getAgentTools = (
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
+        ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
     };
 
     logger(

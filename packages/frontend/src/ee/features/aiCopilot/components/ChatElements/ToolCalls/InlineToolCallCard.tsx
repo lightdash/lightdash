@@ -19,6 +19,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'proposeChange',
     'runSavedChart',
     'listWarehouseTables',
+    'describeWarehouseTable',
 ]);
 
 type InlineToolCallCardProps = {

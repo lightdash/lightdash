@@ -35,6 +35,7 @@ export const getToolIcon = (toolName: ToolName) => {
             runSavedChart: IconChartHistogram,
             runSql: IconTerminal2,
             listWarehouseTables: IconDatabase,
+            describeWarehouseTable: IconDatabase,
         };
 
     return iconMap[toolName];

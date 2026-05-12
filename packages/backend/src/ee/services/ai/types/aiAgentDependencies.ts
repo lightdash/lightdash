@@ -197,3 +197,11 @@ export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
 }>;
 
 export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
+
+export type DescribeWarehouseTableFn = (args: {
+    table: string;
+    schema?: string;
+}) => Promise<{
+    columns: Array<{ name: string; type: string }>;
+    resolvedSchema: string | null;
+}>;

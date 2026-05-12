@@ -145,6 +145,7 @@ import {
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
+    DescribeWarehouseTableFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -3186,6 +3187,48 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 () => this.projectService.getWarehouseTables(user, projectUuid),
             );
 
+        const describeWarehouseTable: DescribeWarehouseTableFn = ({
+            table,
+            schema,
+        }) =>
+            wrapSentryTransaction(
+                'AiAgent.describeWarehouseTable',
+                { projectUuid, table, schema: schema ?? null },
+                async () => {
+                    // When the agent doesn't pass a schema, fall back to the
+                    // project's default schema (same fallback the runSql
+                    // system prompt uses). getWarehouseFields throws if it
+                    // ends up undefined.
+                    let resolvedSchema = schema ?? null;
+                    if (!resolvedSchema) {
+                        const creds =
+                            await this.projectModel.getWarehouseCredentialsForProject(
+                                projectUuid,
+                            );
+                        resolvedSchema = creds
+                            ? ('schema' in creds && creds.schema) ||
+                              ('dataset' in creds && creds.dataset) ||
+                              null ||
+                              null
+                            : null;
+                    }
+                    const fields = await this.projectService.getWarehouseFields(
+                        user,
+                        projectUuid,
+                        QueryExecutionContext.AI,
+                        table,
+                        resolvedSchema ?? undefined,
+                    );
+                    return {
+                        columns: Object.entries(fields).map(([name, type]) => ({
+                            name,
+                            type: String(type),
+                        })),
+                        resolvedSchema,
+                    };
+                },
+            );
+
         const sendSlackBlocks: SendSlackBlocksFn = async (args) =>
             wrapSentryTransaction(
                 'AiAgent.sendSlackBlocks',
@@ -3395,6 +3438,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runAsyncQuery,
             runSqlJob,
             listWarehouseTables,
+            describeWarehouseTable,
             getSavedChart,
             sendFile,
             sendSlackBlocks,
@@ -3476,6 +3520,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runAsyncQuery,
             runSqlJob,
             listWarehouseTables,
+            describeWarehouseTable,
             getSavedChart,
             sendFile,
             sendSlackBlocks,
@@ -3595,6 +3640,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runAsyncQuery,
             runSqlJob,
             listWarehouseTables,
+            describeWarehouseTable,
             getSavedChart,
             getPrompt,
             sendFile,
