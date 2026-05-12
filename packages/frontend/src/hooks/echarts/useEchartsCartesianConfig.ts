@@ -3072,6 +3072,27 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.xField,
     ]);
 
+    // Parallel to paddedDataToRender but built from xAxisSortedResults (pre
+    // 100%-stack transform) so y-values stay raw. Stack-total labels need the
+    // raw sum, not the 0-1-ratio values that 100%-stacking writes into
+    // dataToRender. Cat values are canonicalized the same way as the dataset,
+    // so labels still name-match xAxis.data exactly.
+    const paddedRawDataForStackTotals = useMemo(() => {
+        const continuousRange = axes.continuousDateRange;
+        if (!continuousRange) return xAxisSortedResults;
+        const dateFieldId = validCartesianConfig?.layout?.xField;
+        if (!dateFieldId) return xAxisSortedResults;
+        return padDatasetForContinuousAxis(
+            xAxisSortedResults,
+            continuousRange,
+            dateFieldId,
+        );
+    }, [
+        xAxisSortedResults,
+        axes.continuousDateRange,
+        validCartesianConfig?.layout?.xField,
+    ]);
+
     // Rounded-corner decoration and stack-total labels both need category
     // values that match xAxis.data exactly. Running them after paddedDataToRender
     // lets them read from the same canonicalized dataset that backs the axis,
@@ -3123,7 +3144,7 @@ const useEchartsCartesianConfig = (
         return [
             ...seriesWithRoundedStacks,
             ...getStackTotalSeries(
-                paddedDataToRender,
+                paddedRawDataForStackTotals,
                 seriesWithRoundedStacks,
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
@@ -3136,6 +3157,7 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         paddedDataToRender,
+        paddedRawDataForStackTotals,
         itemsMap,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
@@ -3206,7 +3228,7 @@ const useEchartsCartesianConfig = (
             !isStack100 ||
             !stackedSeriesWithColorAssignments ||
             !itemsMap ||
-            !paddedDataToRender
+            !paddedRawDataForStackTotals
         )
             return { right: 0, top: 0 };
 
@@ -3228,7 +3250,7 @@ const useEchartsCartesianConfig = (
             if (!stack || !stackSeries[0]?.stackLabel?.show) return;
 
             const stackTotalData = getStackTotalRows(
-                paddedDataToRender,
+                paddedRawDataForStackTotals,
                 stackSeries,
                 flipAxis,
                 validCartesianConfigLegend,
@@ -3263,7 +3285,7 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         itemsMap,
-        paddedDataToRender,
+        paddedRawDataForStackTotals,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfigLegend,
