@@ -239,9 +239,14 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'generateDashboard',
 ]);
 
+// One compact footer: small "How did I do?" header + a single row with
+// thumbs and the chat permalink. Only rendered when at least one
+// answer-producing tool succeeded for this prompt.
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
     toolResults: AiAgentToolResult[],
+    agentUuid: string,
+    siteUrl: string,
 ): (Block | KnownBlock)[] {
     const hasAnswer = toolResults.some(
         (r) =>
@@ -249,7 +254,13 @@ export function getFeedbackBlocks(
             (r.metadata as { status?: string } | null)?.status === 'success',
     );
     if (!hasAnswer) return [];
+
+    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
     return [
+        {
+            type: 'context',
+            elements: [{ type: 'mrkdwn', text: '🤖 _How did I do?_' }],
+        },
         {
             block_id: 'prompt_human_score',
             type: 'actions',
@@ -266,27 +277,14 @@ export function getFeedbackBlocks(
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.downvote',
                 },
-            ],
-        },
-    ];
-}
-
-// Subtle, always-on permalink to the thread in Lightdash. Rendered as a
-// dimmed context block (single italic line) so it doesn't compete with the
-// agent's answer or the feedback row.
-export function getViewInLightdashBlocks(
-    slackPrompt: SlackPrompt,
-    agentUuid: string,
-    siteUrl: string,
-): (Block | KnownBlock)[] {
-    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
-    return [
-        {
-            type: 'context',
-            elements: [
                 {
-                    type: 'mrkdwn',
-                    text: `<${threadUrl}|View chat in Lightdash> :zap:`,
+                    type: 'button',
+                    text: {
+                        type: 'plain_text',
+                        text: 'View chat in Lightdash',
+                    },
+                    url: threadUrl,
+                    action_id: 'view_chat_in_lightdash',
                 },
             ],
         },
