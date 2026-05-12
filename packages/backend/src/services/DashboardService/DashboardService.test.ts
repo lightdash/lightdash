@@ -5,6 +5,7 @@ import {
     defineUserAbility,
     FilterOperator,
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
@@ -336,6 +337,29 @@ describe('DashboardService', () => {
             expect.objectContaining({
                 event: 'saved_chart.deleted',
             }),
+        );
+    });
+    test('should not fail save when an orphan chart is already gone', async () => {
+        // Race with a retried save: getOrphanedCharts returns a chart that
+        // permanentDelete then can't find. The save must still succeed.
+        (dashboardModel.getOrphanedCharts as jest.Mock).mockImplementationOnce(
+            async () => [{ uuid: 'missing_chart_uuid' }],
+        );
+        (savedChartModel.permanentDelete as jest.Mock).mockImplementationOnce(
+            async () => {
+                throw new NotFoundError('chart already deleted');
+            },
+        );
+
+        await expect(
+            service.update(user, dashboardUuid, updateDashboardTiles),
+        ).resolves.toBeDefined();
+
+        expect(savedChartModel.permanentDelete).toHaveBeenCalledTimes(1);
+        // The dashboard.updated + dashboard_version.created events still fire,
+        // but no saved_chart.deleted event for the already-missing chart.
+        expect(analyticsMock.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'saved_chart.deleted' }),
         );
     });
     test('should delete dashboard', async () => {

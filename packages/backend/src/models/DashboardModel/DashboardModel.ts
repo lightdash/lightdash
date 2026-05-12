@@ -74,6 +74,7 @@ import { SavedSqlTableName } from '../../database/entities/savedSql';
 import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
+import Logger from '../../logging/logger';
 import { generateUniqueSlug } from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
@@ -183,6 +184,12 @@ export class DashboardModel {
             );
         }
 
+        // Tiles may carry a tabUuid for a tab that no longer exists in this
+        // version (stale frontend state, concurrent edits, CLI/promotion).
+        // Drop those references so the insert can't violate the
+        // (tab_uuid, dashboard_version_id) FK on dashboard_tabs.
+        const validTabUuids = new Set(version.tabs.map((tab) => tab.uuid));
+
         const tilesWithUuids: Array<
             | (CreateDashboardChartTile & { uuid: string })
             | (CreateDashboardMarkdownTile & { uuid: string })
@@ -194,6 +201,22 @@ export class DashboardModel {
             uuid: tile.uuid || uuidv4(),
         }));
 
+        const droppedTabUuids = [
+            ...new Set(
+                tilesWithUuids
+                    .map((t) => t.tabUuid)
+                    .filter(
+                        (uuid): uuid is string =>
+                            !!uuid && !validTabUuids.has(uuid),
+                    ),
+            ),
+        ];
+        if (droppedTabUuids.length > 0) {
+            Logger.warn(
+                `Dropped stale tabUuid on tiles for dashboard ${dashboardId} version ${versionId.dashboard_version_id}: ${droppedTabUuids.join(', ')}`,
+            );
+        }
+
         if (tilesWithUuids.length > 0) {
             await trx(DashboardTilesTableName).insert(
                 tilesWithUuids.map(({ uuid, type, w, h, x, y, tabUuid }) => ({
@@ -204,7 +227,8 @@ export class DashboardModel {
                     width: w,
                     x_offset: x,
                     y_offset: y,
-                    tab_uuid: tabUuid,
+                    tab_uuid:
+                        tabUuid && validTabUuids.has(tabUuid) ? tabUuid : null,
                 })),
             );
         }

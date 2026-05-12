@@ -315,18 +315,29 @@ export class DashboardService
 
         await Promise.all(
             orphanedCharts.map(async (chart) => {
-                const deletedChart = await this.savedChartModel.permanentDelete(
-                    chart.uuid,
-                );
-                this.analytics.track({
-                    event: 'saved_chart.deleted',
-                    userId: user.userUuid,
-                    properties: {
-                        savedQueryId: deletedChart.uuid,
-                        projectId: deletedChart.projectUuid,
-                        softDelete: false,
-                    },
-                });
+                try {
+                    const deletedChart =
+                        await this.savedChartModel.permanentDelete(chart.uuid);
+                    this.analytics.track({
+                        event: 'saved_chart.deleted',
+                        userId: user.userUuid,
+                        properties: {
+                            savedQueryId: deletedChart.uuid,
+                            projectId: deletedChart.projectUuid,
+                            softDelete: false,
+                        },
+                    });
+                } catch (error) {
+                    // A retried save may have already deleted the orphan.
+                    // Don't fail the whole save response for it.
+                    if (error instanceof NotFoundError) {
+                        this.logger.warn(
+                            `Skipping already-deleted orphan chart ${chart.uuid} for dashboard ${dashboardUuid}`,
+                        );
+                        return;
+                    }
+                    throw error;
+                }
             }),
         );
     }
