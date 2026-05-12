@@ -459,7 +459,6 @@ const useTableConfig = (
 
     const updateColumnProperty = useCallback(
         (field: string, properties: Partial<ColumnProperties>) => {
-
             // functional setter so consecutive calls compose correctly
 
             setColumnProperties((prev) => ({

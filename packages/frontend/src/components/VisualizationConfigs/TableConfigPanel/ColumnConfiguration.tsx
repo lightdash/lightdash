@@ -69,7 +69,6 @@ type ColumnConfigurationProps = {
      * When provided, the freeze toggle controls all listed fieldIds together.
      */
     syncFreezeWith?: string[];
-
 };
 
 const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
@@ -95,7 +94,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
     const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
-
 
     // Pivoted dimensions become column headers and can't be frozen.
     const shouldShowFreezeToggle = !isPivotingDimension;
