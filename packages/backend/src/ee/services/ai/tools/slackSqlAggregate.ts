@@ -30,22 +30,25 @@ const truncateSql = (sql: string, maxLength = 2500) =>
         ? `${sql.slice(0, maxLength)}\n... (truncated)`
         : sql;
 
+const oneLineSql = (sql: string, maxLength = 140) => {
+    const flat = sql.replace(/\s+/g, ' ').trim();
+    return flat.length > maxLength ? `${flat.slice(0, maxLength)}…` : flat;
+};
+
 const subtleText = (state: SectionState): string | null => {
     switch (state.kind) {
         case 'approved':
-            return 'Approved — running SQL query…';
+            return `Running SQL: \`${oneLineSql(state.sql)}\``;
         case 'running':
-            return 'Running SQL query…';
+            return `Running SQL: \`${oneLineSql(state.sql)}\``;
         case 'success':
-            return `:white_check_mark: SQL query returned ${state.rowCount} row${
-                state.rowCount === 1 ? '' : 's'
-            }`;
+            return `Ran SQL: \`${oneLineSql(state.sql)}\``;
         case 'rejected':
-            return ':no_entry_sign: SQL execution rejected';
+            return `Rejected SQL: \`${oneLineSql(state.sql)}\``;
         case 'timeout':
-            return ':hourglass: SQL approval timed out';
+            return 'SQL approval timed out';
         case 'error':
-            return `:x: SQL error — ${state.message}`;
+            return `SQL error — ${state.message}`;
         default:
             return null;
     }
