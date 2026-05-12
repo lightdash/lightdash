@@ -101,7 +101,7 @@ jobs:
               # The `branch` input tells Okteto to clone the released tag instead of this workflow's
               # branch — that way the preview is built from the released source, including the
               # jaffle-shop dbt files in `examples/full-jaffle-shop-demo/` that seed the demo project.
-              uses: okteto/deploy-preview@ec76bb82c13aa0f748fc687ee622c96282890150 # latest
+              uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:

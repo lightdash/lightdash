@@ -251,7 +251,7 @@ jobs:
 
       - name: Deploy preview environment
         id: deploy
-        uses: okteto/deploy-preview@ec76bb82c13aa0f748fc687ee622c96282890150 # latest
+        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
