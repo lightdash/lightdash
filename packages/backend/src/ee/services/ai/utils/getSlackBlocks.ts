@@ -258,10 +258,6 @@ export function getFeedbackBlocks(
     const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
     return [
         {
-            type: 'context',
-            elements: [{ type: 'mrkdwn', text: '🤖 _How did I do?_' }],
-        },
-        {
             block_id: 'prompt_human_score',
             type: 'actions',
             elements: [
