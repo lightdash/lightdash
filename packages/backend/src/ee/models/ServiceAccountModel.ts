@@ -3,7 +3,9 @@ import {
     CreateServiceAccount,
     OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     ServiceAccount,
+    ServiceAccountProjectMembership,
     ServiceAccountScope,
     ServiceAccountWithToken,
     SessionUser,
@@ -187,34 +189,52 @@ export class ServiceAccountModel {
         data: CreateServiceAccount,
         token: string,
     ): Promise<ServiceAccountWithToken> {
-        // Permission shape: exactly one of `scopes` (legacy preset) or
-        // `roleUuid` (custom org role) must drive runtime CASL. Sending both
-        // is rejected so we always have one source of truth.
+        // Permission shape: exactly one of three modes drives runtime CASL.
+        //   (1) `scopes`            — legacy preset (back-compat, incl. SCIM)
+        //   (2) `roleUuid`          — org-level custom role
+        //   (3) `organizationRole`  — org role (+ optional `projectRoles`)
+        //                             new in PROD-7529; mirrors human users.
+        // Sending more than one is rejected so there's always a single
+        // source of truth for the SA's ability.
         const hasScopes = !!data.scopes && data.scopes.length > 0;
         const hasRoleUuid = !!data.roleUuid;
-        if (hasScopes && hasRoleUuid) {
+        const hasOrgRole = !!data.organizationRole;
+        const hasProjectRoles =
+            !!data.projectRoles && data.projectRoles.length > 0;
+
+        const modesSelected = [hasScopes, hasRoleUuid, hasOrgRole].filter(
+            Boolean,
+        ).length;
+        if (modesSelected !== 1) {
             throw new ParameterError(
-                'Specify either scopes or roleUuid, not both',
+                'Specify exactly one of: scopes, roleUuid, or organizationRole',
             );
         }
-        if (!hasScopes && !hasRoleUuid) {
+        if (hasProjectRoles && !hasOrgRole) {
             throw new ParameterError(
-                'A service account must have either scopes or a roleUuid',
+                'projectRoles can only be set together with organizationRole',
             );
         }
 
         const tokenHash = await hash(token);
         const scopes = data.scopes ?? [];
-        // Ornamental org-membership role: only consulted by admin-UI listings.
-        // For custom-role-driven SAs, default to MEMBER (least privilege at
-        // the FK level); for legacy-scope SAs, derive from the broadest scope.
-        const role = hasRoleUuid
-            ? OrganizationMemberRole.MEMBER
-            : ServiceAccountModel.getRoleForScopes(scopes);
+        // Org-membership role used at the FK level.
+        // - Mode (3): the caller's explicit `organizationRole`.
+        // - Mode (1): derived from the broadest scope, so admin-UI listings
+        //   render "Admin"/"Editor"/"Viewer" rather than collapsing onto MEMBER.
+        // - Mode (2): MEMBER (least privilege at the FK level — the actual
+        //   ability is built from the custom role's scoped_roles).
+        let role: OrganizationMemberRole;
+        if (hasOrgRole) {
+            role = data.organizationRole!;
+        } else if (hasRoleUuid) {
+            role = OrganizationMemberRole.MEMBER;
+        } else {
+            role = ServiceAccountModel.getRoleForScopes(scopes);
+        }
 
         return this.database.transaction(async (trx) => {
-            // If a custom role was provided, validate it belongs to the SA's
-            // organization (defence against cross-org role assignment).
+            // Cross-org defence for org-level custom roles.
             if (data.roleUuid) {
                 const [roleRow] = await trx(RolesTableName)
                     .where('role_uuid', data.roleUuid)
@@ -224,6 +244,25 @@ export class ServiceAccountModel {
                     throw new ParameterError(
                         `Role ${data.roleUuid} not found in this organization`,
                     );
+                }
+            }
+
+            // Cross-org defence for per-project custom roles. Loaded in one
+            // query so we don't hammer the DB with N round-trips.
+            if (data.projectRoles) {
+                const customRoleUuids = data.projectRoles
+                    .map((p) => p.roleUuid)
+                    .filter((u): u is string => !!u);
+                if (customRoleUuids.length > 0) {
+                    const validRoles = await trx(RolesTableName)
+                        .whereIn('role_uuid', customRoleUuids)
+                        .andWhere('organization_uuid', data.organizationUuid)
+                        .select('role_uuid');
+                    if (validRoles.length !== customRoleUuids.length) {
+                        throw new ParameterError(
+                            'One or more projectRoles.roleUuid not found in this organization',
+                        );
+                    }
                 }
             }
 
@@ -268,6 +307,35 @@ export class ServiceAccountModel {
                 role_uuid: data.roleUuid ?? null,
             });
 
+            // Per-project assignments (mode 3 only). Looks up int project_id
+            // from project_uuid in a single round-trip and rejects unknown or
+            // cross-org UUIDs.
+            if (data.projectRoles && data.projectRoles.length > 0) {
+                const projectUuids = data.projectRoles.map(
+                    (p) => p.projectUuid,
+                );
+                const projectRows = await trx('projects')
+                    .whereIn('project_uuid', projectUuids)
+                    .andWhere('organization_id', org.organization_id)
+                    .select('project_uuid', 'project_id');
+                if (projectRows.length !== projectUuids.length) {
+                    throw new ParameterError(
+                        'One or more projectRoles.projectUuid not found in this organization',
+                    );
+                }
+                const projectIdByUuid = new Map<string, number>(
+                    projectRows.map((p) => [p.project_uuid, p.project_id]),
+                );
+                await trx('project_memberships').insert(
+                    data.projectRoles.map((pr) => ({
+                        user_id: saUser.user_id,
+                        project_id: projectIdByUuid.get(pr.projectUuid)!,
+                        role: pr.role,
+                        role_uuid: pr.roleUuid ?? null,
+                    })),
+                );
+            }
+
             const [row] = await trx(ServiceAccountsTableName)
                 .insert({
                     created_by_user_uuid: user?.userUuid || null,
@@ -297,6 +365,7 @@ export class ServiceAccountModel {
                     creator_first_name: user?.firstName ?? null,
                     creator_last_name: user?.lastName ?? null,
                 }),
+                projectRoles: data.projectRoles ?? [],
                 token,
             };
         });
@@ -348,10 +417,60 @@ export class ServiceAccountModel {
             `${ServiceAccountsTableName}.service_account_uuid`,
             serviceAccountUuid,
         );
+        const mapped = ServiceAccountModel.mapDbObjectToServiceAccount(row);
+        const memberships = await this.loadProjectMemberships([
+            mapped.userUuid,
+        ]);
         return {
-            ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
+            ...mapped,
+            projectRoles: memberships.get(mapped.userUuid) ?? [],
             token,
         };
+    }
+
+    /**
+     * Loads per-project memberships keyed on the SA's backing user. Returns
+     * a Map so callers can fan out a single query across many SAs (listing
+     * path) without N+1 reads. Internal-user filter keeps human-user
+     * memberships from accidentally being attributed to an SA listing.
+     */
+    private async loadProjectMemberships(
+        saUserUuids: string[],
+    ): Promise<Map<string, ServiceAccountProjectMembership[]>> {
+        const map = new Map<string, ServiceAccountProjectMembership[]>();
+        if (saUserUuids.length === 0) return map;
+        const rows = await this.database('project_memberships')
+            .innerJoin('users', 'users.user_id', 'project_memberships.user_id')
+            .innerJoin(
+                'projects',
+                'projects.project_id',
+                'project_memberships.project_id',
+            )
+            .whereIn('users.user_uuid', saUserUuids)
+            .andWhere('users.is_internal', true)
+            .select<
+                {
+                    user_uuid: string;
+                    project_uuid: string;
+                    role: ProjectMemberRole | null;
+                    role_uuid: string | null;
+                }[]
+            >([
+                'users.user_uuid',
+                'projects.project_uuid',
+                'project_memberships.role',
+                'project_memberships.role_uuid',
+            ]);
+        rows.forEach((r) => {
+            const list = map.get(r.user_uuid) ?? [];
+            list.push({
+                projectUuid: r.project_uuid,
+                role: r.role,
+                roleUuid: r.role_uuid,
+            });
+            map.set(r.user_uuid, list);
+        });
+        return map;
     }
 
     async getAllForOrganization(
@@ -369,7 +488,17 @@ export class ServiceAccountModel {
             ]);
         }
         const rows = await query;
-        return rows.map(ServiceAccountModel.mapDbObjectToServiceAccount);
+        const saUserUuids = rows
+            .map((r) => r.service_account_user_uuid)
+            .filter((u): u is string => !!u);
+        const projectMembershipsByUser =
+            await this.loadProjectMemberships(saUserUuids);
+        return rows.map((row) => ({
+            ...ServiceAccountModel.mapDbObjectToServiceAccount(row),
+            projectRoles:
+                projectMembershipsByUser.get(row.service_account_user_uuid!) ??
+                [],
+        }));
     }
 
     async getTokenbyUuid(
@@ -379,7 +508,15 @@ export class ServiceAccountModel {
             `${ServiceAccountsTableName}.service_account_uuid`,
             serviceAccountUuid,
         );
-        return row && ServiceAccountModel.mapDbObjectToServiceAccount(row);
+        if (!row) return undefined;
+        const mapped = ServiceAccountModel.mapDbObjectToServiceAccount(row);
+        const memberships = await this.loadProjectMemberships([
+            mapped.userUuid,
+        ]);
+        return {
+            ...mapped,
+            projectRoles: memberships.get(mapped.userUuid) ?? [],
+        };
     }
 
     async getByToken(token: string): Promise<ServiceAccount> {
@@ -390,7 +527,13 @@ export class ServiceAccountModel {
                 `${ServiceAccountsTableName}.token_hash`,
                 deprecatedHash(token),
             ); // Adding old sha256 hash for backwards compatibility
-        const mappedRow = ServiceAccountModel.mapDbObjectToServiceAccount(row);
-        return mappedRow;
+        const mapped = ServiceAccountModel.mapDbObjectToServiceAccount(row);
+        const memberships = await this.loadProjectMemberships([
+            mapped.userUuid,
+        ]);
+        return {
+            ...mapped,
+            projectRoles: memberships.get(mapped.userUuid) ?? [],
+        };
     }
 }
