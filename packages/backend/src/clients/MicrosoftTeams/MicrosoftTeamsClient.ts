@@ -6,6 +6,7 @@ import {
     MsTeamsError,
     operatorActionValue,
     PartialFailureType,
+    sanitizeHtml,
     ThresholdOptions,
     type PartialFailure,
 } from '@lightdash/common';
@@ -524,10 +525,24 @@ export class MicrosoftTeamsClient {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
 
-        const baseSentence = contentName
-            ? `The scheduled delivery for "${contentName}" failed to run, and the delivery owner has been notified.`
+        // Strip any HTML/markdown from admin-supplied strings before
+        // interpolating into the Adaptive Card text.
+        const safeContentName = contentName
+            ? sanitizeHtml(contentName, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const safeContactSentence = contactSentence
+            ? sanitizeHtml(contactSentence, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const baseSentence = safeContentName
+            ? `The scheduled delivery for "${safeContentName}" failed to run, and the delivery owner has been notified.`
             : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
-        const appended = contactSentence ? ` ${contactSentence}` : '';
+        const appended = safeContactSentence ? ` ${safeContactSentence}` : '';
 
         const payload = {
             type: 'message',

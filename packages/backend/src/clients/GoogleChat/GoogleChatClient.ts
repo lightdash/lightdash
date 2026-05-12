@@ -5,6 +5,7 @@ import {
     GoogleChatError,
     operatorActionValue,
     PartialFailureType,
+    sanitizeHtml,
     ThresholdOptions,
     type PartialFailure,
 } from '@lightdash/common';
@@ -346,10 +347,25 @@ export class GoogleChatClient {
         contentName: string | null;
         contactSentence: string | null;
     }): Promise<void> {
-        const baseSentence = contentName
-            ? `The scheduled delivery for <b>"${contentName}"</b> failed to run, and the delivery owner has been notified.`
+        // Google Chat renders a subset of HTML in textParagraph.text, so
+        // strip any markup from admin-supplied strings before interpolating
+        // into the template (which uses static <b> tags around contentName).
+        const safeContentName = contentName
+            ? sanitizeHtml(contentName, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const safeContactSentence = contactSentence
+            ? sanitizeHtml(contactSentence, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const baseSentence = safeContentName
+            ? `The scheduled delivery for <b>"${safeContentName}"</b> failed to run, and the delivery owner has been notified.`
             : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
-        const appended = contactSentence ? ` ${contactSentence}` : '';
+        const appended = safeContactSentence ? ` ${safeContactSentence}` : '';
 
         const payload = {
             cardsV2: [
@@ -358,7 +374,9 @@ export class GoogleChatClient {
                     card: {
                         header: {
                             title: 'Scheduled delivery failure',
-                            ...(contentName && { subtitle: contentName }),
+                            ...(safeContentName && {
+                                subtitle: safeContentName,
+                            }),
                         },
                         sections: [
                             {
