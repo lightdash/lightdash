@@ -80,12 +80,20 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
         isColumnFrozen,
         getField,
         columnProperties,
+        metricsAsRows,
     } = visualizationConfig.chartConfig;
 
     const field = getField(fieldId);
     const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
     const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
+
+    const isMetric = field && !isDimension(field);
+    const shouldShowFreezeToggle = (() => {
+        if (isPivotingDimension) return false;
+        if (isMetric && metricsAsRows) return false;
+        return true;
+    })();
 
     return (
         <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
@@ -150,7 +158,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                 </Box>
             </Tooltip>
 
-            {!pivotDimensions ? (
+            {shouldShowFreezeToggle ? (
                 <Tooltip
                     position="top"
                     withinPortal
