@@ -2588,6 +2588,26 @@ const useEchartsCartesianConfig = (
         axisDisplayTimezone,
     ]);
 
+    // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
+    // decoratedSeriesForChart (stacked rounded corners). Same inputs in both
+    // places — keep the calc in one spot.
+    const dynamicRadius = useMemo(() => {
+        const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
+        const barSeries = series.filter(
+            (s) => s.type === CartesianSeriesType.BAR,
+        );
+        const isStacked = barSeries.some((s) => s.stack);
+        const nonStackedBarCount = isStacked
+            ? barSeries.filter((s) => !s.stack).length
+            : barSeries.length;
+        return calculateDynamicBorderRadius(
+            rows.length,
+            Math.max(1, nonStackedBarCount),
+            isStacked,
+            isHorizontal,
+        );
+    }, [rows.length, series, validCartesianConfig?.layout.flipAxes]);
+
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
 
@@ -2601,7 +2621,6 @@ const useEchartsCartesianConfig = (
         // it does NOT swap xField/yField in the layout.
         const categoryFieldId = validCartesianConfig?.layout?.xField;
 
-        // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
             (s) => s.type === CartesianSeriesType.BAR,
         );
@@ -2624,17 +2643,6 @@ const useEchartsCartesianConfig = (
             !isColorByCategory &&
             !hasCustomColorsStacking &&
             Boolean(conditionalFormattings?.length);
-        const isStacked = barSeries.some((s) => s.stack);
-        const nonStackedBarCount = isStacked
-            ? barSeries.filter((s) => !s.stack).length
-            : barSeries.length;
-
-        const dynamicRadius = calculateDynamicBorderRadius(
-            rows.length,
-            Math.max(1, nonStackedBarCount),
-            isStacked,
-            isHorizontal,
-        );
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
 
@@ -2760,7 +2768,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.conditionalFormattings,
         series,
-        rows,
+        dynamicRadius,
         pivotDimensions,
         getSeriesColor,
         colorPalette,
@@ -3083,26 +3091,12 @@ const useEchartsCartesianConfig = (
         const isStack100 = stackValue === StackType.PERCENT;
         const isStackNone = stackValue === StackType.NONE;
 
-        const barSeries = stackedSeriesWithColorAssignments.filter(
-            (s) => s.type === CartesianSeriesType.BAR,
-        );
-        const isStacked = barSeries.some((s) => s.stack);
         const stackedBarSeries = stackedSeriesWithColorAssignments.filter(
             (s) =>
                 s.type === CartesianSeriesType.BAR &&
                 s.stack &&
                 !isStack100 &&
                 !isStackNone,
-        );
-        const nonStackedBarCount = isStacked
-            ? barSeries.filter((s) => !s.stack).length
-            : barSeries.length;
-        // Scale off real-row count; gap rows don't render bars.
-        const dynamicRadius = calculateDynamicBorderRadius(
-            rows.length,
-            Math.max(1, nonStackedBarCount),
-            isStacked,
-            isHorizontal,
         );
 
         const seriesWithRoundedStacks =
@@ -3134,7 +3128,7 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         paddedSortedResults,
-        rows,
+        dynamicRadius,
         itemsMap,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
