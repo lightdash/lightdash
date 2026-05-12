@@ -9,19 +9,12 @@ import type {
     GetPromptFn,
     RunSqlJobFn,
     SendFileFn,
-    SendSlackBlocksFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import {
-    getAggregate,
-    renderBlocks,
-    setAggregate,
-    setCurrentState,
-    type SectionState,
-} from './slackSqlAggregate';
+import { renderBlocks, type SectionState } from './slackSqlAggregate';
 import {
     isSlackThreadAutoApproved,
     resolveSqlApproval,
@@ -33,7 +26,6 @@ type Dependencies = {
     runSqlJob: RunSqlJobFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
-    sendSlackBlocks: SendSlackBlocksFn;
     updateSlackMessage: UpdateSlackMessageFn;
 };
 
@@ -76,7 +68,6 @@ export const getRunSql = ({
     runSqlJob,
     getPrompt,
     sendFile,
-    sendSlackBlocks,
     updateSlackMessage,
 }: Dependencies) =>
     tool({
@@ -99,52 +90,33 @@ export const getRunSql = ({
             const slackAutoApproved =
                 isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
 
-            // Push a state into the single living Slack message for this
-            // prompt. First call creates the message; subsequent calls
-            // (re-runs in the same turn) mutate it via chat.update.
+            // Render a runSql state INTO the bot's existing progress message
+            // (the bolt-gif "Thinking…" message at response_slack_ts). One
+            // living block — pending → running → result. When the agent
+            // moves on, the next updateProgress overwrites with the bolt gif.
             const renderState = async (state: SectionState) => {
                 if (!isSlack) return;
-                const existing = getAggregate(prompt.promptUuid);
-                const blocks = renderBlocks(state);
-                if (!existing) {
-                    const { ts } = await sendSlackBlocks({
-                        channelId: prompt.slackChannelId,
-                        threadTs: prompt.slackThreadTs,
-                        organizationUuid: prompt.organizationUuid,
-                        text: 'SQL execution',
-                        blocks,
-                    });
-                    if (ts) {
-                        setAggregate(prompt.promptUuid, {
-                            channelId: prompt.slackChannelId,
-                            messageTs: ts,
-                            current: state,
-                        });
-                    }
-                    return;
-                }
-                setCurrentState(prompt.promptUuid, state);
                 await updateSlackMessage({
-                    channelId: existing.channelId,
+                    channelId: prompt.slackChannelId,
                     organizationUuid: prompt.organizationUuid,
-                    ts: existing.messageTs,
+                    ts: prompt.response_slack_ts,
                     text: 'SQL execution',
-                    blocks,
+                    blocks: renderBlocks(state),
                 });
             };
 
             try {
                 if (slackAutoApproved) {
-                    await updateProgress('Running SQL query...');
                     await renderState({ kind: 'approved', sql });
-                } else {
-                    await updateProgress('Awaiting approval to run SQL...');
+                } else if (isSlack) {
                     await renderState({
                         kind: 'pending',
                         sql,
                         toolCallId,
                         threadUuid: prompt.threadUuid,
                     });
+                } else {
+                    await updateProgress('Awaiting approval to run SQL...');
                 }
 
                 // Register the approval listener first, then trigger any
@@ -171,8 +143,11 @@ export const getRunSql = ({
                     };
                 }
 
-                await renderState({ kind: 'running', sql });
-                await updateProgress('Running SQL query...');
+                if (isSlack) {
+                    await renderState({ kind: 'running', sql });
+                } else {
+                    await updateProgress('Running SQL query...');
+                }
 
                 const { rows, columns, rowCount } = await runSqlJob({
                     sql,
@@ -230,8 +205,8 @@ export const getRunSql = ({
                         truncated: rowCount > SLACK_INLINE_ROW_LIMIT,
                     });
 
-                    // Slack chat.update can't attach files, so the full CSV
-                    // for large results still goes as a separate message.
+                    // chat.update can't attach files, so a full CSV for large
+                    // results still goes as a separate message.
                     if (rowCount > LARGE_RESULT_THRESHOLD) {
                         await sendFile({
                             channelId: prompt.slackChannelId,

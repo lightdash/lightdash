@@ -1,12 +1,8 @@
-// Single living Slack message per prompt — when the agent calls runSql we
-// post a status block, then mutate it in place as the call progresses
-// (pending → approved → running → success/error/rejected/timeout). The next
-// runSql in the same prompt reuses the same message, replacing the body with
-// the new call's state. No section history is kept in Slack — past calls
-// remain in the DB + web thread for audit.
-//
-// Per-pod in-memory state, lost on pod restart (next runSql posts a fresh
-// message and we lose continuity — degrades gracefully).
+// Render the agent's runSql state as Slack blocks that get written INTO the
+// bot's existing progress message (the bolt-gif "Thinking…" message at
+// `slackPrompt.response_slack_ts`). One living message — pending → approved →
+// running → success / error / rejected / timeout. When the agent moves on,
+// the next updateProgress call overwrites with the bolt-gif again.
 
 import type { AnyType } from '@lightdash/common';
 
@@ -24,31 +20,6 @@ export type SectionState =
     | { kind: 'rejected'; sql: string }
     | { kind: 'timeout'; sql: string }
     | { kind: 'error'; sql: string; message: string };
-
-export type Aggregate = {
-    channelId: string;
-    messageTs: string;
-    current: SectionState;
-};
-
-const aggregates = new Map<string, Aggregate>();
-
-export const getAggregate = (promptUuid: string): Aggregate | undefined =>
-    aggregates.get(promptUuid);
-
-export const setAggregate = (promptUuid: string, agg: Aggregate): void => {
-    aggregates.set(promptUuid, agg);
-};
-
-export const setCurrentState = (
-    promptUuid: string,
-    state: SectionState,
-): Aggregate | undefined => {
-    const agg = aggregates.get(promptUuid);
-    if (!agg) return undefined;
-    agg.current = state;
-    return agg;
-};
 
 const truncateSql = (sql: string, maxLength = 2500) =>
     sql.length > maxLength
@@ -148,10 +119,7 @@ export const renderBlocks = (state: SectionState): AnyType[] => {
         case 'error':
             blocks.push({
                 type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `_${state.message}_`,
-                },
+                text: { type: 'mrkdwn', text: `_${state.message}_` },
             });
             break;
         case 'rejected':
