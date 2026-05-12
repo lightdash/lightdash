@@ -46,6 +46,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
 import {
+    forwardRef,
     useCallback,
     useEffect,
     useMemo,
@@ -68,7 +69,9 @@ import AppUpdateModal from '../components/common/modal/AppUpdateModal';
 import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import TransferItemsModal from '../components/common/TransferItemsModal/TransferItemsModal';
-import AppIframePreview from '../features/apps/AppIframePreview';
+import AppIframePreview, {
+    type AppIframePreviewHandle,
+} from '../features/apps/AppIframePreview';
 import AppPromptEditor, {
     type AppPromptEditorHandle,
     type ElementRef,
@@ -78,6 +81,7 @@ import {
     ImageButton,
     InspectButton,
     QueryButton,
+    ScreenshotButton,
     SelectedDashboardSection,
     SelectedImageSection,
     SelectedQuerySection,
@@ -157,7 +161,7 @@ const AppResourceImage: FC<{
     return <Image src={data.imageUrl} className={className} alt="Attached" />;
 };
 
-const AppPreview: FC<{
+type AppPreviewProps = {
     projectUuid: string;
     appUuid: string;
     version: number;
@@ -170,64 +174,77 @@ const AppPreview: FC<{
     inspectorEnabled?: boolean;
     onElementSelected?: (event: { label: string }) => void;
     onInspectorAvailabilityChange?: (available: boolean) => void;
+    onScreenshotAvailabilityChange?: (available: boolean) => void;
     onInspectorCancelled?: () => void;
-}> = ({
-    projectUuid,
-    appUuid,
-    version,
-    refreshKey,
-    onQueryEvent,
-    inspectorEnabled,
-    onElementSelected,
-    onInspectorAvailabilityChange,
-    onInspectorCancelled,
-}) => {
-    const {
-        data: token,
-        isLoading,
-        error,
-    } = useAppPreviewToken(projectUuid, appUuid, version);
-
-    const previewOrigin = usePreviewOrigin();
-    const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
-        : undefined;
-
-    if (isLoading) {
-        return (
-            <Group gap="sm" p="md" justify="center">
-                <Loader size="sm" />
-                <Text size="sm" c="dimmed">
-                    Loading preview...
-                </Text>
-            </Group>
-        );
-    }
-
-    if (error) {
-        return (
-            <Text c="red" p="md" size="sm">
-                Failed to load preview:{' '}
-                {error instanceof Error ? error.message : 'Unknown error'}
-            </Text>
-        );
-    }
-
-    if (!previewUrl) return null;
-
-    return (
-        <AppIframePreview
-            src={previewUrl}
-            expectedPreviewOrigin={previewOrigin}
-            identityKey={`${appUuid}:${version}`}
-            onQueryEvent={onQueryEvent}
-            inspectorEnabled={inspectorEnabled}
-            onElementSelected={onElementSelected}
-            onInspectorAvailabilityChange={onInspectorAvailabilityChange}
-            onInspectorCancelled={onInspectorCancelled}
-        />
-    );
 };
+
+const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
+    (
+        {
+            projectUuid,
+            appUuid,
+            version,
+            refreshKey,
+            onQueryEvent,
+            inspectorEnabled,
+            onElementSelected,
+            onInspectorAvailabilityChange,
+            onScreenshotAvailabilityChange,
+            onInspectorCancelled,
+        },
+        ref,
+    ) => {
+        const {
+            data: token,
+            isLoading,
+            error,
+        } = useAppPreviewToken(projectUuid, appUuid, version);
+
+        const previewOrigin = usePreviewOrigin();
+        const previewUrl = token
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/?token=${token}&r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+            : undefined;
+
+        if (isLoading) {
+            return (
+                <Group gap="sm" p="md" justify="center">
+                    <Loader size="sm" />
+                    <Text size="sm" c="dimmed">
+                        Loading preview...
+                    </Text>
+                </Group>
+            );
+        }
+
+        if (error) {
+            return (
+                <Text c="red" p="md" size="sm">
+                    Failed to load preview:{' '}
+                    {error instanceof Error ? error.message : 'Unknown error'}
+                </Text>
+            );
+        }
+
+        if (!previewUrl) return null;
+
+        return (
+            <AppIframePreview
+                ref={ref}
+                src={previewUrl}
+                expectedPreviewOrigin={previewOrigin}
+                identityKey={`${appUuid}:${version}`}
+                onQueryEvent={onQueryEvent}
+                inspectorEnabled={inspectorEnabled}
+                onElementSelected={onElementSelected}
+                onInspectorAvailabilityChange={onInspectorAvailabilityChange}
+                onScreenshotAvailabilityChange={onScreenshotAvailabilityChange}
+                onInspectorCancelled={onInspectorCancelled}
+            />
+        );
+    },
+);
+
+AppPreview.displayName = 'AppPreview';
 
 const LoadingDots: FC = () => (
     <span className={classes.loadingDots}>
@@ -295,6 +312,7 @@ const AppGenerate: FC = () => {
         Array<{
             file: File;
             previewUrl: string;
+            kind?: 'screenshot';
         }>
     >([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -311,6 +329,12 @@ const AppGenerate: FC = () => {
     // inspector. Existing apps in resumed sandboxes may have an older SDK
     // that never announces, in which case the toggle stays hidden.
     const [inspectorAvailable, setInspectorAvailable] = useState(false);
+    // Same handshake for screenshot capture. Older templates (resumed
+    // sandboxes built before this feature shipped) never announce, so the
+    // Screenshot button stays hidden — they keep working as before.
+    const [screenshotAvailable, setScreenshotAvailable] = useState(false);
+    const [isCapturingScreenshot, setIsCapturingScreenshot] = useState(false);
+    const previewRef = useRef<AppIframePreviewHandle>(null);
     const [trackedQueries, setTrackedQueries] = useState<QueryEvent[]>([]);
     // Mirrors Chrome DevTools "Preserve log". When off (default), the queries
     // panel is cleared on iframe refresh and on new-version load — fresh
@@ -473,6 +497,8 @@ const AppGenerate: FC = () => {
         setTrackedQueries([]);
         setInspectorEnabled(false);
         setInspectorAvailable(false);
+        setScreenshotAvailable(false);
+        setIsCapturingScreenshot(false);
         setSelectedTemplate(null);
         setWizardStage('pick');
         setPendingClarification(null);
@@ -853,7 +879,7 @@ const AppGenerate: FC = () => {
         'image/webp',
     ];
 
-    const handleImageAttach = (file: File) => {
+    const handleImageAttach = (file: File, kind?: 'screenshot') => {
         if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
             showToastError({
                 title: 'Unsupported image type',
@@ -876,7 +902,10 @@ const AppGenerate: FC = () => {
                 });
                 return prev;
             }
-            return [...prev, { file, previewUrl: URL.createObjectURL(file) }];
+            return [
+                ...prev,
+                { file, previewUrl: URL.createObjectURL(file), kind },
+            ];
         });
     };
 
@@ -888,7 +917,7 @@ const AppGenerate: FC = () => {
             );
             if (imageFiles.length > 0) {
                 e.preventDefault();
-                imageFiles.forEach(handleImageAttach);
+                imageFiles.forEach((file) => handleImageAttach(file));
             }
         }
     };
@@ -896,7 +925,7 @@ const AppGenerate: FC = () => {
     const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (files) {
-            Array.from(files).forEach(handleImageAttach);
+            Array.from(files).forEach((file) => handleImageAttach(file));
         }
         e.target.value = '';
     };
@@ -916,7 +945,24 @@ const AppGenerate: FC = () => {
         e.preventDefault();
         Array.from(e.dataTransfer.files)
             .filter((f) => f.type.startsWith('image/'))
-            .forEach(handleImageAttach);
+            .forEach((file) => handleImageAttach(file));
+    };
+
+    const handleCaptureScreenshot = async () => {
+        const capture = previewRef.current?.captureScreenshot;
+        if (!capture) return;
+        setIsCapturingScreenshot(true);
+        try {
+            const file = await capture();
+            handleImageAttach(file, 'screenshot');
+        } catch (err) {
+            showToastError({
+                title: 'Screenshot failed',
+                subtitle: err instanceof Error ? err.message : 'Unknown error',
+            });
+        } finally {
+            setIsCapturingScreenshot(false);
+        }
     };
 
     const buildSubmitCallbacks = () => ({
@@ -992,6 +1038,7 @@ const AppGenerate: FC = () => {
                             projectUuid: projectUuid!,
                             file: att.file,
                             appUuid: targetAppUuid!,
+                            kind: att.kind,
                         });
                         ids.push(result.imageId);
                     } catch (err) {
@@ -1053,6 +1100,7 @@ const AppGenerate: FC = () => {
             promptEditorRef.current?.clear();
             setIsPromptEmpty(true);
             setImageAttachments([]);
+            setIsCapturingScreenshot(false);
             setSelectedCharts([]);
             setSelectedDashboard(null);
             resetGenerate();
@@ -1768,6 +1816,19 @@ const AppGenerate: FC = () => {
                                                 MAX_IMAGES_PER_VERSION
                                         }
                                     />
+                                    {previewApp && screenshotAvailable && (
+                                        <ScreenshotButton
+                                            onClick={() =>
+                                                void handleCaptureScreenshot()
+                                            }
+                                            disabled={
+                                                isLoading ||
+                                                imageAttachments.length >=
+                                                    MAX_IMAGES_PER_VERSION
+                                            }
+                                            loading={isCapturingScreenshot}
+                                        />
+                                    )}
                                     {inspectorAvailable && (
                                         <InspectButton
                                             enabled={inspectorEnabled}
@@ -2072,6 +2133,7 @@ const AppGenerate: FC = () => {
                         <Box className={classes.previewContent}>
                             {previewApp ? (
                                 <AppPreview
+                                    ref={previewRef}
                                     projectUuid={projectUuid}
                                     appUuid={previewApp.appUuid}
                                     version={previewApp.version}
@@ -2081,6 +2143,9 @@ const AppGenerate: FC = () => {
                                     onElementSelected={handleElementSelected}
                                     onInspectorAvailabilityChange={
                                         setInspectorAvailable
+                                    }
+                                    onScreenshotAvailabilityChange={
+                                        setScreenshotAvailable
                                     }
                                     onInspectorCancelled={
                                         handleInspectorCancelled

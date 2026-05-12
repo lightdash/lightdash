@@ -89,9 +89,10 @@ export type ElementSelectedEvent = {
  * enableInspector / disableInspector helpers to toggle the iframe-side
  * overlay.
  *
- * `onInspectorAvailable` fires when the iframe SDK announces capability on
- * mount. The bridge doesn't track availability state itself — the parent
- * owns it and is responsible for resetting on iframe `src` change.
+ * `onInspectorAvailable` and `onScreenshotAvailable` fire when the iframe
+ * SDK announces those capabilities on mount. The bridge doesn't track
+ * availability state itself — the parent owns it and is responsible for
+ * resetting on iframe `src` change.
  */
 export function useAppSdkBridge(
     iframeRef: RefObject<HTMLIFrameElement | null>,
@@ -109,6 +110,7 @@ export function useAppSdkBridge(
     onQueryEvent?: (event: QueryEvent) => void,
     onElementSelected?: (event: ElementSelectedEvent) => void,
     onInspectorAvailable?: () => void,
+    onScreenshotAvailable?: () => void,
 ) {
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
@@ -128,6 +130,11 @@ export function useAppSdkBridge(
 
             if (data?.type === 'lightdash:inspect:available') {
                 onInspectorAvailable?.();
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:screenshot-available') {
+                onScreenshotAvailable?.();
                 return;
             }
 
@@ -313,6 +320,7 @@ export function useAppSdkBridge(
             onQueryEvent,
             onElementSelected,
             onInspectorAvailable,
+            onScreenshotAvailable,
         ],
     );
 

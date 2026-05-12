@@ -122,6 +122,7 @@ export class AppGenerateController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() appUuid: string,
+        @Query() kind?: 'screenshot',
     ): Promise<ApiAppImageUploadResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -145,6 +146,7 @@ export class AppGenerateController extends BaseController {
             req,
             contentLength,
             appUuid,
+            kind,
         );
         return {
             status: 'ok',

@@ -514,6 +514,7 @@ export class AppGenerateService extends BaseService {
         body: Readable,
         contentLength: number,
         appUuid: string,
+        kind?: 'screenshot',
     ): Promise<{ imageId: string }> {
         await this.assertDataAppsEnabled(user);
 
@@ -580,6 +581,10 @@ export class AppGenerateService extends BaseService {
                 Body: bufferedBody,
                 ContentLength: bufferedBody.length,
                 ContentType: mimeType,
+                // Persist the upload kind on the staged object so
+                // `writeImageToSandbox` can decide the filename prefix later
+                // without needing a separate DB column.
+                ...(kind ? { Metadata: { kind } } : {}),
             }),
         );
 
@@ -1066,13 +1071,22 @@ export class AppGenerateService extends BaseService {
                     ),
                 ),
             );
+            // Label screenshots distinctly so the agent treats them as
+            // "current state of the built app" rather than design targets.
+            // Filename convention is set in `writeImageToSandbox`.
+            let designIndex = 0;
             const referenceLines = imagePaths
-                .map(
-                    (p, i) =>
-                        `[Design reference image ${
-                            i + 1
-                        } at ${p} — use the Read tool to view it]`,
-                )
+                .map((p) => {
+                    const isScreenshot = p
+                        .split('/')
+                        .pop()
+                        ?.startsWith('screenshot-');
+                    if (isScreenshot) {
+                        return `[Screenshot of the current app at ${p} — use the Read tool to view it. This is what the user is looking at right now, not a design to reproduce.]`;
+                    }
+                    designIndex += 1;
+                    return `[Design reference image ${designIndex} at ${p} — use the Read tool to view it]`;
+                })
                 .join('\n');
             finalPrompt = `${referenceLines}\n\n${finalPrompt}`;
         }
@@ -1141,7 +1155,14 @@ export class AppGenerateService extends BaseService {
 
         const mimeType = response.ContentType ?? 'image/png';
         const ext = AppGenerateService.mimeToExt(mimeType);
-        const sandboxPath = `/tmp/images/${imageId}.${ext}`;
+        // Screenshots get a filename prefix so the agent can tell them apart
+        // from user-provided design references. Stamped on the staging object
+        // at upload time via S3 metadata (see `uploadImage`).
+        const isScreenshot = response.Metadata?.kind === 'screenshot';
+        const filename = isScreenshot
+            ? `screenshot-${imageId}.${ext}`
+            : `${imageId}.${ext}`;
+        const sandboxPath = `/tmp/images/${filename}`;
 
         // Read the image bytes
         const chunks: Uint8Array[] = [];
@@ -1155,8 +1176,9 @@ export class AppGenerateService extends BaseService {
         }
         const buffer = Buffer.concat(chunks);
 
-        // Copy to version assets folder
-        const versionKey = `apps/${appUuid}/versions/${version}/assets/images/${imageId}.${ext}`;
+        // Copy to version assets folder. Match the sandbox filename so the
+        // archived asset is identifiable as a screenshot too.
+        const versionKey = `apps/${appUuid}/versions/${version}/assets/images/${filename}`;
         this.logger.info(
             `App ${appUuid}: copying image to version path (${stagingKey} → ${versionKey})`,
         );

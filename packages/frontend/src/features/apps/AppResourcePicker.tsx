@@ -16,6 +16,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconCamera,
     IconClick,
     IconDatabase,
     IconDatabaseOff,
@@ -73,6 +74,31 @@ export const ImageButton: FC<{
         className={classes.resourceButton}
     >
         Images
+    </Button>
+);
+
+/**
+ * Button that captures a screenshot of the live preview and adds it as an
+ * image attachment. Shows a loader while the capture is in flight.
+ *
+ * The caller is expected to render this only when a capture-capable preview
+ * is mounted (i.e. gate on `screenshotAvailable`), mirroring `InspectButton`.
+ */
+export const ScreenshotButton: FC<{
+    onClick: () => void;
+    disabled: boolean;
+    loading?: boolean;
+}> = ({ onClick, disabled, loading }) => (
+    <Button
+        variant="default"
+        size="xs"
+        leftSection={<MantineIcon icon={IconCamera} size={14} />}
+        onClick={onClick}
+        disabled={disabled}
+        loading={loading}
+        className={classes.resourceButton}
+    >
+        Screenshot
     </Button>
 );
 
