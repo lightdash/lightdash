@@ -132,6 +132,7 @@ import {
     getChartCsvResultsBlocks,
     getChartThresholdAlertBlocks,
     getDashboardCsvResultsBlocks,
+    getDeliveryFailureRecipientBlocks,
     getNotificationChannelErrorBlocks,
 } from '../clients/Slack/SlackMessageBlocks';
 import { LightdashConfig } from '../config/parseConfig';
@@ -3853,6 +3854,102 @@ export default class SchedulerTask {
                 );
                 // Don't throw - we still want to handle the original error
             }
+
+            // Notify recipients of failure (project-level setting)
+            try {
+                const projectSettings =
+                    await this.projectService.getSchedulerSettings(
+                        schedulerPayload.projectUuid,
+                    );
+
+                if (projectSettings.schedulerFailureNotifyRecipients) {
+                    let contact: string | null = null;
+                    if (projectSettings.schedulerFailureIncludeContact) {
+                        if (projectSettings.schedulerFailureContactOverride) {
+                            contact =
+                                projectSettings.schedulerFailureContactOverride;
+                        } else {
+                            const owner =
+                                await this.userService.getSessionByUserUuid(
+                                    scheduler.createdBy,
+                                );
+                            const ownerName =
+                                `${owner.firstName} ${owner.lastName}`.trim();
+                            contact = owner.email
+                                ? `${ownerName} (${owner.email})`
+                                : ownerName;
+                        }
+                    }
+
+                    const contentName: string | null =
+                        'savedChartName' in scheduler
+                            ? (scheduler.savedChartName ??
+                              scheduler.dashboardName ??
+                              scheduler.savedSqlName ??
+                              null)
+                            : null;
+
+                    await Promise.all(
+                        targets.map(async (target) => {
+                            try {
+                                if (isCreateSchedulerSlackTarget(target)) {
+                                    if (!this.slackClient.isEnabled) return;
+                                    const blocks =
+                                        getDeliveryFailureRecipientBlocks(
+                                            contentName,
+                                            contact,
+                                        );
+                                    await this.slackClient.postMessage({
+                                        organizationUuid:
+                                            schedulerPayload.organizationUuid,
+                                        text: contentName
+                                            ? `Scheduled delivery for "${contentName}" failed to run`
+                                            : 'A scheduled delivery failed to run',
+                                        channel: target.channel,
+                                        blocks,
+                                    });
+                                } else if (
+                                    isCreateSchedulerMsTeamsTarget(target)
+                                ) {
+                                    await this.msTeamsClient.postDeliveryFailureNotificationToRecipient(
+                                        {
+                                            webhookUrl: target.webhook,
+                                            contentName,
+                                            contact,
+                                        },
+                                    );
+                                } else if (
+                                    isCreateSchedulerGoogleChatTarget(target)
+                                ) {
+                                    await this.googleChatClient.postDeliveryFailureNotificationToRecipient(
+                                        {
+                                            webhookUrl:
+                                                target.googleChatWebhook,
+                                            contentName,
+                                            contact,
+                                        },
+                                    );
+                                } else if ('recipient' in target) {
+                                    await this.emailClient.sendDeliveryFailureNotificationToRecipient(
+                                        target.recipient,
+                                        contentName,
+                                        contact,
+                                    );
+                                }
+                            } catch (notifyError) {
+                                Logger.error(
+                                    `Failed to send recipient failure notification for scheduler ${schedulerUuid}: ${notifyError}`,
+                                );
+                            }
+                        }),
+                    );
+                }
+            } catch (notifyError) {
+                Logger.error(
+                    `Failed to fan out recipient failure notifications for scheduler ${schedulerUuid}: ${notifyError}`,
+                );
+            }
+
             if (e instanceof NotEnoughResults) {
                 Logger.warn(
                     `Scheduler ${schedulerUuid} did not return enough results for threshold alert`,

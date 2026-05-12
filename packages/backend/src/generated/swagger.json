@@ -6216,14 +6216,6 @@
                 "enum": ["dynamic", "fixed"],
                 "type": "string"
             },
-            "MapHexbinValueBasis": {
-                "enum": ["count", "field"],
-                "type": "string"
-            },
-            "MapHexbinAggregation": {
-                "enum": ["sum", "avg", "min", "max"],
-                "type": "string"
-            },
             "MapTileBackground": {
                 "enum": [
                     "none",
@@ -6289,23 +6281,6 @@
                     },
                     "hexbinConfig": {
                         "properties": {
-                            "emptyBinColor": {
-                                "type": "string",
-                                "nullable": true,
-                                "description": "Fill color for empty bins. Hex6 (#rrggbb) = solid fill, hex8\n(#rrggbbaa) = fill with alpha, null/undefined = outline only."
-                            },
-                            "showEmptyBins": {
-                                "type": "boolean",
-                                "description": "Render outlined empty cells across the visible map area, so the user\ncan see \"where there is no data\" relative to the hex grid."
-                            },
-                            "aggregation": {
-                                "$ref": "#/components/schemas/MapHexbinAggregation",
-                                "description": "Aggregation applied when valueBasis = FIELD. Defaults to SUM."
-                            },
-                            "valueBasis": {
-                                "$ref": "#/components/schemas/MapHexbinValueBasis",
-                                "description": "What drives cell color: count of points (default) or an aggregation\nover a chosen value field (controlled via the chart's `valueFieldId`)."
-                            },
                             "fixedResolution": {
                                 "type": "number",
                                 "format": "double",
@@ -10854,10 +10829,7 @@
                     "getDashboardCharts",
                     "improveContext",
                     "runQuery",
-                    "runSavedChart",
-                    "runSql",
-                    "listWarehouseTables",
-                    "describeWarehouseTable"
+                    "runSavedChart"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -10977,19 +10949,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -11555,49 +11514,6 @@
                     }
                 },
                 "required": ["prompt"],
-                "type": "object"
-            },
-            "ApiSuccess__decision-approved-or-rejected__": {
-                "properties": {
-                    "results": {
-                        "properties": {
-                            "decision": {
-                                "type": "string",
-                                "enum": ["approved", "rejected"]
-                            }
-                        },
-                        "required": ["decision"],
-                        "type": "object"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiAiAgentSqlApprovalResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__decision-approved-or-rejected__"
-            },
-            "ApiAiAgentSqlApprovalRequest": {
-                "properties": {
-                    "decision": {
-                        "type": "string",
-                        "enum": ["approved", "rejected"]
-                    }
-                },
-                "required": ["decision"],
-                "type": "object"
-            },
-            "ApiAiAgentThreadStreamRequest": {
-                "properties": {
-                    "enableSqlMode": {
-                        "type": "boolean",
-                        "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to `false` when omitted (e.g. older clients,\nAPI callers) so the safer \"semantic layer only\" mode is the default."
-                    }
-                },
                 "type": "object"
             },
             "ApiAiAgentThreadGenerateResponse": {
@@ -14699,150 +14615,6 @@
                 },
                 "type": "object"
             },
-            "Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_": {
-                "properties": {
-                    "oauth2ClientId": {
-                        "type": "string"
-                    },
-                    "oauth2TenantId": {
-                        "type": "string"
-                    }
-                },
-                "required": ["oauth2ClientId", "oauth2TenantId"],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "OrganizationSsoMethodFlags": {
-                "properties": {
-                    "allowPassword": {
-                        "type": "boolean",
-                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows → show password)."
-                    },
-                    "emailDomains": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Strict whitelist (only consulted when `overrideEmailDomains` is true)."
-                    },
-                    "overrideEmailDomains": {
-                        "type": "boolean",
-                        "description": "When true, the method's own `emailDomains` list governs discovery.\nWhen false, the org's `allowed_email_domains` is used instead."
-                    },
-                    "enabled": {
-                        "type": "boolean",
-                        "description": "When false the method is hidden from precheck even if discovery would match."
-                    }
-                },
-                "required": [
-                    "allowPassword",
-                    "emailDomains",
-                    "overrideEmailDomains",
-                    "enabled"
-                ],
-                "type": "object",
-                "description": "Per-row flags shared by every SSO method configured at the org level.\nStored as plain columns alongside the encrypted provider-specific config."
-            },
-            "AzureAdSsoConfigSummary": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_"
-                    },
-                    {
-                        "$ref": "#/components/schemas/OrganizationSsoMethodFlags"
-                    },
-                    {
-                        "properties": {
-                            "hasClientSecret": {
-                                "type": "boolean"
-                            }
-                        },
-                        "required": ["hasClientSecret"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "ApiAzureAdSsoConfigResponse": {
-                "properties": {
-                    "results": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/AzureAdSsoConfigSummary"
-                            }
-                        ],
-                        "nullable": true
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "ApiUpsertAzureAdSsoConfigResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/AzureAdSsoConfigSummary"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Partial_OrganizationSsoMethodFlags_": {
-                "properties": {
-                    "enabled": {
-                        "type": "boolean",
-                        "description": "When false the method is hidden from precheck even if discovery would match."
-                    },
-                    "overrideEmailDomains": {
-                        "type": "boolean",
-                        "description": "When true, the method's own `emailDomains` list governs discovery.\nWhen false, the org's `allowed_email_domains` is used instead."
-                    },
-                    "emailDomains": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "description": "Strict whitelist (only consulted when `overrideEmailDomains` is true)."
-                    },
-                    "allowPassword": {
-                        "type": "boolean",
-                        "description": "Controls whether email+password sign-in is shown alongside this method\nwhen it matches a user. When multiple matching SSO methods disagree,\nlenient rule applies (ANY method that allows → show password)."
-                    }
-                },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpsertAzureAdSsoConfig": {
-                "allOf": [
-                    {
-                        "properties": {
-                            "oauth2TenantId": {
-                                "type": "string"
-                            },
-                            "oauth2ClientSecret": {
-                                "type": "string",
-                                "description": "When omitted on update, the stored secret is preserved. Required on create."
-                            },
-                            "oauth2ClientId": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["oauth2TenantId", "oauth2ClientId"],
-                        "type": "object"
-                    },
-                    {
-                        "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
-                    }
-                ]
-            },
             "Role": {
                 "properties": {
                     "updatedAt": {
@@ -15754,10 +15526,6 @@
                         "type": "string",
                         "format": "date-time"
                     },
-                    "timezone": {
-                        "type": "string",
-                        "nullable": true
-                    },
                     "isPending": {
                         "type": "boolean"
                     }
@@ -15772,8 +15540,7 @@
                     "isSetupComplete",
                     "isActive",
                     "createdAt",
-                    "updatedAt",
-                    "timezone"
+                    "updatedAt"
                 ],
                 "type": "object",
                 "additionalProperties": true
@@ -17787,10 +17554,6 @@
             },
             "SqlChart": {
                 "properties": {
-                    "resolvedColorPalette": {
-                        "$ref": "#/components/schemas/ResolvedProjectColorPalette",
-                        "description": "Fully resolved palette for this SQL chart, computed from the\norg → project → space → dashboard hierarchy. SQL charts have no\nper-chart override — set the palette via the containing space,\ndashboard, project, or organization."
-                    },
                     "lastViewedAt": {
                         "type": "string",
                         "format": "date-time"
@@ -17889,7 +17652,6 @@
                     }
                 },
                 "required": [
-                    "resolvedColorPalette",
                     "lastViewedAt",
                     "firstViewedAt",
                     "views",
@@ -18848,9 +18610,6 @@
             },
             "SchedulerCsvOptions": {
                 "properties": {
-                    "exportPivotedData": {
-                        "type": "boolean"
-                    },
                     "asAttachment": {
                         "type": "boolean"
                     },
@@ -19548,17 +19307,14 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "enabled": {
-                        "type": "boolean"
-                    },
-                    "timezone": {
-                        "type": "string"
-                    },
                     "message": {
                         "type": "string"
                     },
                     "format": {
                         "$ref": "#/components/schemas/SchedulerFormat"
+                    },
+                    "timezone": {
+                        "type": "string"
                     },
                     "projectSchedulerTimezone": {
                         "type": "string"
@@ -19571,6 +19327,9 @@
                             "$ref": "#/components/schemas/ThresholdOptions"
                         },
                         "type": "array"
+                    },
+                    "enabled": {
+                        "type": "boolean"
                     },
                     "notificationFrequency": {
                         "$ref": "#/components/schemas/NotificationFrequency"
@@ -19592,9 +19351,9 @@
                 "required": [
                     "name",
                     "cron",
-                    "enabled",
                     "format",
                     "options",
+                    "enabled",
                     "includeLinks",
                     "targets"
                 ],
@@ -22121,7 +21880,14 @@
                         "type": "string",
                         "nullable": true
                     },
-                    "useProjectTimezoneInFilters": {
+                    "schedulerFailureContactOverride": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "schedulerFailureIncludeContact": {
+                        "type": "boolean"
+                    },
+                    "schedulerFailureNotifyRecipients": {
                         "type": "boolean"
                     },
                     "queryTimezone": {
@@ -22163,7 +21929,9 @@
                     "colorPaletteUuid",
                     "hasDefaultUserSpaces",
                     "createdByUserUuid",
-                    "useProjectTimezoneInFilters",
+                    "schedulerFailureContactOverride",
+                    "schedulerFailureIncludeContact",
+                    "schedulerFailureNotifyRecipients",
                     "queryTimezone",
                     "schedulerTimezone",
                     "dbtVersion",
@@ -22958,23 +22726,30 @@
             },
             "UpdateSchedulerSettings": {
                 "properties": {
+                    "schedulerFailureContactOverride": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "schedulerFailureIncludeContact": {
+                        "type": "boolean"
+                    },
+                    "schedulerFailureNotifyRecipients": {
+                        "type": "boolean"
+                    },
                     "schedulerTimezone": {
                         "type": "string"
                     }
                 },
-                "required": ["schedulerTimezone"],
                 "type": "object"
             },
             "UpdateQueryTimezoneSettings": {
                 "properties": {
-                    "useProjectTimezoneInFilters": {
-                        "type": "boolean"
-                    },
                     "queryTimezone": {
                         "type": "string",
                         "nullable": true
                     }
                 },
+                "required": ["queryTimezone"],
                 "type": "object"
             },
             "ApiCreateTagResponse": {
@@ -29936,9 +29711,7 @@
                     "calculateSubtotal",
                     "embed",
                     "ai",
-                    "mcp.run_metric_query",
-                    "mcp.run_sql",
-                    "mcp.search_field_values",
+                    "mcp",
                     "api",
                     "cli",
                     "metricsExplorer",
@@ -29973,9 +29746,6 @@
                         "type": "number",
                         "format": "double"
                     },
-                    "timezone": {
-                        "type": "string"
-                    },
                     "filters": {
                         "properties": {
                             "tableCalculations": {},
@@ -29983,6 +29753,9 @@
                             "dimensions": {}
                         },
                         "type": "object"
+                    },
+                    "timezone": {
+                        "type": "string"
                     },
                     "exploreName": {
                         "type": "string"
@@ -30565,9 +30338,6 @@
                             "type": "string"
                         },
                         "type": "array"
-                    },
-                    "exportPivotedData": {
-                        "type": "boolean"
                     },
                     "attachmentDownloadName": {
                         "type": "string"
@@ -32341,7 +32111,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.2924.0",
+        "version": "0.2904.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -34216,108 +33986,6 @@
                 ]
             }
         },
-        "/api/v1/org/sso/azuread": {
-            "get": {
-                "operationId": "GetAzureAdSsoConfig",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiAzureAdSsoConfigResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Returns the current organization's Azure AD SSO configuration (sensitive\nfields are not included).",
-                "summary": "Get Azure AD SSO configuration",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            },
-            "put": {
-                "operationId": "UpsertAzureAdSsoConfig",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiUpsertAzureAdSsoConfigResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Creates or updates the current organization's Azure AD SSO configuration.\nOmit `oauth2ClientSecret` to preserve the previously stored secret on\nupdates.",
-                "summary": "Upsert Azure AD SSO configuration",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": [],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/UpsertAzureAdSsoConfig"
-                            }
-                        }
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "DeleteAzureAdSsoConfig",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Removes the current organization's Azure AD SSO configuration.",
-                "summary": "Delete Azure AD SSO configuration",
-                "tags": ["Organizations"],
-                "security": [],
-                "parameters": []
-            }
-        },
         "/api/v2/orgs/{orgUuid}/roles": {
             "post": {
                 "operationId": "CreateOrganizationRole",
@@ -35490,38 +35158,6 @@
                         }
                     }
                 ]
-            }
-        },
-        "/api/v1/user/me/leaveOrganization": {
-            "delete": {
-                "operationId": "LeaveOrganization",
-                "responses": {
-                    "200": {
-                        "description": "Ok",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Remove the current user from their organization. Fails if the caller is\nthe only admin remaining. The user record is preserved so they can join\nanother organization later.",
-                "summary": "Leave organization",
-                "tags": ["My Account"],
-                "security": [],
-                "parameters": []
             }
         },
         "/api/v1/user/me": {
@@ -50394,7 +50030,6 @@
                         }
                     },
                     {
-                        "description": "filter schedulers by name",
                         "in": "query",
                         "name": "searchQuery",
                         "required": false,
@@ -50403,21 +50038,11 @@
                         }
                     },
                     {
-                        "description": "comma-separated list of scheduler formats to include",
                         "in": "query",
                         "name": "formats",
                         "required": false,
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    {
-                        "description": "include the most recent run for each scheduler",
-                        "in": "query",
-                        "name": "includeLatestRun",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
                         }
                     }
                 ]
@@ -51906,21 +51531,11 @@
                         }
                     },
                     {
-                        "description": "filter schedulers by name",
                         "in": "query",
                         "name": "searchQuery",
                         "required": false,
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    {
-                        "description": "include the most recent run for each scheduler",
-                        "in": "query",
-                        "name": "includeLatestRun",
-                        "required": false,
-                        "schema": {
-                            "type": "boolean"
                         }
                     }
                 ]

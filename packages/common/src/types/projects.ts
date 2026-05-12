@@ -603,6 +603,9 @@ export type Project = {
     schedulerTimezone: string;
     queryTimezone: string | null;
     useProjectTimezoneInFilters: boolean;
+    schedulerFailureNotifyRecipients: boolean;
+    schedulerFailureIncludeContact: boolean;
+    schedulerFailureContactOverride: string | null;
     createdByUserUuid: string | null;
     organizationWarehouseCredentialsUuid?: string;
     hasDefaultUserSpaces: boolean;
@@ -642,7 +645,10 @@ export type PreviewContentMapping = {
 };
 
 export type UpdateSchedulerSettings = {
-    schedulerTimezone: string;
+    schedulerTimezone?: string;
+    schedulerFailureNotifyRecipients?: boolean;
+    schedulerFailureIncludeContact?: boolean;
+    schedulerFailureContactOverride?: string | null;
 };
 
 export type UpdateQueryTimezoneSettings = {

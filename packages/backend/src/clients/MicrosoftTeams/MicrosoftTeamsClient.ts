@@ -510,4 +510,56 @@ export class MicrosoftTeamsClient {
         };
         await this.sendWebhook(webhookUrl, payload);
     }
+
+    async postDeliveryFailureNotificationToRecipient({
+        webhookUrl,
+        contentName,
+        contact,
+    }: {
+        webhookUrl: string;
+        contentName: string | null;
+        contact: string | null;
+    }): Promise<void> {
+        if (!this.lightdashConfig.microsoftTeams.enabled) {
+            throw new MissingConfigError('Microsoft Teams is not enabled');
+        }
+
+        const baseSentence = contentName
+            ? `The scheduled delivery for "${contentName}" failed to run. The delivery owner has been notified.`
+            : 'A scheduled delivery failed to run. The delivery owner has been notified.';
+        const contactSentence = contact
+            ? ` You can also reach out to ${contact} for details.`
+            : '';
+
+        const payload = {
+            type: 'message',
+            attachments: [
+                {
+                    contentType: 'application/vnd.microsoft.card.adaptive',
+                    contentUrl: null,
+                    content: {
+                        $schema:
+                            'http://adaptivecards.io/schemas/adaptive-card.json',
+                        type: 'AdaptiveCard',
+                        version: '1.2',
+                        body: [
+                            {
+                                type: 'TextBlock',
+                                text: 'Scheduled delivery failure',
+                                weight: 'bolder',
+                                size: 'medium',
+                            },
+                            {
+                                type: 'TextBlock',
+                                text: `${baseSentence}${contactSentence}`,
+                                wrap: true,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        await this.sendWebhook(webhookUrl, payload);
+    }
 }

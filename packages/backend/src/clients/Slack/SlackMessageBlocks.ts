@@ -791,6 +791,32 @@ export const getUnfurlBlocks = (
     },
 });
 
+export const getDeliveryFailureRecipientBlocks = (
+    contentName: string | null,
+    contact: string | null,
+): KnownBlock[] => {
+    const baseSentence = contentName
+        ? `The scheduled delivery for *"${sanitizeText(
+              contentName,
+          )}"* failed to run. The delivery owner has been notified.`
+        : 'A scheduled delivery failed to run. The delivery owner has been notified.';
+    const contactSentence = contact
+        ? ` You can also reach out to ${sanitizeText(contact)} for details.`
+        : '';
+    return [
+        {
+            type: 'section',
+            text: {
+                type: 'mrkdwn',
+                text: truncateText(
+                    `${baseSentence}${contactSentence}`,
+                    SLACK_LIMITS.SECTION_TEXT,
+                ),
+            },
+        },
+    ];
+};
+
 export const getNotificationChannelErrorBlocks = (
     schedulerName: string,
     error: AnyType,

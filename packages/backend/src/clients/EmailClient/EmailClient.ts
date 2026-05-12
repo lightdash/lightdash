@@ -469,6 +469,45 @@ export default class EmailClient {
         });
     }
 
+    public async sendDeliveryFailureNotificationToRecipient(
+        recipient: string,
+        contentName: string | null,
+        contact: string | null,
+    ) {
+        if (!this.canSendEmail()) {
+            throw new Error('Email transporter not configured');
+        }
+
+        const baseSentenceHtml = contentName
+            ? `The scheduled delivery for <strong>"${sanitizeHtml(
+                  contentName,
+              )}"</strong> failed to run. The delivery owner has been notified.`
+            : 'A scheduled delivery failed to run. The delivery owner has been notified.';
+        const baseSentenceText = contentName
+            ? `The scheduled delivery for "${contentName}" failed to run. The delivery owner has been notified.`
+            : 'A scheduled delivery failed to run. The delivery owner has been notified.';
+        const contactSentenceHtml = contact
+            ? ` You can also reach out to ${sanitizeHtml(contact)} for details.`
+            : '';
+        const contactSentenceText = contact
+            ? ` You can also reach out to ${contact} for details.`
+            : '';
+
+        return this.sendEmail({
+            to: recipient,
+            subject: contentName
+                ? `Scheduled delivery failed - "${contentName}"`
+                : 'Scheduled delivery failed',
+            template: 'genericNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                title: 'Scheduled delivery failure',
+                message: `<p>${baseSentenceHtml}${contactSentenceHtml}</p>`,
+            },
+            text: `${baseSentenceText}${contactSentenceText}`,
+        });
+    }
+
     public async sendScheduledDeliveryTargetFailureEmail(
         recipient: string,
         schedulerName: string,

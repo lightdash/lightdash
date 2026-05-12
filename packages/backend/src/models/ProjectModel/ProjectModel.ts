@@ -42,6 +42,7 @@ import {
     UpdateMetadata,
     UpdateProject,
     UpdateQueryTimezoneSettings,
+    UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
@@ -719,6 +720,9 @@ export class ProjectModel {
                   scheduler_timezone: string;
                   query_timezone: string | null;
                   use_project_timezone_in_filters: boolean;
+                  scheduler_failure_notify_recipients: boolean;
+                  scheduler_failure_include_contact: boolean;
+                  scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -738,6 +742,9 @@ export class ProjectModel {
                   scheduler_timezone: string;
                   query_timezone: string | null;
                   use_project_timezone_in_filters: boolean;
+                  scheduler_failure_notify_recipients: boolean;
+                  scheduler_failure_include_contact: boolean;
+                  scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
@@ -801,6 +808,15 @@ export class ProjectModel {
                             .ref('use_project_timezone_in_filters')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('scheduler_failure_notify_recipients')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_include_contact')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_contact_override')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('created_by_user_uuid')
                             .withSchema(ProjectTableName),
                         this.database
@@ -853,6 +869,12 @@ export class ProjectModel {
                     queryTimezone: project.query_timezone,
                     useProjectTimezoneInFilters:
                         project.use_project_timezone_in_filters,
+                    schedulerFailureNotifyRecipients:
+                        project.scheduler_failure_notify_recipients,
+                    schedulerFailureIncludeContact:
+                        project.scheduler_failure_include_contact,
+                    schedulerFailureContactOverride:
+                        project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
@@ -1058,6 +1080,12 @@ export class ProjectModel {
             schedulerTimezone: project.schedulerTimezone,
             queryTimezone: project.queryTimezone,
             useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,
+            schedulerFailureNotifyRecipients:
+                project.schedulerFailureNotifyRecipients,
+            schedulerFailureIncludeContact:
+                project.schedulerFailureIncludeContact,
+            schedulerFailureContactOverride:
+                project.schedulerFailureContactOverride,
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
@@ -3186,14 +3214,41 @@ export class ProjectModel {
             });
     }
 
-    async updateDefaultSchedulerTimezone(
+    async updateSchedulerSettings(
         projectUuid: string,
-        timezone: string,
+        settings: UpdateSchedulerSettings,
     ) {
+        const update: Partial<
+            Pick<
+                DbProject,
+                | 'scheduler_timezone'
+                | 'scheduler_failure_notify_recipients'
+                | 'scheduler_failure_include_contact'
+                | 'scheduler_failure_contact_override'
+            >
+        > = {};
+        if (settings.schedulerTimezone !== undefined) {
+            update.scheduler_timezone = settings.schedulerTimezone;
+        }
+        if (settings.schedulerFailureNotifyRecipients !== undefined) {
+            update.scheduler_failure_notify_recipients =
+                settings.schedulerFailureNotifyRecipients;
+        }
+        if (settings.schedulerFailureIncludeContact !== undefined) {
+            update.scheduler_failure_include_contact =
+                settings.schedulerFailureIncludeContact;
+        }
+        if (settings.schedulerFailureContactOverride !== undefined) {
+            update.scheduler_failure_contact_override =
+                settings.schedulerFailureContactOverride;
+        }
+
+        if (Object.keys(update).length === 0) {
+            return undefined;
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
-            .update({
-                scheduler_timezone: timezone,
-            })
+            .update(update)
             .where('project_uuid', projectUuid)
             .returning('*');
 

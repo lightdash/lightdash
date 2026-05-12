@@ -336,4 +336,48 @@ export class GoogleChatClient {
 
         await this.sendWebhook(webhookUrl, payload);
     }
+
+    async postDeliveryFailureNotificationToRecipient({
+        webhookUrl,
+        contentName,
+        contact,
+    }: {
+        webhookUrl: string;
+        contentName: string | null;
+        contact: string | null;
+    }): Promise<void> {
+        const baseSentence = contentName
+            ? `The scheduled delivery for <b>"${contentName}"</b> failed to run. The delivery owner has been notified.`
+            : 'A scheduled delivery failed to run. The delivery owner has been notified.';
+        const contactSentence = contact
+            ? ` You can also reach out to ${contact} for details.`
+            : '';
+
+        const payload = {
+            cardsV2: [
+                {
+                    cardId: 'lightdash-scheduled-delivery-failure',
+                    card: {
+                        header: {
+                            title: 'Scheduled delivery failure',
+                            ...(contentName && { subtitle: contentName }),
+                        },
+                        sections: [
+                            {
+                                widgets: [
+                                    {
+                                        textParagraph: {
+                                            text: `${baseSentence}${contactSentence}`,
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
+        await this.sendWebhook(webhookUrl, payload);
+    }
 }
