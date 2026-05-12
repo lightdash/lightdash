@@ -55,7 +55,7 @@
         "@tanstack/react-query-devtools": "4.36.1",
         "@tanstack/react-table": "8.21.3",
         "@tanstack/react-virtual": "3.13.19",
-        "@tiptap/extension-link": "2.2.4",
+        "@tiptap/extension-link": "2.10.4",
         "@tiptap/extension-mention": "2.2.4",
         "@tiptap/extension-placeholder": "2.2.4",
         "@tiptap/pm": "2.2.4",

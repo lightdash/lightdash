@@ -1,5 +1,8 @@
 packages:
-    - 'packages/*'
-    - 'packages/frontend/sdk'
+  - 'packages/*'
+  - 'packages/frontend/sdk'
 
 minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
+minimumReleaseAgeExclude:
+  # Renovate security update: @tiptap/extension-link@2.10.4
+  - "@tiptap/extension-link@2.10.4"
