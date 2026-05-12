@@ -13,7 +13,6 @@ export const getSystemPromptV2 = (args: {
     instructions?: string;
     agentName?: string;
     date?: string;
-    time?: string;
     enableDataAccess?: boolean;
     enableSelfImprovement?: boolean;
     canRunSql?: boolean;
@@ -24,7 +23,6 @@ export const getSystemPromptV2 = (args: {
         instructions,
         agentName = 'Lightdash AI Analyst',
         date = moment().utc().format('YYYY-MM-DD'),
-        time = moment().utc().format('HH:mm'),
         enableDataAccess = false,
         enableSelfImprovement = false,
         canRunSql = false,
@@ -62,7 +60,6 @@ export const getSystemPromptV2 = (args: {
             instructions ? `Special instructions: ${instructions}` : '',
         )
         .replace('{{date}}', date)
-        .replace('{{time}}', time)
         .replace(
             '{{available_explores}}',
             renderAvailableExplores(args.availableExplores).toString(),
@@ -71,5 +68,8 @@ export const getSystemPromptV2 = (args: {
     return {
         role: 'system',
         content,
+        providerOptions: {
+            anthropic: { cacheControl: { type: 'ephemeral' } },
+        },
     };
 };

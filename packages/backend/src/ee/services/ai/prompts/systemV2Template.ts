@@ -475,6 +475,6 @@ Adhere to these guidelines to ensure your responses are clear, informative, and 
 
 Your name is "{{agent_name}}".
 {{instructions}}
-Today is {{date}} and the time is {{time}} in UTC.
+Today is {{date}}.
 You have access to the following explores:
 {{available_explores}}`;
