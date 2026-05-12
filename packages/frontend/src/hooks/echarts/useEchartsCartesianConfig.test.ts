@@ -715,4 +715,42 @@ describe('padDatasetForContinuousAxis', () => {
         expect(result[1].value).toBe(20);
         expect(result[1].extra).toBe('b');
     });
+
+    test('matches DST-offset rows to non-DST continuous range', () => {
+        const data = [
+            { [xField]: '2024-01-01T05:00:00Z', value: 1 },
+            { [xField]: '2024-10-01T05:00:00Z', value: 10 },
+            // Nov 1 is still EDT (DST ends Nov 3), so the warehouse emits
+            // -04:00. The snap's iteration stays at the start-of-range -05:00.
+            { [xField]: '2024-11-01T04:00:00Z', value: 11 },
+            { [xField]: '2024-12-01T05:00:00Z', value: 12 },
+        ];
+        const range = [
+            '2024-01-01T05:00:00Z',
+            '2024-10-01T05:00:00Z',
+            '2024-11-01T05:00:00Z',
+            '2024-12-01T05:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(4);
+        expect(result[2][xField]).toBe('2024-11-01T05:00:00Z');
+        expect(result[2].value).toBe(11);
+    });
+
+    test('is a no-op when row x-field already equals category', () => {
+        const data = [
+            { [xField]: '2024-04-01T00:00:00Z', value: 4, extra: 'a' },
+            { [xField]: '2024-05-01T00:00:00Z', value: 5, extra: 'b' },
+            { [xField]: '2024-06-01T00:00:00Z', value: 6, extra: 'c' },
+        ];
+        const range = [
+            '2024-04-01T00:00:00Z',
+            '2024-05-01T00:00:00Z',
+            '2024-06-01T00:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toEqual(data);
+    });
 });

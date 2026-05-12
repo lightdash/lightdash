@@ -3089,13 +3089,12 @@ const useEchartsCartesianConfig = (
         xAxisSortedResults,
     ]);
 
-    // When the axis has a continuous date range and row limiting is active,
-    // pad the dataset with empty rows for gap dates so ECharts positional
-    // mapping (row index → category index) stays correct.
+    // Pad whenever a continuous date range exists: the row's x-field can
+    // drift from the snap's category string across DST, and ECharts matches
+    // by strict equality. Padding normalizes both to YYYY-MM-DD.
     const paddedDataToRender = useMemo(() => {
         const continuousRange = axes.continuousDateRange;
-        if (!continuousRange || !validCartesianConfig?.rowLimit)
-            return dataToRender;
+        if (!continuousRange) return dataToRender;
         const xFieldId = validCartesianConfig?.layout?.flipAxes
             ? validCartesianConfig?.layout?.yField?.[0]
             : validCartesianConfig?.layout?.xField;
@@ -3108,7 +3107,6 @@ const useEchartsCartesianConfig = (
     }, [
         dataToRender,
         axes.continuousDateRange,
-        validCartesianConfig?.rowLimit,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfig?.layout?.yField,
         validCartesianConfig?.layout?.xField,
