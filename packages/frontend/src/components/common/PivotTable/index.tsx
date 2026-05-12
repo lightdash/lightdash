@@ -69,7 +69,6 @@ import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
-const ROW_NUMBER_COL_WIDTH = 50;
 const MIN_AUTO_COL_WIDTH = 50;
 
 const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
@@ -198,15 +197,24 @@ const PivotTable: FC<PivotTableProps> = ({
         [columnProperties],
     );
 
+    // Width of the leftmost row-number column. Mirrors the formula used by
+    // the non-pivoted Table (see Table/TableProvider.tsx) so freeze offsets
+    // line up with the actual rendered column width.
+    const rowNumberWidth = useMemo(() => {
+        if (hideRowNumbers) return 0;
+        const rowCount = data.retrofitData.allCombinedData.length;
+        return `${rowCount}`.length * 10 + 20;
+    }, [hideRowNumbers, data.retrofitData.allCombinedData.length]);
+
     const frozenLayout = useMemo(
         () =>
             getFrozenColumnLayout({
                 pivotColumnInfo: data.retrofitData.pivotColumnInfo,
                 columnProperties,
-                rowNumberWidth: hideRowNumbers ? 0 : ROW_NUMBER_COL_WIDTH,
+                rowNumberWidth,
                 defaultColumnWidth: 100,
             }),
-        [data.retrofitData.pivotColumnInfo, columnProperties, hideRowNumbers],
+        [data.retrofitData.pivotColumnInfo, columnProperties, rowNumberWidth],
     );
 
     const { columns, columnOrder, colWidths } = useMemo(() => {
@@ -245,7 +253,7 @@ const PivotTable: FC<PivotTableProps> = ({
         const newColWidths: (number | undefined)[] = [];
         if (!hideRowNumbers) {
             newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
-            newColWidths.push(ROW_NUMBER_COL_WIDTH);
+            newColWidths.push(rowNumberWidth);
         }
         if (allDimensionsPivoted) {
             newColumnOrder.push(allPivotedSpacerColumn.id);
@@ -365,7 +373,14 @@ const PivotTable: FC<PivotTableProps> = ({
             columnOrder: newColumnOrder,
             colWidths: newColWidths,
         };
-    }, [data, hideRowNumbers, getField, columnProperties, frozenLayout]);
+    }, [
+        data,
+        hideRowNumbers,
+        getField,
+        columnProperties,
+        frozenLayout,
+        rowNumberWidth,
+    ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
     const minTableWidth = useMemo(() => {
@@ -756,14 +771,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                           className={rowNumberSticky.className}
                                           style={rowNumberSticky.style}
                                           isMinimal={isMinimal}
-                                          withMinimalWidth={!hasCustomWidths}
+                                          w={rowNumberWidth}
+                                          miw={rowNumberWidth}
+                                          maw={rowNumberWidth}
                                       />
                                   ) : (
                                       <Table.CellHead
                                           className={rowNumberSticky.className}
                                           style={rowNumberSticky.style}
                                           isMinimal={isMinimal}
-                                          withMinimalWidth={!hasCustomWidths}
+                                          w={rowNumberWidth}
+                                          miw={rowNumberWidth}
+                                          maw={rowNumberWidth}
                                           withBoldFont
                                       >
                                           #
@@ -1025,6 +1044,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                             }
                                             style={rowNumberStickyBody.style}
                                             isMinimal={isMinimal}
+                                            w={rowNumberWidth}
+                                            miw={rowNumberWidth}
+                                            maw={rowNumberWidth}
                                         >
                                             {flexRender(
                                                 cell.column.columnDef.cell,
@@ -1363,6 +1385,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                   style={
                                                       footerRowNumberSticky.style
                                                   }
+                                                  w={rowNumberWidth}
+                                                  miw={rowNumberWidth}
+                                                  maw={rowNumberWidth}
                                               />
                                           );
                                       })()}
