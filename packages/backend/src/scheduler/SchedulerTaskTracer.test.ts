@@ -55,30 +55,12 @@ const makeHelpers = () =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }) as any;
 
-describe('traceTasks — heartbeat tasks bypass the Sentry trace wrapper', () => {
+describe('traceTasks — wraps every task in the Sentry trace wrapper', () => {
     beforeEach(() => {
         startSpanMock.mockClear();
     });
 
-    it('does NOT wrap workerHeartbeat:<poolId> in Sentry.startSpan', async () => {
-        const innerHandler = jest.fn().mockResolvedValue(undefined);
-        const tasks: Partial<TypedTaskList> = {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ['workerHeartbeat:pod-abc' as any]: innerHandler,
-        };
-
-        const tracedList = traceTasks(tasks);
-        const heartbeatTask = tracedList['workerHeartbeat:pod-abc'];
-
-        expect(heartbeatTask).toBeDefined();
-        // Invoke the (pass-through) traced task and confirm Sentry wasn't called.
-        await heartbeatTask!({}, makeHelpers());
-
-        expect(innerHandler).toHaveBeenCalledTimes(1);
-        expect(startSpanMock).not.toHaveBeenCalled();
-    });
-
-    it('DOES wrap a regular scheduler task in Sentry.startSpan', async () => {
+    it('wraps a regular scheduler task in Sentry.startSpan', async () => {
         const innerHandler = jest.fn().mockResolvedValue(undefined);
         const tasks: Partial<TypedTaskList> = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -91,33 +73,33 @@ describe('traceTasks — heartbeat tasks bypass the Sentry trace wrapper', () =>
         expect(wrappedTask).toBeDefined();
         await wrappedTask!({}, makeHelpers());
 
-        // The handler ran, and Sentry's startSpan was invoked.
         expect(innerHandler).toHaveBeenCalledTimes(1);
         expect(startSpanMock).toHaveBeenCalledTimes(1);
-        // First arg to startSpan carries the span name; sanity-check it.
         const firstCallArgs = startSpanMock.mock.calls[0];
         expect(firstCallArgs[0]).toMatchObject({
             name: 'worker.task.checkForStuckJobs',
         });
     });
 
-    it('handles mixed task lists — only the heartbeat name bypasses', async () => {
-        const heartbeatHandler = jest.fn().mockResolvedValue(undefined);
-        const regularHandler = jest.fn().mockResolvedValue(undefined);
+    it('wraps every task in a mixed list (heartbeats no longer flow through graphile)', async () => {
+        // The old bypass for workerHeartbeat:<poolId> existed because that
+        // task fired every 60s and produced noise. With pg-ping running
+        // out-of-band, nothing in the queue needs special-casing.
+        const handlerA = jest.fn().mockResolvedValue(undefined);
+        const handlerB = jest.fn().mockResolvedValue(undefined);
         const tasks: Partial<TypedTaskList> = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ['workerHeartbeat:pod-xyz' as any]: heartbeatHandler,
+            checkForStuckJobs: handlerA as any,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            checkForStuckJobs: regularHandler as any,
+            cleanDeploySessions: handlerB as any,
         };
 
         const tracedList = traceTasks(tasks);
-        await tracedList['workerHeartbeat:pod-xyz']!({}, makeHelpers());
         await tracedList.checkForStuckJobs!({}, makeHelpers());
+        await tracedList.cleanDeploySessions!({}, makeHelpers());
 
-        expect(heartbeatHandler).toHaveBeenCalledTimes(1);
-        expect(regularHandler).toHaveBeenCalledTimes(1);
-        // Only ONE span — for the regular task, not the heartbeat.
-        expect(startSpanMock).toHaveBeenCalledTimes(1);
+        expect(handlerA).toHaveBeenCalledTimes(1);
+        expect(handlerB).toHaveBeenCalledTimes(1);
+        expect(startSpanMock).toHaveBeenCalledTimes(2);
     });
 });

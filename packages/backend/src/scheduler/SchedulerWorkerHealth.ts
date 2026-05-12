@@ -4,6 +4,10 @@ const LISTEN_RECOVERY_BUDGET_MS = 60_000;
 
 const JOB_ACTIVITY_STALENESS_MS = 3 * 60_000;
 
+// A successful pg ping within this window proves the worker process can still
+// reach the database, even when no graphile-worker job has fired recently.
+const PG_REACHABLE_STALENESS_MS = 3 * 60_000;
+
 // Per-pod unique poolId — replicas sharing one would collapse to a single dedup'd heartbeat row,
 // leaving all but the lock-winning replica's activity clock to age past staleness.
 export const derivePoolIdFromEnv = (
@@ -24,6 +28,8 @@ export class SchedulerWorkerHealth {
 
     private lastJobActivityAt: number | null = null;
 
+    private lastPgReachableAt: number | null = null;
+
     private inFlightJobCount: number = 0;
 
     private startedAt: number = Date.now();
@@ -35,7 +41,7 @@ export class SchedulerWorkerHealth {
         Logger.info(
             `[scheduler-health] initialized poolId=${this.poolId} startedAt=${new Date(
                 this.startedAt,
-            ).toISOString()} listenBudgetMs=${LISTEN_RECOVERY_BUDGET_MS} activityStalenessMs=${JOB_ACTIVITY_STALENESS_MS}`,
+            ).toISOString()} listenBudgetMs=${LISTEN_RECOVERY_BUDGET_MS} activityStalenessMs=${JOB_ACTIVITY_STALENESS_MS} pgReachableStalenessMs=${PG_REACHABLE_STALENESS_MS}`,
         );
     }
 
@@ -90,6 +96,18 @@ export class SchedulerWorkerHealth {
         this.markJobActivity();
     }
 
+    markPgReachable() {
+        const now = Date.now();
+        const ageMs =
+            this.lastPgReachableAt === null
+                ? null
+                : now - this.lastPgReachableAt;
+        this.lastPgReachableAt = now;
+        Logger.debug(
+            `[scheduler-health] pg-reachable poolId=${this.poolId} previousAgeMs=${ageMs}`,
+        );
+    }
+
     getInFlightJobCount(): number {
         return this.inFlightJobCount;
     }
@@ -126,28 +144,39 @@ export class SchedulerWorkerHealth {
             return { ok: true };
         }
 
-        if (
-            this.lastJobActivityAt === null ||
-            now - this.lastJobActivityAt > JOB_ACTIVITY_STALENESS_MS
-        ) {
-            return {
-                ok: false,
-                reason: 'no job activity within staleness threshold',
-            };
+        const jobActivityFresh =
+            this.lastJobActivityAt !== null &&
+            now - this.lastJobActivityAt <= JOB_ACTIVITY_STALENESS_MS;
+        if (jobActivityFresh) {
+            return { ok: true };
         }
 
-        return { ok: true };
+        // pg ping runs independently of the job queue, so it stays fresh during
+        // idle stretches between bursts when no job:start fires.
+        const pgReachableFresh =
+            this.lastPgReachableAt !== null &&
+            now - this.lastPgReachableAt <= PG_REACHABLE_STALENESS_MS;
+        if (pgReachableFresh) {
+            return { ok: true };
+        }
+
+        return {
+            ok: false,
+            reason: 'no job activity or pg ping within staleness threshold',
+        };
     }
 
     private static classifyState(
         result: HealthCheckResult,
         ageSinceStartMs: number,
         lastJobActivityAt: number | null,
+        lastPgReachableAt: number | null,
     ): HealthState {
         if (!result.ok) return 'unhealthy';
         if (
             ageSinceStartMs < JOB_ACTIVITY_STALENESS_MS &&
-            lastJobActivityAt === null
+            lastJobActivityAt === null &&
+            lastPgReachableAt === null
         ) {
             return 'starting';
         }
@@ -159,6 +188,7 @@ export class SchedulerWorkerHealth {
             result,
             now - this.startedAt,
             this.lastJobActivityAt,
+            this.lastPgReachableAt,
         );
         if (newState !== this.lastReportedState) {
             Logger.info(

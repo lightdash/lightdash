@@ -99,7 +99,7 @@ describe('SchedulerWorkerHealth', () => {
         const result = health.isHealthy(startedAt + GRACE_MS + 1);
         expect(result.ok).toBe(false);
         expect(result.reason).toBe(
-            'no job activity within staleness threshold',
+            'no job activity or pg ping within staleness threshold',
         );
     });
 
@@ -125,7 +125,7 @@ describe('SchedulerWorkerHealth', () => {
         const result = health.isHealthy(activityAt + GRACE_MS + 1);
         expect(result.ok).toBe(false);
         expect(result.reason).toBe(
-            'no job activity within staleness threshold',
+            'no job activity or pg ping within staleness threshold',
         );
     });
 
@@ -202,6 +202,61 @@ describe('SchedulerWorkerHealth', () => {
             expect(result.reason).toMatch(/^LISTEN connection lost/);
         });
     });
+
+    describe('pg-reachable signal', () => {
+        it('keeps the probe healthy past staleness when only pg-ping is fresh', () => {
+            // The exact scenario this refactor exists to fix: no jobs flowed
+            // for longer than the activity staleness window, but pg-ping has
+            // proven the worker can still reach pg in the last 60s. Probe
+            // must NOT trip — the worker is healthy, just idle.
+            const health = new SchedulerWorkerHealth();
+            const startedAt = Date.now();
+
+            const pingAt = startedAt + GRACE_MS + 4 * 60_000;
+            Date.now = () => pingAt;
+            health.markPgReachable();
+
+            expect(health.isHealthy(pingAt + 60_000)).toEqual({ ok: true });
+        });
+
+        it('trips when both job activity and pg-ping are stale', () => {
+            const health = new SchedulerWorkerHealth();
+            const startedAt = Date.now();
+
+            const activityAt = startedAt + GRACE_MS + 1_000;
+            Date.now = () => activityAt;
+            health.markJobActivity();
+            health.markPgReachable();
+
+            const result = health.isHealthy(activityAt + GRACE_MS + 1);
+            expect(result.ok).toBe(false);
+            expect(result.reason).toBe(
+                'no job activity or pg ping within staleness threshold',
+            );
+        });
+
+        it('reports LISTEN failure even when pg ping is still fresh', () => {
+            // LISTEN and pg-ping cover different failure modes — a wedged
+            // LISTEN connection with healthy plain pg queries is the May
+            // wire-protocol corruption pattern, and the probe must trip.
+            const health = new SchedulerWorkerHealth();
+            const t = Date.now();
+            health.markPgReachable();
+            health.markListenLost();
+
+            const result = health.isHealthy(t + LISTEN_BUDGET_MS + 1);
+            expect(result.ok).toBe(false);
+            expect(result.reason).toMatch(/^LISTEN connection lost/);
+        });
+
+        it('treats a successful ping during startup as evidence the worker has progressed past "starting"', () => {
+            // classifyState should consider the worker healthy (not starting)
+            // once any liveness signal has fired, even before the first job.
+            const health = new SchedulerWorkerHealth();
+            health.markPgReachable();
+            expect(health.isHealthy()).toEqual({ ok: true });
+        });
+    });
 });
 
 describe('derivePoolIdFromEnv — multi-replica uniqueness', () => {
@@ -245,7 +300,8 @@ describe('derivePoolIdFromEnv — multi-replica uniqueness', () => {
 
     it('produces distinct poolIds for two replicas with different pod names', () => {
         // This is THE regression being guarded — pre-fix, both replicas
-        // received the same hardcoded 'scheduler-app' poolId.
+        // received the same hardcoded 'scheduler-app' poolId, collapsing
+        // their log streams under a single identifier.
         const replicaA = derivePoolIdFromEnv({
             HOSTNAME: 'scheduler-deployment-7df9c-aaa11',
         });
@@ -256,13 +312,6 @@ describe('derivePoolIdFromEnv — multi-replica uniqueness', () => {
         expect(replicaA).toBe('scheduler-deployment-7df9c-aaa11');
         expect(replicaB).toBe('scheduler-deployment-7df9c-bbb22');
         expect(replicaA).not.toBe(replicaB);
-
-        // And the downstream task names that drive the per-pool routing
-        // must also differ — this is what graphile-worker uses to decide
-        // which runner can fetch a given workerHeartbeat:* job.
-        const taskA = `workerHeartbeat:${replicaA}`;
-        const taskB = `workerHeartbeat:${replicaB}`;
-        expect(taskA).not.toBe(taskB);
     });
 
     it('uses the random fallback when env yields nothing — distinct replicas still differ', () => {

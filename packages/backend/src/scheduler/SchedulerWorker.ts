@@ -26,7 +26,8 @@ import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
 
 export type SchedulerWorkerArguments = SchedulerTaskArguments & {
-    // When omitted, no per-pool workerHeartbeat task is registered and no enqueue interval runs.
+    // When omitted, no pg-ping interval runs and the health probe falls back to
+    // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
 };
 
@@ -40,15 +41,12 @@ const workerLogger = new GraphileLogger(
     },
 );
 
-// 60s vs the 3-min staleness threshold gives 3x headroom for insert -> LISTEN -> handler latency.
-const HEARTBEAT_ENQUEUE_INTERVAL_MS = 60_000;
+// 60s vs the 3-min staleness threshold gives 3x headroom for ping latency.
+const PG_PING_INTERVAL_MS = 60_000;
 
-// Cap addJob: a wedged pg backend can leave the call hanging forever and pile up promises.
-const HEARTBEAT_ENQUEUE_TIMEOUT_MS = 10_000;
-
-// Full task name `${prefix}${poolId}` is registered only in its own pool's task list,
-// so the job-activity probe proves THIS pool's insert -> LISTEN -> handler pipeline.
-const PER_POOL_HEARTBEAT_TASK_PREFIX = 'workerHeartbeat:';
+// Cap each ping: a wedged pg backend can leave the query hanging forever and
+// stack up overlapping client borrows from the pool.
+const PG_PING_TIMEOUT_MS = 5_000;
 
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
@@ -59,16 +57,12 @@ export class SchedulerWorker extends SchedulerTask {
 
     protected readonly workerHealth: SchedulerWorkerHealth | undefined;
 
-    private heartbeatEnqueueInterval: NodeJS.Timeout | null = null;
+    private pgPingInterval: NodeJS.Timeout | null = null;
 
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
-    }
-
-    private static getHeartbeatTaskName(health: SchedulerWorkerHealth): string {
-        return `${PER_POOL_HEARTBEAT_TASK_PREFIX}${health.getPoolId()}`;
     }
 
     async run() {
@@ -105,86 +99,74 @@ export class SchedulerWorker extends SchedulerTask {
 
         this.isRunning = true;
         if (this.workerHealth) {
-            this.startHeartbeatEnqueue(this.workerHealth);
+            this.startPgPing(this.workerHealth);
         }
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
         void this.runner.promise.finally(() => {
             this.isRunning = false;
-            this.stopHeartbeatEnqueue();
+            this.stopPgPing();
         });
     }
 
-    private startHeartbeatEnqueue(health: SchedulerWorkerHealth) {
-        if (this.heartbeatEnqueueInterval) return;
-        const taskName = SchedulerWorker.getHeartbeatTaskName(health);
-        void this.enqueueOwnHeartbeat(health);
-        this.heartbeatEnqueueInterval = setInterval(() => {
-            void this.enqueueOwnHeartbeat(health);
-        }, HEARTBEAT_ENQUEUE_INTERVAL_MS);
+    private startPgPing(health: SchedulerWorkerHealth) {
+        if (this.pgPingInterval) return;
+        void this.pingPgOnce(health);
+        this.pgPingInterval = setInterval(() => {
+            void this.pingPgOnce(health);
+        }, PG_PING_INTERVAL_MS);
         Logger.info(
-            `[scheduler-health] heartbeat-enqueue started poolId=${health.getPoolId()} taskName=${taskName} intervalMs=${HEARTBEAT_ENQUEUE_INTERVAL_MS}`,
+            `[scheduler-health] pg-ping started poolId=${health.getPoolId()} intervalMs=${PG_PING_INTERVAL_MS} timeoutMs=${PG_PING_TIMEOUT_MS}`,
         );
     }
 
-    private stopHeartbeatEnqueue() {
-        if (this.heartbeatEnqueueInterval) {
-            clearInterval(this.heartbeatEnqueueInterval);
-            this.heartbeatEnqueueInterval = null;
+    private stopPgPing() {
+        if (this.pgPingInterval) {
+            clearInterval(this.pgPingInterval);
+            this.pgPingInterval = null;
             if (this.workerHealth) {
                 Logger.info(
-                    `[scheduler-health] heartbeat-enqueue stopped poolId=${this.workerHealth.getPoolId()}`,
+                    `[scheduler-health] pg-ping stopped poolId=${this.workerHealth.getPoolId()}`,
                 );
             }
         }
     }
 
-    private async enqueueOwnHeartbeat(health: SchedulerWorkerHealth) {
-        const taskName = SchedulerWorker.getHeartbeatTaskName(health);
+    private async pingPgOnce(health: SchedulerWorkerHealth) {
         let timeoutHandle: NodeJS.Timeout | undefined;
         try {
             const graphileClient = await this.schedulerClient.graphileUtils;
-            const enqueue = graphileClient.addJob(
-                taskName,
-                {
-                    poolId: health.getPoolId(),
-                    enqueuedAt: new Date().toISOString(),
-                },
-                {
-                    // 'replace' only dedups unlocked rows; locked (in-flight) ones briefly produce a second row.
-                    jobKey: taskName,
-                    jobKeyMode: 'replace',
-                    maxAttempts: 1,
-                },
+            // withPgClient borrows from graphile's existing pool and releases the
+            // client back when the callback resolves — no long-lived client to leak.
+            const ping = graphileClient.withPgClient((pgClient) =>
+                pgClient.query('SELECT 1'),
             );
             await Promise.race([
-                enqueue,
+                ping,
                 new Promise<never>((_resolve, reject) => {
                     timeoutHandle = setTimeout(() => {
                         reject(
                             new Error(
-                                `addJob timeout after ${HEARTBEAT_ENQUEUE_TIMEOUT_MS}ms`,
+                                `pg ping timeout after ${PG_PING_TIMEOUT_MS}ms`,
                             ),
                         );
-                    }, HEARTBEAT_ENQUEUE_TIMEOUT_MS);
-                    // Don't keep the process alive solely for this timer.
+                    }, PG_PING_TIMEOUT_MS);
                     if (typeof timeoutHandle.unref === 'function')
                         timeoutHandle.unref();
                 }),
             ]);
+            health.markPgReachable();
             Logger.debug(
-                `[scheduler-health] heartbeat-enqueued poolId=${health.getPoolId()}`,
+                `[scheduler-health] pg-ping ok poolId=${health.getPoolId()}`,
             );
         } catch (e) {
-            // Sustained failure ages activity past staleness -> probe trips.
+            // Sustained failure ages lastPgReachableAt past staleness — combined
+            // with no job activity, the probe trips. A single failure is harmless.
             Logger.warn(
-                `[scheduler-health] heartbeat-enqueue-failed poolId=${health.getPoolId()} error=${getErrorMessage(
+                `[scheduler-health] pg-ping failed poolId=${health.getPoolId()} error=${getErrorMessage(
                     e,
                 )}`,
             );
         } finally {
-            // Clear whichever path resolved the race so the loser's timer
-            // doesn't linger as an "active timer" past this tick — Jest
-            // workers will otherwise force-exit and flag a leak.
             if (timeoutHandle) clearTimeout(timeoutHandle);
         }
     }
@@ -233,40 +215,19 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
-            {
-                task: SCHEDULER_TASKS.CLEAN_WORKER_HEARTBEATS,
-                pattern: '17 * * * *', // Hourly, offset from other cleanup tasks
-                options: {
-                    backfillPeriod: 2 * 3600 * 1000,
-                    maxAttempts: 3,
-                },
-            },
-            // workerHeartbeat is driven by per-pool setInterval (see startHeartbeatEnqueue);
+            // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
-        const filteredTaskList = Object.fromEntries(
+        return Object.fromEntries(
             Object.entries(this.getFullTaskList()).filter(
                 ([taskKey]) =>
                     isSchedulerTaskName(taskKey) &&
                     this.enabledTasks.includes(taskKey),
             ),
-        );
-        if (!this.workerHealth) {
-            return filteredTaskList as Partial<TypedTaskList>;
-        }
-        // Task name is dynamic (workerHeartbeat:<poolId>) so it isn't in SchedulerTaskName — cast required.
-        const taskName = SchedulerWorker.getHeartbeatTaskName(
-            this.workerHealth,
-        );
-        return {
-            ...filteredTaskList,
-            [taskName]: (async () => {
-                // No-op — activity is tracked by the job:start listener in wireWorkerHealthEvents.
-            }) as TypedTaskList[keyof TypedTaskList],
-        } as Partial<TypedTaskList>;
+        ) as Partial<TypedTaskList>;
     }
 
     protected getFullTaskList(): TypedTaskList {
@@ -1150,42 +1111,6 @@ export class SchedulerWorker extends SchedulerTask {
                     throw error;
                 }
             },
-            [SCHEDULER_TASKS.CLEAN_WORKER_HEARTBEATS]: async () => {
-                // Per-pod heartbeat task names (workerHeartbeat:<poolId>) die with
-                // the pod that registered the handler. Old pods' rows then sit in
-                // graphile_worker.jobs forever — no current task list registers
-                // their task name, so get_job never fetches them. Live pools refresh
-                // their row every 60s via jobKey 'replace', so anything older than
-                // 10 minutes is provably orphaned — including rows still locked by
-                // a worker that died mid-heartbeat (graphile only auto-releases
-                // those after its much longer jobTimeout).
-                const graphileClient = await this.schedulerClient.graphileUtils;
-                try {
-                    const result = await graphileClient.withPgClient(
-                        (pgClient) =>
-                            pgClient.query<{ count: string }>(
-                                `WITH deleted AS (
-                                    DELETE FROM graphile_worker.jobs
-                                    WHERE task_identifier LIKE 'workerHeartbeat:%'
-                                      AND run_at < NOW() - INTERVAL '10 minutes'
-                                      AND (locked_at IS NULL OR locked_at < NOW() - INTERVAL '10 minutes')
-                                    RETURNING id
-                                )
-                                SELECT COUNT(*)::text AS count FROM deleted`,
-                            ),
-                    );
-                    const deleted = Number(result.rows[0]?.count ?? '0');
-                    Logger.info(
-                        `Orphan worker-heartbeat cleanup completed deleted=${deleted}`,
-                    );
-                } catch (error) {
-                    Logger.error(
-                        'Error during orphan worker-heartbeat cleanup:',
-                        error,
-                    );
-                    throw error;
-                }
-            },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,
                 helpers,
@@ -1298,8 +1223,6 @@ export class SchedulerWorker extends SchedulerTask {
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker
             },
-            // Fallback for manual operator enqueues; per-pool heartbeat uses workerHeartbeat:<poolId>.
-            [SCHEDULER_TASKS.WORKER_HEARTBEAT]: async () => {},
         };
     }
 }
