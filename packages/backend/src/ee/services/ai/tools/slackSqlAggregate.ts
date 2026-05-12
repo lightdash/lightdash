@@ -180,17 +180,9 @@ const renderActiveSection = (section: AggregateSection): AnyType[] => {
     return blocks;
 };
 
-const renderCollapsedSection = (section: AggregateSection): AnyType[] => [
-    {
-        type: 'context',
-        elements: [
-            {
-                type: 'mrkdwn',
-                text: `\`${oneLineSql(section.state.sql)}\``,
-            },
-        ],
-    },
-];
+// Past sections collapse to JUST the header line — no body. Keeps the
+// message scannable: one row per completed step.
+const renderCollapsedSection = (_section: AggregateSection): AnyType[] => [];
 
 // Slack hard-caps a message at 50 blocks. Keep the latest sections fully
 // rendered; older ones collapse to a single context line. If we still exceed
@@ -204,6 +196,7 @@ export const renderAggregateBlocks = (agg: Aggregate): AnyType[] => {
 
     agg.sections.forEach((section, idx) => {
         const isLast = idx === total - 1;
+        const isLastBeforeActive = idx === total - 2;
         blocks.push({
             type: 'section',
             text: { type: 'mrkdwn', text: sectionHeader(idx, section.state) },
@@ -213,7 +206,9 @@ export const renderAggregateBlocks = (agg: Aggregate): AnyType[] => {
         } else {
             blocks.push(...renderCollapsedSection(section));
         }
-        if (!isLast) blocks.push({ type: 'divider' });
+        // One divider, only between the past section stack and the active
+        // section — gives visual separation without cluttering the list.
+        if (isLastBeforeActive) blocks.push({ type: 'divider' });
     });
 
     if (blocks.length <= MAX_BLOCKS) return blocks;
