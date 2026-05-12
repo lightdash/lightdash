@@ -133,6 +133,8 @@ import { EmbedController } from './../ee/controllers/embedController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ManagedAgentController } from './../ee/controllers/managedAgentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { OrganizationSsoController } from './../ee/controllers/OrganizationSsoController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { OrganizationWarehouseCredentialsController } from './../ee/controllers/OrganizationWarehouseCredentialsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PreAggregateController } from './../ee/controllers/PreAggregateController';
@@ -5329,6 +5331,16 @@ const models: TsoaRoute.Models = {
         enums: ['dynamic', 'fixed'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MapHexbinValueBasis: {
+        dataType: 'refEnum',
+        enums: ['count', 'field'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MapHexbinAggregation: {
+        dataType: 'refEnum',
+        enums: ['sum', 'avg', 'min', 'max'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MapTileBackground: {
         dataType: 'refEnum',
         enums: [
@@ -5378,6 +5390,16 @@ const models: TsoaRoute.Models = {
                 hexbinConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        emptyBinColor: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        showEmptyBins: { dataType: 'boolean' },
+                        aggregation: { ref: 'MapHexbinAggregation' },
+                        valueBasis: { ref: 'MapHexbinValueBasis' },
                         fixedResolution: { dataType: 'double' },
                         sizingMode: { ref: 'MapHexbinSizingMode' },
                         opacity: { dataType: 'double' },
@@ -13725,6 +13747,147 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                oauth2ClientId: { dataType: 'string', required: true },
+                oauth2TenantId: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OrganizationSsoMethodFlags: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                allowPassword: { dataType: 'boolean', required: true },
+                emailDomains: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                overrideEmailDomains: { dataType: 'boolean', required: true },
+                enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AzureAdSsoConfigSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    ref: 'Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_',
+                },
+                { ref: 'OrganizationSsoMethodFlags' },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        hasClientSecret: {
+                            dataType: 'boolean',
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAzureAdSsoConfigResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AzureAdSsoConfigSummary' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpsertAzureAdSsoConfigResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AzureAdSsoConfigSummary', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    Partial_OrganizationSsoMethodFlags_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                enabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                overrideEmailDomains: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                emailDomains: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                allowPassword: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpsertAzureAdSsoConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'intersection',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        oauth2TenantId: { dataType: 'string', required: true },
+                        oauth2ClientSecret: { dataType: 'string' },
+                        oauth2ClientId: { dataType: 'string', required: true },
+                    },
+                },
+                { ref: 'Partial_OrganizationSsoMethodFlags_' },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     Role: {
         dataType: 'refAlias',
         type: {
@@ -16722,6 +16885,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                resolvedColorPalette: {
+                    ref: 'ResolvedProjectColorPalette',
+                    required: true,
+                },
                 lastViewedAt: { dataType: 'datetime', required: true },
                 firstViewedAt: { dataType: 'datetime', required: true },
                 views: { dataType: 'double', required: true },
@@ -18237,6 +18404,7 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
+                    enabled: { dataType: 'boolean', required: true },
                     message: {
                         dataType: 'union',
                         subSchemas: [
@@ -18273,7 +18441,6 @@ const models: TsoaRoute.Models = {
                             { dataType: 'undefined' },
                         ],
                     },
-                    enabled: { dataType: 'boolean', required: true },
                     notificationFrequency: {
                         dataType: 'union',
                         subSchemas: [
@@ -20608,6 +20775,10 @@ const models: TsoaRoute.Models = {
                     dataType: 'boolean',
                     required: true,
                 },
+                useProjectTimezoneInFilters: {
+                    dataType: 'boolean',
+                    required: true,
+                },
                 queryTimezone: {
                     dataType: 'union',
                     subSchemas: [
@@ -21410,13 +21581,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                useProjectTimezoneInFilters: { dataType: 'boolean' },
                 queryTimezone: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'string' },
                         { dataType: 'enum', enums: [null] },
                     ],
-                    required: true,
                 },
             },
             validators: {},
@@ -28585,7 +28756,9 @@ const models: TsoaRoute.Models = {
             'calculateSubtotal',
             'embed',
             'ai',
-            'mcp',
+            'mcp.run_metric_query',
+            'mcp.run_sql',
+            'mcp.search_field_values',
             'api',
             'cli',
             'metricsExplorer',
@@ -34387,6 +34560,12 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        kind: {
+            in: 'query',
+            name: 'kind',
+            dataType: 'enum',
+            enums: ['screenshot'],
+        },
     };
     app.post(
         '/api/v1/ee/projects/:projectUuid/apps/:appUuid/upload-image',
@@ -39130,6 +39309,177 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationSsoController_getAzureAdConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/org/sso/azuread',
+        ...fetchMiddlewares<RequestHandler>(OrganizationSsoController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationSsoController.prototype.getAzureAdConfig,
+        ),
+
+        async function OrganizationSsoController_getAzureAdConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationSsoController_getAzureAdConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationSsoController>(
+                        OrganizationSsoController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAzureAdConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationSsoController_upsertAzureAdConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpsertAzureAdSsoConfig',
+        },
+    };
+    app.put(
+        '/api/v1/org/sso/azuread',
+        ...fetchMiddlewares<RequestHandler>(OrganizationSsoController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationSsoController.prototype.upsertAzureAdConfig,
+        ),
+
+        async function OrganizationSsoController_upsertAzureAdConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationSsoController_upsertAzureAdConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationSsoController>(
+                        OrganizationSsoController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'upsertAzureAdConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOrganizationSsoController_deleteAzureAdConfig: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/org/sso/azuread',
+        ...fetchMiddlewares<RequestHandler>(OrganizationSsoController),
+        ...fetchMiddlewares<RequestHandler>(
+            OrganizationSsoController.prototype.deleteAzureAdConfig,
+        ),
+
+        async function OrganizationSsoController_deleteAzureAdConfig(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOrganizationSsoController_deleteAzureAdConfig,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OrganizationSsoController>(
+                        OrganizationSsoController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteAzureAdConfig',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsCustomRolesController_createOrganizationRole: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -40532,6 +40882,59 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'joinOrganization',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_leaveOrganization: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/user/me/leaveOrganization',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.leaveOrganization,
+        ),
+
+        async function UserController_leaveOrganization(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsUserController_leaveOrganization,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserController>(UserController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'leaveOrganization',
                     controller,
                     response,
                     next,
@@ -59131,6 +59534,11 @@ export function RegisterRoutes(app: Router) {
         page: { in: 'query', name: 'page', dataType: 'double' },
         searchQuery: { in: 'query', name: 'searchQuery', dataType: 'string' },
         formats: { in: 'query', name: 'formats', dataType: 'string' },
+        includeLatestRun: {
+            in: 'query',
+            name: 'includeLatestRun',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v2/saved/:chartUuid/schedulers',
@@ -61054,6 +61462,11 @@ export function RegisterRoutes(app: Router) {
         pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
         page: { in: 'query', name: 'page', dataType: 'double' },
         searchQuery: { in: 'query', name: 'searchQuery', dataType: 'string' },
+        includeLatestRun: {
+            in: 'query',
+            name: 'includeLatestRun',
+            dataType: 'boolean',
+        },
     };
     app.get(
         '/api/v2/dashboards/:dashboardUuid/schedulers',

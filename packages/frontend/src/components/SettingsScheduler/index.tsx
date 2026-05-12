@@ -3,7 +3,7 @@ import {
     isApiError,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
-import { LoadingOverlay, Stack, Text, Title } from '@mantine-8/core';
+import { Box, LoadingOverlay, Stack, Text, Title } from '@mantine-8/core';
 import { useCallback, type FC } from 'react';
 import useToaster from '../../hooks/toaster/useToaster';
 import {
@@ -72,12 +72,12 @@ const SettingsScheduler: FC<SettingsSchedulerProps> = ({ projectUuid }) => {
                         per-delivery when creating or editing a scheduler.
                     </Text>
                 </Stack>
-                <div>
+                <Box>
                     <SchedulerSettingsForm
                         project={project}
                         onChange={handleChange}
                     />
-                </div>
+                </Box>
             </SettingsGridCard>
 
             <SchedulersView projectUuid={projectUuid} />
