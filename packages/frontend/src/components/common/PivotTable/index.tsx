@@ -39,7 +39,14 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
-import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import {
     getGroupingValuesAndSubtotalKey,
     getSubtotalValueFromGroup,
@@ -174,6 +181,53 @@ const PivotTable: FC<PivotTableProps> = ({
         onColumnWidthChange,
     });
 
+    // Track actual rendered widths of body cells by column id, used to keep
+    // frozen-column offsets aligned with reality. Without measurement, the
+    // layout has to guess (defaultColumnWidth) and offsets visibly drift
+    // when auto-sized cells differ from the guess.
+    const [measuredColumnWidths, setMeasuredColumnWidths] = useState<
+        Map<string, number>
+    >(() => new Map());
+    const cellObserversRef = useRef<Map<string, ResizeObserver>>(new Map());
+
+    useEffect(
+        () => () => {
+            cellObserversRef.current.forEach((obs) => obs.disconnect());
+            cellObserversRef.current.clear();
+        },
+        [],
+    );
+
+    const measureCellRef = useCallback(
+        (columnId: string) => (el: HTMLTableCellElement | null) => {
+            const existing = cellObserversRef.current.get(columnId);
+            if (existing) {
+                existing.disconnect();
+                cellObserversRef.current.delete(columnId);
+            }
+            if (!el) return;
+            const obs = new ResizeObserver(() => {
+                const width = el.getBoundingClientRect().width;
+                if (width === 0) return;
+                setMeasuredColumnWidths((prev) => {
+                    const current = prev.get(columnId);
+                    if (
+                        current !== undefined &&
+                        Math.abs(current - width) < 0.5
+                    ) {
+                        return prev;
+                    }
+                    const next = new Map(prev);
+                    next.set(columnId, width);
+                    return next;
+                });
+            });
+            obs.observe(el);
+            cellObserversRef.current.set(columnId, obs);
+        },
+        [],
+    );
+
     // Count label/index columns to compute offset from headerColIndex to pivotColumnInfo
     const numLabelCols = useMemo(
         () =>
@@ -213,8 +267,14 @@ const PivotTable: FC<PivotTableProps> = ({
                 columnProperties,
                 rowNumberWidth,
                 defaultColumnWidth: 100,
+                measuredWidths: measuredColumnWidths,
             }),
-        [data.retrofitData.pivotColumnInfo, columnProperties, rowNumberWidth],
+        [
+            data.retrofitData.pivotColumnInfo,
+            columnProperties,
+            rowNumberWidth,
+            measuredColumnWidths,
+        ],
     );
 
     const { columns, columnOrder, colWidths } = useMemo(() => {
@@ -1024,6 +1084,13 @@ const PivotTable: FC<PivotTableProps> = ({
                             index={rowIndex}
                         >
                             {row.getVisibleCells().map((cell, colIndex) => {
+                                // Measure body cell widths in the first row only.
+                                // Column widths are uniform across rows (CSS table
+                                // layout), so one measurement per column is enough.
+                                const measureRef =
+                                    virtualRow.index === 0
+                                        ? measureCellRef(cell.column.id)
+                                        : undefined;
                                 if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
                                     const rowNumberStickyBody =
                                         frozenLayout.size > 0
@@ -1039,6 +1106,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                     return (
                                         <Table.Cell
                                             key={`row-number-${rowIndex}`}
+                                            ref={measureRef}
                                             className={
                                                 rowNumberStickyBody.className
                                             }
@@ -1227,6 +1295,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
+                                        ref={measureRef}
                                         className={stickyCellProps.className}
                                         style={stickyCellProps.style}
                                         isMinimal={isMinimal}

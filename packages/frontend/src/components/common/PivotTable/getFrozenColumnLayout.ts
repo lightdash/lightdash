@@ -10,6 +10,13 @@ type Args = {
     columnProperties: Record<string, ColumnProperties | undefined>;
     rowNumberWidth: number;
     defaultColumnWidth: number;
+    /**
+     * Actual rendered widths keyed by pivot col.fieldId, populated at runtime
+     * via ResizeObserver. When present for a column, this takes precedence
+     * over columnProperties[freezeKey].width — keeps frozen offsets aligned
+     * with the real cell width even for auto-sized columns.
+     */
+    measuredWidths?: Map<string, number>;
 };
 
 const getFreezeKey = (col: PivotColumn): string | undefined => {
@@ -20,16 +27,23 @@ const getFreezeKey = (col: PivotColumn): string | undefined => {
 };
 
 const getColumnWidth = (
+    col: PivotColumn,
     freezeKey: string,
     columnProperties: Record<string, ColumnProperties | undefined>,
     defaultColumnWidth: number,
-): number => columnProperties[freezeKey]?.width ?? defaultColumnWidth;
+    measuredWidths?: Map<string, number>,
+): number => {
+    const measured = measuredWidths?.get(col.fieldId);
+    if (measured !== undefined) return measured;
+    return columnProperties[freezeKey]?.width ?? defaultColumnWidth;
+};
 
 export const getFrozenColumnLayout = ({
     pivotColumnInfo,
     columnProperties,
     rowNumberWidth,
     defaultColumnWidth,
+    measuredWidths,
 }: Args): Map<string, FrozenColumnEntry> => {
     const layout = new Map<string, FrozenColumnEntry>();
     let cumulativeLeft = rowNumberWidth;
@@ -43,9 +57,11 @@ export const getFrozenColumnLayout = ({
         if (!isFrozen) continue;
 
         const width = getColumnWidth(
+            col,
             freezeKey,
             columnProperties,
             defaultColumnWidth,
+            measuredWidths,
         );
 
         layout.set(col.fieldId, { left: cumulativeLeft, isLast: false });

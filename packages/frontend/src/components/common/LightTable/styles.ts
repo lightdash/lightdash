@@ -157,14 +157,14 @@ export const useTableSectionStyles = createStyles<
                 return {
                     top: 0,
                     position: 'sticky',
-                    zIndex: 1,
+                    zIndex: 110,
                 } as const;
 
             case SectionType.Footer:
                 return {
                     bottom: 0,
                     position: 'sticky',
-                    zIndex: 1,
+                    zIndex: 110,
                 } as const;
 
             case SectionType.Body:
