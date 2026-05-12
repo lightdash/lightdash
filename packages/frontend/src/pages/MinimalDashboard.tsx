@@ -19,6 +19,7 @@ import ScreenshotProgressIndicator from '../components/common/ScreenshotProgress
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
+import DataAppTile from '../components/DashboardTiles/DashboardDataAppTile';
 import HeadingTile from '../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -168,6 +169,14 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                                 />
                             ) : tile.type === DashboardTileTypes.HEADING ? (
                                 <HeadingTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
+                            ) : tile.type === DashboardTileTypes.DATA_APP ? (
+                                <DataAppTile
                                     key={tile.uuid}
                                     tile={tile}
                                     isEditMode={false}

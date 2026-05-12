@@ -373,6 +373,7 @@ export class PreAggregateStrategy implements IPreAggregateStrategy {
             case DashboardTileTypes.MARKDOWN:
             case DashboardTileTypes.LOOM:
             case DashboardTileTypes.HEADING:
+            case DashboardTileTypes.DATA_APP:
                 return {
                     status: 'ineligible',
                     tileUuid: tile.uuid,
