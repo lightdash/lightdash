@@ -22,6 +22,10 @@ import {
 
 type DbServiceAccountWithRole = DbServiceAccounts & {
     role_uuid: string | null;
+    // Joined from `organization_memberships.role`. Always present (NOT NULL
+    // in DB); typed as `OrganizationMemberRole` so the mapper can flow it
+    // through without an unsafe cast.
+    organization_role: OrganizationMemberRole;
     // Joined from `users` via `created_by_user_uuid`. All three are null
     // when the FK is itself null OR when the creator's row has been
     // deleted (the FK is `ON DELETE SET NULL`).
@@ -69,6 +73,12 @@ export class ServiceAccountModel {
             scopes: data.scopes as ServiceAccountScope[],
             userUuid: data.service_account_user_uuid,
             roleUuid: data.role_uuid ?? null,
+            organizationRole: data.organization_role,
+            // Read paths populate this via `loadProjectMemberships`. Listing
+            // returns an SA with `projectRoles: []` here and the caller
+            // overwrites with the loaded list — keeps a strict shape rather
+            // than making the field optional.
+            projectRoles: [],
         };
     }
 
@@ -99,6 +109,9 @@ export class ServiceAccountModel {
             .select<DbServiceAccountWithRole[]>(
                 `${ServiceAccountsTableName}.*`,
                 `${OrganizationMembershipsTableName}.role_uuid`,
+                {
+                    organization_role: `${OrganizationMembershipsTableName}.role`,
+                },
                 { creator_user_uuid: 'creator.user_uuid' },
                 { creator_first_name: 'creator.first_name' },
                 { creator_last_name: 'creator.last_name' },
@@ -279,6 +292,7 @@ export class ServiceAccountModel {
                 ...ServiceAccountModel.mapDbObjectToServiceAccount({
                     ...row,
                     role_uuid: data.roleUuid ?? null,
+                    organization_role: role,
                     creator_user_uuid: user?.userUuid ?? null,
                     creator_first_name: user?.firstName ?? null,
                     creator_last_name: user?.lastName ?? null,

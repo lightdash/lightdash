@@ -24,6 +24,8 @@ export const mockServiceAccount: ServiceAccount = {
     scopes: [ServiceAccountScope.ORG_ADMIN],
     userUuid: 'sa-dedicated-user-uuid',
     roleUuid: null,
+    organizationRole: OrganizationMemberRole.ADMIN,
+    projectRoles: [],
     createdBy: null,
 };
 

@@ -1,3 +1,6 @@
+import { type OrganizationMemberRole } from '../../types/organizationMemberProfile';
+import { type ProjectMemberRole } from '../../types/projectMemberRole';
+
 export enum ServiceAccountScope {
     SCIM_MANAGE = 'scim:manage',
     // Legacy coarse-grained SA scopes — kept on the wire for back-compat
@@ -18,6 +21,18 @@ export enum ServiceAccountScope {
     SYSTEM_INTERACTIVE_VIEWER = 'system:interactive_viewer',
     SYSTEM_VIEWER = 'system:viewer',
 }
+
+/**
+ * One row of per-project access on a service account, mirroring
+ * `project_memberships` for human users. Either `role` (system role) or
+ * `roleUuid` (custom role) drives runtime CASL on the project; the
+ * service rejects requests that set both.
+ */
+export type ServiceAccountProjectMembership = {
+    projectUuid: string;
+    role: ProjectMemberRole | null;
+    roleUuid: string | null;
+};
 
 export type ServiceAccount = {
     uuid: string;
@@ -48,6 +63,17 @@ export type ServiceAccount = {
     // overriding the legacy `scopes` array. Null for SAs created via the
     // legacy scopes-only path (kept for back-compat).
     roleUuid: string | null;
+    // Org-level system role recorded on `organization_memberships.role`.
+    // Drives runtime CASL only when `scopes` is empty AND `roleUuid` is
+    // null — i.e. the "org role + project memberships" mode. For legacy
+    // SAs (scope-based or org-level custom-role) this is informational
+    // only (used by admin UI listings to show the SA's role label).
+    organizationRole: OrganizationMemberRole;
+    // Per-project assignments. Empty for legacy SAs. When non-empty, the
+    // SA's runtime ability is composed via the standard user path
+    // (`getUserAbilityBuilder`), which loads these rows from
+    // `project_memberships` keyed on `userUuid`.
+    projectRoles: ServiceAccountProjectMembership[];
 };
 
 export type ServiceAccountWithToken = ServiceAccount & {
@@ -58,10 +84,17 @@ export type ApiCreateServiceAccountRequest = Pick<
     ServiceAccount,
     'expiresAt' | 'description'
 > & {
-    // One of `scopes` (legacy preset) or `roleUuid` (custom org role) must be
-    // provided. Sending both is rejected at the service layer.
+    // Exactly one of three permission shapes must be provided. The service
+    // layer rejects requests that combine them.
+    //   1. `scopes`                           — legacy preset (back-compat)
+    //   2. `roleUuid`                         — org-level custom role
+    //   3. `organizationRole` (+ optional `projectRoles`)
+    //                                         — new in PROD-7529, mirrors
+    //                                           the user permission model
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    organizationRole?: OrganizationMemberRole;
+    projectRoles?: ServiceAccountProjectMembership[];
 };
 
 export type ApiCreateServiceAccountResponse = {
@@ -75,4 +108,6 @@ export type CreateServiceAccount = Pick<
 > & {
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    organizationRole?: OrganizationMemberRole;
+    projectRoles?: ServiceAccountProjectMembership[];
 };

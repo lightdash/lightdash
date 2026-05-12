@@ -22,6 +22,8 @@ export const mockServiceAccount: ServiceAccount = {
     scopes: [ServiceAccountScope.SCIM_MANAGE],
     userUuid: 'sa-user-uuid',
     roleUuid: null,
+    organizationRole: OrganizationMemberRole.MEMBER,
+    projectRoles: [],
     createdBy: null,
 };
 
