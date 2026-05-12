@@ -203,10 +203,26 @@ const Settings: FC = () => {
             {
                 path: '/profile',
                 element: (
-                    <SettingsGridCard>
-                        <Title order={4}>Profile settings</Title>
-                        <ProfilePanel />
-                    </SettingsGridCard>
+                    <Stack gap="xl">
+                        <SettingsGridCard>
+                            <Title order={4}>Profile settings</Title>
+                            <ProfilePanel />
+                        </SettingsGridCard>
+                        {isLeaveOrganizationEnabled && (
+                            <SettingsGridCard>
+                                <div>
+                                    <Title order={4}>Danger zone</Title>
+                                    <Text c="ldGray.6" fz="xs">
+                                        Leave the organization to remove
+                                        yourself from it (you cannot leave if
+                                        you are the only admin). This action is
+                                        not reversible.
+                                    </Text>
+                                </div>
+                                <LeaveOrganizationPanel />
+                            </SettingsGridCard>
+                        )}
+                    </Stack>
                 ),
             },
             {
