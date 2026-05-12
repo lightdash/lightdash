@@ -1482,6 +1482,7 @@ export class McpService extends BaseService {
                             projectUuid,
                             args.sql,
                             args.limit ?? 500,
+                            QueryExecutionContext.MCP_RUN_SQL,
                         );
 
                     const jobResult = await this.pollSqlJobToCompletion(
@@ -2259,7 +2260,7 @@ export class McpService extends BaseService {
                     ...metricQuery,
                     additionalMetrics: additionalMetrics ?? [],
                 },
-                context: QueryExecutionContext.MCP,
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                 userAttributeOverrides,
             });
 
@@ -2325,6 +2326,7 @@ export class McpService extends BaseService {
                             false,
                             undefined,
                             userAttributeOverrides,
+                            QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
                         );
                     return results;
                 },

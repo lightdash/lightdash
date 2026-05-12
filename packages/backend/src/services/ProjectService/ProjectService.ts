@@ -4959,6 +4959,7 @@ export class ProjectService extends BaseService {
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
         userAttributeOverrides?: UserAttributeValueMap, // EXPERIMENTAL: used to override user attributes for MCP
+        context: QueryExecutionContext = QueryExecutionContext.FILTER_AUTOCOMPLETE,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -5071,7 +5072,7 @@ export class ProjectService extends BaseService {
             user_uuid: user.userUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
-            query_context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
+            query_context: context,
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
