@@ -684,13 +684,17 @@ export class UserModel {
                 }
             }
 
-            // Legacy scopes path: SA pre-dates custom-role support, or the
-            // role lookup didn't resolve. Fall back to the scope-derived
-            // ability set.
+            // Legacy scopes path: SA has a non-empty `scopes[]` (SCIM,
+            // back-compat) — build CASL from that scope set and return.
+            // For new-mode SAs (PROD-7529) `scopes` is empty: we fall
+            // through to the standard user path below, which reads the
+            // SA's `organization_memberships.role` (incl. `NONE`) and
+            // `project_memberships` rows — same composition logic that
+            // runs for humans, no duplicated code.
             const serviceAccount = await this.findServiceAccountByUserUuid(
                 user.user_uuid,
             );
-            if (serviceAccount) {
+            if (serviceAccount && serviceAccount.scopes.length > 0) {
                 const builder = new AbilityBuilder<MemberAbility>(Ability);
                 applyServiceAccountAbilities({
                     scopes: serviceAccount.scopes,
