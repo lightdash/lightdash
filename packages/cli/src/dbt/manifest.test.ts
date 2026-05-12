@@ -5,6 +5,7 @@ const modelNode = (uniqueId: string, extra: Record<string, unknown> = {}) =>
     ({
         unique_id: uniqueId,
         resource_type: 'model',
+        compiled: true,
         ...extra,
     }) as unknown as DbtNode;
 
@@ -64,6 +65,31 @@ describe('combineManifests', () => {
         };
         expect(mergedA.tag).toBe('primary');
         expect(addedModelIds).toEqual(['model.proj.b']);
+    });
+
+    test('external model nodes that were not compiled are merged but not reported as added', () => {
+        const primary = buildManifest({
+            'model.proj.a': modelNode('model.proj.a'),
+        });
+        const external = buildManifest({
+            'model.proj.compiled': modelNode('model.proj.compiled', {
+                compiled: true,
+            }),
+            'model.proj.uncompiled': modelNode('model.proj.uncompiled', {
+                compiled: false,
+            }),
+            'model.proj.missing': modelNode('model.proj.missing', {
+                compiled: undefined,
+            }),
+        });
+
+        const { manifest, addedModelIds } = combineManifests(primary, external);
+
+        // All external nodes are merged (so joins by name still resolve)
+        expect(manifest.nodes['model.proj.uncompiled']).toBeDefined();
+        expect(manifest.nodes['model.proj.missing']).toBeDefined();
+        // ...but only the compiled one is reported as added
+        expect(addedModelIds).toEqual(['model.proj.compiled']);
     });
 
     test('non-model external nodes are merged into nodes but not reported as added', () => {

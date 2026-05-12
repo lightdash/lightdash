@@ -1,4 +1,9 @@
-import { DbtManifest, DbtNode, getErrorMessage } from '@lightdash/common';
+import {
+    DbtManifest,
+    DbtNode,
+    DbtRawModelNode,
+    getErrorMessage,
+} from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import globalState from '../globalState';
@@ -43,6 +48,10 @@ export type CombineManifestsResult = {
  * combined manifest and the unique_ids of model nodes pulled in from the
  * external manifest, so callers can mark them as compiled.
  *
+ * Only external models with `compiled === true` are reported in
+ * `addedModelIds` — non-compiled nodes are still merged into `nodes` so join
+ * lookups by name keep working, but they are not turned into explores.
+ *
  * Metrics, docs, and metadata are taken from `primary` only.
  */
 export const combineManifests = (
@@ -54,7 +63,11 @@ export const combineManifests = (
 
     const addedModelIds: string[] = [];
     Object.entries(external.nodes).forEach(([id, node]) => {
-        if (!(id in primary.nodes) && node.resource_type === 'model') {
+        if (
+            !(id in primary.nodes) &&
+            node.resource_type === 'model' &&
+            (node as DbtRawModelNode).compiled === true
+        ) {
             addedModelIds.push(id);
         }
     });
