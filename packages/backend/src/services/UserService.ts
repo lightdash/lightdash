@@ -449,6 +449,44 @@ export class UserService extends BaseService {
         return user;
     }
 
+    /**
+     * Destroys a user's sessions, their `users` row (cascading every
+     * user-scoped table — sessions, personal_access_tokens, schedulers,
+     * project_memberships, space_user_access, …), and emits the
+     * `user.deleted` analytics event with the supplied context.
+     *
+     * Shared by the admin-remove path (`delete`) and the self-serve leave
+     * path (`leaveOrganization`); each owns its own authorization + business
+     * rule checks and calls this helper once it has decided the user is
+     * going to be removed.
+     */
+    private async destroyUser({
+        actor,
+        userToDelete,
+        context,
+    }: {
+        actor: SessionUser;
+        userToDelete: NonNullable<
+            Awaited<ReturnType<UserModel['getUserDetailsByUuid']>>
+        >;
+        context: 'delete_self' | 'delete_org_member' | 'leave_organization';
+    }): Promise<void> {
+        await this.sessionModel.deleteAllByUserUuid(userToDelete.userUuid);
+        await this.userModel.delete(userToDelete.userUuid);
+        this.analytics.track({
+            event: 'user.deleted',
+            userId: actor.userUuid,
+            properties: {
+                context,
+                firstName: userToDelete.firstName,
+                lastName: userToDelete.lastName,
+                email: userToDelete.email,
+                organizationId: userToDelete.organizationUuid,
+                deletedUserId: userToDelete.userUuid,
+            },
+        });
+    }
+
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
         const auditedAbility = this.createAuditedAbility(user);
         const userToDelete =
@@ -484,23 +522,21 @@ export class UserService extends BaseService {
             }
         }
 
-        await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
+        if (!userToDelete) {
+            // Pre-org "Cancel registration" path: there is no org-scoped state
+            // to clean up, just remove the row. Fall back to a direct delete.
+            await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
+            await this.userModel.delete(userUuidToDelete);
+            return;
+        }
 
-        await this.userModel.delete(userUuidToDelete);
-        this.analytics.track({
-            event: 'user.deleted',
-            userId: user.userUuid,
-            properties: {
-                context:
-                    user.userUuid !== userUuidToDelete
-                        ? 'delete_org_member'
-                        : 'delete_self',
-                firstName: userToDelete.firstName,
-                lastName: userToDelete.lastName,
-                email: userToDelete.email,
-                organizationId: userToDelete.organizationUuid,
-                deletedUserId: userUuidToDelete,
-            },
+        await this.destroyUser({
+            actor: user,
+            userToDelete,
+            context:
+                user.userUuid !== userUuidToDelete
+                    ? 'delete_org_member'
+                    : 'delete_self',
         });
     }
 
@@ -1838,14 +1874,23 @@ export class UserService extends BaseService {
             );
         }
 
-        await this.organizationMemberProfileModel.deleteOrganizationMembershipByUuid(
-            {
-                organizationUuid,
-                userUuid: user.userUuid,
-            },
+        // Leaving an organization deletes the user record entirely. The
+        // single-org-per-user invariant means there is no other org for the
+        // user to remain a member of, and deleting the `users` row CASCADEs
+        // through every user-scoped table — matching the cleanup that admin
+        // remove-user already performs. If the leaver is later invited
+        // again, the invite flow creates a fresh `users` row.
+        const userToDelete = await this.userModel.getUserDetailsByUuid(
+            user.userUuid,
         );
-
-        await this.sessionModel.deleteAllByUserUuid(user.userUuid);
+        if (!userToDelete) {
+            throw new NotFoundError(`User ${user.userUuid} not found`);
+        }
+        await this.destroyUser({
+            actor: user,
+            userToDelete,
+            context: 'leave_organization',
+        });
 
         this.logger.info('User left organization', {
             userUuid: user.userUuid,
@@ -1861,15 +1906,6 @@ export class UserService extends BaseService {
             organizationUuid,
             metadata: { role: member.role },
             context,
-        });
-
-        this.analytics.track({
-            userId: user.userUuid,
-            event: 'user.left_organization',
-            properties: {
-                organizationId: organizationUuid,
-                role: member.role,
-            },
         });
     }
 
