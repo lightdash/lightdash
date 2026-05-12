@@ -230,36 +230,14 @@ export function getFollowUpToolBlocks(
 
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
-    artifacts?: AiArtifact[],
+    agentUuid: string,
+    siteUrl: string,
 ): (Block | KnownBlock)[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // Show feedback blocks if we have artifacts with visualizations
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Check if any artifacts have chart or dashboard configs
-    const hasVisualization = artifacts.some(
-        (artifact) => artifact.chartConfig || artifact.dashboardConfig,
-    );
-
-    if (!hasVisualization) {
-        return [];
-    }
-
+    // One compact actions row: [View chat in Lightdash] [👍] [👎].
+    // Shown on every agent response — feedback applies regardless of whether
+    // the response produced a chart artifact.
+    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
     return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                {
-                    type: 'plain_text',
-                    text: `🤖 How did I do?`,
-                },
-            ],
-        },
         {
             block_id: 'prompt_human_score',
             type: 'actions',
@@ -268,19 +246,21 @@ export function getFeedbackBlocks(
                     type: 'button',
                     text: {
                         type: 'plain_text',
-                        text: '👍',
+                        text: '⚡ View in Lightdash',
                         emoji: true,
                     },
+                    url: threadUrl,
+                    action_id: 'view_chat_in_lightdash',
+                },
+                {
+                    type: 'button',
+                    text: { type: 'plain_text', text: '👍', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.upvote',
                 },
                 {
                     type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '👎',
-                        emoji: true,
-                    },
+                    text: { type: 'plain_text', text: '👎', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.downvote',
                 },
@@ -397,34 +377,17 @@ export function getDeepLinkBlocks(
     siteUrl: string,
     artifacts?: AiArtifact[],
 ): (Block | KnownBlock)[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // Show debug link when there are artifacts to inspect
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Check if any artifacts have dashboard configs
+    // Prominent "View Dashboard" link only — the regular "View chat in
+    // Lightdash" link now lives inside the unified feedback row.
+    if (!artifacts || artifacts.length === 0) return [];
     const hasDashboard = artifacts.some((artifact) => artifact.dashboardConfig);
-
-    // Add prominent dashboard link if dashboard artifact exists
-    if (hasDashboard) {
-        return [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
-                },
-            },
-        ];
-    }
-
+    if (!hasDashboard) return [];
     return [
         {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `<${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View chat in Lightdash ⚡️>`,
+                text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
             },
         },
     ];

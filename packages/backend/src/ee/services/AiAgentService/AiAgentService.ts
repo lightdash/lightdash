@@ -3994,7 +3994,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             slackPrompt.promptUuid,
         );
 
-        const feedbackBlocks = getFeedbackBlocks(slackPrompt, threadArtifacts);
+        const feedbackBlocks = agent
+            ? getFeedbackBlocks(
+                  slackPrompt,
+                  agent.uuid,
+                  this.lightdashConfig.siteUrl,
+              )
+            : [];
         const followUpToolBlocks = getFollowUpToolBlocks(
             slackPrompt,
             threadArtifacts,
