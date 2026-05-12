@@ -297,23 +297,24 @@ describe('transformToPercentageStacking', () => {
         expect(originalValues.get('2024-02-01')?.get('b')).toBe(1);
     });
 
-    test('tolerates rows with undefined yField values without producing NaN', () => {
+    test('preserves yField absence on gap rows instead of writing explicit 0%', () => {
         // Shape padDatasetForContinuousAxis produces for gap rows:
-        // only the xField populated, every yField absent.
-        const rows = [
+        // only the xField populated, every yField absent. Writing 0% here
+        // would surface as a "0.0% (0)" tooltip line at gap dates.
+        const rows: Record<string, unknown>[] = [
             { date: '2024-01-01', a: 3, b: 7 },
             { date: '2024-02-01' }, // gap row from padding
             { date: '2024-03-01', a: 4, b: 6 },
         ];
 
-        const { transformedResults } = transformToPercentageStacking(
-            rows,
-            'date',
-            ['a', 'b'],
-        );
+        const { transformedResults, originalValues } =
+            transformToPercentageStacking(rows, 'date', ['a', 'b']);
 
-        expect(Number.isNaN(transformedResults[1].a)).toBe(false);
-        expect(Number.isNaN(transformedResults[1].b)).toBe(false);
+        // Gap row keeps yFields absent — no NaN, no explicit 0.
+        expect('a' in transformedResults[1]).toBe(false);
+        expect('b' in transformedResults[1]).toBe(false);
+        // originalValues has no entry for the gap xValue.
+        expect(originalValues.has('2024-02-01')).toBe(false);
         // Real rows still total 100% — gap rows don't perturb other buckets.
         expect(
             (transformedResults[0].a as number) +
