@@ -41,6 +41,17 @@ export async function updateDataTimezone(
     expect(resp.status).toBe(200);
 }
 
+export async function updateUserTimezone(
+    client: ApiClient,
+    timezone: string | null,
+): Promise<void> {
+    const resp = await client.request(`/api/v1/user/me`, {
+        method: 'PATCH',
+        body: { timezone },
+    });
+    expect(resp.status).toBe(200);
+}
+
 // Scope queries to "interior rows" (ids 1-10) — boundary rows 11-18 are
 // reserved for DST / year / month boundary tests. See the row breakdown in
 // examples/full-jaffle-shop-demo/dbt/models/timezone_test.yml.
