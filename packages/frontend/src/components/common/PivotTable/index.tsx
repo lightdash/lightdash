@@ -61,6 +61,7 @@ import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdas
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
 import { countSubRows } from '../Table/utils';
+import { getFrozenColumnLayout } from './getFrozenColumnLayout';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
@@ -174,6 +175,17 @@ const PivotTable: FC<PivotTableProps> = ({
         [columnProperties],
     );
 
+    const frozenLayout = useMemo(
+        () =>
+            getFrozenColumnLayout({
+                pivotColumnInfo: data.retrofitData.pivotColumnInfo,
+                columnProperties,
+                rowNumberWidth: hideRowNumbers ? 0 : ROW_NUMBER_COL_WIDTH,
+                defaultColumnWidth: 100,
+            }),
+        [data.retrofitData.pivotColumnInfo, columnProperties, hideRowNumbers],
+    );
+
     const { columns, columnOrder, colWidths } = useMemo(() => {
         // Pivoting all dimensions requires a spacer column under the pivoted headers.
         const allDimensionsPivoted =
@@ -249,6 +261,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 colIndex < finalHeaderInfoForColumns.length
                                     ? finalHeaderInfoForColumns[colIndex]
                                     : undefined,
+                            frozenLayout: frozenLayout.get(col.fieldId),
                         },
                         aggregatedCell: (info) => {
                             if (info.row.getIsGrouped()) {
@@ -329,7 +342,7 @@ const PivotTable: FC<PivotTableProps> = ({
             columnOrder: newColumnOrder,
             colWidths: newColWidths,
         };
-    }, [data, hideRowNumbers, getField, columnProperties]);
+    }, [data, hideRowNumbers, getField, columnProperties, frozenLayout]);
 
     // Minimum table width so auto columns don't get squeezed to zero
     const minTableWidth = useMemo(() => {
