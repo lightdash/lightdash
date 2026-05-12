@@ -381,6 +381,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     queryHistoryModel: models.getQueryHistoryModel(),
                     lightdashConfig: context.lightdashConfig,
                     storageClient: clients.getResultsFileStorageClient(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             mcpService: ({ context, repository, models }) =>
                 new McpService({

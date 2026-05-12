@@ -477,7 +477,6 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
-    hasResultsCaching: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;

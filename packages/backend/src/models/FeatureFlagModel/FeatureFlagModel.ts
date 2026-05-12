@@ -7,6 +7,9 @@ import {
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
 
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export type FeatureFlagLogicArgs = {
     user?: Pick<
         LightdashUser,
@@ -35,6 +38,11 @@ export class FeatureFlagModel {
                 this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.EnableDataApps]:
                 this.getEnableDataAppsEnabled.bind(this),
+            [FeatureFlags.ResultsCacheEnabled]: (flagArgs) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.results.cacheEnabled,
+                ),
         };
     }
 
@@ -97,6 +105,17 @@ export class FeatureFlagModel {
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
+    // DB value (user override → org override → flag default) wins. Falls
+    // back to the env-derived value when the flag has no DB row and no
+    // override applies.
+    private async getWithEnvFallback(
+        args: FeatureFlagLogicArgs,
+        envFallback: boolean,
+    ): Promise<FeatureFlag> {
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: envFallback };
+    }
+
     protected async tryGetFromDatabase(
         args: FeatureFlagLogicArgs,
     ): Promise<FeatureFlag | null> {
@@ -122,7 +141,11 @@ export class FeatureFlagModel {
         }
 
         // Priority: user override > org override > flag default
-        if (args.user?.userUuid) {
+        // Skip the user-override lookup unless the userUuid is a real UUID.
+        // Anonymous (embed/JWT) accounts use a non-UUID externalId for
+        // `user.userUuid`; passing it to a `uuid` column raises a Postgres
+        // type error and would prevent the org-override lookup below.
+        if (args.user?.userUuid && UUID_REGEX.test(args.user.userUuid)) {
             const userOverride = await this.database(
                 FeatureFlagOverridesTableName,
             )

@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
+    FeatureFlags,
     FilterOperator,
     ForbiddenError,
     MetricType,
@@ -246,10 +247,20 @@ const getMockedProjectService = (
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
         featureFlagModel: {
-            get: jest.fn(async () => ({
-                id: '',
-                enabled: false,
-            })),
+            // Mirror production behaviour: ResultsCacheEnabled resolves from
+            // the env-derived lightdashConfig.results.cacheEnabled when there
+            // is no DB row.
+            get: jest.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => {
+                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                        return {
+                            id: featureFlagId,
+                            enabled: lightdashConfig.results.cacheEnabled,
+                        };
+                    }
+                    return { id: featureFlagId, enabled: false };
+                },
+            ),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
