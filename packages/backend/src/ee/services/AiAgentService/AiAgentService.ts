@@ -138,7 +138,10 @@ import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
-import { resolveSqlApproval } from '../ai/tools/sqlApprovals';
+import {
+    markSlackThreadAutoApproved,
+    resolveSqlApproval,
+} from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
@@ -155,6 +158,7 @@ import {
     RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
+    SendSlackBlocksFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -3181,6 +3185,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 () => this.projectService.getWarehouseTables(user, projectUuid),
             );
 
+        const sendSlackBlocks: SendSlackBlocksFn = async (args) =>
+            wrapSentryTransaction(
+                'AiAgent.sendSlackBlocks',
+                { channelId: args.channelId },
+                async () => {
+                    await this.slackClient.postMessage({
+                        organizationUuid: args.organizationUuid,
+                        channel: args.channelId,
+                        thread_ts: args.threadTs,
+                        text: args.text,
+                        blocks: args.blocks,
+                    });
+                },
+            );
+
         const storeToolCall: StoreToolCallFn = async (args) => {
             void wrapSentryTransaction(
                 'AiAgent.storeToolCall',
@@ -3359,6 +3378,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listWarehouseTables,
             getSavedChart,
             sendFile,
+            sendSlackBlocks,
             storeToolCall,
             storeToolResults,
             storeReasoning,
@@ -3438,6 +3458,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listWarehouseTables,
             getSavedChart,
             sendFile,
+            sendSlackBlocks,
             storeToolCall,
             storeToolResults,
             storeReasoning,
@@ -3556,6 +3577,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getSavedChart,
             getPrompt,
             sendFile,
+            sendSlackBlocks,
             storeToolCall,
             storeToolResults,
             storeReasoning,
@@ -4214,6 +4236,76 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         app.action('actions.view_changesets_button_click', async ({ ack }) => {
             await ack();
         });
+    }
+
+    // Slack approve/reject buttons for runSql tool. Action ID format:
+    // actions.sql_approval:<toolCallId>:<threadUuid>:<decision>
+    // 'approved_always' marks the thread auto-approved server-side.
+    // eslint-disable-next-line class-methods-use-this
+    public handleSqlApprovalButton(app: App) {
+        app.action(
+            /^actions\.sql_approval:/,
+            async ({ ack, body, action, respond }) => {
+                await ack();
+                if (body.type !== 'block_actions' || action.type !== 'button') {
+                    return;
+                }
+                const actionId = 'action_id' in action ? action.action_id : '';
+                const parts = actionId.split(':');
+                if (parts.length !== 4) {
+                    return;
+                }
+                const toolCallId = parts[1];
+                const threadUuid = parts[2];
+                const rawDecision = parts[3];
+
+                const isApprovedAlways = rawDecision === 'approved_always';
+                const decision: 'approved' | 'rejected' =
+                    rawDecision === 'rejected' ? 'rejected' : 'approved';
+
+                if (
+                    rawDecision !== 'approved' &&
+                    rawDecision !== 'rejected' &&
+                    rawDecision !== 'approved_always'
+                ) {
+                    return;
+                }
+
+                if (isApprovedAlways) {
+                    markSlackThreadAutoApproved(threadUuid);
+                }
+
+                const delivered = resolveSqlApproval(toolCallId, decision);
+                if (!delivered) {
+                    await respond({
+                        text: ':warning: Could not deliver approval — the agent run may have already timed out.',
+                        replace_original: false,
+                    });
+                    return;
+                }
+
+                const emoji =
+                    decision === 'approved'
+                        ? ':white_check_mark:'
+                        : ':no_entry_sign:';
+                const suffix = isApprovedAlways
+                    ? " — won't ask again this thread"
+                    : '';
+                await respond({
+                    text: `SQL ${decision} by <@${body.user.id}>${suffix}`,
+                    replace_original: true,
+                    blocks: [
+                        {
+                            type: 'section',
+                            text: {
+                                type: 'mrkdwn',
+                                text: `${emoji} SQL *${decision}* by <@${body.user.id}>${suffix}`,
+                            },
+                        },
+                    ],
+                });
+            },
+        );
     }
 
     // eslint-disable-next-line class-methods-use-this

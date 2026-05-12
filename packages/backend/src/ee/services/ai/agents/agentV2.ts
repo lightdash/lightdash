@@ -130,6 +130,9 @@ const getAgentTools = (
         ? getRunSql({
               updateProgress: dependencies.updateProgress,
               runSqlJob: dependencies.runSqlJob,
+              getPrompt: dependencies.getPrompt,
+              sendFile: dependencies.sendFile,
+              sendSlackBlocks: dependencies.sendSlackBlocks,
           })
         : null;
 

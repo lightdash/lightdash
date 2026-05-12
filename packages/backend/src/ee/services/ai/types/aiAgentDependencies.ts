@@ -110,6 +110,14 @@ export type GetSavedChartFn = (chartUuid: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 
+export type SendSlackBlocksFn = (args: {
+    channelId: string;
+    threadTs: string;
+    organizationUuid: string;
+    text: string;
+    blocks: AnyType[];
+}) => Promise<void>;
+
 export type UpdatePromptFn = (
     prompt: UpdateWebAppResponse | UpdateSlackResponse,
 ) => Promise<void>;

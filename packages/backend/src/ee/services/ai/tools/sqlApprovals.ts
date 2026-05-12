@@ -3,7 +3,20 @@ import { EventEmitter } from 'events';
 const bus = new EventEmitter();
 bus.setMaxListeners(100);
 
+// Threads (Lightdash AI thread UUIDs) where the user clicked "Approve & don't
+// ask again" from a Slack approval message. Subsequent runSql calls in the
+// same thread skip the approval flow. In-memory, session-scoped — lost on
+// pod restart, same as the approval bus itself.
+const slackAutoApprovedThreads = new Set<string>();
+
 export type SqlApprovalDecision = 'approved' | 'rejected' | 'timeout';
+
+export const markSlackThreadAutoApproved = (threadUuid: string): void => {
+    slackAutoApprovedThreads.add(threadUuid);
+};
+
+export const isSlackThreadAutoApproved = (threadUuid: string): boolean =>
+    slackAutoApprovedThreads.has(threadUuid);
 
 export const waitForSqlApproval = (
     toolCallId: string,

@@ -18,6 +18,7 @@ import {
     RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
+    SendSlackBlocksFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -76,6 +77,7 @@ export type AiAgentDependencies = {
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
+    sendSlackBlocks: SendSlackBlocksFn;
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
