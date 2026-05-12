@@ -52,8 +52,10 @@ recovery means delete + recreate.
 
 ## Permission shapes
 
-A new SA must specify **exactly one** of `scopes` or `roleUuid`. The model
-rejects both-or-neither with a 400 (`ParameterError`).
+A new SA must specify **exactly one** of `scopes`, `roleUuid`, or
+`organizationRole`. The model rejects more-than-one or none-of-the-above with
+a 400 (`ParameterError`). `projectRoles` is only allowed alongside
+`organizationRole` (mode 3 below).
 
 ### 1. Legacy scope (`scopes: [...]`)
 
@@ -93,6 +95,56 @@ Why this exists: the legacy `system:*` aliases are coarse — there are five
 buckets total. A custom role lets you build something like "CLI deployer
 that can `manage:DeployProject` + `manage:ContentAsCode` and *nothing else*".
 
+### 3. Org role + per-project access (PROD-7529)
+
+For "this SA should only see specific projects." The shape mirrors the
+human-user permission model:
+
+```json
+{
+  "description": "Analytics CI (public project only)",
+  "expiresAt": "2026-12-31T00:00:00Z",
+  "organizationRole": "none",
+  "projectRoles": [
+    { "projectUuid": "<uuid>", "role": "editor",    "roleUuid": null },
+    { "projectUuid": "<uuid>", "roleUuid": "<custom>", "role": null }
+  ]
+}
+```
+
+`organizationRole` is required when this mode is selected. The recommended
+default is `none` — a new `OrganizationMemberRole` value (PROD-7529) that
+grants zero org-wide CASL, so the SA only sees what its per-project
+memberships grant. `none` is gated to SAs only — humans aren't allowed to
+pick it from the org-role dropdown.
+
+Per-project assignments are stored in the standard `project_memberships`
+table keyed on the SA's backing user. The auth path detects this mode by
+the absence of legacy `scopes` and routes through `getUserAbilityBuilder`
+— the same code that runs for humans — so there's no parallel
+composition logic to keep in sync.
+
+Mutations are exposed via dedicated endpoints so an operator can edit
+project access without re-rotating the token:
+
+- `PUT /api/v1/service-accounts/{uuid}/project-memberships/{projectUuid}` —
+  body `{ role, roleUuid }`, upserts.
+- `DELETE /api/v1/service-accounts/{uuid}/project-memberships/{projectUuid}`.
+
+**Feature flag.** This mode is gated by the
+`service-account-project-memberships` commercial feature flag
+(`CommercialFeatureFlags.ServiceAccountProjectMemberships`). The service
+layer rejects requests with `organizationRole` / `projectRoles` set when
+the flag is off; the UI hides the "Per-project access" toggle. Enable per-
+org via a `feature_flag_overrides` row (`flag_id =
+'service-account-project-memberships'`, `organization_uuid = …`, `enabled =
+true`) or instance-wide via `LIGHTDASH_ENABLE_FEATURE_FLAGS`.
+
+**Mutual exclusion.** Mode 3 cannot be combined with `scopes` or
+`roleUuid` — choose one shape per SA. Legacy SAs minted under mode 1 or 2
+keep working unchanged; the new endpoints reject attempts to add project
+memberships to a scope-based SA with a 400.
+
 ## Ability resolution at request time
 
 Auth middleware (`authenticateServiceAccount` in
@@ -106,9 +158,16 @@ through the SA branch:
 ```
 is_internal user:
   ├─ has organization_memberships.role_uuid?
-  │   → buildAbilityFromScopes(custom role's scopes)        # custom-role path
-  └─ else (legacy scope SA)
-      → applyServiceAccountAbilities(service_accounts.scopes)  # legacy path
+  │   → buildAbilityFromScopes(custom role's scopes)        # mode 2 (custom role)
+  ├─ has non-empty service_accounts.scopes?
+  │   → applyServiceAccountAbilities(scopes)                # mode 1 (legacy)
+  └─ else  (mode 3 — PROD-7529)
+      → fall through to the standard user path:
+        getUserAbilityBuilder({
+          user.role  = organization_memberships.role,   // incl. 'none'
+          projectProfiles = project_memberships keyed on this SA's user,
+          customRoleScopes, customRolesEnabled, …
+        })
 ```
 
 The custom-role path takes precedence whenever `role_uuid` is set. The
@@ -119,17 +178,32 @@ membership row points at a custom role, that role drives runtime CASL
 regardless of how the flag is set; otherwise toggling the flag would
 silently break every CI workflow keyed off a role-driven token.
 
+Mode 3 reuses `getUserAbilityBuilder` verbatim — the same code that runs
+for every human request. The `NONE` org role is a no-op in
+`applyOrganizationMemberStaticAbilities` (zero `can(...)` calls), so the
+SA's final ability is exactly whatever its per-project memberships
+compose to.
+
 ## Lifecycle
 
 ### Creation
 
-`POST /api/v1/service-accounts`. Admin-authenticated. Body:
+`POST /api/v1/service-accounts`. Admin-authenticated. Body — pick exactly
+one permission shape:
 
 ```json
+// Mode 1 — legacy / system-role aliases
+{ "description": "CI deploy bot", "expiresAt": "...", "scopes": ["system:developer"] }
+
+// Mode 2 — org-level custom role
+{ "description": "CLI uploader", "expiresAt": "...", "roleUuid": "<role-uuid>" }
+
+// Mode 3 — org role + per-project (PROD-7529; feature-flag gated)
 {
-  "description": "CI deploy bot",
-  "expiresAt": "2026-12-31T00:00:00Z",
-  "scopes": ["system:developer"]      // OR "roleUuid": "<uuid>"
+  "description": "Analytics CI",
+  "expiresAt": "...",
+  "organizationRole": "none",
+  "projectRoles": [{ "projectUuid": "<uuid>", "role": "editor", "roleUuid": null }]
 }
 ```
 
