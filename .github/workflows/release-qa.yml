@@ -91,7 +91,7 @@ jobs:
                   cat changelog.txt
 
             - name: Okteto context
-              uses: okteto/context@bff593401ac86e181bab973c61b35816bd52587a # latest
+              uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
               with:
                   url: ${{ secrets.OKTETO_CONTEXT }}
                   token: ${{ secrets.OKTETO_TOKEN }}
