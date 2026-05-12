@@ -1,6 +1,8 @@
 import {
     formatDate,
     formatTimestamp,
+    OrganizationMemberRole,
+    OrganizationMemberRoleLabels,
     ServiceAccountScope,
     type RoleWithScopes,
     type ServiceAccount,
@@ -31,6 +33,7 @@ import {
     IconClock,
     IconDots,
     IconFilter,
+    IconFolder,
     IconInfoCircle,
     IconRefresh,
     IconSearch,
@@ -50,6 +53,7 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
+import { ServiceAccountsEditModal } from './ServiceAccountsEditModal';
 import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
@@ -98,6 +102,12 @@ const formatCreatedBy = (sa: ServiceAccount): string => {
     return `${sa.createdBy.firstName} ${sa.createdBy.lastName}`.trim();
 };
 
+// True for SAs in the "org role + per-project memberships" mode (mode 3
+// in PROD-7529). Detected by the absence of any legacy scopes AND no
+// org-level custom role — the only remaining permission shape.
+const isPerProjectMode = (sa: ServiceAccount): boolean =>
+    (sa.scopes ?? []).length === 0 && !sa.roleUuid;
+
 // Resolve the role label for a row so sort-by-role groups SAs that render
 // the same badge together (rather than sorting on raw scope strings).
 // MRT briefly invokes accessorFn with placeholder rows during auto-sort
@@ -110,10 +120,17 @@ const formatRoleLabel = (
         return rolesByUuid.get(sa.roleUuid)?.name ?? 'Custom role';
     }
     const scopes = sa.scopes ?? [];
+    if (scopes.length === 0) {
+        // Per-project SA. Sort key surfaces the project count so SAs with
+        // similar shapes land together.
+        const count = sa.projectRoles?.length ?? 0;
+        return `${
+            OrganizationMemberRoleLabels[sa.organizationRole] ?? 'None'
+        } / ${count} projects`;
+    }
     if (scopes.length === 1) {
         return SCOPE_LABEL[scopes[0]] ?? scopes[0];
     }
-    if (scopes.length === 0) return '';
     return `${scopes.length} permissions`;
 };
 
@@ -133,6 +150,8 @@ export const ServiceAccountsTable: FC<Props> = ({
     const theme = useMantineTheme();
     const [opened, { open, close }] = useDisclosure(false);
     const [rotateOpened, { open: openRotate, close: closeRotate }] =
+        useDisclosure(false);
+    const [editOpened, { open: openEdit, close: closeEdit }] =
         useDisclosure(false);
 
     const [search, setSearch] = useState('');
@@ -193,6 +212,9 @@ export const ServiceAccountsTable: FC<Props> = ({
     const [serviceAccountToRotate, setServiceAccountToRotate] = useState<
         ServiceAccount | undefined
     >();
+    const [serviceAccountToEdit, setServiceAccountToEdit] = useState<
+        ServiceAccount | undefined
+    >();
 
     const handleOpenDelete = useCallback(
         (sa: ServiceAccount) => {
@@ -225,6 +247,19 @@ export const ServiceAccountsTable: FC<Props> = ({
         setServiceAccountToRotate(undefined);
         closeRotate();
     }, [closeRotate]);
+
+    const handleOpenEdit = useCallback(
+        (sa: ServiceAccount) => {
+            setServiceAccountToEdit(sa);
+            openEdit();
+        },
+        [openEdit],
+    );
+
+    const handleCloseEdit = useCallback(() => {
+        setServiceAccountToEdit(undefined);
+        closeEdit();
+    }, [closeEdit]);
 
     const columns: MRT_ColumnDef<ServiceAccount>[] = useMemo(
         () => [
@@ -301,6 +336,45 @@ export const ServiceAccountsTable: FC<Props> = ({
                             >
                                 {role?.name ?? 'Custom role'}
                             </Badge>
+                        );
+                    }
+                    if (isPerProjectMode(sa)) {
+                        const count = sa.projectRoles?.length ?? 0;
+                        const orgRoleLabel =
+                            sa.organizationRole === OrganizationMemberRole.NONE
+                                ? 'None'
+                                : OrganizationMemberRoleLabels[
+                                      sa.organizationRole
+                                  ];
+                        return (
+                            <Group gap="xs" wrap="nowrap">
+                                <Badge
+                                    variant="light"
+                                    color="gray"
+                                    radius="xs"
+                                    size="sm"
+                                    style={{ textTransform: 'none' }}
+                                >
+                                    {orgRoleLabel}
+                                </Badge>
+                                <Badge
+                                    variant="light"
+                                    color="indigo"
+                                    radius="xs"
+                                    size="sm"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconFolder}
+                                            size={12}
+                                        />
+                                    }
+                                    style={{ textTransform: 'none' }}
+                                >
+                                    {count === 1
+                                        ? '1 project'
+                                        : `${count} projects`}
+                                </Badge>
+                            </Group>
                         );
                     }
                     if (scopes.length > 2) {
@@ -530,6 +604,16 @@ export const ServiceAccountsTable: FC<Props> = ({
                                         View custom role
                                     </Menu.Item>
                                 )}
+                                {isPerProjectMode(sa) && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconFolder} />
+                                        }
+                                        onClick={() => handleOpenEdit(sa)}
+                                    >
+                                        Edit project access
+                                    </Menu.Item>
+                                )}
                                 {sa.expiresAt && (
                                     <Menu.Item
                                         leftSection={
@@ -540,9 +624,9 @@ export const ServiceAccountsTable: FC<Props> = ({
                                         Rotate token
                                     </Menu.Item>
                                 )}
-                                {(sa.roleUuid || sa.expiresAt) && (
-                                    <Menu.Divider />
-                                )}
+                                {(sa.roleUuid ||
+                                    sa.expiresAt ||
+                                    isPerProjectMode(sa)) && <Menu.Divider />}
                                 <Menu.Item
                                     color="red"
                                     leftSection={
@@ -558,7 +642,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                 },
             },
         ],
-        [rolesByUuid, handleOpenRotate, handleOpenDelete],
+        [rolesByUuid, handleOpenRotate, handleOpenDelete, handleOpenEdit],
     );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -865,6 +949,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isOpen={rotateOpened}
                 onClose={handleCloseRotate}
                 serviceAccount={serviceAccountToRotate}
+            />
+
+            <ServiceAccountsEditModal
+                isOpen={editOpened}
+                onClose={handleCloseEdit}
+                serviceAccount={serviceAccountToEdit}
             />
         </>
     );
