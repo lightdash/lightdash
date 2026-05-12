@@ -82,6 +82,16 @@ const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
     };
 };
 
+const getStickyHeaderProps = (frozen: FrozenColumnEntry | undefined) => {
+    if (!frozen) return {};
+    return {
+        className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}${
+            frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
+        }`,
+        style: { left: frozen.left },
+    };
+};
+
 type MenuCallbackProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -727,21 +737,39 @@ const PivotTable: FC<PivotTableProps> = ({
                         index={headerRowIndex}
                     >
                         {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers ? null : headerRowIndex <
-                          data.headerValues.length - 1 ? (
-                            <Table.Cell
-                                isMinimal={isMinimal}
-                                withMinimalWidth={!hasCustomWidths}
-                            />
-                        ) : (
-                            <Table.CellHead
-                                isMinimal={isMinimal}
-                                withMinimalWidth={!hasCustomWidths}
-                                withBoldFont
-                            >
-                                #
-                            </Table.CellHead>
-                        )}
+                        {hideRowNumbers
+                            ? null
+                            : (() => {
+                                  const rowNumberSticky =
+                                      frozenLayout.size > 0
+                                          ? {
+                                                className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}`,
+                                                style: { left: 0 },
+                                            }
+                                          : ({} as {
+                                                className?: string;
+                                                style?: React.CSSProperties;
+                                            });
+                                  return headerRowIndex <
+                                      data.headerValues.length - 1 ? (
+                                      <Table.Cell
+                                          className={rowNumberSticky.className}
+                                          style={rowNumberSticky.style}
+                                          isMinimal={isMinimal}
+                                          withMinimalWidth={!hasCustomWidths}
+                                      />
+                                  ) : (
+                                      <Table.CellHead
+                                          className={rowNumberSticky.className}
+                                          style={rowNumberSticky.style}
+                                          isMinimal={isMinimal}
+                                          withMinimalWidth={!hasCustomWidths}
+                                          withBoldFont
+                                      >
+                                          #
+                                      </Table.CellHead>
+                                  );
+                              })()}
                         {/* renders the title labels */}
                         {data.titleFields[headerRowIndex].map(
                             (titleField, titleFieldIndex) => {
@@ -768,9 +796,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                     !isMinimal &&
                                     titleWidthKey;
 
+                                const titlePivotCol =
+                                    data.retrofitData.pivotColumnInfo[
+                                        titleFieldIndex
+                                    ];
+                                const titleStickyProps = titlePivotCol
+                                    ? getStickyHeaderProps(
+                                          frozenLayout.get(
+                                              titlePivotCol.fieldId,
+                                          ),
+                                      )
+                                    : {};
+
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        className={titleStickyProps.className}
+                                        style={titleStickyProps.style}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
                                             !hasCustomWidths && !titleWidth
@@ -779,6 +821,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        className={titleStickyProps.className}
+                                        style={titleStickyProps.style}
                                         withAlignRight={isHeaderTitle}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
@@ -867,9 +911,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? colWidth
                                     : undefined;
 
+                            const headerValueStickyProps = colInfo
+                                ? getStickyHeaderProps(
+                                      frozenLayout.get(colInfo.fieldId),
+                                  )
+                                : {};
+
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
+                                    className={headerValueStickyProps.className}
+                                    style={headerValueStickyProps.style}
                                     isMinimal={isMinimal}
                                     withBoldFont={isLabel}
                                     withTooltip={description}
@@ -953,6 +1005,35 @@ const PivotTable: FC<PivotTableProps> = ({
                             index={rowIndex}
                         >
                             {row.getVisibleCells().map((cell, colIndex) => {
+                                if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
+                                    const rowNumberStickyBody =
+                                        frozenLayout.size > 0
+                                            ? {
+                                                  className:
+                                                      pivotStyles.stickyColumn,
+                                                  style: { left: 0 },
+                                              }
+                                            : ({} as {
+                                                  className?: string;
+                                                  style?: React.CSSProperties;
+                                              });
+                                    return (
+                                        <Table.Cell
+                                            key={`row-number-${rowIndex}`}
+                                            className={
+                                                rowNumberStickyBody.className
+                                            }
+                                            style={rowNumberStickyBody.style}
+                                            isMinimal={isMinimal}
+                                        >
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext(),
+                                            )}
+                                        </Table.Cell>
+                                    );
+                                }
+
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
                                 const isDataColumn =
@@ -1260,14 +1341,53 @@ const PivotTable: FC<PivotTableProps> = ({
                                 index={stickyIndex}
                             >
                                 {/* shows empty cell if row numbers are visible */}
-                                {hideRowNumbers ? null : <Table.Cell />}
+                                {hideRowNumbers
+                                    ? null
+                                    : (() => {
+                                          const footerRowNumberSticky =
+                                              frozenLayout.size > 0
+                                                  ? {
+                                                        className:
+                                                            pivotStyles.stickyColumn,
+                                                        style: { left: 0 },
+                                                    }
+                                                  : ({} as {
+                                                        className?: string;
+                                                        style?: React.CSSProperties;
+                                                    });
+                                          return (
+                                              <Table.Cell
+                                                  className={
+                                                      footerRowNumberSticky.className
+                                                  }
+                                                  style={
+                                                      footerRowNumberSticky.style
+                                                  }
+                                              />
+                                          );
+                                      })()}
 
                                 {/* render the total label */}
                                 {data.columnTotalFields?.[totalRowIndex].map(
-                                    (totalLabel, totalColIndex) =>
-                                        totalLabel ? (
+                                    (totalLabel, totalColIndex) => {
+                                        const footerPivotCol =
+                                            data.retrofitData.pivotColumnInfo[
+                                                totalColIndex
+                                            ];
+                                        const footerStickyProps = footerPivotCol
+                                            ? getStickyCellProps(
+                                                  frozenLayout.get(
+                                                      footerPivotCol.fieldId,
+                                                  ),
+                                              )
+                                            : {};
+                                        return totalLabel ? (
                                             <Table.CellHead
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                className={
+                                                    footerStickyProps.className
+                                                }
+                                                style={footerStickyProps.style}
                                                 isMinimal={isMinimal}
                                                 withAlignRight
                                                 withBoldFont
@@ -1281,9 +1401,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                         ) : (
                                             <Table.Cell
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                className={
+                                                    footerStickyProps.className
+                                                }
+                                                style={footerStickyProps.style}
                                                 isMinimal={isMinimal}
                                             />
-                                        ),
+                                        );
+                                    },
                                 )}
 
                                 {row.map((total, totalColIndex) => {
