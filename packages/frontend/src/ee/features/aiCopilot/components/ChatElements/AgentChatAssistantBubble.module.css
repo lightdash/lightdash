@@ -6,3 +6,24 @@
         outline: 4px solid var(--mantine-color-ldGray-2);
     }
 }
+
+@keyframes streamPartFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.streamPart {
+    animation: streamPartFadeIn 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .streamPart {
+        animation: none;
+    }
+}

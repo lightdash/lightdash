@@ -5,6 +5,7 @@ import {
 import {
     ActionIcon,
     Alert,
+    Box,
     Button,
     CopyButton,
     Group,
@@ -15,11 +16,14 @@ import {
     Text,
     Textarea,
     Tooltip,
+    UnstyledButton,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconBug,
     IconCheck,
+    IconChevronRight,
+    IconChevronUp,
     IconCopy,
     IconExclamationCircle,
     IconMessageX,
@@ -63,6 +67,58 @@ import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 import { AiReasoning } from './ToolCalls/AiReasoning';
 import { InlineToolCallCard } from './ToolCalls/InlineToolCallCard';
 import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
+
+const COLLAPSED_TEXT_PREVIEW_LENGTH = 80;
+
+const CollapsibleStreamTextSlot: FC<{
+    text: string;
+    children: React.ReactNode;
+}> = ({ text, children }) => {
+    const [expanded, setExpanded] = useState(false);
+    if (expanded) {
+        return (
+            <Stack gap={2}>
+                {children}
+                <UnstyledButton
+                    onClick={() => setExpanded(false)}
+                    aria-expanded
+                >
+                    <Group gap={4} align="center" wrap="nowrap">
+                        <MantineIcon
+                            icon={IconChevronUp}
+                            size={10}
+                            stroke={1.6}
+                            color="ldGray.5"
+                        />
+                        <Text size="xs" c="dimmed">
+                            Hide reasoning
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+            </Stack>
+        );
+    }
+    const preview = text
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, COLLAPSED_TEXT_PREVIEW_LENGTH);
+    return (
+        <UnstyledButton onClick={() => setExpanded(true)} aria-expanded={false}>
+            <Group gap={4} align="center" wrap="nowrap">
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={10}
+                    stroke={1.6}
+                    color="ldGray.5"
+                />
+                <Text size="xs" c="dimmed" lineClamp={1}>
+                    {preview}
+                    {text.length > COLLAPSED_TEXT_PREVIEW_LENGTH ? '…' : ''}
+                </Text>
+            </Group>
+        </UnstyledButton>
+    );
+};
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
@@ -198,91 +254,127 @@ const AssistantBubbleContent: FC<{
 
                 if (streamingParts.length > 0) {
                     // Interleaved view during streaming: text -> tool -> text -> tool
+                    const lastTextIdx = (() => {
+                        for (
+                            let i = streamingParts.length - 1;
+                            i >= 0;
+                            i -= 1
+                        ) {
+                            if (streamingParts[i].type === 'text') return i;
+                        }
+                        return -1;
+                    })();
                     return (
                         <Stack gap="xs" pt="xs">
-                            {streamingParts.map((part, idx) =>
-                                part.type === 'text' ? (
-                                    <MDEditor.Markdown
-                                        // eslint-disable-next-line react/no-array-index-key
-                                        key={`text-${idx}`}
-                                        rehypeRewrite={rehypeRemoveHeaderLinks}
-                                        source={part.text}
-                                        style={{
-                                            ...mdStyle,
-                                            padding: 0,
-                                        }}
-                                        rehypePlugins={[
-                                            rehypeAiAgentContentLinks,
-                                        ]}
-                                        components={{
-                                            ...mdEditorComponents,
-                                            a: ({
-                                                node,
-                                                children,
-                                                ...props
-                                            }) => {
-                                                const contentType =
-                                                    'data-content-type' in
-                                                        props &&
-                                                    typeof props[
-                                                        'data-content-type'
-                                                    ] === 'string'
-                                                        ? props[
-                                                              'data-content-type'
-                                                          ]
-                                                        : undefined;
-
-                                                return (
-                                                    <ContentLink
-                                                        contentType={
-                                                            contentType
-                                                        }
-                                                        props={props}
-                                                        message={message}
-                                                        projectUuid={
-                                                            projectUuid
-                                                        }
-                                                        agentUuid={agentUuid}
-                                                    >
-                                                        {children}
-                                                    </ContentLink>
-                                                );
-                                            },
-                                        }}
-                                    />
-                                ) : part.toolName === 'runSql' &&
-                                  !streamingState?.decidedToolCallIds.includes(
-                                      part.toolCallId,
-                                  ) ? (
-                                    <SqlApprovalCard
-                                        key={part.toolCallId}
-                                        projectUuid={projectUuid}
-                                        agentUuid={agentUuid}
-                                        threadUuid={message.threadUuid}
-                                        toolCallId={part.toolCallId}
-                                        toolArgs={
-                                            part.toolArgs as {
-                                                sql: string;
-                                                limit?: number;
+                            {streamingParts.map((part, idx) => {
+                                const partKey =
+                                    part.type === 'text'
+                                        ? `text-${idx}`
+                                        : part.toolCallId;
+                                const isLatestText =
+                                    part.type === 'text' && idx === lastTextIdx;
+                                const child: React.ReactNode =
+                                    part.type === 'text' ? (
+                                        <MDEditor.Markdown
+                                            rehypeRewrite={
+                                                rehypeRemoveHeaderLinks
                                             }
-                                        }
-                                        autoApprove={
-                                            streamingState?.sqlAutoApprove ??
-                                            false
-                                        }
-                                    />
-                                ) : (
-                                    <InlineToolCallCard
-                                        key={part.toolCallId}
-                                        toolName={part.toolName}
-                                        toolCall={{
-                                            toolCallId: part.toolCallId,
-                                            toolName: part.toolName,
-                                            toolArgs: part.toolArgs,
-                                        }}
-                                    />
-                                ),
-                            )}
+                                            source={part.text}
+                                            style={{
+                                                ...mdStyle,
+                                                padding: 0,
+                                            }}
+                                            rehypePlugins={[
+                                                rehypeAiAgentContentLinks,
+                                            ]}
+                                            components={{
+                                                ...mdEditorComponents,
+                                                a: ({
+                                                    node,
+                                                    children,
+                                                    ...props
+                                                }) => {
+                                                    const contentType =
+                                                        'data-content-type' in
+                                                            props &&
+                                                        typeof props[
+                                                            'data-content-type'
+                                                        ] === 'string'
+                                                            ? props[
+                                                                  'data-content-type'
+                                                              ]
+                                                            : undefined;
+
+                                                    return (
+                                                        <ContentLink
+                                                            contentType={
+                                                                contentType
+                                                            }
+                                                            props={props}
+                                                            message={message}
+                                                            projectUuid={
+                                                                projectUuid
+                                                            }
+                                                            agentUuid={
+                                                                agentUuid
+                                                            }
+                                                        >
+                                                            {children}
+                                                        </ContentLink>
+                                                    );
+                                                },
+                                            }}
+                                        />
+                                    ) : part.toolName === 'runSql' &&
+                                      !streamingState?.decidedToolCallIds.includes(
+                                          part.toolCallId,
+                                      ) ? (
+                                        <SqlApprovalCard
+                                            projectUuid={projectUuid}
+                                            agentUuid={agentUuid}
+                                            threadUuid={message.threadUuid}
+                                            toolCallId={part.toolCallId}
+                                            toolArgs={
+                                                part.toolArgs as {
+                                                    sql: string;
+                                                    limit?: number;
+                                                }
+                                            }
+                                            autoApprove={
+                                                streamingState?.sqlAutoApprove ??
+                                                false
+                                            }
+                                        />
+                                    ) : (
+                                        <InlineToolCallCard
+                                            toolName={part.toolName}
+                                            toolCall={{
+                                                toolCallId: part.toolCallId,
+                                                toolName: part.toolName,
+                                                toolArgs: part.toolArgs,
+                                            }}
+                                        />
+                                    );
+                                const wrappedChild =
+                                    part.type === 'text' && !isLatestText ? (
+                                        <CollapsibleStreamTextSlot
+                                            text={part.text}
+                                        >
+                                            {child}
+                                        </CollapsibleStreamTextSlot>
+                                    ) : (
+                                        child
+                                    );
+                                return (
+                                    <Box
+                                        // eslint-disable-next-line react/no-array-index-key
+                                        key={partKey}
+                                        className={styles.streamPart}
+                                    >
+                                        {wrappedChild}
+                                    </Box>
+                                );
+                            })}
                         </Stack>
                     );
                 }
