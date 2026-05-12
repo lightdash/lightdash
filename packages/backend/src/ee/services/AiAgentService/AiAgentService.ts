@@ -174,6 +174,7 @@ import {
     getDeepLinkBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
+    getMarkdownBlocks,
     getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
     getTextBlocks,
@@ -4052,17 +4053,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   )
                 : [];
 
-        // ! This is needed because the markdownToBlocks escapes all characters and slack just needs &, <, > to be escaped
-        // ! https://api.slack.com/reference/surfaces/formatting#escaping
-        // Also strip trailing backslashes before newlines — slackifyMarkdown converts
-        // markdown hard line breaks (two trailing spaces) into `\` which Slack renders literally.
+        // Slack's `markdown` block renders GitHub-flavoured markdown natively,
+        // including tables — which the older mrkdwn-via-section path strips
+        // into pipe-text. We pass the agent's raw response straight through
+        // for the rich rendering, and keep slackifyMarkdown for the message-
+        // level `text` field that drives notifications + older client fallback.
         const slackifiedMarkdown = slackifyMarkdown(response).replace(
             /\\\n/g,
             '\n',
         );
 
         const blocks = [
-            ...getTextBlocks(slackifiedMarkdown),
+            ...getMarkdownBlocks(response),
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...referencedArtifactsBlocks,

@@ -78,6 +78,22 @@ export const getTextBlocks = (
     }));
 
 /**
+ * Converts standard markdown into Slack `markdown` blocks. Unlike `mrkdwn`
+ * inside a section block, the markdown block natively renders GitHub-flavoured
+ * markdown including tables, task lists, code blocks with language hints, etc.
+ *
+ * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
+ */
+export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
+    chunkSlackText(text).map(
+        (chunk) =>
+            ({
+                type: 'markdown',
+                text: chunk,
+            }) as unknown as Block,
+    );
+
+/**
  * Returns compact Slack blocks showing a "thinking" animation with a GIF.
  * Uses context block for smaller, dimmed text appearance.
  * Used while the AI agent is processing a request.
