@@ -746,10 +746,17 @@ export default class App {
                     // This intentionally uses console vs. winston because of problems from some error/JSON payloads.
                     console.error(error);
                 }
-                Logger.error(
-                    `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
-                    errorResponse,
-                );
+                if (errorResponse.statusCode >= 500) {
+                    Logger.error(
+                        `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
+                        errorResponse,
+                    );
+                } else {
+                    Logger.warn(
+                        `Handled error of type ${errorResponse.name} on [${req.method}] ${req.path}`,
+                        errorResponse,
+                    );
+                }
 
                 if (process.env.NODE_ENV === 'development') {
                     Logger.error(error.stack);
