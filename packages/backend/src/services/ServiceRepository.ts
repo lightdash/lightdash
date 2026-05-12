@@ -801,6 +801,11 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     userAttributesModel: this.models.getUserAttributesModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    // Only wired when EE license is active. Core builds get
+                    // undefined and SearchService drops data apps from results.
+                    appGenerateService: this.providers.appGenerateService
+                        ? this.getAppGenerateService<AppGenerateService>()
+                        : undefined,
                 }),
         );
     }

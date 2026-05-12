@@ -167,6 +167,21 @@ export type FieldSearchResult = Pick<
     regexMatchCount: number;
 };
 
+export type DataAppSearchResult = {
+    uuid: string;
+    name: string;
+    description: string;
+    // Personal apps live outside any space, so spaceUuid is nullable.
+    spaceUuid: string | null;
+    projectUuid: string;
+    viewsCount: number;
+    createdBy: {
+        firstName: string;
+        lastName: string;
+        userUuid: string;
+    } | null;
+} & RankedItem;
+
 type PageResult = {
     uuid: string;
     name: string;
@@ -189,7 +204,8 @@ export type SearchResult =
     | TableErrorSearchResult
     | TableSearchResult
     | FieldSearchResult
-    | PageResult;
+    | PageResult
+    | DataAppSearchResult;
 
 export const isExploreSearchResult = (
     value: SearchResult,
@@ -227,6 +243,7 @@ export type SearchResults = {
     fields: FieldSearchResult[];
     pages: PageResult[];
     dashboardTabs: DashboardTabResult[];
+    dataApps: DataAppSearchResult[];
 };
 
 export const getSearchResultId = (meta: SearchResult | undefined) => {
@@ -251,6 +268,7 @@ export enum SearchItemType {
     TABLE = 'table',
     FIELD = 'field',
     PAGE = 'page',
+    DATA_APP = 'data_app',
 }
 
 export function getSearchItemTypeFromResultKey(
@@ -273,6 +291,8 @@ export function getSearchItemTypeFromResultKey(
             return SearchItemType.SQL_CHART;
         case 'dashboardTabs':
             return SearchItemType.DASHBOARD_TAB;
+        case 'dataApps':
+            return SearchItemType.DATA_APP;
         default:
             return assertUnreachable(
                 searchResultKey,

@@ -312,13 +312,81 @@ export class AppGenerateService extends BaseService {
     }
 
     private async assertDataAppsEnabled(user: SessionUser): Promise<void> {
+        const enabled = await this.dataAppsEnabledFor(user);
+        if (!enabled) {
+            throw new ForbiddenError('Data apps are not enabled');
+        }
+    }
+
+    async dataAppsEnabledFor(user: SessionUser): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.EnableDataApps,
         });
-        if (!enabled) {
-            throw new ForbiddenError('Data apps are not enabled');
-        }
+        return enabled;
+    }
+
+    /**
+     * Boolean variant of `assertCanViewApp` — does not throw on denial.
+     * Use for filtering lists where unauthorized items should be silently
+     * dropped (e.g. omnibar search) rather than surfacing a permission error.
+     */
+    async canViewApp(
+        user: SessionUser,
+        app: Pick<
+            DbApp,
+            'project_uuid' | 'space_uuid' | 'created_by_user_uuid'
+        > & {
+            organization_uuid: string;
+        },
+    ): Promise<boolean> {
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  app.space_uuid,
+              )
+            : {};
+        const auditedAbility = this.createAuditedAbility(user);
+        return auditedAbility.can(
+            'view',
+            subject('DataApp', {
+                organizationUuid: app.organization_uuid,
+                projectUuid: app.project_uuid,
+                ...spaceContext,
+                createdByUserUuid: app.created_by_user_uuid,
+            }),
+        );
+    }
+
+    /**
+     * Bulk filter for callers that have a list of apps already loaded
+     * (e.g. SearchService). Resolves space access contexts in parallel —
+     * one `getSpaceAccessContext` call per app with a space.
+     */
+    async filterAppsUserCanView<
+        T extends {
+            spaceUuid: string | null;
+            createdBy: { userUuid: string } | null;
+        },
+    >(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        apps: T[],
+    ): Promise<T[]> {
+        const checks = await Promise.all(
+            apps.map((app) =>
+                this.canViewApp(user, {
+                    organization_uuid: organizationUuid,
+                    project_uuid: projectUuid,
+                    space_uuid: app.spaceUuid,
+                    // A null createdBy can never match the self rule — coerce
+                    // to a sentinel that won't equal any real userUuid.
+                    created_by_user_uuid: app.createdBy?.userUuid ?? '',
+                }),
+            ),
+        );
+        return apps.filter((_, i) => checks[i]);
     }
 
     /**

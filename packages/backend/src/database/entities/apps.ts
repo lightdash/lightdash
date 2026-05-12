@@ -28,6 +28,7 @@ export type DbApp = {
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
     views_count: number;
+    search_vector: string;
 };
 
 export type AppsTable = Knex.CompositeTableType<

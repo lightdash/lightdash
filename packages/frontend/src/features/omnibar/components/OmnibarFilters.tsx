@@ -9,6 +9,7 @@ import { DatePicker } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustments,
+    IconAppWindow,
     IconBrowser,
     IconCalendar,
     IconChartBar,
@@ -49,6 +50,8 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconBrowser;
         case SearchItemType.SQL_CHART:
             return IconCodeCircle;
+        case SearchItemType.DATA_APP:
+            return IconAppWindow;
         default:
             return assertUnreachable(
                 itemType,
