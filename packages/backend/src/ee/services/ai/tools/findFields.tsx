@@ -16,6 +16,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { FIELD_DESCRIPTION_MAX_CHARS, truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -68,7 +69,14 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
                     ))}
                 </aihints>
             ) : null}
-            <description>{catalogField.description}</description>
+            {catalogField.description && (
+                <description>
+                    {truncate(
+                        catalogField.description,
+                        FIELD_DESCRIPTION_MAX_CHARS,
+                    )}
+                </description>
+            )}
             {catalogField.categories && catalogField.categories.length > 0 ? (
                 <categories>
                     {catalogField.categories.map((c) => (

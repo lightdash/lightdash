@@ -9,6 +9,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { EXPLORE_DESCRIPTION_MAX_CHARS, truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -40,7 +41,12 @@ const generateExploreResponse = ({
                         searchRank={result.searchRank?.toFixed(3) ?? 'N/A'}
                     >
                         {result.description && (
-                            <description>{result.description}</description>
+                            <description>
+                                {truncate(
+                                    result.description,
+                                    EXPLORE_DESCRIPTION_MAX_CHARS,
+                                )}
+                            </description>
                         )}
                         {result.aiHints && result.aiHints.length > 0 && (
                             <aiHints>
@@ -74,7 +80,9 @@ const generateExploreResponse = ({
                 <note>
                     Here are the top matching fields across all explores. Use
                     this to determine which explore is most relevant by applying
-                    Rule 2 (ambiguity check).
+                    Rule 2 (ambiguity check). Call findFields on the chosen
+                    explore to retrieve full field metadata including
+                    descriptions.
                 </note>
                 {topMatchingFields.map((field) => (
                     <field
@@ -84,11 +92,7 @@ const generateExploreResponse = ({
                         fieldType={field.fieldType}
                         searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
                         usageInCharts={field.chartUsage ?? 0}
-                    >
-                        {field.description && (
-                            <description>{field.description}</description>
-                        )}
-                    </field>
+                    />
                 ))}
             </topMatchingFields>
         ) : null;
