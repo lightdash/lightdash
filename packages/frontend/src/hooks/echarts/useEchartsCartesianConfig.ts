@@ -3089,26 +3089,24 @@ const useEchartsCartesianConfig = (
         xAxisSortedResults,
     ]);
 
-    // Pad whenever a continuous date range exists: the row's x-field can
+    // Pad whenever a continuous date range exists: the row's date field can
     // drift from the snap's category string across DST, and ECharts matches
-    // by strict equality. Padding normalizes both to YYYY-MM-DD.
+    // by strict equality. Padding normalizes both to YYYY-MM-DD. The date
+    // dimension is layout.xField regardless of flipAxes — flipping only
+    // swaps which visual axis renders it.
     const paddedDataToRender = useMemo(() => {
         const continuousRange = axes.continuousDateRange;
         if (!continuousRange) return dataToRender;
-        const xFieldId = validCartesianConfig?.layout?.flipAxes
-            ? validCartesianConfig?.layout?.yField?.[0]
-            : validCartesianConfig?.layout?.xField;
-        if (!xFieldId) return dataToRender;
+        const dateFieldId = validCartesianConfig?.layout?.xField;
+        if (!dateFieldId) return dataToRender;
         return padDatasetForContinuousAxis(
             dataToRender,
             continuousRange,
-            xFieldId,
+            dateFieldId,
         );
     }, [
         dataToRender,
         axes.continuousDateRange,
-        validCartesianConfig?.layout?.flipAxes,
-        validCartesianConfig?.layout?.yField,
         validCartesianConfig?.layout?.xField,
     ]);
 
