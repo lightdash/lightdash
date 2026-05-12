@@ -1,6 +1,7 @@
 import {
     CartesianSeriesType,
     TimeFrames,
+    transformToPercentageStacking,
     type EChartsSeries,
     type Field,
     type ResultRow,
@@ -752,5 +753,86 @@ describe('padDatasetForContinuousAxis', () => {
 
         const result = padDatasetForContinuousAxis(data, range, xField);
         expect(result).toEqual(data);
+    });
+});
+
+describe('padDatasetForContinuousAxis ∘ transformToPercentageStacking', () => {
+    // Padding and the 100%-stack transform must commute on non-gap rows so
+    // dataset.source consumers can read from either composition order.
+    const xField = 'date';
+    const yFields = ['a', 'b'];
+    const range = [
+        '2024-01-01T00:00:00Z',
+        '2024-02-01T00:00:00Z',
+        '2024-03-01T00:00:00Z',
+    ];
+
+    test('produces equivalent ratios on non-gap rows regardless of order', () => {
+        // Drifted offsets — same calendar dates, different hours.
+        const rows = [
+            { [xField]: '2024-01-01T01:00:00Z', a: 3, b: 7 },
+            { [xField]: '2024-02-01T01:00:00Z', a: 1, b: 1 },
+            { [xField]: '2024-03-01T01:00:00Z', a: 4, b: 6 },
+        ];
+
+        const transformedFirst = transformToPercentageStacking(
+            rows,
+            xField,
+            yFields,
+        ).transformedResults;
+        const padThenTransform = padDatasetForContinuousAxis(
+            transformedFirst,
+            range,
+            xField,
+        );
+
+        const paddedFirst = padDatasetForContinuousAxis(rows, range, xField);
+        const transformThenPad = transformToPercentageStacking(
+            paddedFirst,
+            xField,
+            yFields,
+        ).transformedResults;
+
+        // Cats must match xAxis.data in both orders.
+        for (let i = 0; i < range.length; i++) {
+            expect(padThenTransform[i][xField]).toBe(range[i]);
+            expect(transformThenPad[i][xField]).toBe(range[i]);
+        }
+
+        // Ratios for present rows must match. Gap-row values legitimately
+        // differ between orders (undefined vs explicit 0%) — covered by the
+        // gap-tolerance test in tooltipFormatter.test.ts.
+        for (let i = 0; i < range.length; i++) {
+            for (const y of yFields) {
+                expect(transformThenPad[i][y]).toBe(padThenTransform[i][y]);
+            }
+        }
+    });
+
+    test('canonicalizes cats even when transform writes ratios first', () => {
+        const rows = [
+            { [xField]: '2024-01-01T01:00:00Z', a: 3, b: 7 },
+            { [xField]: '2024-02-01T01:00:00Z', a: 1, b: 1 },
+        ];
+        const partialRange = range.slice(0, 2);
+
+        const transformedFirst = transformToPercentageStacking(
+            rows,
+            xField,
+            yFields,
+        ).transformedResults;
+        const padThenTransformCats = padDatasetForContinuousAxis(
+            transformedFirst,
+            partialRange,
+            xField,
+        ).map((r) => r[xField]);
+        const transformThenPadCats = transformToPercentageStacking(
+            padDatasetForContinuousAxis(rows, partialRange, xField),
+            xField,
+            yFields,
+        ).transformedResults.map((r) => r[xField]);
+
+        expect(padThenTransformCats).toEqual(partialRange);
+        expect(transformThenPadCats).toEqual(partialRange);
     });
 });

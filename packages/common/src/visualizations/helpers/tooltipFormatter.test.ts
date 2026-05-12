@@ -1,6 +1,7 @@
 import { VizAggregationOptions, type EChartsSeries } from '../types';
 import {
     findPivotColumnFromSeriesRef,
+    transformToPercentageStacking,
     translatePivotRef,
 } from './tooltipFormatter';
 
@@ -275,5 +276,64 @@ describe('findPivotColumnFromSeriesRef', () => {
         // hashFieldReference produces a string from the pivotReference
         expect(result).toBeDefined();
         expect(typeof result).toBe('string');
+    });
+});
+
+describe('transformToPercentageStacking', () => {
+    test('converts absolute values to percentages summing to 100 per x bucket', () => {
+        const rows = [
+            { date: '2024-01-01', a: 3, b: 7 },
+            { date: '2024-02-01', a: 1, b: 1 },
+        ];
+
+        const { transformedResults, originalValues } =
+            transformToPercentageStacking(rows, 'date', ['a', 'b']);
+
+        expect(transformedResults[0].a).toBeCloseTo(30);
+        expect(transformedResults[0].b).toBeCloseTo(70);
+        expect(transformedResults[1].a).toBeCloseTo(50);
+        expect(transformedResults[1].b).toBeCloseTo(50);
+        expect(originalValues.get('2024-01-01')?.get('a')).toBe(3);
+        expect(originalValues.get('2024-02-01')?.get('b')).toBe(1);
+    });
+
+    test('tolerates rows with undefined yField values without producing NaN', () => {
+        // Shape padDatasetForContinuousAxis produces for gap rows:
+        // only the xField populated, every yField absent.
+        const rows = [
+            { date: '2024-01-01', a: 3, b: 7 },
+            { date: '2024-02-01' }, // gap row from padding
+            { date: '2024-03-01', a: 4, b: 6 },
+        ];
+
+        const { transformedResults } = transformToPercentageStacking(
+            rows,
+            'date',
+            ['a', 'b'],
+        );
+
+        expect(Number.isNaN(transformedResults[1].a)).toBe(false);
+        expect(Number.isNaN(transformedResults[1].b)).toBe(false);
+        // Real rows still total 100% — gap rows don't perturb other buckets.
+        expect(
+            (transformedResults[0].a as number) +
+                (transformedResults[0].b as number),
+        ).toBeCloseTo(100);
+        expect(
+            (transformedResults[2].a as number) +
+                (transformedResults[2].b as number),
+        ).toBeCloseTo(100);
+    });
+
+    test('passes rows through when no yFieldRefs are supplied', () => {
+        const rows = [{ date: '2024-01-01', a: 3 }];
+
+        const { transformedResults } = transformToPercentageStacking(
+            rows,
+            'date',
+            [],
+        );
+
+        expect(transformedResults[0]).toEqual({ date: '2024-01-01', a: 3 });
     });
 });

@@ -2746,7 +2746,7 @@ const useEchartsCartesianConfig = (
         );
 
         // Rounded corners and stack-total labels are applied downstream in
-        // `decoratedSeriesForChart` so they can consume `paddedDataToRender`
+        // `decoratedSeriesForChart` so they can consume `paddedSortedResults`
         // (the canonicalized, flat dataset that backs xAxis.data). Returning
         // the un-decorated series here keeps internal consumers (sort,
         // 100%-stack, color overrides) reading raw values as before.
@@ -3000,7 +3000,23 @@ const useEchartsCartesianConfig = (
         validCartesianConfigLegend,
     ]);
 
-    // Apply 100% stacking transformation if needed
+    const paddedSortedResults = useMemo(() => {
+        const continuousRange = axes.continuousDateRange;
+        const dateFieldId = validCartesianConfig?.layout?.xField;
+        if (!continuousRange || !dateFieldId) return xAxisSortedResults;
+        return padDatasetForContinuousAxis(
+            xAxisSortedResults,
+            continuousRange,
+            dateFieldId,
+        );
+    }, [
+        xAxisSortedResults,
+        axes.continuousDateRange,
+        validCartesianConfig?.layout?.xField,
+    ]);
+
+    // Convert raw values to per-x percentages for 100% stacking. Stack-total
+    // labels read `paddedSortedResults` directly so they see raw values.
     const { dataToRender, originalValues } = useMemo(() => {
         const stackValue = validCartesianConfig?.layout?.stack;
         const shouldStack100 = stackValue === StackType.PERCENT;
@@ -3014,7 +3030,7 @@ const useEchartsCartesianConfig = (
             !stackedSeriesWithColorAssignments
         ) {
             return {
-                dataToRender: xAxisSortedResults,
+                dataToRender: paddedSortedResults,
                 originalValues: undefined,
             };
         }
@@ -3036,67 +3052,27 @@ const useEchartsCartesianConfig = (
 
         // Use shared transformation utility
         const { transformedResults, originalValues: originalValuesMap } =
-            transformToPercentageStacking(sortedResults, xFieldId, yFieldRefs);
+            transformToPercentageStacking(
+                paddedSortedResults,
+                xFieldId,
+                yFieldRefs,
+            );
 
         return {
             dataToRender: transformedResults,
             originalValues: originalValuesMap,
         };
     }, [
-        sortedResults,
+        paddedSortedResults,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.layout.flipAxes,
         stackedSeriesWithColorAssignments,
-        xAxisSortedResults,
     ]);
 
-    // Pad whenever a continuous date range exists: the row's date field can
-    // drift from the snap's category string across DST, and ECharts matches
-    // by strict equality. Padding normalizes both to YYYY-MM-DD. The date
-    // dimension is layout.xField regardless of flipAxes — flipping only
-    // swaps which visual axis renders it.
-    const paddedDataToRender = useMemo(() => {
-        const continuousRange = axes.continuousDateRange;
-        if (!continuousRange) return dataToRender;
-        const dateFieldId = validCartesianConfig?.layout?.xField;
-        if (!dateFieldId) return dataToRender;
-        return padDatasetForContinuousAxis(
-            dataToRender,
-            continuousRange,
-            dateFieldId,
-        );
-    }, [
-        dataToRender,
-        axes.continuousDateRange,
-        validCartesianConfig?.layout?.xField,
-    ]);
-
-    // Parallel to paddedDataToRender but built from xAxisSortedResults (pre
-    // 100%-stack transform) so y-values stay raw. Stack-total labels need the
-    // raw sum, not the 0-1-ratio values that 100%-stacking writes into
-    // dataToRender. Cat values are canonicalized the same way as the dataset,
-    // so labels still name-match xAxis.data exactly.
-    const paddedRawDataForStackTotals = useMemo(() => {
-        const continuousRange = axes.continuousDateRange;
-        if (!continuousRange) return xAxisSortedResults;
-        const dateFieldId = validCartesianConfig?.layout?.xField;
-        if (!dateFieldId) return xAxisSortedResults;
-        return padDatasetForContinuousAxis(
-            xAxisSortedResults,
-            continuousRange,
-            dateFieldId,
-        );
-    }, [
-        xAxisSortedResults,
-        axes.continuousDateRange,
-        validCartesianConfig?.layout?.xField,
-    ]);
-
-    // Rounded-corner decoration and stack-total labels both need category
-    // values that match xAxis.data exactly. Running them after paddedDataToRender
-    // lets them read from the same canonicalized dataset that backs the axis,
-    // so DST-drifted rows can't end up with mismatched cat strings.
+    // Decorate the stacked series off the same padded dataset: cats match
+    // xAxis.data exactly, and stack totals read raw values instead of the
+    // 100%-stack ratios. Rounded corners are skipped in 100% mode.
     const decoratedSeriesForChart = useMemo(() => {
         if (!stackedSeriesWithColorAssignments || !itemsMap) {
             return stackedSeriesWithColorAssignments;
@@ -3121,8 +3097,9 @@ const useEchartsCartesianConfig = (
         const nonStackedBarCount = isStacked
             ? barSeries.filter((s) => !s.stack).length
             : barSeries.length;
+        // Scale off real-row count; gap rows don't render bars.
         const dynamicRadius = calculateDynamicBorderRadius(
-            paddedDataToRender.length,
+            rows.length,
             Math.max(1, nonStackedBarCount),
             isStacked,
             isHorizontal,
@@ -3132,7 +3109,7 @@ const useEchartsCartesianConfig = (
             stackedBarSeries.length > 0
                 ? applyRoundedCornersToStackData(
                       stackedSeriesWithColorAssignments,
-                      paddedDataToRender,
+                      paddedSortedResults,
                       {
                           radius: dynamicRadius,
                           isHorizontal,
@@ -3144,7 +3121,7 @@ const useEchartsCartesianConfig = (
         return [
             ...seriesWithRoundedStacks,
             ...getStackTotalSeries(
-                paddedRawDataForStackTotals,
+                paddedSortedResults,
                 seriesWithRoundedStacks,
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
@@ -3156,8 +3133,8 @@ const useEchartsCartesianConfig = (
         ];
     }, [
         stackedSeriesWithColorAssignments,
-        paddedDataToRender,
-        paddedRawDataForStackTotals,
+        paddedSortedResults,
+        rows,
         itemsMap,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
@@ -3228,7 +3205,7 @@ const useEchartsCartesianConfig = (
             !isStack100 ||
             !stackedSeriesWithColorAssignments ||
             !itemsMap ||
-            !paddedRawDataForStackTotals
+            !paddedSortedResults
         )
             return { right: 0, top: 0 };
 
@@ -3250,7 +3227,7 @@ const useEchartsCartesianConfig = (
             if (!stack || !stackSeries[0]?.stackLabel?.show) return;
 
             const stackTotalData = getStackTotalRows(
-                paddedRawDataForStackTotals,
+                paddedSortedResults,
                 stackSeries,
                 flipAxis,
                 validCartesianConfigLegend,
@@ -3285,7 +3262,7 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         itemsMap,
-        paddedRawDataForStackTotals,
+        paddedSortedResults,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfigLegend,
@@ -3572,7 +3549,7 @@ const useEchartsCartesianConfig = (
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
-                source: paddedDataToRender,
+                source: dataToRender,
             },
             tooltip,
             grid: currentGrid,
@@ -3616,7 +3593,7 @@ const useEchartsCartesianConfig = (
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,
-        paddedDataToRender,
+        dataToRender,
         tooltip,
         currentGrid,
         theme?.other.chartFont,
