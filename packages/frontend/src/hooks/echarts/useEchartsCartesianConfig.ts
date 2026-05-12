@@ -2763,12 +2763,37 @@ const useEchartsCartesianConfig = (
                 !isStackNone,
         );
 
+        // Canonical category values for stacked bars on a continuous-date
+        // axis. The axis labels are snapped to a single offset, but row
+        // x-values can drift across DST. padDatasetForContinuousAxis already
+        // normalizes dataset.source — do the same for series.data tuples so
+        // stacked DST bars find their axis slot.
+        const continuousRange = axes.continuousDateRange;
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        const categoryValues =
+            continuousRange && xFieldId && stackedBarSeries.length > 0
+                ? (() => {
+                      const dateKeyToCanonical = new Map<string, string>();
+                      continuousRange.forEach((d) =>
+                          dateKeyToCanonical.set(d.slice(0, 10), d),
+                      );
+                      return rows.map((row) => {
+                          const raw = row[xFieldId]?.value?.raw;
+                          if (typeof raw !== 'string') return raw;
+                          return (
+                              dateKeyToCanonical.get(raw.slice(0, 10)) ?? raw
+                          );
+                      });
+                  })()
+                : undefined;
+
         const seriesWithRoundedStacks =
             stackedBarSeries.length > 0
                 ? applyRoundedCornersToStackData(seriesWithValidStack, rows, {
                       radius: dynamicRadius,
                       isHorizontal: !!isHorizontal,
                       legendSelected: validCartesianConfigLegend,
+                      categoryValues,
                   })
                 : seriesWithValidStack;
 
@@ -2802,6 +2827,7 @@ const useEchartsCartesianConfig = (
         colorPalette,
         theme.colors.background,
         resolvedTimezone,
+        axes.continuousDateRange,
     ]);
     const sortedResults = useMemo(() => {
         const results =

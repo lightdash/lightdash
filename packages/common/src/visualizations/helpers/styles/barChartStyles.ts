@@ -264,10 +264,18 @@ export const applyRoundedCornersToStackData = (
         radius = 4,
         isHorizontal = false,
         legendSelected,
+        categoryValues,
     }: {
         radius?: number;
         isHorizontal?: boolean;
         legendSelected?: LegendValues;
+        // Optional canonical category values aligned with `rows` by index.
+        // When provided, used as the tuple's cat slot instead of the raw row
+        // value. The continuous-date axis snap canonicalizes its labels via
+        // padDatasetForContinuousAxis; passing the matching canonical values
+        // here keeps series.data tuples aligned with the axis so DST-drifted
+        // rows still find their slot.
+        categoryValues?: unknown[];
     } = {},
 ): EChartsSeries[] => {
     const out = series.map((s) => ({ ...s }));
@@ -345,7 +353,8 @@ export const applyRoundedCornersToStackData = (
                 const catHash = isHorizontal ? yHash : xHash; // category field in data
                 const valHash = isHorizontal ? xHash : yHash; // numeric field in data
 
-                const cat = catHash ? row[catHash]?.value?.raw : undefined;
+                const rawCat = catHash ? row[catHash]?.value?.raw : undefined;
+                const cat = categoryValues?.[r] ?? rawCat;
                 const raw = valHash ? row[valHash]?.value?.raw : undefined;
                 let v: number | null = null;
                 if (typeof raw === 'number') {
