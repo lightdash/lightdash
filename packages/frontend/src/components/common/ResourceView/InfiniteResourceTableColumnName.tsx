@@ -198,11 +198,12 @@ const InfiniteResourceTableColumnName = ({
                             verification={verification}
                         />
                         {!isSpace &&
-                            // If there is no description, don't show the info icon on dashboards.
+                            // If there is no description, don't show the info icon on dashboards or data apps.
                             // For charts we still show it for the dashboard list
                             (item.data.description ||
                                 isResourceViewItemChart(item)) &&
-                            isChartOrDashboard && (
+                            (isChartOrDashboard ||
+                                isResourceViewDataAppItem(item)) && (
                                 <Box>
                                     <ResourceInfoPopup
                                         resourceUuid={item.data.uuid}
@@ -211,6 +212,20 @@ const InfiniteResourceTableColumnName = ({
                                         withChartData={isResourceViewItemChart(
                                             item,
                                         )}
+                                        latestVersion={
+                                            isResourceViewDataAppItem(item) &&
+                                            item.data.latestVersionNumber !==
+                                                null &&
+                                            item.data.latestVersionStatus !==
+                                                null
+                                                ? {
+                                                      number: item.data
+                                                          .latestVersionNumber,
+                                                      status: item.data
+                                                          .latestVersionStatus,
+                                                  }
+                                                : null
+                                        }
                                     />
                                 </Box>
                             )}

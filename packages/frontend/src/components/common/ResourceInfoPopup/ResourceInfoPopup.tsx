@@ -1,4 +1,8 @@
 import {
+    isAppVersionInProgress,
+    type AppVersionStatus,
+} from '@lightdash/common';
+import {
     Anchor,
     Box,
     CopyButton,
@@ -17,6 +21,7 @@ import {
     IconEye,
     IconFolder,
     IconHash,
+    IconHistory,
     IconInfoCircle,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -27,6 +32,13 @@ import MantineIcon from '../MantineIcon';
 import InfoRow from '../PageHeader/InfoRow';
 import { DashboardList } from './DashboardList';
 import styles from './ResourceInfoPopup.module.css';
+
+const versionStatusLabel = (status: AppVersionStatus): string => {
+    if (status === 'error') return 'error';
+    if (status === 'ready') return 'ready';
+    if (isAppVersionInProgress(status)) return 'building';
+    return status;
+};
 
 type Props = {
     resourceUuid: string;
@@ -40,6 +52,7 @@ type Props = {
     projectUuid: string;
     viewStats?: number;
     firstViewedAt?: Date | string | null;
+    latestVersion?: { number: number; status: AppVersionStatus } | null;
 };
 
 export const ResourceInfoPopup: FC<Props> = ({
@@ -54,6 +67,7 @@ export const ResourceInfoPopup: FC<Props> = ({
     viewStats,
     firstViewedAt,
     withChartData = false,
+    latestVersion,
 }) => {
     const timeAgo = useTimeAgo(updatedAt ?? new Date());
     const label =
@@ -63,7 +77,10 @@ export const ResourceInfoPopup: FC<Props> = ({
               )}`
             : undefined;
     const hasMetadataRows =
-        !!updatedAt || viewStats !== undefined || !!(spaceName && spaceUuid);
+        !!updatedAt ||
+        viewStats !== undefined ||
+        !!(spaceName && spaceUuid) ||
+        !!latestVersion;
     const shouldShowDivider =
         !!slug && (hasMetadataRows || !!description || withChartData);
     const hasContent =
@@ -73,7 +90,8 @@ export const ResourceInfoPopup: FC<Props> = ({
         !!withChartData ||
         !!updatedAt ||
         viewStats !== undefined ||
-        !!(spaceName && spaceUuid);
+        !!(spaceName && spaceUuid) ||
+        !!latestVersion;
 
     if (!hasContent) return null;
 
@@ -137,6 +155,20 @@ export const ResourceInfoPopup: FC<Props> = ({
                                     {spaceName}
                                 </Anchor>
                             </InfoRow>
+                        )}
+
+                        {latestVersion && (
+                            <Group gap={6} wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconHistory}
+                                    color="ldGray.6"
+                                    size={14}
+                                />
+                                <Text fz="xs" c="ldGray.6" fw={600}>
+                                    Version {latestVersion.number} (
+                                    {versionStatusLabel(latestVersion.status)})
+                                </Text>
+                            </Group>
                         )}
 
                         {withChartData && (
