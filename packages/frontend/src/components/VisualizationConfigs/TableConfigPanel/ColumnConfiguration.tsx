@@ -96,15 +96,13 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
     const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
 
-    // Hide freeze for pivoted dimensions (they become column headers and can't
-    // be frozen). Everything else is freezable: non-pivoted dimensions act as
-    // row labels, metrics with metricsAsRows=true become the leftmost metric-
-    // label column, and metrics with metricsAsRows=false freeze every pivot
-    // slice of that metric (widths are measured at runtime so they line up).
+
+    // Pivoted dimensions become column headers and can't be frozen.
     const shouldShowFreezeToggle = !isPivotingDimension;
 
     // When syncFreezeWith is set, the lock visually reflects "any sibling
     // frozen" and clicking flips the entire group in lockstep.
+
     const isFrozenForDisplay = syncFreezeWith
         ? syncFreezeWith.some((id) => isColumnFrozen(id))
         : isColumnFrozen(fieldId);
