@@ -9,14 +9,8 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { EXPLORE_DESCRIPTION_MAX_CHARS, truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
-
-const EXPLORE_DESCRIPTION_MAX_CHARS = 600;
-
-const truncateDescription = (description: string) =>
-    description.length > EXPLORE_DESCRIPTION_MAX_CHARS
-        ? `${description.slice(0, EXPLORE_DESCRIPTION_MAX_CHARS)}…`
-        : description;
 
 type Dependencies = {
     fieldSearchSize: number;
@@ -48,7 +42,10 @@ const generateExploreResponse = ({
                     >
                         {result.description && (
                             <description>
-                                {truncateDescription(result.description)}
+                                {truncate(
+                                    result.description,
+                                    EXPLORE_DESCRIPTION_MAX_CHARS,
+                                )}
                             </description>
                         )}
                         {result.aiHints && result.aiHints.length > 0 && (

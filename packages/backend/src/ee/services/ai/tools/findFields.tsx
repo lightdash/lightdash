@@ -16,6 +16,11 @@ import type {
 } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import {
+    AI_HINT_MAX_CHARS,
+    FIELD_DESCRIPTION_MAX_CHARS,
+    truncate,
+} from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -64,11 +69,18 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
             {aiHints && aiHints.length > 0 ? (
                 <aihints>
                     {aiHints.map((hint) => (
-                        <hint>{hint}</hint>
+                        <hint>{truncate(hint, AI_HINT_MAX_CHARS)}</hint>
                     ))}
                 </aihints>
             ) : null}
-            <description>{catalogField.description}</description>
+            {catalogField.description && (
+                <description>
+                    {truncate(
+                        catalogField.description,
+                        FIELD_DESCRIPTION_MAX_CHARS,
+                    )}
+                </description>
+            )}
             {catalogField.categories && catalogField.categories.length > 0 ? (
                 <categories>
                     {catalogField.categories.map((c) => (
