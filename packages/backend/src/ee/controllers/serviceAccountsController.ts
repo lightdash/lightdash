@@ -1,6 +1,7 @@
 import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
+    ApiSetServiceAccountProjectMembershipRequest,
     assertRegisteredAccount,
     AuthTokenPrefix,
     ServiceAccount,
@@ -17,6 +18,7 @@ import {
     Patch,
     Path,
     Post,
+    Put,
     Request,
     Response,
     Route,
@@ -156,6 +158,56 @@ export class ServiceAccountsController extends BaseController {
                 prefix: AuthTokenPrefix.SERVICE_ACCOUNT,
             }),
         };
+    }
+
+    /**
+     * Add or update a per-project membership on a service account. Honors
+     * either `role` (system role) or `roleUuid` (custom role). Gated behind
+     * the `service-account-project-memberships` feature flag and
+     * `manage:Organization` on the SA's org.
+     * @summary Set service account project membership
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Put('/{tokenUuid}/project-memberships/{projectUuid}')
+    @OperationId('SetServiceAccountProjectMembership')
+    @SuccessResponse('200', 'Success')
+    async setServiceAccountProjectMembership(
+        @Request() req: express.Request,
+        @Path() tokenUuid: string,
+        @Path() projectUuid: string,
+        @Body() body: ApiSetServiceAccountProjectMembershipRequest,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
+        await this.getServiceAccountService().setProjectMembership({
+            user: toSessionUser(req.account),
+            serviceAccountUuid: tokenUuid,
+            projectUuid,
+            membership: { role: body.role, roleUuid: body.roleUuid },
+        });
+        this.setStatus(200);
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Remove a per-project membership from a service account.
+     * @summary Delete service account project membership
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Delete('/{tokenUuid}/project-memberships/{projectUuid}')
+    @OperationId('DeleteServiceAccountProjectMembership')
+    @SuccessResponse('204', 'No content')
+    async deleteServiceAccountProjectMembership(
+        @Request() req: express.Request,
+        @Path() tokenUuid: string,
+        @Path() projectUuid: string,
+    ): Promise<{ status: 'ok'; results: undefined }> {
+        assertRegisteredAccount(req.account);
+        await this.getServiceAccountService().removeProjectMembership({
+            user: toSessionUser(req.account),
+            serviceAccountUuid: tokenUuid,
+            projectUuid,
+        });
+        return { status: 'ok', results: undefined };
     }
 
     protected getServiceAccountService() {

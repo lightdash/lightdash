@@ -111,3 +111,13 @@ export type CreateServiceAccount = Pick<
     organizationRole?: OrganizationMemberRole;
     projectRoles?: ServiceAccountProjectMembership[];
 };
+
+/**
+ * Body shape for adding or updating a single per-project membership on a
+ * service account. Either `role` (system role) or `roleUuid` (custom role)
+ * is honored — sending both produces a server-side error.
+ */
+export type ApiSetServiceAccountProjectMembershipRequest = {
+    role: ProjectMemberRole | null;
+    roleUuid: string | null;
+};
