@@ -34,8 +34,6 @@
 
 connect your dbt project --> add metrics into dbt --> share insights with your team
 
-If you're a fan, star the repo ⭐️ (we [plant a tree](#the-lightdash-forest) for every GitHub star we get 🌱).
-
 Come join the team, [we're hiring](https://lightdash.notion.site/Lightdash-Job-Board-a2c7d872794b45deb7b76ad68701d750).
 
 </div>
@@ -154,18 +152,6 @@ our [Lightdash documentation](https://docs.lightdash.com/) to check out our tuto
 ## Reporting bugs and feature requests
 
 Want to report a bug or request a feature? Open an [issue](https://github.com/lightdash/lightdash/issues/new/choose).
-
-## The Lightdash Forest
-
-We're planting trees with the help of the Lightdash community.
-
-Tree planting is one of the simplest and most cost-effective means of mitigating climate change, by absorbing CO2 from the atmosphere. So we thought it would be pretty neat to grow a forest while we grow Lightdash.
-
-Want to help us grow our forest?
-
-Just star this repo! We plant a tree for every star we get on Github. ⭐️ ➡️ 🌱
-
-We plant trees with TIST, you can read all about them here: https://program.tist.org/.
 
 ## Developing locally & Contributing
 
