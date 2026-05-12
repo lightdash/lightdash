@@ -134,6 +134,7 @@ const getAgentTools = (
               getPrompt: dependencies.getPrompt,
               sendFile: dependencies.sendFile,
               updateSlackMessage: dependencies.updateSlackMessage,
+              siteUrl: args.siteUrl,
           })
         : null;
 

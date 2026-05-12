@@ -27,6 +27,7 @@ type Dependencies = {
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     updateSlackMessage: UpdateSlackMessageFn;
+    siteUrl: string;
 };
 
 // Strip --line and /* block */ comments + string literals so subsequent
@@ -69,6 +70,7 @@ export const getRunSql = ({
     getPrompt,
     sendFile,
     updateSlackMessage,
+    siteUrl,
 }: Dependencies) =>
     tool({
         description: toolRunSqlArgsSchema.description,
@@ -101,7 +103,7 @@ export const getRunSql = ({
                     organizationUuid: prompt.organizationUuid,
                     ts: prompt.response_slack_ts,
                     text: 'SQL execution',
-                    blocks: renderBlocks(state),
+                    blocks: renderBlocks(state, siteUrl),
                 });
             };
 
