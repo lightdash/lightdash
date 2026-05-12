@@ -165,6 +165,7 @@ export enum EventName {
     AI_AGENT_CHART_CREATED = 'ai_agent_chart.created',
     AI_AGENT_CHART_EXPLORED = 'ai_agent_chart.explored',
     AI_AGENT_ASK_CLICKED = 'ai_agent_ask.clicked',
+    AI_AGENT_CHAT_MINIMIZED = 'ai_agent_chat.minimized',
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',

@@ -32,6 +32,9 @@ import {
     useSearchParams,
 } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useApp from '../../../providers/App/useApp';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
@@ -244,14 +247,22 @@ const AgentPage = () => {
         threadUuid,
     );
 
-    const [canMinimize] = useState(() =>
-        launcherSession.isExpandedFromBubble(),
-    );
-
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
+    const { track } = useTracking();
+    const { user } = useApp();
 
     const handleMinimize = () => {
         if (!agent || !projectUuid) return;
+        track({
+            name: EventName.AI_AGENT_CHAT_MINIMIZED,
+            properties: {
+                userId: user?.data?.userUuid,
+                organizationId: user?.data?.organizationUuid,
+                projectId: projectUuid,
+                agentUuid: agent.uuid,
+                threadUuid,
+            },
+        });
         if (threadUuid) {
             const dockTitle =
                 thread?.title ||
@@ -336,28 +347,26 @@ const AgentPage = () => {
                     </Box>
 
                     <Group gap="xs">
-                        {canMinimize && (
-                            <Button
-                                variant="default"
-                                onClick={handleMinimize}
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconWindowMinimize}
-                                        style={{ transform: 'scaleX(-1)' }}
-                                    />
-                                }
-                                styles={(theme) => ({
-                                    root: {
-                                        borderColor: theme.colors.ldGray[2],
-                                        boxShadow: `var(--mantine-shadow-subtle)`,
-                                        color: theme.colors.ldGray[9],
-                                        fontSize: theme.fontSizes.xs,
-                                    },
-                                })}
-                            >
-                                Minimize
-                            </Button>
-                        )}
+                        <Button
+                            variant="default"
+                            onClick={handleMinimize}
+                            leftSection={
+                                <MantineIcon
+                                    icon={IconWindowMinimize}
+                                    style={{ transform: 'scaleX(-1)' }}
+                                />
+                            }
+                            styles={(theme) => ({
+                                root: {
+                                    borderColor: theme.colors.ldGray[2],
+                                    boxShadow: `var(--mantine-shadow-subtle)`,
+                                    color: theme.colors.ldGray[9],
+                                    fontSize: theme.fontSizes.xs,
+                                },
+                            })}
+                        >
+                            Minimize
+                        </Button>
                         {canManageAgents && (
                             <Button
                                 component={Link}

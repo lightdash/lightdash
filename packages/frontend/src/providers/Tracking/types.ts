@@ -458,6 +458,17 @@ type AiAgentAskClickedEvent = {
     };
 };
 
+type AiAgentChatMinimizedEvent = {
+    name: EventName.AI_AGENT_CHAT_MINIMIZED;
+    properties: {
+        userId: string | undefined;
+        organizationId: string | undefined;
+        projectId: string;
+        agentUuid: string;
+        threadUuid: string | undefined;
+    };
+};
+
 type ThemeToggledEvent = {
     name: EventName.THEME_TOGGLED;
     properties: {
@@ -540,6 +551,7 @@ export type EventData =
     | AiAgentChartCreatedEvent
     | AiAgentChartExploredEvent
     | AiAgentAskClickedEvent
+    | AiAgentChatMinimizedEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
