@@ -116,6 +116,14 @@ export type SendSlackBlocksFn = (args: {
     organizationUuid: string;
     text: string;
     blocks: AnyType[];
+}) => Promise<{ ts: string }>;
+
+export type UpdateSlackMessageFn = (args: {
+    channelId: string;
+    organizationUuid: string;
+    ts: string;
+    text: string;
+    blocks: AnyType[];
 }) => Promise<void>;
 
 export type UpdatePromptFn = (

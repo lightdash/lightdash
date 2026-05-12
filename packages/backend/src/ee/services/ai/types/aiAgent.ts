@@ -25,6 +25,7 @@ import {
     TrackEventFn,
     UpdateProgressFn,
     UpdatePromptFn,
+    UpdateSlackMessageFn,
 } from './aiAgentDependencies';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
@@ -78,6 +79,7 @@ export type AiAgentDependencies = {
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
     sendSlackBlocks: SendSlackBlocksFn;
+    updateSlackMessage: UpdateSlackMessageFn;
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;

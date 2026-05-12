@@ -163,6 +163,7 @@ import {
     StoreToolCallFn,
     StoreToolResultsFn,
     UpdateProgressFn,
+    UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
@@ -3190,10 +3191,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 'AiAgent.sendSlackBlocks',
                 { channelId: args.channelId },
                 async () => {
-                    await this.slackClient.postMessage({
+                    const response = await this.slackClient.postMessage({
                         organizationUuid: args.organizationUuid,
                         channel: args.channelId,
                         thread_ts: args.threadTs,
+                        text: args.text,
+                        blocks: args.blocks,
+                    });
+                    return { ts: (response?.ts ?? '') as string };
+                },
+            );
+
+        const updateSlackMessage: UpdateSlackMessageFn = async (args) =>
+            wrapSentryTransaction(
+                'AiAgent.updateSlackMessage',
+                { channelId: args.channelId },
+                async () => {
+                    const webClient = await this.slackClient.getWebClient(
+                        args.organizationUuid,
+                    );
+                    await webClient.chat.update({
+                        channel: args.channelId,
+                        ts: args.ts,
                         text: args.text,
                         blocks: args.blocks,
                     });
@@ -3379,6 +3398,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getSavedChart,
             sendFile,
             sendSlackBlocks,
+            updateSlackMessage,
             storeToolCall,
             storeToolResults,
             storeReasoning,
@@ -3459,6 +3479,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getSavedChart,
             sendFile,
             sendSlackBlocks,
+            updateSlackMessage,
             storeToolCall,
             storeToolResults,
             storeReasoning,
@@ -3578,6 +3599,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getPrompt,
             sendFile,
             sendSlackBlocks,
+            updateSlackMessage,
             storeToolCall,
             storeToolResults,
             storeReasoning,
