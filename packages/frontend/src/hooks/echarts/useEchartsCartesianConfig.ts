@@ -2315,7 +2315,18 @@ const getStackTotalRows = (
             s.type === CartesianSeriesType.SCATTER,
     );
     if (isNonStackable) return [];
-    return rows.map((row) => {
+    return rows.reduce<[unknown, unknown, number][]>((acc, row) => {
+        // Skip padded gap rows: when every stacked series value is absent from
+        // the row, this is a date inserted by padDatasetForContinuousAxis and
+        // should not render a stack-total label.
+        const hasAnyValue = series.some((s) => {
+            const valueHash = flipAxis ? s.encode?.x : s.encode?.y;
+            return (
+                typeof valueHash === 'string' && row[valueHash] !== undefined
+            );
+        });
+        if (!hasAnyValue) return acc;
+
         const total = calculateStackTotal(
             row,
             series,
@@ -2324,10 +2335,12 @@ const getStackTotalRows = (
         );
         const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
         if (!hash) {
-            return [null, null, 0];
+            acc.push([null, null, 0]);
+            return acc;
         }
-        return flipAxis ? [0, row[hash], total] : [row[hash], 0, total];
-    });
+        acc.push(flipAxis ? [0, row[hash], total] : [row[hash], 0, total]);
+        return acc;
+    }, []);
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
