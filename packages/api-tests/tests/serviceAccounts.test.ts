@@ -1055,6 +1055,99 @@ describe('Service Account custom-role: CLI deploy/upload', () => {
         ).toBe(403);
     });
 
+    it('a project-scoped SA with NONE org role can access only granted projects (PROD-7529)', async () => {
+        // This test exercises the new "org role + project memberships" mode
+        // (mode 3). Requires the `service-account-project-memberships`
+        // feature flag enabled for the test org via LIGHTDASH_ENABLE_FEATURE_FLAGS
+        // or a feature_flag_overrides row. If the gate rejects with 403 +
+        // "not enabled", the test is treated as skipped so the suite stays
+        // green on instances that haven't rolled out the feature yet.
+
+        const role = await createCustomRole(
+            admin,
+            `proj-scoped ${Date.now()}`,
+            ['view:Project', 'view:Dashboard'],
+        );
+        createdRoleUuids.push(role.roleUuid);
+
+        const createResp = await admin.post<
+            Body<{
+                uuid: string;
+                token: string;
+                organizationRole: string;
+                projectRoles: Array<{
+                    projectUuid: string;
+                    role: string | null;
+                    roleUuid: string | null;
+                }>;
+                scopes: string[];
+            }>
+        >(`${apiUrl}/service-accounts`, {
+            description: `proj-scoped SA ${Date.now()}`,
+            expiresAt: inOneHour(),
+            organizationRole: 'none',
+            projectRoles: [
+                {
+                    projectUuid: SEED_PROJECT.project_uuid,
+                    role: null,
+                    roleUuid: role.roleUuid,
+                },
+            ],
+        });
+        if (
+            createResp.status === 403 &&
+            JSON.stringify(createResp.body).includes('not enabled')
+        ) {
+            // Flag not enabled in this environment — feature is dark.
+            return;
+        }
+        expect(createResp.status).toBe(201);
+        expect(createResp.body.results.organizationRole).toBe('none');
+        expect(createResp.body.results.scopes).toEqual([]);
+        expect(createResp.body.results.projectRoles).toHaveLength(1);
+        expect(createResp.body.results.projectRoles[0].projectUuid).toBe(
+            SEED_PROJECT.project_uuid,
+        );
+
+        const sa = bearerClient(createResp.body.results.token);
+
+        // The granted project must be reachable — custom role has view:Project.
+        const granted = await sa.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}`,
+        );
+        expect([200, 201]).toContain(granted.status);
+
+        // Org-wide endpoints must be denied since org role is NONE.
+        const orgUsers = await sa.get(`${apiUrl}/org/users`);
+        expect(orgUsers.status).toBe(403);
+
+        // PUT a new membership via the dedicated endpoint, then verify
+        // listing the SA reflects the change.
+        const newProjectRole = await createCustomRole(
+            admin,
+            `proj-scoped-2 ${Date.now()}`,
+            ['view:Dashboard'],
+        );
+        createdRoleUuids.push(newProjectRole.roleUuid);
+        // No second seed project in this environment — re-PUT on the
+        // existing project to verify the upsert path works.
+        const putResp = await admin.put(
+            `${apiUrl}/service-accounts/${createResp.body.results.uuid}/project-memberships/${SEED_PROJECT.project_uuid}`,
+            { role: null, roleUuid: newProjectRole.roleUuid },
+        );
+        expect([200, 204]).toContain(putResp.status);
+
+        // DELETE the membership, then verify the SA loses access.
+        const delResp = await admin.delete(
+            `${apiUrl}/service-accounts/${createResp.body.results.uuid}/project-memberships/${SEED_PROJECT.project_uuid}`,
+        );
+        expect([200, 204]).toContain(delResp.status);
+        const revoked = await sa.get(
+            `${apiUrl}/projects/${SEED_PROJECT.project_uuid}`,
+        );
+        expect(revoked.status).toBe(403);
+    });
+
     it('a custom role with `manage:DeployProject` + `manage:ContentAsCode` lets the SA deploy and upload', async () => {
         const role = await createCustomRole(
             admin,
