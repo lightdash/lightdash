@@ -210,7 +210,7 @@ const Settings: FC = () => {
                         </SettingsGridCard>
                         {isLeaveOrganizationEnabled && (
                             <SettingsGridCard>
-                                <div>
+                                <Box>
                                     <Title order={4}>Danger zone</Title>
                                     <Text c="ldGray.6" fz="xs">
                                         Leave the organization to remove
@@ -218,7 +218,7 @@ const Settings: FC = () => {
                                         you are the only admin). This action is
                                         not reversible.
                                     </Text>
-                                </div>
+                                </Box>
                                 <LeaveOrganizationPanel />
                             </SettingsGridCard>
                         )}
