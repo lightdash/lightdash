@@ -1430,6 +1430,11 @@ export const buildCartesianTooltipFormatter =
             }
         }
 
+        // No data at this x and no custom template (e.g., gap row from
+        // continuous-axis padding): suppress the tooltip entirely rather
+        // than showing an empty header.
+        if (!rowsHtml && !tooltipHtml) return '';
+
         const divider = getTooltipDivider();
         const dimensionId = params[0]?.dimensionNames?.[0];
 
