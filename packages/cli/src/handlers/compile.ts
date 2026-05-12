@@ -24,7 +24,11 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../analytics/analytics';
 import { getDbtContext } from '../dbt/context';
-import { loadManifest } from '../dbt/manifest';
+import {
+    combineManifests,
+    loadManifest,
+    loadManifestFromFile,
+} from '../dbt/manifest';
 import { validateDbtModel } from '../dbt/validation';
 import GlobalState from '../globalState';
 import { readAndLoadLightdashProjectConfig } from '../lightdash-config';
@@ -226,12 +230,37 @@ export const compile = async (options: CompileHandlerOptions) => {
                 { targetDir: context.targetDir },
                 options,
             );
-        const manifest = await loadManifest({ targetDir: context.targetDir });
+        let manifest = await loadManifest({ targetDir: context.targetDir });
+        let effectiveCompiledModelIds = compiledModelIds;
+        if (options.combineManifest) {
+            const externalManifestPath = path.resolve(options.combineManifest);
+            const externalManifest =
+                await loadManifestFromFile(externalManifestPath);
+            const { manifest: merged, addedModelIds } = combineManifests(
+                manifest,
+                externalManifest,
+            );
+            manifest = merged;
+            if (
+                effectiveCompiledModelIds !== undefined &&
+                addedModelIds.length > 0
+            ) {
+                effectiveCompiledModelIds = [
+                    ...effectiveCompiledModelIds,
+                    ...addedModelIds,
+                ];
+            }
+            console.info(
+                styles.info(
+                    `Combined external manifest from ${externalManifestPath}: added ${addedModelIds.length} model(s) not present in the preview manifest`,
+                ),
+            );
+        }
         const manifestVersion = getDbtManifestVersion(manifest);
         const manifestModels = getModelsFromManifest(manifest);
         const compiledModels = getCompiledModels(
             manifestModels,
-            compiledModelIds,
+            effectiveCompiledModelIds,
         );
 
         // When using --defer, non-selected models pulled in via joins

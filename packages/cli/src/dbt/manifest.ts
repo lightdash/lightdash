@@ -1,4 +1,4 @@
-import { DbtManifest, getErrorMessage } from '@lightdash/common';
+import { DbtManifest, DbtNode, getErrorMessage } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as path from 'path';
 import globalState from '../globalState';
@@ -10,10 +10,9 @@ export type LoadManifestArgs = {
 export const getManifestPath = async (targetDir: string): Promise<string> =>
     path.join(targetDir, 'manifest.json');
 
-export const loadManifest = async ({
-    targetDir,
-}: LoadManifestArgs): Promise<DbtManifest> => {
-    const filename = await getManifestPath(targetDir);
+export const loadManifestFromFile = async (
+    filename: string,
+): Promise<DbtManifest> => {
     globalState.debug(`> Loading dbt manifest from ${filename}`);
     try {
         const manifest = JSON.parse(
@@ -24,4 +23,44 @@ export const loadManifest = async ({
         const msg = getErrorMessage(err);
         throw new Error(`Could not load manifest from ${filename}:\n  ${msg}`);
     }
+};
+
+export const loadManifest = async ({
+    targetDir,
+}: LoadManifestArgs): Promise<DbtManifest> => {
+    const filename = await getManifestPath(targetDir);
+    return loadManifestFromFile(filename);
+};
+
+export type CombineManifestsResult = {
+    manifest: DbtManifest;
+    addedModelIds: string[];
+};
+
+/**
+ * Merge model nodes from `external` into `primary`. Nodes already present in
+ * `primary` keep their primary version (primary wins on conflict). Returns the
+ * combined manifest and the unique_ids of model nodes pulled in from the
+ * external manifest, so callers can mark them as compiled.
+ *
+ * Metrics, docs, and metadata are taken from `primary` only.
+ */
+export const combineManifests = (
+    primary: DbtManifest,
+    external: DbtManifest,
+): CombineManifestsResult => {
+    const mergedNodes: Record<string, DbtNode> = { ...external.nodes };
+    Object.assign(mergedNodes, primary.nodes);
+
+    const addedModelIds: string[] = [];
+    Object.entries(external.nodes).forEach(([id, node]) => {
+        if (!(id in primary.nodes) && node.resource_type === 'model') {
+            addedModelIds.push(id);
+        }
+    });
+
+    return {
+        manifest: { ...primary, nodes: mergedNodes },
+        addedModelIds,
+    };
 };

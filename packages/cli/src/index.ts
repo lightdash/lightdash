@@ -532,6 +532,10 @@ program
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
     .option(
+        '--combine-manifest <path>',
+        'Path to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+    )
+    .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
         'all',
@@ -653,6 +657,10 @@ program
         true,
     )
     .option('--ignore-errors', 'Allows deploy with errors on compile', false)
+    .option(
+        '--combine-manifest <path>',
+        'Path to an additional dbt manifest.json. Models present in this file but missing from the preview manifest are merged in so the preview shows the full project. The preview-generated manifest always wins on conflicts.',
+    )
     .option(
         '--table-configuration <prod|all>',
         `If set to 'prod' it will copy the table configuration from prod project`,
