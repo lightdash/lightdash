@@ -22,7 +22,7 @@ const FIELD_LABELS: Record<keyof UpdateSchedulerSettings, string> = {
     schedulerTimezone: 'Default time zone',
     schedulerFailureNotifyRecipients: 'Notify recipients if a delivery fails',
     schedulerFailureIncludeContact: 'Include a contact in failure messages',
-    schedulerFailureContactOverride: 'Contact override',
+    schedulerFailureContactOverride: 'Custom contact sentence',
 };
 
 const summarizeChange = (changes: UpdateSchedulerSettings): string => {

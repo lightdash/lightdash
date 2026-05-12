@@ -8,10 +8,10 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { useDebouncedValue } from '@mantine-8/hooks';
+import { useDebouncedCallback } from '@mantine-8/hooks';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelp } from '@tabler/icons-react';
-import { useEffect, useRef, type FC } from 'react';
+import { type FC } from 'react';
 import { type z } from 'zod';
 import MantineIcon from '../common/MantineIcon';
 import TimeZonePicker from '../common/TimeZonePicker';
@@ -43,28 +43,18 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
         },
     });
 
-    // Debounce the free-text contact override so we don't fire a request on
-    // every keystroke. Switches and the timezone picker save immediately.
-    const [debouncedContactOverride] = useDebouncedValue(
-        form.values.schedulerFailureContactOverride,
+    // Persist contact-override edits a beat after the user stops typing.
+    // Triggered directly from the TextInput's onChange — keeps the debounce
+    // as a side effect of input events rather than derived-state-in-effect.
+    const persistContactOverrideDebounced = useDebouncedCallback(
+        (value: string) => {
+            onChange({
+                schedulerFailureContactOverride:
+                    normalizeContactOverride(value),
+            });
+        },
         CONTACT_OVERRIDE_DEBOUNCE_MS,
     );
-
-    // Track the last value we persisted so the debounce effect doesn't fire
-    // on mount (initial form value === project value) and doesn't re-fire
-    // after the cache invalidates and project re-renders with the same value.
-    const lastPersistedContact = useRef(
-        project?.schedulerFailureContactOverride ?? null,
-    );
-
-    useEffect(() => {
-        const normalized = normalizeContactOverride(debouncedContactOverride);
-        if (normalized === lastPersistedContact.current) {
-            return;
-        }
-        lastPersistedContact.current = normalized;
-        onChange({ schedulerFailureContactOverride: normalized });
-    }, [debouncedContactOverride, onChange]);
 
     const notifyEnabled = form.values.schedulerFailureNotifyRecipients;
     const contactIncluded = form.values.schedulerFailureIncludeContact;
@@ -145,12 +135,18 @@ export const SchedulerSettingsForm: FC<Props> = ({ project, onChange }) => {
                 {notifyEnabled && contactIncluded && (
                     <TextInput
                         size="xs"
-                        label="Contact override (optional)"
-                        description="If set, used in place of the delivery owner's name and email. Free text — email, Slack handle, etc."
-                        placeholder="Defaults to the delivery owner's name and email"
-                        {...form.getInputProps(
-                            'schedulerFailureContactOverride',
-                        )}
+                        label="Custom contact sentence (optional)"
+                        description={`Replaces the default "You can also reach out to <delivery owner> for details." line appended to the failure message.`}
+                        placeholder="You can also reach out to data-support@example.com for details."
+                        value={form.values.schedulerFailureContactOverride}
+                        onChange={(event) => {
+                            const next = event.currentTarget.value;
+                            form.setFieldValue(
+                                'schedulerFailureContactOverride',
+                                next,
+                            );
+                            persistContactOverrideDebounced(next);
+                        }}
                     />
                 )}
             </Stack>

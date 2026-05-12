@@ -793,23 +793,21 @@ export const getUnfurlBlocks = (
 
 export const getDeliveryFailureRecipientBlocks = (
     contentName: string | null,
-    contact: string | null,
+    contactSentence: string | null,
 ): KnownBlock[] => {
     const baseSentence = contentName
         ? `The scheduled delivery for *"${sanitizeText(
               contentName,
-          )}"* failed to run. The delivery owner has been notified.`
-        : 'A scheduled delivery failed to run. The delivery owner has been notified.';
-    const contactSentence = contact
-        ? ` You can also reach out to ${sanitizeText(contact)} for details.`
-        : '';
+          )}"* failed to run, and the delivery owner has been notified.`
+        : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+    const appended = contactSentence ? ` ${sanitizeText(contactSentence)}` : '';
     return [
         {
             type: 'section',
             text: {
                 type: 'mrkdwn',
                 text: truncateText(
-                    `${baseSentence}${contactSentence}`,
+                    `${baseSentence}${appended}`,
                     SLACK_LIMITS.SECTION_TEXT,
                 ),
             },

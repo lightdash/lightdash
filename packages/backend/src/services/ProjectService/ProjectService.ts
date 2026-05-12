@@ -7696,7 +7696,15 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async getSchedulerSettings(projectUuid: string): Promise<{
+    /**
+     * Reads project-level scheduler settings for the background scheduler
+     * worker. Intentionally unauthenticated: the worker runs in a system
+     * context (no `SessionUser`) and only consumes project config flags +
+     * an admin-authored contact sentence — no sensitive data is exposed.
+     * Mutation paths (`updateSchedulerSettings`) keep the standard CASL
+     * `update Project` check.
+     */
+    async getSchedulerSettingsForWorker(projectUuid: string): Promise<{
         schedulerTimezone: string;
         schedulerFailureNotifyRecipients: boolean;
         schedulerFailureIncludeContact: boolean;

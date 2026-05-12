@@ -514,22 +514,20 @@ export class MicrosoftTeamsClient {
     async postDeliveryFailureNotificationToRecipient({
         webhookUrl,
         contentName,
-        contact,
+        contactSentence,
     }: {
         webhookUrl: string;
         contentName: string | null;
-        contact: string | null;
+        contactSentence: string | null;
     }): Promise<void> {
         if (!this.lightdashConfig.microsoftTeams.enabled) {
             throw new MissingConfigError('Microsoft Teams is not enabled');
         }
 
         const baseSentence = contentName
-            ? `The scheduled delivery for "${contentName}" failed to run. The delivery owner has been notified.`
-            : 'A scheduled delivery failed to run. The delivery owner has been notified.';
-        const contactSentence = contact
-            ? ` You can also reach out to ${contact} for details.`
-            : '';
+            ? `The scheduled delivery for "${contentName}" failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const appended = contactSentence ? ` ${contactSentence}` : '';
 
         const payload = {
             type: 'message',
@@ -551,7 +549,7 @@ export class MicrosoftTeamsClient {
                             },
                             {
                                 type: 'TextBlock',
-                                text: `${baseSentence}${contactSentence}`,
+                                text: `${baseSentence}${appended}`,
                                 wrap: true,
                             },
                         ],

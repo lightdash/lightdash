@@ -3858,26 +3858,36 @@ export default class SchedulerTask {
             // Notify recipients of failure (project-level setting)
             try {
                 const projectSettings =
-                    await this.projectService.getSchedulerSettings(
+                    await this.projectService.getSchedulerSettingsForWorker(
                         schedulerPayload.projectUuid,
                     );
 
                 if (projectSettings.schedulerFailureNotifyRecipients) {
-                    let contact: string | null = null;
+                    let contactSentence: string | null = null;
                     if (projectSettings.schedulerFailureIncludeContact) {
                         if (projectSettings.schedulerFailureContactOverride) {
-                            contact =
+                            contactSentence =
                                 projectSettings.schedulerFailureContactOverride;
                         } else {
-                            const owner =
-                                await this.userService.getSessionByUserUuid(
-                                    scheduler.createdBy,
+                            try {
+                                const owner =
+                                    await this.userService.getSessionByUserUuid(
+                                        scheduler.createdBy,
+                                    );
+                                const ownerName =
+                                    `${owner.firstName} ${owner.lastName}`.trim();
+                                const ownerContact = owner.email
+                                    ? `${ownerName} (${owner.email})`
+                                    : ownerName;
+                                contactSentence = `You can also reach out to ${ownerContact} for details.`;
+                            } catch (ownerError) {
+                                // Owner may have been deleted; fall back to no
+                                // contact line rather than failing the whole
+                                // recipient notification fan-out.
+                                Logger.warn(
+                                    `Could not fetch owner info for scheduler ${schedulerUuid}: ${ownerError}`,
                                 );
-                            const ownerName =
-                                `${owner.firstName} ${owner.lastName}`.trim();
-                            contact = owner.email
-                                ? `${ownerName} (${owner.email})`
-                                : ownerName;
+                            }
                         }
                     }
 
@@ -3897,7 +3907,7 @@ export default class SchedulerTask {
                                     const blocks =
                                         getDeliveryFailureRecipientBlocks(
                                             contentName,
-                                            contact,
+                                            contactSentence,
                                         );
                                     await this.slackClient.postMessage({
                                         organizationUuid:
@@ -3915,7 +3925,7 @@ export default class SchedulerTask {
                                         {
                                             webhookUrl: target.webhook,
                                             contentName,
-                                            contact,
+                                            contactSentence,
                                         },
                                     );
                                 } else if (
@@ -3926,14 +3936,14 @@ export default class SchedulerTask {
                                             webhookUrl:
                                                 target.googleChatWebhook,
                                             contentName,
-                                            contact,
+                                            contactSentence,
                                         },
                                     );
                                 } else if ('recipient' in target) {
                                     await this.emailClient.sendDeliveryFailureNotificationToRecipient(
                                         target.recipient,
                                         contentName,
-                                        contact,
+                                        contactSentence,
                                     );
                                 }
                             } catch (notifyError) {
