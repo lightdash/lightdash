@@ -260,6 +260,25 @@ const PivotTable: FC<PivotTableProps> = ({
         return `${rowCount}`.length * 10 + 20;
     }, [hideRowNumbers, data.retrofitData.allCombinedData.length]);
 
+    // In metricsAsRows mode the leftmost label column shows metric names
+    // (Total order amount / Total completed order amount). Its synthetic
+    // fieldId in pivotColumnInfo isn't a key in columnProperties — the
+    // freeze toggle writes to the underlying metric fieldId instead. Map
+    // the metric flags to a single "is the label column frozen?" signal.
+    const isLabelColumnFrozen = useMemo(() => {
+        if (!data.pivotConfig.metricsAsRows) return false;
+        const labelMetricIds = new Set<string>();
+        for (const row of data.indexValues) {
+            for (const entry of row) {
+                if (entry.type === 'label') labelMetricIds.add(entry.fieldId);
+            }
+        }
+        for (const id of labelMetricIds) {
+            if (columnProperties[id]?.frozen === true) return true;
+        }
+        return false;
+    }, [data.indexValues, data.pivotConfig.metricsAsRows, columnProperties]);
+
     const frozenLayout = useMemo(
         () =>
             getFrozenColumnLayout({
@@ -268,12 +287,14 @@ const PivotTable: FC<PivotTableProps> = ({
                 rowNumberWidth,
                 defaultColumnWidth: 100,
                 measuredWidths: measuredColumnWidths,
+                labelColumnFrozen: isLabelColumnFrozen,
             }),
         [
             data.retrofitData.pivotColumnInfo,
             columnProperties,
             rowNumberWidth,
             measuredColumnWidths,
+            isLabelColumnFrozen,
         ],
     );
 

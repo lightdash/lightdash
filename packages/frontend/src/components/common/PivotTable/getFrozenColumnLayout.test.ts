@@ -158,23 +158,36 @@ describe('getFrozenColumnLayout', () => {
         });
     });
 
-    it('treats label columns the same as indexValue columns for freeze keys', () => {
+    it('freezes the label column when labelColumnFrozen is true', () => {
+        // In metricsAsRows mode the label column has a synthetic fieldId
+        // ("label-0") that does not exist in columnProperties — the caller
+        // bridges the metric's freeze flag via labelColumnFrozen.
         const layout = getFrozenColumnLayout({
             pivotColumnInfo: [
-                labelCol('orders_metric_label'),
+                labelCol('label-0'),
                 dataCol('total_count__pivot_0', 'total_count'),
             ],
-            columnProperties: {
-                orders_metric_label: { frozen: true, width: 60 },
-            },
+            columnProperties: {},
             rowNumberWidth: 0,
             defaultColumnWidth: 100,
+            labelColumnFrozen: true,
         });
-        expect(layout.get('orders_metric_label')).toEqual({
+        expect(layout.get('label-0')).toEqual({
             left: 0,
             isLast: true,
         });
         expect(layout.has('total_count__pivot_0')).toBe(false);
+    });
+
+    it('does NOT freeze the label column when labelColumnFrozen is false', () => {
+        const layout = getFrozenColumnLayout({
+            pivotColumnInfo: [labelCol('label-0')],
+            columnProperties: {},
+            rowNumberWidth: 0,
+            defaultColumnWidth: 100,
+            labelColumnFrozen: false,
+        });
+        expect(layout.size).toBe(0);
     });
 
     it('prefers underlyingId over baseId as the freeze key for data columns', () => {
