@@ -228,30 +228,32 @@ export function getFollowUpToolBlocks(
     ];
 }
 
+// Tool names whose successful results count as "an answer the user can score".
+// Discovery tools (findExplores, findFields, listWarehouseTables,
+// describeWarehouseTable) are deliberately excluded — they don't deliver a
+// final answer, only context for the agent.
+const ANSWER_PRODUCING_TOOLS = new Set([
+    'runQuery',
+    'runSql',
+    'runSavedChart',
+    'generateDashboard',
+]);
+
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
-    agentUuid: string,
-    siteUrl: string,
+    toolResults: AiAgentToolResult[],
 ): (Block | KnownBlock)[] {
-    // One compact actions row: [View chat in Lightdash] [👍] [👎].
-    // Shown on every agent response — feedback applies regardless of whether
-    // the response produced a chart artifact.
-    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
+    const hasAnswer = toolResults.some(
+        (r) =>
+            ANSWER_PRODUCING_TOOLS.has(r.toolName) &&
+            (r.metadata as { status?: string } | null)?.status === 'success',
+    );
+    if (!hasAnswer) return [];
     return [
         {
             block_id: 'prompt_human_score',
             type: 'actions',
             elements: [
-                {
-                    type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '⚡ View in Lightdash',
-                        emoji: true,
-                    },
-                    url: threadUrl,
-                    action_id: 'view_chat_in_lightdash',
-                },
                 {
                     type: 'button',
                     text: { type: 'plain_text', text: '👍', emoji: true },
@@ -263,6 +265,28 @@ export function getFeedbackBlocks(
                     text: { type: 'plain_text', text: '👎', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.downvote',
+                },
+            ],
+        },
+    ];
+}
+
+// Subtle, always-on permalink to the thread in Lightdash. Rendered as a
+// dimmed context block (single italic line) so it doesn't compete with the
+// agent's answer or the feedback row.
+export function getViewInLightdashBlocks(
+    slackPrompt: SlackPrompt,
+    agentUuid: string,
+    siteUrl: string,
+): (Block | KnownBlock)[] {
+    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
+    return [
+        {
+            type: 'context',
+            elements: [
+                {
+                    type: 'mrkdwn',
+                    text: `<${threadUrl}|View chat in Lightdash> :zap:`,
                 },
             ],
         },

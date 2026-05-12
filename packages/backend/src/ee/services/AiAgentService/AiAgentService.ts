@@ -179,6 +179,7 @@ import {
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
+    getViewInLightdashBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
@@ -3994,8 +3995,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             slackPrompt.promptUuid,
         );
 
-        const feedbackBlocks = agent
-            ? getFeedbackBlocks(
+        const feedbackBlocks = getFeedbackBlocks(slackPrompt, toolResults);
+        const viewInLightdashBlocks = agent
+            ? getViewInLightdashBlocks(
                   slackPrompt,
                   agent.uuid,
                   this.lightdashConfig.siteUrl,
@@ -4076,6 +4078,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
             ...feedbackBlocks,
+            ...viewInLightdashBlocks,
             ...(historyBlocks || []),
         ];
 
