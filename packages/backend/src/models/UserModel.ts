@@ -723,7 +723,9 @@ export class UserModel {
                 pat: this.lightdashConfig.auth.pat,
             },
             customRoleScopes,
-            customRolesEnabled: customRolesFlag.enabled,
+            customRolesEnabled:
+                this.lightdashConfig.customRoles.enabled ||
+                customRolesFlag.enabled,
             isEnterprise: this.lightdashConfig.license.licenseKey !== undefined,
         });
 
