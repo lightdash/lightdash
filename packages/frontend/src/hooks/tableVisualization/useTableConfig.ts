@@ -459,10 +459,9 @@ const useTableConfig = (
 
     const updateColumnProperty = useCallback(
         (field: string, properties: Partial<ColumnProperties>) => {
-            // Use the functional setter so consecutive calls (e.g. the sync
-            // freeze toggle that updates several metrics in one click) compose
-            // correctly instead of stomping on each other's closure-captured
-            // snapshot of columnProperties.
+
+            // functional setter so consecutive calls compose correctly
+
             setColumnProperties((prev) => ({
                 ...prev,
                 [field]:
