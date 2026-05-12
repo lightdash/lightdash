@@ -443,7 +443,7 @@ jobs:
           CYPRESS_TRINO_PASSWORD: ${{ secrets.TRINO_PASSWORD }}
           TZ: "UTC"
           CYPRESS_TZ: "UTC"
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()
         with:
           name: cypress-screenshots-and-videos-${{ strategy.job-index }}
@@ -492,7 +492,7 @@ jobs:
         env:
           TZ: ${{ matrix.timezone }}
           CYPRESS_TZ: ${{ matrix.timezone }}
-      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: failure()
         with:
           name: cypress-screenshots-and-videos-timezone-${{ strategy.job-index }}
