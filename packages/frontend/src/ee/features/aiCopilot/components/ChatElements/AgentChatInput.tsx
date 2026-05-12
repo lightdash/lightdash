@@ -212,7 +212,7 @@ export const AgentChatInput = ({
                     with typed text. Right-aligned so it visually anchors to
                     the submit button above. Only renders when parent passes
                     a handler (flag + permission gated). */}
-                {onSqlModeChange && (
+                {onSqlModeChange && !disabled && (
                     <Group justify="flex-end" px="xs" pt="xs">
                         <Tooltip
                             multiline
@@ -348,7 +348,7 @@ export const AgentChatInput = ({
                             has confirmed flag + permission, so visibility
                             here is the visibility contract. Sits next to
                             submit because it's a per-prompt intent toggle. */}
-                        {onSqlModeChange && (
+                        {onSqlModeChange && !disabled && (
                             <Tooltip
                                 multiline
                                 w={260}
