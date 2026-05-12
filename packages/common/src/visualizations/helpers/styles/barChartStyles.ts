@@ -1,7 +1,7 @@
 /* eslint-disable no-plusplus */
 /* eslint-disable no-continue */
 import { type AnyType } from '../../../types/any';
-import { type RawResultRow, type ResultRow } from '../../../types/results';
+import { type RawResultRow } from '../../../types/results';
 import { CartesianSeriesType } from '../../../types/savedCharts';
 import { type EChartsSeries, type SqlRunnerEChartsSeries } from '../../types';
 import { GRAY_9 } from './themeColors';
@@ -241,16 +241,12 @@ export const applyRoundedCornersToSqlRunnerStackData = (
  * Apply rounded corners to the visible end-segments of stacked bar series.
  * Ref: https://github.com/apache/echarts/issues/12319#issuecomment-1341387601
  *
- * Process:
- * - For each stack and each category (row), finds which segment is visually at the end of the stack
- *   (top-most for positive values, bottom-most for negative values).
- * - Annotates only those segments with `itemStyle.borderRadius`, considering chart orientation
- *   and legend visibility.
- * - We scan from top to bottom of the stack using an index-based loop so the first visible segment
- *   per category "wins" without extra allocations.
+ * Consumes the same flat dataset that ECharts renders from (post-padding for
+ * continuous-date axes) so category values match xAxis.data exactly.
  *
  * @param series ECharts series produced for a cartesian chart
- * @param rows Result rows aligned with the chart categories (Explorer format with nested values)
+ * @param rows Flat dataset rows aligned with the chart categories (same shape
+ *             as dataset.source)
  * @param options.radius Corner radius in px (default: 4)
  * @param options.isHorizontal Whether the chart is horizontal (flipAxes)
  * @param options.legendSelected Map of legend selection states used to ignore hidden series
@@ -259,23 +255,15 @@ export const applyRoundedCornersToSqlRunnerStackData = (
  */
 export const applyRoundedCornersToStackData = (
     series: EChartsSeries[],
-    rows: ResultRow[],
+    rows: Record<string, unknown>[],
     {
         radius = 4,
         isHorizontal = false,
         legendSelected,
-        categoryValues,
     }: {
         radius?: number;
         isHorizontal?: boolean;
         legendSelected?: LegendValues;
-        // Optional canonical category values aligned with `rows` by index.
-        // When provided, used as the tuple's cat slot instead of the raw row
-        // value. The continuous-date axis snap canonicalizes its labels via
-        // padDatasetForContinuousAxis; passing the matching canonical values
-        // here keeps series.data tuples aligned with the axis so DST-drifted
-        // rows still find their slot.
-        categoryValues?: unknown[];
     } = {},
 ): EChartsSeries[] => {
     const out = series.map((s) => ({ ...s }));
@@ -321,9 +309,7 @@ export const applyRoundedCornersToStackData = (
                 ? getHashFromEncode(s, 'x')
                 : getHashFromEncode(s, 'y');
             for (let r = 0; r < rows.length; r++) {
-                const raw = valHash
-                    ? rows[r]?.[valHash]?.value?.raw
-                    : undefined;
+                const raw = valHash ? rows[r]?.[valHash] : undefined;
                 let v: number | null = null;
                 if (typeof raw === 'number') {
                     v = raw;
@@ -353,9 +339,8 @@ export const applyRoundedCornersToStackData = (
                 const catHash = isHorizontal ? yHash : xHash; // category field in data
                 const valHash = isHorizontal ? xHash : yHash; // numeric field in data
 
-                const rawCat = catHash ? row[catHash]?.value?.raw : undefined;
-                const cat = categoryValues?.[r] ?? rawCat;
-                const raw = valHash ? row[valHash]?.value?.raw : undefined;
+                const cat = catHash ? row[catHash] : undefined;
+                const raw = valHash ? row[valHash] : undefined;
                 let v: number | null = null;
                 if (typeof raw === 'number') {
                     v = raw;

@@ -1,11 +1,10 @@
-import { type ResultRow } from '../../../types/results';
 import { CartesianSeriesType } from '../../../types/savedCharts';
 import { type EChartsSeries } from '../../types';
 import { applyRoundedCornersToStackData } from './barChartStyles';
 
-const makeRow = (date: string, value: number): ResultRow => ({
-    date_month: { value: { raw: date, formatted: date } },
-    count: { value: { raw: value, formatted: String(value) } },
+const makeRow = (date: string, value: number): Record<string, unknown> => ({
+    date_month: date,
+    count: value,
 });
 
 const makeStackedBarSeries = (
@@ -27,23 +26,18 @@ const makeStackedBarSeries = (
 });
 
 describe('applyRoundedCornersToStackData', () => {
-    test('substitutes canonical category values into series.data tuples', () => {
-        const rows = [
+    test('builds tuples directly from canonical flat dataset values', () => {
+        // Caller passes the canonicalized dataset (post-padding), so DST-drifted
+        // input rows arrive already normalized to the axis labels.
+        const dataset = [
             makeRow('2024-01-01T05:00:00Z', 1),
-            // DST-drifted row: warehouse emits -04:00 while axis stays at -05:00.
-            makeRow('2024-11-01T04:00:00Z', 11),
+            makeRow('2024-11-01T05:00:00Z', 11),
             makeRow('2024-12-01T05:00:00Z', 12),
-        ];
-        const categoryValues = [
-            '2024-01-01T05:00:00Z',
-            '2024-11-01T05:00:00Z',
-            '2024-12-01T05:00:00Z',
         ];
 
         const [out] = applyRoundedCornersToStackData(
             [makeStackedBarSeries()],
-            rows,
-            { categoryValues },
+            dataset,
         );
 
         const tuples = (out.data as { value: unknown[] }[]).map((d) => d.value);
@@ -55,37 +49,48 @@ describe('applyRoundedCornersToStackData', () => {
         expect(tuples[2][1]).toBe(12);
     });
 
-    test('falls back to raw row value when categoryValues is omitted', () => {
-        const rows = [
-            makeRow('2024-01-01T05:00:00Z', 1),
-            makeRow('2024-11-01T04:00:00Z', 11),
+    test('marks the visible top of each stack with borderRadius', () => {
+        const dataset = [
+            { date_month: '2024-01-01', count: 5, count_b: 7 },
+            { date_month: '2024-02-01', count: 3, count_b: 7 },
         ];
+        const a = makeStackedBarSeries({ name: 'a' });
+        const b = makeStackedBarSeries({
+            name: 'b',
+            encode: {
+                x: 'date_month',
+                y: 'count_b',
+                tooltip: [],
+                seriesName: 'count_b',
+            },
+        });
 
-        const [out] = applyRoundedCornersToStackData(
-            [makeStackedBarSeries()],
-            rows,
-        );
+        const result = applyRoundedCornersToStackData([a, b], dataset);
 
-        const tuples = (out.data as { value: unknown[] }[]).map((d) => d.value);
-        expect(tuples[0][0]).toBe('2024-01-01T05:00:00Z');
-        expect(tuples[1][0]).toBe('2024-11-01T04:00:00Z');
+        // b is at the visible end (last in the stack group), so its tuples get
+        // a borderRadius itemStyle; a's tuples don't.
+        const aData = result[0].data as Array<{
+            value: unknown[];
+            itemStyle?: unknown;
+        }>;
+        const bData = result[1].data as Array<{
+            value: unknown[];
+            itemStyle?: unknown;
+        }>;
+        expect(aData.every((d) => d.itemStyle === undefined)).toBe(true);
+        expect(bData.every((d) => d.itemStyle !== undefined)).toBe(true);
     });
 
-    test('falls back to raw row value at indices missing from categoryValues', () => {
-        const rows = [
-            makeRow('2024-01-01T05:00:00Z', 1),
-            makeRow('2024-11-01T04:00:00Z', 11),
-        ];
-        const categoryValues = ['2024-01-01T05:00:00Z'];
+    test('skips non-bar series', () => {
+        const lineSeries: EChartsSeries = {
+            ...makeStackedBarSeries(),
+            type: CartesianSeriesType.LINE,
+        };
+        const dataset = [makeRow('2024-01-01', 1)];
 
-        const [out] = applyRoundedCornersToStackData(
-            [makeStackedBarSeries()],
-            rows,
-            { categoryValues },
-        );
+        const result = applyRoundedCornersToStackData([lineSeries], dataset);
 
-        const tuples = (out.data as { value: unknown[] }[]).map((d) => d.value);
-        expect(tuples[0][0]).toBe('2024-01-01T05:00:00Z');
-        expect(tuples[1][0]).toBe('2024-11-01T04:00:00Z');
+        // No mutation: the line series passes through unchanged.
+        expect(result[0]).toEqual(lineSeries);
     });
 });

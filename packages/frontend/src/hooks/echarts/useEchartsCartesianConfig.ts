@@ -2276,7 +2276,7 @@ const getValidStack = (series: EChartsSeries | undefined) => {
 type LegendValues = { [name: string]: boolean } | undefined;
 
 const calculateStackTotal = (
-    row: ResultRow,
+    row: Record<string, unknown>,
     series: EChartsSeries[],
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
@@ -2290,8 +2290,7 @@ const calculateStackTotal = (
                 selected = selectedLegendNames[key];
             }
         }
-        const numberValue =
-            hash && selected ? toNumber(row[hash]?.value.raw) : 0;
+        const numberValue = hash && selected ? toNumber(row[hash]) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -2305,7 +2304,7 @@ const calculateStackTotal = (
 // - the total of that stack to be used in the label
 // The x/axis value and the "0" need to flip position if the axis are flipped
 const getStackTotalRows = (
-    rows: ResultRow[],
+    rows: Record<string, unknown>[],
     series: EChartsSeries[],
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
@@ -2327,15 +2326,13 @@ const getStackTotalRows = (
         if (!hash) {
             return [null, null, 0];
         }
-        return flipAxis
-            ? [0, row[hash]?.value.raw, total]
-            : [row[hash]?.value.raw, 0, total];
+        return flipAxis ? [0, row[hash], total] : [row[hash], 0, total];
     });
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
 const getStackTotalSeries = (
-    rows: ResultRow[],
+    rows: Record<string, unknown>[],
     seriesWithStack: EChartsSeries[],
     itemsMap: ItemsMap,
     flipAxis: boolean | undefined,
@@ -2748,73 +2745,16 @@ const useEchartsCartesianConfig = (
             },
         );
 
-        // Apply border radius to stacked bar charts (only regular stacked, not 100%)
-        const isStack100 =
-            validCartesianConfig?.layout?.stack === StackType.PERCENT;
-
-        const isStackNone =
-            validCartesianConfig?.layout?.stack === StackType.NONE;
-
-        const stackedBarSeries = seriesWithValidStack.filter(
-            (s) =>
-                s.type === CartesianSeriesType.BAR &&
-                s.stack &&
-                !isStack100 &&
-                !isStackNone,
-        );
-
-        // Canonical category values for stacked bars on a continuous-date
-        // axis. The axis labels are snapped to a single offset, but row
-        // x-values can drift across DST. padDatasetForContinuousAxis already
-        // normalizes dataset.source — do the same for series.data tuples so
-        // stacked DST bars find their axis slot.
-        const continuousRange = axes.continuousDateRange;
-        const xFieldId = validCartesianConfig?.layout?.xField;
-        const categoryValues =
-            continuousRange && xFieldId && stackedBarSeries.length > 0
-                ? (() => {
-                      const dateKeyToCanonical = new Map<string, string>();
-                      continuousRange.forEach((d) =>
-                          dateKeyToCanonical.set(d.slice(0, 10), d),
-                      );
-                      return rows.map((row) => {
-                          const raw = row[xFieldId]?.value?.raw;
-                          if (typeof raw !== 'string') return raw;
-                          return (
-                              dateKeyToCanonical.get(raw.slice(0, 10)) ?? raw
-                          );
-                      });
-                  })()
-                : undefined;
-
-        const seriesWithRoundedStacks =
-            stackedBarSeries.length > 0
-                ? applyRoundedCornersToStackData(seriesWithValidStack, rows, {
-                      radius: dynamicRadius,
-                      isHorizontal: !!isHorizontal,
-                      legendSelected: validCartesianConfigLegend,
-                      categoryValues,
-                  })
-                : seriesWithValidStack;
-
-        return [
-            ...seriesWithRoundedStacks,
-            ...getStackTotalSeries(
-                rows,
-                seriesWithRoundedStacks,
-                itemsMap,
-                validCartesianConfig?.layout.flipAxes,
-                validCartesianConfigLegend,
-                isStack100,
-                validCartesianConfig?.layout.connectNulls,
-                resolvedTimezone,
-            ),
-        ];
+        // Rounded corners and stack-total labels are applied downstream in
+        // `decoratedSeriesForChart` so they can consume `paddedDataToRender`
+        // (the canonicalized, flat dataset that backs xAxis.data). Returning
+        // the un-decorated series here keeps internal consumers (sort,
+        // 100%-stack, color overrides) reading raw values as before.
+        return seriesWithValidStack;
     }, [
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.stack,
-        validCartesianConfig?.layout.connectNulls,
         validCartesianConfig?.layout?.colorByCategory,
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
@@ -2822,12 +2762,9 @@ const useEchartsCartesianConfig = (
         series,
         rows,
         pivotDimensions,
-        validCartesianConfigLegend,
         getSeriesColor,
         colorPalette,
         theme.colors.background,
-        resolvedTimezone,
-        axes.continuousDateRange,
     ]);
     const sortedResults = useMemo(() => {
         const results =
@@ -2969,7 +2906,7 @@ const useEchartsCartesianConfig = (
                 : 0;
 
             const stackTotals = getStackTotalRows(
-                rows,
+                sortedResults,
                 stackedSeriesWithColorAssignments,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
@@ -3060,7 +2997,6 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.xAxis,
         axes.yAxis,
         axes.xAxis,
-        rows,
         validCartesianConfigLegend,
     ]);
 
@@ -3136,6 +3072,78 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.xField,
     ]);
 
+    // Rounded-corner decoration and stack-total labels both need category
+    // values that match xAxis.data exactly. Running them after paddedDataToRender
+    // lets them read from the same canonicalized dataset that backs the axis,
+    // so DST-drifted rows can't end up with mismatched cat strings.
+    const decoratedSeriesForChart = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments || !itemsMap) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const isHorizontal = !!validCartesianConfig?.layout?.flipAxes;
+        const stackValue = validCartesianConfig?.layout?.stack;
+        const isStack100 = stackValue === StackType.PERCENT;
+        const isStackNone = stackValue === StackType.NONE;
+
+        const barSeries = stackedSeriesWithColorAssignments.filter(
+            (s) => s.type === CartesianSeriesType.BAR,
+        );
+        const isStacked = barSeries.some((s) => s.stack);
+        const stackedBarSeries = stackedSeriesWithColorAssignments.filter(
+            (s) =>
+                s.type === CartesianSeriesType.BAR &&
+                s.stack &&
+                !isStack100 &&
+                !isStackNone,
+        );
+        const nonStackedBarCount = isStacked
+            ? barSeries.filter((s) => !s.stack).length
+            : barSeries.length;
+        const dynamicRadius = calculateDynamicBorderRadius(
+            paddedDataToRender.length,
+            Math.max(1, nonStackedBarCount),
+            isStacked,
+            isHorizontal,
+        );
+
+        const seriesWithRoundedStacks =
+            stackedBarSeries.length > 0
+                ? applyRoundedCornersToStackData(
+                      stackedSeriesWithColorAssignments,
+                      paddedDataToRender,
+                      {
+                          radius: dynamicRadius,
+                          isHorizontal,
+                          legendSelected: validCartesianConfigLegend,
+                      },
+                  )
+                : stackedSeriesWithColorAssignments;
+
+        return [
+            ...seriesWithRoundedStacks,
+            ...getStackTotalSeries(
+                paddedDataToRender,
+                seriesWithRoundedStacks,
+                itemsMap,
+                validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+                isStack100,
+                validCartesianConfig?.layout.connectNulls,
+                resolvedTimezone,
+            ),
+        ];
+    }, [
+        stackedSeriesWithColorAssignments,
+        paddedDataToRender,
+        itemsMap,
+        validCartesianConfig?.layout?.stack,
+        validCartesianConfig?.layout?.flipAxes,
+        validCartesianConfig?.layout.connectNulls,
+        validCartesianConfigLegend,
+        resolvedTimezone,
+    ]);
+
     const tooltip = useMemo<TooltipOption>(() => {
         // Check if any series is line/area/scatter (use line pointer) vs bar (use shadow pointer)
         const hasLineAreaScatterSeries = series.some(
@@ -3198,7 +3206,7 @@ const useEchartsCartesianConfig = (
             !isStack100 ||
             !stackedSeriesWithColorAssignments ||
             !itemsMap ||
-            !rows
+            !paddedDataToRender
         )
             return { right: 0, top: 0 };
 
@@ -3220,7 +3228,7 @@ const useEchartsCartesianConfig = (
             if (!stack || !stackSeries[0]?.stackLabel?.show) return;
 
             const stackTotalData = getStackTotalRows(
-                rows,
+                paddedDataToRender,
                 stackSeries,
                 flipAxis,
                 validCartesianConfigLegend,
@@ -3255,7 +3263,7 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         itemsMap,
-        rows,
+        paddedDataToRender,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfigLegend,
@@ -3460,13 +3468,13 @@ const useEchartsCartesianConfig = (
     // When xField is EMPTY_X_AXIS (pivoted bars with no x-axis dimension),
     // sorting must reorder the series array since bars are series, not categories.
     const sortedSeriesForChart = useMemo(() => {
-        if (!stackedSeriesWithColorAssignments?.length) {
-            return stackedSeriesWithColorAssignments;
+        if (!decoratedSeriesForChart?.length) {
+            return decoratedSeriesForChart;
         }
 
         const xFieldId = validCartesianConfig?.layout?.xField;
         if (xFieldId !== EMPTY_X_AXIS) {
-            return stackedSeriesWithColorAssignments;
+            return decoratedSeriesForChart;
         }
 
         const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
@@ -3474,10 +3482,10 @@ const useEchartsCartesianConfig = (
         const isInverse = xAxisConfig?.inverse ?? false;
 
         if (sortType === XAxisSortType.DEFAULT && !isInverse) {
-            return stackedSeriesWithColorAssignments;
+            return decoratedSeriesForChart;
         }
 
-        const sorted = [...stackedSeriesWithColorAssignments];
+        const sorted = [...decoratedSeriesForChart];
 
         if (sortType === XAxisSortType.CATEGORY) {
             // Sort by series name (pivot value label) alphabetically
@@ -3522,7 +3530,7 @@ const useEchartsCartesianConfig = (
 
         return sorted;
     }, [
-        stackedSeriesWithColorAssignments,
+        decoratedSeriesForChart,
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.eChartsConfig.xAxis,
         xAxisSortedResults,
