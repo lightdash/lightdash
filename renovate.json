@@ -7,6 +7,9 @@
     "group:monorepos",
     "helpers:pinGitHubActionDigests"
   ],
+  "allowScripts": true,
+  "ignoreScripts": false,
+  "osvVulnerabilityAlerts": true,
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "none",
   "rangeStrategy": "bump",
