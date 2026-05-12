@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import {
     AuthTokenPrefix,
+    CommercialFeatureFlags,
     CreateServiceAccount,
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    ProjectMemberRole,
     ServiceAccount,
     ServiceAccountScope,
     ServiceAccountWithToken,
@@ -80,6 +82,28 @@ export class ServiceAccountService extends BaseService {
     }): Promise<ServiceAccount> {
         try {
             this.throwForbiddenErrorOnNoPermission(user);
+
+            // Mode 3 (org role + per-project memberships) is gated per-org.
+            // Modes 1 (legacy scopes) and 2 (org-level custom role) are
+            // always allowed for back-compat / SCIM. The gate fires when
+            // EITHER `organizationRole` or `projectRoles` is sent.
+            if (
+                tokenDetails.organizationRole !== undefined ||
+                (tokenDetails.projectRoles &&
+                    tokenDetails.projectRoles.length > 0)
+            ) {
+                const flag = await this.commercialFeatureFlagModel.get({
+                    user,
+                    featureFlagId:
+                        CommercialFeatureFlags.ServiceAccountProjectMemberships,
+                });
+                if (!flag.enabled) {
+                    throw new ForbiddenError(
+                        'Service account project memberships are not enabled for this organization',
+                    );
+                }
+            }
+
             const token = await this.serviceAccountModel.create({
                 user,
                 data: {
@@ -88,6 +112,8 @@ export class ServiceAccountService extends BaseService {
                     description: tokenDetails.description,
                     scopes: tokenDetails.scopes,
                     roleUuid: tokenDetails.roleUuid,
+                    organizationRole: tokenDetails.organizationRole,
+                    projectRoles: tokenDetails.projectRoles,
                 },
                 prefix,
             });
@@ -316,6 +342,93 @@ export class ServiceAccountService extends BaseService {
             return null;
         }
         return null;
+    }
+
+    /**
+     * Adds or updates one per-project membership on a service account.
+     * Same auth (`manage:Organization`) and feature-flag gate as `create()`.
+     * Rejects requests against legacy scope-based SAs since per-project
+     * memberships are only honored on new-mode SAs (empty `scopes`).
+     */
+    async setProjectMembership({
+        user,
+        serviceAccountUuid,
+        projectUuid,
+        membership,
+    }: {
+        user: SessionUser;
+        serviceAccountUuid: string;
+        projectUuid: string;
+        membership: { role: ProjectMemberRole | null; roleUuid: string | null };
+    }): Promise<void> {
+        this.throwForbiddenErrorOnNoPermission(user);
+
+        const flag = await this.commercialFeatureFlagModel.get({
+            user,
+            featureFlagId:
+                CommercialFeatureFlags.ServiceAccountProjectMemberships,
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'Service account project memberships are not enabled for this organization',
+            );
+        }
+
+        const sa =
+            await this.serviceAccountModel.getTokenbyUuid(serviceAccountUuid);
+        if (!sa) {
+            throw new NotFoundError(
+                `Service account ${serviceAccountUuid} not found`,
+            );
+        }
+        if (sa.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError(
+                "Service account doesn't belong to organization",
+            );
+        }
+        if (sa.scopes.length > 0) {
+            throw new ParameterError(
+                'Cannot add project memberships to a legacy scope-based service account',
+            );
+        }
+
+        await this.serviceAccountModel.upsertProjectMembership({
+            saUserUuid: sa.userUuid,
+            organizationUuid: sa.organizationUuid,
+            projectUuid,
+            role: membership.role,
+            roleUuid: membership.roleUuid,
+        });
+    }
+
+    async removeProjectMembership({
+        user,
+        serviceAccountUuid,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        serviceAccountUuid: string;
+        projectUuid: string;
+    }): Promise<void> {
+        this.throwForbiddenErrorOnNoPermission(user);
+
+        const sa =
+            await this.serviceAccountModel.getTokenbyUuid(serviceAccountUuid);
+        if (!sa) {
+            throw new NotFoundError(
+                `Service account ${serviceAccountUuid} not found`,
+            );
+        }
+        if (sa.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError(
+                "Service account doesn't belong to organization",
+            );
+        }
+
+        await this.serviceAccountModel.deleteProjectMembership({
+            saUserUuid: sa.userUuid,
+            projectUuid,
+        });
     }
 
     async authenticateServiceAccount(

@@ -1,6 +1,7 @@
 import {
     AuthTokenPrefix,
     CreateServiceAccount,
+    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
@@ -426,6 +427,107 @@ export class ServiceAccountModel {
             projectRoles: memberships.get(mapped.userUuid) ?? [],
             token,
         };
+    }
+
+    /**
+     * Adds or updates a single per-project membership on a service account's
+     * backing user. Validates the role belongs to the SA's organization
+     * (cross-org defence) and the project belongs to the SA's organization.
+     * Upserts on `(user_id, project_id)` so re-assigning a role is idempotent.
+     */
+    async upsertProjectMembership({
+        saUserUuid,
+        organizationUuid,
+        projectUuid,
+        role,
+        roleUuid,
+    }: {
+        saUserUuid: string;
+        organizationUuid: string;
+        projectUuid: string;
+        role: ProjectMemberRole | null;
+        roleUuid: string | null;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            const [u] = await trx('users')
+                .where('user_uuid', saUserUuid)
+                .andWhere('is_internal', true)
+                .select('user_id');
+            if (!u) {
+                throw new NotFoundError(
+                    `Service account user ${saUserUuid} not found`,
+                );
+            }
+
+            const [org] = await trx('organizations')
+                .where('organization_uuid', organizationUuid)
+                .select('organization_id');
+            if (!org) {
+                throw new UnexpectedDatabaseError(
+                    `Organization ${organizationUuid} not found`,
+                );
+            }
+
+            const [project] = await trx('projects')
+                .where('project_uuid', projectUuid)
+                .andWhere('organization_id', org.organization_id)
+                .select('project_id');
+            if (!project) {
+                throw new NotFoundError(
+                    `Project ${projectUuid} not found in this organization`,
+                );
+            }
+
+            if (roleUuid) {
+                const [roleRow] = await trx(RolesTableName)
+                    .where('role_uuid', roleUuid)
+                    .andWhere('organization_uuid', organizationUuid)
+                    .select('role_uuid');
+                if (!roleRow) {
+                    throw new ParameterError(
+                        `Role ${roleUuid} not found in this organization`,
+                    );
+                }
+            }
+
+            await trx('project_memberships')
+                .insert({
+                    user_id: u.user_id,
+                    project_id: project.project_id,
+                    role,
+                    role_uuid: roleUuid,
+                })
+                .onConflict(['user_id', 'project_id'])
+                .merge();
+        });
+    }
+
+    /**
+     * Removes a single per-project membership. No-op if the row doesn't
+     * exist — callers should treat absence as the desired state.
+     */
+    async deleteProjectMembership({
+        saUserUuid,
+        projectUuid,
+    }: {
+        saUserUuid: string;
+        projectUuid: string;
+    }): Promise<void> {
+        await this.database('project_memberships')
+            .whereIn(
+                'user_id',
+                this.database('users')
+                    .where('user_uuid', saUserUuid)
+                    .andWhere('is_internal', true)
+                    .select('user_id'),
+            )
+            .whereIn(
+                'project_id',
+                this.database('projects')
+                    .where('project_uuid', projectUuid)
+                    .select('project_id'),
+            )
+            .delete();
     }
 
     /**
