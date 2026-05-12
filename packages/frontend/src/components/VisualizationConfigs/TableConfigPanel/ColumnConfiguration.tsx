@@ -64,9 +64,19 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
 type ColumnConfigurationProps = {
     fieldId: string;
+    /**
+     * When provided, the freeze toggle controls all listed fieldIds together
+     * instead of just this one. Used in metricsAsRows mode where the leftmost
+     * column is a single label column shared across all metrics — toggling
+     * any metric should keep all the lock icons in sync.
+     */
+    syncFreezeWith?: string[];
 };
 
-const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
+const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
+    fieldId,
+    syncFreezeWith,
+}) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
@@ -80,7 +90,6 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
         isColumnFrozen,
         getField,
         columnProperties,
-        metricsAsRows,
     } = visualizationConfig.chartConfig;
 
     const field = getField(fieldId);
@@ -88,12 +97,28 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
     const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
 
-    const isMetric = field && !isDimension(field);
-    const shouldShowFreezeToggle = (() => {
-        if (isPivotingDimension) return false;
-        if (isMetric && metricsAsRows) return false;
-        return true;
-    })();
+    // Hide freeze for pivoted dimensions (they become column headers and can't
+    // be frozen). Everything else is freezable: non-pivoted dimensions act as
+    // row labels, metrics with metricsAsRows=true become the leftmost metric-
+    // label column, and metrics with metricsAsRows=false freeze every pivot
+    // slice of that metric (widths are measured at runtime so they line up).
+    const shouldShowFreezeToggle = !isPivotingDimension;
+
+    // When syncFreezeWith is set, the lock visually reflects "any sibling
+    // frozen" and clicking flips the entire group in lockstep.
+    const isFrozenForDisplay = syncFreezeWith
+        ? syncFreezeWith.some((id) => isColumnFrozen(id))
+        : isColumnFrozen(fieldId);
+    const handleFreezeToggle = () => {
+        const next = !isFrozenForDisplay;
+        if (syncFreezeWith) {
+            syncFreezeWith.forEach((id) =>
+                updateColumnProperty(id, { frozen: next }),
+            );
+        } else {
+            updateColumnProperty(fieldId, { frozen: next });
+        }
+    };
 
     return (
         <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
@@ -164,9 +189,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                     withinPortal
                     opened={isFreezeTooltipVisible}
                     label={
-                        isColumnFrozen(fieldId)
-                            ? 'Unfreeze column'
-                            : 'Freeze column'
+                        isFrozenForDisplay ? 'Unfreeze column' : 'Freeze column'
                     }
                 >
                     <Box
@@ -178,16 +201,12 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                             onClick={() => {
                                 // Close the tooltip. See comment above.
                                 setFreezeTooltipVisible(false);
-                                updateColumnProperty(fieldId, {
-                                    frozen: !isColumnFrozen(fieldId),
-                                });
+                                handleFreezeToggle();
                             }}
                         >
                             <MantineIcon
                                 icon={
-                                    isColumnFrozen(fieldId)
-                                        ? IconLock
-                                        : IconLockOpen
+                                    isFrozenForDisplay ? IconLock : IconLockOpen
                                 }
                             />
                         </ActionIcon>

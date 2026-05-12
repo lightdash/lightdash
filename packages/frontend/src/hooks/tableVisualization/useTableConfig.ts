@@ -459,18 +459,19 @@ const useTableConfig = (
 
     const updateColumnProperty = useCallback(
         (field: string, properties: Partial<ColumnProperties>) => {
-            const newProperties =
-                field in columnProperties
-                    ? { ...columnProperties[field], ...properties }
-                    : {
-                          ...properties,
-                      };
-            setColumnProperties({
-                ...columnProperties,
-                [field]: newProperties,
-            });
+            // Use the functional setter so consecutive calls (e.g. the sync
+            // freeze toggle that updates several metrics in one click) compose
+            // correctly instead of stomping on each other's closure-captured
+            // snapshot of columnProperties.
+            setColumnProperties((prev) => ({
+                ...prev,
+                [field]:
+                    field in prev
+                        ? { ...prev[field], ...properties }
+                        : { ...properties },
+            }));
         },
-        [columnProperties],
+        [],
     );
 
     const handleSetConditionalFormattings = useCallback(

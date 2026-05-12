@@ -227,7 +227,13 @@ const GeneralSettings: FC = () => {
 
             <Config.Section>
                 {metrics.map((itemId) => (
-                    <ColumnConfiguration key={itemId} fieldId={itemId} />
+                    <ColumnConfiguration
+                        key={itemId}
+                        fieldId={itemId}
+                        // metricsAsRows: there's one shared label column for
+                        // all metrics, so freeze lock icons should sync.
+                        syncFreezeWith={metricsAsRows ? metrics : undefined}
+                    />
                 ))}
             </Config.Section>
 
