@@ -1948,17 +1948,21 @@ export class ScimService extends BaseService {
             (project) => project.type !== ProjectType.PREVIEW,
         );
 
-        // Add organization-level system roles
-        Object.values(OrganizationMemberRole).forEach((orgRole) => {
-            allScimRoles.push(
-                this.convertLightdashRoleToScimRole({
-                    roleUuid: orgRole,
-                    name: OrganizationMemberRoleLabels[orgRole],
-                    createdAt: null,
-                    updatedAt: null,
-                }),
-            );
-        });
+        // Add organization-level system roles. NONE is reserved for
+        // project-scoped service accounts (PROD-7529) and must not be
+        // exposed to SCIM-provisioned (human) users.
+        Object.values(OrganizationMemberRole)
+            .filter((orgRole) => orgRole !== OrganizationMemberRole.NONE)
+            .forEach((orgRole) => {
+                allScimRoles.push(
+                    this.convertLightdashRoleToScimRole({
+                        roleUuid: orgRole,
+                        name: OrganizationMemberRoleLabels[orgRole],
+                        createdAt: null,
+                        updatedAt: null,
+                    }),
+                );
+            });
 
         // For each project, add system roles and custom roles
         nonPreviewProjects.forEach((project) => {

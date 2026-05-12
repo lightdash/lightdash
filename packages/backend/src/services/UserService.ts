@@ -526,6 +526,15 @@ export class UserService extends BaseService {
             throw new NotFoundError('Organization not found');
         }
 
+        // `NONE` is reserved for project-scoped service accounts (PROD-7529).
+        // Humans assigned NONE would have zero org-wide CASL and no UI path
+        // to recover, so reject it explicitly at the invite boundary.
+        if (role === OrganizationMemberRole.NONE) {
+            throw new ParameterError(
+                'The "none" role is reserved for service accounts and cannot be assigned to a user',
+            );
+        }
+
         const existingUserWithEmail =
             await this.userModel.findUserByEmail(email);
         if (existingUserWithEmail && existingUserWithEmail.organizationUuid) {

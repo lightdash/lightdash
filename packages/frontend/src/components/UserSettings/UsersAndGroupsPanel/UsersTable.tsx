@@ -241,14 +241,17 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                     const user = row.original;
                     return (
                         <Select
-                            data={Object.values(OrganizationMemberRole).map(
-                                (orgMemberRole) => ({
+                            data={Object.values(OrganizationMemberRole)
+                                .filter(
+                                    // NONE is reserved for service accounts (PROD-7529).
+                                    (r) => r !== OrganizationMemberRole.NONE,
+                                )
+                                .map((orgMemberRole) => ({
                                     value: orgMemberRole,
                                     label: capitalize(
                                         orgMemberRole.replace('_', ' '),
                                     ),
-                                }),
-                            )}
+                                }))}
                             onChange={(newRole: string | null) => {
                                 if (newRole) {
                                     updateUserRole.mutate({

@@ -93,12 +93,16 @@ const InvitesModal: FC<{
                         />
                         {user.data?.ability?.can('manage', 'Organization') && (
                             <Select
-                                data={Object.values(OrganizationMemberRole).map(
-                                    (orgMemberRole) => ({
+                                data={Object.values(OrganizationMemberRole)
+                                    .filter(
+                                        // NONE is reserved for service accounts (PROD-7529).
+                                        (r) =>
+                                            r !== OrganizationMemberRole.NONE,
+                                    )
+                                    .map((orgMemberRole) => ({
                                         value: orgMemberRole,
                                         label: orgMemberRole.replace('_', ' '),
-                                    }),
-                                )}
+                                    }))}
                                 disabled={isLoading}
                                 required
                                 placeholder="Select role"

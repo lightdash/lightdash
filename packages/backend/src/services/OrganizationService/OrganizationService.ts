@@ -422,6 +422,14 @@ export class OrganizationService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        // `NONE` is reserved for project-scoped service accounts (PROD-7529).
+        // Downgrading a human to NONE would strip all org-wide CASL with no
+        // UI path to recover; reject it at the service boundary.
+        if (data.role === OrganizationMemberRole.NONE) {
+            throw new ParameterError(
+                'The "none" role is reserved for service accounts and cannot be assigned to a user',
+            );
+        }
         // Race condition between check and delete
         const [admin, ...remainingAdmins] =
             await this.organizationMemberProfileModel.getOrganizationAdmins(
