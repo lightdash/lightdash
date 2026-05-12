@@ -291,6 +291,17 @@ export type ApiAiAgentSqlApprovalRequest = {
     decision: 'approved' | 'rejected';
 };
 
+export type ApiAiAgentThreadStreamRequest = {
+    /**
+     * Per-thread toggle that decides whether the agent gets access to the
+     * runSql / listWarehouseTables / describeWarehouseTable tools for this
+     * stream. Frontend tracks the toggle in its slice; passed in on every
+     * stream call. Falls back to `false` when omitted (e.g. older clients,
+     * API callers) so the safer "semantic layer only" mode is the default.
+     */
+    enableSqlMode?: boolean;
+};
+
 export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
     decision: 'approved' | 'rejected';
 }>;

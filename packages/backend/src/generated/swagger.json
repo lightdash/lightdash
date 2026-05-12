@@ -10856,7 +10856,8 @@
                     "runQuery",
                     "runSavedChart",
                     "runSql",
-                    "listWarehouseTables"
+                    "listWarehouseTables",
+                    "describeWarehouseTable"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -11575,6 +11576,15 @@
                     }
                 },
                 "required": ["decision"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadStreamRequest": {
+                "properties": {
+                    "enableSqlMode": {
+                        "type": "boolean",
+                        "description": "Per-thread toggle that decides whether the agent gets access to the\nrunSql / listWarehouseTables / describeWarehouseTable tools for this\nstream. Frontend tracks the toggle in its slice; passed in on every\nstream call. Falls back to `false` when omitted (e.g. older clients,\nAPI callers) so the safer \"semantic layer only\" mode is the default."
+                    }
+                },
                 "type": "object"
             },
             "ApiAiAgentThreadGenerateResponse": {

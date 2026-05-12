@@ -1,11 +1,13 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { aiAgentLauncherSlice } from './aiAgentLauncherSlice';
+import { aiAgentThreadModeSlice } from './aiAgentThreadModeSlice';
 import { aiAgentThreadStreamSlice } from './aiAgentThreadStreamSlice';
 import { aiArtifactSlice } from './aiArtifactSlice';
 
 export const store = configureStore({
     reducer: {
         aiAgentThreadStream: aiAgentThreadStreamSlice.reducer,
+        aiAgentThreadMode: aiAgentThreadModeSlice.reducer,
         aiArtifact: aiArtifactSlice.reducer,
         aiAgentLauncher: aiAgentLauncherSlice.reducer,
     },

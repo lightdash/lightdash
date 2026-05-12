@@ -21,6 +21,7 @@ import {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadStreamRequest,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
@@ -498,6 +499,7 @@ export class AiAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() agentUuid: string,
         @Path() threadUuid: string,
+        @Body() body?: ApiAiAgentThreadStreamRequest,
     ): Promise<void> {
         assertRegisteredAccount(req.account);
         const stream = await this.getAiAgentService().streamAgentThreadResponse(
@@ -505,6 +507,7 @@ export class AiAgentController extends BaseController {
             {
                 agentUuid,
                 threadUuid,
+                enableSqlMode: body?.enableSqlMode ?? false,
             },
         );
 

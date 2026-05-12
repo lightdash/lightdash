@@ -1476,9 +1476,11 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            enableSqlMode,
         }: {
             agentUuid: string;
             threadUuid: string;
+            enableSqlMode: boolean;
         },
     ): Promise<ReturnType<typeof streamAgentResponse>> {
         try {
@@ -1514,6 +1516,7 @@ export class AiAgentService extends BaseService {
                     prompt,
                     stream: true,
                     canManageAgent,
+                    enableSqlMode,
                 },
             );
             return response;
@@ -1565,6 +1568,8 @@ export class AiAgentService extends BaseService {
                     prompt,
                     stream: false,
                     canManageAgent,
+                    // Non-stream callers (eval, etc.) preserve flag-only gating.
+                    enableSqlMode: true,
                 },
             );
             return response;
@@ -3460,6 +3465,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             prompt: AiWebAppPrompt;
             stream: true;
             canManageAgent: boolean;
+            enableSqlMode?: boolean;
         },
     ): Promise<ReturnType<typeof streamAgentResponse>>;
     async generateOrStreamAgentResponse(
@@ -3469,6 +3475,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             prompt: AiWebAppPrompt;
             stream: false;
             canManageAgent: boolean;
+            enableSqlMode?: boolean;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -3478,13 +3485,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             prompt: SlackPrompt;
             stream: false;
             canManageAgent: boolean;
+            enableSqlMode?: boolean;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
         user: SessionUser,
 
         messageHistory: ModelMessage[],
-        options: { canManageAgent: boolean } & (
+        options: {
+            canManageAgent: boolean;
+            enableSqlMode?: boolean;
+        } & (
             | {
                   prompt: AiWebAppPrompt;
                   stream: true;
@@ -3539,12 +3550,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             featureFlagId: CommercialFeatureFlags.AiAgentRunSql,
         });
 
+        const enableSqlMode = options.enableSqlMode ?? false;
+
         // For Slack prompts: only allow runSql when the org requires OAuth.
         // Without OAuth, Slack messages run as a workspace-default user, so
         // both the feature flag and the SqlRunner CASL check evaluate against
         // that default — meaning ANYONE in the Slack workspace could trigger
         // SQL execution under a different person's permissions. Fail-closed.
-        let canRunSql = canRunSqlFlag.enabled;
+        // Three-way gate: org-level flag, per-call CASL ability (added below),
+        // and per-thread toggle from the web client (default false for any
+        // caller that doesn't pass it — Slack/eval paths pass `true` to
+        // preserve their flag-only gating).
+        let canRunSql = canRunSqlFlag.enabled && enableSqlMode;
         if (canRunSql && isSlackPrompt(prompt) && user.organizationUuid) {
             const slackSettings =
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
@@ -3939,6 +3956,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     prompt: slackPrompt,
                     stream: false,
                     canManageAgent,
+                    // Slack uses flag-only gating (no per-prompt toggle yet).
+                    enableSqlMode: true,
                 },
             );
         } catch (e) {

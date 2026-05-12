@@ -500,6 +500,9 @@ export const useCreateAgentThreadMutation = (
     projectUuid: string,
     options?: {
         onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
+        // Skip the default `navigate(...)` to the thread page. The launcher
+        // uses this because it routes via its own panel/dock instead.
+        skipNavigation?: boolean;
     },
 ) => {
     const navigate = useNavigate();
@@ -516,9 +519,14 @@ export const useCreateAgentThreadMutation = (
         ApiError,
         ApiAiAgentThreadCreateRequest & {
             optimisticContext?: AiPromptContext;
+            enableSqlMode?: boolean;
         }
     >({
-        mutationFn: ({ optimisticContext: _optimisticContext, ...data }) =>
+        mutationFn: ({
+            optimisticContext: _optimisticContext,
+            enableSqlMode: _enableSqlMode,
+            ...data
+        }) =>
             agentUuid
                 ? createAgentThread(projectUuid, agentUuid, data)
                 : Promise.reject(),
@@ -572,6 +580,7 @@ export const useCreateAgentThreadMutation = (
                 agentUuid: thread.agentUuid,
                 threadUuid: thread.uuid,
                 messageUuid: thread.firstMessage.uuid,
+                enableSqlMode: variables.enableSqlMode,
                 onFinish: () =>
                     queryClient.invalidateQueries({
                         queryKey: [
@@ -594,14 +603,12 @@ export const useCreateAgentThreadMutation = (
                     }),
             });
 
-            if (options?.onCreated) {
-                options.onCreated(thread);
-            } else {
+            options?.onCreated?.(thread);
+
+            if (!options?.skipNavigation) {
                 void navigate(
                     `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
-                    {
-                        viewTransition: true,
-                    },
+                    { viewTransition: true },
                 );
             }
         },
@@ -649,10 +656,15 @@ export const useCreateAgentThreadMessageMutation = (
         ApiError,
         ApiAiAgentThreadMessageCreateRequest & {
             optimisticContext?: AiPromptContext;
+            enableSqlMode?: boolean;
         },
         { messageUuid: string }
     >({
-        mutationFn: ({ optimisticContext: _optimisticContext, ...data }) =>
+        mutationFn: ({
+            optimisticContext: _optimisticContext,
+            enableSqlMode: _enableSqlMode,
+            ...data
+        }) =>
             agentUuid && threadUuid
                 ? createAgentThreadMessage(
                       projectUuid,
@@ -696,7 +708,7 @@ export const useCreateAgentThreadMessageMutation = (
 
             return { messageUuid };
         },
-        onSuccess: (data, _vars, context) => {
+        onSuccess: (data, vars, context) => {
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', threadUuid],
                 (
@@ -727,6 +739,7 @@ export const useCreateAgentThreadMessageMutation = (
                 agentUuid: agentUuid!,
                 threadUuid: threadUuid!,
                 messageUuid: data.uuid,
+                enableSqlMode: vars.enableSqlMode,
                 onFinish: () =>
                     queryClient.invalidateQueries([
                         AI_AGENTS_KEY,
@@ -774,14 +787,22 @@ export const useRetryAiAgentThreadMessageMutation = () => {
             agentUuid: string;
             threadUuid: string;
             messageUuid: string;
+            enableSqlMode?: boolean;
         }
     >({
-        mutationFn: ({ projectUuid, agentUuid, threadUuid, messageUuid }) =>
+        mutationFn: ({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            enableSqlMode,
+        }) =>
             streamMessage({
                 projectUuid,
                 agentUuid: agentUuid,
                 threadUuid: threadUuid,
                 messageUuid: messageUuid,
+                enableSqlMode,
                 refetchThread: () =>
                     queryClient.invalidateQueries({
                         queryKey: [

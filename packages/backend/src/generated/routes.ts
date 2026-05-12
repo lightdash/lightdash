@@ -9389,6 +9389,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['runSavedChart'] },
                 { dataType: 'enum', enums: ['runSql'] },
                 { dataType: 'enum', enums: ['listWarehouseTables'] },
+                { dataType: 'enum', enums: ['describeWarehouseTable'] },
             ],
             validators: {},
         },
@@ -10517,6 +10518,15 @@ const models: TsoaRoute.Models = {
                     required: true,
                 },
             },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiAgentThreadStreamRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { enableSqlMode: { dataType: 'boolean' } },
             validators: {},
         },
     },
@@ -36843,6 +36853,11 @@ export function RegisterRoutes(app: Router) {
             name: 'threadUuid',
             required: true,
             dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            ref: 'ApiAiAgentThreadStreamRequest',
         },
     };
     app.post(
