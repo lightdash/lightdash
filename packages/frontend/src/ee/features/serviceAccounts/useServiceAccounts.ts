@@ -1,4 +1,8 @@
-import { type ApiError, type ServiceAccount } from '@lightdash/common';
+import {
+    type ApiError,
+    type ProjectMemberRole,
+    type ServiceAccount,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
@@ -93,12 +97,71 @@ export const useServiceAccounts = () => {
         },
     });
 
+    const setProjectMembership = useMutation<
+        undefined,
+        ApiError,
+        {
+            serviceAccountUuid: string;
+            projectUuid: string;
+            role: ProjectMemberRole | null;
+            roleUuid: string | null;
+        }
+    >({
+        mutationFn: ({ serviceAccountUuid, projectUuid, role, roleUuid }) =>
+            lightdashApi<undefined>({
+                method: 'PUT',
+                url: `/service-accounts/${serviceAccountUuid}/project-memberships/${projectUuid}`,
+                body: JSON.stringify({ role, roleUuid }),
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([CACHE_KEY]);
+            showToastSuccess({ title: 'Project access updated' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update project access',
+                apiError: error,
+            });
+        },
+    });
+
+    const removeProjectMembership = useMutation<
+        undefined,
+        ApiError,
+        { serviceAccountUuid: string; projectUuid: string }
+    >({
+        mutationFn: ({ serviceAccountUuid, projectUuid }) =>
+            lightdashApi<undefined>({
+                method: 'DELETE',
+                url: `/service-accounts/${serviceAccountUuid}/project-memberships/${projectUuid}`,
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([CACHE_KEY]);
+            showToastSuccess({ title: 'Project access removed' });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to remove project access',
+                apiError: error,
+            });
+        },
+    });
+
     return useMemo(() => {
         return {
             listAccounts,
             createAccount,
             deleteAccount,
             rotateAccount,
+            setProjectMembership,
+            removeProjectMembership,
         };
-    }, [listAccounts, createAccount, deleteAccount, rotateAccount]);
+    }, [
+        listAccounts,
+        createAccount,
+        deleteAccount,
+        rotateAccount,
+        setProjectMembership,
+        removeProjectMembership,
+    ]);
 };
