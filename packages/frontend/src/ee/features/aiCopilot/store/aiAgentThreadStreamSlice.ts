@@ -12,13 +12,25 @@ type Reasoning = {
     parts: string[];
 };
 
+export type StreamPart =
+    | { type: 'text'; text: string }
+    | {
+          type: 'toolCall';
+          toolCallId: string;
+          toolName: ToolName;
+          toolArgs: unknown;
+      };
+
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
     content: string;
+    parts: StreamPart[];
     isStreaming: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
+    decidedToolCallIds: string[];
+    sqlAutoApprove: boolean;
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -34,9 +46,12 @@ const initialThread: Omit<
     'threadUuid' | 'messageUuid'
 > = {
     content: '',
+    parts: [],
     isStreaming: true,
     toolCalls: [],
     reasoning: [],
+    decidedToolCallIds: [],
+    sqlAutoApprove: false,
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -71,6 +86,45 @@ export const aiAgentThreadStreamSlice = createSlice({
                 console.warn('Streaming thread or message not found:', {
                     threadUuid,
                 });
+            }
+        },
+        setParts: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                parts: StreamPart[];
+            }>,
+        ) => {
+            const { threadUuid, parts } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.parts = parts;
+            }
+        },
+        markToolCallDecided: (
+            state,
+            action: PayloadAction<{
+                threadUuid: string;
+                toolCallId: string;
+            }>,
+        ) => {
+            const { threadUuid, toolCallId } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (
+                streamingThread &&
+                !streamingThread.decidedToolCallIds.includes(toolCallId)
+            ) {
+                streamingThread.decidedToolCallIds.push(toolCallId);
+            }
+        },
+        enableSqlAutoApprove: (
+            state,
+            action: PayloadAction<{ threadUuid: string }>,
+        ) => {
+            const { threadUuid } = action.payload;
+            const streamingThread = state[threadUuid];
+            if (streamingThread) {
+                streamingThread.sqlAutoApprove = true;
             }
         },
         stopStreaming: (
@@ -195,6 +249,9 @@ export const aiAgentThreadStreamSlice = createSlice({
 export const {
     startStreaming,
     setMessage,
+    setParts,
+    markToolCallDecided,
+    enableSqlAutoApprove,
     stopStreaming,
     setError,
     addToolCall,

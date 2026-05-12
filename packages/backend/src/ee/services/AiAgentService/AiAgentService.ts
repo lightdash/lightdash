@@ -18,6 +18,7 @@ import {
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
+    AlreadyExistsError,
     AnyType,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
@@ -137,6 +138,7 @@ import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
+import { resolveSqlApproval } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
@@ -936,6 +938,118 @@ export class AiAgentService extends BaseService {
                 };
             }),
         };
+    }
+
+    async decideSqlApproval(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            toolCallId,
+            decision,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            toolCallId: string;
+            decision: 'approved' | 'rejected';
+        },
+    ): Promise<{ decision: 'approved' | 'rejected' }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const context =
+            await this.aiAgentModel.findSqlApprovalContext(toolCallId);
+        if (!context) {
+            throw new NotFoundError(`Tool call not found: ${toolCallId}`);
+        }
+        if (context.threadUuid !== threadUuid) {
+            throw new ForbiddenError(
+                'Tool call does not belong to the supplied thread',
+            );
+        }
+        if (context.agentUuid !== agentUuid) {
+            throw new ForbiddenError(
+                'Tool call does not belong to the supplied agent',
+            );
+        }
+        if (context.toolName !== 'runSql') {
+            throw new ParameterError(
+                `Tool call ${toolCallId} is not a runSql approval`,
+            );
+        }
+        if (context.hasResult) {
+            throw new AlreadyExistsError(
+                `Tool call ${toolCallId} has already been resolved`,
+            );
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to approve this SQL execution',
+            );
+        }
+
+        // The SQL ultimately runs under the prompt issuer's identity, but
+        // approving raw SQL is itself a privileged action — require the
+        // approver to hold the same SqlRunner scope so a thread reader
+        // without that ability can't trigger execution.
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You need the SqlRunner permission to approve SQL execution',
+            );
+        }
+
+        const delivered = resolveSqlApproval(toolCallId, decision);
+        if (!delivered) {
+            // Approval was registered in DB sense (no result yet) but the
+            // backend pod awaiting the decision is gone — likely a restart.
+            // The 5-min timeout in waitForSqlApproval will fire, returning
+            // a 'timeout' result to the agent. We still record the user's
+            // intent by completing the request — let the timeout path
+            // handle the rest.
+            this.logger.warn(
+                `SQL approval for ${toolCallId} could not be delivered to any in-flight listener (possible pod restart).`,
+            );
+        }
+
+        return { decision };
     }
 
     async createAgentThread(
@@ -2978,7 +3092,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         if (queryResults.status === QueryHistoryStatus.READY) {
                             const wrappedRows = (queryResults.rows ??
                                 []) as Record<string, AnyType>[];
-                            // Unwrap {value:{raw,formatted}} cells so downstream CSV sees scalars.
+                            // Unwrap the {value: {raw, formatted}} cell shape
+                            // that AsyncQueryService returns so downstream
+                            // CSV/serialisation sees plain scalars.
                             const unwrapCell = (cell: AnyType): AnyType => {
                                 if (
                                     cell &&
@@ -3380,8 +3496,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
               )
             : null;
         const warehouseType = warehouseCredentials?.type ?? null;
-        // Extract a human-readable schema location depending on dialect so the
-        // system prompt can tell the agent to fully-qualify tables on first try.
         const warehouseSchema = warehouseCredentials
             ? ('schema' in warehouseCredentials &&
                   warehouseCredentials.schema) ||

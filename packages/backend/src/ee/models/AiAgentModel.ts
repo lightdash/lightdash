@@ -3238,6 +3238,68 @@ export class AiAgentModel {
             .orderBy('created_at', 'asc');
     }
 
+    async findSqlApprovalContext(toolCallId: string): Promise<
+        | {
+              promptUuid: string;
+              threadUuid: string;
+              agentUuid: string | null;
+              toolName: string;
+              hasResult: boolean;
+          }
+        | undefined
+    > {
+        const row = await this.database(AiAgentToolCallTableName)
+            .where(`${AiAgentToolCallTableName}.tool_call_id`, toolCallId)
+            .innerJoin(
+                AiPromptTableName,
+                `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .innerJoin(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .leftJoin(AiAgentToolResultTableName, function joinResult() {
+                this.on(
+                    `${AiAgentToolResultTableName}.tool_call_id`,
+                    '=',
+                    `${AiAgentToolCallTableName}.tool_call_id`,
+                ).andOn(
+                    `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                    '=',
+                    `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                );
+            })
+            .select<
+                Array<{
+                    promptUuid: string;
+                    threadUuid: string;
+                    agentUuid: string | null;
+                    toolName: string;
+                    resultUuid: string | null;
+                }>
+            >(
+                `${AiAgentToolCallTableName}.ai_prompt_uuid as promptUuid`,
+                `${AiAgentToolCallTableName}.tool_name as toolName`,
+                `${AiThreadTableName}.ai_thread_uuid as threadUuid`,
+                `${AiThreadTableName}.agent_uuid as agentUuid`,
+                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid as resultUuid`,
+            )
+            .first();
+
+        if (!row) {
+            return undefined;
+        }
+        return {
+            promptUuid: row.promptUuid,
+            threadUuid: row.threadUuid,
+            agentUuid: row.agentUuid,
+            toolName: row.toolName,
+            hasResult: row.resultUuid !== null,
+        };
+    }
+
     async getToolResultsForPrompt(
         promptUuid: string,
     ): Promise<AiAgentToolResult[]> {

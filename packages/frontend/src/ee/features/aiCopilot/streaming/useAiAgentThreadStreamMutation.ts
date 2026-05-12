@@ -15,11 +15,14 @@ import { lightdashApiStream } from '../../../../api';
 import {
     addReasoning,
     addToolCall,
+    markToolCallDecided,
     setError,
     setImproveContextNotification,
     setMessage,
+    setParts,
     startStreaming,
     stopStreaming,
+    type StreamPart,
 } from '../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreDispatch } from '../store/hooks';
 import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
@@ -138,6 +141,42 @@ export function useAiAgentThreadStreamMutation() {
                         );
                     }
 
+                    // Build the ordered parts array preserving text↔tool interleaving
+                    const orderedParts: StreamPart[] = [];
+                    for (const part of uiMessage.parts) {
+                        if (part.type === 'text' && part.text) {
+                            orderedParts.push({
+                                type: 'text',
+                                text: part.text,
+                            });
+                        } else if (part.type.startsWith('tool-')) {
+                            const toolPart = part as {
+                                type: string;
+                                toolCallId: string;
+                                input?: unknown;
+                                state: string;
+                            };
+                            if (
+                                toolPart.state === 'input-available' ||
+                                toolPart.state === 'output-available' ||
+                                toolPart.state === 'output-error'
+                            ) {
+                                const toolNameUnsafe = toolPart.type.slice(5);
+                                const parsed =
+                                    ToolNameSchema.safeParse(toolNameUnsafe);
+                                if (parsed.success) {
+                                    orderedParts.push({
+                                        type: 'toolCall',
+                                        toolCallId: toolPart.toolCallId,
+                                        toolName: parsed.data,
+                                        toolArgs: toolPart.input,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    dispatch(setParts({ threadUuid, parts: orderedParts }));
+
                     // Process tool calls from the complete message
                     for (const part of uiMessage.parts) {
                         if (abortController.signal.aborted) return;
@@ -155,8 +194,24 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-improveContext':
                             case 'tool-searchFieldValues':
                             case 'tool-runQuery':
+                            case 'tool-runSql':
+                            case 'tool-listWarehouseTables':
                             case 'tool-generateDashboard':
                                 if (part.state !== 'input-available') {
+                                    // Whenever a runSql tool result lands
+                                    // (success, rejection, or timeout) — close
+                                    // any open approval card. Idempotent.
+                                    if (
+                                        part.type === 'tool-runSql' &&
+                                        part.state === 'output-available'
+                                    ) {
+                                        dispatch(
+                                            markToolCallDecided({
+                                                threadUuid,
+                                                toolCallId: part.toolCallId,
+                                            }),
+                                        );
+                                    }
                                     if (
                                         !(
                                             part.type === 'tool-runQuery' &&

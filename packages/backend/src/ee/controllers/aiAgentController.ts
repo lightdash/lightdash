@@ -10,6 +10,8 @@ import {
     ApiAiAgentExploreAccessSummaryResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentResponse,
+    ApiAiAgentSqlApprovalRequest,
+    ApiAiAgentSqlApprovalResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadCreateResponse,
@@ -449,6 +451,40 @@ export class AiAgentController extends BaseController {
                 agentUuid,
                 threadUuid,
                 body,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/threads/{threadUuid}/tool-calls/{toolCallId}/sql-approval',
+    )
+    @OperationId('decideAgentSqlApproval')
+    async decideAgentSqlApproval(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() toolCallId: string,
+        @Body() body: ApiAiAgentSqlApprovalRequest,
+    ): Promise<ApiAiAgentSqlApprovalResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().decideSqlApproval(
+                toSessionUser(req.account),
+                {
+                    agentUuid,
+                    threadUuid,
+                    toolCallId,
+                    decision: body.decision,
+                },
             ),
         };
     }

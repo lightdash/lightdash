@@ -287,6 +287,14 @@ export type ApiAiAgentThreadMessageCreateRequest = {
     };
 };
 
+export type ApiAiAgentSqlApprovalRequest = {
+    decision: 'approved' | 'rejected';
+};
+
+export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
+    decision: 'approved' | 'rejected';
+}>;
+
 export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>
 >;

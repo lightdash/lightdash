@@ -7,6 +7,7 @@ import type {
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import { waitForSqlApproval } from './sqlApprovals';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -34,9 +35,25 @@ export const getRunSql = ({ updateProgress, runSqlJob }: Dependencies) =>
     tool({
         description: toolRunSqlArgsSchema.description,
         inputSchema: toolRunSqlArgsSchema,
-        execute: async ({ sql, limit }) => {
+        execute: async ({ sql, limit }, { toolCallId }) => {
             try {
                 validateSelectOnly(sql);
+
+                await updateProgress('Awaiting approval to run SQL...');
+
+                const decision = await waitForSqlApproval(toolCallId);
+                if (decision === 'rejected') {
+                    return {
+                        result: 'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
+                        metadata: { status: 'rejected' },
+                    };
+                }
+                if (decision === 'timeout') {
+                    return {
+                        result: 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
+                        metadata: { status: 'timeout' },
+                    };
+                }
 
                 await updateProgress('Running SQL query...');
 

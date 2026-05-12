@@ -61,6 +61,8 @@ import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 import { AiReasoning } from './ToolCalls/AiReasoning';
+import { InlineToolCallCard } from './ToolCalls/InlineToolCallCard';
+import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
@@ -183,46 +185,160 @@ const AssistantBubbleContent: FC<{
             {!isStreaming && message.reasoning.length > 0 && (
                 <AiReasoning reasoning={message.reasoning} type="persisted" />
             )}
-            {toolCalls.length > 0 ? (
-                <AiChartToolCalls
-                    toolCalls={toolCalls}
-                    type={isStreaming || isPending ? 'streaming' : 'persisted'}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                />
-            ) : null}
-            {messageContent.length > 0 ? (
-                <MDEditor.Markdown
-                    rehypeRewrite={rehypeRemoveHeaderLinks}
-                    source={messageContent}
-                    style={{ ...mdStyle, padding: `0.5rem 0` }}
-                    rehypePlugins={[rehypeAiAgentContentLinks]}
-                    components={{
-                        ...mdEditorComponents,
-                        a: ({ node, children, ...props }) => {
-                            const contentType =
-                                'data-content-type' in props &&
-                                typeof props['data-content-type'] === 'string'
-                                    ? props['data-content-type']
-                                    : undefined;
+            {(() => {
+                const streamingParts =
+                    isStreaming && streamingState?.parts
+                        ? streamingState.parts.filter(
+                              (p) =>
+                                  p.type === 'text' ||
+                                  (p.toolName !== 'improveContext' &&
+                                      p.toolName !== 'proposeChange'),
+                          )
+                        : [];
 
-                            return (
-                                <ContentLink
-                                    contentType={contentType}
-                                    props={props}
-                                    message={message}
-                                    projectUuid={projectUuid}
-                                    agentUuid={agentUuid}
-                                >
-                                    {children}
-                                </ContentLink>
-                            );
-                        },
-                    }}
-                />
-            ) : null}
+                if (streamingParts.length > 0) {
+                    // Interleaved view during streaming: text -> tool -> text -> tool
+                    return (
+                        <Stack gap="xs" pt="xs">
+                            {streamingParts.map((part, idx) =>
+                                part.type === 'text' ? (
+                                    <MDEditor.Markdown
+                                        // eslint-disable-next-line react/no-array-index-key
+                                        key={`text-${idx}`}
+                                        rehypeRewrite={rehypeRemoveHeaderLinks}
+                                        source={part.text}
+                                        style={{
+                                            ...mdStyle,
+                                            padding: 0,
+                                        }}
+                                        rehypePlugins={[
+                                            rehypeAiAgentContentLinks,
+                                        ]}
+                                        components={{
+                                            ...mdEditorComponents,
+                                            a: ({
+                                                node,
+                                                children,
+                                                ...props
+                                            }) => {
+                                                const contentType =
+                                                    'data-content-type' in
+                                                        props &&
+                                                    typeof props[
+                                                        'data-content-type'
+                                                    ] === 'string'
+                                                        ? props[
+                                                              'data-content-type'
+                                                          ]
+                                                        : undefined;
+
+                                                return (
+                                                    <ContentLink
+                                                        contentType={
+                                                            contentType
+                                                        }
+                                                        props={props}
+                                                        message={message}
+                                                        projectUuid={
+                                                            projectUuid
+                                                        }
+                                                        agentUuid={agentUuid}
+                                                    >
+                                                        {children}
+                                                    </ContentLink>
+                                                );
+                                            },
+                                        }}
+                                    />
+                                ) : part.toolName === 'runSql' &&
+                                  !streamingState?.decidedToolCallIds.includes(
+                                      part.toolCallId,
+                                  ) ? (
+                                    <SqlApprovalCard
+                                        key={part.toolCallId}
+                                        projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
+                                        threadUuid={message.threadUuid}
+                                        toolCallId={part.toolCallId}
+                                        toolArgs={
+                                            part.toolArgs as {
+                                                sql: string;
+                                                limit?: number;
+                                            }
+                                        }
+                                        autoApprove={
+                                            streamingState?.sqlAutoApprove ??
+                                            false
+                                        }
+                                    />
+                                ) : (
+                                    <InlineToolCallCard
+                                        key={part.toolCallId}
+                                        toolName={part.toolName}
+                                        toolCall={{
+                                            toolCallId: part.toolCallId,
+                                            toolName: part.toolName,
+                                            toolArgs: part.toolArgs,
+                                        }}
+                                    />
+                                ),
+                            )}
+                        </Stack>
+                    );
+                }
+
+                // Default / persisted view: tools at top, then text
+                return (
+                    <>
+                        {toolCalls.length > 0 ? (
+                            <AiChartToolCalls
+                                toolCalls={toolCalls}
+                                type={
+                                    isStreaming || isPending
+                                        ? 'streaming'
+                                        : 'persisted'
+                                }
+                                projectUuid={projectUuid}
+                                agentUuid={agentUuid}
+                                threadUuid={message.threadUuid}
+                                promptUuid={message.uuid}
+                            />
+                        ) : null}
+                        {messageContent.length > 0 ? (
+                            <MDEditor.Markdown
+                                rehypeRewrite={rehypeRemoveHeaderLinks}
+                                source={messageContent}
+                                style={{ ...mdStyle, padding: `0.5rem 0` }}
+                                rehypePlugins={[rehypeAiAgentContentLinks]}
+                                components={{
+                                    ...mdEditorComponents,
+                                    a: ({ node, children, ...props }) => {
+                                        const contentType =
+                                            'data-content-type' in props &&
+                                            typeof props[
+                                                'data-content-type'
+                                            ] === 'string'
+                                                ? props['data-content-type']
+                                                : undefined;
+
+                                        return (
+                                            <ContentLink
+                                                contentType={contentType}
+                                                props={props}
+                                                message={message}
+                                                projectUuid={projectUuid}
+                                                agentUuid={agentUuid}
+                                            >
+                                                {children}
+                                            </ContentLink>
+                                        );
+                                    },
+                                }}
+                            />
+                        ) : null}
+                    </>
+                );
+            })()}
             {isStreaming || isPending ? (
                 <Loader type="dots" color="gray" />
             ) : null}
