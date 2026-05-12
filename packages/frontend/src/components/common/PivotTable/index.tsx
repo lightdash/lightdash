@@ -61,13 +61,26 @@ import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdas
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
 import { countSubRows } from '../Table/utils';
-import { getFrozenColumnLayout } from './getFrozenColumnLayout';
+import {
+    getFrozenColumnLayout,
+    type FrozenColumnEntry,
+} from './getFrozenColumnLayout';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
 const ROW_NUMBER_COL_WIDTH = 50;
 const MIN_AUTO_COL_WIDTH = 50;
+
+const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
+    if (!frozen) return {};
+    return {
+        className: `${pivotStyles.stickyColumn}${
+            frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
+        }`,
+        style: { left: frozen.left },
+    };
+};
 
 type MenuCallbackProps = {
     isOpen: boolean;
@@ -1101,12 +1114,18 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 const cellWidth = meta?.width;
 
+                                const stickyCellProps = getStickyCellProps(
+                                    meta?.frozenLayout,
+                                );
+
                                 const TableCellComponent = isRowTotal
                                     ? Table.CellHead
                                     : Table.Cell;
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
+                                        className={stickyCellProps.className}
+                                        style={stickyCellProps.style}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
                                         w={cellWidth}
