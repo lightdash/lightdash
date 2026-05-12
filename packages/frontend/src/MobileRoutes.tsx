@@ -18,7 +18,6 @@ import {
     IconLogout,
     IconRobot,
 } from '@tabler/icons-react';
-import posthog from 'posthog-js';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     Link,
@@ -89,7 +88,6 @@ export const MobileNavBar: FC = () => {
     });
     const { mutate: logout } = useLogoutMutation({
         onSuccess: () => {
-            posthog.reset();
             window.location.href = '/login';
         },
     });

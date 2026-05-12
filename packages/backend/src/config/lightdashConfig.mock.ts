@@ -135,7 +135,6 @@ export const lightdashConfigMock: LightdashConfig = {
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
     enableImprovedExcelDates: false,
-    posthog: undefined,
     s3: {
         endpoint: 'mock_endpoint',
         bucket: 'mock_bucket',

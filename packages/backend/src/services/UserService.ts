@@ -87,7 +87,6 @@ import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-import { postHogClient } from '../postHog';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
 
@@ -288,20 +287,6 @@ export class UserService extends BaseService {
                   },
         });
 
-        postHogClient?.identify({
-            distinctId: user.userUuid,
-            properties: {
-                uuid: user.userUuid,
-                ...(user.isTrackingAnonymized
-                    ? {}
-                    : {
-                          email: user.email,
-                          first_name: user.firstName,
-                          last_name: user.lastName,
-                      }),
-            },
-        });
-
         if (user.organizationUuid) {
             this.analytics.group({
                 userId: user.userUuid,
@@ -309,16 +294,6 @@ export class UserService extends BaseService {
                 traits: {
                     name: user.organizationName,
                 },
-            });
-
-            postHogClient?.groupIdentify({
-                groupType: 'organization',
-                groupKey: user.organizationUuid,
-                properties: {
-                    uuid: user.organizationUuid,
-                    name: user.organizationName,
-                },
-                distinctId: user.userUuid,
             });
         }
     }

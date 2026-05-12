@@ -149,7 +149,6 @@
         "pg": "8.13.1",
         "pg-connection-string": "2.7.0",
         "playwright": "1.56.1",
-        "posthog-node": "4.2.0",
         "prom-client": "15.1.2",
         "qs": "6.14.1",
         "redoc-express": "1.0.0",

@@ -1,5 +1,4 @@
 import { LightdashMode } from '@lightdash/common';
-import { PostHogProvider, usePostHog } from 'posthog-js/react';
 import { useCallback, useEffect, type FC } from 'react';
 import { IntercomProvider } from 'react-use-intercom';
 import { Intercom } from '../components/Intercom';
@@ -92,30 +91,6 @@ const Clarity = () => {
     );
 };
 
-const PosthogIdentified: FC<React.PropsWithChildren<{}>> = ({ children }) => {
-    const { user } = useApp();
-    const posthog = usePostHog();
-    if (user.data) {
-        posthog.identify(user.data.userUuid, {
-            uuid: user.data.userUuid,
-            ...(user.data.isTrackingAnonymized
-                ? {}
-                : {
-                      email: user.data.email,
-                      first_name: user.data.firstName,
-                      last_name: user.data.lastName,
-                  }),
-        });
-        if (user.data.organizationUuid) {
-            posthog.group('organization', user.data.organizationUuid, {
-                uuid: user.data.organizationUuid,
-                name: user.data.organizationName,
-            });
-        }
-    }
-    return <>{children}</>;
-};
-
 const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
     children,
 }) => {
@@ -135,22 +110,9 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
             apiBase={health.data?.intercom.apiBase || ''}
             autoBoot
         >
-            <PostHogProvider
-                apiKey={health.data?.posthog?.projectApiKey || ''}
-                options={{
-                    api_host: health.data?.posthog?.feApiHost,
-                    autocapture: false,
-                    capture_pageview: false,
-                    disable_session_recording: true,
-                    advanced_disable_feature_flags: true,
-                }}
-            >
-                <PosthogIdentified>
-                    <Intercom />
-                    <Clarity />
-                    {children}
-                </PosthogIdentified>
-            </PostHogProvider>
+            <Intercom />
+            <Clarity />
+            {children}
         </IntercomProvider>
     );
 };

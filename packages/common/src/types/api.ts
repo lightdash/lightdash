@@ -431,13 +431,6 @@ export type HealthState = {
             enabled: boolean;
         };
     };
-    posthog:
-        | {
-              projectApiKey: string;
-              feApiHost: string;
-              beApiHost: string;
-          }
-        | undefined;
     siteUrl: string;
     intercom: {
         appId: string;

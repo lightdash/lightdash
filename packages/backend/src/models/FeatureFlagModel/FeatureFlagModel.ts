@@ -75,8 +75,6 @@ export class FeatureFlagModel {
         };
     }
 
-    // No PostHog — checked in the query execution path where adding
-    // latency is not acceptable.
     private async getEnableTimezoneSupportEnabled(
         args: FeatureFlagLogicArgs,
     ): Promise<FeatureFlag> {

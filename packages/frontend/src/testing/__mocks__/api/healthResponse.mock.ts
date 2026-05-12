@@ -40,7 +40,6 @@ export default function mockHealthResponse(
         staticIp: '',
         signupUrl: undefined,
         helpMenuUrl: undefined,
-        posthog: undefined,
         query: {
             maxPageSize: 2500,
             maxLimit: 1000000,

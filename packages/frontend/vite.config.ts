@@ -109,7 +109,7 @@ export default defineConfig({
                         },
                         {
                             name: 'thirdparty',
-                            test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js|posthog-js)/,
+                            test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js)/,
                             priority: 15,
                         },
                         {

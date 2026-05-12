@@ -988,7 +988,6 @@ export type LightdashConfig = {
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
     rudder: RudderConfig;
-    posthog: PosthogConfig | undefined;
     mode: LightdashMode;
     license: {
         licenseKey: string | null;
@@ -1357,12 +1356,6 @@ export type RudderConfig = {
     dataPlaneUrl: string | undefined;
 };
 
-export type PosthogConfig = {
-    projectApiKey: string;
-    feApiHost: string;
-    beApiHost: string;
-};
-
 type JwtKeySetConfig = {
     /**
      * Path or content of the x509 pem-encoded public key certificate for use as part of
@@ -1561,8 +1554,8 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
  * operators should migrate to LIGHTDASH_ENABLE_FEATURE_FLAGS /
  * LIGHTDASH_DISABLE_FEATURE_FLAGS. Entries here translate the legacy var into
  * the unified allowlists for backward compatibility, so self-hosted
- * deployments don't regress when a per-flag handler is removed during
- * PostHog migration. Once an entry has soaked for ~6 months after the
+ * deployments don't regress when a per-flag handler is removed.
+ * Once an entry has soaked for ~6 months after the
  * unified pattern is documented, delete it.
  */
 const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
@@ -1744,17 +1737,6 @@ export const parseConfig = (): LightdashConfig => {
                   },
                   inlineImageCid:
                       process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
-              }
-            : undefined,
-        posthog: process.env.POSTHOG_PROJECT_API_KEY
-            ? {
-                  projectApiKey: process.env.POSTHOG_PROJECT_API_KEY,
-                  feApiHost:
-                      process.env.POSTHOG_FE_API_HOST ||
-                      'https://us.i.posthog.com',
-                  beApiHost:
-                      process.env.POSTHOG_BE_API_HOST ||
-                      'https://us.i.posthog.com',
               }
             : undefined,
         rudder: {
