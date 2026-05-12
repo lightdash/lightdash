@@ -2,6 +2,9 @@ import { type Group } from './groups';
 import { type KnexPaginatedData } from './knex-paginate';
 
 export enum OrganizationMemberRole {
+    // No org-wide CASL. Used by service accounts scoped to specific
+    // projects via `project_memberships`. Not selectable for human users.
+    NONE = 'none',
     MEMBER = 'member',
     VIEWER = 'viewer',
     INTERACTIVE_VIEWER = 'interactive_viewer',
@@ -14,6 +17,7 @@ export const OrganizationMemberRoleLabels: Record<
     OrganizationMemberRole,
     string
 > = {
+    [OrganizationMemberRole.NONE]: 'None (project access only)',
     [OrganizationMemberRole.MEMBER]: 'Member',
     [OrganizationMemberRole.VIEWER]: 'Viewer',
     [OrganizationMemberRole.INTERACTIVE_VIEWER]: 'Interactive Viewer',
@@ -88,6 +92,8 @@ export type ApiOrganizationMemberProfile = {
 
 export const getRoleDescription = (role: OrganizationMemberRole) => {
     switch (role) {
+        case OrganizationMemberRole.NONE:
+            return 'No org-wide access. Access is granted only via per-project assignments. Used for service accounts scoped to specific projects.';
         case OrganizationMemberRole.MEMBER:
             return 'No access to projects by default. Project level permissions to be set separately';
         case OrganizationMemberRole.VIEWER:

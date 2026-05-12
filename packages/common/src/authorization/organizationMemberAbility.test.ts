@@ -2724,4 +2724,24 @@ describe('Organization member permissions', () => {
             ).toEqual(true);
         });
     });
+
+    describe('NONE permissions', () => {
+        const ability = defineAbilityForOrganizationMember({
+            role: OrganizationMemberRole.NONE,
+            organizationUuid: 'org-1',
+            userUuid: 'sa-user-1',
+        });
+
+        it('grants no org-wide abilities', () => {
+            expect(ability.can('view', 'Dashboard')).toEqual(false);
+            expect(ability.can('view', 'OrganizationMemberProfile')).toEqual(
+                false,
+            );
+            expect(ability.can('view', 'Project')).toEqual(false);
+            expect(ability.can('view', 'Organization')).toEqual(false);
+            expect(ability.can('view', 'SavedChart')).toEqual(false);
+            expect(ability.can('view', 'Space')).toEqual(false);
+            expect(ability.can('manage', 'Organization')).toEqual(false);
+        });
+    });
 });

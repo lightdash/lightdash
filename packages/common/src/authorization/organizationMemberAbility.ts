@@ -27,6 +27,13 @@ export const applyOrganizationMemberStaticAbilities: Record<
         builder: OrganizationMemberAbilitiesArgs['builder'],
     ) => void
 > = {
+    none(_member, _builder) {
+        // Intentional no-op. NONE is used by service accounts that should
+        // only see resources granted via per-project memberships. Adding any
+        // org-wide `can(...)` here would defeat the purpose of project
+        // scoping — CASL is additive, so anything granted here cannot be
+        // restricted by project-level assignments.
+    },
     member(member, { can }) {
         can('view', 'OrganizationMemberProfile', {
             organizationUuid: member.organizationUuid,

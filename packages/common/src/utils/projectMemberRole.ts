@@ -27,6 +27,7 @@ export const convertOrganizationRoleToProjectRole = (
         case OrganizationMemberRole.ADMIN:
             return ProjectMemberRole.ADMIN;
         case OrganizationMemberRole.MEMBER:
+        case OrganizationMemberRole.NONE:
             return undefined;
         default:
             return assertUnreachable(
