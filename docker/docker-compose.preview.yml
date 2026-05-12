@@ -81,6 +81,13 @@ services:
             # enabledFeatureFlags allowlist (step 1a).
             EMBEDDING_ENABLED: true
 
+            # Force-enable the SQL-pivot path in preview envs. Cloud helm sets
+            # this true; preview deploys via docker-compose and otherwise
+            # falls back to PostHog targeting, which doesn't reach the
+            # ephemeral test org — pivotTables.cy.ts then times out waiting
+            # for `pivotConfiguration` in the metric-query POST.
+            USE_SQL_PIVOT_RESULTS: true
+
             PERSISTENT_DOWNLOAD_URLS_ENABLED: true
 
             # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public
