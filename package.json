@@ -88,7 +88,7 @@
         "jest-watch-typeahead": "2.2.2",
         "lint-staged": "12.1.2",
         "oxfmt": "0.35.0",
-        "pm2": "6.0.14",
+        "pm2": "7.0.0",
         "ts-jest": "29.1.1",
         "tsx": "4.19.4",
         "turbo": "2.6.2",
