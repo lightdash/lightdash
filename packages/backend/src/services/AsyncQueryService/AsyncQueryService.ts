@@ -809,12 +809,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ResultsExpiredError();
         }
 
-        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
-            projectUuid: queryHistory.projectUuid,
-            organizationUuid: account.organization.organizationUuid,
-            userUuid: account.user.id,
-            metricQuery: queryHistory.metricQuery,
-        });
+        const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
         const defaultedPageSize =
             pageSize ??
@@ -1161,13 +1156,7 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
-            projectUuid: queryHistory.projectUuid,
-            organizationUuid: queryHistory.organizationUuid,
-            userUuid:
-                AsyncQueryService.getQueryHistoryActor(queryHistory).userUuid,
-            metricQuery: queryHistory.metricQuery,
-        });
+        const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
         const { status, resultsFileName, fields, columns } = queryHistory;
         const resultsStorageClient = this.getResultsStorageClientForContext(
@@ -2466,37 +2455,6 @@ export class AsyncQueryService extends ProjectService {
      * `displayTimezone` (null when timezone-aware DATE_TRUNC is off — this is
      * what reaches API responses and the row formatter).
      */
-    /**
-     * Display timezone for retrieval / worker paths that already have a
-     * persisted query history snapshot. `metricQuery.timezone` was stamped
-     * with the resolved chart > user > project timezone at execution time,
-     * so we don't need to re-resolve — only check the per-viewer feature
-     * flag. Project fallback is kept for query history rows persisted
-     * before the stamp landed.
-     */
-    private async getDisplayTimezoneForQueryHistory({
-        projectUuid,
-        organizationUuid,
-        userUuid,
-        metricQuery,
-    }: {
-        projectUuid: string | null;
-        organizationUuid: string;
-        userUuid: string;
-        metricQuery: MetricQuery;
-    }): Promise<string | null> {
-        const enabled = await this.isTimezoneSupportEnabled({
-            userUuid,
-            organizationUuid,
-        });
-        if (!enabled) return null;
-        if (metricQuery.timezone) return metricQuery.timezone;
-        const projectTimezone = projectUuid
-            ? await this.getQueryTimezoneForProject(projectUuid)
-            : 'UTC';
-        return resolveQueryTimezone(metricQuery, projectTimezone, null);
-    }
-
     private async resolveTimezoneContext({
         projectUuid,
         organizationUuid,
@@ -2541,12 +2499,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTags = AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
-        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
-            projectUuid: query.projectUuid,
-            organizationUuid: query.organizationUuid,
-            userUuid: actor.userUuid,
-            metricQuery: query.metricQuery,
-        });
+        const displayTimezone = query.metricQuery.timezone ?? null;
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -2582,12 +2535,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTags = AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
-        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
-            projectUuid: query.projectUuid,
-            organizationUuid: query.organizationUuid,
-            userUuid: actor.userUuid,
-            metricQuery: query.metricQuery,
-        });
+        const displayTimezone = query.metricQuery.timezone ?? null;
 
         return {
             projectUuid: query.projectUuid ?? '',
@@ -5497,13 +5445,7 @@ export class AsyncQueryService extends ProjectService {
             },
         });
 
-        const displayTimezone = await this.getDisplayTimezoneForQueryHistory({
-            projectUuid: queryHistory.projectUuid,
-            organizationUuid: queryHistory.organizationUuid,
-            userUuid:
-                AsyncQueryService.getQueryHistoryActor(queryHistory).userUuid,
-            metricQuery: queryHistory.metricQuery,
-        });
+        const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
         return {
             rows,
