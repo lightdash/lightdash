@@ -1,7 +1,7 @@
 import { ProjectType } from '@lightdash/common';
 import { Config } from '../config';
 import { lightdashApi } from './dbt/apiClient';
-import { selectProject } from './selectProject';
+import { logSelectedProject, selectProject } from './selectProject';
 
 jest.mock('inquirer');
 jest.mock('../analytics/analytics');
@@ -71,5 +71,83 @@ describe('selectProject', () => {
             isPreview: false,
         });
         expect(mockLightdashApi).not.toHaveBeenCalled();
+    });
+});
+
+describe('logSelectedProject', () => {
+    let consoleErrorSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+        consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        consoleErrorSpy.mockRestore();
+    });
+
+    const getLoggedMessage = (): string =>
+        consoleErrorSpy.mock.calls.map((call) => String(call[0])).join('\n');
+
+    it('shows the config project name when the selected UUID matches the config project', () => {
+        const config: Config = {
+            context: {
+                project: MAIN_UUID,
+                projectName: 'main',
+            },
+        };
+
+        logSelectedProject(
+            { projectUuid: MAIN_UUID, isPreview: false },
+            config,
+            'Uploading to',
+        );
+
+        const output = getLoggedMessage();
+        expect(output).toContain('Uploading to project:');
+        expect(output).toContain('"main"');
+    });
+
+    it('shows the UUID (not the config project name) when --project overrides to a different project', () => {
+        const OVERRIDE_UUID = '00000000-0000-0000-0000-000000000099';
+        const config: Config = {
+            context: {
+                project: MAIN_UUID,
+                projectName: 'main',
+            },
+        };
+
+        logSelectedProject(
+            { projectUuid: OVERRIDE_UUID, isPreview: false },
+            config,
+            'Uploading to',
+        );
+
+        const output = getLoggedMessage();
+        expect(output).toContain('Uploading to project:');
+        expect(output).toContain(OVERRIDE_UUID);
+        expect(output).not.toContain('"main"');
+    });
+
+    it('shows the preview name when selection is a preview', () => {
+        const config: Config = {
+            context: {
+                project: MAIN_UUID,
+                projectName: 'main',
+                previewProject: PREVIEW_UUID,
+                previewName: 'my-preview',
+            },
+        };
+
+        logSelectedProject(
+            { projectUuid: PREVIEW_UUID, isPreview: true },
+            config,
+            'Uploading to',
+        );
+
+        const output = getLoggedMessage();
+        expect(output).toContain('Uploading to preview project:');
+        expect(output).toContain('"my-preview"');
     });
 });
