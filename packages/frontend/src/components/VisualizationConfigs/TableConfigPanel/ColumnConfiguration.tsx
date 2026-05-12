@@ -64,13 +64,12 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
 type ColumnConfigurationProps = {
     fieldId: string;
+
     /**
-     * When provided, the freeze toggle controls all listed fieldIds together
-     * instead of just this one. Used in metricsAsRows mode where the leftmost
-     * column is a single label column shared across all metrics — toggling
-     * any metric should keep all the lock icons in sync.
+     * When provided, the freeze toggle controls all listed fieldIds together.
      */
     syncFreezeWith?: string[];
+
 };
 
 const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
