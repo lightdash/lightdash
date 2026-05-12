@@ -1,5 +1,6 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
+import { ProjectMemberRole } from '../types/projectMemberRole';
 import { getUserAbilityBuilder } from './index';
 import applyOrganizationMemberAbilities from './organizationMemberAbility';
 import { type MemberAbility } from './types';
@@ -196,6 +197,108 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
             const { rules } = builder.build();
             // Org member abilities (minimal) plus project admin abilities
             expect(rules.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('NONE org role with project memberships (service-account shape)', () => {
+        const PROJECT_A = 'project-a-uuid';
+        const PROJECT_B = 'project-b-uuid';
+        const CUSTOM_PROJECT_ROLE = '22222222-2222-4222-a222-222222222222';
+
+        it('grants project abilities only for projects in projectProfiles', () => {
+            const builder = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.NONE,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_A,
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid: USER_UUID,
+                        roleUuid: undefined,
+                    },
+                ],
+                permissionsConfig: PERMISSIONS_CONFIG,
+            });
+            const ability = builder.build();
+            // ADMIN at the project level grants unconditional manage on
+            // SavedChart for that project — used here as a smoke test
+            // that the project-membership branch ran for a NONE org-role user.
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', { projectUuid: PROJECT_A }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', { projectUuid: PROJECT_B }),
+                ),
+            ).toBe(false);
+            // No org-wide abilities leak through.
+            expect(ability.can('view', 'Organization')).toBe(false);
+            expect(ability.can('view', 'OrganizationMemberProfile')).toBe(
+                false,
+            );
+        });
+
+        it('composes NONE with a project-level custom role', () => {
+            const builder = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.NONE,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [
+                    {
+                        projectUuid: PROJECT_A,
+                        role: ProjectMemberRole.VIEWER,
+                        userUuid: USER_UUID,
+                        roleUuid: CUSTOM_PROJECT_ROLE,
+                    },
+                ],
+                permissionsConfig: PERMISSIONS_CONFIG,
+                customRoleScopes: {
+                    [CUSTOM_PROJECT_ROLE]: ['view:Dashboard'],
+                },
+                customRolesEnabled: true,
+            });
+            const ability = builder.build();
+            // `view:Dashboard` scope condition includes
+            // `inheritsFromOrgOrProject: true`; the subject must surface
+            // that field so the CASL match succeeds.
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid: PROJECT_A,
+                        inheritsFromOrgOrProject: true,
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        projectUuid: PROJECT_A,
+                        inheritsFromOrgOrProject: true,
+                    }),
+                ),
+            ).toBe(false);
+            expect(
+                ability.can(
+                    'view',
+                    subject('Dashboard', {
+                        projectUuid: PROJECT_B,
+                        inheritsFromOrgOrProject: true,
+                    }),
+                ),
+            ).toBe(false);
         });
     });
 });
