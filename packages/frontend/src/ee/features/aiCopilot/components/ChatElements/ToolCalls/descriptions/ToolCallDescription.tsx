@@ -16,6 +16,7 @@ import {
     type ToolGetDashboardChartsArgs,
     type ToolName,
     type ToolRunQueryArgs,
+    type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
@@ -28,6 +29,7 @@ import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
+import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 export const ToolCallDescription: FC<{
     toolName: ToolName;
@@ -140,6 +142,15 @@ export const ToolCallDescription: FC<{
                     title={chartToolArgs.title}
                 />
             );
+        case 'runSql':
+            const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
+            return (
+                <SqlRunToolCallDescription
+                    sql={sqlToolArgs.sql}
+                    limit={sqlToolArgs.limit}
+                />
+            );
+        case 'listWarehouseTables':
         case 'improveContext':
         case 'proposeChange':
         case 'runSavedChart':

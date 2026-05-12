@@ -17,9 +17,11 @@ import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getImproveContext } from '../tools/improveContext';
+import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
+import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
@@ -124,6 +126,19 @@ const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
+    const runSql = args.canRunSql
+        ? getRunSql({
+              updateProgress: dependencies.updateProgress,
+              runSqlJob: dependencies.runSqlJob,
+          })
+        : null;
+
+    const listWarehouseTables = args.canRunSql
+        ? getListWarehouseTables({
+              listWarehouseTables: dependencies.listWarehouseTables,
+          })
+        : null;
+
     const generateDashboard = getGenerateDashboardV2({
         getPrompt: dependencies.getPrompt,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -153,6 +168,8 @@ const getAgentTools = (
             ? { proposeChange }
             : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(runSql ? { runSql } : {}),
+        ...(listWarehouseTables ? { listWarehouseTables } : {}),
     };
 
     logger(
@@ -173,6 +190,9 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             availableExplores,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            canRunSql: args.canRunSql,
+            warehouseType: args.warehouseType,
+            warehouseSchema: args.warehouseSchema,
         }),
         ...args.messageHistory,
     ];

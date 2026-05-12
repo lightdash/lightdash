@@ -49,15 +49,18 @@ import {
     parseVizConfig,
     ProjectType,
     QueryExecutionContext,
+    QueryHistoryStatus,
     ReadinessScore,
     ShareUrl,
     SlackPrompt,
+    TimeoutError,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    WarehouseQueryError,
     type AiPromptContextInput,
     type SessionUser,
 } from '@lightdash/common';
@@ -145,7 +148,9 @@ import {
     GetPromptFn,
     GetSavedChartFn,
     ListExploresFn,
+    ListWarehouseTablesFn,
     RunAsyncQueryFn,
+    RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
     StoreReasoningFn,
@@ -2933,6 +2938,108 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
+        const runSqlJob: RunSqlJobFn = ({ sql, limit }) =>
+            wrapSentryTransaction(
+                'AiAgent.runSqlJob',
+                { sql: sql.slice(0, 500), limit },
+                async () => {
+                    const account = fromSession(user);
+                    const { queryUuid } =
+                        await this.asyncQueryService.executeAsyncSqlQuery({
+                            account,
+                            projectUuid,
+                            sql,
+                            limit,
+                            context: QueryExecutionContext.AI,
+                        });
+
+                    const maxWaitMs = 5 * 60 * 1000;
+                    const startTime = Date.now();
+                    let delayMs = 500;
+
+                    // eslint-disable-next-line no-constant-condition
+                    while (true) {
+                        if (Date.now() - startTime > maxWaitMs) {
+                            throw new TimeoutError(
+                                'SQL query timed out after 5 minutes',
+                            );
+                        }
+
+                        const queryResults =
+                            // eslint-disable-next-line no-await-in-loop
+                            await this.asyncQueryService.getAsyncQueryResults({
+                                account,
+                                projectUuid,
+                                queryUuid,
+                                page: 1,
+                                pageSize: limit,
+                            });
+
+                        if (queryResults.status === QueryHistoryStatus.READY) {
+                            const wrappedRows = (queryResults.rows ??
+                                []) as Record<string, AnyType>[];
+                            // Unwrap {value:{raw,formatted}} cells so downstream CSV sees scalars.
+                            const unwrapCell = (cell: AnyType): AnyType => {
+                                if (
+                                    cell &&
+                                    typeof cell === 'object' &&
+                                    'value' in cell
+                                ) {
+                                    const inner = (cell as { value: AnyType })
+                                        .value;
+                                    if (
+                                        inner &&
+                                        typeof inner === 'object' &&
+                                        'raw' in inner
+                                    ) {
+                                        return (inner as { raw: AnyType }).raw;
+                                    }
+                                    return inner;
+                                }
+                                return cell;
+                            };
+                            const rows = wrappedRows.map((row) =>
+                                Object.fromEntries(
+                                    Object.entries(row).map(([k, v]) => [
+                                        k,
+                                        unwrapCell(v),
+                                    ]),
+                                ),
+                            );
+                            const columns = Object.keys(rows[0] ?? {});
+                            return {
+                                rows,
+                                columns,
+                                rowCount: rows.length,
+                            };
+                        }
+
+                        if (queryResults.status === QueryHistoryStatus.ERROR) {
+                            throw new WarehouseQueryError(
+                                `SQL query failed: ${
+                                    queryResults.error ?? 'Unknown error'
+                                }`,
+                            );
+                        }
+
+                        if (
+                            queryResults.status === QueryHistoryStatus.CANCELLED
+                        ) {
+                            throw new WarehouseQueryError(
+                                'SQL query was cancelled',
+                            );
+                        }
+
+                        const localDelay = delayMs;
+                        // eslint-disable-next-line no-await-in-loop
+                        await new Promise<void>((resolve) => {
+                            setTimeout(resolve, localDelay);
+                        });
+                        delayMs = Math.min(delayMs * 2, 2000);
+                    }
+                },
+            );
+
         const sendFile: SendFileFn = (args) =>
             wrapSentryTransaction('AiAgent.sendFile', args, () =>
                 //
@@ -2949,6 +3056,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 //
 
                 this.slackClient.postFileToThread(args),
+            );
+
+        const listWarehouseTables: ListWarehouseTablesFn = () =>
+            wrapSentryTransaction(
+                'AiAgent.listWarehouseTables',
+                { projectUuid },
+                () => this.projectService.getWarehouseTables(user, projectUuid),
             );
 
         const storeToolCall: StoreToolCallFn = async (args) => {
@@ -3125,6 +3239,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runSqlJob,
+            listWarehouseTables,
             getSavedChart,
             sendFile,
             storeToolCall,
@@ -3202,6 +3318,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             updateProgress,
             getPrompt,
             runAsyncQuery,
+            runSqlJob,
+            listWarehouseTables,
             getSavedChart,
             sendFile,
             storeToolCall,
@@ -3211,6 +3329,69 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             getExploreCompiler,
             createChange,
         } = this.getAiAgentDependencies(user, prompt);
+
+        const canRunSqlFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: CommercialFeatureFlags.AiAgentRunSql,
+        });
+
+        // For Slack prompts: only allow runSql when the org requires OAuth.
+        // Without OAuth, Slack messages run as a workspace-default user, so
+        // both the feature flag and the SqlRunner CASL check evaluate against
+        // that default — meaning ANYONE in the Slack workspace could trigger
+        // SQL execution under a different person's permissions. Fail-closed.
+        let canRunSql = canRunSqlFlag.enabled;
+        if (canRunSql && isSlackPrompt(prompt) && user.organizationUuid) {
+            const slackSettings =
+                await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                    user.organizationUuid,
+                );
+            if (!slackSettings?.aiRequireOAuth) {
+                this.logger.info(
+                    `Disabling runSql for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                );
+                canRunSql = false;
+            }
+        }
+
+        // Require the same CASL ability the SQL Runner page uses. The check
+        // also fires deep in AsyncQueryService.executeAsyncSqlQuery, but
+        // gating here means the tool isn't even registered with the model
+        // for users without the scope — cleaner UX than a ForbiddenError
+        // mid-tool-call.
+        if (canRunSql) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('SqlRunner', {
+                        organizationUuid: user.organizationUuid,
+                        projectUuid: prompt.projectUuid,
+                    }),
+                )
+            ) {
+                canRunSql = false;
+            }
+        }
+
+        const warehouseCredentials = canRunSql
+            ? await this.projectModel.getWarehouseCredentialsForProject(
+                  prompt.projectUuid,
+              )
+            : null;
+        const warehouseType = warehouseCredentials?.type ?? null;
+        // Extract a human-readable schema location depending on dialect so the
+        // system prompt can tell the agent to fully-qualify tables on first try.
+        const warehouseSchema = warehouseCredentials
+            ? ('schema' in warehouseCredentials &&
+                  warehouseCredentials.schema) ||
+              ('dataset' in warehouseCredentials &&
+                  'project' in warehouseCredentials &&
+                  `${warehouseCredentials.project}.${warehouseCredentials.dataset}`) ||
+              ('database' in warehouseCredentials &&
+                  warehouseCredentials.database) ||
+              null
+            : null;
 
         const agentSettings = await this.getAgentSettings(user, prompt);
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
@@ -3236,6 +3417,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
+            canRunSql,
+            warehouseType,
+            warehouseSchema,
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
@@ -3253,6 +3437,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFields,
             findExplores,
             runAsyncQuery,
+            runSqlJob,
+            listWarehouseTables,
             getSavedChart,
             getPrompt,
             sendFile,

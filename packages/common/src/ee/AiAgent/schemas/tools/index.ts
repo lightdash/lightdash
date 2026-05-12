@@ -8,6 +8,7 @@ export * from './toolGetDashboardChartsArgs';
 export * from './toolFindExploresArgs';
 export * from './toolFindFieldsArgs';
 export * from './toolImproveContextArgs';
+export * from './toolListWarehouseTablesArgs';
 export * from './toolProposeChangeArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';

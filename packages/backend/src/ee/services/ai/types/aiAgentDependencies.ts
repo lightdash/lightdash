@@ -21,6 +21,7 @@ import {
     ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    WarehouseTablesCatalog,
 } from '@lightdash/common';
 import {
     AiAgentResponseStreamed,
@@ -172,3 +173,11 @@ export type CreateChangeFn = (
 ) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
+
+export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+    rows: Record<string, AnyType>[];
+    columns: string[];
+    rowCount: number;
+}>;
+
+export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;

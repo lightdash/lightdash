@@ -25,6 +25,8 @@ export const ToolNameSchema = z.enum([
     'proposeChange',
     'runQuery',
     'runSavedChart',
+    'runSql',
+    'listWarehouseTables',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -50,6 +52,8 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     improveContext: 'Improving context',
     runQuery: 'Generating visualization',
     runSavedChart: 'Running saved chart',
+    runSql: 'Running SQL query',
+    listWarehouseTables: 'Listing warehouse tables',
 });
 
 // after-tool-call messages
@@ -69,6 +73,8 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         improveContext: 'Improved context',
         runQuery: 'Generated visualization',
         runSavedChart: 'Ran saved chart',
+        runSql: 'Ran SQL query',
+        listWarehouseTables: 'Listed warehouse tables',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

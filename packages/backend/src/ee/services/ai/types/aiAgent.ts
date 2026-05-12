@@ -1,4 +1,4 @@
-import { AiAgent } from '@lightdash/common';
+import { AiAgent, WarehouseTypes } from '@lightdash/common';
 import { ModelMessage } from 'ai';
 import { AiModel, AiProvider } from '../models/types';
 import {
@@ -13,7 +13,9 @@ import {
     GetPromptFn,
     GetSavedChartFn,
     ListExploresFn,
+    ListWarehouseTablesFn,
     RunAsyncQueryFn,
+    RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
     StoreReasoningFn,
@@ -37,6 +39,9 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    canRunSql: boolean;
+    warehouseType: WarehouseTypes | null;
+    warehouseSchema: string | null;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
@@ -66,6 +71,8 @@ export type AiAgentDependencies = {
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runSqlJob: RunSqlJobFn;
+    listWarehouseTables: ListWarehouseTablesFn;
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;

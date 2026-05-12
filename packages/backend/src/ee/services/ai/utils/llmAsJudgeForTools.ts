@@ -8,9 +8,11 @@ import {
     toolFindFieldsArgsSchema,
     toolGetDashboardChartsArgsSchema,
     toolImproveContextArgsSchema,
+    toolListWarehouseTablesArgsSchema,
     toolProposeChangeArgsSchema,
     toolRunQueryArgsSchema,
     toolRunSavedChartArgsSchema,
+    toolRunSqlArgsSchema,
     toolSearchFieldValuesArgsSchema,
     toolTableVizArgsSchema,
     toolTimeSeriesArgsSchema,
@@ -38,6 +40,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     generateBarVizConfig: 'vertical_bar_chart',
     runQuery: 'query_result',
     runSavedChart: 'run_saved_chart',
+    runSql: 'run_sql',
+    listWarehouseTables: 'list_warehouse_tables',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     proposeChange: 'propose_change',
@@ -61,6 +65,8 @@ const TOOL_SCHEMAS = {
     proposeChange: toolProposeChangeArgsSchema,
     runQuery: toolRunQueryArgsSchema,
     runSavedChart: toolRunSavedChartArgsSchema,
+    runSql: toolRunSqlArgsSchema,
+    listWarehouseTables: toolListWarehouseTablesArgsSchema,
 } satisfies Record<ToolName, z.ZodSchema>;
 
 const getToolInfo = (toolName: string) => {
