@@ -1577,6 +1577,15 @@ export const getCategoryDateAxisConfig = (
     return {};
 };
 
+// Read from the axis holding the X field — bottom (normal) or left (flipped).
+// Top/right hold Y-field metrics; leaking them corrupts the X field column.
+export const selectContinuousDateRange = (
+    flipAxes: boolean | undefined,
+    bottomAxisExtraConfig: CategoryDateAxisConfig,
+    leftAxisExtraConfig: CategoryDateAxisConfig,
+): string[] | undefined =>
+    flipAxes ? leftAxisExtraConfig.data : bottomAxisExtraConfig.data;
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -2258,12 +2267,11 @@ const getEchartAxes = ({
                 ...rightAxisExtraConfig,
             },
         ],
-        continuousDateRange:
-            bottomAxisExtraConfig.data ??
-            topAxisExtraConfig.data ??
-            leftAxisExtraConfig.data ??
-            rightAxisExtraConfig.data ??
-            undefined,
+        continuousDateRange: selectContinuousDateRange(
+            validCartesianConfig.layout.flipAxes,
+            bottomAxisExtraConfig,
+            leftAxisExtraConfig,
+        ),
     };
 };
 

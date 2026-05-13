@@ -14,6 +14,7 @@ import {
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
     padDatasetForContinuousAxis,
+    selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
 
 vi.mock('./../../providers/TrackingProvider');
@@ -753,6 +754,52 @@ describe('padDatasetForContinuousAxis', () => {
 
         const result = padDatasetForContinuousAxis(data, range, xField);
         expect(result).toEqual(data);
+    });
+});
+
+describe('selectContinuousDateRange', () => {
+    const range = ['2024-01-01T00:00:00Z', '2024-01-08T00:00:00Z'];
+
+    test('non-flipped reads from bottom (X axis)', () => {
+        expect(
+            selectContinuousDateRange(
+                false,
+                { data: range },
+                { data: undefined },
+            ),
+        ).toEqual(range);
+    });
+
+    test('flipped reads from left (X axis)', () => {
+        expect(
+            selectContinuousDateRange(
+                true,
+                { data: undefined },
+                { data: range },
+            ),
+        ).toEqual(range);
+    });
+
+    // Regression: date dim on Y leaked into X-axis padding via the old
+    // bottom ?? top ?? left ?? right fallback chain.
+    test('non-flipped ignores left-axis data (Y-axis leak guard)', () => {
+        expect(
+            selectContinuousDateRange(
+                false,
+                { data: undefined },
+                { data: range },
+            ),
+        ).toBeUndefined();
+    });
+
+    test('flipped ignores bottom-axis data (Y-axis leak guard)', () => {
+        expect(
+            selectContinuousDateRange(
+                true,
+                { data: range },
+                { data: undefined },
+            ),
+        ).toBeUndefined();
     });
 });
 
