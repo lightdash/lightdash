@@ -127,6 +127,7 @@
         "reselect": "5.1.1",
         "rudder-sdk-js": "2.9.1",
         "scheduler": "0.23.2",
+        "streamdown": "2.5.0",
         "styled-components": "5.3.3",
         "tippy.js": "6.3.7",
         "topojson-client": "3.1.0",
