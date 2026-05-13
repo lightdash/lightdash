@@ -32,7 +32,7 @@ import {
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
-import { ALL_TRAFFIC, Sandbox } from 'e2b';
+import { ALL_TRAFFIC, CommandExitError, Sandbox } from 'e2b';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -1467,18 +1467,40 @@ export class AppGenerateService extends BaseService {
         stderr: string;
     }> {
         const start = performance.now();
-        const result = await sandbox.commands.run('pnpm build', {
-            cwd: '/app',
-            timeoutMs: 60 * 1000,
-            onStdout: (chunk) => {
-                this.logger.debug(
-                    `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
-                );
-            },
-            onStderr: (chunk) => {
-                this.logger.info(`App ${appUuid}: build: ${chunk.trimEnd()}`);
-            },
-        });
+        // E2B's `commands.run` throws `CommandExitError` on a non-zero exit
+        // code (no opt-out), so we have to catch it ourselves and surface the
+        // result — otherwise `runBuildWithAutoFix` would never see a failed
+        // build and could not retry.
+        let result: {
+            exitCode: number;
+            stdout: string;
+            stderr: string;
+        };
+        try {
+            result = await sandbox.commands.run('pnpm build', {
+                cwd: '/app',
+                timeoutMs: 60 * 1000,
+                onStdout: (chunk) => {
+                    this.logger.debug(
+                        `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
+                    );
+                },
+                onStderr: (chunk) => {
+                    this.logger.info(
+                        `App ${appUuid}: build: ${chunk.trimEnd()}`,
+                    );
+                },
+            });
+        } catch (err) {
+            if (!(err instanceof CommandExitError)) {
+                throw err;
+            }
+            result = {
+                exitCode: err.exitCode,
+                stdout: err.stdout,
+                stderr: err.stderr,
+            };
+        }
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: Vite build completed (exit=${result.exitCode}, ${durationMs}ms)`,
