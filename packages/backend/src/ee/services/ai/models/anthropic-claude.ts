@@ -32,6 +32,25 @@ export const getAnthropicModel = (
         providerOptions: {
             [PROVIDER]: {
                 ...(preset.providerOptions || {}),
+                contextManagement: {
+                    edits: [
+                        ...(reasoningEnabled
+                            ? [{ type: 'clear_thinking_20251015' as const }]
+                            : []),
+                        {
+                            type: 'clear_tool_uses_20250919',
+                            trigger: {
+                                type: 'input_tokens',
+                                value: 120_000,
+                            },
+                            keep: { type: 'tool_uses', value: 3 },
+                            clearAtLeast: {
+                                type: 'input_tokens',
+                                value: 5_000,
+                            },
+                        },
+                    ],
+                },
                 ...(reasoningEnabled &&
                     (reasoningStyle === 'adaptive'
                         ? { effort: 'medium' as const }
