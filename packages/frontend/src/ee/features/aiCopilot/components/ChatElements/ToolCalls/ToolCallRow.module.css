@@ -9,11 +9,6 @@
     display: block;
     text-align: left;
     border-radius: 6px;
-    transition: background-color 160ms ease;
-}
-
-.rowButton:hover {
-    background-color: var(--mantine-color-ldGray-1);
 }
 
 .head {
@@ -40,7 +35,8 @@
     flex-shrink: 0;
     line-height: 1;
     color: var(--mantine-color-ldGray-7);
-    font-weight: 450;
+    font-family: var(--mantine-font-family);
+    font-weight: 500;
     letter-spacing: -0.005em;
 }
 
@@ -159,11 +155,11 @@
 }
 
 .chevronOpen {
-    transform: rotate(180deg);
+    transform: rotate(90deg);
 }
 
 .body {
-    padding: 10px 0 8px 22px;
+    padding: 2px 0 6px 22px;
     color: var(--mantine-color-ldGray-7);
     animation: bodyReveal 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }

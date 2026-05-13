@@ -11,7 +11,7 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
@@ -41,6 +41,12 @@ type Props = {
     toolName: ToolName;
     toolCalls: ToolCallSummary[];
     status?: ToolCallRowStatus;
+    /**
+     * Optional extra content rendered inside the expanded body, below the
+     * per-call descriptions. Used to surface things like the discoverFields
+     * subagent trace.
+     */
+    extraBody?: React.ReactNode;
 };
 
 const Chip: FC<{ label: string; delay: number }> = ({ label, delay }) => (
@@ -59,13 +65,15 @@ export const ToolCallRow: FC<Props> = ({
     toolName,
     toolCalls,
     status = 'done',
+    extraBody,
 }) => {
     const Icon = getToolIcon(toolName);
     const label =
         status === 'running'
             ? TOOL_DISPLAY_MESSAGES[toolName]
             : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[toolName];
-    const hasDescription = !TOOLS_WITHOUT_DESCRIPTION.has(toolName);
+    const hasDescription =
+        !TOOLS_WITHOUT_DESCRIPTION.has(toolName) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
 
@@ -141,7 +149,7 @@ export const ToolCallRow: FC<Props> = ({
             <Box className={styles.previewSlot}>{renderInlinePreview()}</Box>
             {isClickable && (
                 <MantineIcon
-                    icon={IconChevronDown}
+                    icon={IconChevronRight}
                     size={11}
                     stroke={1.6}
                     className={`${styles.chevron} ${
@@ -179,6 +187,7 @@ export const ToolCallRow: FC<Props> = ({
                             toolCall={tc}
                         />
                     ))}
+                    {extraBody}
                 </Stack>
             </Collapse>
         </Box>
