@@ -236,6 +236,9 @@
             },
             "ServiceAccountProjectAccessInput": {
                 "properties": {
+                    "roleUuid": {
+                        "type": "string"
+                    },
                     "role": {
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     },
@@ -243,9 +246,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["role", "projectUuid"],
+                "required": ["projectUuid"],
                 "type": "object",
-                "description": "Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty\non a create request, `scopes` must be `['system:member']` — any other scope\ncombination is rejected at the service layer so the SA's effective access is\nunambiguously project-only."
+                "description": "Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty\non a create request, `scopes` must be `['system:member']` — any other scope\ncombination is rejected at the service layer so the SA's effective access is\nunambiguously project-only.\n\nEach grant must carry exactly one of `role` (system) or `roleUuid` (custom).\nThe XOR is enforced at the service layer (compile-time `never` discriminator\nunions are not used here — see note on `ServiceAccountProjectGrant`).\nMixed grants across the same `projectAccess` array are allowed — e.g. one\nproject on stock Viewer and another on a custom role."
             },
             "ApiCreateServiceAccountRequest": {
                 "allOf": [

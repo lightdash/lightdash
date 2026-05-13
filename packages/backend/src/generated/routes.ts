@@ -380,7 +380,8 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                role: { ref: 'ProjectMemberRole', required: true },
+                roleUuid: { dataType: 'string' },
+                role: { ref: 'ProjectMemberRole' },
                 projectUuid: { dataType: 'string', required: true },
             },
             validators: {},
@@ -10206,11 +10207,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
