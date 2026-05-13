@@ -1031,6 +1031,11 @@ export const convertTable = (
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
         ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),
+        ...(model.package_name ? { dbtPackageName: model.package_name } : {}),
+        ...(model.patch_path
+            ? { ymlPath: patchPathParts(model.patch_path).path }
+            : {}),
+        ...(model.path ? { sqlPath: model.path } : {}),
     };
 };
 

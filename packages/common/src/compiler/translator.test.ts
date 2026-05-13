@@ -968,6 +968,62 @@ describe('convert tables from dbt models', () => {
     });
 });
 
+describe('dbt source paths', () => {
+    it('omits dbtPackageName, ymlPath, and sqlPath when the model has no source paths', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_NO_METRICS,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dbtPackageName).toBeUndefined();
+        expect(result.ymlPath).toBeUndefined();
+        expect(result.sqlPath).toBeUndefined();
+    });
+
+    it('populates dbtPackageName, ymlPath, and sqlPath from manifest fields', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                package_name: 'jaffle_shop',
+                patch_path: 'jaffle_shop://models/orders.yml',
+                path: 'orders.sql',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dbtPackageName).toBe('jaffle_shop');
+        expect(result.ymlPath).toBe('models/orders.yml');
+        expect(result.sqlPath).toBe('orders.sql');
+    });
+
+    it('populates each source field independently when others are missing', () => {
+        const ymlOnly = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                patch_path: 'pkg://schema.yml',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(ymlOnly.ymlPath).toBe('schema.yml');
+        expect(ymlOnly.dbtPackageName).toBeUndefined();
+        expect(ymlOnly.sqlPath).toBeUndefined();
+
+        const sqlOnly = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            { ...MODEL_WITH_NO_METRICS, path: 'foo.sql' },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(sqlOnly.sqlPath).toBe('foo.sql');
+        expect(sqlOnly.ymlPath).toBeUndefined();
+        expect(sqlOnly.dbtPackageName).toBeUndefined();
+    });
+});
+
 describe('spotlight config', () => {
     it('should convert dbt model with metrics when no categories are defined', () => {
         expect(
