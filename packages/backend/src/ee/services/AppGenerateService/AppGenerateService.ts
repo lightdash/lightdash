@@ -855,7 +855,7 @@ export class AppGenerateService extends BaseService {
         );
         const result = await sandbox.commands.run(
             'tar -xf /tmp/source.tar -C /app',
-            { timeoutMs: 30_000 },
+            { timeoutMs: 60_000 },
         );
         if (result.exitCode !== 0) {
             throw new Error(
@@ -944,7 +944,7 @@ export class AppGenerateService extends BaseService {
         if (chartReferences.length === 0) return '';
 
         await sandbox.commands.run('mkdir -p /tmp/metric-queries', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
 
         const slugCounts = new Map<string, number>();
@@ -1033,7 +1033,7 @@ export class AppGenerateService extends BaseService {
         // which would cause a permission error on write.
         await sandbox.commands.run(
             'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
-            { timeoutMs: 5_000 },
+            { timeoutMs: 10_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
@@ -1196,7 +1196,7 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
         );
         await sandbox.commands.run('mkdir -p /tmp/images', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
         await sandbox.files.write(
             sandboxPath,
@@ -1398,7 +1398,7 @@ export class AppGenerateService extends BaseService {
             'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
 
         await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
         await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
 
@@ -1579,7 +1579,7 @@ export class AppGenerateService extends BaseService {
             // fail with EPERM. Same reason as in writeCatalogAndPrompt.
             await sandbox.commands.run(
                 'rm -f /tmp/prompt.txt 2>/dev/null; true',
-                { timeoutMs: 5_000 },
+                { timeoutMs: 10_000 },
             );
             await sandbox.files.write('/tmp/prompt.txt', `${fixPrompt}\n`);
 
@@ -1632,10 +1632,10 @@ export class AppGenerateService extends BaseService {
 
         await Promise.all([
             sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
-                timeoutMs: 10_000,
+                timeoutMs: 20_000,
             }),
             sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
-                timeoutMs: 30_000,
+                timeoutMs: 60_000,
             }),
         ]);
 
