@@ -1661,68 +1661,90 @@ const AppGenerate: FC = () => {
                                         </Box>
                                     ) : (
                                         isAgentWorking && (
-                                            <Box
-                                                className={
-                                                    classes.assistantMessage
-                                                }
-                                            >
-                                                <ThemeIcon
-                                                    size="sm"
-                                                    radius="xl"
-                                                    variant="light"
-                                                    color="gray"
-                                                    mt={2}
-                                                >
-                                                    <IconSparkles size={12} />
-                                                </ThemeIcon>
+                                            <Box>
                                                 <Box
                                                     className={
-                                                        classes.assistantBubble
+                                                        classes.assistantMessage
                                                     }
                                                 >
-                                                    {isClarifying ? (
-                                                        <Text
-                                                            size="sm"
-                                                            c="dimmed"
-                                                        >
-                                                            Hold tight, I may
-                                                            have some questions
-                                                            before starting{' '}
-                                                            <LoadingDots />
-                                                        </Text>
-                                                    ) : latestBuildingVersion?.statusMessage ? (
-                                                        <ReactMarkdownPreview
-                                                            source={
-                                                                latestBuildingVersion.statusMessage
-                                                            }
-                                                            className={`${classes.markdown} ${classes.markdownDimmed} ${classes.markdownInline}`}
-                                                            components={{
-                                                                p: ({
-                                                                    node: _node,
-                                                                    children,
-                                                                    ...rest
-                                                                }) => (
-                                                                    <p
-                                                                        {...rest}
-                                                                    >
-                                                                        {
-                                                                            children
-                                                                        }{' '}
-                                                                        <LoadingDots />
-                                                                    </p>
-                                                                ),
-                                                            }}
+                                                    <ThemeIcon
+                                                        size="sm"
+                                                        radius="xl"
+                                                        variant="light"
+                                                        color="gray"
+                                                        mt={2}
+                                                    >
+                                                        <IconSparkles
+                                                            size={12}
                                                         />
-                                                    ) : (
+                                                    </ThemeIcon>
+                                                    <Box
+                                                        className={
+                                                            classes.assistantBubble
+                                                        }
+                                                    >
+                                                        {isClarifying ? (
+                                                            <Text
+                                                                size="sm"
+                                                                c="dimmed"
+                                                            >
+                                                                Hold tight, I
+                                                                may have some
+                                                                questions before
+                                                                starting{' '}
+                                                                <LoadingDots />
+                                                            </Text>
+                                                        ) : latestBuildingVersion?.statusMessage ? (
+                                                            <ReactMarkdownPreview
+                                                                source={
+                                                                    latestBuildingVersion.statusMessage
+                                                                }
+                                                                className={`${classes.markdown} ${classes.markdownDimmed} ${classes.markdownInline}`}
+                                                                components={{
+                                                                    p: ({
+                                                                        node: _node,
+                                                                        children,
+                                                                        ...rest
+                                                                    }) => (
+                                                                        <p
+                                                                            {...rest}
+                                                                        >
+                                                                            {
+                                                                                children
+                                                                            }{' '}
+                                                                            <LoadingDots />
+                                                                        </p>
+                                                                    ),
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <Text
+                                                                size="sm"
+                                                                c="dimmed"
+                                                            >
+                                                                Generating your
+                                                                app{' '}
+                                                                <LoadingDots />
+                                                            </Text>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                                {!isClarifying &&
+                                                    latestBuildingVersion?.status ===
+                                                        'generating' && (
                                                         <Text
-                                                            size="sm"
+                                                            fz={11}
                                                             c="dimmed"
+                                                            pl={34}
+                                                            mt="xs"
                                                         >
-                                                            Generating your app{' '}
-                                                            <LoadingDots />
+                                                            I'll continue
+                                                            building in the
+                                                            background - feel
+                                                            free to switch tabs
+                                                            or close this one.
                                                         </Text>
                                                     )}
-                                                </Box>
                                             </Box>
                                         )
                                     )}
