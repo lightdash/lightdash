@@ -1512,13 +1512,18 @@ export const getCategoryDateAxisConfig = (
     const inTz = (v: string | number) =>
         tz === 'UTC' ? dayjs.utc(v) : dayjs.tz(dayjs.utc(v).toDate(), tz);
 
+    // dayjs `.add(unit)` keeps the source UTC offset rather than re-resolving
+    // DST in the target zone; re-parse the wall-clock to fix that. No-op for UTC.
+    const reAnchor = (d: dayjs.Dayjs) =>
+        tz === 'UTC' ? d : dayjs.tz(d.format('YYYY-MM-DD HH:mm:ss'), tz);
+
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];
         let nextDate = inTz(minX);
         const endDate = inTz(maxX);
         while (nextDate.isBefore(endDate)) {
             continuousRange.push(nextDate.utc().format());
-            nextDate = nextDate.add(1, 'week');
+            nextDate = reAnchor(nextDate.add(1, 'week'));
         }
         continuousRange.push(endDate.utc().format());
         return {
@@ -1534,7 +1539,7 @@ export const getCategoryDateAxisConfig = (
         const endDate = inTz(maxX).startOf('year');
         while (!nextDate.isAfter(endDate)) {
             continuousRange.push(nextDate.utc().format());
-            nextDate = nextDate.add(1, 'year');
+            nextDate = reAnchor(nextDate.add(1, 'year'));
         }
         return {
             data: continuousRange,
@@ -1550,7 +1555,7 @@ export const getCategoryDateAxisConfig = (
         while (!nextDate.isAfter(endDate)) {
             continuousRange.push(nextDate.utc().format());
             // dayjs requires quarterOfYear plugin for .add(1, 'quarter')
-            nextDate = nextDate.add(3, 'months');
+            nextDate = reAnchor(nextDate.add(3, 'months'));
         }
         return {
             data: continuousRange,
@@ -1565,7 +1570,7 @@ export const getCategoryDateAxisConfig = (
         const endDate = inTz(maxX).startOf('month');
         while (!nextDate.isAfter(endDate)) {
             continuousRange.push(nextDate.utc().format());
-            nextDate = nextDate.add(1, 'month');
+            nextDate = reAnchor(nextDate.add(1, 'month'));
         }
         return {
             data: continuousRange,

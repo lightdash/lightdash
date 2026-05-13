@@ -1,11 +1,17 @@
 import {
     CartesianSeriesType,
+    DimensionType,
+    FieldType,
     TimeFrames,
     transformToPercentageStacking,
+    type Dimension,
     type EChartsSeries,
     type Field,
     type ResultRow,
 } from '@lightdash/common';
+import dayjs from 'dayjs';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
 import { describe, expect, test, vi } from 'vitest';
 import {
     filterSeriesWithNoData,
@@ -16,6 +22,9 @@ import {
     padDatasetForContinuousAxis,
     selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
+
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
 
@@ -485,6 +494,308 @@ describe('getCategoryDateAxisConfig', () => {
             // 2020..2024 inclusive = 5 years
             expect(result.data).toHaveLength(5);
             expectStrictlyIncreasingAndUnique(result.data!);
+        });
+    });
+
+    // Snap labels must equal warehouse wall-clock-midnight UTC instants for
+    // the resolved zone, even across DST boundaries.
+    describe('DST stability across resolved timezone', () => {
+        const wallClockMidnightUtc = (
+            tz: string,
+            year: number,
+            month1Based: number,
+            day = 1,
+        ): string => {
+            const m = String(month1Based).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            return dayjs.tz(`${year}-${m}-${d} 00:00:00`, tz).utc().format();
+        };
+
+        const monthlyRowsFor = (
+            tz: string,
+            months: Array<[number, number]>,
+        ): ResultRow[] =>
+            createRows(months.map(([y, m]) => wallClockMidnightUtc(tz, y, m)));
+
+        const expectedMonthlyRange = (
+            tz: string,
+            months: Array<[number, number]>,
+        ): string[] => months.map(([y, m]) => wallClockMidnightUtc(tz, y, m));
+
+        describe('MONTH', () => {
+            // Apr 2024 → Mar 2025: iteration starts in PDT, crosses fall-back
+            // (Nov 3 2024) and spring-forward (Mar 9 2025).
+            test('LA: snap honors PST↔PDT transitions across a full year', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                    [2024, 10],
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                    [2025, 3],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            // May 2024 → Apr 2025: iteration starts in BST, crosses fall-back
+            // (Oct 27 2024) and spring-forward (Mar 30 2025).
+            test('London: snap honors GMT↔BST transitions across a full year', () => {
+                const tz = 'Europe/London';
+                const months: Array<[number, number]> = [
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                    [2024, 10],
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                    [2025, 3],
+                    [2025, 4],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+        });
+
+        describe('QUARTER', () => {
+            // Q2 2024 → Q1 2025: starts in PDT, ends in PST (Jan 1 2025).
+            test('LA: snap honors DST when iterating across quarter boundaries', () => {
+                const tz = 'America/Los_Angeles';
+                const quarters: Array<[number, number]> = [
+                    [2024, 4], // Q2 2024 — PDT
+                    [2024, 7], // Q3 2024 — PDT
+                    [2024, 10], // Q4 2024 — PDT (until Nov 3)
+                    [2025, 1], // Q1 2025 — PST
+                ];
+                const rows = monthlyRowsFor(tz, quarters);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.QUARTER),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, quarters));
+            });
+
+            // Q2 2024 → Q1 2025: starts in BST, ends in GMT (Jan 1 2025).
+            test('London: snap honors DST when iterating across quarter boundaries', () => {
+                const tz = 'Europe/London';
+                const quarters: Array<[number, number]> = [
+                    [2024, 4], // Q2 — BST
+                    [2024, 7], // Q3 — BST
+                    [2024, 10], // Q4 — BST (until Oct 27)
+                    [2025, 1], // Q1 — GMT
+                ];
+                const rows = monthlyRowsFor(tz, quarters);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.QUARTER),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, quarters));
+            });
+        });
+
+        describe('WEEK', () => {
+            // Mondays spanning LA fall-back (Nov 3 2024): Oct 28 PDT → Nov 4 PST.
+            test('LA: snap honors DST when iterating week-by-week across fall-back', () => {
+                const tz = 'America/Los_Angeles';
+                const weekStarts: Array<[number, number, number]> = [
+                    [2024, 10, 28], // Mon, PDT
+                    [2024, 11, 4], // Mon, PST (DST ended Nov 3)
+                    [2024, 11, 11], // Mon, PST
+                ];
+                const rows = createRows(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.WEEK),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+            });
+
+            // Mondays spanning London spring-forward (Mar 30 2025): Mar 24 GMT → Mar 31 BST.
+            test('London: snap honors DST when iterating week-by-week across spring-forward', () => {
+                const tz = 'Europe/London';
+                const weekStarts: Array<[number, number, number]> = [
+                    [2025, 3, 24], // Mon, GMT
+                    [2025, 3, 31], // Mon, BST (DST started Mar 30)
+                    [2025, 4, 7], // Mon, BST
+                ];
+                const rows = createRows(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.WEEK),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+            });
+        });
+
+        describe('current behavior preserved', () => {
+            test('LA: non-DST-crossing window stays in PDT throughout', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            test('London: non-DST-crossing window stays in GMT throughout', () => {
+                const tz = 'Europe/London';
+                const months: Array<[number, number]> = [
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            // DATE-base dims must stay in UTC regardless of resolvedTimezone.
+            test('DATE-base dim ignores resolvedTimezone and snaps in UTC', () => {
+                const dateBaseField = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    timeIntervalBaseDimensionType: DimensionType.DATE,
+                    name: 'order_date_month',
+                    table: 'orders',
+                } as unknown as Dimension;
+                const rows = createRows([
+                    '2024-01-01T00:00:00Z',
+                    '2024-02-01T00:00:00Z',
+                    '2024-03-01T00:00:00Z',
+                ]);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    dateBaseField,
+                    rows,
+                    'category',
+                    undefined,
+                    'America/Los_Angeles',
+                );
+                expect(result.data).toEqual([
+                    '2024-01-01T00:00:00Z',
+                    '2024-02-01T00:00:00Z',
+                    '2024-03-01T00:00:00Z',
+                ]);
+            });
+        });
+
+        describe('YEAR', () => {
+            // Jan 1 is always winter in these zones — guards against future
+            // refactors drifting at year boundaries.
+            test('LA: year snap stays anchored to Jan 1 PST', () => {
+                const tz = 'America/Los_Angeles';
+                const years: Array<[number, number]> = [
+                    [2023, 1],
+                    [2024, 1],
+                    [2025, 1],
+                    [2026, 1],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.YEAR),
+                    monthlyRowsFor(tz, years),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, years));
+            });
+
+            test('London: year snap stays anchored to Jan 1 GMT', () => {
+                const tz = 'Europe/London';
+                const years: Array<[number, number]> = [
+                    [2023, 1],
+                    [2024, 1],
+                    [2025, 1],
+                    [2026, 1],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.YEAR),
+                    monthlyRowsFor(tz, years),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, years));
+            });
         });
     });
 });
