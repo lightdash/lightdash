@@ -31,7 +31,6 @@ import {
     IconCalendar,
     IconClock,
     IconDots,
-    IconEdit,
     IconFilter,
     IconInfoCircle,
     IconRefresh,
@@ -53,7 +52,6 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ProjectsHoverCard } from './ProjectsHoverCard';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
-import { ServiceAccountsEditModal } from './ServiceAccountsEditModal';
 import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
@@ -247,19 +245,6 @@ export const ServiceAccountsTable: FC<Props> = ({
         setServiceAccountToRotate(undefined);
         closeRotate();
     }, [closeRotate]);
-
-    const [serviceAccountToEdit, setServiceAccountToEdit] = useState<
-        ServiceAccountWithProjectAccessCount | undefined
-    >();
-    const handleOpenEdit = useCallback(
-        (sa: ServiceAccountWithProjectAccessCount) => {
-            setServiceAccountToEdit(sa);
-        },
-        [],
-    );
-    const handleCloseEdit = useCallback(() => {
-        setServiceAccountToEdit(undefined);
-    }, []);
 
     const columns: MRT_ColumnDef<ServiceAccountWithProjectAccessCount>[] =
         useMemo(
@@ -619,19 +604,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                             Rotate token
                                         </Menu.Item>
                                     )}
-                                    {getScope(sa) === 'project' && (
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconEdit} />
-                                            }
-                                            onClick={() => handleOpenEdit(sa)}
-                                        >
-                                            Edit
-                                        </Menu.Item>
-                                    )}
-                                    {(sa.roleUuid ||
-                                        sa.expiresAt ||
-                                        getScope(sa) === 'project') && (
+                                    {(sa.roleUuid || sa.expiresAt) && (
                                         <Menu.Divider />
                                     )}
                                     <Menu.Item
@@ -649,7 +622,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     },
                 },
             ],
-            [rolesByUuid, handleOpenRotate, handleOpenDelete, handleOpenEdit],
+            [rolesByUuid, handleOpenRotate, handleOpenDelete],
         );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -956,12 +929,6 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isOpen={rotateOpened}
                 onClose={handleCloseRotate}
                 serviceAccount={serviceAccountToRotate}
-            />
-
-            <ServiceAccountsEditModal
-                isOpen={!!serviceAccountToEdit}
-                onClose={handleCloseEdit}
-                serviceAccount={serviceAccountToEdit}
             />
         </>
     );
