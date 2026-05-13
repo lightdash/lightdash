@@ -25,6 +25,7 @@ import {
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionResources,
+    type CatalogItemSummary,
     type ChartReference,
     type ChartSampleData,
     type DataAppTemplate,
@@ -3770,31 +3771,57 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     /**
      * Convert catalog items into a dbt-style YAML that skill.md expects.
      * Groups fields by table and separates dimensions from metrics.
+     * Includes labels and descriptions (truncated) so the sandbox agent has
+     * semantic context for each model, metric, and dimension.
      */
-    private static catalogToYaml(
-        items: {
+    private static catalogToYaml(items: CatalogItemSummary[]): string {
+        const DESCRIPTION_MAX_LEN = 200;
+
+        const yamlStr = (s: string): string => {
+            const cleaned = s
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"');
+            return `"${cleaned}"`;
+        };
+
+        const truncate = (s: string): string =>
+            s.length > DESCRIPTION_MAX_LEN
+                ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
+                : s;
+
+        type FieldInfo = {
             name: string;
-            type: string;
-            tableName: string;
-            fieldType: string | undefined;
-        }[],
-    ): string {
+            label: string | null;
+            description: string | null;
+        };
+
+        const tableDescriptions = new Map<string, string | null>();
         const tables = new Map<
             string,
-            { dimensions: string[]; metrics: string[] }
+            { dimensions: FieldInfo[]; metrics: FieldInfo[] }
         >();
 
         for (const item of items) {
-            if (item.type === 'field') {
+            if (item.type === 'table') {
+                tableDescriptions.set(item.name, item.description);
+                if (!tables.has(item.name)) {
+                    tables.set(item.name, { dimensions: [], metrics: [] });
+                }
+            } else if (item.type === 'field') {
                 if (!tables.has(item.tableName)) {
                     tables.set(item.tableName, { dimensions: [], metrics: [] });
                 }
                 const table = tables.get(item.tableName)!;
-
+                const field: FieldInfo = {
+                    name: item.name,
+                    label: item.label,
+                    description: item.description,
+                };
                 if (item.fieldType === 'metric') {
-                    table.metrics.push(item.name);
+                    table.metrics.push(field);
                 } else {
-                    table.dimensions.push(item.name);
+                    table.dimensions.push(field);
                 }
             }
         }
@@ -3802,18 +3829,38 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const lines: string[] = ['models:'];
         for (const [tableName, fields] of tables) {
             lines.push(`  - name: ${tableName}`);
+            const tableDesc = tableDescriptions.get(tableName);
+            if (tableDesc) {
+                lines.push(`    description: ${yamlStr(truncate(tableDesc))}`);
+            }
             if (fields.metrics.length > 0) {
                 lines.push(`    meta:`);
                 lines.push(`      metrics:`);
                 for (const m of fields.metrics) {
-                    lines.push(`        ${m}:`);
+                    lines.push(`        ${m.name}:`);
                     lines.push(`          type: metric`);
+                    if (m.label && m.label !== m.name) {
+                        lines.push(`          label: ${yamlStr(m.label)}`);
+                    }
+                    if (m.description) {
+                        lines.push(
+                            `          description: ${yamlStr(truncate(m.description))}`,
+                        );
+                    }
                 }
             }
             if (fields.dimensions.length > 0) {
                 lines.push(`    columns:`);
                 for (const d of fields.dimensions) {
-                    lines.push(`      - name: ${d}`);
+                    lines.push(`      - name: ${d.name}`);
+                    if (d.label && d.label !== d.name) {
+                        lines.push(`        label: ${yamlStr(d.label)}`);
+                    }
+                    if (d.description) {
+                        lines.push(
+                            `        description: ${yamlStr(truncate(d.description))}`,
+                        );
+                    }
                 }
             }
         }
