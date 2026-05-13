@@ -340,10 +340,6 @@ const AssistantBubbleContent: FC<{
                                                     limit?: number;
                                                 }
                                             }
-                                            autoApprove={
-                                                streamingState?.sqlAutoApprove ??
-                                                false
-                                            }
                                         />
                                     ) : (
                                         <InlineToolCallCard

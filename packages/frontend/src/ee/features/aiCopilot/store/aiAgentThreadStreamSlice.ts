@@ -30,7 +30,6 @@ export interface AiAgentThreadStreamingState {
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
     decidedToolCallIds: string[];
-    sqlAutoApprove: boolean;
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -51,7 +50,6 @@ const initialThread: Omit<
     toolCalls: [],
     reasoning: [],
     decidedToolCallIds: [],
-    sqlAutoApprove: false,
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -115,16 +113,6 @@ export const aiAgentThreadStreamSlice = createSlice({
                 !streamingThread.decidedToolCallIds.includes(toolCallId)
             ) {
                 streamingThread.decidedToolCallIds.push(toolCallId);
-            }
-        },
-        enableSqlAutoApprove: (
-            state,
-            action: PayloadAction<{ threadUuid: string }>,
-        ) => {
-            const { threadUuid } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.sqlAutoApprove = true;
             }
         },
         stopStreaming: (
@@ -251,7 +239,6 @@ export const {
     setMessage,
     setParts,
     markToolCallDecided,
-    enableSqlAutoApprove,
     stopStreaming,
     setError,
     addToolCall,

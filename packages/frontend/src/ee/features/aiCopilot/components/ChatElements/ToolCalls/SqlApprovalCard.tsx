@@ -7,12 +7,10 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { useSessionStorage } from 'react-use';
 import { lightdashApi } from '../../../../../../api';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import {
-    enableSqlAutoApprove,
-    markToolCallDecided,
-} from '../../../store/aiAgentThreadStreamSlice';
+import { markToolCallDecided } from '../../../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreDispatch } from '../../../store/hooks';
 
 type SqlApprovalCardProps = {
@@ -21,7 +19,6 @@ type SqlApprovalCardProps = {
     threadUuid: string;
     toolCallId: string;
     toolArgs: { sql: string; limit?: number };
-    autoApprove: boolean;
 };
 
 type SubmitState = 'idle' | 'approved' | 'rejected' | 'autoApproved';
@@ -32,9 +29,12 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
     threadUuid,
     toolCallId,
     toolArgs,
-    autoApprove,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
+    const [autoApprove, setAutoApprove] = useSessionStorage<boolean>(
+        `sql-auto-approve:${threadUuid}`,
+        false,
+    );
     const [submitting, setSubmitting] = useState<SubmitState>('idle');
     const [error, setError] = useState<string | null>(null);
 
@@ -58,17 +58,16 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
         [projectUuid, agentUuid, threadUuid, toolCallId, dispatch],
     );
 
+    const autoApprovedFired = useRef(false);
+
     const onApprove = () => submitDecision('approved', 'approved');
     const onReject = () => submitDecision('rejected', 'rejected');
     const onApproveAlways = () => {
-        dispatch(enableSqlAutoApprove({ threadUuid }));
+        autoApprovedFired.current = true;
+        setAutoApprove(true);
         void submitDecision('approved', 'autoApproved');
     };
 
-    // Auto-approve on mount when the user previously opted in for this thread.
-    // Ref guard fires the request exactly once per mount even if submitDecision
-    // re-memoises mid-stream — avoids the eslint-disable on the deps array.
-    const autoApprovedFired = useRef(false);
     useEffect(() => {
         if (autoApprove && !autoApprovedFired.current) {
             autoApprovedFired.current = true;
@@ -76,7 +75,6 @@ export const SqlApprovalCard: FC<SqlApprovalCardProps> = ({
         }
     }, [autoApprove, submitDecision]);
 
-    // When auto-approving, render nothing — the agent's flow continues silently.
     if (autoApprove) {
         return null;
     }
