@@ -10,6 +10,9 @@ const CONNECTION = lightdashConfig.database.connectionUri
     ? parse(lightdashConfig.database.connectionUri)
     : {};
 
+const ALLOW_MISSING_MIGRATIONS =
+    process.env.ALLOW_MISSING_MIGRATIONS === 'true';
+
 export const DEFAULT_DB_MAX_CONNECTIONS = 10;
 
 // Condition to be removed once we require Postgres vector extension
@@ -40,6 +43,8 @@ const development: Knex.Config<Knex.PgConnectionConfig> = {
         tableName: 'knex_migrations',
         extension: 'ts',
         loadExtensions: ['.ts'],
+        // Allow migations to be missing in some cases
+        disableMigrationsListValidation: ALLOW_MISSING_MIGRATIONS,
     },
     seeds: {
         directory: [
