@@ -34,6 +34,7 @@ import {
     CreateProjectMember,
     CreateProjectOptionalCredentials,
     CreateProjectTableConfiguration,
+    CreateServiceAccountProjectAccess,
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
@@ -141,6 +142,7 @@ import {
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
+    ServiceAccountProjectAccess,
     SessionUser,
     snakeCaseName,
     SnowflakeAuthenticationType,
@@ -160,6 +162,7 @@ import {
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
+    UpdateServiceAccountProjectAccess,
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
@@ -6800,6 +6803,111 @@ export class ProjectService extends BaseService {
         }
 
         await this.projectModel.deleteProjectAccess(projectUuid, userUuid);
+    }
+
+    async getServiceAccountProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<ServiceAccountProjectAccess[]> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.projectModel.getServiceAccountProjectAccess(projectUuid);
+    }
+
+    async createServiceAccountProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        data: CreateServiceAccountProjectAccess,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.createServiceAccountProjectAccess(
+            projectUuid,
+            data.serviceAccountUuid,
+            data.role,
+        );
+    }
+
+    async updateServiceAccountProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        serviceAccountUuid: string,
+        data: UpdateServiceAccountProjectAccess,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.projectModel.updateServiceAccountProjectAccess(
+            projectUuid,
+            serviceAccountUuid,
+            data.role,
+        );
+    }
+
+    /**
+     * Revoke a service account's project access.
+     *
+     * The "Member-scoped SAs need ≥1 project" invariant is enforced inside the
+     * model under a row lock (see
+     * `ProjectModel.deleteServiceAccountProjectAccess`) so that two concurrent
+     * DELETEs against a 2-project Member SA can't both succeed and leave the
+     * SA in a zero-project state. The model returns `{ blocked: true }` when
+     * the invariant would be violated; we translate that here into a
+     * 409-shaped `AlreadyExistsError`.
+     */
+    async deleteServiceAccountProjectAccess(
+        user: SessionUser,
+        projectUuid: string,
+        serviceAccountUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const { blocked } =
+            await this.projectModel.deleteServiceAccountProjectAccess(
+                projectUuid,
+                serviceAccountUuid,
+            );
+        if (blocked) {
+            throw new AlreadyExistsError(
+                'Project-scoped service accounts need at least one project. Delete the service account instead.',
+            );
+        }
     }
 
     async getProjectGroupAccesses(

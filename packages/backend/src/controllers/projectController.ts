@@ -14,6 +14,7 @@ import {
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiServiceAccountProjectAccessListResponse,
     ApiSpaceSummaryListResponse,
     ApiSqlChartAsCodeListResponse,
     ApiSqlChartAsCodeUpsertResponse,
@@ -23,6 +24,7 @@ import {
     CalculateTotalFromQuery,
     ChartAsCode,
     CreateProjectMember,
+    CreateServiceAccountProjectAccess,
     DashboardAsCode,
     DbtExposure,
     DbtProjectEnvironmentVariable,
@@ -35,6 +37,7 @@ import {
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProjectMember,
+    UpdateServiceAccountProjectAccess,
     UserWarehouseCredentials,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
@@ -345,6 +348,125 @@ export class ProjectController extends BaseController {
             status: 'ok',
             results: undefined,
         };
+    }
+
+    /**
+     * List service accounts granted access to a project.
+     * @summary List project service-account access
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/access/service-accounts')
+    @OperationId('GetProjectServiceAccountAccessList')
+    @Tags('Roles & Permissions')
+    async getProjectServiceAccountAccessList(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiServiceAccountProjectAccessListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .getServiceAccountProjectAccess(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return { status: 'ok', results };
+    }
+
+    /**
+     * Grant a service account access to a project.
+     * @summary Grant project access to service account
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/access/service-accounts')
+    @OperationId('GrantProjectAccessToServiceAccount')
+    @Tags('Roles & Permissions')
+    async grantProjectAccessToServiceAccount(
+        @Path() projectUuid: string,
+        @Body() body: CreateServiceAccountProjectAccess,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .createServiceAccountProjectAccess(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Update a service account's role on a project.
+     * @summary Update project access for service account
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/access/service-accounts/{serviceAccountUuid}')
+    @OperationId('UpdateProjectAccessForServiceAccount')
+    @Tags('Roles & Permissions')
+    async updateProjectAccessForServiceAccount(
+        @Path() projectUuid: string,
+        @Path() serviceAccountUuid: string,
+        @Body() body: UpdateServiceAccountProjectAccess,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .updateServiceAccountProjectAccess(
+                toSessionUser(req.account),
+                projectUuid,
+                serviceAccountUuid,
+                body,
+            );
+        return { status: 'ok', results: undefined };
+    }
+
+    /**
+     * Revoke a service account's access to a project.
+     *
+     * Returns 409 if revoking would leave a Member-scoped service account
+     * with zero projects — delete the service account instead.
+     * @summary Revoke project access for service account
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('{projectUuid}/access/service-accounts/{serviceAccountUuid}')
+    @OperationId('RevokeProjectAccessForServiceAccount')
+    @Tags('Roles & Permissions')
+    async revokeProjectAccessForServiceAccount(
+        @Path() projectUuid: string,
+        @Path() serviceAccountUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.services
+            .getProjectService()
+            .deleteServiceAccountProjectAccess(
+                toSessionUser(req.account),
+                projectUuid,
+                serviceAccountUuid,
+            );
+        return { status: 'ok', results: undefined };
     }
 
     /**

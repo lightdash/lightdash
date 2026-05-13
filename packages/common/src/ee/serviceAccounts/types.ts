@@ -1,3 +1,5 @@
+import { type ProjectMemberRole } from '../../types/projectMemberRole';
+
 export enum ServiceAccountScope {
     SCIM_MANAGE = 'scim:manage',
     // Legacy coarse-grained SA scopes — kept on the wire for back-compat
@@ -53,6 +55,17 @@ export type ServiceAccountWithToken = ServiceAccount & {
     token: string;
 };
 
+/**
+ * Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty
+ * on a create request, `scopes` must be `['system:member']` — any other scope
+ * combination is rejected at the service layer so the SA's effective access is
+ * unambiguously project-only.
+ */
+export type ServiceAccountProjectAccessInput = {
+    projectUuid: string;
+    role: ProjectMemberRole;
+};
+
 export type ApiCreateServiceAccountRequest = Pick<
     ServiceAccount,
     'expiresAt' | 'description'
@@ -61,6 +74,10 @@ export type ApiCreateServiceAccountRequest = Pick<
     // provided. Sending both is rejected at the service layer.
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    // Project-scope create path: when present and non-empty, the controller
+    // wraps the SA insert + matching `project_memberships` rows in one
+    // transaction. Requires `scopes: ['system:member']`.
+    projectAccess?: ServiceAccountProjectAccessInput[];
 };
 
 export type ApiCreateServiceAccountResponse = {
@@ -74,4 +91,5 @@ export type CreateServiceAccount = Pick<
 > & {
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    projectAccess?: ServiceAccountProjectAccessInput[];
 };

@@ -13,6 +13,7 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import {
     ScimAccessTokenAuthenticationEvent,
@@ -26,6 +27,7 @@ type ServiceAccountServiceArguments = {
     analytics: LightdashAnalytics;
     serviceAccountModel: ServiceAccountModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
+    projectModel: ProjectModel;
 };
 
 function isSameMinute(a: Date | null, b: Date): boolean {
@@ -42,17 +44,21 @@ export class ServiceAccountService extends BaseService {
 
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
+    private readonly projectModel: ProjectModel;
+
     constructor({
         lightdashConfig,
         analytics,
         serviceAccountModel,
         commercialFeatureFlagModel,
+        projectModel,
     }: ServiceAccountServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.serviceAccountModel = serviceAccountModel;
         this.commercialFeatureFlagModel = commercialFeatureFlagModel;
+        this.projectModel = projectModel;
     }
 
     private throwForbiddenErrorOnNoPermission(user: SessionUser) {
@@ -78,6 +84,23 @@ export class ServiceAccountService extends BaseService {
         tokenDetails: CreateServiceAccount;
         prefix?: string;
     }): Promise<ServiceAccount> {
+        // Project-scope create: validate before touching the DB so a malformed
+        // request can't half-create an SA. The invariant is "Member-scoped SA
+        // must have ≥1 project from the moment it exists", so we refuse any
+        // shape that doesn't fit.
+        const projectAccess = tokenDetails.projectAccess ?? [];
+        if (projectAccess.length > 0) {
+            const scopes = tokenDetails.scopes ?? [];
+            const isMemberOnly =
+                scopes.length === 1 &&
+                scopes[0] === ServiceAccountScope.SYSTEM_MEMBER;
+            if (!isMemberOnly) {
+                throw new ParameterError(
+                    'projectAccess can only be set when scopes = [system:member]',
+                );
+            }
+        }
+
         try {
             this.throwForbiddenErrorOnNoPermission(user);
             const token = await this.serviceAccountModel.create({
@@ -91,6 +114,44 @@ export class ServiceAccountService extends BaseService {
                 },
                 prefix,
             });
+
+            // Apply project grants if any were requested. Compensating-action
+            // pattern: if any grant fails (cross-org, duplicate, missing
+            // project) we delete the just-created SA and rethrow so a
+            // Member-scoped SA is never left in a zero-project state.
+            if (projectAccess.length > 0) {
+                try {
+                    for (const grant of projectAccess) {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.projectModel.createServiceAccountProjectAccess(
+                            grant.projectUuid,
+                            token.uuid,
+                            grant.role,
+                        );
+                    }
+                } catch (grantError) {
+                    await this.serviceAccountModel
+                        .delete(token.uuid)
+                        .catch((cleanupError) => {
+                            // Cleanup failed AFTER an SA was created. The SA
+                            // now exists with no project grants, violating the
+                            // "Member-scoped SA must have ≥1 project"
+                            // invariant. Surface the original grantError to
+                            // the caller, but log the orphan so an operator
+                            // can find and remove it from the DB.
+                            this.logger.error(
+                                'Failed to clean up service account after projectAccess insert failed; orphaned Member SA may exist',
+                                {
+                                    serviceAccountUuid: token.uuid,
+                                    grantError,
+                                    cleanupError,
+                                },
+                            );
+                        });
+                    throw grantError;
+                }
+            }
+
             this.analytics.track<ScimAccessTokenEvent>({
                 event: 'scim_access_token.created',
                 userId: user.userUuid,

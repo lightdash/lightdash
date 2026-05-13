@@ -33,6 +33,8 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    ServiceAccountProjectAccess,
+    ServiceAccountScope,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
@@ -113,6 +115,7 @@ import {
     AiAgentUserAccessTableName,
     type DbAiAgent,
 } from '../../ee/database/entities/aiAgent';
+import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
@@ -1864,6 +1867,243 @@ export class ProjectModel {
             `,
             { projectUuid, userUuid },
         );
+    }
+
+    /**
+     * List service-account grants on a project.
+     *
+     * Same `project_memberships` table the human-user path uses; differs only
+     * in the `is_internal=true` filter (SAs have a dedicated `users` row) and
+     * the join out to `service_accounts` for display fields. Returns one row
+     * per (SA, project) grant.
+     */
+    async getServiceAccountProjectAccess(
+        projectUuid: string,
+    ): Promise<ServiceAccountProjectAccess[]> {
+        type Row = {
+            service_account_uuid: string;
+            description: string;
+            role: ProjectMemberRole;
+            expires_at: Date | null;
+        };
+        const rows = await this.database(ProjectMembershipsTableName)
+            .leftJoin(
+                UserTableName,
+                `${ProjectMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .leftJoin(
+                ServiceAccountsTableName,
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectMembershipsTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .select<Row[]>(
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                `${ServiceAccountsTableName}.description`,
+                `${ProjectMembershipsTableName}.role`,
+                `${ServiceAccountsTableName}.expires_at`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .andWhere(`${UserTableName}.is_internal`, true);
+
+        return rows.map((r) => ({
+            serviceAccountUuid: r.service_account_uuid,
+            description: r.description,
+            role: r.role,
+            expiresAt: r.expires_at,
+        }));
+    }
+
+    /**
+     * Insert a (service account, project) grant.
+     *
+     * Caller (`ProjectService`) is responsible for permission checks. We do
+     * still enforce two invariants at this layer because they're cheap and
+     * keep the table consistent regardless of caller bugs:
+     *  - cross-org grants are rejected (returns ParameterError, surfaces as 400)
+     *  - duplicate grants raise AlreadyExistsError (409 at the API)
+     */
+    async createServiceAccountProjectAccess(
+        projectUuid: string,
+        serviceAccountUuid: string,
+        role: ProjectMemberRole,
+    ): Promise<void> {
+        // `projects.organization_id` is the int link; `service_accounts`
+        // uses `organization_uuid`. Resolve both to a uuid via a join through
+        // `organizations` so the cross-org comparison is uuid-vs-uuid.
+        const [project] = await this.database(ProjectTableName)
+            .leftJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select<
+                {
+                    project_id: number;
+                    organization_uuid: string;
+                }[]
+            >(
+                `${ProjectTableName}.project_id`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+        if (!project) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} not found`,
+            );
+        }
+
+        const [sa] = await this.database(ServiceAccountsTableName)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+            )
+            .select<
+                Array<{
+                    user_id: number;
+                    organization_uuid: string;
+                }>
+            >(
+                `${UserTableName}.user_id`,
+                `${ServiceAccountsTableName}.organization_uuid`,
+            )
+            .where(
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                serviceAccountUuid,
+            );
+        if (!sa) {
+            throw new NotFoundError(
+                `Service account with uuid ${serviceAccountUuid} not found`,
+            );
+        }
+        if (sa.organization_uuid !== project.organization_uuid) {
+            throw new ParameterError(
+                'Service account and project must be in the same organization',
+            );
+        }
+
+        try {
+            await this.database(ProjectMembershipsTableName).insert({
+                project_id: project.project_id,
+                user_id: sa.user_id,
+                role,
+                role_uuid: null,
+            });
+        } catch (error: AnyType) {
+            if (
+                error instanceof DatabaseError &&
+                error.constraint ===
+                    'project_memberships_project_id_user_id_unique'
+            ) {
+                throw new AlreadyExistsError(
+                    `Service account ${serviceAccountUuid} already has access to project ${projectUuid}`,
+                );
+            }
+            throw error;
+        }
+    }
+
+    async updateServiceAccountProjectAccess(
+        projectUuid: string,
+        serviceAccountUuid: string,
+        role: ProjectMemberRole,
+    ): Promise<void> {
+        await this.database.raw(
+            `
+                UPDATE project_memberships AS m
+                SET role = :role, role_uuid = NULL
+                FROM projects AS p, users AS u, service_accounts AS sa
+                WHERE p.project_id = m.project_id
+                  AND u.user_id = m.user_id
+                  AND sa.service_account_user_uuid = u.user_uuid
+                  AND p.project_uuid = :projectUuid
+                  AND sa.service_account_uuid = :serviceAccountUuid
+            `,
+            { role, projectUuid, serviceAccountUuid },
+        );
+    }
+
+    /**
+     * Revoke a single (service account, project) grant, atomically enforcing
+     * the "Member-scoped SA must have ≥1 project" invariant.
+     *
+     * Concurrency: the lock-then-check-then-delete sequence must be a single
+     * transaction or two parallel DELETE calls can both pass the count check
+     * and leave the SA in a zero-project state (this fires reliably even on a
+     * single-node local Postgres). We `SELECT ... FOR UPDATE OF pm` over the
+     * SA's `project_memberships` rows so a concurrent caller blocks at the
+     * select and re-evaluates against the post-commit row set.
+     *
+     * Idempotency: if the (project, SA) row doesn't exist (e.g. the same call
+     * was already processed by a concurrent caller), we return
+     * `{ blocked: false }` and do nothing — matches the user-side
+     * `deleteProjectAccess` behaviour, which also no-ops on missing rows.
+     *
+     * Returns `{ blocked: true }` when the invariant would be violated;
+     * the caller (`ProjectService`) translates that into a 409 with a
+     * user-facing message.
+     */
+    async deleteServiceAccountProjectAccess(
+        projectUuid: string,
+        serviceAccountUuid: string,
+    ): Promise<{ blocked: boolean }> {
+        return this.database.transaction(async (trx) => {
+            const lockResult = await trx.raw<{
+                rows: { project_uuid: string }[];
+            }>(
+                `
+                    SELECT p.project_uuid
+                    FROM project_memberships pm
+                    JOIN users u ON u.user_id = pm.user_id
+                    JOIN service_accounts sa
+                        ON sa.service_account_user_uuid = u.user_uuid
+                    JOIN projects p ON p.project_id = pm.project_id
+                    WHERE sa.service_account_uuid = :serviceAccountUuid
+                    FOR UPDATE OF pm
+                `,
+                { serviceAccountUuid },
+            );
+            const lockedProjectUuids = lockResult.rows.map(
+                (r) => r.project_uuid,
+            );
+            const targetExists = lockedProjectUuids.includes(projectUuid);
+            if (!targetExists) {
+                // Either the SA doesn't exist or the grant was already
+                // removed (e.g. by a concurrent DELETE). Treat as no-op.
+                return { blocked: false };
+            }
+
+            const sa = await trx(ServiceAccountsTableName)
+                .select<{ scopes: string[] }[]>('scopes')
+                .where('service_account_uuid', serviceAccountUuid)
+                .first();
+            const isMemberOnly =
+                sa?.scopes.length === 1 &&
+                sa.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER;
+            if (isMemberOnly && lockedProjectUuids.length <= 1) {
+                return { blocked: true };
+            }
+
+            await trx.raw(
+                `
+                    DELETE FROM project_memberships AS m
+                    USING projects AS p, users AS u, service_accounts AS sa
+                    WHERE p.project_id = m.project_id
+                      AND u.user_id = m.user_id
+                      AND sa.service_account_user_uuid = u.user_uuid
+                      AND p.project_uuid = :projectUuid
+                      AND sa.service_account_uuid = :serviceAccountUuid
+                `,
+                { projectUuid, serviceAccountUuid },
+            );
+            return { blocked: false };
+        });
     }
 
     async getProjectGroupAccesses(projectUuid: string) {
