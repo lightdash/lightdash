@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     AuthTokenPrefix,
     CreateServiceAccount,
     ForbiddenError,
@@ -161,9 +162,16 @@ export class ServiceAccountService extends BaseService {
             });
             return token;
         } catch (error) {
+            // Pass through recognised user-facing errors so the caller sees
+            // the right HTTP code (400/404/409). Without this, errors from
+            // the projectAccess loop (NotFoundError for a bogus project,
+            // AlreadyExistsError for a duplicate grant) get re-wrapped as
+            // UnexpectedDatabaseError → 500.
             if (
                 error instanceof ForbiddenError ||
-                error instanceof ParameterError
+                error instanceof ParameterError ||
+                error instanceof NotFoundError ||
+                error instanceof AlreadyExistsError
             ) {
                 throw error;
             }

@@ -1642,8 +1642,7 @@ export class ProjectModel {
         } catch (error: AnyType) {
             if (
                 error instanceof DatabaseError &&
-                error.constraint ===
-                    'project_memberships_project_id_user_id_unique'
+                error.constraint === 'project_memberships_pkey'
             ) {
                 throw new AlreadyExistsError(
                     `This user email ${email} already has access to this project`,
@@ -1886,18 +1885,23 @@ export class ProjectModel {
             role: ProjectMemberRole;
             expires_at: Date | null;
         };
+        // INNER JOIN on service_accounts to drop "ghost" rows where the SA
+        // was tombstone-deleted (service_accounts row removed) but the
+        // dedicated users row + project_memberships row still exist. With a
+        // LEFT JOIN those orphans surface as null-uuid entries in the API
+        // response and break the UI.
         const rows = await this.database(ProjectMembershipsTableName)
-            .leftJoin(
+            .innerJoin(
                 UserTableName,
                 `${ProjectMembershipsTableName}.user_id`,
                 `${UserTableName}.user_id`,
             )
-            .leftJoin(
+            .innerJoin(
                 ServiceAccountsTableName,
                 `${ServiceAccountsTableName}.service_account_user_uuid`,
                 `${UserTableName}.user_uuid`,
             )
-            .leftJoin(
+            .innerJoin(
                 ProjectTableName,
                 `${ProjectMembershipsTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
@@ -1998,8 +2002,7 @@ export class ProjectModel {
         } catch (error: AnyType) {
             if (
                 error instanceof DatabaseError &&
-                error.constraint ===
-                    'project_memberships_project_id_user_id_unique'
+                error.constraint === 'project_memberships_pkey'
             ) {
                 throw new AlreadyExistsError(
                     `Service account ${serviceAccountUuid} already has access to project ${projectUuid}`,
