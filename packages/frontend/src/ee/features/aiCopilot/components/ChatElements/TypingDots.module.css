@@ -1,0 +1,44 @@
+.dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 2px;
+}
+
+.dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-ldGray-6);
+    animation: typingPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.dot:nth-child(1) {
+    animation-delay: 0ms;
+}
+.dot:nth-child(2) {
+    animation-delay: 160ms;
+}
+.dot:nth-child(3) {
+    animation-delay: 320ms;
+}
+
+@keyframes typingPulse {
+    0%,
+    80%,
+    100% {
+        opacity: 0.3;
+        transform: scale(0.78);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dot {
+        animation: none;
+        opacity: 0.6;
+    }
+}
