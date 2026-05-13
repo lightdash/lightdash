@@ -532,6 +532,7 @@ export enum LightdashPage {
     DASHBOARD = 'dashboard',
     CHART = 'chart',
     EXPLORE = 'explore',
+    SQL_CHART = 'sql_chart',
 }
 
 export type NotificationPayloadBase = {

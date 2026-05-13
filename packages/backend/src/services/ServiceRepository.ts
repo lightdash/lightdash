@@ -887,6 +887,7 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                     shareModel: this.models.getShareModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     projectModel: this.models.getProjectModel(),
