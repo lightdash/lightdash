@@ -21,7 +21,7 @@ export const ProjectsHoverCard: FC<Props> = ({
     children,
 }) => (
     <HoverCard
-        position="right"
+        position="bottom-start"
         withArrow
         shadow="md"
         withinPortal

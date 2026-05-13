@@ -308,36 +308,6 @@ export const ServiceAccountsTable: FC<Props> = ({
                     },
                 },
                 {
-                    id: 'scope',
-                    header: 'Scope',
-                    enableSorting: true,
-                    accessorFn: (sa) => getScope(sa),
-                    size: 110,
-                    Header: ({ column }) => (
-                        <Group gap="two" wrap="nowrap">
-                            <MantineIcon
-                                icon={IconShieldLock}
-                                color="ldGray.6"
-                            />
-                            {column.columnDef.header}
-                        </Group>
-                    ),
-                    Cell: ({ row }) => {
-                        const isProject = getScope(row.original) === 'project';
-                        return (
-                            <Badge
-                                variant="light"
-                                color={isProject ? 'teal' : 'blue'}
-                                radius="xs"
-                                size="sm"
-                                style={{ textTransform: 'none' }}
-                            >
-                                {isProject ? 'Project' : 'Organization'}
-                            </Badge>
-                        );
-                    },
-                },
-                {
                     id: 'access',
                     header: 'Access',
                     enableSorting: true,
@@ -360,28 +330,30 @@ export const ServiceAccountsTable: FC<Props> = ({
 
                         if (getScope(sa) === 'project') {
                             const count = sa.projectAccessCount;
-                            const label = `${count} ${
-                                count === 1 ? 'project' : 'projects'
-                            }`;
-                            // No grants → no list to hover; render plain text
-                            // so the hover affordance doesn't lie. Operators
-                            // open the Edit modal to add the first project.
-                            if (count === 0) {
-                                return (
-                                    <Text fz="sm" c="ldGray.5">
-                                        {label}
-                                    </Text>
-                                );
-                            }
+                            // `teal` distinguishes project-scope rows from
+                            // the org-scope role badges below — without the
+                            // dedicated Scope column, this colour cue is the
+                            // only at-a-glance signal that the SA is
+                            // project-scoped.
+                            const badge = (
+                                <Badge
+                                    variant="light"
+                                    color="teal"
+                                    radius="xs"
+                                    size="sm"
+                                    style={{ textTransform: 'none' }}
+                                >
+                                    {count}{' '}
+                                    {count === 1 ? 'project' : 'projects'}
+                                </Badge>
+                            );
+                            // No grants → no list to hover; render the
+                            // badge alone. Operators add the first project
+                            // via the Edit modal.
+                            if (count === 0) return badge;
                             return (
                                 <ProjectsHoverCard serviceAccountUuid={sa.uuid}>
-                                    <Text
-                                        fz="sm"
-                                        td="underline dotted"
-                                        style={{ cursor: 'help' }}
-                                    >
-                                        {label}
-                                    </Text>
+                                    {badge}
                                 </ProjectsHoverCard>
                             );
                         }
