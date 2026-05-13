@@ -31,6 +31,7 @@ import {
     IconCalendar,
     IconClock,
     IconDots,
+    IconEdit,
     IconFilter,
     IconInfoCircle,
     IconRefresh,
@@ -45,14 +46,14 @@ import {
     MantineReactTable,
     useMantineReactTable,
     type MRT_ColumnDef,
-    type MRT_ExpandedState,
 } from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
-import { ProjectAccessPanel } from './ProjectAccessPanel';
+import { ProjectsHoverCard } from './ProjectsHoverCard';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
+import { ServiceAccountsEditModal } from './ServiceAccountsEditModal';
 import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
@@ -247,10 +248,18 @@ export const ServiceAccountsTable: FC<Props> = ({
         closeRotate();
     }, [closeRotate]);
 
-    // Spec: "only one row open at a time". Controlled `expanded` state so
-    // opening row B closes row A. Keyed by `row.id` (the SA's UUID by
-    // default via getRowId below).
-    const [expanded, setExpanded] = useState<MRT_ExpandedState>({});
+    const [serviceAccountToEdit, setServiceAccountToEdit] = useState<
+        ServiceAccountWithProjectAccessCount | undefined
+    >();
+    const handleOpenEdit = useCallback(
+        (sa: ServiceAccountWithProjectAccessCount) => {
+            setServiceAccountToEdit(sa);
+        },
+        [],
+    );
+    const handleCloseEdit = useCallback(() => {
+        setServiceAccountToEdit(undefined);
+    }, []);
 
     const columns: MRT_ColumnDef<ServiceAccountWithProjectAccessCount>[] =
         useMemo(
@@ -350,23 +359,30 @@ export const ServiceAccountsTable: FC<Props> = ({
                         const sa = row.original;
 
                         if (getScope(sa) === 'project') {
-                            // Click target for the expand panel. The whole cell is
-                            // a button so it works on keyboard nav, not just on
-                            // the underlying row click handler.
                             const count = sa.projectAccessCount;
+                            const label = `${count} ${
+                                count === 1 ? 'project' : 'projects'
+                            }`;
+                            // No grants → no list to hover; render plain text
+                            // so the hover affordance doesn't lie. Operators
+                            // open the Edit modal to add the first project.
+                            if (count === 0) {
+                                return (
+                                    <Text fz="sm" c="ldGray.5">
+                                        {label}
+                                    </Text>
+                                );
+                            }
                             return (
-                                <Button
-                                    variant="subtle"
-                                    size="compact-xs"
-                                    px={6}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        row.toggleExpanded();
-                                    }}
-                                >
-                                    {count}{' '}
-                                    {count === 1 ? 'project' : 'projects'}
-                                </Button>
+                                <ProjectsHoverCard serviceAccountUuid={sa.uuid}>
+                                    <Text
+                                        fz="sm"
+                                        td="underline dotted"
+                                        style={{ cursor: 'help' }}
+                                    >
+                                        {label}
+                                    </Text>
+                                </ProjectsHoverCard>
                             );
                         }
 
@@ -631,7 +647,19 @@ export const ServiceAccountsTable: FC<Props> = ({
                                             Rotate token
                                         </Menu.Item>
                                     )}
-                                    {(sa.roleUuid || sa.expiresAt) && (
+                                    {getScope(sa) === 'project' && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon icon={IconEdit} />
+                                            }
+                                            onClick={() => handleOpenEdit(sa)}
+                                        >
+                                            Edit
+                                        </Menu.Item>
+                                    )}
+                                    {(sa.roleUuid ||
+                                        sa.expiresAt ||
+                                        getScope(sa) === 'project') && (
                                         <Menu.Divider />
                                     )}
                                     <Menu.Item
@@ -649,7 +677,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     },
                 },
             ],
-            [rolesByUuid, handleOpenRotate, handleOpenDelete],
+            [rolesByUuid, handleOpenRotate, handleOpenDelete, handleOpenEdit],
         );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -700,47 +728,7 @@ export const ServiceAccountsTable: FC<Props> = ({
             },
         },
         mantineTableProps: { highlightOnHover: true },
-        // Project-scoped rows expand inline to a ProjectAccessPanel. Other
-        // rows can't expand — the panel makes no sense for them.
-        enableExpanding: true,
-        getRowId: (row) => row.uuid,
-        getRowCanExpand: (row) => getScope(row.original) === 'project',
-        // Single-open behaviour: toggling a new row clears the existing
-        // expansion. MRT exposes the toggle target as a function (when only
-        // some rows are expandable) or an object — we narrow back to a
-        // record to enforce the single-key invariant.
-        state: { isLoading, expanded },
-        onExpandedChange: (updater) => {
-            setExpanded((prev) => {
-                const next =
-                    typeof updater === 'function' ? updater(prev) : updater;
-                if (typeof next !== 'object' || next === null) return next;
-                // Identify newly-opened row(s) vs the previous map; keep only
-                // the freshly-opened one. This keeps the click-to-toggle
-                // affordance (clicking the same row closes it) intact.
-                const prevKeys = Object.keys(prev).filter(
-                    (k) => prev[k as keyof typeof prev],
-                );
-                const nextKeys = Object.keys(next).filter(
-                    (k) => next[k as keyof typeof next],
-                );
-                const newlyOpened = nextKeys.find((k) => !prevKeys.includes(k));
-                return newlyOpened ? { [newlyOpened]: true } : {};
-            });
-        },
-        renderDetailPanel: ({ row }) =>
-            getScope(row.original) === 'project' ? (
-                <ProjectAccessPanel serviceAccountUuid={row.original.uuid} />
-            ) : null,
-        mantineDetailPanelProps: {
-            // Detail-panel cell normally inherits the same heavy borders
-            // as a body row; for the inline panel we want it to feel
-            // attached to the row above.
-            style: {
-                background: theme.colors.ldGray[0],
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-            },
-        },
+        state: { isLoading },
         renderEmptyRowsFallback: () => (
             <Center className={classes.emptyState}>
                 <MantineIcon
@@ -996,6 +984,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isOpen={rotateOpened}
                 onClose={handleCloseRotate}
                 serviceAccount={serviceAccountToRotate}
+            />
+
+            <ServiceAccountsEditModal
+                isOpen={!!serviceAccountToEdit}
+                onClose={handleCloseEdit}
+                serviceAccount={serviceAccountToEdit}
             />
         </>
     );
