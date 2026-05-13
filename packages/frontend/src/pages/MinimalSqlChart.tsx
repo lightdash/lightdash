@@ -54,6 +54,14 @@ const MinimalSqlChartContent = memo(
             !!chartResultsData;
         const hasSignaled = isReady || hasError;
 
+        const progressIndicator = (
+            <ScreenshotProgressIndicator
+                expectedTileUuids={[savedSqlUuid]}
+                readyTileUuids={hasSignaled && !hasError ? [savedSqlUuid] : []}
+                erroredTileUuids={hasSignaled && hasError ? [savedSqlUuid] : []}
+            />
+        );
+
         if (!chartData || !chartResultsData) {
             if (hasError) {
                 const errorMessage =
@@ -63,6 +71,7 @@ const MinimalSqlChartContent = memo(
                 return (
                     <>
                         <span>{errorMessage}</span>
+                        {progressIndicator}
                         <ScreenshotReadyIndicator
                             tilesTotal={1}
                             tilesReady={0}
@@ -71,7 +80,7 @@ const MinimalSqlChartContent = memo(
                     </>
                 );
             }
-            return null;
+            return progressIndicator;
         }
 
         let visualization: JSX.Element;
@@ -117,15 +126,7 @@ const MinimalSqlChartContent = memo(
                     {visualization}
                 </Box>
 
-                <ScreenshotProgressIndicator
-                    expectedTileUuids={[savedSqlUuid]}
-                    readyTileUuids={
-                        hasSignaled && !hasError ? [savedSqlUuid] : []
-                    }
-                    erroredTileUuids={
-                        hasSignaled && hasError ? [savedSqlUuid] : []
-                    }
-                />
+                {progressIndicator}
                 {hasSignaled && (
                     <ScreenshotReadyIndicator
                         tilesTotal={1}
