@@ -79,7 +79,8 @@ export const ModelSelector: FC<Props> = ({
             <Menu.Dropdown>
                 <ScrollArea.Autosize mah={200}>
                     {providerGroups.map((provider, groupIndex) => {
-                        const providerModels = groupedModels.get(provider) ?? [];
+                        const providerModels =
+                            groupedModels.get(provider) ?? [];
                         return (
                             <div key={provider}>
                                 {providerGroups.length > 1 && (
