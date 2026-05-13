@@ -1,11 +1,11 @@
 import {
-    ChartKind,
+    assertUnreachable,
     isVizCartesianChartConfig,
     isVizPieChartConfig,
     isVizTableConfig,
 } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { memo, useEffect, useRef, useState, type FC } from 'react';
+import { memo, useEffect, useRef, useState, type FC, type JSX } from 'react';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
@@ -82,35 +82,47 @@ const MinimalSqlChartContent = memo(
             return null;
         }
 
+        let visualization: JSX.Element;
+        if (isVizTableConfig(chartData.config)) {
+            visualization = (
+                <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
+                    <Table
+                        resultsRunner={chartResultsData.resultsRunner}
+                        columnsConfig={chartData.config.columns}
+                        flexProps={{ mah: '100%' }}
+                    />
+                </Box>
+            );
+        } else if (
+            isVizCartesianChartConfig(chartData.config) ||
+            isVizPieChartConfig(chartData.config)
+        ) {
+            visualization = (
+                <ChartView
+                    config={chartData.config}
+                    spec={chartResultsData.chartSpec}
+                    isLoading={isChartResultsFetching}
+                    error={undefined}
+                    style={{
+                        minHeight: 'inherit',
+                        height: '100%',
+                        width: '100%',
+                    }}
+                />
+            );
+        } else {
+            return assertUnreachable(
+                chartData.config,
+                `Unsupported SQL chart config: ${
+                    (chartData.config as { type: unknown }).type
+                }`,
+            );
+        }
+
         return (
             <MantineProvider inherit theme={themeOverride}>
                 <Box mih="inherit" h="100%" data-testid="visualization">
-                    {chartData.config.type === ChartKind.TABLE &&
-                        isVizTableConfig(chartData.config) && (
-                            <Box w="100%" h="100%" style={{ overflow: 'auto' }}>
-                                <Table
-                                    resultsRunner={
-                                        chartResultsData.resultsRunner
-                                    }
-                                    columnsConfig={chartData.config.columns}
-                                    flexProps={{ mah: '100%' }}
-                                />
-                            </Box>
-                        )}
-                    {(isVizCartesianChartConfig(chartData.config) ||
-                        isVizPieChartConfig(chartData.config)) && (
-                        <ChartView
-                            config={chartData.config}
-                            spec={chartResultsData.chartSpec}
-                            isLoading={isChartResultsFetching}
-                            error={undefined}
-                            style={{
-                                minHeight: 'inherit',
-                                height: '100%',
-                                width: '100%',
-                            }}
-                        />
-                    )}
+                    {visualization}
                 </Box>
 
                 <ScreenshotProgressIndicator

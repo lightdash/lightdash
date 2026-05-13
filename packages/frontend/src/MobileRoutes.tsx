@@ -263,7 +263,11 @@ const MINIMAL_ROUTES: RouteObject[] = [
             },
             {
                 path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
-                element: <MinimalSqlChart />,
+                element: (
+                    <Stack p="lg" h="90vh">
+                        <MinimalSqlChart />
+                    </Stack>
+                ),
             },
         ],
     },
