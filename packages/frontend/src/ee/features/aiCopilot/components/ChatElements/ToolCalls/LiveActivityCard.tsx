@@ -173,25 +173,47 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
             className={styles.latestRow}
             data-live={isLive ? 'true' : 'false'}
         >
-            <MantineIcon
-                icon={Icon}
-                size={13}
-                stroke={1.6}
-                className={styles.latestIcon}
-                data-live={isLive ? 'true' : 'false'}
-            />
-            <Text size="xs" className={styles.latestLabel}>
+            {/* Keying icon + label by toolName makes them remount with a
+             *  subtle settle-in animation each time the active tool changes,
+             *  so the swap reads as a deliberate transition rather than a
+             *  text flicker. The icon sits inside a small rounded "logo"
+             *  chip for visual weight. */}
+            <Box className={styles.iconSwap} key={`icon-${group.toolName}`}>
+                <Box
+                    className={styles.iconChip}
+                    data-live={isLive ? 'true' : 'false'}
+                >
+                    <MantineIcon
+                        icon={Icon}
+                        size={12}
+                        stroke={1.7}
+                        className={styles.latestIcon}
+                        data-live={isLive ? 'true' : 'false'}
+                    />
+                </Box>
+            </Box>
+            <Text
+                size="xs"
+                className={styles.latestLabel}
+                key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
+            >
                 {label}
             </Text>
             {isGrouped && (
-                <Box className={styles.countBadge}>{group.calls.length}</Box>
+                <Box
+                    className={styles.countBadge}
+                    key={`count-${group.calls.length}`}
+                >
+                    {group.calls.length}
+                </Box>
             )}
-            {showPreview && (
+            {showPreview && chipLabel && (
                 <Text
                     size="xs"
                     c="dimmed"
                     lineClamp={1}
                     className={styles.latestPreview}
+                    key={`preview-${chipLabel}`}
                 >
                     {chipLabel}
                 </Text>
@@ -381,13 +403,22 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                     {olderGroups.length > 0 && (
                         <Stack gap={2}>
-                            {olderGroups.map((group) => (
-                                <ToolCallRow
+                            {olderGroups.map((group, idx) => (
+                                <Box
                                     key={group.keyId}
-                                    toolName={group.toolName}
-                                    toolCalls={group.calls}
-                                    status="done"
-                                />
+                                    className={styles.historyRow}
+                                    style={
+                                        {
+                                            '--row-delay': `${idx * 28}ms`,
+                                        } as React.CSSProperties
+                                    }
+                                >
+                                    <ToolCallRow
+                                        toolName={group.toolName}
+                                        toolCalls={group.calls}
+                                        status="done"
+                                    />
+                                </Box>
                             ))}
                         </Stack>
                     )}

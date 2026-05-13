@@ -7,10 +7,19 @@
         var(--mantine-color-ldGray-0),
         var(--mantine-color-ldGray-1)
     );
-    border-radius: 8px;
-    padding: 6px 10px;
-    transition: background-color 200ms ease;
-    animation: cardSlideIn 220ms ease-out;
+    /* Subtle inset highlight on top for a tactile, "physical card" feel —
+     * light mode only (skin-tone like, near invisible). */
+    box-shadow: light-dark(
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        none
+    );
+    border-radius: 10px;
+    padding: 7px 10px;
+    transform: translateY(0);
+    transition: background-color 200ms ease,
+        transform 260ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 260ms ease;
+    animation: cardSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
     font-family: var(--mantine-font-family);
 }
@@ -40,6 +49,11 @@
         var(--mantine-color-ldGray-1),
         var(--mantine-color-ldGray-2)
     );
+    /* Subtle lift for tactile feel — the bg-color shift gives the elevation
+     * cue. (Dropped the box-shadow because light-dark() doesn't compose
+     * cleanly with multi-part shadows, and dark drop-shadows on dark
+     * backgrounds read poorly anyway.) */
+    transform: translateY(-1px);
 }
 
 /* Header + body sit above the shimmer pseudo-element. */
@@ -76,14 +90,50 @@
     min-width: 0;
 }
 
+/* Wrapper that re-mounts whenever the active tool changes — drives the
+ * settle-in animation for the icon (subtle spring scale + tilt). */
+.iconSwap {
+    display: inline-flex;
+    flex-shrink: 0;
+    animation: iconSettle 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: center;
+}
+
+/* Small rounded "logo" chip around the tool icon — gives the icon weight
+ * and a clear visual identity inside the bento. */
+.iconChip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-ldGray-3)
+    );
+    box-shadow: light-dark(
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04)
+    );
+    transition: background-color 220ms ease, box-shadow 220ms ease;
+}
+
+.iconChip[data-live='true'] {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-ldGray-4)
+    );
+}
+
 .latestIcon {
     flex-shrink: 0;
-    color: var(--mantine-color-ldGray-6);
+    color: var(--mantine-color-ldGray-7);
     transition: color 220ms ease;
 }
 
 .latestIcon[data-live='true'] {
-    color: var(--mantine-color-ldGray-8);
+    color: var(--mantine-color-ldGray-9);
     animation: livePulse 1.6s ease-in-out infinite;
 }
 
@@ -93,6 +143,37 @@
     color: var(--mantine-color-ldGray-8);
     font-weight: 450;
     letter-spacing: -0.005em;
+    animation: labelSettle 260ms ease-out;
+}
+
+.latestLabel[data-live='true'] {
+    animation: livePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes iconSettle {
+    0% {
+        opacity: 0;
+        transform: scale(0.55) rotate(-14deg);
+    }
+    55% {
+        opacity: 1;
+        transform: scale(1.12) rotate(2deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+    }
+}
+
+@keyframes labelSettle {
+    from {
+        opacity: 0;
+        transform: translateX(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .countBadge {
@@ -108,10 +189,22 @@
     line-height: 1;
     letter-spacing: 0.01em;
     flex-shrink: 0;
+    animation: countPop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.latestLabel[data-live='true'] {
-    animation: livePulse 1.8s ease-in-out infinite;
+@keyframes countPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.4);
+    }
+    55% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 @keyframes livePulse {
@@ -128,6 +221,18 @@
     flex: 1;
     min-width: 0;
     letter-spacing: -0.005em;
+    animation: previewSlide 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes previewSlide {
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .counter {
@@ -139,8 +244,8 @@
 .chevron {
     flex-shrink: 0;
     color: var(--mantine-color-ldGray-5);
-    transition:
-        transform 180ms ease,
+    /* Springy chevron rotation. */
+    transition: transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1),
         color 200ms ease;
     opacity: 0.6;
 }
@@ -163,6 +268,24 @@
     margin-top: 4px;
     border-top: 1px solid var(--mantine-color-ldGray-2);
     animation: historyReveal 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* History rows cascade in with staggered delays (see --row-delay) so opening
+ * the bento feels like a deck dealing rather than a flash. */
+.historyRow {
+    animation: historyRowSlide 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--row-delay, 0ms);
+}
+
+@keyframes historyRowSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .pending {
@@ -251,7 +374,7 @@
 @keyframes cardSlideIn {
     from {
         opacity: 0;
-        transform: translateY(2px);
+        transform: translateY(3px);
     }
     to {
         opacity: 1;
@@ -268,20 +391,15 @@
     }
 }
 
-@keyframes livePulse {
-    0%,
-    100% {
-        opacity: 0.55;
-    }
-    50% {
-        opacity: 1;
-    }
-}
-
 @media (prefers-reduced-motion: reduce) {
     .card,
     .card[data-live='true']::before,
     .latestRow,
+    .iconSwap,
+    .latestLabel,
+    .latestPreview,
+    .countBadge,
+    .historyRow,
     .history,
     .latestIcon[data-live='true'],
     .chevron {
