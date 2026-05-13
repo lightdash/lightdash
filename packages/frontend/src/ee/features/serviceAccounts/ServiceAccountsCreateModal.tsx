@@ -1,4 +1,5 @@
 import {
+    CommercialFeatureFlags,
     ProjectMemberRole,
     ProjectMemberRoleLabels,
     ServiceAccountScope,
@@ -31,6 +32,8 @@ import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useProjects } from '../../../hooks/useProjects';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import useApp from '../../../providers/App/useApp';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 
 // Organization-mode role options. `Member` is intentionally hidden — it's
@@ -105,19 +108,36 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     const { listRoles } = useCustomRoles();
     const { data: projects = [] } = useProjects();
 
+    // Custom roles are a feature-flagged UI surface. Mirror the gate used in
+    // `Settings.tsx` so the picker hides them entirely when the org has the
+    // feature off — preventing assignment of a role the admin hasn't opted
+    // into. The backend keeps existing custom-role bindings live at runtime
+    // regardless of the flag (see UserModel comment), so this is strictly a
+    // UI gate, not a security boundary.
+    const {
+        health: { data: health },
+    } = useApp();
+    const { data: customRolesFlag } = useServerFeatureFlag(
+        CommercialFeatureFlags.CustomRoles,
+    );
+    const isCustomRolesEnabled =
+        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
+
     const customRoleOptions = useMemo(
         () =>
-            (listRoles.data ?? [])
-                .map((role) => ({
-                    value: `role:${role.roleUuid}`,
-                    label: role.name,
-                }))
-                .sort((a, b) =>
-                    a.label.localeCompare(b.label, undefined, {
-                        sensitivity: 'base',
-                    }),
-                ),
-        [listRoles.data],
+            isCustomRolesEnabled
+                ? (listRoles.data ?? [])
+                      .map((role) => ({
+                          value: `role:${role.roleUuid}`,
+                          label: role.name,
+                      }))
+                      .sort((a, b) =>
+                          a.label.localeCompare(b.label, undefined, {
+                              sensitivity: 'base',
+                          }),
+                      )
+                : [],
+        [listRoles.data, isCustomRolesEnabled],
     );
 
     const roleOptions = useMemo(() => {

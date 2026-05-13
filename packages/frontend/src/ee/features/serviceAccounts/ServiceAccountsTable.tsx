@@ -66,6 +66,7 @@ const SCOPE_LABEL: Partial<Record<ServiceAccountScope, string>> = {
     [ServiceAccountScope.SYSTEM_EDITOR]: 'Editor',
     [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: 'Interactive viewer',
     [ServiceAccountScope.SYSTEM_VIEWER]: 'Viewer',
+    [ServiceAccountScope.SYSTEM_MEMBER]: 'Member',
     [ServiceAccountScope.ORG_ADMIN]: 'Admin',
     [ServiceAccountScope.ORG_EDIT]: 'Editor',
     [ServiceAccountScope.ORG_READ]: 'Viewer',
