@@ -356,7 +356,11 @@ const DatabricksForm: FC<{
                 ) : (
                     <DatabricksSSOInput
                         isAuthenticated={isAuthenticated}
-                        disabled={disabled || !isServerHostNameProvided}
+                        // OAuth re-auth writes to the current user's own credentials,
+                        // not the project's warehouse config — so it must stay
+                        // available even when the rest of the form is locked
+                        // (preview projects, missing update permission, mid-save).
+                        disabled={!isServerHostNameProvided}
                         disabledTooltip={databricksSsoDisabledTooltip}
                         openLoginPopup={openLoginPopup}
                     />
