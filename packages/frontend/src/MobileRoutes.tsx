@@ -46,6 +46,7 @@ import AuthPopupResult, {
 import Login from './pages/Login';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
+import MinimalSqlChart from './pages/MinimalSqlChart';
 import MobileCharts from './pages/MobileCharts';
 import MobileDashboards from './pages/MobileDashboards';
 import MobileHome from './pages/MobileHome';
@@ -259,6 +260,10 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
                 element: <MinimalDashboard />,
+            },
+            {
+                path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
+                element: <MinimalSqlChart />,
             },
         ],
     },
