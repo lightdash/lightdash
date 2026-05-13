@@ -15,6 +15,7 @@ import {
     GetSavedChartFn,
     ListExploresFn,
     ListWarehouseTablesFn,
+    RecordSqlApprovalFn,
     RunAsyncQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
@@ -27,6 +28,7 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
+    WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
@@ -91,6 +93,8 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
+    waitForSqlApproval: WaitForSqlApprovalFn;
+    recordSqlApproval: RecordSqlApprovalFn;
     perf: PerformanceMetrics;
 };
 

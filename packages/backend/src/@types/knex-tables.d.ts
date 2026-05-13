@@ -312,6 +312,8 @@ import {
     AiSlackPromptTableName,
     AiSlackThreadTable,
     AiSlackThreadTableName,
+    AiSqlApprovalTable,
+    AiSqlApprovalTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
@@ -479,6 +481,7 @@ declare module 'knex/types/tables' {
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
+        [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

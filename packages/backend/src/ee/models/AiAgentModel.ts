@@ -85,6 +85,7 @@ import {
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
+    AiSqlApprovalTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
@@ -94,8 +95,10 @@ import {
     DbAiPromptContext,
     DbAiSlackPrompt,
     DbAiSlackThread,
+    DbAiSqlApproval,
     DbAiThread,
     DbAiWebAppPrompt,
+    type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
     AiAgentGroupAccessTableName,
@@ -132,6 +135,7 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 
 type Dependencies = {
     database: Knex;
@@ -3298,6 +3302,69 @@ export class AiAgentModel {
             toolName: row.toolName,
             hasResult: row.resultUuid !== null,
         };
+    }
+
+    // ---------------------------------------------------------------
+    // SQL approval bus — DB-backed so it works across pods and
+    // survives restarts. See `ai_sql_approval` migration.
+    // ---------------------------------------------------------------
+
+    /**
+     * Records a user's decision for a pending SQL approval. First write
+     * wins — `ON CONFLICT (tool_call_id) DO NOTHING` means double-clicks
+     * (or a race between Slack and the web UI) are safely ignored.
+     *
+     * @returns `true` if this call recorded the decision; `false` if a
+     *   decision was already in place.
+     */
+    async recordSqlApproval(
+        toolCallId: string,
+        decision: AiSqlApprovalDecision,
+        decidedByUserUuid: string | null,
+    ): Promise<boolean> {
+        const inserted = await this.database<DbAiSqlApproval>(
+            AiSqlApprovalTableName,
+        )
+            .insert({
+                tool_call_id: toolCallId,
+                decision,
+                decided_by_user_uuid: decidedByUserUuid,
+            })
+            .onConflict('tool_call_id')
+            .ignore()
+            .returning('tool_call_id');
+        return inserted.length > 0;
+    }
+
+    /**
+     * Polls `ai_sql_approval` for a decision keyed by `toolCallId`.
+     * Resolves to the decision once one is recorded, or `'timeout'`
+     * after `timeoutMs` of no activity.
+     */
+    async waitForSqlApproval(
+        toolCallId: string,
+        timeoutMs: number = 5 * 60 * 1000,
+        pollIntervalMs: number = 500,
+    ): Promise<SqlApprovalDecision> {
+        const deadline = Date.now() + timeoutMs;
+        /* eslint-disable no-await-in-loop -- polling is intentional and
+           sequential; we want to wait between queries, not fire in parallel. */
+        while (Date.now() < deadline) {
+            const row = await this.database<DbAiSqlApproval>(
+                AiSqlApprovalTableName,
+            )
+                .where({ tool_call_id: toolCallId })
+                .select('decision')
+                .first();
+            if (row) return row.decision;
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) break;
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, Math.min(pollIntervalMs, remaining));
+            });
+        }
+        /* eslint-enable no-await-in-loop */
+        return 'timeout';
     }
 
     async getToolResultsForPrompt(

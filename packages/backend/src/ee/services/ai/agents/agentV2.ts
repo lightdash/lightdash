@@ -135,6 +135,8 @@ const getAgentTools = (
               sendFile: dependencies.sendFile,
               updateSlackMessage: dependencies.updateSlackMessage,
               siteUrl: args.siteUrl,
+              waitForSqlApproval: dependencies.waitForSqlApproval,
+              recordSqlApproval: dependencies.recordSqlApproval,
           })
         : null;
 

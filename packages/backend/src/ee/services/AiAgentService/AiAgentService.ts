@@ -138,10 +138,7 @@ import { evaluateAgentReadiness } from '../ai/agents/readinessScorer';
 import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/titleGenerator';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
-import {
-    markSlackThreadAutoApproved,
-    resolveSqlApproval,
-} from '../ai/tools/sqlApprovals';
+import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
@@ -1043,16 +1040,17 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const delivered = resolveSqlApproval(toolCallId, decision);
-        if (!delivered) {
-            // Approval was registered in DB sense (no result yet) but the
-            // backend pod awaiting the decision is gone — likely a restart.
-            // The 5-min timeout in waitForSqlApproval will fire, returning
-            // a 'timeout' result to the agent. We still record the user's
-            // intent by completing the request — let the timeout path
-            // handle the rest.
-            this.logger.warn(
-                `SQL approval for ${toolCallId} could not be delivered to any in-flight listener (possible pod restart).`,
+        const recorded = await this.aiAgentModel.recordSqlApproval(
+            toolCallId,
+            decision,
+            user.userUuid,
+        );
+        if (!recorded) {
+            // A decision was already in place for this tool call — likely a
+            // double-click or a race between Slack and the web UI. First
+            // write wins; subsequent calls are a no-op.
+            this.logger.info(
+                `SQL approval for ${toolCallId} was already recorded; ignoring duplicate.`,
             );
         }
 
@@ -3685,6 +3683,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return artifact;
             },
 
+            waitForSqlApproval: (toolCallId, timeoutMs) =>
+                this.aiAgentModel.waitForSqlApproval(toolCallId, timeoutMs),
+            recordSqlApproval: (toolCallId, decision, decidedByUserUuid) =>
+                this.aiAgentModel.recordSqlApproval(
+                    toolCallId,
+                    decision,
+                    decidedByUserUuid,
+                ),
+
             perf: {
                 measureGenerateResponseTime: (durationMs) => {
                     this.prometheusMetrics?.aiAgentGenerateResponseDurationHistogram?.observe(
@@ -4371,14 +4378,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     markSlackThreadAutoApproved(threadUuid);
                 }
 
-                const delivered = resolveSqlApproval(toolCallId, decision);
-                if (!delivered) {
-                    await respond({
-                        text: ':warning: Could not deliver approval — the agent run may have already timed out.',
-                        replace_original: false,
-                    });
-                    return;
-                }
+                // We don't reverse-map Slack user IDs → Lightdash user UUIDs
+                // here (no direct join exists), so the audit trail records
+                // the decision without a user reference. The Slack user id
+                // is available via body.user.id if we want to enrich later.
+                await this.aiAgentModel.recordSqlApproval(
+                    toolCallId,
+                    decision,
+                    null,
+                );
 
                 const emoji =
                     decision === 'approved'

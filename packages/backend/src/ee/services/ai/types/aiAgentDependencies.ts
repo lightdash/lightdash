@@ -205,3 +205,14 @@ export type DescribeWarehouseTableFn = (args: {
     columns: Array<{ name: string; type: string }>;
     resolvedSchema: string | null;
 }>;
+
+export type WaitForSqlApprovalFn = (
+    toolCallId: string,
+    timeoutMs?: number,
+) => Promise<'approved' | 'rejected' | 'timeout'>;
+
+export type RecordSqlApprovalFn = (
+    toolCallId: string,
+    decision: 'approved' | 'rejected',
+    decidedByUserUuid: string | null,
+) => Promise<boolean>;
