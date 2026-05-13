@@ -9,9 +9,8 @@ export enum ServiceAccountScope {
     ORG_READ = 'org:read',
     // System-role aliases. Each one delegates to the matching
     // `applyOrganizationMemberStaticAbilities` block so the SA's runtime
-    // ability set is identical to a user assigned that org role. Member is
-    // intentionally not exposed — it grants near-zero abilities and isn't
-    // a useful SA shape.
+    // ability set is identical to a user assigned that org role.
+    SYSTEM_MEMBER = 'system:member',
     SYSTEM_ADMIN = 'system:admin',
     SYSTEM_DEVELOPER = 'system:developer',
     SYSTEM_EDITOR = 'system:editor',
