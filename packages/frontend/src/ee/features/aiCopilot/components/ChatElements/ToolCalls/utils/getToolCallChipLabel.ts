@@ -27,6 +27,9 @@ export const getToolCallChipLabel = (
     toolName: ToolName,
     toolArgs: ToolCallSummary['toolArgs'],
 ): string | null => {
+    // toolArgs can be undefined mid-stream before the model has sent any
+    // input chunks for the call. Bail before any cast-and-access pattern.
+    if (!toolArgs || typeof toolArgs !== 'object') return null;
     switch (toolName) {
         case 'generateBarVizConfig':
         case 'generateTableVizConfig':

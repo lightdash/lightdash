@@ -1,7 +1,7 @@
 .card {
     position: relative;
     border-radius: 10px;
-    padding: 7px 0;
+    padding: 7px 12px;
     animation: cardSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
     overflow: hidden;
     font-family: var(--mantine-font-family);
@@ -22,7 +22,7 @@
     );
     background-size: 220% 100%;
     background-position: -10% 0;
-    opacity: 0.35;
+    opacity: 0;
     animation: bentoShimmer 3.6s ease-in-out infinite;
     pointer-events: none;
 }
@@ -38,9 +38,15 @@
 @keyframes bentoShimmer {
     0% {
         background-position: -25% 0;
+        opacity: 0;
+    }
+    20%,
+    80% {
+        opacity: 0.35;
     }
     100% {
         background-position: 125% 0;
+        opacity: 0;
     }
 }
 
@@ -69,8 +75,9 @@
     transform-origin: center;
 }
 
-/* Small rounded "logo" chip around the tool icon — gives the icon weight
- * and a clear visual identity inside the bento. */
+/* Small rounded "logo" chip around the tool icon — light background with a
+ * subtle border + soft shadow so the icon reads as a small UI chip rather
+ * than a heavy gray pill. */
 .iconChip {
     display: inline-flex;
     align-items: center;
@@ -79,23 +86,25 @@
     height: 20px;
     border-radius: 6px;
     background-color: light-dark(
-        var(--mantine-color-ldGray-2),
-        var(--mantine-color-ldGray-3)
+        var(--mantine-color-white),
+        var(--mantine-color-ldGray-1)
     );
-    box-shadow: light-dark(
-        inset 0 1px 0 rgba(255, 255, 255, 0.55),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04)
-    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.2));
     transition:
         background-color 220ms ease,
+        border-color 220ms ease,
         box-shadow 220ms ease;
 }
 
 .iconChip[data-live='true'] {
-    background-color: light-dark(
+    border-color: light-dark(
         var(--mantine-color-ldGray-3),
         var(--mantine-color-ldGray-4)
     );
+    box-shadow: 0 1px 3px
+        light-dark(rgba(15, 23, 42, 0.07), rgba(0, 0, 0, 0.28));
 }
 
 .latestIcon {
@@ -113,7 +122,8 @@
     flex-shrink: 0;
     line-height: 1;
     color: var(--mantine-color-ldGray-8);
-    font-weight: 450;
+    font-family: var(--mantine-font-family);
+    font-weight: 500;
     letter-spacing: -0.005em;
     animation: labelSettle 260ms ease-out;
 }
@@ -233,7 +243,7 @@
 }
 
 .chevronOpen {
-    transform: rotate(180deg);
+    transform: rotate(90deg);
 }
 
 .history {

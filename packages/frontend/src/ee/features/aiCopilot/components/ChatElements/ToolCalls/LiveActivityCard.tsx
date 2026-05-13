@@ -12,7 +12,7 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronRight } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -118,7 +118,7 @@ const ReasoningHistoryRow: FC<{ texts: string[]; isLive: boolean }> = ({
                         {hasOverflow ? '…' : ''}
                     </Text>
                     <MantineIcon
-                        icon={IconChevronDown}
+                        icon={IconChevronRight}
                         size={11}
                         stroke={1.6}
                         className={`${styles.chevron} ${
@@ -367,7 +367,7 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                     {(hasHistory || hasPending) && (
                         <MantineIcon
-                            icon={IconChevronDown}
+                            icon={IconChevronRight}
                             size={11}
                             stroke={1.6}
                             className={`${styles.chevron} ${
