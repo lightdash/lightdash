@@ -15,4 +15,5 @@ export type SlackSettings = {
     aiRequireOAuth?: boolean;
     aiMultiAgentChannelId?: string;
     aiMultiAgentProjectUuids?: string[] | null;
+    unfurlsEnabled?: boolean;
 };

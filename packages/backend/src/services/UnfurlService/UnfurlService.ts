@@ -1838,11 +1838,27 @@ export class UnfurlService extends BaseService {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
+        const { teamId } = context;
+        if (!teamId) {
+            Logger.warn(
+                `Slack unfurl skipped: no teamId on link_shared event ${event.message_ts}`,
+            );
+            return;
+        }
+
+        const unfurlsEnabled =
+            await this.slackAuthenticationModel.getUnfurlsEnabled(teamId);
+        if (!unfurlsEnabled) {
+            Logger.info(
+                `Slack unfurl skipped for team ${teamId}: link unfurls disabled in integration settings`,
+            );
+            return;
+        }
+
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {
-                const { teamId } = context;
                 const details = await this.unfurlDetails(l.url, null);
 
                 if (details) {
@@ -1870,9 +1886,7 @@ export class UnfurlService extends BaseService {
 
                     const imageId = `slack-image-${useNanoid()}`;
                     const authUserUuid =
-                        await this.slackAuthenticationModel.getUserUuid(
-                            teamId ?? '',
-                        );
+                        await this.slackAuthenticationModel.getUserUuid(teamId);
 
                     const installation =
                         await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
