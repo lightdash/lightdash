@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     NotFoundError,
+    PaginationError,
     SchedulerJobStatus,
     UserActivity,
     type Account,
@@ -13,6 +14,7 @@ import {
 import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -20,6 +22,7 @@ import { BaseService } from '../BaseService';
 import { CsvService } from '../CsvService/CsvService';
 
 type AnalyticsServiceArguments = {
+    lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
     downloadAuditModel: DownloadAuditModel;
@@ -28,6 +31,8 @@ type AnalyticsServiceArguments = {
 };
 
 export class AnalyticsService extends BaseService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly analyticsModel: AnalyticsModel;
@@ -40,6 +45,7 @@ export class AnalyticsService extends BaseService {
 
     constructor(args: AnalyticsServiceArguments) {
         super();
+        this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.analyticsModel = args.analyticsModel;
@@ -147,7 +153,14 @@ export class AnalyticsService extends BaseService {
         projectUuid: string,
         account: Account,
         paginateArgs: KnexPaginateArgs,
+        cursor?: string,
     ): Promise<DownloadActivityResults> {
+        const { maxPageSize } = this.lightdashConfig.query;
+        if (paginateArgs.pageSize > maxPageSize) {
+            throw new PaginationError(
+                `page size is too large, max is ${maxPageSize}`,
+            );
+        }
         assertIsAccountWithOrg(account);
         const { organizationUuid, name: projectName } =
             await this.projectModel.get(projectUuid);
@@ -174,12 +187,11 @@ export class AnalyticsService extends BaseService {
             },
         });
 
-        const { data, pagination } = await this.downloadAuditModel.getDownloads(
+        return this.downloadAuditModel.getDownloads(
             organizationUuid,
             projectUuid,
             paginateArgs,
+            cursor,
         );
-
-        return { data, pagination: pagination! };
     }
 }

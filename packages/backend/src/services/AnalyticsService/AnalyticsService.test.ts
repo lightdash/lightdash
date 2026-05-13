@@ -4,10 +4,12 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     OrganizationMemberRole,
+    PaginationError,
     PossibleAbilities,
     type Account,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
+import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -97,6 +99,7 @@ describe('AnalyticsService.getDownloadActivity', () => {
     it('throws ForbiddenError when account lacks Analytics view permission', async () => {
         const downloadAuditModel = makeDownloadAuditModel();
         const service = new AnalyticsService({
+            lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             analyticsModel,
             downloadAuditModel,
@@ -122,6 +125,7 @@ describe('AnalyticsService.getDownloadActivity', () => {
             pagination,
         );
         const service = new AnalyticsService({
+            lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             analyticsModel,
             downloadAuditModel,
@@ -141,6 +145,7 @@ describe('AnalyticsService.getDownloadActivity', () => {
             organizationUuid,
             projectUuid,
             defaultPaginateArgs,
+            undefined,
         );
     });
 
@@ -157,6 +162,7 @@ describe('AnalyticsService.getDownloadActivity', () => {
             pagination,
         );
         const service = new AnalyticsService({
+            lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             analyticsModel,
             downloadAuditModel,
@@ -176,6 +182,7 @@ describe('AnalyticsService.getDownloadActivity', () => {
             organizationUuid,
             projectUuid,
             paginateArgs,
+            undefined,
         );
     });
 
@@ -188,6 +195,7 @@ describe('AnalyticsService.getDownloadActivity', () => {
         };
         const downloadAuditModel = makeDownloadAuditModel([], pagination);
         const service = new AnalyticsService({
+            lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             analyticsModel,
             downloadAuditModel,
@@ -205,9 +213,10 @@ describe('AnalyticsService.getDownloadActivity', () => {
         expect(result.pagination).toEqual(pagination);
     });
 
-    it('tracks download_activity_viewed analytics event', async () => {
+    it('throws PaginationError when pageSize exceeds query.maxPageSize', async () => {
         const downloadAuditModel = makeDownloadAuditModel();
         const service = new AnalyticsService({
+            lightdashConfig: lightdashConfigMock,
             analytics: analyticsMock,
             analyticsModel,
             downloadAuditModel,
@@ -215,23 +224,15 @@ describe('AnalyticsService.getDownloadActivity', () => {
             csvService,
         });
 
-        const trackSpy = jest.spyOn(analyticsMock, 'track');
+        const oversized: KnexPaginateArgs = {
+            page: 1,
+            pageSize: lightdashConfigMock.query.maxPageSize + 1,
+        };
 
-        await service.getDownloadActivity(
-            projectUuid,
-            allowedAccount,
-            defaultPaginateArgs,
-        );
+        await expect(
+            service.getDownloadActivity(projectUuid, allowedAccount, oversized),
+        ).rejects.toThrow(PaginationError);
 
-        expect(trackSpy).toHaveBeenCalledWith(
-            expect.objectContaining({
-                event: 'usage_analytics.download_activity_viewed',
-                userId: allowedAccount.user.id,
-                properties: expect.objectContaining({
-                    projectId: projectUuid,
-                    organizationId: organizationUuid,
-                }),
-            }),
-        );
+        expect(downloadAuditModel.getDownloads).not.toHaveBeenCalled();
     });
 });

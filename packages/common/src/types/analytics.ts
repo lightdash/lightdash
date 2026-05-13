@@ -84,10 +84,11 @@ export type DownloadAuditEntry = {
 export type DownloadActivityResults = {
     data: DownloadAuditEntry[];
     pagination: {
-        page: number;
         pageSize: number;
-        totalPageCount: number;
-        totalResults: number;
+        page: number | null;
+        totalPageCount: number | null;
+        totalResults: number | null;
+        nextCursor: string | null;
     };
 };
 

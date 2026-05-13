@@ -92,10 +92,16 @@ export class UserActivityController extends BaseController {
 
     /**
      * Get download activity log for a project, ordered by most recent first.
-     * Pagination is required — both `page` and `pageSize` must be provided.
+     * Two pagination modes are supported:
+     *  - Offset mode: pass `page` (1-indexed) and `pageSize`. Response includes
+     *    `page`/`totalResults`/`totalPageCount`.
+     *  - Cursor mode: pass `cursor` (from a previous response's `nextCursor`) and
+     *    `pageSize`. `page` is ignored when `cursor` is provided. Avoids the count
+     *    query so `page`/`totalResults`/`totalPageCount` are null in the response.
      * @summary Get download activity log
-     * @param page page number (1-indexed)
      * @param pageSize number of items per page
+     * @param page page number (1-indexed); defaults to 1 if omitted
+     * @param cursor opaque cursor from a previous response's `nextCursor`
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -108,13 +114,19 @@ export class UserActivityController extends BaseController {
     async getDownloadActivity(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Query() page: number,
         @Query() pageSize: number,
+        @Query() page?: number,
+        @Query() cursor?: string,
     ): Promise<ApiDownloadActivity> {
         this.setStatus(200);
         const results = await req.services
             .getAnalyticsService()
-            .getDownloadActivity(projectUuid, req.account!, { page, pageSize });
+            .getDownloadActivity(
+                projectUuid,
+                req.account!,
+                { page: page ?? 1, pageSize },
+                cursor,
+            );
         return {
             status: 'ok',
             results,
