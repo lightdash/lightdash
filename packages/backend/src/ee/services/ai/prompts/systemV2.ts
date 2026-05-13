@@ -36,7 +36,22 @@ export const getSystemPromptV2 = (args: {
 
     const customSqlLimitation = canRunSql
         ? ''
-        : '    - Cannot execute custom SQL queries or add custom SQL expressions to queries';
+        : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+
+    const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
+    let availableExploresContent: string;
+    if (args.availableExplores.length === 0) {
+        availableExploresContent =
+            'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
+    } else if (
+        args.availableExplores.length <= AVAILABLE_EXPLORES_INLINE_LIMIT
+    ) {
+        availableExploresContent = renderAvailableExplores(
+            args.availableExplores,
+        ).toString();
+    } else {
+        availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
+    }
 
     const content = SYSTEM_PROMPT_TEMPLATE.replace(
         '{{self_improvement_section}}',
@@ -60,10 +75,7 @@ export const getSystemPromptV2 = (args: {
             instructions ? `Special instructions: ${instructions}` : '',
         )
         .replace('{{date}}', date)
-        .replace(
-            '{{available_explores}}',
-            renderAvailableExplores(args.availableExplores).toString(),
-        );
+        .replace('{{available_explores}}', availableExploresContent);
 
     return {
         role: 'system',

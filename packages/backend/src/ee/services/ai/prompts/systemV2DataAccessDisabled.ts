@@ -1,1 +1,1 @@
-export const DATA_ACCESS_DISABLED_SECTION = `- ALWAYS include information about selections made (fieldIds, filters, etc.)`;
+export const DATA_ACCESS_DISABLED_SECTION = `- You do not see the actual query results. In your response, summarize the selections you made — the fields (by label), filters, sorts, and any custom metrics or table calculations — so the user understands what the chart represents.`;
