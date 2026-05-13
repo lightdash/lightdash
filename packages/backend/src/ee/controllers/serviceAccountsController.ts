@@ -1,10 +1,12 @@
 import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
+    ApiServiceAccountProjectGrantsResponse,
     assertRegisteredAccount,
     AuthTokenPrefix,
     ServiceAccount,
     ServiceAccountScope,
+    ServiceAccountWithProjectAccessCount,
     ServiceAccountWithToken,
 } from '@lightdash/common';
 import {
@@ -47,9 +49,10 @@ export class ServiceAccountsController extends BaseController {
     @Get('/')
     @OperationId('getServiceAccounts')
     @Response<ServiceAccount[]>('200', 'Success')
-    async getServiceAccounts(
-        @Request() req: express.Request,
-    ): Promise<{ status: 'ok'; results: ServiceAccount[] }> {
+    async getServiceAccounts(@Request() req: express.Request): Promise<{
+        status: 'ok';
+        results: ServiceAccountWithProjectAccessCount[];
+    }> {
         assertRegisteredAccount(req.account);
         // Here all scopes but scim to get all non scim service accounts
         const scopes = Object.values(ServiceAccountScope).filter(
@@ -64,6 +67,28 @@ export class ServiceAccountsController extends BaseController {
             status: 'ok',
             results,
         };
+    }
+
+    /**
+     * List the project grants of a single service account.
+     * Powers the org SA list's expand panel.
+     * @summary List service-account project grants
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{serviceAccountUuid}/projects')
+    @OperationId('GetServiceAccountProjectGrants')
+    async getServiceAccountProjectGrants(
+        @Path() serviceAccountUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiServiceAccountProjectGrantsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getServiceAccountService().getProjectGrants(
+            toSessionUser(req.account),
+            serviceAccountUuid,
+        );
+        return { status: 'ok', results };
     }
 
     /**

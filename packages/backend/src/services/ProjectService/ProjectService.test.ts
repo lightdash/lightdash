@@ -9,7 +9,6 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PreAggregateMissReason,
-    ProjectMemberRole,
     ProjectType,
     SessionUser,
     WarehouseTypes,
@@ -158,12 +157,6 @@ const projectModel = {
     getAllExploresFromCache: jest.fn(async () => ({})),
     saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
-    getServiceAccountProjectAccess: jest.fn(async () => []),
-    createServiceAccountProjectAccess: jest.fn(async () => undefined),
-    updateServiceAccountProjectAccess: jest.fn(async () => undefined),
-    deleteServiceAccountProjectAccess: jest.fn(
-        async (): Promise<{ blocked: boolean }> => ({ blocked: false }),
-    ),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
@@ -2166,150 +2159,6 @@ describe('ProjectService', () => {
                     exploreName,
                 ),
             ).rejects.toThrow(ForbiddenError);
-        });
-    });
-
-    describe('service account project access', () => {
-        // The default `user` exported from .mock.ts has Project:update+view but
-        // NOT manage — so we build a real admin for these tests rather than
-        // adding manage:Project to the shared user (which would affect every
-        // other suite).
-        const adminUser = {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: ['manage', 'view'] },
-            ]),
-        } as unknown as SessionUser;
-        const viewerUser = {
-            ...user,
-            ability: new Ability<PossibleAbilities>([
-                { subject: 'Project', action: ['view'] },
-            ]),
-        } as unknown as SessionUser;
-        const restrictedUser = {
-            ...user,
-            ability: new Ability<PossibleAbilities>([]),
-        } as unknown as SessionUser;
-
-        test('list — admin succeeds', async () => {
-            await service.getServiceAccountProjectAccess(
-                adminUser,
-                projectUuid,
-            );
-            expect(
-                projectModel.getServiceAccountProjectAccess,
-            ).toHaveBeenCalledWith(projectUuid);
-        });
-
-        test('list — viewer succeeds (view:Project is the gate)', async () => {
-            await service.getServiceAccountProjectAccess(
-                viewerUser,
-                projectUuid,
-            );
-            expect(
-                projectModel.getServiceAccountProjectAccess,
-            ).toHaveBeenCalled();
-        });
-
-        test('list — no-perms user gets ForbiddenError', async () => {
-            await expect(
-                service.getServiceAccountProjectAccess(
-                    restrictedUser,
-                    projectUuid,
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-        });
-
-        test('grant — admin succeeds', async () => {
-            await service.createServiceAccountProjectAccess(
-                adminUser,
-                projectUuid,
-                { serviceAccountUuid: 'sa-1', role: ProjectMemberRole.EDITOR },
-            );
-            expect(
-                projectModel.createServiceAccountProjectAccess,
-            ).toHaveBeenCalledWith(
-                projectUuid,
-                'sa-1',
-                ProjectMemberRole.EDITOR,
-            );
-        });
-
-        test('grant — viewer (lacks manage:Project) gets ForbiddenError', async () => {
-            await expect(
-                service.createServiceAccountProjectAccess(
-                    viewerUser,
-                    projectUuid,
-                    {
-                        serviceAccountUuid: 'sa-1',
-                        role: ProjectMemberRole.VIEWER,
-                    },
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-        });
-
-        test('update — admin succeeds', async () => {
-            await service.updateServiceAccountProjectAccess(
-                adminUser,
-                projectUuid,
-                'sa-1',
-                { role: ProjectMemberRole.DEVELOPER },
-            );
-            expect(
-                projectModel.updateServiceAccountProjectAccess,
-            ).toHaveBeenCalledWith(
-                projectUuid,
-                'sa-1',
-                ProjectMemberRole.DEVELOPER,
-            );
-        });
-
-        test('update — viewer gets ForbiddenError', async () => {
-            await expect(
-                service.updateServiceAccountProjectAccess(
-                    viewerUser,
-                    projectUuid,
-                    'sa-1',
-                    { role: ProjectMemberRole.VIEWER },
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-        });
-
-        test('delete — model says not blocked: succeeds', async () => {
-            (
-                projectModel.deleteServiceAccountProjectAccess as jest.Mock
-            ).mockResolvedValueOnce({ blocked: false });
-            await service.deleteServiceAccountProjectAccess(
-                adminUser,
-                projectUuid,
-                'sa-1',
-            );
-            expect(
-                projectModel.deleteServiceAccountProjectAccess,
-            ).toHaveBeenCalledWith(projectUuid, 'sa-1');
-        });
-
-        test('delete — model says blocked: 409 (AlreadyExistsError)', async () => {
-            (
-                projectModel.deleteServiceAccountProjectAccess as jest.Mock
-            ).mockResolvedValueOnce({ blocked: true });
-            await expect(
-                service.deleteServiceAccountProjectAccess(
-                    adminUser,
-                    projectUuid,
-                    'sa-1',
-                ),
-            ).rejects.toThrow(/at least one project/);
-        });
-
-        test('delete — viewer gets ForbiddenError', async () => {
-            await expect(
-                service.deleteServiceAccountProjectAccess(
-                    viewerUser,
-                    projectUuid,
-                    'sa-1',
-                ),
-            ).rejects.toBeInstanceOf(ForbiddenError);
         });
     });
 });

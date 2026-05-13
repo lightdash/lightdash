@@ -56,6 +56,34 @@ export type ServiceAccountWithToken = ServiceAccount & {
 };
 
 /**
+ * SA + the count of `project_memberships` rows keyed on its dedicated user.
+ *
+ * Returned by the org SA list endpoint so the UI can render the `Access`
+ * column ("N project(s)") for project-scoped SAs without a follow-up
+ * per-SA fan-out. Zero for Organization-scoped SAs, which is the natural
+ * shape (they have no project grants).
+ */
+export type ServiceAccountWithProjectAccessCount = ServiceAccount & {
+    projectAccessCount: number;
+};
+
+/**
+ * One row in the per-SA project-grants list. The project name comes from a
+ * join on `projects` and is shown verbatim in the inline panel; the role is
+ * the `ProjectMemberRole` enum (Viewer / Editor / etc.) used everywhere else.
+ */
+export type ServiceAccountProjectGrant = {
+    projectUuid: string;
+    projectName: string;
+    role: ProjectMemberRole;
+};
+
+export type ApiServiceAccountProjectGrantsResponse = {
+    status: 'ok';
+    results: ServiceAccountProjectGrant[];
+};
+
+/**
  * Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty
  * on a create request, `scopes` must be `['system:member']` — any other scope
  * combination is rejected at the service layer so the SA's effective access is

@@ -152,6 +152,67 @@
                 ],
                 "type": "object"
             },
+            "ServiceAccountWithProjectAccessCount": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/ServiceAccount"
+                    },
+                    {
+                        "properties": {
+                            "projectAccessCount": {
+                                "type": "number",
+                                "format": "double"
+                            }
+                        },
+                        "required": ["projectAccessCount"],
+                        "type": "object"
+                    }
+                ],
+                "description": "SA + the count of `project_memberships` rows keyed on its dedicated user.\n\nReturned by the org SA list endpoint so the UI can render the `Access`\ncolumn (\"N project(s)\") for project-scoped SAs without a follow-up\nper-SA fan-out. Zero for Organization-scoped SAs, which is the natural\nshape (they have no project grants)."
+            },
+            "ProjectMemberRole": {
+                "enum": [
+                    "viewer",
+                    "interactive_viewer",
+                    "editor",
+                    "developer",
+                    "admin"
+                ],
+                "type": "string"
+            },
+            "ServiceAccountProjectGrant": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/ProjectMemberRole"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["role", "projectName", "projectUuid"],
+                "type": "object",
+                "description": "One row in the per-SA project-grants list. The project name comes from a\njoin on `projects` and is shown verbatim in the inline panel; the role is\nthe `ProjectMemberRole` enum (Viewer / Editor / etc.) used everywhere else."
+            },
+            "ApiServiceAccountProjectGrantsResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceAccountProjectGrant"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_ServiceAccount.expiresAt-or-description_": {
                 "properties": {
                     "expiresAt": {
@@ -167,6 +228,19 @@
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
+            "ServiceAccountProjectAccessInput": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/ProjectMemberRole"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["role", "projectUuid"],
+                "type": "object",
+                "description": "Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty\non a create request, `scopes` must be `['system:member']` — any other scope\ncombination is rejected at the service layer so the SA's effective access is\nunambiguously project-only."
+            },
             "ApiCreateServiceAccountRequest": {
                 "allOf": [
                     {
@@ -174,6 +248,12 @@
                     },
                     {
                         "properties": {
+                            "projectAccess": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ServiceAccountProjectAccessInput"
+                                },
+                                "type": "array"
+                            },
                             "roleUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -2515,16 +2595,6 @@
             },
             "SpaceMemberRole": {
                 "enum": ["viewer", "editor", "admin"],
-                "type": "string"
-            },
-            "ProjectMemberRole": {
-                "enum": [
-                    "viewer",
-                    "interactive_viewer",
-                    "editor",
-                    "developer",
-                    "admin"
-                ],
                 "type": "string"
             },
             "OrganizationMemberRole": {

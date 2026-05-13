@@ -7,7 +7,9 @@ import {
     NotFoundError,
     ParameterError,
     ServiceAccount,
+    ServiceAccountProjectGrant,
     ServiceAccountScope,
+    ServiceAccountWithProjectAccessCount,
     ServiceAccountWithToken,
     SessionUser,
     UnexpectedDatabaseError,
@@ -316,7 +318,7 @@ export class ServiceAccountService extends BaseService {
     async list(
         user: SessionUser,
         scopes: ServiceAccountScope[],
-    ): Promise<ServiceAccount[]> {
+    ): Promise<ServiceAccountWithProjectAccessCount[]> {
         try {
             this.throwForbiddenErrorOnNoPermission(user);
             const organizationUuid = user.organizationUuid as string;
@@ -324,7 +326,20 @@ export class ServiceAccountService extends BaseService {
                 organizationUuid,
                 scopes,
             );
-            return tokens;
+            // Project-grant counts are batched into one GROUP BY so the SA
+            // list doesn't trigger an N+1. Zero for SAs with no grants
+            // (the common case for Organization-scope SAs).
+            const userUuids = tokens
+                .map((t) => t.userUuid)
+                .filter((u): u is string => typeof u === 'string');
+            const counts =
+                await this.projectModel.getProjectAccessCountsByServiceAccountUserUuids(
+                    userUuids,
+                );
+            return tokens.map((t) => ({
+                ...t,
+                projectAccessCount: counts.get(t.userUuid) ?? 0,
+            }));
         } catch (error) {
             if (error instanceof ForbiddenError) {
                 throw error;
@@ -337,6 +352,32 @@ export class ServiceAccountService extends BaseService {
                 'Failed to list organization access tokens',
             );
         }
+    }
+
+    /**
+     * Per-SA list of project grants for the org SA list's expand panel.
+     *
+     * Same perm gate as the parent SA list (`manage:Organization`) — anyone
+     * who can see the SA can see its grants. We validate the SA actually
+     * belongs to the caller's org before reading so a cross-org UUID can't
+     * be used to probe another org's SA layout (404, not 403, since the
+     * resource is genuinely unreachable from this caller's POV).
+     */
+    async getProjectGrants(
+        user: SessionUser,
+        serviceAccountUuid: string,
+    ): Promise<ServiceAccountProjectGrant[]> {
+        this.throwForbiddenErrorOnNoPermission(user);
+        const sa =
+            await this.serviceAccountModel.getTokenbyUuid(serviceAccountUuid);
+        if (!sa || sa.organizationUuid !== user.organizationUuid) {
+            throw new NotFoundError(
+                `Service account ${serviceAccountUuid} not found`,
+            );
+        }
+        return this.projectModel.getServiceAccountProjectGrants(
+            serviceAccountUuid,
+        );
     }
 
     async authenticateScim(
