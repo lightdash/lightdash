@@ -327,7 +327,9 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
-                role: { ref: 'ProjectMemberRole', required: true },
+                roleName: { dataType: 'string' },
+                roleUuid: { dataType: 'string' },
+                role: { ref: 'ProjectMemberRole' },
                 projectName: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string', required: true },
             },

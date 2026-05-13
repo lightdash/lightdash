@@ -102,6 +102,39 @@ export class ServiceAccountService extends BaseService {
                     'projectAccess can only be set when scopes = [system:member]',
                 );
             }
+            // Each grant carries exactly one of `role` (system) or
+            // `roleUuid` (custom). The TS discriminated union covers
+            // compile-time callers, but request bodies arrive as JSON, so
+            // we double-check at the boundary.
+            for (const grant of projectAccess) {
+                const hasRole = grant.role !== undefined;
+                const hasRoleUuid = grant.roleUuid !== undefined;
+                if (hasRole === hasRoleUuid) {
+                    throw new ParameterError(
+                        'Each projectAccess grant must specify exactly one of role or roleUuid',
+                    );
+                }
+            }
+            // Bulk-validate custom-role grants belong to the SA's org.
+            // Doing this before the SA insert avoids creating an SA that
+            // we'd then have to compensate-delete.
+            const customRoleUuids = projectAccess
+                .map((g) => g.roleUuid)
+                .filter((u): u is string => u !== undefined);
+            if (customRoleUuids.length > 0) {
+                const invalid =
+                    await this.projectModel.findInvalidCustomRoleUuids(
+                        customRoleUuids,
+                        tokenDetails.organizationUuid,
+                    );
+                if (invalid.length > 0) {
+                    throw new ParameterError(
+                        `Unknown role uuid(s) for this organization: ${invalid.join(
+                            ', ',
+                        )}`,
+                    );
+                }
+            }
         }
 
         try {
@@ -129,7 +162,7 @@ export class ServiceAccountService extends BaseService {
                         await this.projectModel.createServiceAccountProjectAccess(
                             grant.projectUuid,
                             token.uuid,
-                            grant.role,
+                            { role: grant.role, roleUuid: grant.roleUuid },
                         );
                     }
                 } catch (grantError) {

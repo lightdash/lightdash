@@ -182,6 +182,12 @@
             },
             "ServiceAccountProjectGrant": {
                 "properties": {
+                    "roleName": {
+                        "type": "string"
+                    },
+                    "roleUuid": {
+                        "type": "string"
+                    },
                     "role": {
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     },
@@ -192,9 +198,9 @@
                         "type": "string"
                     }
                 },
-                "required": ["role", "projectName", "projectUuid"],
+                "required": ["projectName", "projectUuid"],
                 "type": "object",
-                "description": "One row in the per-SA project-grants list. The project name comes from a\njoin on `projects` and is shown verbatim in the inline panel; the role is\nthe `ProjectMemberRole` enum (Viewer / Editor / etc.) used everywhere else."
+                "description": "One row in the per-SA project-grants list. The project name comes from a\njoin on `projects`. A grant is either a system role (the `ProjectMemberRole`\nenum used everywhere else) or a custom role (a `role_uuid` pointing at the\norg's `roles` table, with the role's display name resolved server-side so\nthe UI doesn't need a follow-up lookup).\n\nExactly one of (`role`) or (`roleUuid`+`roleName`) is set on each row. We\nmodel the optional fields rather than a strict discriminated union with\n`never` because tsoa (the OpenAPI generator) doesn't understand TS's\n`?: never` idiom and would refuse to render the schema. Consumers should\nnarrow via `'roleUuid' in grant` rather than relying on TS exhaustiveness."
             },
             "ApiServiceAccountProjectGrantsResponse": {
                 "properties": {

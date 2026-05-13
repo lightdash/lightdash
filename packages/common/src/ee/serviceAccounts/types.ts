@@ -69,13 +69,23 @@ export type ServiceAccountWithProjectAccessCount = ServiceAccount & {
 
 /**
  * One row in the per-SA project-grants list. The project name comes from a
- * join on `projects` and is shown verbatim in the inline panel; the role is
- * the `ProjectMemberRole` enum (Viewer / Editor / etc.) used everywhere else.
+ * join on `projects`. A grant is either a system role (the `ProjectMemberRole`
+ * enum used everywhere else) or a custom role (a `role_uuid` pointing at the
+ * org's `roles` table, with the role's display name resolved server-side so
+ * the UI doesn't need a follow-up lookup).
+ *
+ * Exactly one of (`role`) or (`roleUuid`+`roleName`) is set on each row. We
+ * model the optional fields rather than a strict discriminated union with
+ * `never` because tsoa (the OpenAPI generator) doesn't understand TS's
+ * `?: never` idiom and would refuse to render the schema. Consumers should
+ * narrow via `'roleUuid' in grant` rather than relying on TS exhaustiveness.
  */
 export type ServiceAccountProjectGrant = {
     projectUuid: string;
     projectName: string;
-    role: ProjectMemberRole;
+    role?: ProjectMemberRole;
+    roleUuid?: string;
+    roleName?: string;
 };
 
 export type ApiServiceAccountProjectGrantsResponse = {
@@ -88,10 +98,17 @@ export type ApiServiceAccountProjectGrantsResponse = {
  * on a create request, `scopes` must be `['system:member']` — any other scope
  * combination is rejected at the service layer so the SA's effective access is
  * unambiguously project-only.
+ *
+ * Each grant must carry exactly one of `role` (system) or `roleUuid` (custom).
+ * The XOR is enforced at the service layer (compile-time `never` discriminator
+ * unions are not used here — see note on `ServiceAccountProjectGrant`).
+ * Mixed grants across the same `projectAccess` array are allowed — e.g. one
+ * project on stock Viewer and another on a custom role.
  */
 export type ServiceAccountProjectAccessInput = {
     projectUuid: string;
-    role: ProjectMemberRole;
+    role?: ProjectMemberRole;
+    roleUuid?: string;
 };
 
 export type ApiCreateServiceAccountRequest = Pick<

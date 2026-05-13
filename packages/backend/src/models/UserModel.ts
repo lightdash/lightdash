@@ -770,6 +770,7 @@ export class UserModel {
         type Row = {
             project_uuid: string;
             role: ProjectMemberRole;
+            role_uuid: string | null;
         };
         const rows = await this.database(ProjectMembershipsTableName)
             .leftJoin(
@@ -780,18 +781,51 @@ export class UserModel {
             .select<Row[]>(
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectMembershipsTableName}.role`,
+                `${ProjectMembershipsTableName}.role_uuid`,
             )
             .where(`${ProjectMembershipsTableName}.user_id`, userId);
 
+        // Bulk-load scopes for any custom-role grants. Matches the human
+        // path's philosophy (UserModel.generateUserAbilityBuilder): once a
+        // role is bound in the DB the runtime must respect it, regardless
+        // of the customRoles.enabled feature flag (which gates UI only).
+        const customRoleUuids = rows
+            .map((r) => r.role_uuid)
+            .filter((u): u is string => u !== null);
+        const customRoleScopes =
+            customRoleUuids.length > 0
+                ? await this.customRoleScopes(customRoleUuids)
+                : {};
+        const isEnterprise =
+            this.lightdashConfig.license.licenseKey !== undefined;
+
         for (const row of rows) {
-            projectMemberAbilities[row.role](
-                {
-                    projectUuid: row.project_uuid,
-                    userUuid,
-                    role: row.role,
-                },
-                builder,
-            );
+            const scopes = row.role_uuid
+                ? customRoleScopes[row.role_uuid]
+                : undefined;
+            if (scopes) {
+                buildAbilityFromScopes(
+                    {
+                        projectUuid: row.project_uuid,
+                        userUuid,
+                        scopes,
+                        isEnterprise,
+                        permissionsConfig: {
+                            pat: this.lightdashConfig.auth.pat,
+                        },
+                    },
+                    builder,
+                );
+            } else {
+                projectMemberAbilities[row.role](
+                    {
+                        projectUuid: row.project_uuid,
+                        userUuid,
+                        role: row.role,
+                    },
+                    builder,
+                );
+            }
         }
     }
 

@@ -87,6 +87,7 @@ import {
     ProjectTableName,
     type DbCachedExplore,
 } from '../../database/entities/projects';
+import { RolesTableName } from '../../database/entities/roles';
 import {
     DbSavedChart,
     InsertChart,
@@ -1870,17 +1871,29 @@ export class ProjectModel {
     /**
      * Insert a (service account, project) grant.
      *
-     * Caller (`ProjectService`) is responsible for permission checks. We do
-     * still enforce two invariants at this layer because they're cheap and
-     * keep the table consistent regardless of caller bugs:
+     * Accepts either a system role (`role`) or a custom role (`roleUuid`) —
+     * exactly one. The discriminated union is enforced by the caller
+     * (`ServiceAccountService.create` validates role-uuid ownership in bulk
+     * before reaching the DB), so this layer only enforces the structural
+     * invariants that are cheap to check here:
      *  - cross-org grants are rejected (returns ParameterError, surfaces as 400)
      *  - duplicate grants raise AlreadyExistsError (409 at the API)
      */
     async createServiceAccountProjectAccess(
         projectUuid: string,
         serviceAccountUuid: string,
-        role: ProjectMemberRole,
+        grant: { role?: ProjectMemberRole; roleUuid?: string },
     ): Promise<void> {
+        // Structural XOR check. Callers must pass exactly one of role /
+        // roleUuid — service layer already enforces this for API requests,
+        // but a programming-bug call into the model should fail fast.
+        const hasRole = grant.role !== undefined;
+        const hasRoleUuid = grant.roleUuid !== undefined;
+        if (hasRole === hasRoleUuid) {
+            throw new ParameterError(
+                'Grant must specify exactly one of role or roleUuid',
+            );
+        }
         // `projects.organization_id` is the int link; `service_accounts`
         // uses `organization_uuid`. Resolve both to a uuid via a join through
         // `organizations` so the cross-org comparison is uuid-vs-uuid.
@@ -1937,11 +1950,18 @@ export class ProjectModel {
         }
 
         try {
+            // The legacy `role` column is NOT NULL. When `role_uuid` is set,
+            // CASL resolution at request time prefers the custom role, so
+            // the `role` value is a structural placeholder only. Matches the
+            // convention used by `project_group_access` for custom roles
+            // (Viewer as the safe-by-default fallback).
             await this.database(ProjectMembershipsTableName).insert({
                 project_id: project.project_id,
                 user_id: sa.user_id,
-                role,
-                role_uuid: null,
+                role: hasRoleUuid
+                    ? ProjectMemberRole.VIEWER
+                    : (grant.role as ProjectMemberRole),
+                role_uuid: grant.roleUuid ?? null,
             });
         } catch (error: AnyType) {
             if (
@@ -1954,6 +1974,30 @@ export class ProjectModel {
             }
             throw error;
         }
+    }
+
+    /**
+     * Validate that every `roleUuid` in the input exists and belongs to the
+     * given organization. Returns the set of `roleUuid`s in the input that
+     * are missing or owned by a different org — callers should reject if
+     * the returned set is non-empty.
+     *
+     * Used during service-account create to bulk-validate
+     * `projectAccess[*].roleUuid` before opening a write transaction. One
+     * query for the whole batch avoids per-grant N+1s and a partial-success
+     * window.
+     */
+    async findInvalidCustomRoleUuids(
+        roleUuids: string[],
+        organizationUuid: string,
+    ): Promise<string[]> {
+        if (roleUuids.length === 0) return [];
+        const rows = await this.database(RolesTableName)
+            .select<{ role_uuid: string }[]>('role_uuid')
+            .whereIn('role_uuid', roleUuids)
+            .andWhere('organization_uuid', organizationUuid);
+        const valid = new Set(rows.map((r) => r.role_uuid));
+        return roleUuids.filter((u) => !valid.has(u));
     }
 
     /**
@@ -1970,6 +2014,8 @@ export class ProjectModel {
             project_uuid: string;
             project_name: string;
             role: ProjectMemberRole;
+            role_uuid: string | null;
+            role_name: string | null;
         };
         const rows = await this.database(ProjectMembershipsTableName)
             .innerJoin(
@@ -1987,21 +2033,41 @@ export class ProjectModel {
                 `${ProjectMembershipsTableName}.project_id`,
                 `${ProjectTableName}.project_id`,
             )
+            // LEFT join: most grants are system roles (no row in `roles`).
+            // Custom-role grants have role_uuid set and we project the
+            // role's display name so the UI doesn't need a follow-up lookup.
+            .leftJoin(
+                RolesTableName,
+                `${ProjectMembershipsTableName}.role_uuid`,
+                `${RolesTableName}.role_uuid`,
+            )
             .select<Row[]>(
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectTableName}.name as project_name`,
                 `${ProjectMembershipsTableName}.role`,
+                `${ProjectMembershipsTableName}.role_uuid`,
+                `${RolesTableName}.name as role_name`,
             )
             .where(
                 `${ServiceAccountsTableName}.service_account_uuid`,
                 serviceAccountUuid,
             );
 
-        return rows.map((r) => ({
-            projectUuid: r.project_uuid,
-            projectName: r.project_name,
-            role: r.role,
-        }));
+        return rows.map((r) => {
+            if (r.role_uuid && r.role_name) {
+                return {
+                    projectUuid: r.project_uuid,
+                    projectName: r.project_name,
+                    roleUuid: r.role_uuid,
+                    roleName: r.role_name,
+                };
+            }
+            return {
+                projectUuid: r.project_uuid,
+                projectName: r.project_name,
+                role: r.role,
+            };
+        });
     }
 
     /**
