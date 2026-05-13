@@ -2283,9 +2283,9 @@ export const parseConfig = (): LightdashConfig => {
                 .filter(Boolean),
             schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
             sessionTimeoutMs: parseInt(
-                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '300000',
+                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
                 10,
-            ), // 5 minutes default
+            ), // 10 minutes default
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
