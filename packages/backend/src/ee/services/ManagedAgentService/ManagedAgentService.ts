@@ -106,7 +106,10 @@ const FRIENDLY_TOOL_LABELS: Record<string, string> = {
     get_user_questions: 'Reviewing user questions',
     get_slow_queries: 'Checking slow queries',
     reverse_own_action: 'Reverting earlier change',
+    write_slack_summary: 'Writing Slack summary',
 };
+
+const NON_ACTIVITY_TOOL_NAMES = new Set(['write_slack_summary']);
 
 const friendlyToolLabel = (toolName: string): string =>
     FRIENDLY_TOOL_LABELS[toolName] ?? `Running ${toolName}`;
@@ -1190,7 +1193,7 @@ export class ManagedAgentService extends BaseService {
             serviceAccountToken,
         );
         let sessionId = '';
-        let agentSummary = '';
+        let slackSummary = '';
         let runError: string | null = null;
 
         const onToolCall = async (
@@ -1226,7 +1229,7 @@ export class ManagedAgentService extends BaseService {
                 onSessionCreated,
             );
             sessionId = result.sessionId;
-            agentSummary = result.summary;
+            slackSummary = result.slackSummary ?? '';
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
@@ -1247,7 +1250,7 @@ export class ManagedAgentService extends BaseService {
                         ? ManagedAgentRunStatus.ERROR
                         : ManagedAgentRunStatus.COMPLETED,
                     actionCount,
-                    summary: agentSummary || null,
+                    summary: slackSummary || null,
                     error: runError,
                 })
                 .catch((e) =>
@@ -1263,7 +1266,7 @@ export class ManagedAgentService extends BaseService {
             const slackPosted = await this.maybePostHeartbeatSlackSummary(
                 ctx,
                 sessionId,
-                agentSummary,
+                slackSummary,
             );
 
             this.trackRunCompleted(ctx, {
@@ -1598,15 +1601,17 @@ export class ManagedAgentService extends BaseService {
         toolName: string,
         input: Record<string, unknown>,
     ): Promise<string> {
-        void this.managedAgentModel
-            .setCurrentActivity(runUuid, friendlyToolLabel(toolName))
-            .catch((e) =>
-                this.logger.warn(
-                    `Failed to update current_activity for run ${runUuid}: ${
-                        e instanceof Error ? e.message : 'Unknown'
-                    }`,
-                ),
-            );
+        if (!NON_ACTIVITY_TOOL_NAMES.has(toolName)) {
+            void this.managedAgentModel
+                .setCurrentActivity(runUuid, friendlyToolLabel(toolName))
+                .catch((e) =>
+                    this.logger.warn(
+                        `Failed to update current_activity for run ${runUuid}: ${
+                            e instanceof Error ? e.message : 'Unknown'
+                        }`,
+                    ),
+                );
+        }
         const actor = await this.getAutopilotActor(projectUuid);
         await this.assertActorCanViewProject(actor, projectUuid);
         switch (toolName) {
