@@ -57,14 +57,23 @@ const ProjectsHoverList: FC<{ serviceAccountUuid: string }> = ({
     }
     return (
         <Stack gap={2}>
-            {data.map((g) => (
-                <Text size="sm" key={g.projectUuid}>
-                    {g.projectName}{' '}
-                    <Text span c="dimmed" size="xs">
-                        — {ProjectMemberRoleLabels[g.role]}
+            {data.map((g) => {
+                // Custom-role grants carry `roleName` from the backend join;
+                // system-role grants carry the `ProjectMemberRole` enum and
+                // we look up the human label client-side. Mutually exclusive
+                // — see ServiceAccountProjectGrant in @lightdash/common.
+                const label = g.roleUuid
+                    ? g.roleName
+                    : g.role && ProjectMemberRoleLabels[g.role];
+                return (
+                    <Text size="sm" key={g.projectUuid}>
+                        {g.projectName}{' '}
+                        <Text span c="dimmed" size="xs">
+                            — {label}
+                        </Text>
                     </Text>
-                </Text>
-            ))}
+                );
+            })}
         </Stack>
     );
 };

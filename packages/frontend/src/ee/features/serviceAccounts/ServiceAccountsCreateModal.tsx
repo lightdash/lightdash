@@ -50,16 +50,23 @@ const SYSTEM_ROLE_OPTIONS: { value: string; label: string }[] = [
     { value: `scope:${ServiceAccountScope.SYSTEM_ADMIN}`, label: 'Admin' },
 ];
 
-// Project-mode role options. Same enum used everywhere project access is
-// granted to humans — keeps the SA project-role tier identical to the
-// human-side menu.
-const PROJECT_ROLE_OPTIONS = [
+// Project-mode role options. Each row's role select offers stock
+// `ProjectMemberRole`s OR any of the org's custom roles (loaded at runtime).
+// Values are tagged so the submit handler can route them into the backend
+// contract: `system:<role>` → `{ projectUuid, role }`, `role:<uuid>` →
+// `{ projectUuid, roleUuid }`. Mirrors the org-mode `scope:` / `role:`
+// convention so the two pickers feel symmetric.
+const SYSTEM_PROJECT_ROLE_OPTIONS = [
     ProjectMemberRole.VIEWER,
     ProjectMemberRole.INTERACTIVE_VIEWER,
     ProjectMemberRole.EDITOR,
     ProjectMemberRole.DEVELOPER,
     ProjectMemberRole.ADMIN,
-].map((role) => ({ value: role, label: ProjectMemberRoleLabels[role] }));
+].map((role) => ({
+    value: `system:${role}`,
+    label: ProjectMemberRoleLabels[role],
+}));
+const DEFAULT_PROJECT_ROLE_SELECTION = `system:${ProjectMemberRole.VIEWER}`;
 
 const expireOptions = [
     { label: 'No expiration', value: '' },
@@ -75,7 +82,9 @@ type Scope = 'organization' | 'project';
 
 type ProjectRoleRow = {
     projectUuid: string;
-    role: ProjectMemberRole;
+    // Tagged selection: `system:<ProjectMemberRole>` or `role:<roleUuid>`.
+    // Parsed at submit time into either { role } or { roleUuid }.
+    roleSelection: string;
 };
 
 type Props = {
@@ -96,17 +105,22 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     const { listRoles } = useCustomRoles();
     const { data: projects = [] } = useProjects();
 
+    const customRoleOptions = useMemo(
+        () =>
+            (listRoles.data ?? [])
+                .map((role) => ({
+                    value: `role:${role.roleUuid}`,
+                    label: role.name,
+                }))
+                .sort((a, b) =>
+                    a.label.localeCompare(b.label, undefined, {
+                        sensitivity: 'base',
+                    }),
+                ),
+        [listRoles.data],
+    );
+
     const roleOptions = useMemo(() => {
-        const customRoleOptions = (listRoles.data ?? [])
-            .map((role) => ({
-                value: `role:${role.roleUuid}`,
-                label: role.name,
-            }))
-            .sort((a, b) =>
-                a.label.localeCompare(b.label, undefined, {
-                    sensitivity: 'base',
-                }),
-            );
         const groups: {
             group: string;
             items: { value: string; label: string }[];
@@ -117,7 +131,21 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
             groups.push({ group: 'Custom roles', items: customRoleOptions });
         }
         return groups;
-    }, [listRoles.data]);
+    }, [customRoleOptions]);
+
+    // Per-row role picker for project mode. Same grouped shape as the
+    // org-mode role select so the dropdown visually matches and custom
+    // roles bubble up below the system list.
+    const projectRoleOptions = useMemo(() => {
+        const groups: {
+            group: string;
+            items: { value: string; label: string }[];
+        }[] = [{ group: 'System roles', items: SYSTEM_PROJECT_ROLE_OPTIONS }];
+        if (customRoleOptions.length > 0) {
+            groups.push({ group: 'Custom roles', items: customRoleOptions });
+        }
+        return groups;
+    }, [customRoleOptions]);
 
     const form = useForm({
         initialValues: {
@@ -182,7 +210,7 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     const addProjectRow = () => {
         form.insertListItem('projectRoles', {
             projectUuid: '',
-            role: ProjectMemberRole.VIEWER,
+            roleSelection: DEFAULT_PROJECT_ROLE_SELECTION,
         } satisfies ProjectRoleRow);
     };
 
@@ -197,10 +225,20 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                     description,
                     expiresAt: expiresAtValue,
                     scopes: [ServiceAccountScope.SYSTEM_MEMBER],
-                    projectAccess: projectRoles.map((r) => ({
-                        projectUuid: r.projectUuid,
-                        role: r.role,
-                    })),
+                    projectAccess: projectRoles.map((r) => {
+                        // Tagged selection: `system:<role>` → system grant,
+                        // `role:<uuid>` → custom-role grant. Mirrors the
+                        // org-mode translator above.
+                        const sepIdx = r.roleSelection.indexOf(':');
+                        const kind = r.roleSelection.slice(0, sepIdx);
+                        const value = r.roleSelection.slice(sepIdx + 1);
+                        return kind === 'role'
+                            ? { projectUuid: r.projectUuid, roleUuid: value }
+                            : {
+                                  projectUuid: r.projectUuid,
+                                  role: value as ProjectMemberRole,
+                              };
+                    }),
                 });
                 return;
             }
@@ -337,11 +375,14 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                                             )}
                                         />
                                         <Select
-                                            w={170}
-                                            data={PROJECT_ROLE_OPTIONS}
-                                            disabled={isWorking}
+                                            w={200}
+                                            data={projectRoleOptions}
+                                            searchable
+                                            disabled={
+                                                isWorking || listRoles.isLoading
+                                            }
                                             {...form.getInputProps(
-                                                `projectRoles.${idx}.role`,
+                                                `projectRoles.${idx}.roleSelection`,
                                             )}
                                         />
                                         <Tooltip label="Remove">
