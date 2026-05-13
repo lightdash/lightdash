@@ -5,7 +5,7 @@ import {
     isVizTableConfig,
 } from '@lightdash/common';
 import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
-import { memo, useEffect, useRef, useState, type FC, type JSX } from 'react';
+import { memo, type FC, type JSX } from 'react';
 import { useParams } from 'react-router';
 import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
@@ -52,15 +52,7 @@ const MinimalSqlChartContent = memo(
             !isChartResultsLoading &&
             !!chartData &&
             !!chartResultsData;
-        const [hasSignaled, setHasSignaled] = useState(false);
-        const hasSignaledRef = useRef(false);
-
-        useEffect(() => {
-            if (hasSignaledRef.current) return;
-            if (!isReady && !hasError) return;
-            hasSignaledRef.current = true;
-            setHasSignaled(true);
-        }, [isReady, hasError]);
+        const hasSignaled = isReady || hasError;
 
         if (!chartData || !chartResultsData) {
             if (hasError) {

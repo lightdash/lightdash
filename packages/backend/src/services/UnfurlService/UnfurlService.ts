@@ -431,7 +431,7 @@ export class UnfurlService extends BaseService {
                 };
             case LightdashPage.SQL_CHART:
                 if (!parsedUrl.savedSqlUuid)
-                    throw new Error(
+                    throw new ParameterError(
                         `Missing savedSqlUuid when unfurling SQL Runner URL ${parsedUrl.url}`,
                     );
                 const sqlChart = await this.savedSqlModel.getByUuid(
