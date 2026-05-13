@@ -42,16 +42,18 @@ const SwatchInline: FC<{
     limit: number;
 }> = ({ icon, label, colors, limit }) => (
     <Tooltip label={label} position="top" withinPortal>
-        <Group gap={4} wrap="nowrap">
+        <Group gap={2} wrap="nowrap">
             <MantineIcon icon={icon} size={14} color="gray" />
-            {colors.slice(0, limit).map((color, index) => (
-                <ColorSwatch
-                    key={`${color}-${index}`}
-                    size={12}
-                    color={color}
-                    withShadow={false}
-                />
-            ))}
+            <div className={classes.swatchStack}>
+                {colors.slice(0, limit).map((color, index) => (
+                    <ColorSwatch
+                        key={`${color}-${index}`}
+                        color={color}
+                        withShadow={false}
+                        className={classes.stackedSwatch}
+                    />
+                ))}
+            </div>
         </Group>
     </Tooltip>
 );
@@ -65,7 +67,7 @@ const PaletteOptionRow: FC<{ name: string; swatches: SwatchSet | null }> = ({
             {name}
         </Text>
         {swatches && (
-            <Group gap="xs" wrap="nowrap" className={classes.swatches}>
+            <Group gap={4} wrap="nowrap" className={classes.swatches}>
                 <SwatchInline
                     icon={IconSun}
                     label="Light mode"
@@ -197,6 +199,10 @@ export const PalettePicker: FC<Props> = ({
                 }
                 disabled={disabled}
                 allowDeselect={false}
+                classNames={{
+                    option: classes.option,
+                    options: classes.options,
+                }}
                 renderOption={({ option }) => (
                     <PaletteOptionRow
                         name={option.label}
