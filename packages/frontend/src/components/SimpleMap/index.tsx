@@ -360,23 +360,40 @@ const MapBoundsFitter: FC<{
             return; // Already fitted for this configuration, skip
         }
 
-        // For built-in maps, use fixed center/zoom instead of fitBounds
-        // (Alaska/Hawaii throw off USA bounds, and world should be centered)
-        if (mapType === MapChartLocation.USA) {
-            // Center on continental US
-            map.setView([39.8283, -98.5795], 3);
+        // Scatter/heatmap/hexbin: fit to the data points regardless of mapType
+        if (scatterData && scatterData.length > 0) {
+            try {
+                const points = scatterData.map(
+                    (p) => [p.lat, p.lon] as L.LatLngTuple,
+                );
+                const bounds = L.latLngBounds(points);
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [20, 20] });
+                    lastFittedRef.current = {
+                        mapType,
+                        geoJsonUrl,
+                        hasFitted: true,
+                    };
+                    return;
+                }
+            } catch (error) {
+                console.warn('Failed to fit map to scatter bounds:', error);
+            }
+        }
+
+        // Built-in maps: keep the initial extent from useLeafletMapConfig.
+        // Fitting to GeoJSON would zoom out too far (Alaska/Hawaii for USA,
+        // Antarctica for WORLD, and EUROPE uses the global countries file).
+        if (
+            mapType === MapChartLocation.USA ||
+            mapType === MapChartLocation.EUROPE ||
+            mapType === MapChartLocation.WORLD
+        ) {
             lastFittedRef.current = { mapType, geoJsonUrl, hasFitted: true };
             return;
         }
 
-        if (mapType === MapChartLocation.WORLD) {
-            // Center at 0,0 and zoom out to show full world
-            map.setView([0, 0], 1.2);
-            lastFittedRef.current = { mapType, geoJsonUrl, hasFitted: true };
-            return;
-        }
-
-        // For custom maps, fit to GeoJSON bounds
+        // Custom maps: fit to GeoJSON bounds
         if (geoJsonData && geoJsonData.features.length > 0) {
             try {
                 const geoJsonLayer = L.geoJSON(geoJsonData);
@@ -391,27 +408,6 @@ const MapBoundsFitter: FC<{
                 }
             } catch (error) {
                 console.warn('Failed to fit map to GeoJSON bounds:', error);
-            }
-            return;
-        }
-
-        // Fit to scatter data bounds (scatter/heatmap maps)
-        if (scatterData && scatterData.length > 0) {
-            try {
-                const points = scatterData.map(
-                    (p) => [p.lat, p.lon] as L.LatLngTuple,
-                );
-                const bounds = L.latLngBounds(points);
-                if (bounds.isValid()) {
-                    map.fitBounds(bounds, { padding: [20, 20] });
-                    lastFittedRef.current = {
-                        mapType,
-                        geoJsonUrl,
-                        hasFitted: true,
-                    };
-                }
-            } catch (error) {
-                console.warn('Failed to fit map to scatter bounds:', error);
             }
         }
         // Note: geoJsonData and scatterData are intentionally in deps to re-fit when data loads,
