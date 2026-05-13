@@ -82,6 +82,14 @@ const getReasoningFromPart = (part: ReasoningUIPart) => {
                 text: part.text,
             };
         default:
+            // Fallback for newer APIs (e.g., Opus 4.7 effort API) that may not
+            // populate provider metadata the same way. Generate a stable ID.
+            if (part.text) {
+                return {
+                    reasoningId: crypto.randomUUID(),
+                    text: part.text,
+                };
+            }
             return null;
     }
 };
