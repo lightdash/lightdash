@@ -169,7 +169,12 @@ export const AgentChatInput = ({
                     </Paper>
                 )}
 
-                <Box className={styles.minimalInputWrapper} pos="relative">
+                <Box
+                    className={`${styles.minimalInputWrapper} ${
+                        sqlMode ? styles.sqlModeActive : ''
+                    }`}
+                    pos="relative"
+                >
                     <Textarea
                         autoFocus
                         w="100%"
@@ -265,7 +270,11 @@ export const AgentChatInput = ({
             } ${showDisabledBanner ? styles.disabledBannerVisible : ''}`}
         >
             {/* Main input card */}
-            <Box className={styles.inputCard}>
+            <Box
+                className={`${styles.inputCard} ${
+                    sqlMode ? styles.sqlModeActive : ''
+                }`}
+            >
                 {/* Textarea */}
                 <Textarea
                     autoFocus

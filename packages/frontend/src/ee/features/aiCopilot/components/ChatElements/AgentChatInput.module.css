@@ -146,6 +146,36 @@
     padding: var(--mantine-spacing-sm);
 }
 
+/* ------------------------------------------------------------------ *
+ *  SQL mode active state — slow, smooth indigo border + halo. No      *
+ *  animation; relies on a long CSS transition so toggling on/off      *
+ *  reads as a calm fade rather than a snap.                            *
+ * ------------------------------------------------------------------ */
+.sqlModeActive {
+    border-color: var(--mantine-color-indigo-4) !important;
+    box-shadow:
+        0 0 0 1px var(--mantine-color-indigo-3),
+        0 0 24px -8px var(--mantine-color-indigo-5),
+        0 0 0 4px
+            color-mix(in srgb, var(--mantine-color-indigo-5) 10%, transparent);
+}
+
+/* Long, gentle ease applies both when toggling on *and* off. */
+.minimalInputWrapper,
+.inputCard {
+    transition:
+        border-color 520ms cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 520ms cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .minimalInputWrapper,
+    .inputCard {
+        transition: none;
+    }
+}
+
 .minimalInputWrapper {
     position: relative;
     display: flex;

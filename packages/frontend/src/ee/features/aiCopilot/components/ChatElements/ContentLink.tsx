@@ -42,6 +42,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <Anchor
                     {...props}
+                    data-content-link="true"
                     target="_blank"
                     fz="sm"
                     fw={500}
@@ -91,6 +92,7 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <Anchor
                     {...props}
+                    data-content-link="true"
                     target="_blank"
                     fz="sm"
                     fw={500}
