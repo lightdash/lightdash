@@ -317,6 +317,18 @@ export default class App {
     }
 
     private async initExpress(expressApp: Express) {
+        // Browser-based MCP clients (RFC 9728, OAuth-for-SPAs BCP) need
+        // CORS-open OAuth discovery + token endpoints and the MCP endpoint.
+        expressApp.use(
+            [
+                '/.well-known/oauth-protected-resource',
+                '/.well-known/oauth-authorization-server',
+                '/api/v1/oauth',
+                '/api/v1/mcp',
+            ],
+            cors({ origin: '*' }),
+        );
+
         // Cross-Origin Resource Sharing policy (CORS)
         // WARNING: this middleware should be mounted before the helmet middleware
         // (ideally at the top of the middleware stack)
