@@ -190,7 +190,7 @@ const getMcpContext = (
 // we validate at the read boundary instead of casting.
 const sqlJobCompletedDetailsSchema = z.object({
     fileUrl: z.string(),
-    columns: z.array(z.object({ reference: z.string() })).optional(),
+    columns: z.array(z.object({ reference: z.string() })).nullish(),
 });
 
 const sqlJobErrorDetailsSchema = z.object({
