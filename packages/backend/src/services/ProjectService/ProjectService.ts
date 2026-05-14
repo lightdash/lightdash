@@ -3005,14 +3005,14 @@ export class ProjectService extends BaseService {
             ),
         );
 
-        results
-            .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-            .forEach((r, i) => {
+        results.forEach((r, i) => {
+            if (r.status === 'rejected') {
                 this.logger.error(
                     `Failed to delete expired preview project ${expiredProjects[i].projectUuid}`,
                     { error: r.reason },
                 );
-            });
+            }
+        });
 
         return results.filter((r) => r.status === 'fulfilled').length;
     }
