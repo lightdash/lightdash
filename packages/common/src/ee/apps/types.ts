@@ -166,13 +166,14 @@ export type ApiAppVersionSummary = {
     // The chat UI shows this as the assistant-reply timestamp so it reflects
     // when the build actually completed, not when the prompt was submitted.
     statusUpdatedAt: Date | null;
-    // Author of the version (the user who submitted the prompt). Names may
-    // be empty strings; `null` only when the underlying user row is missing.
+    // Author of the version (the user who submitted the prompt). `null`
+    // only when the underlying user row is missing (hard-deleted user) —
+    // `created_by_user_uuid` itself is non-null on the row.
     createdByUser: {
         userUuid: string;
-        firstName: string | null;
-        lastName: string | null;
-    };
+        firstName: string;
+        lastName: string;
+    } | null;
     resources: AppVersionResources | null;
 };
 

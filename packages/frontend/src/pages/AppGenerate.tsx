@@ -150,11 +150,14 @@ type ChatMessage = {
     appUuid: string | null;
     version: number | null;
     // Wall-clock time for the meta line on the bubble. For user messages,
-    // when the prompt was submitted; for assistant messages, when the build
-    // transitioned to ready/error (or `new Date()` for optimistic locals).
+    // when the prompt was submitted; for terminal assistant messages
+    // (ready/error), when the build transitioned (`statusUpdatedAt`).
+    // The mid-build/clarifying placeholder doesn't render meta at all, so
+    // this field has no effect on in-progress state.
     timestamp: Date;
-    // Display name of the version author. Only set on `role === 'user'` —
-    // assistant bubbles show the agent icon instead.
+    // Display name of the version author for `role === 'user'` bubbles.
+    // Assistant bubbles always pass `null` — they intentionally render
+    // nameless.
     userName: string | null;
 };
 
@@ -660,10 +663,11 @@ const AppGenerate: FC = () => {
                 sentDashboardByPrompt.current.get(v.prompt) ??
                 null;
             const clarifications = v.resources?.clarifications ?? [];
-            const authorName =
-                [v.createdByUser.firstName, v.createdByUser.lastName]
-                    .filter((s): s is string => !!s && s.length > 0)
-                    .join(' ') || null;
+            const authorName = v.createdByUser
+                ? [v.createdByUser.firstName, v.createdByUser.lastName]
+                      .filter((s) => s.length > 0)
+                      .join(' ') || null
+                : null;
             // Assistant reply is dated to when the build actually finished;
             // fall back to createdAt for old rows persisted before the column
             // started being written, or for rows still mid-build.
@@ -1399,7 +1403,6 @@ const AppGenerate: FC = () => {
                                                             userName={
                                                                 msg.userName
                                                             }
-                                                            kind="user"
                                                         />
                                                         <ChatMessageContent
                                                             content={
@@ -1578,7 +1581,6 @@ const AppGenerate: FC = () => {
                                                                 msg.timestamp
                                                             }
                                                             userName={null}
-                                                            kind="assistant"
                                                         />
                                                         {msg.appUuid ? (
                                                             <ReactMarkdownPreview

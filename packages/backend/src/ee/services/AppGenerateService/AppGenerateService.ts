@@ -3128,9 +3128,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             statusUpdatedAt: Date | null;
             createdByUser: {
                 userUuid: string;
-                firstName: string | null;
-                lastName: string | null;
-            };
+                firstName: string;
+                lastName: string;
+            } | null;
             resources: AppVersionResources | null;
         }[];
         hasMore: boolean;
@@ -3181,11 +3181,18 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     : null,
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
-                createdByUser: {
-                    userUuid: v.created_by_user_uuid,
-                    firstName: v.created_by_user_first_name,
-                    lastName: v.created_by_user_last_name,
-                },
+                // LEFT JOIN may miss for hard-deleted users — collapse the
+                // whole object to null in that case rather than expose
+                // individually-nullable fields to API consumers.
+                createdByUser:
+                    v.created_by_user_first_name !== null &&
+                    v.created_by_user_last_name !== null
+                        ? {
+                              userUuid: v.created_by_user_uuid,
+                              firstName: v.created_by_user_first_name,
+                              lastName: v.created_by_user_last_name,
+                          }
+                        : null,
             })),
             hasMore,
         };

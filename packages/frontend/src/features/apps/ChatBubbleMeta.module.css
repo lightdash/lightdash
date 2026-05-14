@@ -13,15 +13,6 @@
     }
 }
 
-.botName {
-    @mixin light {
-        color: var(--mantine-color-orange-6);
-    }
-    @mixin dark {
-        color: var(--mantine-color-orange-4);
-    }
-}
-
 .time {
     flex-shrink: 0;
     white-space: nowrap;

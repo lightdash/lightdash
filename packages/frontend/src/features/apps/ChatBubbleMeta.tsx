@@ -6,22 +6,20 @@ import classes from './ChatBubbleMeta.module.css';
 
 type Props = {
     timestamp: Date;
-    userName: string | null;
     /**
-     * Sender kind drives the name color so the user and the assistant are
-     * easy to tell apart at a glance: indigo for users (matches the rest of
-     * the chat's user accents), orange for the bot (matches the Data App
-     * icon used everywhere else — spaces page, sidebar, etc).
+     * Sender name to show on the left of the header. Pass `null` to render
+     * just the timestamp (e.g. assistant replies, which are nameless).
      */
-    kind: 'user' | 'assistant';
+    userName: string | null;
 };
 
 /**
- * Header row rendered inside a chat bubble. Name (bold accent) on the left,
- * timestamp (dim) on the right. Hovering the timestamp reveals the absolute
- * date in a tooltip.
+ * Header row rendered inside a chat bubble. When a name is present it sits
+ * on the left (indigo accent) with the timestamp on the right; without a
+ * name the timestamp slides to the left. Hovering the timestamp reveals
+ * the absolute date in a tooltip.
  */
-const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, kind }) => {
+const ChatBubbleMeta: FC<Props> = ({ timestamp, userName }) => {
     const timeAgo = useTimeAgo(timestamp);
     return (
         <Group
@@ -31,20 +29,13 @@ const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, kind }) => {
             className={classes.meta}
         >
             {userName && (
-                <Text
-                    fz="xs"
-                    fw={600}
-                    className={
-                        kind === 'assistant' ? classes.botName : classes.name
-                    }
-                    truncate
-                >
+                <Text fz="xs" fw={600} className={classes.name} truncate>
                     {userName}
                 </Text>
             )}
             <Tooltip
                 position={userName ? 'top-end' : 'top-start'}
-                fz="10px"
+                fz="xs"
                 offset={2}
                 label={dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss')}
             >

@@ -321,6 +321,11 @@ export class AppModel {
                 `${AppsTableName}.app_id`,
                 `${AppVersionsTableName}.app_id`,
             )
+            // LEFT JOIN: surfaces the version author's display name to the
+            // chat UI. We don't filter `is_internal` / `is_active` because
+            // service accounts cannot create app versions today; if a row's
+            // user is hard-deleted the join misses and the service layer
+            // collapses `createdByUser` to null.
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
