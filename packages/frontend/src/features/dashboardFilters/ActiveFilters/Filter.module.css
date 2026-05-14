@@ -13,6 +13,28 @@
     background-color: rgba(var(--mantine-color-background-0), 0.7);
 }
 
+.lockSlot {
+    display: inline-flex;
+    align-items: center;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition:
+        max-width 200ms ease,
+        opacity 150ms ease 50ms;
+}
+
+.button:hover .lockSlot,
+.button:focus-within .lockSlot {
+    max-width: 24px;
+    opacity: 1;
+}
+
+.lockSlotActive {
+    display: inline-flex;
+    align-items: center;
+}
+
 .label {
     max-width: 800px;
     white-space: nowrap;

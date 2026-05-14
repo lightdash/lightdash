@@ -167,6 +167,7 @@ export type DashboardFilterRule<
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
     singleValue?: boolean;
+    locked?: boolean;
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {

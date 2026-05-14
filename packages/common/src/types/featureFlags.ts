@@ -147,6 +147,16 @@ export enum FeatureFlags {
      * no regression.
      */
     AiDiscoverFieldsSubagent = 'ai-discover-fields-subagent',
+
+    /**
+     * Allow dashboard editors to mark individual dashboard filters as locked.
+     * Locked filters are visible to viewers but cannot be edited from view
+     * mode, and URL/embed filter overrides targeting a locked filter's field
+     * are ignored. Gates the authoring UI; the override-stripping behaviour
+     * always runs regardless of the flag so saved-locked filters stay safe
+     * if the flag is later turned off.
+     */
+    LockDashboardFilters = 'lock-dashboard-filters',
 }
 
 export type FeatureFlag = {
