@@ -185,6 +185,18 @@ const getMcpContext = (
     extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
 ): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
+// Shape of `scheduler_log.details` written by the run-SQL scheduler task on
+// COMPLETED / ERROR. Loosely typed in the DB (Record<string, any> | null), so
+// we validate at the read boundary instead of casting.
+const sqlJobCompletedDetailsSchema = z.object({
+    fileUrl: z.string(),
+    columns: z.array(z.object({ reference: z.string() })).optional(),
+});
+
+const sqlJobErrorDetailsSchema = z.object({
+    error: z.string().optional(),
+});
+
 export class McpService extends BaseService {
     private lightdashConfig: LightdashConfig;
 
@@ -1533,23 +1545,20 @@ export class McpService extends BaseService {
 
         if (job.status === SchedulerJobStatus.ERROR) {
             const errorDetail =
-                (job.details as { error?: string } | null)?.error ??
+                sqlJobErrorDetailsSchema.safeParse(job.details).data?.error ??
                 'Unknown error';
             throw new Error(`SQL query failed: ${errorDetail}`);
         }
 
-        const details = job.details as {
-            fileUrl?: string;
-            columns?: Array<{ reference: string }>;
-        } | null;
-        if (!details?.fileUrl) {
+        const details = sqlJobCompletedDetailsSchema.safeParse(job.details);
+        if (!details.success) {
             throw new Error(
                 'SQL query completed but no results file was produced',
             );
         }
         return {
-            fileUrl: details.fileUrl,
-            columns: details.columns ?? [],
+            fileUrl: details.data.fileUrl,
+            columns: details.data.columns ?? [],
         };
     }
 
