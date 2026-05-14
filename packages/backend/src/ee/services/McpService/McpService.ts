@@ -47,7 +47,6 @@ import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
-import { Readable } from 'stream';
 import { z, ZodRawShape } from 'zod';
 import {
     LightdashAnalytics,
@@ -298,9 +297,7 @@ export class McpService extends BaseService {
     private async buildScopedResponse(
         context: McpProtocolContext,
         toolResult: string,
-    ): Promise<{
-        content: Array<{ type: 'text'; text: string }>;
-    }> {
+    ) {
         const metadata = await this.getActiveContextMetadata(context);
 
         const scopeInfo = [
@@ -312,9 +309,7 @@ export class McpService extends BaseService {
             .filter(Boolean)
             .join('. ');
 
-        const content: Array<{ type: 'text'; text: string }> = [
-            { type: 'text', text: toolResult },
-        ];
+        const content = [{ type: 'text' as const, text: toolResult }];
 
         if (scopeInfo) {
             content.push({
@@ -328,7 +323,7 @@ export class McpService extends BaseService {
 
     static async streamToolResult<T extends { result: string }>(
         result: T | AsyncIterable<T>,
-    ): Promise<string> {
+    ) {
         if (Symbol.asyncIterator in result) {
             let out = '';
             for await (const chunk of result) {
@@ -339,7 +334,9 @@ export class McpService extends BaseService {
         return result.result;
     }
 
-    private getMcpCompatibleSchema(schema: z.ZodSchema<unknown>): ZodRawShape {
+    private getMcpCompatibleSchema<TShape extends ZodRawShape>(
+        schema: z.ZodObject<TShape>,
+    ): TShape {
         return this.mcpCompatLayer.processZodType(schema).shape;
     }
 
@@ -458,9 +455,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (_args, extra) => {
-                const args = _args as Omit<ToolFindExploresArgsV3, 'type'>;
-
+            async (args, extra) => {
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
                 );
@@ -530,9 +525,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (_args, extra) => {
-                const args = _args as Omit<ToolFindFieldsArgs, 'type'>;
-
+            async (args, extra) => {
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
                 );
@@ -581,9 +574,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (_args, extra) => {
-                const args = _args as Omit<ToolFindContentArgs, 'type'>;
-
+            async (args, extra) => {
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
                 );
@@ -905,8 +896,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (_args, extra) => {
-                const args = _args as { agentUuid: string };
+            async (args, extra) => {
                 const { user, organizationUuid } = this.getAccount(
                     getMcpContext(extra),
                 );
@@ -1332,7 +1322,7 @@ export class McpService extends BaseService {
                         .filter(Boolean)
                         .join('. ');
 
-                    const content: Array<{ type: 'text'; text: string }> = [
+                    const content = [
                         {
                             type: 'text' as const,
                             text: serializeData(csv, 'csv'),
@@ -1383,9 +1373,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (_args, extra) => {
-                const args = _args as Omit<ToolSearchFieldValuesArgs, 'type'>;
-
+            async (args, extra) => {
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
                 );
@@ -1432,8 +1420,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (_args, extra) => {
-                const args = _args as { sql: string; limit?: number };
+            async (args, extra) => {
                 const { user, account } = this.getAccount(getMcpContext(extra));
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
@@ -1644,13 +1631,13 @@ export class McpService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         fileUrl: string,
-    ): Promise<Record<string, unknown>[]> {
+    ) {
         const fileId = fileUrl.split('/').pop();
         if (!fileId) {
             throw new Error(`Could not extract file ID from URL: ${fileUrl}`);
         }
 
-        const readStream: Readable = await this.projectService.getFileStream(
+        const readStream = await this.projectService.getFileStream(
             user,
             projectUuid,
             fileId,
@@ -1664,9 +1651,7 @@ export class McpService extends BaseService {
         return results;
     }
 
-    async getProjectUuidFromContext(
-        context: McpProtocolContext,
-    ): Promise<string | undefined> {
+    async getProjectUuidFromContext(context: McpProtocolContext) {
         const { user, headerProjectUuid } = context.authInfo!.extra;
         const { organizationUuid } = user;
 
@@ -1686,9 +1671,7 @@ export class McpService extends BaseService {
         return contextRow?.context.projectUuid;
     }
 
-    async getTagsFromContext(
-        context: McpProtocolContext,
-    ): Promise<string[] | null> {
+    async getTagsFromContext(context: McpProtocolContext) {
         const { user } = context.authInfo!.extra;
         const { organizationUuid } = user;
 
@@ -1701,12 +1684,10 @@ export class McpService extends BaseService {
             organizationUuid,
         );
 
-        return contextRow?.context.tags || null;
+        return contextRow?.context.tags ?? null;
     }
 
-    async getAgentUuidFromContext(
-        context: McpProtocolContext,
-    ): Promise<string | null> {
+    async getAgentUuidFromContext(context: McpProtocolContext) {
         const { user } = context.authInfo!.extra;
         const { organizationUuid } = user;
 
@@ -1722,13 +1703,7 @@ export class McpService extends BaseService {
         return contextRow?.context.agentUuid ?? null;
     }
 
-    async getActiveContextMetadata(context: McpProtocolContext): Promise<{
-        projectUuid: string | null;
-        projectName: string | null;
-        agentUuid: string | null;
-        agentName: string | null;
-        tags: string[] | null;
-    }> {
+    async getActiveContextMetadata(context: McpProtocolContext) {
         const { user } = context.authInfo!.extra;
         const { organizationUuid } = user;
 
@@ -1761,11 +1736,11 @@ export class McpService extends BaseService {
             contextRow.context;
 
         return {
-            projectUuid: projectUuid || null,
-            projectName: projectName || null,
-            agentUuid: agentUuid ?? null,
-            agentName: agentName ?? null,
-            tags: tags || null,
+            projectUuid,
+            projectName,
+            agentUuid,
+            agentName,
+            tags,
         };
     }
 
@@ -1831,7 +1806,7 @@ export class McpService extends BaseService {
         return headerUserAttributes;
     }
 
-    async resolveProjectUuid(context: McpProtocolContext): Promise<string> {
+    async resolveProjectUuid(context: McpProtocolContext) {
         const { user, account, headerProjectUuid } = context.authInfo!.extra;
         const projectUuid = await this.getProjectUuidFromContext(context);
         if (!projectUuid) {
@@ -2415,7 +2390,7 @@ export class McpService extends BaseService {
     // MCP is enabled if MCP_ENABLED is true, AI Copilot is enabled, or user is on trial
     public async isEnabled(
         user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
+    ) {
         if (this.lightdashConfig.mcp.enabled) {
             return true;
         }
@@ -2444,7 +2419,7 @@ export class McpService extends BaseService {
         return VERSION;
     }
 
-    private async checkAiAgentsVisible(user: SessionUser): Promise<void> {
+    private async checkAiAgentsVisible(user: SessionUser) {
         if (!user.organizationUuid) {
             throw new ForbiddenError('Organization not found');
         }
