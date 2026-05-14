@@ -115,6 +115,7 @@
     --border: var(--mantine-color-ldGray-2);
     --radius: 8px;
 
+    padding-left: 7px;
     color: var(--mantine-color-ldGray-9);
     font-size: 13px;
     line-height: 1.55;
@@ -131,8 +132,8 @@
 .aiMarkdown h4,
 .aiMarkdown h5,
 .aiMarkdown h6 {
-    margin-top: 20px;
-    margin-bottom: 8px;
+    margin-top: 12px;
+    margin-bottom: 6px;
     font-weight: 600;
     letter-spacing: -0.015em;
     line-height: 1.3;

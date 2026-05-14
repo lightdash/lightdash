@@ -6,6 +6,7 @@ import { Box, Loader, Text, UnstyledButton } from '@mantine-8/core';
 import {
     IconArtboard,
     IconChartBar,
+    IconChevronRight,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
@@ -52,29 +53,36 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
             disabled={isLoading}
         >
             <Box className={styles.container}>
-                {isLoading ? (
-                    <Loader size={14} color="ldGray.5" />
-                ) : (
-                    <MantineIcon
-                        icon={ArtifactIcon}
-                        size={14}
-                        className={styles.icon}
-                    />
-                )}
+                <Box className={styles.iconChip}>
+                    {isLoading ? (
+                        <Loader size={12} color="ldGray.5" />
+                    ) : (
+                        <MantineIcon
+                            icon={ArtifactIcon}
+                            size={14}
+                            stroke={1.5}
+                            className={styles.icon}
+                        />
+                    )}
+                </Box>
 
                 <Box className={styles.content}>
                     {isLoading ? (
-                        <Text size="sm" c="dimmed">
-                            Creating...
-                        </Text>
+                        <Text className={styles.loadingLabel}>Creating…</Text>
                     ) : (
                         displayTitle && (
-                            <Text size="sm" fw={500} className={styles.title}>
-                                {displayTitle}
-                            </Text>
+                            <Text className={styles.title}>{displayTitle}</Text>
                         )
                     )}
                 </Box>
+
+                {!isLoading && (
+                    <MantineIcon
+                        icon={IconChevronRight}
+                        size={14}
+                        className={styles.chevron}
+                    />
+                )}
             </Box>
         </UnstyledButton>
     );

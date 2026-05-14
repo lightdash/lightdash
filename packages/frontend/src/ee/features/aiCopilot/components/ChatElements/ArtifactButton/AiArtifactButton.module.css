@@ -5,81 +5,110 @@
     border: none;
     background: none;
     cursor: pointer;
-    border-radius: var(--mantine-radius-md);
-    transition: all 0.12s ease;
+    border-radius: 10px;
     outline: none;
+    overflow: hidden;
+    font-family: var(--mantine-font-family);
+    transition:
+        border-color 220ms ease,
+        background-color 220ms ease;
+    animation: artifactSlideIn 320ms cubic-bezier(0.16, 1, 0.3, 1);
 
-    @mixin light {
-        background: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-indigo-1);
-    }
-    @mixin dark {
-        background: var(--mantine-color-dark-7);
-        border: 1px solid var(--mantine-color-ldGray-2);
-    }
-    box-shadow: var(--mantine-shadow-subtle);
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-7)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.2));
 }
 
 .artifactButton:hover {
-    @mixin light {
-        background: #f8faff;
-    }
-    @mixin dark {
-        background: var(--mantine-color-dark-6);
-    }
-    box-shadow: var(--mantine-shadow-subtle);
+    border-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-ldGray-4)
+    );
 }
 
 .artifactButton[data-artifact-open='true'] {
-    @mixin light {
-        background: #f8faff;
-        border: 1px solid var(--mantine-color-indigo-1);
-    }
-    @mixin dark {
-        background: var(--mantine-color-dark-6);
-        border: 1px solid var(--mantine-color-ldGray-2);
-    }
-    box-shadow: var(--mantine-shadow-subtle);
+    background-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 3.5%,
+            var(--mantine-color-white)
+        ),
+        var(--mantine-color-dark-6)
+    );
+    border-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 18%,
+            var(--mantine-color-ldGray-2)
+        ),
+        var(--mantine-color-ldGray-3)
+    );
 }
 
 .artifactButton[data-artifact-open='true']:hover {
-    @mixin light {
-        background: #f8faff;
-        border-color: var(--mantine-color-indigo-1);
-    }
-    @mixin dark {
-        background: var(--mantine-color-dark-5);
-        border-color: var(--mantine-color-ldGray-2);
-    }
+    border-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-indigo-6) 28%,
+            var(--mantine-color-ldGray-2)
+        ),
+        var(--mantine-color-ldGray-4)
+    );
 }
 
 .artifactButton[data-loading='true'] {
     cursor: wait;
-    opacity: 0.6;
+    opacity: 0.75;
 }
 
 .container {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-sm);
+    gap: 10px;
+    padding: 8px 12px;
+    z-index: 1;
+}
+
+/* Same icon-chip pattern as LiveActivityCard so the bento and the result
+ * card read as one family — small white surface with a hairline border and
+ * a soft shadow, sitting on top of the card. */
+.iconChip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    flex-shrink: 0;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-ldGray-1)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.2));
+    transition:
+        background-color 220ms ease,
+        border-color 220ms ease,
+        box-shadow 220ms ease;
+}
+
+.artifactButton:hover .iconChip {
+    border-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-ldGray-4)
+    );
+    box-shadow: 0 1px 3px
+        light-dark(rgba(15, 23, 42, 0.07), rgba(0, 0, 0, 0.28));
 }
 
 .icon {
-    color: var(--mantine-color-indigo-6);
-    transition: color 0.12s ease;
-}
-
-.artifactButton:hover .icon {
-    color: var(--mantine-color-indigo-6);
-}
-
-.artifactButton[data-artifact-open='true'] .icon {
-    color: var(--mantine-color-indigo-6);
-}
-
-.artifactButton[data-artifact-open='true']:hover .icon {
-    color: var(--mantine-color-indigo-7);
+    color: var(--mantine-color-ldGray-9);
 }
 
 .content {
@@ -88,21 +117,110 @@
 }
 
 .title {
-    color: var(--mantine-color-ldGray-8);
-    line-height: 1.4;
-    transition: color 0.12s ease;
-}
-
-.artifactButton:hover .title {
     color: var(--mantine-color-ldGray-9);
-}
-
-.artifactButton[data-artifact-open='true'] .title {
+    font-family: var(--mantine-font-family);
     font-weight: 500;
+    letter-spacing: -0.005em;
+    line-height: 1.35;
+    font-size: 13px;
 }
 
-/* Focus state */
+.loadingLabel {
+    color: var(--mantine-color-ldGray-6);
+    font-family: var(--mantine-font-family);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    line-height: 1.35;
+    font-size: 13px;
+    animation: loadingLabelPulse 1.6s ease-in-out infinite;
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+    opacity: 0.6;
+    transition:
+        transform 320ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        color 220ms ease,
+        opacity 220ms ease;
+}
+
+.artifactButton:hover .chevron {
+    opacity: 1;
+    color: var(--mantine-color-ldGray-7);
+    transform: translateX(2px);
+}
+
 .artifactButton:focus-visible {
     outline: 2px solid var(--mantine-color-indigo-4);
     outline-offset: 2px;
+}
+
+/* Subtle ambient shimmer while the artifact is being created — same band
+ * as the LiveActivityCard so the two states read as one continuous flow:
+ * the bento is busy, this card is also busy. */
+.artifactButton[data-loading='true']::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        110deg,
+        transparent 0%,
+        var(--mantine-color-ldGray-2) 50%,
+        transparent 100%
+    );
+    background-size: 220% 100%;
+    background-position: -10% 0;
+    opacity: 0;
+    animation: artifactShimmer 3.6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes artifactSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes loadingLabelPulse {
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes artifactShimmer {
+    0% {
+        background-position: -25% 0;
+        opacity: 0;
+    }
+    20%,
+    80% {
+        opacity: 0.35;
+    }
+    100% {
+        background-position: 125% 0;
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .artifactButton,
+    .artifactButton:hover,
+    .artifactButton[data-loading='true']::before,
+    .chevron,
+    .loadingLabel {
+        animation: none;
+        transition: none;
+        transform: none;
+    }
 }

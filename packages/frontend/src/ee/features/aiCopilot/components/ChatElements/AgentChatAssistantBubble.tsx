@@ -324,10 +324,7 @@ const AssistantBubbleContent: FC<{
                     // and crossfade as new chunks arrive.
                     const latestTextSeg = textSegments[textSegments.length - 1];
                     const finalAnswerMd = latestTextSeg ? (
-                        <Box
-                            className={styles.aiMarkdown}
-                            style={{ ...mdStyle, padding: 0 }}
-                        >
+                        <Box className={styles.aiMarkdown} style={mdStyle}>
                             <Streamdown
                                 parseIncompleteMarkdown
                                 controls={false}
@@ -459,7 +456,7 @@ const AssistantBubbleContent: FC<{
                         {messageContent.length > 0 ? (
                             <Box
                                 className={styles.aiMarkdown}
-                                style={{ ...mdStyle, padding: '0.5rem 0' }}
+                                style={{ ...mdStyle, paddingBlock: '0.5rem' }}
                             >
                                 <Streamdown
                                     parseIncompleteMarkdown

@@ -77,6 +77,5 @@ export const useMdEditorStyle = (): React.CSSProperties => {
     return {
         fontSize: rem(theme.fontSizes.sm),
         backgroundColor: 'transparent',
-        padding: 0,
     };
 };
