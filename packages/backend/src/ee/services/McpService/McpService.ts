@@ -397,7 +397,7 @@ export class McpService extends BaseService {
                 try {
                     const ctx = getMcpContext(extra);
 
-                    const { user } = this.getAccount(ctx);
+                    const { user } = McpService.getAccount(ctx);
 
                     const projectUuid = await this.resolveProjectUuid(ctx);
 
@@ -470,7 +470,7 @@ export class McpService extends BaseService {
                 const findExplores: FindExploresFn =
                     await this.getFindExploresFunction(argsWithProject, ctx);
 
-                const { user } = this.getAccount(ctx);
+                const { user } = McpService.getAccount(ctx);
 
                 const tagsFromContext = await this.getTagsFromContext(ctx);
                 const userAttributeOverrides =
@@ -611,7 +611,8 @@ export class McpService extends BaseService {
                     >,
                 ) => {
                     const ctx = getMcpContext(extra);
-                    const { user, organizationUuid } = this.getAccount(ctx);
+                    const { user, organizationUuid } =
+                        McpService.getAccount(ctx);
 
                     this.trackToolCall(ctx, McpToolName.LIST_PROJECTS);
 
@@ -675,7 +676,7 @@ export class McpService extends BaseService {
                 ) => {
                     const ctx = getMcpContext(extra);
                     const { user, organizationUuid, account } =
-                        this.getAccount(ctx);
+                        McpService.getAccount(ctx);
 
                     this.trackToolCall(
                         ctx,
@@ -760,7 +761,7 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, organizationUuid } = this.getAccount(ctx);
+                const { user, organizationUuid } = McpService.getAccount(ctx);
 
                 this.trackToolCall(ctx, McpToolName.GET_CURRENT_PROJECT);
 
@@ -824,7 +825,7 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user } = this.getAccount(ctx);
+                const { user } = McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
 
@@ -871,7 +872,7 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, organizationUuid } = this.getAccount(ctx);
+                const { user, organizationUuid } = McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
 
@@ -946,7 +947,7 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, organizationUuid } = this.getAccount(ctx);
+                const { user, organizationUuid } = McpService.getAccount(ctx);
 
                 this.trackToolCall(ctx, McpToolName.CLEAR_AGENT);
 
@@ -1000,7 +1001,7 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, organizationUuid } = this.getAccount(ctx);
+                const { user, organizationUuid } = McpService.getAccount(ctx);
 
                 await this.checkAiAgentsVisible(user);
 
@@ -1261,7 +1262,7 @@ export class McpService extends BaseService {
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
 
-                    const { user } = this.getAccount(ctx);
+                    const { user } = McpService.getAccount(ctx);
 
                     const shareUrl = await this.shareService.createShareUrl(
                         user,
@@ -1383,7 +1384,7 @@ export class McpService extends BaseService {
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user, account } = this.getAccount(ctx);
+                const { user, account } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 this.trackToolCall(ctx, McpToolName.RUN_SQL, projectUuid);
@@ -1459,7 +1460,7 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const { user } = this.getAccount(ctx);
+                const { user } = McpService.getAccount(ctx);
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 this.trackToolCall(
@@ -1492,9 +1493,8 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
 
-                const context = ctx;
-                const metadata = await this.getActiveContextMetadata(context);
-                const { user } = this.getAccount(context);
+                const metadata = await this.getActiveContextMetadata(ctx);
+                const { user } = McpService.getAccount(ctx);
 
                 let promptText: string;
 
@@ -1754,7 +1754,7 @@ export class McpService extends BaseService {
         // otherwise any tool that doesn't re-check (e.g. list_explores) would
         // leak project metadata cross-tenant.
         if (headerProjectUuid && headerProjectUuid === projectUuid) {
-            const { user, account } = this.getAccount(context);
+            const { user, account } = McpService.getAccount(context);
 
             const project = await this.projectService.getProject(
                 projectUuid,
@@ -1868,7 +1868,7 @@ export class McpService extends BaseService {
         },
         context: McpProtocolContext,
     ): Promise<FindExploresFn> {
-        const { user, account } = this.getAccount(context);
+        const { user, account } = McpService.getAccount(context);
         const { projectUuid } = toolArgs;
 
         const project = await this.projectService.getProject(
@@ -1965,7 +1965,7 @@ export class McpService extends BaseService {
         toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<{ findFields: FindFieldFn; getExplore: GetExploreFn }> {
-        const { user, account } = this.getAccount(context);
+        const { user, account } = McpService.getAccount(context);
         const { projectUuid } = toolArgs;
 
         const project = await this.projectService.getProject(
@@ -2036,7 +2036,7 @@ export class McpService extends BaseService {
         toolArgs: Omit<ToolFindContentArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindContentFn> {
-        const { user, account } = this.getAccount(context);
+        const { user, account } = McpService.getAccount(context);
         const { projectUuid } = toolArgs;
 
         const project = await this.projectService.getProject(
@@ -2100,7 +2100,7 @@ export class McpService extends BaseService {
         agentContext: AgentContext;
         runAsyncQuery: RunAsyncQueryFn;
     }> {
-        const { user, account } = this.getAccount(context);
+        const { user, account } = McpService.getAccount(context);
         const { projectUuid } = toolArgs;
 
         const project = await this.projectService.getProject(
@@ -2157,7 +2157,7 @@ export class McpService extends BaseService {
         },
         context: McpProtocolContext,
     ): Promise<SearchFieldValuesFn> {
-        const { user, account } = this.getAccount(context);
+        const { user, account } = McpService.getAccount(context);
         const { projectUuid } = toolArgs;
 
         const project = await this.projectService.getProject(
@@ -2257,8 +2257,7 @@ export class McpService extends BaseService {
         return newServer;
     }
 
-    // eslint-disable-next-line class-methods-use-this
-    public getAccount(context: McpProtocolContext) {
+    static getAccount(context: McpProtocolContext) {
         const user = context.authInfo?.extra.user;
         const account = context.authInfo?.extra.account;
 
@@ -2349,7 +2348,7 @@ export class McpService extends BaseService {
         projectUuid?: string,
     ): void {
         try {
-            const { user, organizationUuid } = this.getAccount(context);
+            const { user, organizationUuid } = McpService.getAccount(context);
             this.analytics.track<McpToolCallEvent>({
                 event: 'mcp_tool_call',
                 userId: user.userUuid,
