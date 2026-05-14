@@ -135,6 +135,7 @@ export type StoreToolCallFn = (data: {
     toolCallId: string;
     toolName: string;
     toolArgs: object;
+    parentToolCallId: string | null;
 }) => Promise<void>;
 
 export type StoreToolResultsFn = (

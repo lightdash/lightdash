@@ -3130,6 +3130,7 @@ export class AiAgentModel {
         toolCallId: string;
         toolName: string;
         toolArgs: object;
+        parentToolCallId: string | null;
     }): Promise<string> {
         const [toolCall] = await this.database(AiAgentToolCallTableName)
             .insert({
@@ -3137,6 +3138,7 @@ export class AiAgentModel {
                 tool_call_id: data.toolCallId,
                 tool_name: data.toolName,
                 tool_args: data.toolArgs,
+                parent_tool_call_id: data.parentToolCallId,
             })
             .returning('ai_agent_tool_call_uuid');
 
@@ -4770,6 +4772,7 @@ export class AiAgentModel {
                         'tool_call_id',
                         'tool_name',
                         'tool_args',
+                        'parent_tool_call_id',
                         'created_at',
                     )
                     .where('ai_prompt_uuid', sourcePromptUuid);
@@ -4779,6 +4782,7 @@ export class AiAgentModel {
                     tool_call_id: toolCall.tool_call_id,
                     tool_name: toolCall.tool_name,
                     tool_args: toolCall.tool_args,
+                    parent_tool_call_id: toolCall.parent_tool_call_id,
                 }));
 
                 // Clone tool results

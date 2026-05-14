@@ -153,6 +153,7 @@ export type DbAiAgentToolCall = {
     tool_call_id: string;
     tool_name: string;
     tool_args: object;
+    parent_tool_call_id: string | null;
     created_at: Date;
 };
 
@@ -160,7 +161,11 @@ export type AiAgentToolCallTable = Knex.CompositeTableType<
     DbAiAgentToolCall,
     Pick<
         DbAiAgentToolCall,
-        'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'tool_args'
+        | 'ai_prompt_uuid'
+        | 'tool_call_id'
+        | 'tool_name'
+        | 'tool_args'
+        | 'parent_tool_call_id'
     >,
     never
 >;

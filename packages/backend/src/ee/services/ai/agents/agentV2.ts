@@ -322,6 +322,7 @@ export const generateAgentResponse = async ({
                                     toolCallId: toolCall.toolCallId,
                                     toolName: toolCall.toolName,
                                     toolArgs: toolCall.input as object,
+                                    parentToolCallId: null,
                                 });
                             }
                         }),
@@ -507,6 +508,7 @@ export const streamAgentResponse = async ({
                                 toolCallId: event.chunk.toolCallId,
                                 toolName: event.chunk.toolName,
                                 toolArgs: event.chunk.input as object,
+                                parentToolCallId: null,
                             })
                             .catch((error) => {
                                 Logger.error(
