@@ -495,14 +495,12 @@ const AssistantBubbleContent: FC<{
                     </>
                 );
             })()}
-            {/* TypingDots fill the gap while the agent is mid-stream but
-             *  nothing concrete has happened yet (no tool, no text). Once any
-             *  activity exists, the bento shimmer + pulsing labels take over. */}
+            {/* TypingDots fill the gap until the first visible output lands —
+             *  any tool call or text part. Reasoning alone doesn't count: it
+             *  collapses by default and would otherwise leave the bubble silent.
+             *  Once a part exists, the bento + rolling preview take over. */}
             {(isStreaming || isPending) &&
-                (streamingState?.parts?.length ?? 0) === 0 &&
-                (streamingState?.reasoning?.length ?? 0) === 0 && (
-                    <TypingDots />
-                )}
+                (streamingState?.parts?.length ?? 0) === 0 && <TypingDots />}
             {proposeChangeToolCall && (
                 <AiProposeChangeToolCall
                     change={proposeChangeToolCall.change}
