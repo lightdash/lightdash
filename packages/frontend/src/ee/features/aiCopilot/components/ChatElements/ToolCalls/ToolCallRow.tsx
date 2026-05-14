@@ -15,6 +15,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
+import { ToolCallChip } from './ToolCallChip';
 import styles from './ToolCallRow.module.css';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
 import { getToolIcon } from './utils/toolIcons';
@@ -48,18 +49,6 @@ type Props = {
      */
     extraBody?: React.ReactNode;
 };
-
-const Chip: FC<{ label: string; delay: number }> = ({ label, delay }) => (
-    <Box
-        className={styles.chip}
-        style={{ animationDelay: `${delay}ms` }}
-        title={label}
-    >
-        <Text size="xs" lineClamp={1}>
-            {label}
-        </Text>
-    </Box>
-);
 
 export const ToolCallRow: FC<Props> = ({
     toolName,
@@ -112,11 +101,13 @@ export const ToolCallRow: FC<Props> = ({
             return (
                 <Group gap={4} wrap="nowrap" className={styles.chips}>
                     {shown.map(({ label: chipLabel, idx }) => (
-                        <Chip
+                        <ToolCallChip
                             key={`chip-${idx}`}
-                            label={chipLabel}
-                            delay={idx * 28}
-                        />
+                            className={styles.chipAppear}
+                            style={{ animationDelay: `${idx * 28}ms` }}
+                        >
+                            {chipLabel}
+                        </ToolCallChip>
                     ))}
                     {overflow > 0 && (
                         <Text size="xs" c="dimmed" className={styles.overflow}>

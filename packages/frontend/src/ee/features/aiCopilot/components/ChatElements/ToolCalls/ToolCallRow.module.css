@@ -101,24 +101,10 @@
     overflow: hidden;
 }
 
-.chip {
-    display: inline-flex;
-    align-items: center;
-    height: 17px;
-    padding: 0 7px;
-    border-radius: 999px;
-    background-color: var(--mantine-color-ldGray-2);
-    color: var(--mantine-color-ldGray-7);
-    line-height: 1;
-    letter-spacing: -0.005em;
-    max-width: 150px;
-    flex-shrink: 0;
-    transition: background-color 160ms ease;
+/* Pure entry animation — the chip's visual style comes from ToolCallChip
+ * (Mantine Badge) so chips here match every other chip in the activity card. */
+.chipAppear {
     animation: chipAppear 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
-}
-
-.rowButton:hover .chip {
-    background-color: var(--mantine-color-ldGray-3);
 }
 
 .overflow {
@@ -196,7 +182,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .icon[data-status='running'],
-    .chip,
+    .chipAppear,
     .body,
     .chevron,
     .rowButton {
