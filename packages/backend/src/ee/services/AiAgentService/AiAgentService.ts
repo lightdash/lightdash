@@ -165,6 +165,7 @@ import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/t
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import { getAvailableModels, getDefaultModel, getModel } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
@@ -4484,6 +4485,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     user.userUuid,
                 ),
         });
+        const { enabled: builtInSkillsEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.AiBuiltInSkills,
+            });
+        const availableSkills = builtInSkillsEnabled
+            ? await BuiltInSkills.getAiAgentSkills()
+            : [];
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
@@ -4511,6 +4520,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canRunSql,
             warehouseType,
             warehouseSchema,
+            availableSkills,
 
             findExploresFieldSearchSize: 200,
             findFieldsPageSize: 30,
@@ -4576,6 +4586,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     decision,
                     decidedByUserUuid,
                 ),
+            loadSkill: async (name) => BuiltInSkills.getAiAgentSkill(name),
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

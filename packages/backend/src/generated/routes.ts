@@ -5487,6 +5487,16 @@ const models: TsoaRoute.Models = {
         enums: ['dynamic', 'fixed'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MapHexbinValueBasis: {
+        dataType: 'refEnum',
+        enums: ['count', 'field'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    MapHexbinAggregation: {
+        dataType: 'refEnum',
+        enums: ['sum', 'avg', 'min', 'max'],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     MapTileBackground: {
         dataType: 'refEnum',
         enums: [
@@ -5536,6 +5546,16 @@ const models: TsoaRoute.Models = {
                 hexbinConfig: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        emptyBinColor: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        showEmptyBins: { dataType: 'boolean' },
+                        aggregation: { ref: 'MapHexbinAggregation' },
+                        valueBasis: { ref: 'MapHexbinValueBasis' },
                         fixedResolution: { dataType: 'double' },
                         sizingMode: { ref: 'MapHexbinSizingMode' },
                         opacity: { dataType: 'double' },
@@ -10376,6 +10396,14 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        chartSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         chartUuid: { dataType: 'string', required: true },
                         type: {
                             dataType: 'enum',
@@ -10396,6 +10424,14 @@ const models: TsoaRoute.Models = {
                             required: true,
                         },
                         pinnedVersionUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        dashboardSlug: {
                             dataType: 'union',
                             subSchemas: [
                                 { dataType: 'string' },
@@ -10549,6 +10585,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['findCharts'] },
                 { dataType: 'enum', enums: ['getDashboardCharts'] },
                 { dataType: 'enum', enums: ['improveContext'] },
+                { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['runSavedChart'] },
                 { dataType: 'enum', enums: ['listWarehouseTables'] },
                 { dataType: 'enum', enums: ['describeWarehouseTable'] },
@@ -10844,13 +10881,13 @@ const models: TsoaRoute.Models = {
                                                                                                                 },
                                                                                                             ],
                                                                                                     },
-                                                                                                tableName:
+                                                                                                fieldType:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
-                                                                                                fieldType:
+                                                                                                tableName:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
@@ -10976,11 +11013,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -11125,13 +11162,13 @@ const models: TsoaRoute.Models = {
                                                                                                                     },
                                                                                                                 ],
                                                                                                         },
-                                                                                                    tableName:
+                                                                                                    fieldType:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
-                                                                                                    fieldType:
+                                                                                                    tableName:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
@@ -11173,11 +11210,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -11606,6 +11643,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         runtimeOverrides: { ref: 'AiChartRuntimeOverrides' },
+                        chartSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         chartUuid: { dataType: 'string', required: true },
                         type: {
                             dataType: 'enum',
@@ -11617,6 +11661,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dashboardSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         dashboardUuid: { dataType: 'string', required: true },
                         type: {
                             dataType: 'enum',
@@ -18243,6 +18294,10 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                resolvedColorPalette: {
+                    ref: 'ResolvedProjectColorPalette',
+                    required: true,
+                },
                 lastViewedAt: { dataType: 'datetime', required: true },
                 firstViewedAt: { dataType: 'datetime', required: true },
                 views: { dataType: 'double', required: true },
