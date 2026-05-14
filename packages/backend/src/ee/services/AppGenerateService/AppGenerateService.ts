@@ -25,6 +25,7 @@ import {
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionResources,
+    type CatalogItemSummary,
     type ChartReference,
     type ChartSampleData,
     type DataAppTemplate,
@@ -32,7 +33,7 @@ import {
     type TogglePinnedItemInfo,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
-import { ALL_TRAFFIC, Sandbox } from 'e2b';
+import { ALL_TRAFFIC, CommandExitError, Sandbox } from 'e2b';
 import { Knex } from 'knex';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
@@ -855,7 +856,7 @@ export class AppGenerateService extends BaseService {
         );
         const result = await sandbox.commands.run(
             'tar -xf /tmp/source.tar -C /app',
-            { timeoutMs: 30_000 },
+            { timeoutMs: 60_000 },
         );
         if (result.exitCode !== 0) {
             throw new Error(
@@ -944,7 +945,7 @@ export class AppGenerateService extends BaseService {
         if (chartReferences.length === 0) return '';
 
         await sandbox.commands.run('mkdir -p /tmp/metric-queries', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
 
         const slugCounts = new Map<string, number>();
@@ -1033,7 +1034,7 @@ export class AppGenerateService extends BaseService {
         // which would cause a permission error on write.
         await sandbox.commands.run(
             'rm -f /tmp/dbt-repo/models/schema.yml /tmp/prompt.txt 2>/dev/null; rm -rf /tmp/images /tmp/metric-queries 2>/dev/null; true',
-            { timeoutMs: 5_000 },
+            { timeoutMs: 10_000 },
         );
 
         await sandbox.files.write('/tmp/dbt-repo/models/schema.yml', modelYaml);
@@ -1196,7 +1197,7 @@ export class AppGenerateService extends BaseService {
             `App ${appUuid}: writing image to sandbox (${mimeType}, ${buffer.length} bytes)`,
         );
         await sandbox.commands.run('mkdir -p /tmp/images', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
         await sandbox.files.write(
             sandboxPath,
@@ -1398,7 +1399,7 @@ export class AppGenerateService extends BaseService {
             'Example: {"name": "Weekly Sales Dashboard", "description": "Interactive dashboard showing weekly sales trends by region and product category."}';
 
         await sandbox.commands.run('rm -f /tmp/prompt.txt 2>/dev/null; true', {
-            timeoutMs: 5_000,
+            timeoutMs: 10_000,
         });
         await sandbox.files.write('/tmp/prompt.txt', `${metadataPrompt}\n`);
 
@@ -1467,18 +1468,40 @@ export class AppGenerateService extends BaseService {
         stderr: string;
     }> {
         const start = performance.now();
-        const result = await sandbox.commands.run('pnpm build', {
-            cwd: '/app',
-            timeoutMs: 60 * 1000,
-            onStdout: (chunk) => {
-                this.logger.debug(
-                    `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
-                );
-            },
-            onStderr: (chunk) => {
-                this.logger.info(`App ${appUuid}: build: ${chunk.trimEnd()}`);
-            },
-        });
+        // E2B's `commands.run` throws `CommandExitError` on a non-zero exit
+        // code (no opt-out), so we have to catch it ourselves and surface the
+        // result — otherwise `runBuildWithAutoFix` would never see a failed
+        // build and could not retry.
+        let result: {
+            exitCode: number;
+            stdout: string;
+            stderr: string;
+        };
+        try {
+            result = await sandbox.commands.run('pnpm build', {
+                cwd: '/app',
+                timeoutMs: 60 * 1000,
+                onStdout: (chunk) => {
+                    this.logger.debug(
+                        `App ${appUuid}: build stdout: ${chunk.trimEnd()}`,
+                    );
+                },
+                onStderr: (chunk) => {
+                    this.logger.info(
+                        `App ${appUuid}: build: ${chunk.trimEnd()}`,
+                    );
+                },
+            });
+        } catch (err) {
+            if (!(err instanceof CommandExitError)) {
+                throw err;
+            }
+            result = {
+                exitCode: err.exitCode,
+                stdout: err.stdout,
+                stderr: err.stderr,
+            };
+        }
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
             `App ${appUuid}: Vite build completed (exit=${result.exitCode}, ${durationMs}ms)`,
@@ -1557,7 +1580,7 @@ export class AppGenerateService extends BaseService {
             // fail with EPERM. Same reason as in writeCatalogAndPrompt.
             await sandbox.commands.run(
                 'rm -f /tmp/prompt.txt 2>/dev/null; true',
-                { timeoutMs: 5_000 },
+                { timeoutMs: 10_000 },
             );
             await sandbox.files.write('/tmp/prompt.txt', `${fixPrompt}\n`);
 
@@ -1610,10 +1633,10 @@ export class AppGenerateService extends BaseService {
 
         await Promise.all([
             sandbox.commands.run('tar -cf /tmp/dist.tar -C /app dist', {
-                timeoutMs: 10_000,
+                timeoutMs: 20_000,
             }),
             sandbox.commands.run('tar -cf /tmp/source.tar -C /app src', {
-                timeoutMs: 30_000,
+                timeoutMs: 60_000,
             }),
         ]);
 
@@ -3102,6 +3125,12 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             status: AppVersionStatus;
             statusMessage: string | null;
             createdAt: Date;
+            statusUpdatedAt: Date | null;
+            createdByUser: {
+                userUuid: string;
+                firstName: string;
+                lastName: string;
+            } | null;
             resources: AppVersionResources | null;
         }[];
         hasMore: boolean;
@@ -3151,6 +3180,19 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                       }
                     : null,
                 createdAt: v.created_at,
+                statusUpdatedAt: v.status_updated_at,
+                // LEFT JOIN may miss for hard-deleted users — collapse the
+                // whole object to null in that case rather than expose
+                // individually-nullable fields to API consumers.
+                createdByUser:
+                    v.created_by_user_first_name !== null &&
+                    v.created_by_user_last_name !== null
+                        ? {
+                              userUuid: v.created_by_user_uuid,
+                              firstName: v.created_by_user_first_name,
+                              lastName: v.created_by_user_last_name,
+                          }
+                        : null,
             })),
             hasMore,
         };
@@ -3770,31 +3812,57 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     /**
      * Convert catalog items into a dbt-style YAML that skill.md expects.
      * Groups fields by table and separates dimensions from metrics.
+     * Includes labels and descriptions (truncated) so the sandbox agent has
+     * semantic context for each model, metric, and dimension.
      */
-    private static catalogToYaml(
-        items: {
+    private static catalogToYaml(items: CatalogItemSummary[]): string {
+        const DESCRIPTION_MAX_LEN = 200;
+
+        const yamlStr = (s: string): string => {
+            const cleaned = s
+                .replace(/[\r\n\t]+/g, ' ')
+                .replace(/\\/g, '\\\\')
+                .replace(/"/g, '\\"');
+            return `"${cleaned}"`;
+        };
+
+        const truncate = (s: string): string =>
+            s.length > DESCRIPTION_MAX_LEN
+                ? `${s.slice(0, DESCRIPTION_MAX_LEN - 1)}…`
+                : s;
+
+        type FieldInfo = {
             name: string;
-            type: string;
-            tableName: string;
-            fieldType: string | undefined;
-        }[],
-    ): string {
+            label: string | null;
+            description: string | null;
+        };
+
+        const tableDescriptions = new Map<string, string | null>();
         const tables = new Map<
             string,
-            { dimensions: string[]; metrics: string[] }
+            { dimensions: FieldInfo[]; metrics: FieldInfo[] }
         >();
 
         for (const item of items) {
-            if (item.type === 'field') {
+            if (item.type === 'table') {
+                tableDescriptions.set(item.name, item.description);
+                if (!tables.has(item.name)) {
+                    tables.set(item.name, { dimensions: [], metrics: [] });
+                }
+            } else if (item.type === 'field') {
                 if (!tables.has(item.tableName)) {
                     tables.set(item.tableName, { dimensions: [], metrics: [] });
                 }
                 const table = tables.get(item.tableName)!;
-
+                const field: FieldInfo = {
+                    name: item.name,
+                    label: item.label,
+                    description: item.description,
+                };
                 if (item.fieldType === 'metric') {
-                    table.metrics.push(item.name);
+                    table.metrics.push(field);
                 } else {
-                    table.dimensions.push(item.name);
+                    table.dimensions.push(field);
                 }
             }
         }
@@ -3802,18 +3870,38 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const lines: string[] = ['models:'];
         for (const [tableName, fields] of tables) {
             lines.push(`  - name: ${tableName}`);
+            const tableDesc = tableDescriptions.get(tableName);
+            if (tableDesc) {
+                lines.push(`    description: ${yamlStr(truncate(tableDesc))}`);
+            }
             if (fields.metrics.length > 0) {
                 lines.push(`    meta:`);
                 lines.push(`      metrics:`);
                 for (const m of fields.metrics) {
-                    lines.push(`        ${m}:`);
+                    lines.push(`        ${m.name}:`);
                     lines.push(`          type: metric`);
+                    if (m.label && m.label !== m.name) {
+                        lines.push(`          label: ${yamlStr(m.label)}`);
+                    }
+                    if (m.description) {
+                        lines.push(
+                            `          description: ${yamlStr(truncate(m.description))}`,
+                        );
+                    }
                 }
             }
             if (fields.dimensions.length > 0) {
                 lines.push(`    columns:`);
                 for (const d of fields.dimensions) {
-                    lines.push(`      - name: ${d}`);
+                    lines.push(`      - name: ${d.name}`);
+                    if (d.label && d.label !== d.name) {
+                        lines.push(`        label: ${yamlStr(d.label)}`);
+                    }
+                    if (d.description) {
+                        lines.push(
+                            `        description: ${yamlStr(truncate(d.description))}`,
+                        );
+                    }
                 }
             }
         }

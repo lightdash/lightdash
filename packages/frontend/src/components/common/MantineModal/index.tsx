@@ -61,7 +61,7 @@ const getVariantDescription = (
 export type MantineModalProps = {
     opened: boolean;
     onClose: () => void;
-    title: string;
+    title: React.ReactNode;
     /**
      * Modal variant for common action patterns.
      * - `delete`: Adds IconTrash, red action buttons, and auto-generates description

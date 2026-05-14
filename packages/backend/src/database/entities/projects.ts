@@ -30,6 +30,9 @@ export type DbProject = {
     scheduler_timezone: string;
     query_timezone: string | null;
     use_project_timezone_in_filters: boolean;
+    scheduler_failure_notify_recipients: boolean;
+    scheduler_failure_include_contact: boolean;
+    scheduler_failure_contact_override: string | null;
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
@@ -67,6 +70,9 @@ type UpdateDbProject = Partial<
         | 'scheduler_timezone'
         | 'query_timezone'
         | 'use_project_timezone_in_filters'
+        | 'scheduler_failure_notify_recipients'
+        | 'scheduler_failure_include_contact'
+        | 'scheduler_failure_contact_override'
         | 'has_default_user_spaces'
         | 'project_defaults'
         | 'color_palette_uuid'

@@ -5,6 +5,7 @@ import {
     GoogleChatError,
     operatorActionValue,
     PartialFailureType,
+    sanitizeHtml,
     ThresholdOptions,
     type PartialFailure,
 } from '@lightdash/common';
@@ -329,6 +330,65 @@ export class GoogleChatClient {
                             subtitle: name,
                         },
                         sections: [{ widgets }],
+                    },
+                },
+            ],
+        };
+
+        await this.sendWebhook(webhookUrl, payload);
+    }
+
+    async postDeliveryFailureNotificationToRecipient({
+        webhookUrl,
+        contentName,
+        contactSentence,
+    }: {
+        webhookUrl: string;
+        contentName: string | null;
+        contactSentence: string | null;
+    }): Promise<void> {
+        // Google Chat renders a subset of HTML in textParagraph.text, so
+        // strip any markup from admin-supplied strings before interpolating
+        // into the template (which uses static <b> tags around contentName).
+        const safeContentName = contentName
+            ? sanitizeHtml(contentName, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const safeContactSentence = contactSentence
+            ? sanitizeHtml(contactSentence, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const baseSentence = safeContentName
+            ? `The scheduled delivery for <b>"${safeContentName}"</b> failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const appended = safeContactSentence ? ` ${safeContactSentence}` : '';
+
+        const payload = {
+            cardsV2: [
+                {
+                    cardId: 'lightdash-scheduled-delivery-failure',
+                    card: {
+                        header: {
+                            title: 'Scheduled delivery failure',
+                            ...(safeContentName && {
+                                subtitle: safeContentName,
+                            }),
+                        },
+                        sections: [
+                            {
+                                widgets: [
+                                    {
+                                        textParagraph: {
+                                            text: `${baseSentence}${appended}`,
+                                        },
+                                    },
+                                ],
+                            },
+                        ],
                     },
                 },
             ],

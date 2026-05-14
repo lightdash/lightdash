@@ -430,7 +430,11 @@ const Dashboard: FC = () => {
     );
 
     const handleAddTiles = useCallback(
-        async (tiles: IDashboard['tiles'][number][]) => {
+        async (
+            tiles: IDashboard['tiles'][number][],
+            // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+            tileUuidMapping?: Record<string, string>,
+        ) => {
             let newTiles = tiles;
             if (tabsEnabled) {
                 newTiles = tiles.map((tile: DashboardTile) => ({
@@ -444,6 +448,36 @@ const Dashboard: FC = () => {
             );
 
             setHaveTilesChanged(true);
+
+            // For each duplicated tile, copy the source tile's per-filter
+            // override (enabled/disabled + field mapping) onto the new tile's
+            // UUID. Without this, the new UUID is absent from `tileTargets`
+            // and `getDashboardFilterRulesForTile` falls back to auto-applying
+            // every matching filter — ignoring whatever was configured on the
+            // original.
+            if (tileUuidMapping && Object.keys(tileUuidMapping).length > 0) {
+                setDashboardFilters((prev) => {
+                    const updatedDimensions = prev.dimensions.map((filter) => {
+                        if (!filter.tileTargets) return filter;
+                        const nextTileTargets = { ...filter.tileTargets };
+                        let changed = false;
+                        for (const [newUuid, oldUuid] of Object.entries(
+                            tileUuidMapping,
+                        )) {
+                            if (oldUuid in nextTileTargets) {
+                                nextTileTargets[newUuid] =
+                                    nextTileTargets[oldUuid];
+                                changed = true;
+                            }
+                        }
+                        return changed
+                            ? { ...filter, tileTargets: nextTileTargets }
+                            : filter;
+                    });
+                    return { ...prev, dimensions: updatedDimensions };
+                });
+                setHaveFiltersChanged(true);
+            }
         },
         [
             activeTab,
@@ -452,6 +486,8 @@ const Dashboard: FC = () => {
             setDashboardTiles,
             setHaveTilesChanged,
             setHaveTabsChanged,
+            setDashboardFilters,
+            setHaveFiltersChanged,
         ],
     );
 

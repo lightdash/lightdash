@@ -7,19 +7,17 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {
     GetPromptFn,
+    RecordSqlApprovalFn,
     RunSqlJobFn,
     SendFileFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
+    WaitForSqlApprovalFn,
 } from '../types/aiAgentDependencies';
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
-import {
-    isSlackThreadAutoApproved,
-    resolveSqlApproval,
-    waitForSqlApproval,
-} from './sqlApprovals';
+import { isSlackThreadAutoApproved } from './sqlApprovals';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -28,6 +26,8 @@ type Dependencies = {
     sendFile: SendFileFn;
     updateSlackMessage: UpdateSlackMessageFn;
     siteUrl: string;
+    waitForSqlApproval: WaitForSqlApprovalFn;
+    recordSqlApproval: RecordSqlApprovalFn;
 };
 
 // Strip --line and /* block */ comments + string literals so subsequent
@@ -71,6 +71,8 @@ export const getRunSql = ({
     sendFile,
     updateSlackMessage,
     siteUrl,
+    waitForSqlApproval,
+    recordSqlApproval,
 }: Dependencies) =>
     tool({
         description: toolRunSqlArgsSchema.description,
@@ -121,15 +123,14 @@ export const getRunSql = ({
                     await updateProgress('Awaiting approval to run SQL...');
                 }
 
-                // Register the approval listener first, then trigger any
-                // auto-approval (the EventEmitter delivers synchronously, so
-                // order matters).
-                const decisionPromise = waitForSqlApproval(toolCallId);
+                // Auto-approval: pre-record the decision so the poller in
+                // waitForSqlApproval picks it up on its first poll. Approvals
+                // are DB-backed (ai_sql_approval) so this works across pods
+                // and survives restarts.
                 if (slackAutoApproved) {
-                    resolveSqlApproval(toolCallId, 'approved');
+                    await recordSqlApproval(toolCallId, 'approved', null);
                 }
-
-                const decision = await decisionPromise;
+                const decision = await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
                     return {

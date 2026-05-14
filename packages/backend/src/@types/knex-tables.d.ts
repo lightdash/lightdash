@@ -51,6 +51,8 @@ import {
     DashboardTabsTableName,
     DashboardTileChartTable,
     DashboardTileChartTableName,
+    DashboardTileDataAppsTable,
+    DashboardTileDataAppsTableName,
     DashboardTileHeadingsTable,
     DashboardTileHeadingsTableName,
     DashboardTileLoomsTable,
@@ -312,6 +314,8 @@ import {
     AiSlackPromptTableName,
     AiSlackThreadTable,
     AiSlackThreadTableName,
+    AiSqlApprovalTable,
+    AiSqlApprovalTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
@@ -412,6 +416,7 @@ declare module 'knex/types/tables' {
         [DashboardTileLoomsTableName]: DashboardTileLoomsTable;
         [DashboardTileMarkdownsTableName]: DashboardTileMarkdownsTable;
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
+        [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
         [OnboardingTableName]: OnboardingTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
@@ -479,6 +484,7 @@ declare module 'knex/types/tables' {
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
+        [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
         [DashboardSummariesTableName]: DashboardSummariesTable;

@@ -6,6 +6,7 @@ import {
     MsTeamsError,
     operatorActionValue,
     PartialFailureType,
+    sanitizeHtml,
     ThresholdOptions,
     type PartialFailure,
 } from '@lightdash/common';
@@ -508,6 +509,70 @@ export class MicrosoftTeamsClient {
                 },
             ],
         };
+        await this.sendWebhook(webhookUrl, payload);
+    }
+
+    async postDeliveryFailureNotificationToRecipient({
+        webhookUrl,
+        contentName,
+        contactSentence,
+    }: {
+        webhookUrl: string;
+        contentName: string | null;
+        contactSentence: string | null;
+    }): Promise<void> {
+        if (!this.lightdashConfig.microsoftTeams.enabled) {
+            throw new MissingConfigError('Microsoft Teams is not enabled');
+        }
+
+        // Strip any HTML/markdown from admin-supplied strings before
+        // interpolating into the Adaptive Card text.
+        const safeContentName = contentName
+            ? sanitizeHtml(contentName, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const safeContactSentence = contactSentence
+            ? sanitizeHtml(contactSentence, {
+                  allowedTags: [],
+                  allowedAttributes: {},
+              })
+            : null;
+        const baseSentence = safeContentName
+            ? `The scheduled delivery for "${safeContentName}" failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const appended = safeContactSentence ? ` ${safeContactSentence}` : '';
+
+        const payload = {
+            type: 'message',
+            attachments: [
+                {
+                    contentType: 'application/vnd.microsoft.card.adaptive',
+                    contentUrl: null,
+                    content: {
+                        $schema:
+                            'http://adaptivecards.io/schemas/adaptive-card.json',
+                        type: 'AdaptiveCard',
+                        version: '1.2',
+                        body: [
+                            {
+                                type: 'TextBlock',
+                                text: 'Scheduled delivery failure',
+                                weight: 'bolder',
+                                size: 'medium',
+                            },
+                            {
+                                type: 'TextBlock',
+                                text: `${baseSentence}${appended}`,
+                                wrap: true,
+                            },
+                        ],
+                    },
+                },
+            ],
+        };
+
         await this.sendWebhook(webhookUrl, payload);
     }
 }

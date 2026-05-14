@@ -1,3 +1,5 @@
+import { type ProjectMemberRole } from '../../types/projectMemberRole';
+
 export enum ServiceAccountScope {
     SCIM_MANAGE = 'scim:manage',
     // Legacy coarse-grained SA scopes — kept on the wire for back-compat
@@ -9,9 +11,8 @@ export enum ServiceAccountScope {
     ORG_READ = 'org:read',
     // System-role aliases. Each one delegates to the matching
     // `applyOrganizationMemberStaticAbilities` block so the SA's runtime
-    // ability set is identical to a user assigned that org role. Member is
-    // intentionally not exposed — it grants near-zero abilities and isn't
-    // a useful SA shape.
+    // ability set is identical to a user assigned that org role.
+    SYSTEM_MEMBER = 'system:member',
     SYSTEM_ADMIN = 'system:admin',
     SYSTEM_DEVELOPER = 'system:developer',
     SYSTEM_EDITOR = 'system:editor',
@@ -54,6 +55,62 @@ export type ServiceAccountWithToken = ServiceAccount & {
     token: string;
 };
 
+/**
+ * SA + the count of `project_memberships` rows keyed on its dedicated user.
+ *
+ * Returned by the org SA list endpoint so the UI can render the `Access`
+ * column ("N project(s)") for project-scoped SAs without a follow-up
+ * per-SA fan-out. Zero for Organization-scoped SAs, which is the natural
+ * shape (they have no project grants).
+ */
+export type ServiceAccountWithProjectAccessCount = ServiceAccount & {
+    projectAccessCount: number;
+};
+
+/**
+ * One row in the per-SA project-grants list. The project name comes from a
+ * join on `projects`. A grant is either a system role (the `ProjectMemberRole`
+ * enum used everywhere else) or a custom role (a `role_uuid` pointing at the
+ * org's `roles` table, with the role's display name resolved server-side so
+ * the UI doesn't need a follow-up lookup).
+ *
+ * Exactly one of (`role`) or (`roleUuid`+`roleName`) is set on each row. We
+ * model the optional fields rather than a strict discriminated union with
+ * `never` because tsoa (the OpenAPI generator) doesn't understand TS's
+ * `?: never` idiom and would refuse to render the schema. Consumers should
+ * narrow via `'roleUuid' in grant` rather than relying on TS exhaustiveness.
+ */
+export type ServiceAccountProjectGrant = {
+    projectUuid: string;
+    projectName: string;
+    role?: ProjectMemberRole;
+    roleUuid?: string;
+    roleName?: string;
+};
+
+export type ApiServiceAccountProjectGrantsResponse = {
+    status: 'ok';
+    results: ServiceAccountProjectGrant[];
+};
+
+/**
+ * Project-scoped grant for a Member-shape SA. When `projectAccess` is non-empty
+ * on a create request, `scopes` must be `['system:member']` — any other scope
+ * combination is rejected at the service layer so the SA's effective access is
+ * unambiguously project-only.
+ *
+ * Each grant must carry exactly one of `role` (system) or `roleUuid` (custom).
+ * The XOR is enforced at the service layer (compile-time `never` discriminator
+ * unions are not used here — see note on `ServiceAccountProjectGrant`).
+ * Mixed grants across the same `projectAccess` array are allowed — e.g. one
+ * project on stock Viewer and another on a custom role.
+ */
+export type ServiceAccountProjectAccessInput = {
+    projectUuid: string;
+    role?: ProjectMemberRole;
+    roleUuid?: string;
+};
+
 export type ApiCreateServiceAccountRequest = Pick<
     ServiceAccount,
     'expiresAt' | 'description'
@@ -62,6 +119,10 @@ export type ApiCreateServiceAccountRequest = Pick<
     // provided. Sending both is rejected at the service layer.
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    // Project-scope create path: when present and non-empty, the controller
+    // wraps the SA insert + matching `project_memberships` rows in one
+    // transaction. Requires `scopes: ['system:member']`.
+    projectAccess?: ServiceAccountProjectAccessInput[];
 };
 
 export type ApiCreateServiceAccountResponse = {
@@ -75,4 +136,5 @@ export type CreateServiceAccount = Pick<
 > & {
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    projectAccess?: ServiceAccountProjectAccessInput[];
 };

@@ -4,6 +4,7 @@ import {
     ServiceAccountScope,
     type RoleWithScopes,
     type ServiceAccount,
+    type ServiceAccountWithProjectAccessCount,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -49,6 +50,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
+import { ProjectsHoverCard } from './ProjectsHoverCard';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
 import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
@@ -64,10 +66,29 @@ const SCOPE_LABEL: Partial<Record<ServiceAccountScope, string>> = {
     [ServiceAccountScope.SYSTEM_EDITOR]: 'Editor',
     [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: 'Interactive viewer',
     [ServiceAccountScope.SYSTEM_VIEWER]: 'Viewer',
+    [ServiceAccountScope.SYSTEM_MEMBER]: 'Member',
     [ServiceAccountScope.ORG_ADMIN]: 'Admin',
     [ServiceAccountScope.ORG_EDIT]: 'Editor',
     [ServiceAccountScope.ORG_READ]: 'Viewer',
     [ServiceAccountScope.SCIM_MANAGE]: 'SCIM',
+};
+
+// An SA is "project-scoped" when its only scope is `SYSTEM_MEMBER` — the
+// marker the backend applies when an SA is created via Project mode. Anything
+// else (system roles, legacy `org:*`, custom roleUuid) is Organization-
+// scoped. We don't inspect `roleUuid` here: custom roles always grant
+// org-level abilities; only `system:member` carries the "no org grants,
+// project_memberships drives everything" contract.
+const getScope = (sa: ServiceAccount): 'organization' | 'project' => {
+    const scopes = sa.scopes ?? [];
+    if (
+        !sa.roleUuid &&
+        scopes.length === 1 &&
+        scopes[0] === ServiceAccountScope.SYSTEM_MEMBER
+    ) {
+        return 'project';
+    }
+    return 'organization';
 };
 
 // Status filter mirrors the original toolbar — Active = used in the last
@@ -118,7 +139,7 @@ const formatRoleLabel = (
 };
 
 type Props = {
-    accounts: ServiceAccount[];
+    accounts: ServiceAccountWithProjectAccessCount[];
     isLoading: boolean;
     onDelete: (uuid: string) => void;
     isDeleting: boolean;
@@ -226,340 +247,384 @@ export const ServiceAccountsTable: FC<Props> = ({
         closeRotate();
     }, [closeRotate]);
 
-    const columns: MRT_ColumnDef<ServiceAccount>[] = useMemo(
-        () => [
-            {
-                accessorKey: 'description',
-                header: 'Description',
-                enableSorting: true,
-                size: 240,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTextCaption} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const sa = row.original;
-                    const stale = isServiceAccountStale(sa);
-                    return (
-                        <Group gap="xs" wrap="nowrap">
-                            <Text fz="sm" fw={500} truncate="end">
-                                {sa.description}
-                            </Text>
-                            {stale && (
-                                <Tooltip
-                                    withinPortal
-                                    position="top"
-                                    label={`Not used in the last ${STALE_THRESHOLD_DAYS} days`}
-                                >
-                                    <Badge
-                                        variant="light"
-                                        color="red"
-                                        size="xs"
-                                        radius="md"
-                                        style={{ textTransform: 'none' }}
-                                    >
-                                        Stale
-                                    </Badge>
-                                </Tooltip>
-                            )}
+    const columns: MRT_ColumnDef<ServiceAccountWithProjectAccessCount>[] =
+        useMemo(
+            () => [
+                {
+                    accessorKey: 'description',
+                    header: 'Description',
+                    enableSorting: true,
+                    size: 240,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon
+                                icon={IconTextCaption}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
                         </Group>
-                    );
+                    ),
+                    Cell: ({ row }) => {
+                        const sa = row.original;
+                        const stale = isServiceAccountStale(sa);
+                        return (
+                            <Group gap="xs" wrap="nowrap">
+                                <Text fz="sm" fw={500} truncate="end">
+                                    {sa.description}
+                                </Text>
+                                {stale && (
+                                    <Tooltip
+                                        withinPortal
+                                        position="top"
+                                        label={`Not used in the last ${STALE_THRESHOLD_DAYS} days`}
+                                    >
+                                        <Badge
+                                            variant="light"
+                                            color="red"
+                                            size="xs"
+                                            radius="md"
+                                            style={{ textTransform: 'none' }}
+                                        >
+                                            Stale
+                                        </Badge>
+                                    </Tooltip>
+                                )}
+                            </Group>
+                        );
+                    },
                 },
-            },
-            {
-                id: 'role',
-                header: 'Role',
-                enableSorting: true,
-                accessorFn: (sa) => formatRoleLabel(sa, rolesByUuid),
-                size: 160,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconShieldLock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const sa = row.original;
-                    const scopes = sa.scopes ?? [];
-                    const role = sa.roleUuid
-                        ? rolesByUuid.get(sa.roleUuid)
-                        : undefined;
-                    if (sa.roleUuid) {
-                        // `variant="light"` lets Mantine pick the right
-                        // tone for light/dark mode automatically. The hard-
-                        // coded `indigo.1` / `indigo.9` we had before
-                        // didn't invert and looked washed-out on dark.
-                        return (
-                            <Badge
-                                variant="light"
-                                color="indigo"
-                                radius="xs"
-                                size="sm"
-                                style={{ textTransform: 'none' }}
-                            >
-                                {role?.name ?? 'Custom role'}
-                            </Badge>
-                        );
-                    }
-                    if (scopes.length > 2) {
-                        return (
-                            <HoverCard offset={-20} withinPortal>
-                                <HoverCard.Target>
-                                    <Group>
-                                        <Text fz="sm">
-                                            {`${scopes.length} permissions`}
-                                        </Text>
-                                    </Group>
-                                </HoverCard.Target>
-                                <HoverCard.Dropdown>
-                                    <Stack>
-                                        <Text fw={700}>Permissions</Text>
-                                        {scopes.map((scope) => (
-                                            <Badge
-                                                key={scope}
-                                                variant="light"
-                                                color="gray"
-                                                radius="xs"
-                                                size="sm"
-                                                style={{
-                                                    textTransform: 'none',
-                                                }}
-                                            >
-                                                {SCOPE_LABEL[scope] ?? scope}
-                                            </Badge>
-                                        ))}
-                                    </Stack>
-                                </HoverCard.Dropdown>
-                            </HoverCard>
-                        );
-                    }
-                    return (
-                        <Group gap="xs">
-                            {scopes.map((scope) => (
+                {
+                    id: 'access',
+                    header: 'Access',
+                    enableSorting: true,
+                    accessorFn: (sa) =>
+                        getScope(sa) === 'project'
+                            ? `${sa.projectAccessCount} project(s)`
+                            : formatRoleLabel(sa, rolesByUuid),
+                    size: 180,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon
+                                icon={IconShieldLock}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const sa = row.original;
+
+                        if (getScope(sa) === 'project') {
+                            const count = sa.projectAccessCount;
+                            // `teal` distinguishes project-scope rows from
+                            // the org-scope role badges below — without the
+                            // dedicated Scope column, this colour cue is the
+                            // only at-a-glance signal that the SA is
+                            // project-scoped.
+                            const badge = (
                                 <Badge
-                                    key={scope}
                                     variant="light"
-                                    color="gray"
+                                    color="teal"
                                     radius="xs"
                                     size="sm"
                                     style={{ textTransform: 'none' }}
                                 >
-                                    {SCOPE_LABEL[scope] ?? scope}
+                                    {count}{' '}
+                                    {count === 1 ? 'project' : 'projects'}
                                 </Badge>
-                            ))}
-                        </Group>
-                    );
-                },
-            },
-            {
-                id: 'createdBy',
-                header: 'Created by',
-                enableSorting: true,
-                accessorFn: (sa) => formatCreatedBy(sa),
-                size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconUser} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const label = formatCreatedBy(row.original);
-                    return (
-                        <Text fz="sm" c={label ? 'ldGray.7' : 'ldGray.5'}>
-                            {label || '—'}
-                        </Text>
-                    );
-                },
-            },
-            {
-                accessorKey: 'createdAt',
-                header: 'Created',
-                enableSorting: true,
-                size: 120,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => (
-                    <Tooltip
-                        withinPortal
-                        position="top"
-                        label={formatTimestamp(row.original.createdAt)}
-                    >
-                        <Text fz="sm" c="ldGray.7">
-                            {formatDate(row.original.createdAt)}
-                        </Text>
-                    </Tooltip>
-                ),
-            },
-            {
-                accessorKey: 'expiresAt',
-                header: 'Expires at',
-                enableSorting: true,
-                size: 140,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconCalendar} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                // Coerce to a sortable number; null = no-expiration so we
-                // float those rows to the end (Infinity) regardless of
-                // sort direction. MRT will respect the asc/desc factor.
-                sortingFn: (a, b) => {
-                    const av = a.original.expiresAt
-                        ? +new Date(a.original.expiresAt)
-                        : Number.POSITIVE_INFINITY;
-                    const bv = b.original.expiresAt
-                        ? +new Date(b.original.expiresAt)
-                        : Number.POSITIVE_INFINITY;
-                    return av - bv;
-                },
-                Cell: ({ row }) => {
-                    const { expiresAt, rotatedAt } = row.original;
-                    return (
-                        <Group align="center" gap="xs" wrap="nowrap">
-                            <Text fz="sm" c="ldGray.7">
-                                {expiresAt
-                                    ? formatDate(expiresAt)
-                                    : 'No expiration'}
-                            </Text>
-                            {rotatedAt && (
-                                <Tooltip
-                                    withinPortal
-                                    position="top"
-                                    maw={350}
-                                    label={`Last rotated at ${formatTimestamp(
-                                        rotatedAt,
-                                    )}`}
+                            );
+                            // No grants → no list to hover; render the
+                            // badge alone. Operators add the first project
+                            // via the Edit modal.
+                            if (count === 0) return badge;
+                            return (
+                                <ProjectsHoverCard serviceAccountUuid={sa.uuid}>
+                                    {badge}
+                                </ProjectsHoverCard>
+                            );
+                        }
+
+                        const scopes = sa.scopes ?? [];
+                        const role = sa.roleUuid
+                            ? rolesByUuid.get(sa.roleUuid)
+                            : undefined;
+                        if (sa.roleUuid) {
+                            // `variant="light"` lets Mantine pick the right
+                            // tone for light/dark mode automatically. The hard-
+                            // coded `indigo.1` / `indigo.9` we had before
+                            // didn't invert and looked washed-out on dark.
+                            return (
+                                <Badge
+                                    variant="light"
+                                    color="indigo"
+                                    radius="xs"
+                                    size="sm"
+                                    style={{ textTransform: 'none' }}
                                 >
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        color="ldGray.6"
-                                        size="md"
-                                    />
-                                </Tooltip>
-                            )}
-                        </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'lastUsedAt',
-                header: 'Last used at',
-                enableSorting: true,
-                size: 140,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                // Same null-handling rule as expiresAt: never-used SAs
-                // float to the end so they don't dominate the top of an
-                // ascending sort.
-                sortingFn: (a, b) => {
-                    const av = a.original.lastUsedAt
-                        ? +new Date(a.original.lastUsedAt)
-                        : Number.POSITIVE_INFINITY;
-                    const bv = b.original.lastUsedAt
-                        ? +new Date(b.original.lastUsedAt)
-                        : Number.POSITIVE_INFINITY;
-                    return av - bv;
-                },
-                Cell: ({ row }) => {
-                    const lastUsedAt = row.original.lastUsedAt;
-                    if (!lastUsedAt) {
+                                    {role?.name ?? 'Custom role'}
+                                </Badge>
+                            );
+                        }
+                        if (scopes.length > 2) {
+                            return (
+                                <HoverCard offset={-20} withinPortal>
+                                    <HoverCard.Target>
+                                        <Group>
+                                            <Text fz="sm">
+                                                {`${scopes.length} permissions`}
+                                            </Text>
+                                        </Group>
+                                    </HoverCard.Target>
+                                    <HoverCard.Dropdown>
+                                        <Stack>
+                                            <Text fw={700}>Permissions</Text>
+                                            {scopes.map((scope) => (
+                                                <Badge
+                                                    key={scope}
+                                                    variant="light"
+                                                    color="gray"
+                                                    radius="xs"
+                                                    size="sm"
+                                                    style={{
+                                                        textTransform: 'none',
+                                                    }}
+                                                >
+                                                    {SCOPE_LABEL[scope] ??
+                                                        scope}
+                                                </Badge>
+                                            ))}
+                                        </Stack>
+                                    </HoverCard.Dropdown>
+                                </HoverCard>
+                            );
+                        }
                         return (
-                            <Text fz="sm" c="ldGray.5">
-                                Never
+                            <Group gap="xs">
+                                {scopes.map((scope) => (
+                                    <Badge
+                                        key={scope}
+                                        variant="light"
+                                        color="gray"
+                                        radius="xs"
+                                        size="sm"
+                                        style={{ textTransform: 'none' }}
+                                    >
+                                        {SCOPE_LABEL[scope] ?? scope}
+                                    </Badge>
+                                ))}
+                            </Group>
+                        );
+                    },
+                },
+                {
+                    id: 'createdBy',
+                    header: 'Created by',
+                    enableSorting: true,
+                    accessorFn: (sa) => formatCreatedBy(sa),
+                    size: 150,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon icon={IconUser} color="ldGray.6" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const label = formatCreatedBy(row.original);
+                        return (
+                            <Text fz="sm" c={label ? 'ldGray.7' : 'ldGray.5'}>
+                                {label || '—'}
                             </Text>
                         );
-                    }
-                    return (
+                    },
+                },
+                {
+                    accessorKey: 'createdAt',
+                    header: 'Created',
+                    enableSorting: true,
+                    size: 120,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => (
                         <Tooltip
                             withinPortal
                             position="top"
-                            label={formatTimestamp(lastUsedAt)}
+                            label={formatTimestamp(row.original.createdAt)}
                         >
                             <Text fz="sm" c="ldGray.7">
-                                {formatDate(lastUsedAt)}
+                                {formatDate(row.original.createdAt)}
                             </Text>
                         </Tooltip>
-                    );
+                    ),
                 },
-            },
-            {
-                id: 'actions',
-                header: '',
-                enableSorting: false,
-                size: 60,
-                mantineTableHeadCellProps: { align: 'right' },
-                mantineTableBodyCellProps: { align: 'right' },
-                Cell: ({ row }) => {
-                    const sa = row.original;
-                    return (
-                        <Menu
-                            withinPortal
-                            position="bottom-end"
-                            withArrow
-                            arrowPosition="center"
-                            shadow="md"
-                        >
-                            <Menu.Target>
-                                <ActionIcon variant="subtle" color="gray">
-                                    <MantineIcon icon={IconDots} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                {sa.roleUuid && (
-                                    <Menu.Item
-                                        component={Link}
-                                        to={`/generalSettings/customRoles/${sa.roleUuid}`}
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconShieldLock}
-                                            />
-                                        }
+                {
+                    accessorKey: 'expiresAt',
+                    header: 'Expires at',
+                    enableSorting: true,
+                    size: 140,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon icon={IconCalendar} color="ldGray.6" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    // Coerce to a sortable number; null = no-expiration so we
+                    // float those rows to the end (Infinity) regardless of
+                    // sort direction. MRT will respect the asc/desc factor.
+                    sortingFn: (a, b) => {
+                        const av = a.original.expiresAt
+                            ? +new Date(a.original.expiresAt)
+                            : Number.POSITIVE_INFINITY;
+                        const bv = b.original.expiresAt
+                            ? +new Date(b.original.expiresAt)
+                            : Number.POSITIVE_INFINITY;
+                        return av - bv;
+                    },
+                    Cell: ({ row }) => {
+                        const { expiresAt, rotatedAt } = row.original;
+                        return (
+                            <Group align="center" gap="xs" wrap="nowrap">
+                                <Text fz="sm" c="ldGray.7">
+                                    {expiresAt
+                                        ? formatDate(expiresAt)
+                                        : 'No expiration'}
+                                </Text>
+                                {rotatedAt && (
+                                    <Tooltip
+                                        withinPortal
+                                        position="top"
+                                        maw={350}
+                                        label={`Last rotated at ${formatTimestamp(
+                                            rotatedAt,
+                                        )}`}
                                     >
-                                        View custom role
-                                    </Menu.Item>
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="ldGray.6"
+                                            size="md"
+                                        />
+                                    </Tooltip>
                                 )}
-                                {sa.expiresAt && (
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconRefresh} />
-                                        }
-                                        onClick={() => handleOpenRotate(sa)}
-                                    >
-                                        Rotate token
-                                    </Menu.Item>
-                                )}
-                                {(sa.roleUuid || sa.expiresAt) && (
-                                    <Menu.Divider />
-                                )}
-                                <Menu.Item
-                                    color="red"
-                                    leftSection={
-                                        <MantineIcon icon={IconTrash} />
-                                    }
-                                    onClick={() => handleOpenDelete(sa)}
-                                >
-                                    Delete
-                                </Menu.Item>
-                            </Menu.Dropdown>
-                        </Menu>
-                    );
+                            </Group>
+                        );
+                    },
                 },
-            },
-        ],
-        [rolesByUuid, handleOpenRotate, handleOpenDelete],
-    );
+                {
+                    accessorKey: 'lastUsedAt',
+                    header: 'Last used at',
+                    enableSorting: true,
+                    size: 140,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    // Same null-handling rule as expiresAt: never-used SAs
+                    // float to the end so they don't dominate the top of an
+                    // ascending sort.
+                    sortingFn: (a, b) => {
+                        const av = a.original.lastUsedAt
+                            ? +new Date(a.original.lastUsedAt)
+                            : Number.POSITIVE_INFINITY;
+                        const bv = b.original.lastUsedAt
+                            ? +new Date(b.original.lastUsedAt)
+                            : Number.POSITIVE_INFINITY;
+                        return av - bv;
+                    },
+                    Cell: ({ row }) => {
+                        const lastUsedAt = row.original.lastUsedAt;
+                        if (!lastUsedAt) {
+                            return (
+                                <Text fz="sm" c="ldGray.5">
+                                    Never
+                                </Text>
+                            );
+                        }
+                        return (
+                            <Tooltip
+                                withinPortal
+                                position="top"
+                                label={formatTimestamp(lastUsedAt)}
+                            >
+                                <Text fz="sm" c="ldGray.7">
+                                    {formatDate(lastUsedAt)}
+                                </Text>
+                            </Tooltip>
+                        );
+                    },
+                },
+                {
+                    id: 'actions',
+                    header: '',
+                    enableSorting: false,
+                    size: 60,
+                    mantineTableHeadCellProps: { align: 'right' },
+                    mantineTableBodyCellProps: { align: 'right' },
+                    Cell: ({ row }) => {
+                        const sa = row.original;
+                        return (
+                            <Menu
+                                withinPortal
+                                position="bottom-end"
+                                withArrow
+                                arrowPosition="center"
+                                shadow="md"
+                            >
+                                <Menu.Target>
+                                    <ActionIcon variant="subtle" color="gray">
+                                        <MantineIcon icon={IconDots} />
+                                    </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                    {sa.roleUuid && (
+                                        <Menu.Item
+                                            component={Link}
+                                            to={`/generalSettings/customRoles/${sa.roleUuid}`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconShieldLock}
+                                                />
+                                            }
+                                        >
+                                            View custom role
+                                        </Menu.Item>
+                                    )}
+                                    {sa.expiresAt && (
+                                        <Menu.Item
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconRefresh}
+                                                />
+                                            }
+                                            onClick={() => handleOpenRotate(sa)}
+                                        >
+                                            Rotate token
+                                        </Menu.Item>
+                                    )}
+                                    {(sa.roleUuid || sa.expiresAt) && (
+                                        <Menu.Divider />
+                                    )}
+                                    <Menu.Item
+                                        color="red"
+                                        leftSection={
+                                            <MantineIcon icon={IconTrash} />
+                                        }
+                                        onClick={() => handleOpenDelete(sa)}
+                                    >
+                                        Delete
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        );
+                    },
+                },
+            ],
+            [rolesByUuid, handleOpenRotate, handleOpenDelete],
+        );
 
     const handleStatusFilterChange = useCallback((value: string) => {
         setStatusFilter(value as StatusFilter);

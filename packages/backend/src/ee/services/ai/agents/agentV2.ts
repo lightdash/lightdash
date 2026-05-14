@@ -1,7 +1,6 @@
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    APICallError,
     generateText,
     smoothStream,
     stepCountIs,
@@ -135,6 +134,8 @@ const getAgentTools = (
               sendFile: dependencies.sendFile,
               updateSlackMessage: dependencies.updateSlackMessage,
               siteUrl: args.siteUrl,
+              waitForSqlApproval: dependencies.waitForSqlApproval,
+              recordSqlApproval: dependencies.recordSqlApproval,
           })
         : null;
 
@@ -658,8 +659,8 @@ export const streamAgentResponse = async ({
                 );
             },
             experimental_transform: smoothStream({
-                delayInMs: 20,
-                chunking: 'line',
+                delayInMs: 40,
+                chunking: 'word',
             }),
             onError: ({ error }) => {
                 console.error(error);

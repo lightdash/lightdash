@@ -229,3 +229,21 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
     Pick<DbAiOrganizationSettings, 'organization_uuid' | 'ai_agents_visible'>,
     Partial<Pick<DbAiOrganizationSettings, 'ai_agents_visible'>>
 >;
+
+export const AiSqlApprovalTableName = 'ai_sql_approval';
+
+export type AiSqlApprovalDecision = 'approved' | 'rejected';
+
+export type DbAiSqlApproval = {
+    tool_call_id: string;
+    decision: AiSqlApprovalDecision;
+    decided_by_user_uuid: string | null;
+    decided_at: Date;
+};
+
+export type AiSqlApprovalTable = Knex.CompositeTableType<
+    DbAiSqlApproval,
+    Pick<DbAiSqlApproval, 'tool_call_id' | 'decision'> &
+        Partial<Pick<DbAiSqlApproval, 'decided_by_user_uuid'>>,
+    never
+>;

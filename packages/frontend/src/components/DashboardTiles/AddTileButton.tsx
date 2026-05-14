@@ -1,4 +1,8 @@
-import { DashboardTileTypes, type Dashboard } from '@lightdash/common';
+import {
+    DashboardTileTypes,
+    FeatureFlags,
+    type Dashboard,
+} from '@lightdash/common';
 import {
     Button,
     Group,
@@ -8,6 +12,7 @@ import {
     type ButtonProps,
 } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconChartBar,
     IconHeading,
     IconInfoCircle,
@@ -19,6 +24,7 @@ import {
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import useDashboardStorage from '../../hooks/dashboard/useDashboardStorage';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import MantineIcon from '../common/MantineIcon';
@@ -26,7 +32,11 @@ import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
@@ -52,6 +62,8 @@ const AddTileButton: FC<Props> = ({
     const { storeDashboard } = useDashboardStorage();
     const navigate = useNavigate();
     const { health } = useApp();
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
 
     // Calculate current tiles in the active tab
     const currentTabTilesCount = useMemo(() => {
@@ -150,6 +162,19 @@ const AddTileButton: FC<Props> = ({
                             </Group>
                         </Menu.Item>
 
+                        {dataAppsEnabled && (
+                            <Menu.Item
+                                onClick={() =>
+                                    setAddTileType(DashboardTileTypes.DATA_APP)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconAppWindow} />
+                                }
+                            >
+                                Data app
+                            </Menu.Item>
+                        )}
+
                         <Menu.Item
                             onClick={() =>
                                 setAddTileType(DashboardTileTypes.MARKDOWN)
@@ -228,7 +253,8 @@ const AddTileButton: FC<Props> = ({
 
             {addTileType === DashboardTileTypes.MARKDOWN ||
             addTileType === DashboardTileTypes.LOOM ||
-            addTileType === DashboardTileTypes.HEADING ? (
+            addTileType === DashboardTileTypes.HEADING ||
+            addTileType === DashboardTileTypes.DATA_APP ? (
                 <TileAddModal
                     opened={!!addTileType}
                     type={addTileType}

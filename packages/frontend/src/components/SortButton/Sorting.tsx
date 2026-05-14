@@ -22,6 +22,7 @@ import {
 } from '../../features/explorer/store';
 import { useColumns } from '../../hooks/useColumns';
 import MantineIcon from '../common/MantineIcon';
+import { DraggablePortalHandler } from '../VisualizationConfigs/TreemapConfig/DraggablePortalHandler';
 import SortItem from './SortItem';
 
 const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
@@ -128,36 +129,45 @@ const Sorting = forwardRef<HTMLDivElement, Props>(({ sorts, isEditMode }) => {
                                         },
                                         snapshot,
                                     ) => (
-                                        <SortItem
-                                            isEditMode={isEditMode}
-                                            ref={innerRef}
-                                            isFirstItem={index === 0}
-                                            isOnlyItem={sorts.length === 1}
-                                            isDragging={snapshot.isDragging}
-                                            draggableProps={draggableProps}
-                                            dragHandleProps={dragHandleProps}
-                                            sort={sort}
-                                            column={columns.find(
-                                                (c) => c.id === sort.fieldId,
-                                            )}
-                                            onAddSortField={(options) => {
-                                                addSortField(
-                                                    sort.fieldId,
-                                                    options,
-                                                );
-                                            }}
-                                            onRemoveSortField={() => {
-                                                removeSortField(sort.fieldId);
-                                            }}
-                                            onSetSortFieldNullsFirst={(
-                                                payload,
-                                            ) => {
-                                                setSortFieldNullsFirst(
-                                                    sort.fieldId,
+                                        <DraggablePortalHandler
+                                            snapshot={snapshot}
+                                        >
+                                            <SortItem
+                                                isEditMode={isEditMode}
+                                                ref={innerRef}
+                                                isFirstItem={index === 0}
+                                                isOnlyItem={sorts.length === 1}
+                                                isDragging={snapshot.isDragging}
+                                                draggableProps={draggableProps}
+                                                dragHandleProps={
+                                                    dragHandleProps
+                                                }
+                                                sort={sort}
+                                                column={columns.find(
+                                                    (c) =>
+                                                        c.id === sort.fieldId,
+                                                )}
+                                                onAddSortField={(options) => {
+                                                    addSortField(
+                                                        sort.fieldId,
+                                                        options,
+                                                    );
+                                                }}
+                                                onRemoveSortField={() => {
+                                                    removeSortField(
+                                                        sort.fieldId,
+                                                    );
+                                                }}
+                                                onSetSortFieldNullsFirst={(
                                                     payload,
-                                                );
-                                            }}
-                                        />
+                                                ) => {
+                                                    setSortFieldNullsFirst(
+                                                        sort.fieldId,
+                                                        payload,
+                                                    );
+                                                }}
+                                            />
+                                        </DraggablePortalHandler>
                                     )}
                                 </Draggable>
                             ))}

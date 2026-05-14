@@ -3,6 +3,8 @@ import { ProviderOptionsMap } from './types';
 
 export type ModelPresetProvider = 'openai' | 'anthropic' | 'bedrock';
 
+export type ReasoningStyle = 'budget' | 'adaptive';
+
 export type ModelPreset<P extends ModelPresetProvider> = {
     name: string;
     provider: P;
@@ -10,6 +12,10 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     displayName: string;
     description: string;
     supportsReasoning: boolean;
+    // How the provider exposes extended reasoning. 'budget' uses the original
+    // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
+    // `effort` API (required by Claude Opus 4.7+). Ignored unless supportsReasoning.
+    reasoningStyle?: ReasoningStyle;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 };
@@ -76,11 +82,42 @@ export const MODEL_PRESETS: {
     ],
     anthropic: [
         {
+            name: 'claude-opus-4-7',
+            provider: 'anthropic',
+            modelId: 'claude-opus-4-7',
+            displayName: 'Claude Opus 4.7',
+            description: 'Most intelligent model for complex tasks',
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-opus-4-6',
+            provider: 'anthropic',
+            modelId: 'claude-opus-4-6',
+            displayName: 'Claude Opus 4.6',
+            description: 'Previous generation Opus for complex tasks',
+            supportsReasoning: true,
+            callOptions: { temperature: 0.2 },
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-sonnet-4-6',
+            provider: 'anthropic',
+            modelId: 'claude-sonnet-4-6',
+            displayName: 'Claude Sonnet 4.6',
+            description: 'Balanced model for daily tasks',
+            supportsReasoning: true,
+            callOptions: { temperature: 0.2 },
+            providerOptions: undefined,
+        },
+        {
             name: 'claude-opus-4-5',
             provider: 'anthropic',
             modelId: 'claude-opus-4-5-20251101',
             displayName: 'Claude Opus 4.5',
-            description: 'Most intelligent model for complex tasks',
+            description: 'Previous generation Opus for complex tasks',
             supportsReasoning: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,
@@ -90,7 +127,7 @@ export const MODEL_PRESETS: {
             provider: 'anthropic',
             modelId: 'claude-sonnet-4-5-20250929',
             displayName: 'Claude Sonnet 4.5',
-            description: 'Balanced model for daily tasks',
+            description: 'Previous generation Sonnet for daily tasks',
             supportsReasoning: true,
             callOptions: { temperature: 0.2 },
             providerOptions: undefined,

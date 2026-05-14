@@ -679,6 +679,21 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
  * performed in the project TZ and the result is converted back to a proper
  * UTC instant so downstream consumers apply .tz(project_tz) uniformly.
  */
+// Returns the resolved (timezone, sourceTimezone) when the dim needs a tz
+// wrap, else null. Wrap conditions: TIMESTAMP-typed dim AND a target timezone
+// AND target != source (defaulting to UTC). Wrapping when target equals source
+// produces semantically-identical SQL that defeats partition pruning on
+// warehouses like BigQuery.
+const resolveTimezoneWrap = (
+    type: DimensionType,
+    timezone?: string,
+    sourceTimezone?: string,
+): { timezone: string; sourceTimezone?: string } | null => {
+    if (type !== DimensionType.TIMESTAMP || !timezone) return null;
+    if (timezone === (sourceTimezone ?? 'UTC')) return null;
+    return { timezone, sourceTimezone };
+};
+
 export const getSqlForTruncatedDate = (
     adapterType: SupportedDbtAdapter,
     timeFrame: TimeFrames,
@@ -688,7 +703,8 @@ export const getSqlForTruncatedDate = (
     timezone?: string,
     sourceTimezone?: string,
 ): string => {
-    if (!timezone || type !== DimensionType.TIMESTAMP) {
+    const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    if (!wrap) {
         return warehouseConfigs[adapterType].getSqlForTruncatedDate(
             timeFrame,
             originalSql,
@@ -698,15 +714,15 @@ export const getSqlForTruncatedDate = (
     }
 
     const { toProjectTz, toUTC } = dateTruncTimezoneConversions[adapterType];
-    const input = toProjectTz(originalSql, timezone, sourceTimezone);
+    const input = toProjectTz(originalSql, wrap.timezone, wrap.sourceTimezone);
     const truncated = warehouseConfigs[adapterType].getSqlForTruncatedDate(
         timeFrame,
         input,
         type,
         startOfWeek,
-        timezone,
+        wrap.timezone,
     );
-    return toUTC(truncated, timezone);
+    return toUTC(truncated, wrap.timezone);
 };
 
 // DATE base dimensions short-circuit: no time component to shift.
@@ -719,14 +735,14 @@ export const getSqlForDatePart = (
     timezone?: string,
     sourceTimezone?: string,
 ): string => {
-    const wrappedSql =
-        timezone && type === DimensionType.TIMESTAMP
-            ? dateExtractsTimezoneConversions[adapterType].toExtractInputTz(
-                  originalSql,
-                  timezone,
-                  sourceTimezone,
-              )
-            : originalSql;
+    const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    const wrappedSql = wrap
+        ? dateExtractsTimezoneConversions[adapterType].toExtractInputTz(
+              originalSql,
+              wrap.timezone,
+              wrap.sourceTimezone,
+          )
+        : originalSql;
     return warehouseConfigs[adapterType].getSqlForDatePart(
         timeFrame,
         wrappedSql,
@@ -747,7 +763,8 @@ export const getSqlForDatePartName = (
     timezone?: string,
     sourceTimezone?: string,
 ): string => {
-    if (!timezone || type !== DimensionType.TIMESTAMP) {
+    const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    if (!wrap) {
         return warehouseConfigs[adapterType].getSqlForDatePartName(
             timeFrame,
             originalSql,
@@ -758,8 +775,8 @@ export const getSqlForDatePartName = (
         timeFrame,
         originalSql,
         type,
-        timezone,
-        sourceTimezone,
+        wrap.timezone,
+        wrap.sourceTimezone,
     );
 };
 

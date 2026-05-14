@@ -4,6 +4,7 @@ import {
     type ToolFindContentOutput,
     type ToolGetDashboardChartsOutput,
 } from '@lightdash/common';
+import { DASHBOARD_CHARTS_PREVIEW_COUNT } from '../utils/truncation';
 import { getFindContent } from './findContent';
 import { getGetDashboardCharts } from './getDashboardCharts';
 
@@ -66,43 +67,46 @@ describe('getFindContent', () => {
         });
     };
 
-    it('renders all charts when dashboard has 3 charts (under limit)', async () => {
-        const tool = createTool([makeMockDashboard(3)]);
+    it('renders all charts when dashboard has fewer than the preview limit', async () => {
+        const underLimit = DASHBOARD_CHARTS_PREVIEW_COUNT - 1;
+        const tool = createTool([makeMockDashboard(underLimit)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
         });
 
         expect(output.metadata.status).toBe('success');
-        expect(output.result).toContain('<charts count="3">');
+        expect(output.result).toContain(`<charts count="${underLimit}">`);
 
         const chartMatches = output.result.match(/<chart /g);
-        expect(chartMatches).toHaveLength(3);
+        expect(chartMatches).toHaveLength(underLimit);
     });
 
-    it('renders exactly 5 charts when dashboard has 5 charts (at limit)', async () => {
-        const tool = createTool([makeMockDashboard(5)]);
+    it('renders exactly the preview limit when dashboard has that many charts', async () => {
+        const tool = createTool([
+            makeMockDashboard(DASHBOARD_CHARTS_PREVIEW_COUNT),
+        ]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
         });
 
-        expect(output.result).toContain('<charts count="5">');
+        expect(output.result).toContain(
+            `<charts count="${DASHBOARD_CHARTS_PREVIEW_COUNT}">`,
+        );
 
         const chartMatches = output.result.match(/<chart /g);
-        expect(chartMatches).toHaveLength(5);
+        expect(chartMatches).toHaveLength(DASHBOARD_CHARTS_PREVIEW_COUNT);
     });
 
-    it('crops to 5 charts when dashboard has many charts', async () => {
+    it('crops to the preview limit when dashboard has many charts', async () => {
         const tool = createTool([makeMockDashboard(100)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
         });
 
-        // Total count attribute reflects the real number
         expect(output.result).toContain('<charts count="100">');
 
-        // But only 5 chart elements are rendered
         const chartMatches = output.result.match(/<chart /g);
-        expect(chartMatches).toHaveLength(5);
+        expect(chartMatches).toHaveLength(DASHBOARD_CHARTS_PREVIEW_COUNT);
     });
 
     it('handles dashboard with one chart', async () => {
@@ -114,7 +118,6 @@ describe('getFindContent', () => {
         expect(output.result).toContain('<charts count="1">');
 
         const chartMatches = output.result.match(/<chart /g);
-        // 1 chart inside the <charts> block
         expect(chartMatches).toHaveLength(1);
     });
 
@@ -124,12 +127,11 @@ describe('getFindContent', () => {
             searchQueries: [{ label: 'test query' }],
         });
 
-        // Even with 200 charts, we only render 5 so size should be small
         expect(output.result.length).toBeLessThan(10_000);
         expect(output.result).toContain('<charts count="200">');
 
         const chartMatches = output.result.match(/<chart /g);
-        expect(chartMatches).toHaveLength(5);
+        expect(chartMatches).toHaveLength(DASHBOARD_CHARTS_PREVIEW_COUNT);
     });
 });
 

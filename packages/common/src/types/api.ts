@@ -431,13 +431,6 @@ export type HealthState = {
             enabled: boolean;
         };
     };
-    posthog:
-        | {
-              projectApiKey: string;
-              feApiHost: string;
-              beApiHost: string;
-          }
-        | undefined;
     siteUrl: string;
     intercom: {
         appId: string;
@@ -477,7 +470,6 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
-    hasResultsCaching: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
@@ -617,6 +609,9 @@ export type CreateProject = Omit<
     | 'schedulerTimezone'
     | 'queryTimezone'
     | 'useProjectTimezoneInFilters'
+    | 'schedulerFailureNotifyRecipients'
+    | 'schedulerFailureIncludeContact'
+    | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
@@ -650,6 +645,9 @@ export type UpdateProject = Omit<
     | 'schedulerTimezone'
     | 'queryTimezone'
     | 'useProjectTimezoneInFilters'
+    | 'schedulerFailureNotifyRecipients'
+    | 'schedulerFailureIncludeContact'
+    | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'

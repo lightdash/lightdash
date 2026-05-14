@@ -18,6 +18,7 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
 import { SpaceTableName } from '../database/entities/spaces';
+import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 
 type AppModelArguments = {
@@ -297,7 +298,10 @@ export class AppModel {
         template: DbApp['template'];
         pinnedListUuid: string | null;
         pinnedListOrder: number | null;
-        versions: DbAppVersion[];
+        versions: (DbAppVersion & {
+            created_by_user_first_name: string | null;
+            created_by_user_last_name: string | null;
+        })[];
         hasMore: boolean;
     }> {
         const limit = opts.limit ?? 20;
@@ -317,6 +321,16 @@ export class AppModel {
                 `${AppsTableName}.app_id`,
                 `${AppVersionsTableName}.app_id`,
             )
+            // LEFT JOIN: surfaces the version author's display name to the
+            // chat UI. We don't filter `is_internal` / `is_active` because
+            // service accounts cannot create app versions today; if a row's
+            // user is hard-deleted the join misses and the service layer
+            // collapses `createdByUser` to null.
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+            )
             .leftJoin(
                 PinnedAppTableName,
                 `${PinnedAppTableName}.app_uuid`,
@@ -335,6 +349,8 @@ export class AppModel {
                 `${OrganizationTableName}.organization_uuid`,
                 `${PinnedAppTableName}.pinned_list_uuid`,
                 `${PinnedAppTableName}.order as pinned_list_order`,
+                `${UserTableName}.first_name as created_by_user_first_name`,
+                `${UserTableName}.last_name as created_by_user_last_name`,
             )
             .orderBy(`${AppVersionsTableName}.version`, 'desc')
             .limit(limit + 1);
@@ -356,6 +372,8 @@ export class AppModel {
             organization_uuid: string;
             pinned_list_uuid: string | null;
             pinned_list_order: number | null;
+            created_by_user_first_name: string | null;
+            created_by_user_last_name: string | null;
         })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
@@ -388,6 +406,8 @@ export class AppModel {
                 organization_uuid: string;
                 pinned_list_uuid: string | null;
                 pinned_list_order: number | null;
+                created_by_user_first_name: string | null;
+                created_by_user_last_name: string | null;
             } => r.version !== null,
         );
         const hasMore = versions.length > limit;

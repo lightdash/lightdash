@@ -390,7 +390,11 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 export const isTileFilterable = (tile: DashboardTile) =>
-    ![DashboardTileTypes.MARKDOWN, DashboardTileTypes.LOOM].includes(tile.type);
+    ![
+        DashboardTileTypes.MARKDOWN,
+        DashboardTileTypes.LOOM,
+        DashboardTileTypes.DATA_APP,
+    ].includes(tile.type);
 
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,

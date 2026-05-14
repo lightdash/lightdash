@@ -1,15 +1,23 @@
-import { EventEmitter } from 'events';
+import { type AiSqlApprovalDecision } from '../../../database/entities/ai';
 
-const bus = new EventEmitter();
-bus.setMaxListeners(100);
+// ---------------------------------------------------------------------------
+// SQL approval — in-memory UX flag for Slack "approve & don't ask again"
+//
+// The decision itself (approved / rejected) is persisted in the
+// `ai_sql_approval` table via `AiAgentModel.waitForSqlApproval` /
+// `recordSqlApproval`. That part is the one that has to survive pod
+// restarts / cross-pod requests.
+//
+// What's left here is session-scoped UX state: when the user clicks
+// "Approve & don't ask again" from a Slack approval message, we remember
+// that thread for the lifetime of this pod so subsequent runSql calls in
+// the same thread skip the approval flow. It's a UX nicety, not a
+// correctness primitive, so the in-memory Set is fine.
+// ---------------------------------------------------------------------------
 
-// Threads (Lightdash AI thread UUIDs) where the user clicked "Approve & don't
-// ask again" from a Slack approval message. Subsequent runSql calls in the
-// same thread skip the approval flow. In-memory, session-scoped — lost on
-// pod restart, same as the approval bus itself.
 const slackAutoApprovedThreads = new Set<string>();
 
-export type SqlApprovalDecision = 'approved' | 'rejected' | 'timeout';
+export type SqlApprovalDecision = AiSqlApprovalDecision | 'timeout';
 
 export const markSlackThreadAutoApproved = (threadUuid: string): void => {
     slackAutoApprovedThreads.add(threadUuid);
@@ -17,26 +25,3 @@ export const markSlackThreadAutoApproved = (threadUuid: string): void => {
 
 export const isSlackThreadAutoApproved = (threadUuid: string): boolean =>
     slackAutoApprovedThreads.has(threadUuid);
-
-export const waitForSqlApproval = (
-    toolCallId: string,
-    timeoutMs: number = 5 * 60 * 1000,
-): Promise<SqlApprovalDecision> =>
-    new Promise((resolve) => {
-        let settled = false;
-        let timer: ReturnType<typeof setTimeout>;
-        const onDecision = (decision: SqlApprovalDecision) => {
-            if (settled) return;
-            settled = true;
-            bus.off(toolCallId, onDecision);
-            clearTimeout(timer);
-            resolve(decision);
-        };
-        bus.on(toolCallId, onDecision);
-        timer = setTimeout(() => onDecision('timeout'), timeoutMs);
-    });
-
-export const resolveSqlApproval = (
-    toolCallId: string,
-    decision: SqlApprovalDecision,
-): boolean => bus.emit(toolCallId, decision);

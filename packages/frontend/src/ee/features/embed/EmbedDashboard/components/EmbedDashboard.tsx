@@ -129,6 +129,12 @@ const EmbedDashboardGrid: FC<{
                                 tileIndex={index}
                                 dashboardSlug={dashboard.slug}
                             />
+                        ) : tile.type === DashboardTileTypes.DATA_APP ? (
+                            <SuboptimalState
+                                key={tile.uuid}
+                                title="Data app tile"
+                                description="Data apps cannot be rendered in embedded dashboards yet."
+                            />
                         ) : (
                             assertUnreachable(
                                 tile,

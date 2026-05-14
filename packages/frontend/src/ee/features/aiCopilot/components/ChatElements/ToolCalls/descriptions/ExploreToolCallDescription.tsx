@@ -1,5 +1,6 @@
-import { Badge, rem, Text } from '@mantine-8/core';
+import { rem, Text } from '@mantine-8/core';
 import type { FC } from 'react';
+import { ToolCallChip } from '../ToolCallChip';
 
 type ExploreToolCallDescriptionProps = {
     exploreName: string | null;
@@ -17,34 +18,10 @@ export const ExploreToolCallDescription: FC<
                     <Text c="dimmed" size="xs" span>
                         matching query:
                     </Text>
-                    <Badge
-                        color="gray"
-                        variant="light"
-                        size="xs"
-                        mx={rem(2)}
-                        radius="sm"
-                        style={{
-                            textTransform: 'none',
-                            fontWeight: 400,
-                        }}
-                    >
-                        "{searchQuery}"
-                    </Badge>
+                    <ToolCallChip mx={rem(2)}>"{searchQuery}"</ToolCallChip>
                 </Text>
             ) : exploreName ? (
-                <Badge
-                    color="gray"
-                    variant="light"
-                    size="xs"
-                    mx={rem(2)}
-                    radius="sm"
-                    style={{
-                        textTransform: 'none',
-                        fontWeight: 400,
-                    }}
-                >
-                    {exploreName}
-                </Badge>
+                <ToolCallChip mx={rem(2)}>{exploreName}</ToolCallChip>
             ) : null}
         </Text>
     );

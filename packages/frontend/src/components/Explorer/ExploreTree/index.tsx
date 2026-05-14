@@ -181,7 +181,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     const virtualizedTreeData = useMemo(() => {
         return flattenTreeForVirtualization({
             tables: tableTrees,
-            showMultipleTables: Object.keys(explore.tables).length > 1,
+            showMultipleTables: true,
             expandedTables,
             expandedGroups,
             searchQuery: debouncedSearch,
@@ -203,7 +203,6 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         debouncedSearch,
         expandedGroups,
         expandedTables,
-        explore.tables,
         isSearching,
         missingCustomDimensions,
         missingCustomMetrics,

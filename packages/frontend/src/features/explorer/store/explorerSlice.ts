@@ -424,6 +424,12 @@ const explorerSlice = createSlice({
                 label: string;
                 description?: string;
                 fieldItem?: Item | AdditionalMetric;
+                tableMetadata?: {
+                    name: string;
+                    dbtPackageName?: string;
+                    ymlPath?: string;
+                    sqlPath?: string;
+                };
             }>,
         ) => {
             state.modals.itemDetail = {
@@ -432,6 +438,7 @@ const explorerSlice = createSlice({
                 label: action.payload.label,
                 description: action.payload.description,
                 fieldItem: action.payload.fieldItem,
+                tableMetadata: action.payload.tableMetadata,
             };
         },
         closeItemDetail: (state) => {
@@ -441,6 +448,7 @@ const explorerSlice = createSlice({
                 label: undefined,
                 description: undefined,
                 fieldItem: undefined,
+                tableMetadata: undefined,
             };
         },
 

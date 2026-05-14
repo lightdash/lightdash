@@ -70,6 +70,7 @@ const formSchema = z.object({
     aiRequireOAuth: z.boolean().optional(),
     aiMultiAgentChannelId: z.string().min(1).optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
+    unfurlsEnabled: z.boolean().optional(),
 });
 
 const SlackSettingsPanel: FC = () => {
@@ -102,6 +103,7 @@ const SlackSettingsPanel: FC = () => {
             aiRequireOAuth: false,
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
+            unfurlsEnabled: true,
         },
         validate: zodResolver(formSchema),
     });
@@ -123,6 +125,7 @@ const SlackSettingsPanel: FC = () => {
                 slackInstallation.aiMultiAgentChannelId ?? undefined,
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids ?? null,
+            unfurlsEnabled: slackInstallation.unfurlsEnabled ?? true,
         };
 
         if (form.initialized) {
@@ -253,6 +256,34 @@ const SlackSettingsPanel: FC = () => {
                                     }
                                 />
                             </Group>
+                            <Stack gap="sm">
+                                <Divider mt="sm" />
+                                <Title order={5} fw={600}>
+                                    Unfurling
+                                </Title>
+                                <Group gap="two">
+                                    <Title order={6} fw={500}>
+                                        Link previews
+                                    </Title>
+                                    <Tooltip
+                                        multiline
+                                        maw={280}
+                                        label="When enabled, Lightdash posts chart and dashboard previews when links are shared in Slack. Previews are rendered as the user who installed the Slack app, so any queries they trigger are attributed to that user. Disable to stop posting previews."
+                                    >
+                                        <MantineIcon icon={IconHelpCircle} />
+                                    </Tooltip>
+                                </Group>
+                                <Switch
+                                    label="Enable link unfurls"
+                                    checked={form.values.unfurlsEnabled ?? true}
+                                    onChange={(event) => {
+                                        setFieldValue(
+                                            'unfurlsEnabled',
+                                            event.currentTarget.checked,
+                                        );
+                                    }}
+                                />
+                            </Stack>
                             {isAiCopilotEnabledOrTrial && (
                                 <Stack gap="sm">
                                     <Divider mt="sm" />

@@ -60,6 +60,9 @@ export const projectMock = {
     scheduler_timezone: 'UTC',
     query_timezone: null,
     use_project_timezone_in_filters: false,
+    scheduler_failure_notify_recipients: false,
+    scheduler_failure_include_contact: false,
+    scheduler_failure_contact_override: null,
     has_default_user_spaces: false,
 };
 
@@ -109,6 +112,9 @@ export const expectedProject: Project = {
     schedulerTimezone: 'UTC',
     queryTimezone: null,
     useProjectTimezoneInFilters: false,
+    schedulerFailureNotifyRecipients: false,
+    schedulerFailureIncludeContact: false,
+    schedulerFailureContactOverride: null,
     createdByUserUuid: null,
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,

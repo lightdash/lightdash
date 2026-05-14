@@ -105,7 +105,11 @@ type DashboardHeaderProps = {
     dashboardTiles?: Dashboard['tiles'];
     isMovingDashboardToSpace: boolean;
     onSwitchTab?: (tab: Dashboard['tabs'][number] | undefined) => void;
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
     onDelete: () => void;

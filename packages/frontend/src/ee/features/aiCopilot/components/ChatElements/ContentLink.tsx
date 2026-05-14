@@ -42,11 +42,11 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <Anchor
                     {...props}
+                    data-content-link="true"
                     target="_blank"
-                    fz="sm"
+                    fz="xs"
                     fw={500}
-                    bg="ldGray.0"
-                    c="ldGray.7"
+                    c="ldGray.8"
                     td="none"
                     classNames={{
                         root: styles.contentLink,
@@ -54,23 +54,23 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 >
                     <MantineIcon
                         icon={IconLayoutDashboard}
-                        size="md"
+                        size={13}
                         color="green.7"
                         fill="green.6"
                         fillOpacity={0.2}
-                        strokeWidth={1.9}
+                        stroke={1.5}
                     />
 
                     {/* margin is added by md package */}
-                    <Text fz="sm" fw={500} m={0}>
+                    <Text fz="xs" fw={500} m={0}>
                         {children}
                     </Text>
 
                     <MantineIcon
                         icon={IconArrowRight}
-                        color="ldGray.7"
-                        size="sm"
-                        strokeWidth={2.0}
+                        color="ldGray.6"
+                        size={11}
+                        stroke={1.5}
                     />
                 </Anchor>
             );
@@ -91,11 +91,11 @@ export const ContentLink: FC<ContentLinkProps> = ({
             return (
                 <Anchor
                     {...props}
+                    data-content-link="true"
                     target="_blank"
-                    fz="sm"
+                    fz="xs"
                     fw={500}
-                    bg="ldGray.0"
-                    c="ldGray.7"
+                    c="ldGray.8"
                     td="none"
                     classNames={{
                         root: styles.contentLink,
@@ -104,24 +104,24 @@ export const ContentLink: FC<ContentLinkProps> = ({
                     {chartTypeKind && (
                         <MantineIcon
                             icon={getChartIcon(chartTypeKind)}
-                            size="md"
+                            size={13}
                             color="blue.7"
                             fill="blue.4"
                             fillOpacity={0.2}
-                            strokeWidth={1.9}
+                            stroke={1.5}
                         />
                     )}
 
                     {/* margin is added by md package */}
-                    <Text fz="sm" fw={500} m={0}>
+                    <Text fz="xs" fw={500} m={0}>
                         {children}
                     </Text>
 
                     <MantineIcon
                         icon={IconArrowRight}
-                        color="ldGray.7"
-                        size="sm"
-                        strokeWidth={2.0}
+                        color="ldGray.6"
+                        size={11}
+                        stroke={1.5}
                     />
                 </Anchor>
             );
@@ -160,10 +160,9 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 <Anchor
                     component="button"
                     type="button"
-                    fz="sm"
+                    fz="xs"
                     fw={500}
-                    bg="ldGray.0"
-                    c="ldGray.7"
+                    c="ldGray.8"
                     td="none"
                     classNames={{
                         root: styles.contentLink,
@@ -187,15 +186,15 @@ export const ContentLink: FC<ContentLinkProps> = ({
                 >
                     <MantineIcon
                         icon={artifactIcon}
-                        size="md"
+                        size={13}
                         color="indigo.6"
                         fill="indigo.1"
                         fillOpacity={0.2}
-                        strokeWidth={1.9}
+                        stroke={1.5}
                     />
 
                     {/* margin is added by md package */}
-                    <Text fz="sm" fw={500} m={0}>
+                    <Text fz="xs" fw={500} m={0}>
                         {children}
                     </Text>
                 </Anchor>

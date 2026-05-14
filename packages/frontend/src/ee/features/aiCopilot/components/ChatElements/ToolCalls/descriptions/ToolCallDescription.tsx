@@ -35,6 +35,12 @@ export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
 }> = ({ toolName, toolCall }) => {
+    // Mid-stream the toolArgs payload can arrive before any input chunks have
+    // been parsed. Casting an undefined value and reading fields throws, so
+    // bail until args exist.
+    if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
+        return <> </>;
+    }
     switch (toolName) {
         case 'findExplores':
             const toolArgsFindExplores = toolCall.toolArgs as

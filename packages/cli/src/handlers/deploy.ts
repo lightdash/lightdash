@@ -44,6 +44,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     profilesDir: string;
     target: string | undefined;
     profile: string | undefined;
+    project?: string;
     create?: boolean | string;
     verbose: boolean;
     ignoreErrors: boolean;
@@ -618,7 +619,7 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
                 `No active Lightdash project. Run 'lightdash login --help'`,
             );
         }
-        const projectSelection = await selectProject(config);
+        const projectSelection = await selectProject(config, options.project);
         if (!projectSelection) {
             throw new AuthorizationError(
                 `No active Lightdash project. Run 'lightdash login --help'`,

@@ -1,0 +1,73 @@
+.indicator {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 4px 2px;
+    font-family: var(--mantine-font-family);
+}
+
+.label {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    color: var(--mantine-color-ldGray-8);
+    animation: labelPulse 1.8s ease-in-out infinite;
+}
+
+.dots {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
+}
+
+.dot {
+    display: inline-block;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-ldGray-7);
+    animation: dotPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.dot:nth-child(1) {
+    animation-delay: 0ms;
+}
+.dot:nth-child(2) {
+    animation-delay: 160ms;
+}
+.dot:nth-child(3) {
+    animation-delay: 320ms;
+}
+
+@keyframes dotPulse {
+    0%,
+    80%,
+    100% {
+        opacity: 0.25;
+        transform: scale(0.78);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes labelPulse {
+    0%,
+    100% {
+        opacity: 0.72;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dot,
+    .label {
+        animation: none;
+    }
+    .dot {
+        opacity: 0.6;
+    }
+}

@@ -22,7 +22,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
 
     return (
         <Stack
-            gap="xs"
+            gap={2}
             style={{ alignSelf: 'flex-end' }}
             bg={isActive ? 'ldGray.0' : 'transparent'}
         >
@@ -38,8 +38,8 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 >
                     <Anchor
                         component={Link}
-                        size="xs"
                         c="dimmed"
+                        fz={10}
                         to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                     >
                         {timeAgo}
@@ -66,13 +66,14 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
             <Card
                 pos="relative"
                 radius="md"
-                py="xs"
+                py={6}
                 px="sm"
-                withBorder={true}
-                bg="ldGray.0"
+                withBorder
                 color="white"
                 style={{
                     overflow: 'unset',
+                    backgroundColor:
+                        'color-mix(in srgb, var(--mantine-color-ldGray-1) 45%, transparent)',
                 }}
             >
                 <MDEditor.Markdown
@@ -80,7 +81,8 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                     style={{
                         backgroundColor: 'transparent',
                         fontWeight: 500,
-                        fontSize: `0.9375rem`,
+                        fontSize: '0.8125rem',
+                        color: 'var(--mantine-color-ldGray-8)',
                     }}
                 />
             </Card>

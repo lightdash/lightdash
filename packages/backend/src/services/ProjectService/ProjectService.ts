@@ -103,6 +103,7 @@ import {
     JobType,
     LightdashError,
     LightdashProjectConfig,
+    LightdashUser,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
@@ -158,6 +159,7 @@ import {
     UpdateProject,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
+    UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
@@ -4201,6 +4203,7 @@ export class ProjectService extends BaseService {
     async getResultsFromCacheOrWarehouse({
         projectUuid,
         userUuid,
+        user,
         context,
         warehouseClient,
         query,
@@ -4210,6 +4213,10 @@ export class ProjectService extends BaseService {
     }: {
         projectUuid: string;
         userUuid: string | null;
+        user: Pick<
+            LightdashUser,
+            'userUuid' | 'organizationUuid' | 'organizationName'
+        >;
         context: QueryExecutionContext;
         warehouseClient: WarehouseClient;
         query: AnyType;
@@ -4231,10 +4238,13 @@ export class ProjectService extends BaseService {
                 span.setAttribute('queryHash', queryHash);
                 span.setAttribute('cacheHit', false);
 
-                if (
-                    this.lightdashConfig.results.cacheEnabled &&
-                    !invalidateCache
-                ) {
+                const { enabled: resultsCacheEnabled } =
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId: FeatureFlags.ResultsCacheEnabled,
+                    });
+
+                if (resultsCacheEnabled && !invalidateCache) {
                     const cacheEntryMetadata = await this.s3CacheClient
                         .getResultsMetadata(queryHash)
                         .catch((e) => undefined); // ignore since error is tracked in fileStorageClient
@@ -4319,7 +4329,7 @@ export class ProjectService extends BaseService {
                     },
                 );
 
-                if (this.lightdashConfig.results.cacheEnabled) {
+                if (resultsCacheEnabled) {
                     this.logger.debug(
                         `Writing data to cache with key ${queryHash}`,
                     );
@@ -4550,6 +4560,12 @@ export class ProjectService extends BaseService {
                         await this.getResultsFromCacheOrWarehouse({
                             projectUuid,
                             userUuid,
+                            user: {
+                                userUuid: account.user.id,
+                                organizationUuid:
+                                    account.organization.organizationUuid,
+                                organizationName: account.organization.name,
+                            },
                             context,
                             warehouseClient,
                             metricQuery: metricQueryWithLimit,
@@ -7695,10 +7711,36 @@ export class ProjectService extends BaseService {
         });
     }
 
-    async updateDefaultSchedulerTimezone(
+    /**
+     * Reads project-level scheduler settings for the background scheduler
+     * worker. Intentionally unauthenticated: the worker runs in a system
+     * context (no `SessionUser`) and only consumes project config flags +
+     * an admin-authored contact sentence — no sensitive data is exposed.
+     * Mutation paths (`updateSchedulerSettings`) keep the standard CASL
+     * `update Project` check.
+     */
+    async getSchedulerSettingsForWorker(projectUuid: string): Promise<{
+        schedulerTimezone: string;
+        schedulerFailureNotifyRecipients: boolean;
+        schedulerFailureIncludeContact: boolean;
+        schedulerFailureContactOverride: string | null;
+    }> {
+        const project = await this.projectModel.get(projectUuid);
+        return {
+            schedulerTimezone: project.schedulerTimezone,
+            schedulerFailureNotifyRecipients:
+                project.schedulerFailureNotifyRecipients,
+            schedulerFailureIncludeContact:
+                project.schedulerFailureIncludeContact,
+            schedulerFailureContactOverride:
+                project.schedulerFailureContactOverride,
+        };
+    }
+
+    async updateSchedulerSettings(
         user: SessionUser,
         projectUuid: string,
-        schedulerTimezone: string,
+        settings: UpdateSchedulerSettings,
     ) {
         const project = await this.projectModel.getSummary(projectUuid);
 
@@ -7707,21 +7749,22 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const updatedProject =
-            await this.projectModel.updateDefaultSchedulerTimezone(
-                projectUuid,
-                schedulerTimezone,
-            );
+        const updatedProject = await this.projectModel.updateSchedulerSettings(
+            projectUuid,
+            settings,
+        );
 
-        this.analytics.track({
-            event: 'default_scheduler_timezone.updated',
-            userId: user.userUuid,
-            properties: {
-                projectId: projectUuid,
-                organizationUuid: project.organizationUuid,
-                timeZone: getTimezoneLabel(schedulerTimezone),
-            },
-        });
+        if (settings.schedulerTimezone !== undefined) {
+            this.analytics.track({
+                event: 'default_scheduler_timezone.updated',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationUuid: project.organizationUuid,
+                    timeZone: getTimezoneLabel(settings.schedulerTimezone),
+                },
+            });
+        }
 
         return updatedProject;
     }

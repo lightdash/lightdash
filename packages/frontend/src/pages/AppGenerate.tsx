@@ -89,6 +89,7 @@ import {
     type SelectedDashboard,
 } from '../features/apps/AppResourcePicker';
 import AppTemplatePicker from '../features/apps/AppTemplatePicker';
+import ChatBubbleMeta from '../features/apps/ChatBubbleMeta';
 import ChatMessageContent from '../features/apps/ChatMessageContent';
 import { useAppBuildPoller } from '../features/apps/hooks/useAppBuildPoller';
 import { useAppImageUpload } from '../features/apps/hooks/useAppImageUpload';
@@ -148,6 +149,16 @@ type ChatMessage = {
     clarifications: AppClarification[];
     appUuid: string | null;
     version: number | null;
+    // Wall-clock time for the meta line on the bubble. For user messages,
+    // when the prompt was submitted; for terminal assistant messages
+    // (ready/error), when the build transitioned (`statusUpdatedAt`).
+    // The mid-build/clarifying placeholder doesn't render meta at all, so
+    // this field has no effect on in-progress state.
+    timestamp: Date;
+    // Display name of the version author for `role === 'user'` bubbles.
+    // Assistant bubbles always pass `null` — they intentionally render
+    // nameless.
+    userName: string | null;
 };
 
 const AppResourceImage: FC<{
@@ -652,6 +663,15 @@ const AppGenerate: FC = () => {
                 sentDashboardByPrompt.current.get(v.prompt) ??
                 null;
             const clarifications = v.resources?.clarifications ?? [];
+            const authorName = v.createdByUser
+                ? [v.createdByUser.firstName, v.createdByUser.lastName]
+                      .filter((s) => s.length > 0)
+                      .join(' ') || null
+                : null;
+            // Assistant reply is dated to when the build actually finished;
+            // fall back to createdAt for old rows persisted before the column
+            // started being written, or for rows still mid-build.
+            const replyTimestamp = v.statusUpdatedAt ?? v.createdAt;
             const msgs: ChatMessage[] = [
                 {
                     role: 'user',
@@ -663,6 +683,8 @@ const AppGenerate: FC = () => {
                     clarifications,
                     appUuid: null,
                     version: null,
+                    timestamp: new Date(v.createdAt),
+                    userName: authorName,
                 },
             ];
             if (v.status === 'ready') {
@@ -680,6 +702,8 @@ const AppGenerate: FC = () => {
                     clarifications: [],
                     appUuid: activeAppUuid ?? null,
                     version: v.version,
+                    timestamp: new Date(replyTimestamp),
+                    userName: null,
                 });
             } else if (v.status === 'error') {
                 msgs.push({
@@ -694,6 +718,8 @@ const AppGenerate: FC = () => {
                     clarifications: [],
                     appUuid: null,
                     version: null,
+                    timestamp: new Date(replyTimestamp),
+                    userName: null,
                 });
             }
             // 'building' status is not rendered as a history message —
@@ -993,6 +1019,8 @@ const AppGenerate: FC = () => {
                     clarifications: [],
                     appUuid: null,
                     version: null,
+                    timestamp: new Date(),
+                    userName: null,
                 },
             ]);
         },
@@ -1095,6 +1123,11 @@ const AppGenerate: FC = () => {
                     clarifications: [],
                     appUuid: null,
                     version: null,
+                    timestamp: new Date(),
+                    userName:
+                        [user.data?.firstName, user.data?.lastName]
+                            .filter((s): s is string => !!s && s.length > 0)
+                            .join(' ') || null,
                 },
             ]);
             promptEditorRef.current?.clear();
@@ -1363,6 +1396,14 @@ const AppGenerate: FC = () => {
                                                             classes.userBubble
                                                         }
                                                     >
+                                                        <ChatBubbleMeta
+                                                            timestamp={
+                                                                msg.timestamp
+                                                            }
+                                                            userName={
+                                                                msg.userName
+                                                            }
+                                                        />
                                                         <ChatMessageContent
                                                             content={
                                                                 msg.content
@@ -1530,22 +1571,17 @@ const AppGenerate: FC = () => {
                                                         classes.assistantMessage
                                                     }
                                                 >
-                                                    <ThemeIcon
-                                                        size="sm"
-                                                        radius="xl"
-                                                        variant="light"
-                                                        color="gray"
-                                                        mt={2}
-                                                    >
-                                                        <IconSparkles
-                                                            size={12}
-                                                        />
-                                                    </ThemeIcon>
                                                     <Box
                                                         className={
                                                             classes.assistantBubble
                                                         }
                                                     >
+                                                        <ChatBubbleMeta
+                                                            timestamp={
+                                                                msg.timestamp
+                                                            }
+                                                            userName={null}
+                                                        />
                                                         {msg.appUuid ? (
                                                             <ReactMarkdownPreview
                                                                 source={
@@ -1572,19 +1608,9 @@ const AppGenerate: FC = () => {
                                         <Box
                                             className={classes.clarifyContainer}
                                         >
-                                            <Group gap="xs">
-                                                <ThemeIcon
-                                                    size="sm"
-                                                    radius="xl"
-                                                    variant="light"
-                                                    color="gray"
-                                                >
-                                                    <IconSparkles size={12} />
-                                                </ThemeIcon>
-                                                <Text size="sm">
-                                                    A few quick questions:
-                                                </Text>
-                                            </Group>
+                                            <Text size="sm">
+                                                A few quick questions:
+                                            </Text>
                                             <Stack gap={6}>
                                                 {pendingClarification.questions.map(
                                                     (question, qi) => (
@@ -1661,67 +1687,81 @@ const AppGenerate: FC = () => {
                                         </Box>
                                     ) : (
                                         isAgentWorking && (
-                                            <Box
-                                                className={
-                                                    classes.assistantMessage
-                                                }
-                                            >
-                                                <ThemeIcon
-                                                    size="sm"
-                                                    radius="xl"
-                                                    variant="light"
-                                                    color="gray"
-                                                    mt={2}
-                                                >
-                                                    <IconSparkles size={12} />
-                                                </ThemeIcon>
+                                            <Box>
                                                 <Box
                                                     className={
-                                                        classes.assistantBubble
+                                                        classes.assistantMessage
                                                     }
                                                 >
-                                                    {isClarifying ? (
-                                                        <Text
-                                                            size="sm"
-                                                            c="dimmed"
-                                                        >
-                                                            Hold tight, I may
-                                                            have some questions
-                                                            before starting{' '}
-                                                            <LoadingDots />
-                                                        </Text>
-                                                    ) : latestBuildingVersion?.statusMessage ? (
-                                                        <ReactMarkdownPreview
-                                                            source={
-                                                                latestBuildingVersion.statusMessage
-                                                            }
-                                                            className={`${classes.markdown} ${classes.markdownDimmed} ${classes.markdownInline}`}
-                                                            components={{
-                                                                p: ({
-                                                                    node: _node,
-                                                                    children,
-                                                                    ...rest
-                                                                }) => (
-                                                                    <p
-                                                                        {...rest}
-                                                                    >
-                                                                        {
-                                                                            children
-                                                                        }{' '}
-                                                                        <LoadingDots />
-                                                                    </p>
-                                                                ),
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <Text
-                                                            size="sm"
-                                                            c="dimmed"
-                                                        >
-                                                            Generating your app{' '}
-                                                            <LoadingDots />
-                                                        </Text>
-                                                    )}
+                                                    <Box
+                                                        className={
+                                                            classes.assistantBubble
+                                                        }
+                                                    >
+                                                        {isClarifying ? (
+                                                            <Text
+                                                                size="sm"
+                                                                c="dimmed"
+                                                            >
+                                                                Hold tight, I
+                                                                may have some
+                                                                questions before
+                                                                starting{' '}
+                                                                <LoadingDots />
+                                                            </Text>
+                                                        ) : latestBuildingVersion?.statusMessage ? (
+                                                            <ReactMarkdownPreview
+                                                                source={
+                                                                    latestBuildingVersion.statusMessage
+                                                                }
+                                                                className={`${classes.markdown} ${classes.markdownDimmed} ${classes.markdownInline}`}
+                                                                components={{
+                                                                    p: ({
+                                                                        node: _node,
+                                                                        children,
+                                                                        ...rest
+                                                                    }) => (
+                                                                        <p
+                                                                            {...rest}
+                                                                        >
+                                                                            {
+                                                                                children
+                                                                            }{' '}
+                                                                            <LoadingDots />
+                                                                        </p>
+                                                                    ),
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <Text
+                                                                size="sm"
+                                                                c="dimmed"
+                                                            >
+                                                                Generating your
+                                                                app{' '}
+                                                                <LoadingDots />
+                                                            </Text>
+                                                        )}
+                                                        {!isClarifying &&
+                                                            latestBuildingVersion?.status ===
+                                                                'generating' && (
+                                                                <Text
+                                                                    fz={11}
+                                                                    c="dimmed"
+                                                                    mt={6}
+                                                                >
+                                                                    I'll
+                                                                    continue
+                                                                    building in
+                                                                    the
+                                                                    background —
+                                                                    feel free to
+                                                                    switch tabs
+                                                                    or close
+                                                                    this one.
+                                                                </Text>
+                                                            )}
+                                                    </Box>
                                                 </Box>
                                             </Box>
                                         )

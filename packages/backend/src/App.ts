@@ -65,7 +65,6 @@ import {
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import { postHogClient } from './postHog';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
@@ -406,7 +405,6 @@ export default class App {
             'wss://*.pusher.com', // used by pylon
             'https://*.headwayapp.co',
             'https://headway-widget.net',
-            'https://*.posthog.com',
             'https://*.intercom.com',
             'https://*.intercom.io',
             'wss://*.intercom.io',
@@ -913,14 +911,6 @@ export default class App {
                 Logger.info('Stopped scheduler worker');
             } catch (e) {
                 Logger.error('Error stopping scheduler worker', e);
-            }
-        }
-        if (postHogClient) {
-            try {
-                await postHogClient.shutdown();
-                Logger.info('Stopped PostHog Client');
-            } catch (e) {
-                Logger.error('Error stopping PostHog Client', e);
             }
         }
     }

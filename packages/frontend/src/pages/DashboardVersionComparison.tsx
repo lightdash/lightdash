@@ -4,6 +4,7 @@ import {
     getFilterTypeFromItemType,
     isDashboardChartTileType,
     isDashboardHeadingTileType,
+    isDashboardDataAppTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
@@ -1008,6 +1009,12 @@ const DashboardVersionComparison = ({
         const versionHeadingTiles = version.tiles.filter(
             isDashboardHeadingTileType,
         );
+        const currentDataAppTiles = current.tiles.filter(
+            isDashboardDataAppTileType,
+        );
+        const versionDataAppTiles = version.tiles.filter(
+            isDashboardDataAppTileType,
+        );
 
         // Prepare tiles data for table
         const tilesData = [
@@ -1042,6 +1049,13 @@ const DashboardVersionComparison = ({
                 selected: versionHeadingTiles.length,
                 difference:
                     versionHeadingTiles.length - currentHeadingTiles.length,
+            },
+            {
+                tileType: 'Data App',
+                current: currentDataAppTiles.length,
+                selected: versionDataAppTiles.length,
+                difference:
+                    versionDataAppTiles.length - currentDataAppTiles.length,
             },
             {
                 tileType: 'Total',

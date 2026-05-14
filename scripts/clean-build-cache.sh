@@ -1,17 +1,15 @@
 #!/bin/bash
 
-# Remove tsbuildinfo files
-rm -rf packages/*/tsconfig*.tsbuildinfo
+# Remove tsbuildinfo files (incl. nested workspace members)
+find packages -name "*.tsbuildinfo" -not -path "*/node_modules/*" -delete
 
-# Remove turbo cache
+# Remove turbo cache (root + per-package)
 rm -rf .turbo
+rm -rf packages/*/.turbo
 
-# Remove build/dist and next build cache
-rm -rf packages/*/build
-rm -rf packages/*/dist
-rm -rf packages/*/.next
+# Remove build/dist/.next under packages (incl. nested workspace members)
+find packages -type d \( -name node_modules -prune \) -o \
+    -type d \( -name dist -o -name build -o -name .next \) -prune -print0 | \
+    xargs -0 rm -rf
 
-# Remove sdk build cache
-rm -rf packages/frontend/sdk/dist
-
-echo "🧼 cleaned \"build\", \"dist\" and \"tsbuildinfo\" files"
+echo "🧼 cleaned \"build\", \"dist\", \".turbo\" and \"tsbuildinfo\" files"

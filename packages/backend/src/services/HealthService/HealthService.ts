@@ -115,7 +115,6 @@ export class HealthService extends BaseService {
             staticIp: this.lightdashConfig.staticIp,
             signupUrl: this.lightdashConfig.signupUrl,
             helpMenuUrl: this.lightdashConfig.helpMenuUrl,
-            posthog: this.lightdashConfig.posthog,
             query: {
                 csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
                 maxLimit: this.lightdashConfig.query.maxLimit,
@@ -184,7 +183,6 @@ export class HealthService extends BaseService {
                 this.lightdashConfig.extendedUsageAnalytics.enabled,
             hasCacheAutocompleResults:
                 this.lightdashConfig.results.autocompleteEnabled,
-            hasResultsCaching: this.lightdashConfig.results.cacheEnabled,
             appearance: {
                 overrideColorPalette:
                     this.lightdashConfig.appearance.overrideColorPalette,

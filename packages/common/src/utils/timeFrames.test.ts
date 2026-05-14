@@ -104,11 +104,72 @@ describe('TimeFrames', () => {
                     '${TABLE}.created',
                     DimensionType.TIMESTAMP,
                     undefined,
-                    'UTC',
+                    'America/New_York',
                 ),
             ).toEqual(
-                "TIMESTAMP_TRUNC(TIMESTAMP(${TABLE}.created), DAY, 'UTC')",
+                "TIMESTAMP_TRUNC(TIMESTAMP(${TABLE}.created), DAY, 'America/New_York')",
             );
+        });
+
+        test('UTC target with default (UTC) source short-circuits the wrap', () => {
+            // BigQuery: avoids TIMESTAMP() cast + 3-arg overload that defeats
+            // partition pruning when both sides are UTC.
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    'UTC',
+                ),
+            ).toEqual('TIMESTAMP_TRUNC(${TABLE}.created, DAY)');
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    'UTC',
+                ),
+            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    'UTC',
+                ),
+            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+        });
+
+        test('Matching non-UTC target and source short-circuits the wrap', () => {
+            const tz = 'America/New_York';
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    tz,
+                    tz,
+                ),
+            ).toEqual('TIMESTAMP_TRUNC(${TABLE}.created, DAY)');
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    tz,
+                    tz,
+                ),
+            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
         });
 
         test('BigQuery 2-arg TIMESTAMP_TRUNC keeps original expr unchanged (DATETIME overload still applies)', () => {
@@ -911,6 +972,42 @@ describe('TimeFrames', () => {
             ).toEqual(`EXTRACT(MONTH FROM ${col})`);
         });
 
+        test('target timezone matching source timezone short-circuits the wrap', () => {
+            // UTC default source — most common BQ case, partition-pruning sensitive.
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'UTC',
+                ),
+            ).toEqual(`EXTRACT(MONTH FROM ${col})`);
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'UTC',
+                ),
+            ).toEqual(`DATE_PART('DOW', ${col})`);
+            // Explicit matching non-UTC pair.
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'America/New_York',
+                    'America/New_York',
+                ),
+            ).toEqual(`EXTRACT(MONTH FROM ${col})`);
+        });
+
         test('DATE base dimension with timezone short-circuits (no wrap)', () => {
             expect(
                 getSqlForDatePart(
@@ -1087,6 +1184,30 @@ describe('TimeFrames', () => {
                     DimensionType.TIMESTAMP,
                 ),
             ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
+        });
+
+        test('target timezone matching source timezone short-circuits the wrap', () => {
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'UTC',
+                ),
+            ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'America/New_York',
+                    'America/New_York',
+                ),
+            ).toEqual(`TO_CHAR(${col}, 'FMMonth')`);
         });
 
         test.each([

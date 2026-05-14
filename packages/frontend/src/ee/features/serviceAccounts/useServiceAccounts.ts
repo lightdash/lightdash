@@ -1,4 +1,8 @@
-import { type ApiError, type ServiceAccount } from '@lightdash/common';
+import {
+    type ApiError,
+    type ServiceAccount,
+    type ServiceAccountWithProjectAccessCount,
+} from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { lightdashApi } from '../../../api';
@@ -10,10 +14,10 @@ type CreateServiceAccountResult = ServiceAccount & { token: string };
 export const useServiceAccounts = () => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
-    const listAccounts = useQuery<ServiceAccount[]>({
+    const listAccounts = useQuery<ServiceAccountWithProjectAccessCount[]>({
         queryKey: [CACHE_KEY],
         queryFn: () =>
-            lightdashApi<ServiceAccount[]>({
+            lightdashApi<ServiceAccountWithProjectAccessCount[]>({
                 method: 'GET',
                 url: '/service-accounts',
             }),

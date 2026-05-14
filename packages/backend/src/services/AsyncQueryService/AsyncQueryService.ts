@@ -505,16 +505,22 @@ export class AsyncQueryService extends ProjectService {
     async findResultsCache(
         projectUuid: string,
         cacheKey: string,
+        account: Account,
         invalidateCache: boolean = false,
     ): Promise<CreateCacheResult> {
         if (!invalidateCache) {
-            // Check if cache already exists
+            // CommercialCacheService gates internally on the
+            // ResultsCacheEnabled feature flag (DB → env fallback).
             const existingCache =
                 await this.cacheService?.findCachedResultsFile(
                     projectUuid,
                     cacheKey,
+                    {
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                        organizationName: account.organization.name,
+                    },
                 );
-            // Valid cache exists and not being invalidated
             if (existingCache) {
                 return existingCache;
             }
@@ -832,13 +838,20 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone ?? undefined,
             );
 
+        const resultsCacheEnabled =
+            (await this.cacheService?.isResultsCacheEnabled({
+                userUuid: account.user.id,
+                organizationUuid: account.organization.organizationUuid,
+                organizationName: account.organization.name,
+            })) ?? false;
+
         const {
             result: { rows },
             durationMs,
         } = await measureTime(
             () =>
                 this.getResultsStorageClientForContext(queryHistory.context)
-                    .isEnabled || this.cacheService?.isEnabled
+                    .isEnabled || resultsCacheEnabled
                     ? this.getResultsPageFromS3(
                           queryUuid,
                           resultsFileName,
@@ -3109,6 +3122,7 @@ export class AsyncQueryService extends ProjectService {
                     const resultsCache = await this.findResultsCache(
                         projectUuid,
                         cacheKey,
+                        account,
                         args.invalidateCache,
                     );
                     const cacheCheckMs = Date.now() - cacheCheckStart;

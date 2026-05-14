@@ -5,6 +5,7 @@ import {
     DimensionType,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
+    FeatureFlags,
     FilterOperator,
     ForbiddenError,
     NotFoundError,
@@ -253,7 +254,20 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {
-            get: jest.fn(async () => ({ enabled: false })),
+            // Mirror production behaviour: ResultsCacheEnabled resolves from
+            // the env-derived lightdashConfig.results.cacheEnabled when there
+            // is no DB row.
+            get: jest.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => {
+                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                        return {
+                            id: featureFlagId,
+                            enabled: lightdashConfig.results.cacheEnabled,
+                        };
+                    }
+                    return { id: featureFlagId, enabled: false };
+                },
+            ),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
@@ -292,7 +306,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
 
             jest.clearAllMocks();
 
@@ -565,10 +582,11 @@ describe('AsyncQueryService', () => {
                 { query: metricQueryMock },
             );
 
-            // THEN: findResultsCache called with invalidate flag (third parameter: true)
+            // THEN: findResultsCache called with invalidate flag (last parameter: true)
             expect(serviceWithCache.findResultsCache).toHaveBeenCalledWith(
                 projectUuid,
                 expect.any(String),
+                expect.any(Object), // account
                 true,
             );
 
@@ -622,6 +640,7 @@ describe('AsyncQueryService', () => {
             // Clear cache and mocks for this service
             serviceWithoutCache.warehouseClients = {};
             serviceWithoutCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => false),
                 findCachedResultsFile: jest.fn(),
             } as unknown as ICacheService;
 
@@ -666,6 +685,7 @@ describe('AsyncQueryService', () => {
             expect(findResultsCacheSpy).toHaveBeenCalledWith(
                 projectUuid,
                 expect.any(String), // cache key
+                expect.any(Object), // account
                 false, // invalidateCache
             );
 
@@ -1193,7 +1213,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
 
             jest.clearAllMocks();
         });
@@ -1658,7 +1681,10 @@ describe('AsyncQueryService', () => {
 
         beforeEach(() => {
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
             jest.clearAllMocks();
 
             serviceWithCache.findResultsCache = jest

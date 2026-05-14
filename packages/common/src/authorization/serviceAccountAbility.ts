@@ -370,6 +370,16 @@ const applyServiceAccountStaticAbilities: Record<
     // System-role aliases. Each one delegates to the matching org-member
     // ability builder so the SA's CASL is exactly the user-with-this-role
     // shape — no parallel scope mapping to drift out of sync.
+    [ServiceAccountScope.SYSTEM_MEMBER]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[OrganizationMemberRole.MEMBER](
+            { organizationUuid, userUuid },
+            { can },
+        );
+    },
     [ServiceAccountScope.SYSTEM_ADMIN]: ({
         organizationUuid,
         userUuid,

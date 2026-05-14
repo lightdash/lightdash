@@ -49,6 +49,7 @@ export {
     JWT_HEADER_NAME,
 } from './authorization/index';
 export * from './authorization/jwtAbility';
+export { projectMemberAbilities } from './authorization/projectMemberAbility';
 export * from './authorization/parseAccount';
 export * from './authorization/roleToScopeMapping';
 export * from './authorization/scopeAbilityBuilder';

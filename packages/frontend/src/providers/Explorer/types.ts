@@ -300,6 +300,12 @@ export interface ExplorerReduceState {
             label?: string;
             description?: string;
             fieldItem?: Item | AdditionalMetric;
+            tableMetadata?: {
+                name: string;
+                dbtPackageName?: string;
+                ymlPath?: string;
+                sqlPath?: string;
+            };
         };
         periodOverPeriodComparison: {
             isOpen: boolean;

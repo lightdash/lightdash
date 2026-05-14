@@ -56,6 +56,7 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { ShareModel } from '../../models/ShareModel';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackUnfurlImageModel } from '../../models/SlackUnfurlImageModel';
@@ -237,6 +238,7 @@ export type ParsedUrl = {
     dashboardUuid?: string;
     projectUuid?: string;
     chartUuid?: string;
+    savedSqlUuid?: string;
     exploreModel?: string;
 };
 
@@ -271,6 +273,7 @@ type UnfurlServiceArguments = {
     lightdashConfig: LightdashConfig;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     shareModel: ShareModel;
     fileStorageClient: FileStorageClient;
     slackClient: SlackClient;
@@ -288,6 +291,8 @@ export class UnfurlService extends BaseService {
     dashboardModel: DashboardModel;
 
     savedChartModel: SavedChartModel;
+
+    savedSqlModel: SavedSqlModel;
 
     shareModel: ShareModel;
 
@@ -311,6 +316,7 @@ export class UnfurlService extends BaseService {
         lightdashConfig,
         dashboardModel,
         savedChartModel,
+        savedSqlModel,
         shareModel,
         fileStorageClient,
         projectModel,
@@ -325,6 +331,7 @@ export class UnfurlService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
+        this.savedSqlModel = savedSqlModel;
         this.shareModel = shareModel;
         this.fileStorageClient = fileStorageClient;
         this.slackClient = slackClient;
@@ -421,6 +428,20 @@ export class UnfurlService extends BaseService {
                     organizationUuid: chart.organizationUuid,
                     chartType: chart.chartType,
                     resourceUuid: chart.uuid,
+                };
+            case LightdashPage.SQL_CHART:
+                if (!parsedUrl.savedSqlUuid)
+                    throw new ParameterError(
+                        `Missing savedSqlUuid when unfurling SQL Runner URL ${parsedUrl.url}`,
+                    );
+                const sqlChart = await this.savedSqlModel.getByUuid(
+                    parsedUrl.savedSqlUuid,
+                );
+                return {
+                    title: sqlChart.name,
+                    description: sqlChart.description ?? undefined,
+                    organizationUuid: sqlChart.organization.organizationUuid,
+                    resourceUuid: sqlChart.savedSqlUuid,
                 };
             case LightdashPage.EXPLORE:
                 const project = await this.projectModel.getSummary(
@@ -1704,6 +1725,9 @@ export class UnfurlService extends BaseService {
         const dashboardUrl = new RegExp(`/projects/${uuid}/dashboards/${uuid}`);
         const chartUrl = new RegExp(`/projects/${uuid}/saved/${uuid}`);
         const exploreUrl = new RegExp(`/projects/${uuid}/tables/`);
+        const sqlChartUrl = new RegExp(
+            `/projects/(${uuid})/sql-runner/([^/?#]+)`,
+        );
 
         if (url.match(dashboardUrl) !== null) {
             const [projectUuid, dashboardUuid] = url.match(uuidRegex) || [];
@@ -1751,6 +1775,35 @@ export class UnfurlService extends BaseService {
                 projectUuid,
                 exploreModel,
             };
+        }
+        const sqlChartMatch = url.match(sqlChartUrl);
+        if (sqlChartMatch !== null) {
+            const [, projectUuid, slug] = sqlChartMatch;
+            try {
+                const sqlChart = await this.savedSqlModel.getBySlug(
+                    projectUuid,
+                    slug,
+                );
+                return {
+                    isValid: true,
+                    lightdashPage: LightdashPage.SQL_CHART,
+                    url,
+                    minimalUrl: new URL(
+                        `/minimal/projects/${projectUuid}/sql-runner/${sqlChart.savedSqlUuid}`,
+                        this.lightdashConfig.headlessBrowser
+                            .internalLightdashHost,
+                    ).href,
+                    projectUuid,
+                    savedSqlUuid: sqlChart.savedSqlUuid,
+                };
+            } catch (e) {
+                this.logger.debug(
+                    `SQL chart slug ${slug} did not resolve in project ${projectUuid}: ${getErrorMessage(
+                        e,
+                    )}`,
+                );
+                // fall through to isValid: false
+            }
         }
 
         this.logger.debug(`URL to unfurl ${url} is not valid`);
@@ -1838,11 +1891,27 @@ export class UnfurlService extends BaseService {
 
         Logger.debug(`Got link_shared slack event ${event.message_ts}`);
 
+        const { teamId } = context;
+        if (!teamId) {
+            Logger.warn(
+                `Slack unfurl skipped: no teamId on link_shared event ${event.message_ts}`,
+            );
+            return;
+        }
+
+        const unfurlsEnabled =
+            await this.slackAuthenticationModel.getUnfurlsEnabled(teamId);
+        if (!unfurlsEnabled) {
+            Logger.info(
+                `Slack unfurl skipped for team ${teamId}: link unfurls disabled in integration settings`,
+            );
+            return;
+        }
+
         void event.links.map(async (l) => {
             const eventUserId = context.botUserId;
 
             try {
-                const { teamId } = context;
                 const details = await this.unfurlDetails(l.url, null);
 
                 if (details) {
@@ -1870,9 +1939,7 @@ export class UnfurlService extends BaseService {
 
                     const imageId = `slack-image-${useNanoid()}`;
                     const authUserUuid =
-                        await this.slackAuthenticationModel.getUserUuid(
-                            teamId ?? '',
-                        );
+                        await this.slackAuthenticationModel.getUserUuid(teamId);
 
                     const installation =
                         await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(

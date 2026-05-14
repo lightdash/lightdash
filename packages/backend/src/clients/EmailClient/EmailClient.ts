@@ -4,6 +4,7 @@ import {
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
+    MissingConfigError,
     PasswordResetLink,
     ProjectMemberRole,
     sanitizeHtml,
@@ -466,6 +467,43 @@ export default class EmailClient {
                 message,
             },
             text: `Warning: Your scheduled delivery "${schedulerName}" failed to send. Error: ${errorMessage}. Please check your settings at ${schedulerUrl}`,
+        });
+    }
+
+    public async sendDeliveryFailureNotificationToRecipient(
+        recipient: string,
+        contentName: string | null,
+        contactSentence: string | null,
+    ) {
+        if (!this.canSendEmail()) {
+            throw new MissingConfigError('Email transporter not configured');
+        }
+
+        const baseSentenceHtml = contentName
+            ? `The scheduled delivery for <strong>"${sanitizeHtml(
+                  contentName,
+              )}"</strong> failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const baseSentenceText = contentName
+            ? `The scheduled delivery for "${contentName}" failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const appendedHtml = contactSentence
+            ? ` ${sanitizeHtml(contactSentence)}`
+            : '';
+        const appendedText = contactSentence ? ` ${contactSentence}` : '';
+
+        return this.sendEmail({
+            to: recipient,
+            subject: contentName
+                ? `Scheduled delivery failed - "${contentName}"`
+                : 'Scheduled delivery failed',
+            template: 'genericNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                title: 'Scheduled delivery failure',
+                message: `<p>${baseSentenceHtml}${appendedHtml}</p>`,
+            },
+            text: `${baseSentenceText}${appendedText}`,
         });
     }
 

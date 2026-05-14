@@ -68,7 +68,6 @@ export const BaseResponse: HealthState = {
     pivotTable: {
         maxColumnLimit: 0,
     },
-    posthog: undefined,
     pylon: {
         appId: '',
         verificationHash: undefined,
@@ -105,7 +104,6 @@ export const BaseResponse: HealthState = {
         profilesSampleRate: 0,
     },
     hasCacheAutocompleResults: false,
-    hasResultsCaching: false,
     appearance: {
         overrideColorPalette: undefined,
         overrideColorPaletteName: undefined,

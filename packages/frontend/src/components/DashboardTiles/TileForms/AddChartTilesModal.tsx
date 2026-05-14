@@ -35,7 +35,11 @@ import MantineModal from '../../common/MantineModal';
 import { ChartIcon } from '../../common/ResourceIcon';
 
 type Props = {
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     onClose: () => void;
 };
 

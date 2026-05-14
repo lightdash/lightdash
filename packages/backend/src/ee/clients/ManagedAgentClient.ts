@@ -283,7 +283,10 @@ export class ManagedAgentClient {
         projectName: string,
         onCustomToolUse: CustomToolHandler,
         onSessionCreated?: (sessionId: string) => void,
-    ): Promise<{ sessionId: string; summary: string }> {
+    ): Promise<{
+        sessionId: string;
+        slackSummary: string | null;
+    }> {
         const client = this.getAnthropicClient();
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment(client, sessionConfig);
@@ -330,8 +333,7 @@ export class ManagedAgentClient {
             );
         });
 
-        // Capture the agent's final summary text from message events
-        let lastAgentMessage = '';
+        let slackSummary: string | null = null;
 
         const eventLoop = async () => {
             for await (const event of stream) {
@@ -339,7 +341,6 @@ export class ManagedAgentClient {
                     for (const block of event.content) {
                         if ('text' in block) {
                             Logger.debug(`[ManagedAgent] ${block.text}`);
-                            lastAgentMessage = block.text;
                         }
                     }
                 } else if (event.type === 'agent.tool_use') {
@@ -350,6 +351,42 @@ export class ManagedAgentClient {
                     Logger.info(
                         `[ManagedAgent] Tool call: ${event.name} (event_id: ${event.id})`,
                     );
+                    if (event.name === 'write_slack_summary') {
+                        const summary =
+                            typeof event.input.summary === 'string'
+                                ? event.input.summary.trim()
+                                : null;
+                        if (summary) {
+                            slackSummary = summary;
+                            Logger.info(
+                                `[ManagedAgent] Captured dedicated Slack summary (${summary.length} chars)`,
+                            );
+                        } else {
+                            Logger.warn(
+                                '[ManagedAgent] write_slack_summary called without a valid summary',
+                            );
+                        }
+                        await client.beta.sessions.events.send(session.id, {
+                            events: [
+                                {
+                                    type: 'user.custom_tool_result',
+                                    custom_tool_use_id: event.id,
+                                    content: [
+                                        {
+                                            type: 'text',
+                                            text: JSON.stringify({
+                                                ok: true,
+                                                summary_length:
+                                                    summary?.length ?? 0,
+                                            }),
+                                        },
+                                    ],
+                                },
+                            ],
+                        });
+                        // eslint-disable-next-line no-continue
+                        continue;
+                    }
                     try {
                         const result = await onCustomToolUse(
                             event.name,
@@ -422,6 +459,9 @@ export class ManagedAgentClient {
             );
         }
 
-        return { sessionId: session.id, summary: lastAgentMessage };
+        return {
+            sessionId: session.id,
+            slackSummary,
+        };
     }
 }

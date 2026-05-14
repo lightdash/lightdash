@@ -75,8 +75,7 @@ services:
             CUSTOM_ROLES_ENABLED: true
             LIGHTDASH_ENABLE_TIMEZONE_SUPPORT: true
 
-            # Force-enable embedding flag in preview envs so e2e tests don't
-            # depend on PostHog targeting reaching the ephemeral test org.
+            # Force-enable embedding flag in preview envs so e2e tests work.
             # Picked up via LEGACY_ENABLE_ENV_VARS in parseConfig.ts → unified
             # enabledFeatureFlags allowlist (step 1a).
             EMBEDDING_ENABLED: true
@@ -103,9 +102,6 @@ services:
             # these are set in the okteto admin UI - DO NOT SET THESE LOCALLY WHEN DEPLOYING or they will override the values in the okteto admin UI
             RUDDERSTACK_WRITE_KEY: ${RUDDERSTACK_WRITE_KEY}
             RUDDERSTACK_DATA_PLANE_URL: ${RUDDERSTACK_DATA_PLANE_URL}
-            POSTHOG_FE_API_HOST: ${POSTHOG_FE_API_HOST}
-            POSTHOG_BE_API_HOST: ${POSTHOG_BE_API_HOST}
-            POSTHOG_PROJECT_API_KEY: ${POSTHOG_PROJECT_API_KEY}
             LIGHTDASH_LICENSE_KEY: ${LIGHTDASH_LICENSE_KEY}
             GITHUB_APP_ID: ${GITHUB_APP_ID}
             GITHUB_APP_NAME: ${GITHUB_APP_NAME}

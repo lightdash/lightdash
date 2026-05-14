@@ -41,4 +41,7 @@ export type TableBase = {
     defaultShowUnderlyingValues?: string[];
     aiHint?: string | string[];
     warnings?: InlineError[];
+    dbtPackageName?: string;
+    ymlPath?: string;
+    sqlPath?: string;
 };

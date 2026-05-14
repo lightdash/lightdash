@@ -21,6 +21,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
+    projectMemberAbilities,
     ProjectMemberProfile,
     ProjectMemberRole,
     Role,
@@ -681,6 +682,11 @@ export class UserModel {
                         },
                         builder,
                     );
+                    await this.applyServiceAccountProjectMemberships(
+                        user.user_id,
+                        user.user_uuid,
+                        builder,
+                    );
                     return {
                         abilityBuilder: builder,
                         lightdashUser,
@@ -702,6 +708,11 @@ export class UserModel {
                     userUuid: user.user_uuid,
                     builder,
                 });
+                await this.applyServiceAccountProjectMemberships(
+                    user.user_id,
+                    user.user_uuid,
+                    builder,
+                );
                 return {
                     abilityBuilder: builder,
                     lightdashUser,
@@ -737,6 +748,85 @@ export class UserModel {
             abilityBuilder,
             lightdashUser,
         };
+    }
+
+    /**
+     * Apply per-project CASL grants to a service account's ability builder.
+     *
+     * Reads `project_memberships` rows keyed on the SA's `user_id` (the SA
+     * has a dedicated `users` row with `is_internal=true`) and applies the
+     * matching `projectMemberAbilities[role]` for each row. Composed on top
+     * of whatever org-level scope handler ran first — strictly additive.
+     *
+     * For SAs created with `scopes: ['system:member']`, this is the only
+     * source of useful abilities. For SAs with org-wide scopes (admin etc.)
+     * project grants just add (redundant) project-scoped grants — harmless.
+     */
+    private async applyServiceAccountProjectMemberships(
+        userId: number,
+        userUuid: string,
+        builder: AbilityBuilder<MemberAbility>,
+    ): Promise<void> {
+        type Row = {
+            project_uuid: string;
+            role: ProjectMemberRole;
+            role_uuid: string | null;
+        };
+        const rows = await this.database(ProjectMembershipsTableName)
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectMembershipsTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .select<Row[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectMembershipsTableName}.role`,
+                `${ProjectMembershipsTableName}.role_uuid`,
+            )
+            .where(`${ProjectMembershipsTableName}.user_id`, userId);
+
+        // Bulk-load scopes for any custom-role grants. Matches the human
+        // path's philosophy (UserModel.generateUserAbilityBuilder): once a
+        // role is bound in the DB the runtime must respect it, regardless
+        // of the customRoles.enabled feature flag (which gates UI only).
+        const customRoleUuids = rows
+            .map((r) => r.role_uuid)
+            .filter((u): u is string => u !== null);
+        const customRoleScopes =
+            customRoleUuids.length > 0
+                ? await this.customRoleScopes(customRoleUuids)
+                : {};
+        const isEnterprise =
+            this.lightdashConfig.license.licenseKey !== undefined;
+
+        for (const row of rows) {
+            const scopes = row.role_uuid
+                ? customRoleScopes[row.role_uuid]
+                : undefined;
+            if (scopes) {
+                buildAbilityFromScopes(
+                    {
+                        projectUuid: row.project_uuid,
+                        userUuid,
+                        scopes,
+                        isEnterprise,
+                        permissionsConfig: {
+                            pat: this.lightdashConfig.auth.pat,
+                        },
+                    },
+                    builder,
+                );
+            } else {
+                projectMemberAbilities[row.role](
+                    {
+                        projectUuid: row.project_uuid,
+                        userUuid,
+                        role: row.role,
+                    },
+                    builder,
+                );
+            }
+        }
     }
 
     private async findServiceAccountByUserUuid(userUuid: string): Promise<

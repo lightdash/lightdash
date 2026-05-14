@@ -129,6 +129,14 @@ export enum FeatureFlags {
      * per-org if it causes operational issues.
      */
     LeaveOrganization = 'leave-organization',
+
+    /**
+     * Enable query results caching. DB value (user/org override or flag
+     * default) takes precedence; falls back to the RESULTS_CACHE_ENABLED env
+     * var when no DB row is set. Lets shared-instance customers (eu1/app)
+     * opt in per-org without a redeploy.
+     */
+    ResultsCacheEnabled = 'results-cache-enabled',
 }
 
 export type FeatureFlag = {

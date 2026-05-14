@@ -805,6 +805,10 @@ program
     .command('deploy')
     .description('Compiles and deploys a Lightdash project')
     .option(
+        '--project <project uuid>',
+        'Project UUID to deploy to. Overrides the default project configured via `lightdash config set-project`',
+    )
+    .option(
         '--project-dir <path>',
         'The directory of the dbt project',
         defaultProjectDir,

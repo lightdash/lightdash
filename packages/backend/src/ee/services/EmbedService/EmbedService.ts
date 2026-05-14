@@ -925,6 +925,11 @@ export class EmbedService extends BaseService {
             await this.projectService.getResultsFromCacheOrWarehouse({
                 projectUuid,
                 userUuid: null,
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
                 context: QueryExecutionContext.EMBED,
                 warehouseClient,
                 metricQuery,
