@@ -1,0 +1,28 @@
+.meta {
+    margin-bottom: 4px;
+    line-height: 1;
+    min-width: 0;
+}
+
+.name {
+    @mixin light {
+        color: var(--mantine-color-indigo-7);
+    }
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+}
+
+.botName {
+    @mixin light {
+        color: var(--mantine-color-orange-6);
+    }
+    @mixin dark {
+        color: var(--mantine-color-orange-4);
+    }
+}
+
+.time {
+    flex-shrink: 0;
+    white-space: nowrap;
+}

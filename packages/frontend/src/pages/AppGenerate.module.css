@@ -66,8 +66,7 @@
 
 .assistantMessage {
     display: flex;
-    gap: var(--mantine-spacing-sm);
-    align-items: flex-start;
+    justify-content: flex-start;
 }
 
 .assistantBubble {
