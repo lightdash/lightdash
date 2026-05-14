@@ -16,6 +16,7 @@ type ActivityTitle = {
 const SEARCH_TOOLS = new Set([
     'findExplores',
     'findFields',
+    'discoverFields',
     'searchFieldValues',
     'findContent',
     'findDashboards',

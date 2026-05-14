@@ -1,6 +1,7 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolResult,
     type ToolName,
 } from '@lightdash/common';
 import {
@@ -19,6 +20,7 @@ import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
+import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
 import { ToolCallRow } from './ToolCallRow';
 import { getActivityTitle } from './utils/getActivityTitle';
@@ -36,6 +38,12 @@ export type LiveActivityToolGroup = {
 type Props = {
     toolGroups: LiveActivityToolGroup[];
     isLive: boolean;
+    /**
+     * Tool results keyed by toolCallId. Used to surface optional extras
+     * inline with the call (e.g. the discoverFields subagent's internal
+     * trace renders below the parent row).
+     */
+    toolResults?: AiAgentToolResult[];
     /**
      * Pending interactive content (e.g. SqlApprovalCard awaiting user
      * decision). When present, the card auto-expands and renders this in the
@@ -221,9 +229,22 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
     );
 };
 
+const getDiscoverFieldsTrace = (
+    toolResult: AiAgentToolResult | undefined,
+): TraceEntry[] | null => {
+    if (!toolResult || toolResult.toolName !== 'discoverFields') return null;
+    const metadata = toolResult.metadata as
+        | { trace?: TraceEntry[] }
+        | undefined;
+    const trace = metadata?.trace;
+    if (!Array.isArray(trace) || trace.length === 0) return null;
+    return trace;
+};
+
 export const LiveActivityCard: FC<Props> = ({
     toolGroups,
     isLive,
+    toolResults,
     pendingContent,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
@@ -374,38 +395,78 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                     {latest && !hasPending && (
                         <Stack gap={4}>
-                            {latest.calls.map((tc) => (
-                                <Box
-                                    key={tc.toolCallId}
-                                    className={styles.latestDescription}
-                                >
-                                    <ToolCallDescription
-                                        toolName={latest.toolName}
-                                        toolCall={tc}
-                                    />
-                                </Box>
-                            ))}
+                            {latest.calls.map((tc) => {
+                                const trace =
+                                    latest.toolName === 'discoverFields'
+                                        ? getDiscoverFieldsTrace(
+                                              toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              ),
+                                          )
+                                        : null;
+                                return (
+                                    <Box
+                                        key={tc.toolCallId}
+                                        className={styles.latestDescription}
+                                    >
+                                        <ToolCallDescription
+                                            toolName={latest.toolName}
+                                            toolCall={tc}
+                                        />
+                                        {trace && (
+                                            <DiscoverFieldsTrace
+                                                trace={trace}
+                                            />
+                                        )}
+                                    </Box>
+                                );
+                            })}
                         </Stack>
                     )}
                     {olderGroups.length > 0 && (
                         <Stack gap={2}>
-                            {olderGroups.map((group, idx) => (
-                                <Box
-                                    key={group.keyId}
-                                    className={styles.historyRow}
-                                    style={
-                                        {
-                                            '--row-delay': `${idx * 28}ms`,
-                                        } as React.CSSProperties
-                                    }
-                                >
-                                    <ToolCallRow
-                                        toolName={group.toolName}
-                                        toolCalls={group.calls}
-                                        status="done"
-                                    />
-                                </Box>
-                            ))}
+                            {olderGroups.map((group, idx) => {
+                                const groupTrace =
+                                    group.toolName === 'discoverFields'
+                                        ? group.calls
+                                              .map((tc) =>
+                                                  getDiscoverFieldsTrace(
+                                                      toolResults?.find(
+                                                          (r) =>
+                                                              r.toolCallId ===
+                                                              tc.toolCallId,
+                                                      ),
+                                                  ),
+                                              )
+                                              .find((t) => t && t.length > 0)
+                                        : null;
+                                return (
+                                    <Box
+                                        key={group.keyId}
+                                        className={styles.historyRow}
+                                        style={
+                                            {
+                                                '--row-delay': `${idx * 28}ms`,
+                                            } as React.CSSProperties
+                                        }
+                                    >
+                                        <ToolCallRow
+                                            toolName={group.toolName}
+                                            toolCalls={group.calls}
+                                            status="done"
+                                            extraBody={
+                                                groupTrace ? (
+                                                    <DiscoverFieldsTrace
+                                                        trace={groupTrace}
+                                                    />
+                                                ) : undefined
+                                            }
+                                        />
+                                    </Box>
+                                );
+                            })}
                         </Stack>
                     )}
                 </Stack>

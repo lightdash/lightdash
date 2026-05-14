@@ -33,6 +33,8 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
+import { getDiscoverFields } from './discoverFields/tool';
+import { getAgentTelemetryConfig } from './telemetry';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -49,33 +51,10 @@ export const defaultAgentOptions = {
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
-const getAgentTelemetryConfig = (
-    functionId: string,
-    {
-        agentSettings,
-        threadUuid,
-        promptUuid,
-        telemetryEnabled,
-    }: Pick<
-        AiAgentArgs,
-        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
-    >,
-) =>
-    ({
-        functionId,
-        isEnabled: true,
-        recordInputs: telemetryEnabled,
-        recordOutputs: telemetryEnabled,
-        metadata: {
-            agentUuid: agentSettings.uuid,
-            threadUuid,
-            promptUuid,
-        },
-    }) as const;
-
 const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
+    availableExplores: Explore[],
 ) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -83,18 +62,55 @@ const getAgentTools = (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    const findExplores = getFindExplores({
-        fieldSearchSize: args.findExploresFieldSearchSize,
-        findExplores: dependencies.findExplores,
-        updateProgress: dependencies.updateProgress,
-    });
+    // Gated by FeatureFlags.AiDiscoverFieldsSubagent.
+    // When the flag is ON: register `discoverFields` (the subagent) and omit
+    // `findExplores`/`findFields` from the parent toolset entirely.
+    // When OFF: keep the legacy `findExplores` + `findFields` pair and omit
+    // `discoverFields`. The legacy tools' implementations are also what the
+    // subagent uses internally, so they always exist as factories.
+    const discoverFields = args.useDiscoverFieldsSubagent
+        ? getDiscoverFields(
+              {
+                  model: args.model,
+                  callOptions: args.callOptions,
+                  providerOptions: args.providerOptions,
+                  availableExplores,
+                  findExploresFieldSearchSize: args.findExploresFieldSearchSize,
+                  findFieldsPageSize: args.findFieldsPageSize,
+                  promptUuid: args.promptUuid,
+                  telemetry: {
+                      agentSettings: args.agentSettings,
+                      threadUuid: args.threadUuid,
+                      promptUuid: args.promptUuid,
+                      telemetryEnabled: args.telemetryEnabled,
+                  },
+              },
+              {
+                  findExplores: dependencies.findExplores,
+                  findFields: dependencies.findFields,
+                  getExplore: dependencies.getExplore,
+                  updateProgress: dependencies.updateProgress,
+                  storeToolCall: dependencies.storeToolCall,
+              },
+          )
+        : null;
 
-    const findFields = getFindFields({
-        getExplore: dependencies.getExplore,
-        findFields: dependencies.findFields,
-        updateProgress: dependencies.updateProgress,
-        pageSize: args.findFieldsPageSize,
-    });
+    const findExplores = args.useDiscoverFieldsSubagent
+        ? null
+        : getFindExplores({
+              fieldSearchSize: args.findExploresFieldSearchSize,
+              findExplores: dependencies.findExplores,
+              updateProgress: dependencies.updateProgress,
+          });
+
+    const findFields = args.useDiscoverFieldsSubagent
+        ? null
+        : getFindFields({
+              getExplore: dependencies.getExplore,
+              findFields: dependencies.findFields,
+              updateProgress: dependencies.updateProgress,
+              pageSize: args.findFieldsPageSize,
+          });
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
@@ -170,8 +186,9 @@ const getAgentTools = (
     const tools = {
         findContent,
         getDashboardCharts,
-        findExplores,
-        findFields,
+        ...(discoverFields ? { discoverFields } : {}),
+        ...(findExplores ? { findExplores } : {}),
+        ...(findFields ? { findFields } : {}),
         runQuery,
         runSavedChart,
         generateDashboard,
@@ -206,6 +223,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
+            useDiscoverFieldsSubagent: args.useDiscoverFieldsSubagent,
         }),
         ...args.messageHistory,
     ];
@@ -255,7 +273,7 @@ export const generateAgentResponse = async ({
     );
     const availableExplores = await dependencies.listExplores();
     const messages = getAgentMessages(args, availableExplores);
-    const tools = getAgentTools(args, dependencies);
+    const tools = getAgentTools(args, dependencies, availableExplores);
 
     const startTime = Date.now();
     const modelName = args.model.modelId;
@@ -434,7 +452,7 @@ export const streamAgentResponse = async ({
     );
     const availableExplores = await dependencies.listExplores();
     const messages = getAgentMessages(args, availableExplores);
-    const tools = getAgentTools(args, dependencies);
+    const tools = getAgentTools(args, dependencies, availableExplores);
 
     const startTime = Date.now();
     let firstChunkTime: number | null = null;

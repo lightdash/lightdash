@@ -137,6 +137,16 @@ export enum FeatureFlags {
      * opt in per-org without a redeploy.
      */
     ResultsCacheEnabled = 'results-cache-enabled',
+
+    /**
+     * Route the AI analyst's explore/field discovery through a focused
+     * subagent (single `discoverFields` tool replaces `findExplores` +
+     * `findFields` in the parent toolset). Targets context bloat and
+     * disambiguation accuracy on rich semantic layers. Off by default —
+     * dogfood internally, then expand per-org once the eval set confirms
+     * no regression.
+     */
+    AiDiscoverFieldsSubagent = 'ai-discover-fields-subagent',
 }
 
 export type FeatureFlag = {

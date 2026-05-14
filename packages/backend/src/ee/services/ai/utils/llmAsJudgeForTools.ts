@@ -26,11 +26,13 @@ import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
+import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
+    discoverFields: 'discover_fields',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
     findDashboards: 'find_dashboards',
@@ -53,6 +55,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
 const TOOL_SCHEMAS = {
     findExplores: toolFindExploresArgsSchemaV3,
     findFields: toolFindFieldsArgsSchema,
+    discoverFields: discoverFieldsInputSchema,
     searchFieldValues: toolSearchFieldValuesArgsSchema,
     generateBarVizConfig: toolVerticalBarArgsSchema,
     generateTableVizConfig: toolTableVizArgsSchema,

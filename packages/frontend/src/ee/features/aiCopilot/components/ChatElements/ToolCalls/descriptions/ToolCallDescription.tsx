@@ -156,6 +156,7 @@ export const ToolCallDescription: FC<{
                     limit={sqlToolArgs.limit}
                 />
             );
+        case 'discoverFields':
         case 'listWarehouseTables':
         case 'describeWarehouseTable':
         case 'improveContext':

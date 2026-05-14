@@ -35,6 +35,7 @@ import {
     CommercialFeatureFlags,
     Explore,
     ExploreCompiler,
+    FeatureFlags,
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
@@ -3548,6 +3549,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             featureFlagId: CommercialFeatureFlags.AiAgentRunSql,
         });
 
+        const discoverFieldsSubagentFlag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiDiscoverFieldsSubagent,
+        });
+
         const enableSqlMode = options.enableSqlMode ?? false;
 
         // For Slack prompts: only allow runSql when the org requires OAuth.
@@ -3644,6 +3650,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             maxQueryLimit: this.lightdashConfig.ai.copilot.maxQueryLimit,
             siteUrl: this.lightdashConfig.siteUrl,
             canManageAgent: options.canManageAgent,
+            useDiscoverFieldsSubagent: discoverFieldsSubagentFlag.enabled,
         };
 
         const dependencies: AiAgentDependencies = {

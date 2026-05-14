@@ -7,6 +7,7 @@ import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { getRunSqlSection } from './systemV2RunSql';
 import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
+import { SYSTEM_PROMPT_TEMPLATE_LEGACY } from './systemV2TemplateLegacy';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
@@ -18,6 +19,7 @@ export const getSystemPromptV2 = (args: {
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
+    useDiscoverFieldsSubagent?: boolean;
 }): SystemModelMessage => {
     const {
         instructions,
@@ -28,6 +30,7 @@ export const getSystemPromptV2 = (args: {
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
+        useDiscoverFieldsSubagent = false,
     } = args;
 
     const crossExploreJoinRule = canRunSql
@@ -53,10 +56,20 @@ export const getSystemPromptV2 = (args: {
         availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
     }
 
-    const content = SYSTEM_PROMPT_TEMPLATE.replace(
-        '{{self_improvement_section}}',
-        enableSelfImprovement ? SELF_IMPROVEMENT_SECTION : '',
-    )
+    // SYSTEM_PROMPT_TEMPLATE describes the `discoverFields` subagent path,
+    // with the ambiguity check delegated to the subagent's own system
+    // prompt. SYSTEM_PROMPT_TEMPLATE_LEGACY is a verbatim snapshot of
+    // `systemV2Template.ts` as it stood on main before the subagent landed —
+    // keeps the flag-OFF path byte-equivalent to today's behaviour.
+    const template = useDiscoverFieldsSubagent
+        ? SYSTEM_PROMPT_TEMPLATE
+        : SYSTEM_PROMPT_TEMPLATE_LEGACY;
+
+    const content = template
+        .replace(
+            '{{self_improvement_section}}',
+            enableSelfImprovement ? SELF_IMPROVEMENT_SECTION : '',
+        )
         .replace(
             '{{data_access_section}}',
             enableDataAccess

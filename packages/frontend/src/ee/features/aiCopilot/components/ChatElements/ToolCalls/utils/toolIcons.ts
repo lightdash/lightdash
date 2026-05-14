@@ -20,6 +20,7 @@ export const getToolIcon = (toolName: ToolName) => {
         {
             findExplores: IconDatabase,
             findFields: IconSearch,
+            discoverFields: IconSearch,
             searchFieldValues: IconSelector,
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,

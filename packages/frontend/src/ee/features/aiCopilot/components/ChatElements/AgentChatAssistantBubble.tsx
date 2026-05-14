@@ -412,6 +412,7 @@ const AssistantBubbleContent: FC<{
                                 <LiveActivityCard
                                     toolGroups={liveToolGroups}
                                     isLive={isStreaming}
+                                    toolResults={message.toolResults}
                                     pendingContent={pendingApprovalContent}
                                 />
                             )}
@@ -446,6 +447,7 @@ const AssistantBubbleContent: FC<{
                             <LiveActivityCard
                                 toolGroups={persistedToolGroups}
                                 isLive={isStreaming || isPending}
+                                toolResults={message.toolResults}
                             />
                         )}
                         {message.reasoning && message.reasoning.length > 0 && (
