@@ -21,10 +21,22 @@ import {
 import express from 'express';
 import { toSessionUser } from '../../auth/account';
 import {
+    parseEnumList,
+    parseWhitelistedList,
+} from '../../utils/inputValidation';
+import {
     allowApiKeyAuthentication,
     isAuthenticated,
 } from '../authentication/middlewares';
 import { BaseController } from '../baseController';
+
+const VALID_RUN_DESTINATIONS = [
+    'email',
+    'slack',
+    'msteams',
+    'gsheets',
+    'googlechat',
+] as const;
 
 @Route('/api/v2/dashboards/{dashboardUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -119,10 +131,12 @@ export class DashboardControllerV2 extends BaseController {
                 ? { column: sortBy, direction: sortDirection }
                 : undefined;
         const filters = {
-            statuses: statuses
-                ? (statuses.split(',') as SchedulerRunStatus[])
-                : undefined,
-            destinations: destinations ? destinations.split(',') : undefined,
+            statuses: parseEnumList(statuses, SchedulerRunStatus, 'statuses'),
+            destinations: parseWhitelistedList(
+                destinations,
+                VALID_RUN_DESTINATIONS,
+                'destinations',
+            ),
         };
 
         return {

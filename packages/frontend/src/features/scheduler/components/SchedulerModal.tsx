@@ -23,6 +23,7 @@ import MantineModal from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import RunDetailsModal from '../../../components/SchedulersView/RunDetailsModal';
 import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFetchRunLogs } from '../hooks/useScheduler';
 import { States } from '../utils';
@@ -150,6 +151,7 @@ const SchedulersModal: FC<
     );
 
     const fetchRunLogsMutation = useFetchRunLogs();
+    const { showToastError } = useToaster();
     const handleSelectRun = useCallback(
         (run: SchedulerRun) => {
             setSelectedRun(run);
@@ -165,11 +167,17 @@ const SchedulersModal: FC<
                         });
                     })
                     .catch((error) => {
-                        console.error('Error fetching child logs:', error);
+                        showToastError({
+                            title: 'Failed to load run details',
+                            subtitle:
+                                error instanceof Error
+                                    ? error.message
+                                    : undefined,
+                        });
                     });
             }
         },
-        [childLogsMap, fetchRunLogsMutation],
+        [childLogsMap, fetchRunLogsMutation, showToastError],
     );
 
     const Actions = () => {
