@@ -26,11 +26,13 @@ type Props = {
     isThresholdAlertList?: boolean;
     isSearching?: boolean;
     onEdit: (schedulerUuid: string) => void;
+    onViewHistory: (scheduler: SchedulerAndTargets) => void;
 };
 
 const SchedulersList: FC<Props> = ({
     schedulersQuery,
     onEdit,
+    onViewHistory,
     isThresholdAlertList,
     isSearching = false,
 }) => {
@@ -162,6 +164,7 @@ const SchedulersList: FC<Props> = ({
                               scheduler={alertScheduler}
                               onEdit={onEdit}
                               onDelete={setSchedulerUuid}
+                              onViewHistory={onViewHistory}
                           />
                       ))
                     : deliverySchedulers
@@ -175,6 +178,7 @@ const SchedulersList: FC<Props> = ({
                                   scheduler={scheduler}
                                   onEdit={onEdit}
                                   onDelete={setSchedulerUuid}
+                                  onViewHistory={onViewHistory}
                               />
                           ))}
 

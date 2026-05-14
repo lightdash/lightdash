@@ -16,6 +16,7 @@ import {
 } from '@mantine-8/core';
 import {
     IconCircleFilled,
+    IconHistory,
     IconPencil,
     IconSend,
     IconTrash,
@@ -39,12 +40,14 @@ type SchedulersListItemProps = {
     scheduler: SchedulerAndTargets;
     onEdit: (schedulerUuid: string) => void;
     onDelete: (schedulerUuid: string) => void;
+    onViewHistory: (scheduler: SchedulerAndTargets) => void;
 };
 
 const SchedulersListItem: FC<SchedulersListItemProps> = ({
     scheduler,
     onEdit,
     onDelete,
+    onViewHistory,
 }) => {
     const { mutate: mutateSchedulerEnabled } =
         useSchedulersEnabledUpdateMutation(scheduler.schedulerUuid);
@@ -52,6 +55,10 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
     const sendNowMutation = useSendNowSchedulerByUuid(scheduler.schedulerUuid);
     const [isConfirmSendNowOpen, setIsConfirmSendNowOpen] = useState(false);
     const [isConfirmPauseOpen, setIsConfirmPauseOpen] = useState(false);
+
+    const hasHistoryResource = !!(
+        scheduler.dashboardUuid || scheduler.savedChartUuid
+    );
 
     const handleToggle = useCallback(
         (enabled: boolean) => {
@@ -126,11 +133,18 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         {scheduler.latestRun && latestRunStatusConfig ? (
                             <Tooltip
                                 withinPortal
-                                label={`Last run ${dayjs(
-                                    scheduler.latestRun.scheduledTime,
-                                ).fromNow()} (${dayjs(
-                                    scheduler.latestRun.scheduledTime,
-                                ).format('YYYY/MM/DD HH:mm')})`}
+                                label={
+                                    hasHistoryResource &&
+                                    userCanManageScheduledDelivery
+                                        ? `View run history (last run ${dayjs(
+                                              scheduler.latestRun.scheduledTime,
+                                          ).fromNow()})`
+                                        : `Last run ${dayjs(
+                                              scheduler.latestRun.scheduledTime,
+                                          ).fromNow()} (${dayjs(
+                                              scheduler.latestRun.scheduledTime,
+                                          ).format('YYYY/MM/DD HH:mm')})`
+                                }
                             >
                                 <Badge
                                     variant="light"
@@ -142,6 +156,18 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                             icon={latestRunStatusConfig.icon}
                                             size={10}
                                         />
+                                    }
+                                    onClick={
+                                        hasHistoryResource &&
+                                        userCanManageScheduledDelivery
+                                            ? () => onViewHistory(scheduler)
+                                            : undefined
+                                    }
+                                    style={
+                                        hasHistoryResource &&
+                                        userCanManageScheduledDelivery
+                                            ? { cursor: 'pointer' }
+                                            : undefined
                                     }
                                 >
                                     {latestRunStatusConfig.label}
@@ -179,57 +205,73 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                                     : 'Scheduled delivery paused. Toggle on to resume'
                             }
                         >
-                            <Box mr="sm">
-                                <Switch
-                                    checked={scheduler.enabled}
-                                    onChange={() => {
-                                        if (scheduler.enabled) {
-                                            setIsConfirmPauseOpen(true);
-                                        } else {
-                                            handleToggle(true);
-                                        }
-                                    }}
-                                />
-                            </Box>
+                            <Switch
+                                size="sm"
+                                checked={scheduler.enabled}
+                                onChange={() => {
+                                    if (scheduler.enabled) {
+                                        setIsConfirmPauseOpen(true);
+                                    } else {
+                                        handleToggle(true);
+                                    }
+                                }}
+                            />
                         </Tooltip>
 
-                        <Tooltip withinPortal label="Send now">
-                            <ActionIcon
-                                variant="light"
-                                onClick={() => setIsConfirmSendNowOpen(true)}
-                                radius="md"
-                                color="ldDark.9"
-                            >
-                                <MantineIcon color="ldDark.9" icon={IconSend} />
-                            </ActionIcon>
-                        </Tooltip>
+                        <ActionIcon.Group>
+                            <Tooltip withinPortal label="Send now">
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={() =>
+                                        setIsConfirmSendNowOpen(true)
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconSend}
+                                        color="ldGray.6"
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
 
-                        <Tooltip withinPortal label="Edit">
-                            <ActionIcon
-                                variant="light"
-                                radius="md"
-                                color="ldDark.9"
-                                onClick={() => onEdit(scheduler.schedulerUuid)}
-                            >
-                                <MantineIcon
-                                    color="ldDark.9"
-                                    icon={IconPencil}
-                                />
-                            </ActionIcon>
-                        </Tooltip>
+                            {hasHistoryResource && (
+                                <Tooltip withinPortal label="View run history">
+                                    <ActionIcon
+                                        variant="default"
+                                        onClick={() => onViewHistory(scheduler)}
+                                    >
+                                        <MantineIcon
+                                            icon={IconHistory}
+                                            color="ldGray.6"
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
 
-                        <Tooltip withinPortal label="Delete">
-                            <ActionIcon
-                                variant="light"
-                                color="red"
-                                radius="md"
-                                onClick={() =>
-                                    onDelete(scheduler.schedulerUuid)
-                                }
-                            >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
+                            <Tooltip withinPortal label="Edit">
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={() =>
+                                        onEdit(scheduler.schedulerUuid)
+                                    }
+                                >
+                                    <MantineIcon
+                                        icon={IconPencil}
+                                        color="ldGray.6"
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+
+                            <Tooltip withinPortal label="Delete">
+                                <ActionIcon
+                                    variant="default"
+                                    onClick={() =>
+                                        onDelete(scheduler.schedulerUuid)
+                                    }
+                                >
+                                    <MantineIcon icon={IconTrash} color="red" />
+                                </ActionIcon>
+                            </Tooltip>
+                        </ActionIcon.Group>
                     </Group>
                 )}
             </Group>

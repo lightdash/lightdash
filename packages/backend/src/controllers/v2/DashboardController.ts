@@ -1,7 +1,9 @@
 import {
     assertRegisteredAccount,
+    SchedulerRunStatus,
     type ApiDashboardPaginatedSchedulersResponse,
     type ApiErrorPayload,
+    type ApiSchedulerRunsResponse,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
@@ -71,6 +73,70 @@ export class DashboardControllerV2 extends BaseController {
                     searchQuery,
                     paginateArgs,
                     includeLatestRun,
+                ),
+        };
+    }
+
+    /**
+     * Get the run history of a single scheduler on a dashboard
+     * @summary List dashboard scheduler runs
+     * @param dashboardUuid The uuid of the dashboard
+     * @param schedulerUuid The uuid of the scheduler
+     * @param req express request
+     * @param pageSize number of items per page
+     * @param page page number
+     * @param searchQuery filter runs by scheduler name
+     * @param sortBy column to sort by (scheduledTime, createdAt)
+     * @param sortDirection sort direction (asc or desc)
+     * @param statuses comma-separated list of run statuses to include
+     * @param destinations comma-separated list of destination types to include
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/schedulers/{schedulerUuid}/runs')
+    @OperationId('getDashboardSchedulerRuns')
+    async getDashboardSchedulerRuns(
+        @Path() dashboardUuid: string,
+        @Path() schedulerUuid: string,
+        @Request() req: express.Request,
+        @Query() pageSize?: number,
+        @Query() page?: number,
+        @Query() searchQuery?: string,
+        @Query() sortBy?: 'scheduledTime' | 'createdAt',
+        @Query() sortDirection?: 'asc' | 'desc',
+        @Query() statuses?: string,
+        @Query() destinations?: string,
+    ): Promise<ApiSchedulerRunsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        let paginateArgs: KnexPaginateArgs | undefined;
+        if (pageSize && page) {
+            paginateArgs = { page, pageSize };
+        }
+        const sort =
+            sortBy && sortDirection
+                ? { column: sortBy, direction: sortDirection }
+                : undefined;
+        const filters = {
+            statuses: statuses
+                ? (statuses.split(',') as SchedulerRunStatus[])
+                : undefined,
+            destinations: destinations ? destinations.split(',') : undefined,
+        };
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .getSchedulerRuns(
+                    toSessionUser(req.account),
+                    dashboardUuid,
+                    schedulerUuid,
+                    paginateArgs,
+                    searchQuery,
+                    sort,
+                    filters,
                 ),
         };
     }

@@ -40,6 +40,12 @@ interface LogsTopToolbarProps extends Pick<
     currentResultsCount: number;
     availableSchedulers: Scheduler[];
     projectUuid?: string;
+    /** Hide the active-scheduler pill (when the view is already scheduler-scoped) */
+    hideSchedulerPill?: boolean;
+    /** Hide the "Created by" filter (less useful in resource-scoped views) */
+    hideCreatedByFilter?: boolean;
+    /** Hide the search-by-scheduler-name input (e.g. when the Name column is hidden) */
+    hideSearchFilter?: boolean;
 }
 
 export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
@@ -58,6 +64,9 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
         resetFilters,
         availableSchedulers,
         projectUuid,
+        hideSchedulerPill = false,
+        hideCreatedByFilter = false,
+        hideSearchFilter = false,
     }) => {
         const theme = useMantineTheme();
 
@@ -72,18 +81,25 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                 wrap="nowrap"
             >
                 <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
-                    <SearchFilter search={search} setSearch={setSearch} />
+                    {!hideSearchFilter && (
+                        <>
+                            <SearchFilter
+                                search={search}
+                                setSearch={setSearch}
+                            />
 
-                    <Divider
-                        orientation="vertical"
-                        w={1}
-                        h={20}
-                        style={{
-                            alignSelf: 'center',
-                        }}
-                    />
+                            <Divider
+                                orientation="vertical"
+                                w={1}
+                                h={20}
+                                style={{
+                                    alignSelf: 'center',
+                                }}
+                            />
+                        </>
+                    )}
 
-                    {selectedScheduler && (
+                    {!hideSchedulerPill && selectedScheduler && (
                         <>
                             <Text fz="sm" c="ldGray.7" fw={500}>
                                 Scheduler:
@@ -110,13 +126,17 @@ export const LogsTopToolbar: FC<LogsTopToolbarProps> = memo(
                         setSelectedStatuses={setSelectedStatuses}
                     />
 
-                    <CreatedByFilter
-                        projectUuid={projectUuid}
-                        selectedCreatedByUserUuids={selectedCreatedByUserUuids}
-                        setSelectedCreatedByUserUuids={
-                            setSelectedCreatedByUserUuids
-                        }
-                    />
+                    {!hideCreatedByFilter && (
+                        <CreatedByFilter
+                            projectUuid={projectUuid}
+                            selectedCreatedByUserUuids={
+                                selectedCreatedByUserUuids
+                            }
+                            setSelectedCreatedByUserUuids={
+                                setSelectedCreatedByUserUuids
+                            }
+                        />
+                    )}
 
                     <DestinationFilter
                         selectedDestinations={selectedDestinations}

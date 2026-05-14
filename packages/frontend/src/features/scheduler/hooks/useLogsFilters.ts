@@ -4,21 +4,39 @@ import { useSearchParams } from 'react-router';
 
 export type DestinationType = 'slack' | 'email' | 'msteams' | 'googlechat';
 
-export const useLogsFilters = () => {
+type UseLogsFiltersOptions = {
+    /**
+     * When false, filter state is kept locally and not synced to URL search
+     * params. Use this for embedded views (e.g. modal flows) where URL state
+     * would leak across navigations.
+     * @default true
+     */
+    persistToUrl?: boolean;
+};
+
+export const useLogsFilters = ({
+    persistToUrl = true,
+}: UseLogsFiltersOptions = {}) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
-    // Initialize from URL params
-    const initialSearch = searchParams.get('nameSearch') || '';
-    const initialStatuses = searchParams.get('status')
-        ? (searchParams.get('status')!.split(',') as SchedulerRunStatus[])
-        : [];
-    const initialCreators = searchParams.get('creator')
-        ? searchParams.get('creator')!.split(',')
-        : [];
-    const initialDestinations = searchParams.get('destination')
-        ? (searchParams.get('destination')!.split(',') as DestinationType[])
-        : [];
-    const initialSchedulerUuid = searchParams.get('schedulerUuid') || '';
+    const initialSearch = persistToUrl
+        ? searchParams.get('nameSearch') || ''
+        : '';
+    const initialStatuses: SchedulerRunStatus[] =
+        persistToUrl && searchParams.get('status')
+            ? (searchParams.get('status')!.split(',') as SchedulerRunStatus[])
+            : [];
+    const initialCreators =
+        persistToUrl && searchParams.get('creator')
+            ? searchParams.get('creator')!.split(',')
+            : [];
+    const initialDestinations: DestinationType[] =
+        persistToUrl && searchParams.get('destination')
+            ? (searchParams.get('destination')!.split(',') as DestinationType[])
+            : [];
+    const initialSchedulerUuid = persistToUrl
+        ? searchParams.get('schedulerUuid') || ''
+        : '';
 
     const [search, setSearchState] = useState<string>(initialSearch);
     const [selectedStatuses, setSelectedStatusesState] =
@@ -32,15 +50,17 @@ export const useLogsFilters = () => {
 
     // Sync state when URL parameters change (e.g., when navigating from status badge)
     useEffect(() => {
+        if (!persistToUrl) return;
         const urlSchedulerUuid = searchParams.get('schedulerUuid') || '';
         if (urlSchedulerUuid !== selectedSchedulerUuid) {
             setSelectedSchedulerUuidState(urlSchedulerUuid);
         }
-    }, [searchParams, selectedSchedulerUuid]);
+    }, [persistToUrl, searchParams, selectedSchedulerUuid]);
 
     const setSearch = useCallback(
         (newSearch: string) => {
             setSearchState(newSearch);
+            if (!persistToUrl) return;
             const newParams = new URLSearchParams(searchParams);
             if (newSearch) {
                 newParams.set('nameSearch', newSearch);
@@ -49,12 +69,13 @@ export const useLogsFilters = () => {
             }
             setSearchParams(newParams);
         },
-        [searchParams, setSearchParams],
+        [persistToUrl, searchParams, setSearchParams],
     );
 
     const setSelectedStatuses = useCallback(
         (statuses: SchedulerRunStatus[]) => {
             setSelectedStatusesState(statuses);
+            if (!persistToUrl) return;
             const newParams = new URLSearchParams(searchParams);
             if (statuses.length > 0) {
                 newParams.set('status', statuses.join(','));
@@ -63,12 +84,13 @@ export const useLogsFilters = () => {
             }
             setSearchParams(newParams);
         },
-        [searchParams, setSearchParams],
+        [persistToUrl, searchParams, setSearchParams],
     );
 
     const setSelectedCreatedByUserUuids = useCallback(
         (userUuids: string[]) => {
             setSelectedCreatedByUserUuidsState(userUuids);
+            if (!persistToUrl) return;
             const newParams = new URLSearchParams(searchParams);
             if (userUuids.length > 0) {
                 newParams.set('creator', userUuids.join(','));
@@ -77,12 +99,13 @@ export const useLogsFilters = () => {
             }
             setSearchParams(newParams);
         },
-        [searchParams, setSearchParams],
+        [persistToUrl, searchParams, setSearchParams],
     );
 
     const setSelectedDestinations = useCallback(
         (destinations: DestinationType[]) => {
             setSelectedDestinationsState(destinations);
+            if (!persistToUrl) return;
             const newParams = new URLSearchParams(searchParams);
             if (destinations.length > 0) {
                 newParams.set('destination', destinations.join(','));
@@ -91,12 +114,13 @@ export const useLogsFilters = () => {
             }
             setSearchParams(newParams);
         },
-        [searchParams, setSearchParams],
+        [persistToUrl, searchParams, setSearchParams],
     );
 
     const setSelectedSchedulerUuid = useCallback(
         (schedulerUuid: string) => {
             setSelectedSchedulerUuidState(schedulerUuid);
+            if (!persistToUrl) return;
             const newParams = new URLSearchParams(searchParams);
             if (schedulerUuid) {
                 newParams.set('schedulerUuid', schedulerUuid);
@@ -105,7 +129,7 @@ export const useLogsFilters = () => {
             }
             setSearchParams(newParams);
         },
-        [searchParams, setSearchParams],
+        [persistToUrl, searchParams, setSearchParams],
     );
 
     const hasActiveFilters = useMemo(() => {
@@ -131,7 +155,7 @@ export const useLogsFilters = () => {
         setSelectedDestinationsState([]);
         setSelectedSchedulerUuidState('');
 
-        // Clear filter-related URL params
+        if (!persistToUrl) return;
         const newParams = new URLSearchParams(searchParams);
         newParams.delete('nameSearch');
         newParams.delete('status');
@@ -139,7 +163,7 @@ export const useLogsFilters = () => {
         newParams.delete('destination');
         newParams.delete('schedulerUuid');
         setSearchParams(newParams);
-    }, [searchParams, setSearchParams]);
+    }, [persistToUrl, searchParams, setSearchParams]);
 
     return {
         search,

@@ -43,6 +43,8 @@ import {
     SavedChartDAO,
     SchedulerAndTargets,
     SchedulerFormat,
+    SchedulerRun,
+    SchedulerRunStatus,
     SessionUser,
     TogglePinnedItemInfo,
     UnexpectedGoogleSheetsError,
@@ -1676,6 +1678,49 @@ export class SavedChartService
         }
 
         return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
+    }
+
+    async getSchedulerRuns(
+        user: SessionUser,
+        chartUuid: string,
+        schedulerUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            statuses?: SchedulerRunStatus[];
+            destinations?: string[];
+        },
+    ): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+        if (scheduler.savedChartUuid !== chartUuid) {
+            throw new NotFoundError('Scheduler not found');
+        }
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    userUuid: scheduler.createdBy,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        return this.schedulerModel.getProjectSchedulerRuns({
+            projectUuid: chart.projectUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters: {
+                schedulerUuids: [schedulerUuid],
+                statuses: filters?.statuses,
+                destinations: filters?.destinations,
+            },
+        });
     }
 
     async createScheduler(

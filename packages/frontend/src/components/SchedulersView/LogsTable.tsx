@@ -43,6 +43,7 @@ import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSend
 import { useLogsFilters } from '../../features/scheduler/hooks/useLogsFilters';
 import {
     useFetchRunLogs,
+    useResourceSchedulerRuns,
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
@@ -60,6 +61,23 @@ import {
 type LogsTableProps = {
     projectUuid?: string;
     getSlackChannelName: (channelId: string) => string | null;
+    /**
+     * When provided, the table is scoped to a single scheduler on a specific
+     * dashboard or chart. The scheduler filter is hidden and runs are fetched
+     * from the resource-scoped v2 endpoint. Filter state is kept locally
+     * (not synced to the URL).
+     */
+    resourceScope?: {
+        resourceType: 'dashboard' | 'chart';
+        resourceUuid: string;
+        schedulerUuid: string;
+    };
+    /**
+     * When provided, row clicks call this instead of opening the embedded
+     * RunDetailsModal. Use this for flows that swap modal content rather
+     * than stacking modals.
+     */
+    onSelectRun?: (run: SchedulerRun) => void;
 };
 
 type TableRow = {
@@ -71,7 +89,10 @@ const fetchSize = 50;
 const LogsTable: FC<LogsTableProps> = ({
     projectUuid,
     getSlackChannelName,
+    resourceScope,
+    onSelectRun,
 }) => {
+    const isResourceScoped = !!resourceScope;
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
         useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
@@ -88,7 +109,7 @@ const LogsTable: FC<LogsTableProps> = ({
         setSelectedSchedulerUuid,
         hasActiveFilters,
         resetFilters,
-    } = useLogsFilters();
+    } = useLogsFilters({ persistToUrl: !isResourceScoped });
 
     // Debounce filters to avoid too many API calls
     const debouncedFilters = useMemo(() => {
@@ -114,21 +135,36 @@ const LogsTable: FC<LogsTableProps> = ({
         300,
     );
 
+    const projectScopedQuery = useSchedulerRuns({
+        projectUuid: projectUuid!,
+        paginateArgs: { page: 1, pageSize: fetchSize },
+        searchQuery: debouncedSearchAndFilters.search,
+        sortBy: 'scheduledTime',
+        sortDirection: 'desc',
+        filters: {
+            schedulerUuid: debouncedSearchAndFilters.filters.schedulerUuid,
+            statuses: debouncedSearchAndFilters.filters.statuses,
+            createdByUserUuids:
+                debouncedSearchAndFilters.filters.createdByUserUuids,
+            destinations: debouncedSearchAndFilters.filters.destinations,
+        },
+    });
+    const resourceScopedQuery = useResourceSchedulerRuns({
+        resourceType: resourceScope?.resourceType ?? 'dashboard',
+        resourceUuid: resourceScope?.resourceUuid ?? '',
+        schedulerUuid: resourceScope?.schedulerUuid ?? '',
+        pageSize: fetchSize,
+        searchQuery: debouncedSearchAndFilters.search,
+        sortBy: 'scheduledTime',
+        sortDirection: 'desc',
+        filters: {
+            statuses: debouncedSearchAndFilters.filters.statuses,
+            destinations: debouncedSearchAndFilters.filters.destinations,
+        },
+        enabled: isResourceScoped,
+    });
     const { data, fetchNextPage, isError, isFetching, isLoading } =
-        useSchedulerRuns({
-            projectUuid: projectUuid!,
-            paginateArgs: { page: 1, pageSize: fetchSize },
-            searchQuery: debouncedSearchAndFilters.search,
-            sortBy: 'scheduledTime',
-            sortDirection: 'desc',
-            filters: {
-                schedulerUuid: debouncedSearchAndFilters.filters.schedulerUuid,
-                statuses: debouncedSearchAndFilters.filters.statuses,
-                createdByUserUuids:
-                    debouncedSearchAndFilters.filters.createdByUserUuids,
-                destinations: debouncedSearchAndFilters.filters.destinations,
-            },
-        });
+        isResourceScoped ? resourceScopedQuery : projectScopedQuery;
 
     // Flatten paginated data
     const schedulerRunsData = useMemo(() => {
@@ -211,6 +247,10 @@ const LogsTable: FC<LogsTableProps> = ({
     // Handle row click to open modal and fetch child logs
     const handleRowClick = useCallback(
         (run: SchedulerRun) => {
+            if (onSelectRun) {
+                onSelectRun(run);
+                return;
+            }
             setSelectedRun(run);
 
             // Fetch logs if not already in cache
@@ -229,7 +269,7 @@ const LogsTable: FC<LogsTableProps> = ({
                     });
             }
         },
-        [childLogsMap, fetchRunLogsMutation],
+        [onSelectRun, childLogsMap, fetchRunLogsMutation],
     );
 
     // Compute available schedulers from runs (unique schedulers)
@@ -262,7 +302,7 @@ const LogsTable: FC<LogsTableProps> = ({
         );
     }, [schedulerRunsData]);
 
-    const columns: MRT_ColumnDef<TableRow>[] = useMemo(
+    const allColumns: MRT_ColumnDef<TableRow>[] = useMemo(
         () => [
             {
                 accessorKey: 'scheduler.name',
@@ -518,6 +558,14 @@ const LogsTable: FC<LogsTableProps> = ({
         [projectUuid, theme, setSelectedScheduler, setIsConfirmOpen],
     );
 
+    const columns = useMemo(
+        () =>
+            isResourceScoped
+                ? allColumns.filter((c) => c.accessorKey !== 'scheduler.name')
+                : allColumns,
+        [allColumns, isResourceScoped],
+    );
+
     const table = useMantineReactTable({
         columns,
         data: tableData,
@@ -553,6 +601,9 @@ const LogsTable: FC<LogsTableProps> = ({
                 hasActiveFilters={hasActiveFilters}
                 resetFilters={resetFilters}
                 availableSchedulers={availableSchedulers}
+                hideSchedulerPill={isResourceScoped}
+                hideCreatedByFilter={isResourceScoped}
+                hideSearchFilter={isResourceScoped}
             />
         ),
         mantinePaperProps: {
@@ -567,7 +618,11 @@ const LogsTable: FC<LogsTableProps> = ({
         },
         mantineTableContainerProps: {
             ref: tableContainerRef,
-            style: { maxHeight: 'calc(100dvh - 420px)' },
+            style: {
+                maxHeight: isResourceScoped
+                    ? 'calc(80vh - 220px)'
+                    : 'calc(100dvh - 420px)',
+            },
             onScroll: (event: UIEvent<HTMLDivElement>) =>
                 fetchMoreOnBottomReached(event.target as HTMLDivElement),
         },
@@ -672,7 +727,7 @@ const LogsTable: FC<LogsTableProps> = ({
                     setIsConfirmOpen(false);
                 }}
             />
-            {!!selectedRun && (
+            {!!selectedRun && !onSelectRun && (
                 <RunDetailsModal
                     opened={!!selectedRun}
                     onClose={() => setSelectedRun(null)}

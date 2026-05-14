@@ -317,7 +317,10 @@ export class SchedulerService extends BaseService {
 
     private async checkViewResource(
         user: SessionUser,
-        scheduler: CreateSchedulerAndTargets,
+        scheduler: Pick<
+            CreateSchedulerAndTargets,
+            'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid'
+        >,
     ) {
         const auditedAbility = this.createAuditedAbility(user);
         if (scheduler.savedChartUuid) {
@@ -1472,14 +1475,16 @@ export class SchedulerService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(user);
 
-        // Only allow editors to view run logs
+        // Only allow users who can manage this specific scheduler to view its
+        // run logs. Admins can manage any scheduler in the project; editors
+        // only their own (matched by createdBy → userUuid).
         if (
             auditedAbility.cannot(
-                'update',
-                subject('Project', {
+                'manage',
+                subject('ScheduledDeliveries', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
-                    metadata: { projectUuid },
+                    userUuid: scheduler.createdBy,
                 }),
             )
         ) {
