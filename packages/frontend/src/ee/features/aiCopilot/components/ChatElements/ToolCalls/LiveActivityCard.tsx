@@ -229,16 +229,111 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
     );
 };
 
+/**
+ * Subagent UIMessage as carried inside the discoverFields tool's output:
+ * `output.metadata.streamingMessage` during preliminary streaming and on the
+ * final non-preliminary result that lands in `AiAgentToolResult.metadata`.
+ */
+type StreamingMessage = {
+    parts: ReadonlyArray<{
+        type: string;
+        toolCallId?: string;
+        input?: unknown;
+    }>;
+};
+
+type DiscoverFieldsOutputMetadata = {
+    streamingMessage?: StreamingMessage;
+    /**
+     * Legacy: pre-streaming trial wrote findExplores/findFields entries
+     * directly to metadata.trace. Kept as a fallback so threads created
+     * before the streaming switchover still nest correctly on reload.
+     */
+    trace?: TraceEntry[];
+};
+
+const extractTraceFromMessage = (
+    message: StreamingMessage | undefined,
+): TraceEntry[] | null => {
+    if (!message) return null;
+    const entries: TraceEntry[] = [];
+    for (const part of message.parts) {
+        if (
+            part.type !== 'tool-findExplores' &&
+            part.type !== 'tool-findFields'
+        ) {
+            continue;
+        }
+        if (!part.toolCallId) continue;
+        entries.push({
+            toolCallId: part.toolCallId,
+            toolName:
+                part.type === 'tool-findExplores'
+                    ? 'findExplores'
+                    : 'findFields',
+            toolArgs: part.input ?? {},
+        });
+    }
+    return entries.length > 0 ? entries : null;
+};
+
 const getDiscoverFieldsTrace = (
     toolResult: AiAgentToolResult | undefined,
 ): TraceEntry[] | null => {
     if (!toolResult || toolResult.toolName !== 'discoverFields') return null;
     const metadata = toolResult.metadata as
-        | { trace?: TraceEntry[] }
+        | DiscoverFieldsOutputMetadata
         | undefined;
-    const trace = metadata?.trace;
-    if (!Array.isArray(trace) || trace.length === 0) return null;
-    return trace;
+    const fromMessage = extractTraceFromMessage(metadata?.streamingMessage);
+    if (fromMessage) return fromMessage;
+    const legacy = metadata?.trace;
+    return Array.isArray(legacy) && legacy.length > 0 ? legacy : null;
+};
+
+/**
+ * Pulls the trace out of a live discoverFields tool call's preliminary
+ * output. Source of truth during streaming, while the subagent is still
+ * emitting findExplores/findFields parts and before the result lands in
+ * AiAgentToolResult.metadata.
+ */
+const getDiscoverFieldsTraceFromCall = (
+    call: ToolCallSummary,
+): TraceEntry[] | null => {
+    if (call.toolName !== 'discoverFields') return null;
+    const output = call.toolOutput as
+        | { metadata?: DiscoverFieldsOutputMetadata }
+        | undefined;
+    return extractTraceFromMessage(output?.metadata?.streamingMessage);
+};
+
+/**
+ * Render the subagent's live trace outside the activity card's collapse
+ * so users see findExplores / findFields rows appear under the
+ * "Discovering fields" header without having to expand the card.
+ *
+ * Returns null when there's nothing to render (no live tool, the latest
+ * isn't discoverFields, an SQL approval is pending, or no trace entries
+ * have landed yet). Today this is discoverFields-only; if a second
+ * streaming tool wants the same UX, lift the toolName check into a
+ * registration map.
+ */
+const renderInlineLiveTrace = (params: {
+    latest: LiveActivityToolGroup | null;
+    isLive: boolean;
+    hasPending: boolean;
+}): React.ReactNode => {
+    const { latest, isLive, hasPending } = params;
+    if (!isLive || !latest || hasPending) return null;
+    if (latest.toolName !== 'discoverFields') return null;
+    const trace = latest.calls
+        .map((tc) => getDiscoverFieldsTraceFromCall(tc))
+        .find((t) => t && t.length > 0);
+    if (!trace) return null;
+    return (
+        <Box className={styles.liveTrace}>
+            <DiscoverFieldsTrace trace={trace} />
+        </Box>
+    );
 };
 
 export const LiveActivityCard: FC<Props> = ({
@@ -384,6 +479,7 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                 </Group>
             </UnstyledButton>
+            {renderInlineLiveTrace({ latest, isLive, hasPending })}
             <Collapse
                 in={showBody}
                 transitionDuration={260}
@@ -398,13 +494,14 @@ export const LiveActivityCard: FC<Props> = ({
                             {latest.calls.map((tc) => {
                                 const trace =
                                     latest.toolName === 'discoverFields'
-                                        ? getDiscoverFieldsTrace(
+                                        ? (getDiscoverFieldsTraceFromCall(tc) ??
+                                          getDiscoverFieldsTrace(
                                               toolResults?.find(
                                                   (r) =>
                                                       r.toolCallId ===
                                                       tc.toolCallId,
                                               ),
-                                          )
+                                          ))
                                         : null;
                                 return (
                                     <Box
@@ -431,14 +528,18 @@ export const LiveActivityCard: FC<Props> = ({
                                 const groupTrace =
                                     group.toolName === 'discoverFields'
                                         ? group.calls
-                                              .map((tc) =>
-                                                  getDiscoverFieldsTrace(
-                                                      toolResults?.find(
-                                                          (r) =>
-                                                              r.toolCallId ===
-                                                              tc.toolCallId,
+                                              .map(
+                                                  (tc) =>
+                                                      getDiscoverFieldsTraceFromCall(
+                                                          tc,
+                                                      ) ??
+                                                      getDiscoverFieldsTrace(
+                                                          toolResults?.find(
+                                                              (r) =>
+                                                                  r.toolCallId ===
+                                                                  tc.toolCallId,
+                                                          ),
                                                       ),
-                                                  ),
                                               )
                                               .find((t) => t && t.length > 0)
                                         : null;

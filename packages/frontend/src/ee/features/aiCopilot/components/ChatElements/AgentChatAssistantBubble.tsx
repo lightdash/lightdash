@@ -122,6 +122,8 @@ const segmentStreamParts = (
             toolCallId: part.toolCallId,
             toolName: part.toolName,
             toolArgs: part.toolArgs,
+            toolOutput: part.toolOutput,
+            isPreliminary: part.isPreliminary,
         };
         const last = segments[segments.length - 1];
         if (

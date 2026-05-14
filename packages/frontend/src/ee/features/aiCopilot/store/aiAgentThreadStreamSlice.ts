@@ -19,6 +19,20 @@ export type StreamPart =
           toolCallId: string;
           toolName: ToolName;
           toolArgs: unknown;
+          /**
+           * The tool's output once the call resolves. Populated for live
+           * preliminary updates (tools whose execute is an async generator
+           * like `discoverFields`) and for the final non-preliminary result.
+           * `undefined` while the tool is still streaming its input or before
+           * the first preliminary chunk lands.
+           */
+          toolOutput?: unknown;
+          /**
+           * `true` for AI-SDK preliminary tool-result chunks (each yield from
+           * an async-generator execute). `false` for the final non-preliminary
+           * tool result. `undefined` when toolOutput is absent.
+           */
+          isPreliminary?: boolean;
       };
 
 export interface AiAgentThreadStreamingState {

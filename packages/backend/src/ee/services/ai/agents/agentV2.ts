@@ -538,6 +538,15 @@ export const streamAgentResponse = async ({
                         break;
 
                     case 'tool-result':
+                        // The discoverFields tool emits preliminary
+                        // tool-result chunks as it streams subagent progress.
+                        // Only persist the final, non-preliminary one — N
+                        // intermediate rows for the same toolCallId would be
+                        // wasteful and the intermediate output shapes carry
+                        // streaming state, not the parent-facing result.
+                        if (event.chunk.preliminary) {
+                            break;
+                        }
                         logger(
                             'Chunk Tool Result',
                             `Storing tool result for Prompt UUID ${

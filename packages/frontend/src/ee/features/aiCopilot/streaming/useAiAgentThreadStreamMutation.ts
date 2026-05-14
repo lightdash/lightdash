@@ -158,6 +158,8 @@ export function useAiAgentThreadStreamMutation() {
                                 type: string;
                                 toolCallId: string;
                                 input?: unknown;
+                                output?: unknown;
+                                preliminary?: boolean;
                                 state: string;
                             };
                             if (
@@ -169,11 +171,19 @@ export function useAiAgentThreadStreamMutation() {
                                 const parsed =
                                     ToolNameSchema.safeParse(toolNameUnsafe);
                                 if (parsed.success) {
+                                    const hasOutput =
+                                        toolPart.state === 'output-available';
                                     orderedParts.push({
                                         type: 'toolCall',
                                         toolCallId: toolPart.toolCallId,
                                         toolName: parsed.data,
                                         toolArgs: toolPart.input,
+                                        toolOutput: hasOutput
+                                            ? toolPart.output
+                                            : undefined,
+                                        isPreliminary: hasOutput
+                                            ? (toolPart.preliminary ?? false)
+                                            : undefined,
                                     });
                                 }
                             }

@@ -252,6 +252,16 @@
     animation: historyReveal 380ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Subagent live trace: rendered outside .history so it remains visible
+   while the activity card is collapsed during streaming. Mirrors
+   .history padding so the nested rows align with the latest header. */
+.liveTrace {
+    position: relative;
+    z-index: 1;
+    padding: 4px 0 2px 18px;
+    margin-top: 2px;
+}
+
 /* History rows cascade in with staggered delays (see --row-delay) so opening
  * the bento feels like a deck dealing rather than a flash. */
 .historyRow {

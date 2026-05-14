@@ -1,5 +1,11 @@
 import { Explore } from '@lightdash/common';
-import { tool, type CallSettings, type LanguageModel } from 'ai';
+import {
+    readUIMessageStream,
+    tool,
+    type CallSettings,
+    type LanguageModel,
+    type UIMessage,
+} from 'ai';
 import type { AiAgentArgs } from '../../types/aiAgent';
 import { toModelOutput } from '../../utils/toModelOutput';
 import { toolErrorHandler } from '../../utils/toolErrorHandler';
@@ -8,7 +14,11 @@ import {
     runDiscoverFieldsAgent,
     type DiscoverFieldsAgentDependencies,
 } from './agent';
-import { discoverFieldsInputSchema, type DiscoverFieldsResult } from './schema';
+import {
+    discoverFieldsInputSchema,
+    discoverFieldsResultSchema,
+    type DiscoverFieldsResult,
+} from './schema';
 
 const DISCOVER_FIELDS_DESCRIPTION = `Tool: discoverFields
 
@@ -100,9 +110,40 @@ const renderResult = (result: DiscoverFieldsResult): string => {
         case 'no_match':
             return renderNoMatch(result).toString();
         default:
-            // exhaustiveness — should never reach here
             return '';
     }
+};
+
+/**
+ * Locate the subagent's final `submitResult` tool call in the accumulated
+ * UIMessage and parse its input through the result schema. AI SDK has
+ * already validated the input against the same schema before invoking
+ * the tool, so this `safeParse` is defence-in-depth — but we keep it
+ * because the input is `unknown` at this point in the type system and
+ * we'd rather surface a schema error than cast.
+ */
+const extractHandoffFromSubmitResult = (
+    message: UIMessage | undefined,
+): DiscoverFieldsResult | { error: string } => {
+    if (!message) {
+        return { error: 'Subagent produced no output.' };
+    }
+    const submitPart = message.parts.findLast(
+        (p): p is typeof p & { input?: unknown } =>
+            p.type === 'tool-submitResult',
+    );
+    if (!submitPart || submitPart.input === undefined) {
+        return {
+            error: 'Subagent did not call submitResult before the stream ended.',
+        };
+    }
+    const parsed = discoverFieldsResultSchema.safeParse(submitPart.input);
+    if (!parsed.success) {
+        return {
+            error: `submitResult payload failed schema validation: ${parsed.error.message}`,
+        };
+    }
+    return parsed.data.handoff;
 };
 
 type Dependencies = DiscoverFieldsAgentDependencies;
@@ -121,13 +162,29 @@ type ToolArgs = {
     >;
 };
 
+/**
+ * Schema enforcement is structural, not prompt-based: the subagent's final
+ * step is a `submitResult` tool call whose `inputSchema` is the result
+ * union. AI SDK validates the args at the tool-call boundary, so the
+ * handoff arrives already-typed — no JSON.parse, no fence stripping,
+ * no post-stream coercion.
+ *
+ * Each iteration of `readUIMessageStream` yields the accumulated subagent
+ * UIMessage as `metadata.streamingMessage` on the streaming tool output;
+ * AI SDK forwards each as a preliminary `tool-result` chunk so the
+ * frontend can render the trace live. The final yield extracts the
+ * handoff from the submitResult tool call and renders the XML the parent
+ * model sees via `toModelOutput`. Subagent's `storeToolCall` writes are
+ * awaited before the final yield so the parent's tool-result row never
+ * commits before the children rows.
+ */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
         description: DISCOVER_FIELDS_DESCRIPTION,
         inputSchema: discoverFieldsInputSchema,
-        execute: async (input, { toolCallId }) => {
+        async *execute(input, { toolCallId, abortSignal }) {
             try {
-                const { handoff, trace } = await runDiscoverFieldsAgent(
+                const { stream, flushPersistence } = runDiscoverFieldsAgent(
                     {
                         input,
                         availableExplores: args.availableExplores,
@@ -140,27 +197,54 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                         promptUuid: args.promptUuid,
                         parentToolCallId: toolCallId,
                         telemetry: args.telemetry,
+                        abortSignal,
                     },
                     dependencies,
                 );
 
-                return {
+                let currentMessage: UIMessage | undefined;
+                for await (const message of readUIMessageStream({
+                    stream: stream.toUIMessageStream(),
+                })) {
+                    currentMessage = message;
+                    yield {
+                        result: '',
+                        metadata: {
+                            status: 'streaming' as const,
+                            streamingMessage: message,
+                        },
+                    };
+                }
+
+                await flushPersistence();
+
+                const handoff = extractHandoffFromSubmitResult(currentMessage);
+                if ('error' in handoff) {
+                    yield {
+                        result: toolErrorHandler(
+                            new Error(handoff.error),
+                            'Error discovering fields.',
+                        ),
+                        metadata: { status: 'error' as const },
+                    };
+                    return;
+                }
+
+                yield {
                     result: renderResult(handoff),
                     metadata: {
                         status: 'success' as const,
                         discovery: handoff,
-                        trace,
+                        streamingMessage: currentMessage,
                     },
                 };
             } catch (error) {
-                return {
+                yield {
                     result: toolErrorHandler(
                         error,
                         'Error discovering fields.',
                     ),
-                    metadata: {
-                        status: 'error' as const,
-                    },
+                    metadata: { status: 'error' as const },
                 };
             }
         },
