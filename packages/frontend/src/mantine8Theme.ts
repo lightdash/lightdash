@@ -82,6 +82,24 @@ const subtleInputStyles = (theme: MantineTheme) => ({
     },
 });
 
+const subtlePasswordInputStyles = (theme: MantineTheme) => {
+    const subtleStyles = subtleInputStyles(theme);
+
+    return {
+        input: {
+            '--input-bd': theme.colors.ldGray[2],
+            borderRadius: theme.radius.md,
+            boxShadow: theme.shadows.subtle,
+        },
+        innerInput: {
+            fontWeight: subtleStyles.input.fontWeight,
+            fontSize: subtleStyles.input.fontSize,
+            color: subtleStyles.input.color,
+        },
+        label: subtleStyles.label,
+    };
+};
+
 const paperDottedStyles = (theme: MantineTheme) => ({
     border: `1px dashed ${theme.colors.ldGray[3]}`,
     background: 'inherit',
@@ -275,6 +293,10 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     radius: 'md',
                 },
+                styles: (theme, props) =>
+                    props.variant === 'subtle'
+                        ? subtlePasswordInputStyles(theme)
+                        : {},
             }),
 
             Textarea: Textarea.extend({

@@ -41,6 +41,7 @@ import {
     useProjectCreateAiAgentMutation,
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
 import { EvalsSetup } from './EvalsSetup';
 
 const formSchema = z.object({
@@ -58,6 +59,7 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     spaceAccess: z.array(z.string()),
+    mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     version: z.number(),
@@ -95,6 +97,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         projectUuid,
         actualAgentUuid,
     );
+    const { data: agentMcpServers, isFetched: isAgentMcpServersFetched } =
+        useAgentAiMcpServers(projectUuid, actualAgentUuid);
 
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
@@ -107,6 +111,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             groupAccess: [],
             userAccess: [],
             spaceAccess: [],
+            mcpServerUuids: [],
             enableDataAccess: false,
             enableSelfImprovement: false,
             version: 2, // INFO: Default to v2 for now
@@ -115,7 +120,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     });
 
     useEffect(() => {
-        if (isCreateMode || !agent) {
+        if (isCreateMode || !agent || !isAgentMcpServersFetched) {
             return;
         }
 
@@ -130,6 +135,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 groupAccess: agent.groupAccess ?? [],
                 userAccess: agent.userAccess ?? [],
                 spaceAccess: agent.spaceAccess ?? [],
+                mcpServerUuids: agentMcpServers?.map((mcp) => mcp.uuid) ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
@@ -138,7 +144,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             form.resetDirty(values);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [agent, isCreateMode]);
+    }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
 
     // Derive activeTab from current pathname
     const activeTab = location.pathname.includes('/evals')
@@ -147,12 +153,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
           ? 'verified-artifacts'
           : 'setup';
 
-    const { mutateAsync: createAgent } = useProjectCreateAiAgentMutation(
-        projectUuid!,
-    );
-    const { mutateAsync: updateAgent } = useProjectUpdateAiAgentMutation(
-        projectUuid!,
-    );
+    const { mutateAsync: createAgent, isLoading: isCreatingAgent } =
+        useProjectCreateAiAgentMutation(projectUuid!);
+    const { mutateAsync: updateAgent, isLoading: isUpdatingAgent } =
+        useProjectUpdateAiAgentMutation(projectUuid!);
     const handleSubmit = form.onSubmit(async (values) => {
         if (!projectUuid || !user?.data) {
             return;
@@ -171,6 +175,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 projectUuid,
                 ...values,
             });
+            form.resetDirty(values);
         }
     });
 
@@ -256,7 +261,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             {form.isDirty() && (
                                 <Button
                                     size="xs"
-                                    disabled={!form.isDirty()}
+                                    disabled={
+                                        !form.isDirty() ||
+                                        isCreatingAgent ||
+                                        isUpdatingAgent
+                                    }
+                                    loading={isCreatingAgent || isUpdatingAgent}
                                     onClick={() => handleSubmit()}
                                 >
                                     Save changes
