@@ -486,6 +486,13 @@ export default class App {
 
         expressApp.use(helmet(helmetConfig));
 
+        // Allow MCP-related icons to be embedded cross-origin so MCP hosts
+        // (e.g. claude.ai) can display them in connector listings.
+        expressApp.use(
+            ['/logo-icon.svg', '/favicon-32x32.png', '/apple-touch-icon.png'],
+            helmet.crossOriginResourcePolicy({ policy: 'cross-origin' }),
+        );
+
         const helmetConfigForEmbeds = produce(helmetConfig, (draft) => {
             // eslint-disable-next-line no-param-reassign
             draft.contentSecurityPolicy.directives['frame-ancestors'] = [
