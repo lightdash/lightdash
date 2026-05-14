@@ -20,6 +20,7 @@ import {
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
+    JobPollTimeoutError,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -1258,7 +1259,11 @@ export class SchedulerService extends BaseService {
             timeoutMs?: number;
         } = {},
     ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
-        for await (const job of this.streamJobStatus(account, jobId, options)) {
+        const { timeoutMs = 5 * 60 * 1000 } = options;
+        for await (const job of this.streamJobStatus(account, jobId, {
+            ...options,
+            timeoutMs,
+        })) {
             if (
                 job.status === SchedulerJobStatus.COMPLETED ||
                 job.status === SchedulerJobStatus.ERROR
@@ -1266,7 +1271,7 @@ export class SchedulerService extends BaseService {
                 return job;
             }
         }
-        throw new Error(`Scheduler job ${jobId} did not complete in time`);
+        throw new JobPollTimeoutError(jobId, timeoutMs);
     }
 
     async setJobStatus(

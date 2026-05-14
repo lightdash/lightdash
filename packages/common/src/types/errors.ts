@@ -787,3 +787,20 @@ export class InvalidSpaceStateError extends LightdashError {
         });
     }
 }
+
+export class JobPollTimeoutError extends LightdashError {
+    jobId: string;
+
+    timeoutMs: number;
+
+    constructor(jobId: string, timeoutMs: number) {
+        super({
+            message: `Scheduler job ${jobId} did not complete within ${timeoutMs}ms`,
+            name: 'JobPollTimeoutError',
+            statusCode: 504,
+            data: { jobId, timeoutMs },
+        });
+        this.jobId = jobId;
+        this.timeoutMs = timeoutMs;
+    }
+}

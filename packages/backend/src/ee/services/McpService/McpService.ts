@@ -13,6 +13,7 @@ import {
     getSlackAiEchartsConfig,
     getValidAiQueryLimit,
     isExploreError,
+    JobPollTimeoutError,
     mcpToolListExploresArgsSchema,
     MissingConfigError,
     NotFoundError,
@@ -1538,10 +1539,22 @@ export class McpService extends BaseService {
         account: Account,
         jobId: string,
     ): Promise<{ fileUrl: string; columns: Array<{ reference: string }> }> {
-        const job = await this.schedulerService.pollJobToCompletion(
-            account,
-            jobId,
-        );
+        let job;
+        try {
+            job = await this.schedulerService.pollJobToCompletion(
+                account,
+                jobId,
+            );
+        } catch (e) {
+            if (e instanceof JobPollTimeoutError) {
+                throw new Error(
+                    `SQL query timed out after ${Math.round(
+                        e.timeoutMs / 1000,
+                    )}s`,
+                );
+            }
+            throw e;
+        }
 
         if (job.status === SchedulerJobStatus.ERROR) {
             const errorDetail =
