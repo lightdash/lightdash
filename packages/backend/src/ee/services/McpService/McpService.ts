@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     Account,
     AiResultType,
-    AnyType,
     ApiKeyAccount,
     CatalogType,
     CommercialFeatureFlags,
@@ -370,10 +369,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: Record<string, never>,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 this.trackToolCall(
                     getMcpContext(extra),
                     McpToolName.GET_LIGHTDASH_VERSION,
@@ -404,11 +400,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 try {
                     const { user } = this.getAccount(getMcpContext(extra));
 
@@ -478,11 +470,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const args = _args as Omit<ToolFindExploresArgsV3, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
@@ -554,11 +542,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const args = _args as Omit<ToolFindFieldsArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
@@ -609,11 +593,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const args = _args as Omit<ToolFindContentArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
@@ -665,7 +645,7 @@ export class McpService extends BaseService {
                     },
                 },
                 async (
-                    _args: Record<string, never>,
+                    _args,
                     extra: RequestHandlerExtra<
                         ServerRequest,
                         ServerNotification
@@ -731,18 +711,13 @@ export class McpService extends BaseService {
                         idempotentHint: true,
                     },
                 },
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 async (
-                    _args: AnyType,
+                    args,
                     extra: RequestHandlerExtra<
                         ServerRequest,
                         ServerNotification
                     >,
                 ) => {
-                    const args = _args as {
-                        projectUuid: string;
-                        tags?: string[];
-                    };
                     const { user, organizationUuid, account } = this.getAccount(
                         getMcpContext(extra),
                     );
@@ -827,10 +802,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: Record<string, never>,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const { user, organizationUuid } = this.getAccount(
                     getMcpContext(extra),
                 );
@@ -897,11 +869,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
-                const args = _args as { projectUuid?: string };
+            async (args, extra) => {
                 const { user } = this.getAccount(getMcpContext(extra));
 
                 await this.checkAiAgentsVisible(user);
@@ -949,10 +917,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const args = _args as { agentUuid: string };
                 const { user, organizationUuid } = this.getAccount(
                     getMcpContext(extra),
@@ -1032,10 +997,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: Record<string, never>,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const { user, organizationUuid } = this.getAccount(
                     getMcpContext(extra),
                 );
@@ -1092,10 +1054,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: Record<string, never>,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const { user, organizationUuid } = this.getAccount(
                     getMcpContext(extra),
                 );
@@ -1203,11 +1162,7 @@ export class McpService extends BaseService {
                 },
                 _meta: { ui: { resourceUri: chartResourceUri } },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
                 );
@@ -1440,11 +1395,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const args = _args as Omit<ToolSearchFieldValuesArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
@@ -1493,11 +1444,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const args = _args as { sql: string; limit?: number };
                 const { user, account } = this.getAccount(getMcpContext(extra));
                 const projectUuid = await this.resolveProjectUuid(
@@ -1581,10 +1528,7 @@ export class McpService extends BaseService {
                     idempotentHint: true,
                 },
             },
-            async (
-                _args: Record<string, never>,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const { user } = this.getAccount(getMcpContext(extra));
                 const projectUuid = await this.resolveProjectUuid(
                     getMcpContext(extra),
@@ -1617,11 +1561,7 @@ export class McpService extends BaseService {
                     'Guidelines for querying Lightdash data using MCP tools. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.',
                 argsSchema: {},
             },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            async (
-                _args: AnyType,
-                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
-            ) => {
+            async (_args, extra) => {
                 const context = getMcpContext(extra);
                 const metadata = await this.getActiveContextMetadata(context);
 
