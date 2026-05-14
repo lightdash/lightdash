@@ -21,7 +21,11 @@ type GridTileProps = Pick<
 > & {
     index: number;
     tabs?: DashboardTab[];
-    onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
+    onAddTiles: (
+        tiles: IDashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => Promise<void>;
     locked: boolean;
 };
 

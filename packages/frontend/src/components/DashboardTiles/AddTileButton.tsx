@@ -32,7 +32,11 @@ import AddChartTilesModal from './TileForms/AddChartTilesModal';
 import { TileAddModal } from './TileForms/TileAddModal';
 
 type Props = {
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];

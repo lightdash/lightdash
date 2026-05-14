@@ -83,7 +83,11 @@ type TabGridPanelProps = {
     onWidthChange: (width: number) => void;
     onDeleteTile: (tile: IDashboard['tiles'][number]) => Promise<void>;
     onEditTile: (tile: IDashboard['tiles'][number]) => void;
-    onAddTiles: (tiles: IDashboard['tiles'][number][]) => Promise<void>;
+    onAddTiles: (
+        tiles: IDashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => Promise<void>;
 };
 
 /**

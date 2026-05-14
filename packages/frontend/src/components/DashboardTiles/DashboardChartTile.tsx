@@ -544,7 +544,11 @@ interface DashboardChartTileMainProps extends Pick<
     tile: IDashboardChartTile;
     dashboardChartReadyQuery: DashboardChartReadyQuery;
     resultsData: InfiniteQueryResults;
-    onAddTiles?: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles?: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     canExportCsv?: boolean;
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
@@ -783,22 +787,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
 
         useEffect(() => {
             if (duplicatedChart && props.onAddTiles) {
-                // We duplicated a chart, we add it to the dashboard
-                props.onAddTiles([
-                    {
-                        uuid: uuid4(),
-                        properties: {
-                            savedChartUuid: duplicatedChart.uuid,
-                            chartName: duplicatedChart.name ?? '',
+                const newTileUuid = uuid4();
+                props.onAddTiles(
+                    [
+                        {
+                            uuid: newTileUuid,
+                            properties: {
+                                savedChartUuid: duplicatedChart.uuid,
+                                chartName: duplicatedChart.name ?? '',
+                            },
+                            type: DashboardTileTypes.SAVED_CHART,
+                            x: 0,
+                            y: 0,
+                            h: props.tile.h,
+                            w: props.tile.w,
+                            tabUuid: props.tile.tabUuid,
                         },
-                        type: DashboardTileTypes.SAVED_CHART,
-                        x: 0,
-                        y: 0,
-                        h: props.tile.h,
-                        w: props.tile.w,
-                        tabUuid: props.tile.tabUuid,
-                    },
-                ]);
+                    ],
+                    { [newTileUuid]: props.tile.uuid },
+                );
                 resetDuplicatedChart(); // Reset duplicated chart to avoid adding it multiple times
             }
         }, [props, duplicatedChart, resetDuplicatedChart]);
