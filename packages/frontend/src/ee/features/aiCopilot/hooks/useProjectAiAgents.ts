@@ -1,10 +1,5 @@
 import type {
     AiAgent,
-    ApiAiMcpServerListResponse,
-    ApiAiMcpServerResponse,
-    AiPromptContext,
-    AiPromptContextItem,
-    AiPromptContextItemInput,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
@@ -18,9 +13,11 @@ import type {
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
+    AiPromptContext,
+    AiPromptContextItem,
+    AiPromptContextItemInput,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
-    ApiCreateAiMcpServer,
     ApiError,
     ApiRevertChangeRequest,
     ApiRevertChangeResponse,
@@ -47,8 +44,6 @@ import { USER_AGENT_PREFERENCES } from './useUserAgentPreferences';
 
 const PROJECT_AI_AGENTS_KEY = 'projectAiAgents';
 const AI_AGENTS_KEY = 'aiAgents';
-const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
-const AGENT_AI_MCP_SERVERS_KEY = 'agentAiMcpServers';
 
 const listProjectAgents = (projectUuid: string) =>
     lightdashApi<ApiAiAgentSummaryResponse['results']>({
@@ -67,38 +62,6 @@ const getProjectAgent = async (
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}`,
         method: 'GET',
         body: undefined,
-    });
-
-const listProjectAiMcpServers = async (
-    projectUuid: string,
-): Promise<ApiAiMcpServerListResponse['results']> =>
-    lightdashApi<ApiAiMcpServerListResponse['results']>({
-        version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/mcpServers`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const listAgentAiMcpServers = async (
-    projectUuid: string,
-    agentUuid: string,
-): Promise<ApiAiMcpServerListResponse['results']> =>
-    lightdashApi<ApiAiMcpServerListResponse['results']>({
-        version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/mcpServers`,
-        method: 'GET',
-        body: undefined,
-    });
-
-const createProjectAiMcpServer = async (
-    projectUuid: string,
-    data: ApiCreateAiMcpServer,
-): Promise<ApiAiMcpServerResponse['results']> =>
-    lightdashApi<ApiAiMcpServerResponse['results']>({
-        version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/mcpServers`,
-        method: 'POST',
-        body: JSON.stringify(data),
     });
 
 type UseProjectAiAgentsProps = {
@@ -164,49 +127,6 @@ export const useProjectAiAgent = (
                 return false;
             }
             return failureCount < 3;
-        },
-    });
-};
-
-export const useProjectAiMcpServers = (
-    projectUuid: string | undefined,
-    options?: UseQueryOptions<ApiAiMcpServerListResponse['results'], ApiError>,
-) => {
-    const { showToastApiError } = useToaster();
-
-    return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
-        queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
-        queryFn: () => listProjectAiMcpServers(projectUuid!),
-        enabled: !!projectUuid && options?.enabled !== false,
-        ...options,
-        onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch MCP servers',
-                apiError: error.error,
-            });
-            options?.onError?.(error);
-        },
-    });
-};
-
-export const useAgentAiMcpServers = (
-    projectUuid: string | undefined,
-    agentUuid: string | undefined,
-    options?: UseQueryOptions<ApiAiMcpServerListResponse['results'], ApiError>,
-) => {
-    const { showToastApiError } = useToaster();
-
-    return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
-        queryKey: [AGENT_AI_MCP_SERVERS_KEY, projectUuid, agentUuid],
-        queryFn: () => listAgentAiMcpServers(projectUuid!, agentUuid!),
-        enabled: !!projectUuid && !!agentUuid && options?.enabled !== false,
-        ...options,
-        onError: (error) => {
-            showToastApiError({
-                title: 'Failed to fetch agent MCP servers',
-                apiError: error.error,
-            });
-            options?.onError?.(error);
         },
     });
 };
@@ -280,33 +200,6 @@ export const useProjectUpdateAiAgentMutation = (projectUuid: string) => {
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to update AI agent',
-                apiError: error,
-            });
-        },
-    });
-};
-
-export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
-    const queryClient = useQueryClient();
-    const { showToastApiError, showToastSuccess } = useToaster();
-
-    return useMutation<
-        ApiAiMcpServerResponse['results'],
-        ApiError,
-        ApiCreateAiMcpServer
-    >({
-        mutationFn: (data) => createProjectAiMcpServer(projectUuid, data),
-        onSuccess: async () => {
-            showToastSuccess({
-                title: 'MCP server created successfully',
-            });
-            await queryClient.invalidateQueries({
-                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
-            });
-        },
-        onError: ({ error }) => {
-            showToastApiError({
-                title: 'Failed to create MCP server',
                 apiError: error,
             });
         },
@@ -544,6 +437,27 @@ const createOptimisticMessages = (
     ];
 };
 
+const markOptimisticAssistantMessageAsErrored = (
+    currentData: ApiAiAgentThreadResponse['results'] | undefined,
+    messageUuid: string,
+    errorMessage: string,
+) => {
+    if (!currentData) return currentData;
+
+    return {
+        ...currentData,
+        messages: currentData.messages.map((message) =>
+            message.uuid === messageUuid && message.role === 'assistant'
+                ? {
+                      ...message,
+                      status: 'error' as const,
+                      errorMessage,
+                  }
+                : message,
+        ),
+    };
+};
+
 const generateAgentThreadTitle = async (
     projectUuid: string,
     agentUuid: string,
@@ -698,6 +612,37 @@ export const useCreateAgentThreadMutation = (
                             thread.uuid,
                         ],
                     }),
+                onError: (errorMessage) => {
+                    queryClient.setQueryData(
+                        [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            thread.uuid,
+                        ],
+                        (
+                            currentData:
+                                | ApiAiAgentThreadResponse['results']
+                                | undefined,
+                        ) =>
+                            markOptimisticAssistantMessageAsErrored(
+                                currentData,
+                                thread.firstMessage.uuid,
+                                errorMessage,
+                            ),
+                    );
+
+                    void queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            thread.uuid,
+                        ],
+                    });
+                },
                 refetchThread: () =>
                     queryClient.invalidateQueries({
                         queryKey: [
@@ -855,6 +800,37 @@ export const useCreateAgentThreadMessageMutation = (
                         'threads',
                         threadUuid,
                     ]),
+                onError: (errorMessage) => {
+                    queryClient.setQueryData(
+                        [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            threadUuid,
+                        ],
+                        (
+                            currentData:
+                                | ApiAiAgentThreadResponse['results']
+                                | undefined,
+                        ) =>
+                            markOptimisticAssistantMessageAsErrored(
+                                currentData,
+                                data.uuid,
+                                errorMessage,
+                            ),
+                    );
+
+                    void queryClient.invalidateQueries({
+                        queryKey: [
+                            AI_AGENTS_KEY,
+                            projectUuid,
+                            agentUuid,
+                            'threads',
+                            threadUuid,
+                        ],
+                    });
+                },
                 refetchThread: () =>
                     queryClient.invalidateQueries({
                         queryKey: [

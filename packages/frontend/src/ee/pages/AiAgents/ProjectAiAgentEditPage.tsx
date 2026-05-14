@@ -37,11 +37,11 @@ import { EvalRunDetails } from '../../features/aiCopilot/components/Evals/EvalRu
 import { EvalSectionLayout } from '../../features/aiCopilot/components/Evals/EvalSectionLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import {
-    useAgentAiMcpServers,
     useProjectAiAgent,
     useProjectCreateAiAgentMutation,
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
 import { EvalsSetup } from './EvalsSetup';
 
 const formSchema = z.object({
