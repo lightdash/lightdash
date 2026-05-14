@@ -190,6 +190,9 @@ export const getSchedulerLink = (
             case SchedulerResourceType.DASHBOARD:
                 resourcePath = `/projects/${projectUuid}/dashboards/${item.resourceUuid}/view`;
                 break;
+            case SchedulerResourceType.APP:
+                resourcePath = `/projects/${projectUuid}/apps/${item.resourceUuid}/preview`;
+                break;
             default:
                 assertUnreachable(
                     item.resourceType,

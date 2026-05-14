@@ -118,6 +118,8 @@ export type SchedulerBase = {
     dashboardName: string | null;
     savedSqlUuid: string | null;
     savedSqlName: string | null;
+    appUuid: string | null;
+    appName: string | null;
     options: SchedulerOptions;
     thresholds?: ThresholdOptions[]; // it can ben an array of AND conditions
     enabled: boolean;
@@ -131,6 +133,7 @@ export type ChartScheduler = SchedulerBase & {
     savedChartUuid: string;
     dashboardUuid: null;
     savedSqlUuid: null;
+    appUuid: null;
 };
 
 export const isDashboardScheduler = (
@@ -142,6 +145,7 @@ export type DashboardScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: string;
     savedSqlUuid: null;
+    appUuid: null;
     filters?: DashboardFilterRule[];
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
@@ -152,14 +156,30 @@ export type SqlChartScheduler = SchedulerBase & {
     savedChartUuid: null;
     dashboardUuid: null;
     savedSqlUuid: string;
+    appUuid: null;
 };
+
+export type AppScheduler = SchedulerBase & {
+    savedChartUuid: null;
+    dashboardUuid: null;
+    savedSqlUuid: null;
+    appUuid: string;
+};
+
+export const isAppScheduler = (
+    data: Scheduler | CreateSchedulerAndTargets,
+): data is AppScheduler => 'appUuid' in data && !!data.appUuid;
 
 export const isSqlChartScheduler = (
     scheduler: Scheduler | CreateSchedulerAndTargets,
 ): scheduler is SqlChartScheduler =>
     'savedSqlUuid' in scheduler && !!scheduler.savedSqlUuid;
 
-export type Scheduler = ChartScheduler | DashboardScheduler | SqlChartScheduler;
+export type Scheduler =
+    | ChartScheduler
+    | DashboardScheduler
+    | SqlChartScheduler
+    | AppScheduler;
 
 export type SchedulerAndTargets = Scheduler & {
     targets: (
@@ -347,6 +367,12 @@ export const getSchedulerResourceTypeAndId = (
             resourceId: scheduler.dashboardUuid,
         };
     }
+    if (isAppScheduler(scheduler)) {
+        return {
+            resourceType: SchedulerResourceType.APP,
+            resourceId: scheduler.appUuid,
+        };
+    }
     throw new Error('Unknown scheduler resource type');
 };
 
@@ -359,6 +385,11 @@ export const isDashboardCreateScheduler = (
     data: CreateSchedulerAndTargets,
 ): data is DashboardScheduler & { targets: CreateSchedulerTarget[] } =>
     'dashboardUuid' in data && !!data.dashboardUuid;
+
+export const isAppCreateScheduler = (
+    data: CreateSchedulerAndTargets,
+): data is AppScheduler & { targets: CreateSchedulerTarget[] } =>
+    'appUuid' in data && !!data.appUuid;
 
 export const isSlackTarget = (
     target:

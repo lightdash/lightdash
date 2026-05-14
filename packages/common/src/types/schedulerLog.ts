@@ -19,6 +19,7 @@ export enum SchedulerResourceType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sqlChart',
+    APP = 'app',
 }
 
 // Partial failure types for different scenarios

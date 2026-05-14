@@ -246,6 +246,8 @@ export const transformFormValues = (
         timezone: values.timezone || undefined,
         options,
         targets,
+        appUuid: null,
+        appName: null,
         ...(resourceType === 'dashboard' && {
             filters: values.filters,
             parameters: values.parameters,
