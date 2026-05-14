@@ -53,7 +53,20 @@ export const getAnthropicModel = (
                 },
                 ...(reasoningEnabled &&
                     (reasoningStyle === 'adaptive'
-                        ? { effort: 'medium' as const }
+                        ? {
+                              // Claude Opus 4.7 (and newer adaptive-thinking
+                              // models) reject `thinking.type: 'enabled'` and
+                              // require `thinking.type: 'adaptive'` paired with
+                              // `output_config.effort`. The `clear_thinking_20251015`
+                              // context-management edit added above also
+                              // requires a `thinking` field on the request, so
+                              // we MUST set adaptive here — sending neither, or
+                              // sending enabled, both produce a 400.
+                              // @ai-sdk/anthropic exposes the adaptive variant
+                              // from 3.0.62+.
+                              effort: 'medium' as const,
+                              thinking: { type: 'adaptive' as const },
+                          }
                         : {
                               thinking: {
                                   type: 'enabled' as const,
