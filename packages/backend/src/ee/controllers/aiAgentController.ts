@@ -27,6 +27,7 @@ import {
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
+    ApiStartAiMcpOAuthResponse,
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -205,6 +206,60 @@ export class AiAgentController extends BaseController {
                 projectUuid,
                 body,
             ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/oauth/start')
+    @OperationId('startMcpOAuthConnection')
+    async startMcpOAuthConnection(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiStartAiMcpOAuthResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                authorizationUrl:
+                    await this.getAiAgentService().startMcpOAuthConnection(
+                        toSessionUser(req.account),
+                        projectUuid,
+                        mcpServerUuid,
+                    ),
+            },
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/oauth/disconnect')
+    @OperationId('disconnectMcpOAuthConnection')
+    async disconnectMcpOAuthConnection(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAiAgentService().disconnectMcpOAuthConnection(
+            toSessionUser(req.account),
+            projectUuid,
+            mcpServerUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

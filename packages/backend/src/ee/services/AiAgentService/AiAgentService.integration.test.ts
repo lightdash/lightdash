@@ -174,10 +174,12 @@ describe('AiAgentService MCP support', () => {
         const sensitiveMcpServers =
             await models.aiAgentModel.getAgentMcpServersWithSensitiveData(
                 agent.uuid,
+                context.testUser.userUuid,
             );
 
         expect(sensitiveMcpServers).toHaveLength(1);
-        expect(sensitiveMcpServers[0]?.credentials).toEqual({
+        expect(sensitiveMcpServers[0]?.resolvedCredential).toEqual({
+            type: 'bearer',
             bearerToken: expectedBearerToken,
         });
 

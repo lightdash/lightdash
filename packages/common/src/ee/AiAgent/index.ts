@@ -38,6 +38,12 @@ export * from './utils';
 export * from './validators';
 
 export type AiMcpServerAuthType = 'none' | 'bearer' | 'oauth';
+export type AiMcpCredentialScope = 'shared' | 'user';
+export type AiMcpServerConnectionStatus =
+    | 'not_connected'
+    | 'connecting'
+    | 'connected'
+    | 'error';
 
 export type AiMcpServer = {
     uuid: string;
@@ -46,6 +52,9 @@ export type AiMcpServer = {
     url: string;
     authType: AiMcpServerAuthType;
     hasCredentials: boolean;
+    credentialScope: AiMcpCredentialScope | null;
+    connectionStatus: AiMcpServerConnectionStatus | null;
+    connectedByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -277,6 +286,7 @@ export type ApiCreateAiMcpServer = {
     name: string;
     url: string;
     authType: AiMcpServerAuthType;
+    credentialScope?: AiMcpCredentialScope;
     credentials?:
         | {
               bearerToken: string;
@@ -286,6 +296,9 @@ export type ApiCreateAiMcpServer = {
 
 export type ApiAiMcpServerListResponse = ApiSuccess<AiMcpServer[]>;
 export type ApiAiMcpServerResponse = ApiSuccess<AiMcpServer>;
+export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
+    authorizationUrl: string;
+}>;
 
 export type ApiAiAgentThreadSummaryListResponse = {
     status: 'ok';

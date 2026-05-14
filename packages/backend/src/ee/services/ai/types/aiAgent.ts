@@ -1,5 +1,7 @@
 import { AiAgent, AiMcpServer, WarehouseTypes } from '@lightdash/common';
+import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
+import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import {
     CreateChangeFn,
@@ -34,12 +36,9 @@ import {
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
 
 export type AiAgentMcpServer = AiMcpServer & {
-    credentials:
-        | {
-              bearerToken: string;
-          }
-        | Record<string, unknown>
-        | null;
+    resolvedCredential: AiMcpCredentialPayload | null;
+    resolvedCredentialScope: 'shared' | 'user' | null;
+    oauthProvider?: OAuthClientProvider;
 };
 
 export type AiAgentArgs = AnyAiModel & {

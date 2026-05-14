@@ -11,6 +11,7 @@ import {
     type ToolSet,
 } from 'ai';
 import Logger from '../../../../logging/logger';
+import { createHttpMcpClient } from '../AiAgentMcpRuntimeClient';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
@@ -35,7 +36,6 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
-import { createHttpMcpClient } from '../utils/mcpClient';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {

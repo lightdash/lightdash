@@ -334,6 +334,8 @@ import {
     AiAgentSlackIntegrationTableName,
     AiAgentTable,
     AiAgentTableName,
+    AiMcpServerCredentialTable,
+    AiMcpServerCredentialTableName,
     AiMcpServerTable,
     AiMcpServerTableName,
 } from '../ee/database/entities/aiAgent';
@@ -486,6 +488,7 @@ declare module 'knex/types/tables' {
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
         [AiMcpServerTableName]: AiMcpServerTable;
+        [AiMcpServerCredentialTableName]: AiMcpServerCredentialTable;
         [AiAgentMcpServerTableName]: AiAgentMcpServerTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;

@@ -160,7 +160,6 @@ export type DbAiMcpServer = {
     name: string;
     url: string;
     auth_type: 'none' | 'bearer' | 'oauth';
-    encrypted_credentials: Buffer | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -170,6 +169,36 @@ export type AiMcpServerTable = Knex.CompositeTableType<
     Omit<DbAiMcpServer, 'ai_mcp_server_uuid' | 'created_at' | 'updated_at'>,
     Partial<
         Omit<DbAiMcpServer, 'ai_mcp_server_uuid' | 'created_at' | 'updated_at'>
+    > & {
+        updated_at: Knex.Raw;
+    }
+>;
+
+export const AiMcpServerCredentialTableName = 'ai_mcp_server_credential';
+
+export type DbAiMcpServerCredential = {
+    ai_mcp_server_credential_uuid: string;
+    ai_mcp_server_uuid: string;
+    credential_scope: 'shared' | 'user';
+    user_uuid: string | null;
+    encrypted_credentials: Buffer;
+    created_by_user_uuid: string | null;
+    updated_by_user_uuid: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiMcpServerCredentialTable = Knex.CompositeTableType<
+    DbAiMcpServerCredential,
+    Omit<
+        DbAiMcpServerCredential,
+        'ai_mcp_server_credential_uuid' | 'created_at' | 'updated_at'
+    >,
+    Partial<
+        Omit<
+            DbAiMcpServerCredential,
+            'ai_mcp_server_credential_uuid' | 'created_at' | 'updated_at'
+        >
     > & {
         updated_at: Knex.Raw;
     }
