@@ -564,6 +564,7 @@ export enum LightdashPage {
     CHART = 'chart',
     EXPLORE = 'explore',
     SQL_CHART = 'sql_chart',
+    APP = 'app',
 }
 
 export type NotificationPayloadBase = {
