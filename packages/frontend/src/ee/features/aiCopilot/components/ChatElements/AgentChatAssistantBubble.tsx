@@ -33,6 +33,8 @@ import {
     IconThumbUpFilled,
 } from '@tabler/icons-react';
 import { memo, useCallback, useState, type FC } from 'react';
+import remarkEmoji from 'remark-emoji';
+import remarkGfm from 'remark-gfm';
 // streamdown is a streaming-aware drop-in for react-markdown — used for the
 // final answer + intermediate text chunks in the AI bubble.
 import { Streamdown } from 'streamdown';
@@ -330,6 +332,7 @@ const AssistantBubbleContent: FC<{
                                 controls={false}
                                 animated
                                 mode={isStreaming ? 'streaming' : 'static'}
+                                remarkPlugins={[remarkGfm, remarkEmoji]}
                                 rehypePlugins={[rehypeAiAgentContentLinks]}
                                 components={{
                                     a: ({ node, children, ...props }) => {
@@ -463,6 +466,7 @@ const AssistantBubbleContent: FC<{
                                     controls={false}
                                     animated
                                     mode="static"
+                                    remarkPlugins={[remarkGfm, remarkEmoji]}
                                     rehypePlugins={[rehypeAiAgentContentLinks]}
                                     components={{
                                         a: ({ node, children, ...props }) => {

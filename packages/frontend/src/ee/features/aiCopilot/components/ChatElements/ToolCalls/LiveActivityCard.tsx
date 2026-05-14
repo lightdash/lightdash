@@ -14,6 +14,8 @@ import {
 } from '@mantine-8/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
+import remarkEmoji from 'remark-emoji';
+import remarkGfm from 'remark-gfm';
 import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
@@ -143,6 +145,7 @@ const ReasoningHistoryRow: FC<{ texts: string[]; isLive: boolean }> = ({
                         parseIncompleteMarkdown
                         controls={false}
                         mode="static"
+                        remarkPlugins={[remarkGfm, remarkEmoji]}
                     >
                         {combined}
                     </Streamdown>

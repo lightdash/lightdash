@@ -124,6 +124,8 @@
         "rehype-external-links": "3.0.0",
         "rehype-raw": "7.0.0",
         "rehype-sanitize": "6.0.0",
+        "remark-emoji": "5.0.2",
+        "remark-gfm": "4.0.1",
         "reselect": "5.1.1",
         "rudder-sdk-js": "2.9.1",
         "scheduler": "0.23.2",
