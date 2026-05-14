@@ -490,11 +490,13 @@ export class ProjectModel {
         userUuid: string,
         organizationUuid: string,
         data: CreateProject,
+        expiresAt?: Date | null,
     ): Promise<string> {
         return this.createWithOptionalCredentials(
             userUuid,
             organizationUuid,
             data,
+            expiresAt,
         );
     }
 
@@ -502,6 +504,7 @@ export class ProjectModel {
         userUuid: string,
         organizationUuid: string,
         data: CreateProjectOptionalCredentials,
+        expiresAt?: Date | null,
     ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -550,10 +553,8 @@ export class ProjectModel {
                     created_by_user_uuid: userUuid,
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid ?? null,
-                    ...(data.type === ProjectType.PREVIEW
-                        ? {
-                              expires_at: trx.raw(`NOW() + INTERVAL '30 days'`),
-                          }
+                    ...(expiresAt !== undefined
+                        ? { expires_at: expiresAt }
                         : {}),
                 })
                 .returning('*');

@@ -2025,6 +2025,7 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
+                ProjectService.getPreviewExpiresAt(createProject.type),
             );
 
         // Do not give this user admin permissions on this new project,
@@ -2227,6 +2228,17 @@ export class ProjectService extends BaseService {
         return { jobUuid: job.jobUuid };
     }
 
+    static PREVIEW_PROJECT_TTL_DAYS = 30;
+
+    static getPreviewExpiresAt(type: ProjectType): Date | null {
+        if (type !== ProjectType.PREVIEW) return null;
+        const now = new Date();
+        return new Date(
+            now.getTime() +
+                ProjectService.PREVIEW_PROJECT_TTL_DAYS * 24 * 60 * 60 * 1000,
+        );
+    }
+
     static getAnalyticProperties(
         createProject: Pick<
             CreateProjectOptionalCredentials,
@@ -2318,6 +2330,7 @@ export class ProjectService extends BaseService {
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
+                        ProjectService.getPreviewExpiresAt(createProject.type),
                     );
                     // Give admin user permissions to user who created this project even if he is an admin
                     if (user.email) {
