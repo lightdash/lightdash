@@ -335,6 +335,12 @@ const AssistantBubbleContent: FC<{
                                 controls={false}
                                 caret="block"
                                 isAnimating={isStreaming}
+                                animated={{
+                                    animation: 'fadeIn',
+                                    duration: 200,
+                                    easing: 'ease-out',
+                                    sep: 'word',
+                                }}
                                 mode={isStreaming ? 'streaming' : 'static'}
                                 remarkPlugins={[remarkGfm, remarkEmoji]}
                                 rehypePlugins={[rehypeAiAgentContentLinks]}
@@ -465,7 +471,12 @@ const AssistantBubbleContent: FC<{
                                 <Streamdown
                                     parseIncompleteMarkdown
                                     controls={false}
-                                    animated
+                                    animated={{
+                                        animation: 'fadeIn',
+                                        duration: 200,
+                                        easing: 'ease-out',
+                                        sep: 'word',
+                                    }}
                                     mode="static"
                                     remarkPlugins={[remarkGfm, remarkEmoji]}
                                     rehypePlugins={[rehypeAiAgentContentLinks]}

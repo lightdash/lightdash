@@ -140,6 +140,12 @@ export const ReasoningHistoryRow: FC<{
                     <Streamdown
                         parseIncompleteMarkdown
                         controls={false}
+                        animated={{
+                            animation: 'fadeIn',
+                            duration: 200,
+                            easing: 'ease-out',
+                            sep: 'word',
+                        }}
                         mode="static"
                         remarkPlugins={[remarkGfm, remarkEmoji]}
                     >
