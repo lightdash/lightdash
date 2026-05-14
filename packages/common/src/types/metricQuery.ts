@@ -210,7 +210,7 @@ export type CompiledMetricQuery = Omit<MetricQuery, 'customDimensions'> & {
  */
 export type PivotSortAnchor = {
     reference: string;
-    value: string | number | null;
+    value: string | number | boolean | null;
 };
 
 // Sort by
