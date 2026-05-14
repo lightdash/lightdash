@@ -358,6 +358,12 @@ export const useFieldValues = (
         }
     }, [initialData, fieldName, field.name, forceRefresh]);
 
+    const reset = useCallback(() => {
+        setSearches(new Set<string>());
+        setResults(new Set(initialData));
+        setResultCounts(new Map());
+    }, [initialData]);
+
     return {
         ...query,
         debouncedSearch,
@@ -365,6 +371,7 @@ export const useFieldValues = (
         results,
         resultCounts,
         refreshedAt,
+        reset,
     };
 };
 
@@ -433,6 +440,7 @@ export const useFieldValuesSafely = (
             results: undefined,
             resultCounts: undefined,
             refreshedAt: undefined,
+            reset: undefined,
         };
     }
 

@@ -179,6 +179,7 @@ const FilterStringAutoComplete: FC<Props> = ({
         results: resultsSet,
         refreshedAt,
         refetch,
+        reset,
         error,
         isError,
     } = useFieldValues(
@@ -340,12 +341,20 @@ const FilterStringAutoComplete: FC<Props> = ({
                 {healthData?.hasCacheAutocompleResults ? (
                     <RefreshIndicator
                         refreshedAtRef={refreshedAtRef}
-                        onRefresh={() => setForceRefresh(true)}
+                        onRefresh={() => {
+                            reset();
+                            setForceRefresh(true);
+                        }}
                     />
                 ) : null}
             </Stack>
         ),
-        [searchedMaxResults, search, healthData?.hasCacheAutocompleResults],
+        [
+            searchedMaxResults,
+            search,
+            healthData?.hasCacheAutocompleResults,
+            reset,
+        ],
     );
 
     return (
