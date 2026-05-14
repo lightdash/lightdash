@@ -11,6 +11,7 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    CreateSchedulerAndTargetsWithoutIds,
     DateZoom,
     QueryExecutionContext,
     SortField,
@@ -414,6 +415,7 @@ export class SavedChartController extends BaseController {
     @OperationId('createSavedChartScheduler')
     async createSavedChartScheduler(
         @Path() chartUuid: string,
+        @Body() body: CreateSchedulerAndTargetsWithoutIds,
         @Request() req: express.Request,
     ): Promise<ApiCreateSavedChartSchedulerResponse> {
         assertRegisteredAccount(req.account);
@@ -422,11 +424,7 @@ export class SavedChartController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .createScheduler(
-                    toSessionUser(req.account),
-                    chartUuid,
-                    req.body,
-                ),
+                .createScheduler(toSessionUser(req.account), chartUuid, body),
         };
     }
 
