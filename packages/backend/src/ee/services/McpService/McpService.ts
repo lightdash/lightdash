@@ -22,7 +22,6 @@ import {
     SchedulerJobStatus,
     ServiceAcctAccount,
     SessionUser,
-    sleep,
     ToolFindContentArgs,
     toolFindContentArgsSchema,
     toolFindExploresArgsSchemaV3,
@@ -1527,49 +1526,31 @@ export class McpService extends BaseService {
         account: Account,
         jobId: string,
     ): Promise<{ fileUrl: string; columns: Array<{ reference: string }> }> {
-        const maxWaitMs = 5 * 60 * 1000;
-        const startTime = Date.now();
-        let delayMs = 500;
+        const job = await this.schedulerService.pollJobToCompletion(
+            account,
+            jobId,
+        );
 
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            if (Date.now() - startTime > maxWaitMs) {
-                throw new Error('SQL query timed out after 5 minutes');
-            }
-
-            // eslint-disable-next-line no-await-in-loop
-            const job = await this.schedulerService.getJobStatus(
-                account,
-                jobId,
-            );
-
-            if (job.status === SchedulerJobStatus.COMPLETED) {
-                const details = job.details as {
-                    fileUrl?: string;
-                    columns?: Array<{ reference: string }>;
-                } | null;
-                if (!details?.fileUrl) {
-                    throw new Error(
-                        'SQL query completed but no results file was produced',
-                    );
-                }
-                return {
-                    fileUrl: details.fileUrl,
-                    columns: details.columns ?? [],
-                };
-            }
-
-            if (job.status === SchedulerJobStatus.ERROR) {
-                const errorDetail =
-                    (job.details as { error?: string } | null)?.error ??
-                    'Unknown error';
-                throw new Error(`SQL query failed: ${errorDetail}`);
-            }
-
-            // eslint-disable-next-line no-await-in-loop
-            await sleep(delayMs);
-            delayMs = Math.min(delayMs * 2, 2000);
+        if (job.status === SchedulerJobStatus.ERROR) {
+            const errorDetail =
+                (job.details as { error?: string } | null)?.error ??
+                'Unknown error';
+            throw new Error(`SQL query failed: ${errorDetail}`);
         }
+
+        const details = job.details as {
+            fileUrl?: string;
+            columns?: Array<{ reference: string }>;
+        } | null;
+        if (!details?.fileUrl) {
+            throw new Error(
+                'SQL query completed but no results file was produced',
+            );
+        }
+        return {
+            fileUrl: details.fileUrl,
+            columns: details.columns ?? [],
+        };
     }
 
     private async downloadSqlResults(
