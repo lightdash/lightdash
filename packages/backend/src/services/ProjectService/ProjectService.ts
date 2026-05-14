@@ -2573,6 +2573,7 @@ export class ProjectService extends BaseService {
         await this.projectModel.update(projectUuid, updatedProject);
 
         if (
+            savedProject.type !== ProjectType.PREVIEW &&
             hasConnectionChanges(
                 {
                     warehouseConnection: savedProject.warehouseConnection,
@@ -2693,6 +2694,7 @@ export class ProjectService extends BaseService {
         await this.projectModel.update(projectUuid, updatedProject);
 
         if (
+            savedProject.type !== ProjectType.PREVIEW &&
             hasConnectionChanges(
                 { warehouseConnection: savedProject.warehouseConnection },
                 { warehouseConnection: updatedProject.warehouseConnection },
