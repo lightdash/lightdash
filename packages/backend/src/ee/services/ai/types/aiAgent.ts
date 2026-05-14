@@ -1,4 +1,4 @@
-import { AiAgent, WarehouseTypes } from '@lightdash/common';
+import { AiAgent, AiMcpServer, WarehouseTypes } from '@lightdash/common';
 import { ModelMessage } from 'ai';
 import { AiModel, AiProvider } from '../models/types';
 import {
@@ -33,8 +33,18 @@ import {
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
 
+export type AiAgentMcpServer = AiMcpServer & {
+    credentials:
+        | {
+              bearerToken: string;
+          }
+        | Record<string, unknown>
+        | null;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
+    mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;

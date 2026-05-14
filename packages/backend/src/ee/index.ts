@@ -450,8 +450,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
-            aiAgentModel: ({ database }) =>
-                new AiAgentModel({ database, lightdashConfig }),
+            aiAgentModel: ({ database, utils }) =>
+                new AiAgentModel({
+                    database,
+                    lightdashConfig,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),

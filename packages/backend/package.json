@@ -50,6 +50,7 @@
         "@ai-sdk/amazon-bedrock": "4.0.48",
         "@ai-sdk/anthropic": "3.0.36",
         "@ai-sdk/azure": "3.0.26",
+        "@ai-sdk/mcp": "1.0.41",
         "@ai-sdk/openai": "3.0.25",
         "@anthropic-ai/sdk": "0.91.1",
         "@aws-sdk/client-s3": "3.992.0",

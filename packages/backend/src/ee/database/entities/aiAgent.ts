@@ -151,3 +151,45 @@ export type AiAgentSpaceAccessTable = Knex.CompositeTableType<
         >
     >
 >;
+
+export const AiMcpServerTableName = 'ai_mcp_server';
+
+export type DbAiMcpServer = {
+    ai_mcp_server_uuid: string;
+    project_uuid: string;
+    name: string;
+    url: string;
+    auth_type: 'none' | 'bearer' | 'oauth';
+    encrypted_credentials: Buffer | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiMcpServerTable = Knex.CompositeTableType<
+    DbAiMcpServer,
+    Omit<DbAiMcpServer, 'ai_mcp_server_uuid' | 'created_at' | 'updated_at'>,
+    Partial<
+        Omit<DbAiMcpServer, 'ai_mcp_server_uuid' | 'created_at' | 'updated_at'>
+    > & {
+        updated_at: Knex.Raw;
+    }
+>;
+
+export const AiAgentMcpServerTableName = 'ai_agent_mcp_server';
+
+export type DbAiAgentMcpServer = {
+    ai_agent_uuid: string;
+    ai_mcp_server_uuid: string;
+    created_at: Date;
+};
+
+export type AiAgentMcpServerTable = Knex.CompositeTableType<
+    DbAiAgentMcpServer,
+    Omit<DbAiAgentMcpServer, 'created_at'>,
+    Partial<
+        Omit<
+            DbAiAgentMcpServer,
+            'ai_agent_uuid' | 'ai_mcp_server_uuid' | 'created_at'
+        >
+    >
+>;

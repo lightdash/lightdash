@@ -23,6 +23,7 @@ import {
     AiAgentUserPreferences,
     AiArtifact,
     AiEvalRunResultAssessment,
+    AiMcpServer,
     AiPromptContext,
     AiPromptContextInput,
     AiPromptContextItem,
@@ -32,6 +33,7 @@ import {
     AlreadyExistsError,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
+    ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
@@ -48,6 +50,8 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    NotImplementedError,
+    ParameterError,
     ProjectType,
     SlackPrompt,
     ToolName,
@@ -77,6 +81,7 @@ import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction } from '../../utils';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
@@ -104,13 +109,17 @@ import {
     AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTableName,
     AiAgentIntegrationTableName,
+    AiAgentMcpServerTableName,
     AiAgentSlackIntegrationTableName,
     AiAgentSpaceAccessTableName,
     AiAgentTableName,
     AiAgentUserAccessTableName,
+    AiMcpServerTableName,
     DbAiAgent,
     DbAiAgentIntegration,
+    DbAiAgentMcpServer,
     DbAiAgentSlackIntegration,
+    DbAiMcpServer,
 } from '../database/entities/aiAgent';
 import { AiAgentUserPreferencesTableName } from '../database/entities/aiAgentUserPreferences';
 import {
@@ -140,6 +149,18 @@ import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 type Dependencies = {
     database: Knex;
     lightdashConfig: LightdashConfig;
+    encryptionUtil: EncryptionUtil;
+};
+
+type AiMcpServerSensitiveCredentials =
+    | {
+          bearerToken: string;
+      }
+    | Record<string, unknown>
+    | null;
+
+type AiMcpServerWithSensitiveData = AiMcpServer & {
+    credentials: AiMcpServerSensitiveCredentials;
 };
 
 export class AiAgentModel {
@@ -147,9 +168,12 @@ export class AiAgentModel {
 
     private lightdashConfig: LightdashConfig;
 
+    private encryptionUtil: EncryptionUtil;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.encryptionUtil = dependencies.encryptionUtil;
     }
 
     static async withTrx<T>(
@@ -503,6 +527,102 @@ export class AiAgentModel {
         return slug;
     }
 
+    private static toAiMcpServer(row: DbAiMcpServer): AiMcpServer {
+        return {
+            uuid: row.ai_mcp_server_uuid,
+            projectUuid: row.project_uuid,
+            name: row.name,
+            url: row.url,
+            authType: row.auth_type,
+            hasCredentials: row.encrypted_credentials !== null,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+        };
+    }
+
+    private decryptMcpServerCredentials(
+        row: Pick<DbAiMcpServer, 'auth_type' | 'encrypted_credentials'>,
+    ): AiMcpServerSensitiveCredentials {
+        if (!row.encrypted_credentials) {
+            return null;
+        }
+
+        return JSON.parse(
+            this.encryptionUtil.decrypt(row.encrypted_credentials),
+        ) as AiMcpServerSensitiveCredentials;
+    }
+
+    private toAiMcpServerWithSensitiveData(
+        row: DbAiMcpServer,
+    ): AiMcpServerWithSensitiveData {
+        return {
+            ...AiAgentModel.toAiMcpServer(row),
+            credentials: this.decryptMcpServerCredentials(row),
+        };
+    }
+
+    private serializeMcpServerCredentials(
+        authType: ApiCreateAiMcpServer['authType'],
+        credentials: ApiCreateAiMcpServer['credentials'],
+    ): Buffer | null {
+        switch (authType) {
+            case 'none':
+                return null;
+            case 'bearer':
+                if (!credentials?.bearerToken) {
+                    throw new ParameterError(
+                        'Bearer MCP servers require a bearer token',
+                    );
+                }
+
+                return this.encryptionUtil.encrypt(
+                    JSON.stringify({
+                        bearerToken: credentials.bearerToken,
+                    }),
+                );
+            case 'oauth':
+                throw new NotImplementedError(
+                    'OAuth MCP credentials are not implemented yet',
+                );
+            default:
+                return assertUnreachable(
+                    authType,
+                    `Unknown MCP auth type: ${authType}`,
+                );
+        }
+    }
+
+    async listMcpServers(projectUuid: string): Promise<AiMcpServer[]> {
+        const rows = await this.database(AiMcpServerTableName)
+            .where('project_uuid', projectUuid)
+            .orderBy('created_at', 'asc');
+
+        return rows.map(AiAgentModel.toAiMcpServer);
+    }
+
+    async createMcpServer(args: {
+        projectUuid: string;
+        name: string;
+        url: string;
+        authType: ApiCreateAiMcpServer['authType'];
+        credentials: ApiCreateAiMcpServer['credentials'];
+    }): Promise<AiMcpServer> {
+        const [row] = await this.database(AiMcpServerTableName)
+            .insert({
+                project_uuid: args.projectUuid,
+                name: args.name,
+                url: args.url,
+                auth_type: args.authType,
+                encrypted_credentials: this.serializeMcpServerCredentials(
+                    args.authType,
+                    args.credentials,
+                ),
+            })
+            .returning('*');
+
+        return AiAgentModel.toAiMcpServer(row);
+    }
+
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
@@ -518,6 +638,7 @@ export class AiAgentModel {
             | 'enableDataAccess'
             | 'enableSelfImprovement'
             | 'version'
+            | 'mcpServerUuids'
         > & {
             organizationUuid: string;
         },
@@ -611,6 +732,13 @@ export class AiAgentModel {
             const spaceAccess = await this.setAndGetSpaceAccess(
                 agent.ai_agent_uuid,
                 args.spaceAccess ?? undefined,
+                { trx },
+            );
+
+            await this.setAndGetAgentMcpServers(
+                agent.ai_agent_uuid,
+                agent.project_uuid,
+                args.mcpServerUuids,
                 { trx },
             );
 
@@ -779,6 +907,13 @@ export class AiAgentModel {
                 { trx },
             );
 
+            await this.setAndGetAgentMcpServers(
+                agent.ai_agent_uuid,
+                agent.project_uuid,
+                args.mcpServerUuids,
+                { trx },
+            );
+
             return {
                 uuid: agent.ai_agent_uuid,
                 name: agent.name,
@@ -937,6 +1072,104 @@ export class AiAgentModel {
             await this.setSpaceAccess(agentUuid, spaceAccess, { trx });
         }
         return this.getSpaceAccess(agentUuid, { trx });
+    }
+
+    private async getAgentMcpServers(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiMcpServer[]> {
+        const rows = await trx(AiAgentMcpServerTableName)
+            .innerJoin(
+                AiMcpServerTableName,
+                `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
+                `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+            )
+            .select(`${AiMcpServerTableName}.*`)
+            .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
+            .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
+
+        return rows.map((row) =>
+            AiAgentModel.toAiMcpServer(row as DbAiMcpServer),
+        );
+    }
+
+    async getAgentMcpServersWithSensitiveData(
+        agentUuid: AiAgent['uuid'],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiMcpServerWithSensitiveData[]> {
+        const rows = await trx(AiAgentMcpServerTableName)
+            .innerJoin(
+                AiMcpServerTableName,
+                `${AiAgentMcpServerTableName}.ai_mcp_server_uuid`,
+                `${AiMcpServerTableName}.ai_mcp_server_uuid`,
+            )
+            .select(`${AiMcpServerTableName}.*`)
+            .where(`${AiAgentMcpServerTableName}.ai_agent_uuid`, agentUuid)
+            .orderBy(`${AiMcpServerTableName}.created_at`, 'asc');
+
+        return rows.map((row) =>
+            this.toAiMcpServerWithSensitiveData(row as DbAiMcpServer),
+        );
+    }
+
+    private async setAgentMcpServers(
+        agentUuid: AiAgent['uuid'],
+        projectUuid: AiAgent['projectUuid'],
+        mcpServerUuids: string[],
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiMcpServer[]> {
+        await trx(AiAgentMcpServerTableName)
+            .where('ai_agent_uuid', agentUuid)
+            .delete();
+
+        const uniqueMcpServerUuids = [...new Set(mcpServerUuids)];
+
+        if (uniqueMcpServerUuids.length === 0) {
+            return [];
+        }
+
+        const rows = await trx(AiMcpServerTableName)
+            .where('project_uuid', projectUuid)
+            .whereIn('ai_mcp_server_uuid', uniqueMcpServerUuids);
+
+        if (rows.length !== uniqueMcpServerUuids.length) {
+            throw new NotFoundError(
+                'One or more MCP servers were not found for this project',
+            );
+        }
+
+        await trx(AiAgentMcpServerTableName).insert(
+            uniqueMcpServerUuids.map((mcpServerUuid) => ({
+                ai_agent_uuid: agentUuid,
+                ai_mcp_server_uuid: mcpServerUuid,
+            })),
+        );
+
+        const rowMap = new Map(
+            rows.map((row) => [row.ai_mcp_server_uuid, row as DbAiMcpServer]),
+        );
+
+        return uniqueMcpServerUuids.map((mcpServerUuid) =>
+            AiAgentModel.toAiMcpServer(rowMap.get(mcpServerUuid)!),
+        );
+    }
+
+    private async setAndGetAgentMcpServers(
+        agentUuid: AiAgent['uuid'],
+        projectUuid: AiAgent['projectUuid'],
+        mcpServerUuids: string[] | undefined,
+        { trx = this.database }: { trx?: Knex } = {},
+    ): Promise<AiMcpServer[]> {
+        if (mcpServerUuids !== undefined) {
+            return this.setAgentMcpServers(
+                agentUuid,
+                projectUuid,
+                mcpServerUuids,
+                { trx },
+            );
+        }
+
+        return this.getAgentMcpServers(agentUuid, { trx });
     }
 
     async getAgentLastInstruction(

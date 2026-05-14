@@ -26,6 +26,7 @@ import {
     ApiAiAgentThreadMessageVizQuery,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
+    ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
@@ -1244,6 +1245,7 @@ export class AiAgentService extends BaseService {
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             spaceAccess: body.spaceAccess,
+            mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             version: body.version,
@@ -1263,6 +1265,137 @@ export class AiAgentService extends BaseService {
         });
 
         return agent;
+    }
+
+    public async listMcpServers(user: SessionUser, projectUuid: string) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return this.aiAgentModel.listMcpServers(projectUuid);
+    }
+
+    public async listAgentMcpServers(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        await this.getAgent(user, agentUuid, projectUuid);
+
+        return this.aiAgentModel
+            .getAgentMcpServersWithSensitiveData(agentUuid)
+            .then((servers) =>
+                servers.map(
+                    ({ credentials: _credentials, ...server }) => server,
+                ),
+            );
+    }
+
+    public async createMcpServer(
+        user: SessionUser,
+        projectUuid: string,
+        body: ApiCreateAiMcpServer,
+    ) {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        mcpServerName: body.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const name = body.name.trim();
+        if (!name) {
+            throw new ParameterError('MCP server name is required');
+        }
+
+        let normalizedUrl: string;
+        try {
+            normalizedUrl = new URL(body.url).toString();
+        } catch {
+            throw new ParameterError('Invalid MCP server URL');
+        }
+
+        switch (body.authType) {
+            case 'none':
+                if (body.credentials?.bearerToken) {
+                    throw new ParameterError(
+                        'Credentials are not allowed for auth type "none"',
+                    );
+                }
+                break;
+            case 'bearer':
+                if (!body.credentials?.bearerToken.trim()) {
+                    throw new ParameterError(
+                        'Bearer MCP servers require a bearer token',
+                    );
+                }
+                break;
+            case 'oauth':
+                throw new NotImplementedError(
+                    'OAuth MCP servers are not implemented yet',
+                );
+            default:
+                assertUnreachable(
+                    body.authType,
+                    `Unknown MCP auth type: ${body.authType}`,
+                );
+        }
+
+        return this.aiAgentModel.createMcpServer({
+            projectUuid,
+            name,
+            url: normalizedUrl,
+            authType: body.authType,
+            credentials:
+                body.authType === 'bearer'
+                    ? {
+                          bearerToken: body.credentials!.bearerToken.trim(),
+                      }
+                    : null,
+        });
     }
 
     public async updateAgent(
@@ -1309,6 +1442,7 @@ export class AiAgentService extends BaseService {
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             spaceAccess: body.spaceAccess,
+            mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             version: body.version,
@@ -3611,6 +3745,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             : null;
 
         const agentSettings = await this.getAgentSettings(user, prompt);
+        const mcpServers =
+            await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
+                agentSettings.uuid,
+            );
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
@@ -3624,6 +3762,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...modelProperties,
 
             agentSettings,
+            mcpServers,
 
             messageHistory,
             threadUuid: prompt.threadUuid,
