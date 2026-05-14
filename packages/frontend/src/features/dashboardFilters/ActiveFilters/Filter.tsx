@@ -1,6 +1,7 @@
 import {
     applyDefaultTileTargets,
     DimensionType,
+    FeatureFlags,
     getFilterTypeFromItemType,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -10,6 +11,7 @@ import {
     Badge,
     Box,
     Button,
+    Group,
     HoverCard,
     Indicator,
     Popover,
@@ -18,7 +20,12 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine-8/hooks';
-import { IconGripVertical, IconX } from '@tabler/icons-react';
+import {
+    IconGripVertical,
+    IconLock,
+    IconLockOpen,
+    IconX,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, type FC } from 'react';
 import {
     formatDisplayValue,
@@ -27,6 +34,7 @@ import {
     getFilterRuleTables,
 } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import FilterConfiguration from '../FilterConfiguration';
@@ -68,6 +76,11 @@ const Filter: FC<Props> = ({
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
+    const { data: lockDashboardFiltersFlag } = useServerFeatureFlag(
+        FeatureFlags.LockDashboardFilters,
+    );
+    const isLockFilterEnabled =
+        lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -187,6 +200,8 @@ const Filter: FC<Props> = ({
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
+    const isReadOnlyLocked = !!filterRule.locked && !isEditMode && !isTemporary;
+
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
         closeSubPopover();
@@ -210,7 +225,7 @@ const Filter: FC<Props> = ({
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
                 onDismiss={!isSubPopoverOpen ? handleClose : undefined}
-                disabled={disabled}
+                disabled={disabled || isReadOnlyLocked}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
                 shadow="md"
@@ -239,9 +254,15 @@ const Filter: FC<Props> = ({
                     >
                         <Tooltip
                             fz="xs"
-                            label={orphanedTooltip}
-                            disabled={!isOrphaned}
+                            label={
+                                isReadOnlyLocked
+                                    ? 'Locked by the dashboard editor — switch to edit mode to change it'
+                                    : orphanedTooltip
+                            }
+                            disabled={!isOrphaned && !isReadOnlyLocked}
                             withinPortal
+                            multiline
+                            maw={300}
                         >
                             <Button
                                 pos="relative"
@@ -274,26 +295,94 @@ const Filter: FC<Props> = ({
                                     )
                                 }
                                 rightSection={
-                                    (isEditMode || isTemporary) && (
-                                        <ActionIcon
-                                            onClick={onRemove}
-                                            size="xs"
-                                            color="dark"
-                                            radius="xl"
-                                            variant="subtle"
-                                        >
-                                            <MantineIcon
-                                                size="sm"
-                                                icon={IconX}
-                                            />
-                                        </ActionIcon>
-                                    )
+                                    <Group gap={2} wrap="nowrap">
+                                        {isLockFilterEnabled &&
+                                            isEditMode &&
+                                            !isTemporary && (
+                                                <span
+                                                    className={
+                                                        filterRule.locked
+                                                            ? classes.lockSlotActive
+                                                            : classes.lockSlot
+                                                    }
+                                                >
+                                                    <Tooltip
+                                                        fz="xs"
+                                                        label={
+                                                            filterRule.locked
+                                                                ? 'Unlock filter'
+                                                                : 'Lock filter for viewers'
+                                                        }
+                                                        withinPortal
+                                                    >
+                                                        <ActionIcon
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                onUpdate({
+                                                                    ...filterRule,
+                                                                    locked: !filterRule.locked,
+                                                                });
+                                                            }}
+                                                            size="xs"
+                                                            color="dark"
+                                                            radius="xl"
+                                                            variant="subtle"
+                                                            aria-label={
+                                                                filterRule.locked
+                                                                    ? 'Unlock filter'
+                                                                    : 'Lock filter for viewers'
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                size="sm"
+                                                                icon={
+                                                                    filterRule.locked
+                                                                        ? IconLock
+                                                                        : IconLockOpen
+                                                                }
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                </span>
+                                            )}
+                                        {!isEditMode && filterRule.locked && (
+                                            <span
+                                                className={
+                                                    classes.lockSlotActive
+                                                }
+                                                aria-label="Filter is locked"
+                                            >
+                                                <MantineIcon
+                                                    size="sm"
+                                                    icon={IconLock}
+                                                    color="gray"
+                                                />
+                                            </span>
+                                        )}
+                                        {(isEditMode || isTemporary) && (
+                                            <ActionIcon
+                                                onClick={onRemove}
+                                                size="xs"
+                                                color="dark"
+                                                radius="xl"
+                                                variant="subtle"
+                                            >
+                                                <MantineIcon
+                                                    size="sm"
+                                                    icon={IconX}
+                                                />
+                                            </ActionIcon>
+                                        )}
+                                    </Group>
                                 }
-                                onClick={() =>
-                                    isPopoverOpen
-                                        ? handleClose()
-                                        : onPopoverOpen(popoverId)
-                                }
+                                onClick={() => {
+                                    if (isReadOnlyLocked) return;
+                                    if (isPopoverOpen) {
+                                        handleClose();
+                                    } else {
+                                        onPopoverOpen(popoverId);
+                                    }
+                                }}
                             >
                                 <Box
                                     style={{

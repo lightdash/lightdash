@@ -908,6 +908,69 @@ export const getDashboardFiltersForTile = (
     ]),
 });
 
+const buildLockedTargetKeys = (rules: DashboardFilterRule[]): Set<string> => {
+    const keys = new Set<string>();
+    rules.forEach((rule) => {
+        if (rule.locked) {
+            keys.add(`${rule.target.tableName}::${rule.target.fieldId}`);
+        }
+    });
+    return keys;
+};
+
+const dropRulesTargetingLockedFields = (
+    overrideRules: DashboardFilterRule[],
+    lockedKeys: Set<string>,
+): { kept: DashboardFilterRule[]; droppedCount: number } => {
+    if (lockedKeys.size === 0) {
+        return { kept: overrideRules, droppedCount: 0 };
+    }
+    let droppedCount = 0;
+    const kept = overrideRules.filter((rule) => {
+        const key = `${rule.target.tableName}::${rule.target.fieldId}`;
+        if (lockedKeys.has(key)) {
+            droppedCount += 1;
+            return false;
+        }
+        return true;
+    });
+    return { kept, droppedCount };
+};
+
+export type StripOverridesForLockedFiltersResult = {
+    filters: DashboardFilters;
+    droppedCount: number;
+};
+
+export const stripOverridesForLockedFilters = (
+    saved: DashboardFilters,
+    overrides: DashboardFilters,
+): StripOverridesForLockedFiltersResult => {
+    const dimensions = dropRulesTargetingLockedFields(
+        overrides.dimensions,
+        buildLockedTargetKeys(saved.dimensions),
+    );
+    const metrics = dropRulesTargetingLockedFields(
+        overrides.metrics,
+        buildLockedTargetKeys(saved.metrics),
+    );
+    const tableCalculations = dropRulesTargetingLockedFields(
+        overrides.tableCalculations,
+        buildLockedTargetKeys(saved.tableCalculations),
+    );
+    return {
+        filters: {
+            dimensions: dimensions.kept,
+            metrics: metrics.kept,
+            tableCalculations: tableCalculations.kept,
+        },
+        droppedCount:
+            dimensions.droppedCount +
+            metrics.droppedCount +
+            tableCalculations.droppedCount,
+    };
+};
+
 const combineFilterGroups = (
     a: FilterGroup | undefined,
     b: FilterGroup | undefined,

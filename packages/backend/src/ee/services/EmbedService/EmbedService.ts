@@ -56,6 +56,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
     SortField,
+    stripOverridesForLockedFilters,
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
@@ -966,7 +967,6 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
         account: AnonymousAccount,
         explore: Explore,
@@ -976,23 +976,50 @@ export class EmbedService extends BaseService {
     ) {
         const availableFieldIds = getAvailableFilterFieldIds(explore);
 
-        let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-            tileUuid,
-            availableFieldIds,
-            dashboard.filters,
-        );
+        let effectiveFilters: DashboardFilters = dashboard.filters;
+
         if (
             dashboardFilters &&
             isFilterInteractivityEnabled(account.access.filtering)
         ) {
-            appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-                tileUuid,
-                availableFieldIds,
-                dashboardFilters,
+            const { filters: safeOverrides, droppedCount } =
+                stripOverridesForLockedFilters(
+                    dashboard.filters,
+                    dashboardFilters,
+                );
+
+            if (droppedCount > 0) {
+                this.logger.debug(
+                    `Stripped ${droppedCount} embed filter override(s) targeting locked dashboard filters on dashboard ${dashboard.uuid}`,
+                );
+            }
+
+            const lockedDimensions = dashboard.filters.dimensions.filter(
+                (rule) => rule.locked,
             );
+            const lockedMetrics = dashboard.filters.metrics.filter(
+                (rule) => rule.locked,
+            );
+            const lockedTableCalculations =
+                dashboard.filters.tableCalculations.filter(
+                    (rule) => rule.locked,
+                );
+
+            effectiveFilters = {
+                dimensions: [...lockedDimensions, ...safeOverrides.dimensions],
+                metrics: [...lockedMetrics, ...safeOverrides.metrics],
+                tableCalculations: [
+                    ...lockedTableCalculations,
+                    ...safeOverrides.tableCalculations,
+                ],
+            };
         }
 
-        return appliedDashboardFilters;
+        return getDashboardFiltersForTileAndTables(
+            tileUuid,
+            availableFieldIds,
+            effectiveFilters,
+        );
     }
 
     async executeAsyncDashboardTileQuery({

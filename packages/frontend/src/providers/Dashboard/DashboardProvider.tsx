@@ -10,6 +10,7 @@ import {
     isDashboardChartTileType,
     isStandardDateGranularity,
     isSubDayGranularity,
+    stripOverridesForLockedFilters,
     type Dashboard,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -97,7 +98,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 }) => {
     const { search, pathname } = useLocation();
     const navigate = useNavigate();
-    const { showToastWarning } = useToaster();
+    const { showToastWarning, showToastInfo } = useToaster();
+    const hasNotifiedLockedOverrideRef = useRef(false);
 
     const { dashboardUuid, tabUuid, mode } = useParams<{
         dashboardUuid: string;
@@ -707,6 +709,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             // Step 1: Start with base filters
             let updatedDashboardFilters = clone(currentDashboard.filters);
 
+            let droppedLockedOverrides = 0;
+
             // Step 2: Apply SDK Filters
             // For SDK mode, SDK filters replace embedded dashboard filters
             const sdkFilters =
@@ -726,16 +730,35 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     return;
                 }
 
-                updatedDashboardFilters.dimensions = sdkFilters.map(
-                    (sdkFilter) =>
-                        convertSdkFilterToDashboardFilter(
-                            sdkFilter,
-                            filterableFieldsByTileUuid,
-                        ),
+                const convertedSdkFilters = sdkFilters.map((sdkFilter) =>
+                    convertSdkFilterToDashboardFilter(
+                        sdkFilter,
+                        filterableFieldsByTileUuid,
+                    ),
                 );
+                const sdkStripResult = stripOverridesForLockedFilters(
+                    currentDashboard.filters,
+                    {
+                        dimensions: convertedSdkFilters,
+                        metrics: [],
+                        tableCalculations: [],
+                    },
+                );
+                droppedLockedOverrides += sdkStripResult.droppedCount;
+                updatedDashboardFilters.dimensions =
+                    sdkStripResult.filters.dimensions;
             }
 
-            // Apply overrides from URL
+            // Apply overrides from URL — but never override locked saved filters
+            if (hasSavedFiltersOverrides(overrides)) {
+                const urlStripResult = stripOverridesForLockedFilters(
+                    currentDashboard.filters,
+                    overrides,
+                );
+                overrides = urlStripResult.filters;
+                droppedLockedOverrides += urlStripResult.droppedCount;
+            }
+
             if (embed.mode === 'direct') {
                 // For direct mode, only read from URL if not SDK mode
                 if (hasSavedFiltersOverrides(overrides)) {
@@ -765,6 +788,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 }
             }
 
+            if (
+                droppedLockedOverrides > 0 &&
+                !hasNotifiedLockedOverrideRef.current
+            ) {
+                hasNotifiedLockedOverrideRef.current = true;
+                showToastInfo({
+                    title: 'Locked dashboard filter',
+                    subtitle:
+                        droppedLockedOverrides === 1
+                            ? 'A filter override from your URL was ignored because the dashboard editor locked that filter.'
+                            : `${droppedLockedOverrides} filter overrides from your URL were ignored because the dashboard editor locked those filters.`,
+                });
+            }
+
             // Step 3: Apply interactivity filtering for embedded dashboards
             updatedDashboardFilters = applyInteractivityFiltering(
                 updatedDashboardFilters,
@@ -783,6 +820,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         applyInteractivityFiltering,
         savedChartUuidsAndTileUuids,
         filterableFieldsByTileUuid,
+        showToastInfo,
     ]);
 
     // Updates url with temp and overridden filters and deep compare to avoid unnecessary re-renders for dashboardTemporaryFilters
@@ -849,21 +887,29 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             dashboard?.filters &&
             hasSavedFiltersOverrides(overridesForSavedDashboardFilters)
         ) {
+            const { filters: safeOverrides } = stripOverridesForLockedFilters(
+                dashboard.filters,
+                overridesForSavedDashboardFilters,
+            );
+
+            if (!hasSavedFiltersOverrides(safeOverrides)) {
+                return;
+            }
+
             setDashboardFilters((prevFilters) => {
                 const updated: DashboardFilters = {
                     ...prevFilters,
                     dimensions: applyDimensionOverrides(
                         prevFilters,
-                        overridesForSavedDashboardFilters,
+                        safeOverrides,
                     ),
                 };
 
-                if (overridesForSavedDashboardFilters.metrics?.length > 0) {
+                if (safeOverrides.metrics?.length > 0) {
                     updated.metrics = prevFilters.metrics.map((metric) => {
-                        const override =
-                            overridesForSavedDashboardFilters.metrics.find(
-                                (m) => m.id === metric.id,
-                            );
+                        const override = safeOverrides.metrics.find(
+                            (m) => m.id === metric.id,
+                        );
                         return override
                             ? { ...override, tileTargets: metric.tileTargets }
                             : metric;
@@ -934,6 +980,29 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             }
         }
     });
+
+    // Strip URL-provided temporary filters that conflict with a locked saved
+    // filter, once the saved dashboard data is available.
+    useEffect(() => {
+        if (!dashboard?.filters) return;
+        const { filters: safeTemporaryFilters, droppedCount } =
+            stripOverridesForLockedFilters(
+                dashboard.filters,
+                dashboardTemporaryFilters,
+            );
+        if (droppedCount === 0) return;
+        setDashboardTemporaryFilters(safeTemporaryFilters);
+        if (!hasNotifiedLockedOverrideRef.current) {
+            hasNotifiedLockedOverrideRef.current = true;
+            showToastInfo({
+                title: 'Locked dashboard filter',
+                subtitle:
+                    droppedCount === 1
+                        ? 'A temporary filter from your URL was ignored because the dashboard editor locked that filter.'
+                        : `${droppedCount} temporary filters from your URL were ignored because the dashboard editor locked those filters.`,
+            });
+        }
+    }, [dashboard?.filters, dashboardTemporaryFilters, showToastInfo]);
 
     // Apply default date zoom granularity when dashboard loads (if no URL override).
     // Uses a ref for `search` so URL changes don't re-trigger this effect —

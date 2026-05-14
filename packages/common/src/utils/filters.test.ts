@@ -22,6 +22,7 @@ import {
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
+    stripOverridesForLockedFilters,
     trackWhichTimeBasedMetricFiltersToOverride,
 } from './filters';
 import {
@@ -1219,5 +1220,175 @@ describe('applyDashboardFiltersForTile', () => {
             target: { fieldId: 'orders_status' },
             values: [true],
         });
+    });
+});
+
+describe('stripOverridesForLockedFilters', () => {
+    const makeRule = (
+        id: string,
+        fieldId: string,
+        tableName: string,
+        opts: { locked?: boolean; values?: unknown[] } = {},
+    ): DashboardFilterRule => ({
+        id,
+        operator: FilterOperator.EQUALS,
+        target: { fieldId, tableName },
+        values: opts.values ?? ['x'],
+        label: undefined,
+        ...(opts.locked !== undefined ? { locked: opts.locked } : {}),
+    });
+
+    test('drops override rules that target a locked saved field', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', { locked: true }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [
+                makeRule('o-1', 'orders_status', 'orders', {
+                    values: ['returned'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.dimensions).toEqual([]);
+        expect(result.droppedCount).toBe(1);
+    });
+
+    test('keeps override rules that target a different field', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', { locked: true }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_amount', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.filters.dimensions[0].id).toBe('o-1');
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('does not cross filter groups (dim lock does not strip metric override)', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', { locked: true }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [],
+            metrics: [makeRule('o-1', 'orders_status', 'orders')],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.metrics).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('does not strip overrides when saved filter is not locked', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', { locked: false }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('matches on both fieldId and tableName (same fieldId different table is kept)', () => {
+        const saved = {
+            dimensions: [makeRule('s-1', 'status', 'orders', { locked: true })],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'status', 'customers')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.filters.dimensions[0].id).toBe('o-1');
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('empty overrides yields empty result', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', { locked: true }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.dimensions).toEqual([]);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('no locked filters means identity', () => {
+        const saved = {
+            dimensions: [makeRule('s-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [makeRule('o-2', 'orders_amount', 'orders')],
+            tableCalculations: [makeRule('o-3', 'profit_pct', 'orders')],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters).toEqual(overrides);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('reports total dropped count across all groups', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', { locked: true }),
+            ],
+            metrics: [
+                makeRule('s-2', 'orders_total_sales', 'orders', {
+                    locked: true,
+                }),
+            ],
+            tableCalculations: [
+                makeRule('s-3', 'profit_pct', 'orders', { locked: true }),
+            ],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [makeRule('o-2', 'orders_total_sales', 'orders')],
+            tableCalculations: [makeRule('o-3', 'profit_pct', 'orders')],
+        };
+        const result = stripOverridesForLockedFilters(saved, overrides);
+        expect(result.filters.dimensions).toEqual([]);
+        expect(result.filters.metrics).toEqual([]);
+        expect(result.filters.tableCalculations).toEqual([]);
+        expect(result.droppedCount).toBe(3);
     });
 });
