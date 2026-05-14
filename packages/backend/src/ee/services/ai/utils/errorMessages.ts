@@ -1,3 +1,5 @@
+import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
+
 export const STEP_CAP_REACHED_MESSAGE =
     'The agent reached its maximum number of steps before finishing. Please try asking for fewer things at once, or split your question into smaller parts.';
 
@@ -24,6 +26,10 @@ export const getUserFacingErrorMessage = (
 ): string => {
     if (error instanceof AiAgentStepCapReachedError) {
         return STEP_CAP_REACHED_MESSAGE;
+    }
+
+    if (error instanceof McpAuthorizationRequiredError) {
+        return error.message;
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);

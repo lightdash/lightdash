@@ -37,6 +37,33 @@ export * from './types';
 export * from './utils';
 export * from './validators';
 
+export type AiMcpServerAuthType = 'none' | 'bearer' | 'oauth';
+export type AiMcpCredentialScope = 'shared' | 'user';
+export type AiMcpServerConnectionStatus =
+    | 'not_connected'
+    | 'connecting'
+    | 'connected'
+    | 'error';
+
+export type AiMcpServer = {
+    uuid: string;
+    projectUuid: string;
+    name: string;
+    url: string;
+    authType: AiMcpServerAuthType;
+    hasCredentials: boolean;
+    credentialScope: AiMcpCredentialScope | null;
+    connectionStatus: AiMcpServerConnectionStatus | null;
+    connectedByUserUuid: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type AiAgentIntegration = {
+    type: 'slack';
+    channelId: string;
+};
+
 export const baseAgentSchema = z.object({
     uuid: z.string(),
     projectUuid: z.string(),
@@ -49,13 +76,10 @@ export const baseAgentSchema = z.object({
     tags: z.array(z.string()).nullable(),
 
     integrations: z.array(
-        // z.union([
-        // TODO: once we add more integrations, we should use union
         z.object({
             type: z.literal('slack'),
             channelId: z.string(),
         }),
-        // ]),
     ),
 
     createdAt: z.coerce.date(),
@@ -227,7 +251,9 @@ export type ApiCreateAiAgent = Pick<
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'version'
->;
+> & {
+    mcpServerUuids?: string[];
+};
 
 export type ApiUpdateAiAgent = Partial<
     Pick<
@@ -248,12 +274,29 @@ export type ApiUpdateAiAgent = Partial<
     >
 > & {
     uuid: string;
+    mcpServerUuids?: string[];
 };
 
 export type ApiCreateAiAgentResponse = {
     status: 'ok';
     results: AiAgent;
 };
+
+export type ApiCreateAiMcpServer = {
+    name: string;
+    url: string;
+    authType: AiMcpServerAuthType;
+    credentialScope?: AiMcpCredentialScope;
+    credentials?: {
+        bearerToken: string;
+    } | null;
+};
+
+export type ApiAiMcpServerListResponse = ApiSuccess<AiMcpServer[]>;
+export type ApiAiMcpServerResponse = ApiSuccess<AiMcpServer>;
+export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
+    authorizationUrl: string;
+}>;
 
 export type ApiAiAgentThreadSummaryListResponse = {
     status: 'ok';
