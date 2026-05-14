@@ -27,6 +27,8 @@ const mockWarehouseSqlBuilder = {
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getStartOfWeek: () => WeekDay.MONDAY,
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getStringQuoteChar: () => "'",
+    escapeString: (v: string) => v.replaceAll("'", "''"),
 } as unknown as WarehouseSqlBuilder;
 
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
@@ -675,6 +677,241 @@ describe('PivotQueryBuilder', () => {
             // Downstream CTEs should reference pivot_query directly
             expect(result).toContain('FROM pivot_query WHERE "row_index"');
             expect(result).toContain('FROM pivot_query p CROSS JOIN');
+        });
+
+        test('Pinned sort: pivotValues swaps WHERE col_idx = 1 for a null-safe value match on the pinned column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'status', value: 'completed' },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            expect(result).toContain('"revenue_anchor_column" AS (');
+            expect(result).not.toContain('anchor_column AS (');
+            expect(replaceWhitespace(result)).toContain(
+                '(cr."status" = \'completed\' OR (cr."status" IS NULL AND \'completed\' IS NULL))',
+            );
+            expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac');
+        });
+
+        test('Pinned sort: numeric and null pivot values are literal-encoded correctly', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'segment_id' },
+                    { reference: 'channel' },
+                ],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'segment_id', value: 42 },
+                            { reference: 'channel', value: null },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Numbers bare, null as keyword.
+            expect(replaceWhitespace(result)).toContain(
+                '(cr."segment_id" = 42 OR (cr."segment_id" IS NULL AND 42 IS NULL))',
+            );
+            expect(replaceWhitespace(result)).toContain(
+                '(cr."channel" = NULL OR (cr."channel" IS NULL AND NULL IS NULL))',
+            );
+        });
+
+        test('Pinned sort: string values with single quotes are escaped (no SQL injection via pivotValues)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            {
+                                reference: 'status',
+                                value: "completed'); DROP TABLE x;--",
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Single quote doubled → injection payload becomes a string literal.
+            expect(result).toContain("'completed''); DROP TABLE x;--'");
+            expect(result).not.toContain("'completed'); DROP TABLE x;--");
+        });
+
+        test('Pinned sort: multiple metrics each get their own per-metric anchor_column', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                    {
+                        reference: 'orders',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'status', value: 'completed' },
+                        ],
+                    },
+                    {
+                        reference: 'orders',
+                        direction: SortByDirection.ASC,
+                        pivotValues: [
+                            { reference: 'status', value: 'shipped' },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            expect(result).toContain('"revenue_anchor_column" AS (');
+            expect(result).toContain('"orders_anchor_column" AS (');
+            expect(result).not.toContain('anchor_column AS (');
+
+            expect(result).toContain('cr."status" = \'completed\'');
+            expect(result).toContain('cr."status" = \'shipped\'');
+            expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac');
+            expect(result).toContain('CROSS JOIN "orders_anchor_column" ac');
+        });
+
+        test('Pinned sort: pivotValues with unknown groupBy reference falls back to col_idx = 1', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            {
+                                reference: 'not_a_groupby_column',
+                                value: 'whatever',
+                            },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Per-metric anchor CTE still created, but with leftmost-column WHERE
+            // since the pinned reference isn't a valid groupBy.
+            expect(result).toContain('"revenue_anchor_column" AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'FROM column_ranking cr WHERE "col_idx" = 1',
+            );
+            expect(result).not.toContain('cr."not_a_groupby_column"');
+        });
+
+        test('Unpinned metric sort: still uses shared anchor_column CTE (backwards compatible)', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'status' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            expect(result).toContain('anchor_column AS (');
+            expect(result).not.toContain('"revenue_anchor_column" AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'FROM column_ranking cr WHERE "col_idx" = 1',
+            );
+            expect(result).toContain('CROSS JOIN anchor_column ac');
         });
     });
 
