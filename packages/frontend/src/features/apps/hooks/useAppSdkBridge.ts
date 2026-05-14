@@ -268,7 +268,11 @@ export function useAppSdkBridge(
                                 limit: 0,
                                 queryUuid: result.queryUuid,
                                 status: 'ready',
-                                rowCount: result.rows?.length ?? null,
+                                // Use totalResults (full row count across all
+                                // pages), not rows.length (just this page).
+                                // The SDK paginates internally — the app sees
+                                // every row, so the inspector should too.
+                                rowCount: result.totalResults ?? null,
                                 durationMs:
                                     result.metadata?.performance
                                         ?.initialQueryExecutionMs ?? null,
