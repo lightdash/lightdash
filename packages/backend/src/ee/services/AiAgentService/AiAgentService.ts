@@ -1572,8 +1572,9 @@ export class AiAgentService extends BaseService {
             );
             return response;
         } catch (e) {
-            console.error(e);
-            Logger.error('Failed to generate agent thread response:', e);
+            Logger.error('Failed to generate agent thread response', {
+                error: e,
+            });
             throw new Error('Failed to generate agent thread response', {
                 cause: e,
             });

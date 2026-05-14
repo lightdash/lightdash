@@ -1,6 +1,7 @@
 import { ParameterError } from '@lightdash/common';
 import { embed, EmbeddingModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
+import Logger from '../../../../logging/logger';
 import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
@@ -87,7 +88,7 @@ export async function generateEmbedding(
     });
 
     if (embedding.length !== EMBEDDING_DIMENSIONS) {
-        console.warn(
+        Logger.warn(
             `Embedding length is not ${EMBEDDING_DIMENSIONS}, padding with zeros`,
         );
         embedding = embedding.concat(
