@@ -8,7 +8,7 @@ export default defineConfig({
         alias: {
             '@lightdash/common': path.resolve(
                 __dirname,
-                '../../../../../../common/src',
+                '../../../../../../common',
             ),
         },
     },
