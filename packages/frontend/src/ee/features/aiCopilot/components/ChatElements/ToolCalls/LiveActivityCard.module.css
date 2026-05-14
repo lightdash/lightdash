@@ -292,7 +292,6 @@
 
 .reasoningRow {
     border-radius: 6px;
-    padding: 0 8px;
     margin: 0 -8px;
 }
 
@@ -301,7 +300,7 @@
     text-align: left;
     border-radius: 6px;
     min-height: 22px;
-    padding: 1px 0;
+    padding: 2px 8px;
     transition: background-color 160ms ease;
 }
 
@@ -351,7 +350,7 @@
 }
 
 .reasoningBody {
-    padding: 6px 0 4px;
+    padding: 6px 8px 4px;
 }
 
 @keyframes cardSlideIn {
