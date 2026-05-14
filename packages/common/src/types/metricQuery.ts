@@ -212,6 +212,8 @@ export type SortField = {
     descending: boolean;
     /** Sort null values first */
     nullsFirst?: boolean;
+    /** Pins the row-sort anchor to a specific pivot column. Ignored for non-pivoted results. */
+    pivotValues?: { reference: string; value: string | number | null }[];
 };
 
 export const getAdditionalMetricLabel = (item: AdditionalMetric) =>

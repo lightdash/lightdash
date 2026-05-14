@@ -154,6 +154,7 @@ type DbSavedChartVersionSort = {
     descending: boolean;
     nulls_first: boolean | null;
     order: number;
+    pivot_values: { reference: string; value: string | number | null }[] | null;
 };
 
 export type CreateDbSavedChartVersionSort = Pick<
@@ -163,7 +164,10 @@ export type CreateDbSavedChartVersionSort = Pick<
     | 'descending'
     | 'nulls_first'
     | 'order'
->;
+> & {
+    // Caller must JSON.stringify before insert — Knex doesn't auto-serialize JSONB.
+    pivot_values: string | null;
+};
 
 export const SavedChartVersionSortsTableName = 'saved_queries_version_sorts';
 export type SavedChartVersionSortsTable = Knex.CompositeTableType<

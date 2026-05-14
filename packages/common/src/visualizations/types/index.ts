@@ -109,6 +109,8 @@ export type VizSortBy = {
     reference: string;
     direction: SortByDirection;
     nullsFirst?: boolean;
+    /** Pins the row-sort anchor to a specific pivot column. */
+    pivotValues?: { reference: string; value: string | number | null }[];
 };
 
 export type VizPieChartDisplay = {
