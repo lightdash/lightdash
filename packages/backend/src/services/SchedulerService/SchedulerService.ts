@@ -495,6 +495,93 @@ export class SchedulerService extends BaseService {
         return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
+    private async checkAppScheduledDeliveryAccess(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.appModel.findAppByUuid(appUuid);
+        if (!app) {
+            throw new NotFoundError(`App not found: ${appUuid}`);
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  app.space_uuid,
+              )
+            : {};
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                    createdByUserUuid: app.created_by_user_uuid,
+                    ...spaceContext,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    async getAppSchedulers(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        await this.checkAppScheduledDeliveryAccess(user, appUuid);
+        return this.schedulerModel.getAppSchedulers(appUuid);
+    }
+
+    async createAppScheduler(
+        user: SessionUser,
+        appUuid: string,
+        newScheduler: Omit<
+            CreateSchedulerAndTargets,
+            | 'createdBy'
+            | 'savedChartUuid'
+            | 'dashboardUuid'
+            | 'savedSqlUuid'
+            | 'appUuid'
+        >,
+    ): Promise<SchedulerAndTargets> {
+        await this.checkAppScheduledDeliveryAccess(user, appUuid);
+
+        if (newScheduler.format !== SchedulerFormat.IMAGE) {
+            throw new ParameterError(
+                'Data app schedulers only support image deliveries',
+            );
+        }
+        if (!isValidFrequency(newScheduler.cron)) {
+            throw new ParameterError(
+                'Frequency not allowed, custom input is limited to hourly',
+            );
+        }
+        if (!isValidTimezone(newScheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
+        }
+
+        return this.schedulerModel.createScheduler({
+            ...newScheduler,
+            createdBy: user.userUuid,
+            savedChartUuid: null,
+            dashboardUuid: null,
+            savedSqlUuid: null,
+            appUuid,
+        });
+    }
+
     async getScheduler(
         user: SessionUser,
         schedulerUuid: string,

@@ -185,7 +185,7 @@ export const getFormValuesFromScheduler = (
 
 export const transformFormValues = (
     values: SchedulerFormValues,
-    resourceType: 'chart' | 'dashboard' | undefined,
+    resourceType: 'chart' | 'dashboard' | 'app' | undefined,
 ): CreateSchedulerAndTargetsWithoutIds => {
     let options = {};
     if ([SchedulerFormat.CSV, SchedulerFormat.XLSX].includes(values.format)) {
