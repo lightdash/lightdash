@@ -12,6 +12,7 @@ import {
     LoadingOverlay,
     MultiSelect,
     Paper,
+    SegmentedControl,
     Stack,
     Switch,
     TagsInput,
@@ -21,12 +22,13 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import type { useForm } from '@mantine/form';
+import { useForm, zodResolver } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustmentsAlt,
     IconAlertTriangle,
     IconBook2,
+    IconBrandSpeedtest,
     IconInfoCircle,
     IconLock,
     IconPlug,
@@ -46,13 +48,19 @@ import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeature
 import useApp from '../../../../providers/App/useApp';
 import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect';
 import AiExploreAccessTree from '../../../pages/AiAgents/AiExploreAccessTree';
-import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
+import {
+    useDeleteAiAgentMutation,
+    useProjectAiMcpServers,
+    useProjectCreateAiMcpServerMutation,
+} from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
 import {
     InstructionsGuidelines,
     InstructionsTemplates,
 } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
+
+const CREATE_MCP_SERVER_OPTION_VALUE = '__create_new_mcp_server__';
 
 const formSchema = z.object({
     name: z.string().min(1),
@@ -69,10 +77,138 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     spaceAccess: z.array(z.string()),
+    mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     version: z.number(),
 });
+
+const createMcpServerFormSchema = z
+    .object({
+        name: z.string().trim().min(1, 'Name is required'),
+        url: z.string().trim().url('Enter a valid URL'),
+        authType: z.enum(['none', 'bearer']),
+        bearerToken: z.string(),
+    })
+    .superRefine((values, ctx) => {
+        if (
+            values.authType === 'bearer' &&
+            values.bearerToken.trim().length === 0
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Bearer token is required',
+                path: ['bearerToken'],
+            });
+        }
+    });
+
+const CreateMcpServerModal = ({
+    opened,
+    isLoading,
+    onClose,
+    onSubmit,
+}: {
+    opened: boolean;
+    isLoading: boolean;
+    onClose: () => void;
+    onSubmit: (
+        values: z.infer<typeof createMcpServerFormSchema>,
+    ) => Promise<void> | void;
+}) => {
+    const form = useForm<z.infer<typeof createMcpServerFormSchema>>({
+        initialValues: {
+            name: '',
+            url: '',
+            authType: 'none',
+            bearerToken: '',
+        },
+        validate: zodResolver(createMcpServerFormSchema),
+    });
+
+    const handleClose = useCallback(() => {
+        form.reset();
+        onClose();
+    }, [form, onClose]);
+
+    const handleSubmit = form.onSubmit(async (values) => {
+        await onSubmit(values);
+        form.reset();
+    });
+
+    return (
+        <MantineModal
+            opened={opened}
+            onClose={handleClose}
+            title="Create MCP server"
+            icon={IconBrandSpeedtest}
+            cancelDisabled={isLoading}
+            actions={
+                <Button
+                    type="submit"
+                    form="create-mcp-server-form"
+                    loading={isLoading}
+                >
+                    Create MCP
+                </Button>
+            }
+        >
+            <form id="create-mcp-server-form" onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <TextInput
+                        variant="subtle"
+                        label="Name"
+                        placeholder="Docs MCP"
+                        disabled={isLoading}
+                        {...form.getInputProps('name')}
+                    />
+                    <TextInput
+                        variant="subtle"
+                        label="URL"
+                        placeholder="https://example.com/mcp"
+                        disabled={isLoading}
+                        {...form.getInputProps('url')}
+                    />
+                    <Box>
+                        <Text size="sm" fw={500} mb="xs">
+                            Auth type
+                        </Text>
+                        <SegmentedControl
+                            fullWidth
+                            data={[
+                                { label: 'No auth', value: 'none' },
+                                { label: 'Bearer token', value: 'bearer' },
+                            ]}
+                            disabled={isLoading}
+                            value={form.values.authType}
+                            onChange={(value) =>
+                                form.setFieldValue(
+                                    'authType',
+                                    value as 'none' | 'bearer',
+                                )
+                            }
+                        />
+                    </Box>
+                    {form.values.authType === 'bearer' && (
+                        <Box>
+                            <TextInput
+                                variant="subtle"
+                                placeholder="API key or personal access token"
+                                disabled={isLoading}
+                                {...form.getInputProps('bearerToken')}
+                            />
+                            <Text size="xs" c="dimmed" mt="xs">
+                                The token will be encrypted and stored securely.
+                                This credential will be shared across all users
+                                of the agent.
+                            </Text>
+                        </Box>
+                    )}
+                </Stack>
+            </form>
+        </MantineModal>
+    );
+};
 
 export const AiAgentFormSetup = ({
     mode,
@@ -151,6 +287,67 @@ export const AiAgentFormSetup = ({
                 label: group.name,
             })) ?? [],
         [groups],
+    );
+
+    const [isCreateMcpServerModalOpen, createMcpServerModalHandlers] =
+        useDisclosure(false);
+    const { data: mcpServers, isLoading: isLoadingMcpServers } =
+        useProjectAiMcpServers(projectUuid);
+    const { mutateAsync: createMcpServer, isLoading: isCreatingMcpServer } =
+        useProjectCreateAiMcpServerMutation(projectUuid);
+
+    const mcpServerOptions = useMemo(
+        () => [
+            ...(mcpServers?.map((mcpServer) => ({
+                value: mcpServer.uuid,
+                label: `${mcpServer.name} (${mcpServer.authType === 'bearer' ? 'Bearer' : 'No auth'})`,
+            })) ?? []),
+            {
+                value: CREATE_MCP_SERVER_OPTION_VALUE,
+                label: '+ Create new MCP',
+            },
+        ],
+        [mcpServers],
+    );
+
+    const handleMcpServerChange = useCallback(
+        (value: string[]) => {
+            const selectedMcpServerUuids = value.filter(
+                (item) => item !== CREATE_MCP_SERVER_OPTION_VALUE,
+            );
+
+            form.setFieldValue('mcpServerUuids', selectedMcpServerUuids);
+
+            if (value.includes(CREATE_MCP_SERVER_OPTION_VALUE)) {
+                createMcpServerModalHandlers.open();
+            }
+        },
+        [createMcpServerModalHandlers, form],
+    );
+
+    const handleCreateMcpServer = useCallback(
+        async (values: z.infer<typeof createMcpServerFormSchema>) => {
+            const mcpServer = await createMcpServer({
+                name: values.name.trim(),
+                url: values.url.trim(),
+                authType: values.authType,
+                credentials:
+                    values.authType === 'bearer'
+                        ? {
+                              bearerToken: values.bearerToken.trim(),
+                          }
+                        : null,
+            });
+
+            form.setFieldValue(
+                'mcpServerUuids',
+                Array.from(
+                    new Set([...form.values.mcpServerUuids, mcpServer.uuid]),
+                ),
+            );
+            createMcpServerModalHandlers.close();
+        },
+        [createMcpServer, createMcpServerModalHandlers, form],
     );
 
     return (
@@ -399,6 +596,47 @@ export const AiAgentFormSetup = ({
                                     },
                                 )}
                             />
+                        </Stack>
+                    </Paper>
+
+                    <Paper p="xl">
+                        <Group align="center" gap="xs" mb="md">
+                            <Paper p="xxs" withBorder radius="sm">
+                                <MantineIcon
+                                    icon={IconBrandSpeedtest}
+                                    size="md"
+                                />
+                            </Paper>
+                            <Title order={5} c="ldGray.9" fw={700}>
+                                MCP servers
+                            </Title>
+                        </Group>
+                        <Stack gap="sm">
+                            <MultiSelect
+                                variant="subtle"
+                                placeholder={
+                                    isLoadingMcpServers
+                                        ? 'Loading MCP servers...'
+                                        : mcpServers?.length
+                                          ? 'Select MCP servers'
+                                          : 'Create an MCP server first'
+                                }
+                                data={mcpServerOptions}
+                                searchable
+                                clearable
+                                disabled={isLoadingMcpServers}
+                                value={form.values.mcpServerUuids}
+                                onChange={handleMcpServerChange}
+                            />
+                            {form.values.mcpServerUuids.length > 0 && (
+                                <Text size="xs" c="dimmed">
+                                    {form.values.mcpServerUuids.length} MCP
+                                    {form.values.mcpServerUuids.length === 1
+                                        ? ''
+                                        : 's'}{' '}
+                                    attached.
+                                </Text>
+                            )}
                         </Stack>
                     </Paper>
 
@@ -756,6 +994,12 @@ export const AiAgentFormSetup = ({
                 resourceType="agent"
                 description="This action cannot be undone."
                 onConfirm={handleDelete}
+            />
+            <CreateMcpServerModal
+                opened={isCreateMcpServerModalOpen}
+                onClose={createMcpServerModalHandlers.close}
+                onSubmit={handleCreateMcpServer}
+                isLoading={isCreatingMcpServer}
             />
         </>
     );

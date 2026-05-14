@@ -37,6 +37,7 @@ import { EvalRunDetails } from '../../features/aiCopilot/components/Evals/EvalRu
 import { EvalSectionLayout } from '../../features/aiCopilot/components/Evals/EvalSectionLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import {
+    useAgentAiMcpServers,
     useProjectAiAgent,
     useProjectCreateAiAgentMutation,
     useProjectUpdateAiAgentMutation,
@@ -58,6 +59,7 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     spaceAccess: z.array(z.string()),
+    mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     version: z.number(),
@@ -95,6 +97,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         projectUuid,
         actualAgentUuid,
     );
+    const { data: agentMcpServers, isFetched: isAgentMcpServersFetched } =
+        useAgentAiMcpServers(projectUuid, actualAgentUuid);
 
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
@@ -107,6 +111,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             groupAccess: [],
             userAccess: [],
             spaceAccess: [],
+            mcpServerUuids: [],
             enableDataAccess: false,
             enableSelfImprovement: false,
             version: 2, // INFO: Default to v2 for now
@@ -115,7 +120,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     });
 
     useEffect(() => {
-        if (isCreateMode || !agent) {
+        if (isCreateMode || !agent || !isAgentMcpServersFetched) {
             return;
         }
 
@@ -130,6 +135,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 groupAccess: agent.groupAccess ?? [],
                 userAccess: agent.userAccess ?? [],
                 spaceAccess: agent.spaceAccess ?? [],
+                mcpServerUuids: agentMcpServers?.map((mcp) => mcp.uuid) ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
@@ -138,7 +144,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             form.resetDirty(values);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [agent, isCreateMode]);
+    }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
 
     // Derive activeTab from current pathname
     const activeTab = location.pathname.includes('/evals')

@@ -179,6 +179,7 @@ import {
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
+import { testMcpConnection } from '../ai/utils/mcpClient';
 import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
@@ -489,7 +490,10 @@ export class AiAgentService extends BaseService {
 
                 const userAttributes =
                     await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        { organizationUuid, userUuid: user.userUuid },
+                        {
+                            organizationUuid,
+                            userUuid: user.userUuid,
+                        },
                     );
 
                 const allExplores = Object.values(
@@ -1384,17 +1388,42 @@ export class AiAgentService extends BaseService {
                 );
         }
 
+        const credentials =
+            body.authType === 'bearer'
+                ? {
+                      bearerToken: body.credentials!.bearerToken.trim(),
+                  }
+                : null;
+
+        try {
+            await testMcpConnection(
+                {
+                    name,
+                    url: normalizedUrl,
+                    authType: body.authType,
+                    credentials,
+                },
+                (error) => {
+                    Logger.error(
+                        `[AiAgent][MCP][${name}] Uncaught MCP client error while validating connection`,
+                        error,
+                    );
+                },
+            );
+        } catch (error) {
+            throw new ParameterError(
+                `Could not connect to MCP server: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
+
         return this.aiAgentModel.createMcpServer({
             projectUuid,
             name,
             url: normalizedUrl,
             authType: body.authType,
-            credentials:
-                body.authType === 'bearer'
-                    ? {
-                          bearerToken: body.credentials!.bearerToken.trim(),
-                      }
-                    : null,
+            credentials,
         });
     }
 
@@ -3276,9 +3305,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                         if (queryResults.status === QueryHistoryStatus.ERROR) {
                             throw new WarehouseQueryError(
-                                `SQL query failed: ${
-                                    queryResults.error ?? 'Unknown error'
-                                }`,
+                                `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
                             );
                         }
 
@@ -6903,9 +6930,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
             if (artifact.dashboardConfig) {
                 contextParts.push(
-                    `Dashboard config: ${JSON.stringify(
-                        artifact.dashboardConfig,
-                    )}`,
+                    `Dashboard config: ${JSON.stringify(artifact.dashboardConfig)}`,
                 );
             }
         }

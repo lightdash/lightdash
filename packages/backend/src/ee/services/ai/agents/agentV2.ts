@@ -1,4 +1,4 @@
-import { createMCPClient, type MCPClient } from '@ai-sdk/mcp';
+import type { MCPClient } from '@ai-sdk/mcp';
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -35,6 +35,7 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
+import { createHttpMcpClient } from '../utils/mcpClient';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -216,52 +217,16 @@ const getAgentTools = async (
 
     try {
         for await (const mcpServer of args.mcpServers) {
-            if (
-                mcpServer.authType === 'bearer' &&
-                (!mcpServer.credentials ||
-                    !('bearerToken' in mcpServer.credentials) ||
-                    !mcpServer.credentials.bearerToken)
-            ) {
-                throw new Error(
-                    `MCP server "${mcpServer.name}" is missing bearer credentials`,
-                );
-            }
-
-            const bearerToken =
-                mcpServer.authType === 'bearer' &&
-                mcpServer.credentials &&
-                'bearerToken' in mcpServer.credentials
-                    ? mcpServer.credentials.bearerToken
-                    : undefined;
-
-            if (mcpServer.authType === 'oauth') {
-                throw new Error(
-                    `OAuth MCP server "${mcpServer.name}" is not implemented yet`,
-                );
-            }
-
             logger(
                 'Agent Tools',
                 `Connecting to MCP server: ${mcpServer.name} (${mcpServer.url})`,
             );
 
-            const mcpClient = await createMCPClient({
-                transport: {
-                    type: 'http',
-                    url: mcpServer.url,
-                    headers: bearerToken
-                        ? {
-                              Authorization: `Bearer ${bearerToken}`,
-                          }
-                        : undefined,
-                    redirect: 'error',
-                },
-                onUncaughtError: (error) => {
-                    Logger.error(
-                        `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
-                        error,
-                    );
-                },
+            const mcpClient = await createHttpMcpClient(mcpServer, (error) => {
+                Logger.error(
+                    `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
+                    error,
+                );
             });
             mcpClients.push(mcpClient);
 
@@ -416,9 +381,7 @@ export const generateAgentResponse = async ({
                                         args.promptUuid
                                     }: ${toolCall.toolName} (ID: ${
                                         toolCall.toolCallId
-                                    }) (ARGS: ${JSON.stringify(
-                                        toolCall.input,
-                                    )})`,
+                                    }) (ARGS: ${JSON.stringify(toolCall.input)})`,
                                 );
 
                                 dependencies.trackEvent({
@@ -468,9 +431,7 @@ export const generateAgentResponse = async ({
                                         args.promptUuid
                                     }: ${toolResult.toolName} (ID: ${
                                         toolResult.toolCallId
-                                    }) (RESULT: ${JSON.stringify(
-                                        toolResult.output,
-                                    )})`,
+                                    }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                                 );
                                 const output =
                                     toolResult.output as AgentToolOutput;
