@@ -7,6 +7,7 @@
         "build": "vite build"
     },
     "dependencies": {
+        "@lightdash/common": "workspace:*",
         "@modelcontextprotocol/ext-apps": "1.0.1",
         "echarts": "5.6.0"
     },

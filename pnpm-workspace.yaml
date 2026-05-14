@@ -1,5 +1,6 @@
 packages:
     - 'packages/*'
     - 'packages/frontend/sdk'
+    - 'packages/backend/src/ee/services/McpService/mcp-chart-app'
 
 minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
