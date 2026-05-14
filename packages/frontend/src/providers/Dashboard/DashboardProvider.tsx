@@ -110,6 +110,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         tabUuid?: string;
         mode?: string;
     };
+
+    // Reset the "locked filter override" toast guard on dashboard navigation
+    // so each dashboard gets a fresh chance to notify the viewer.
+    useEffect(() => {
+        hasNotifiedLockedOverrideRef.current = false;
+    }, [dashboardUuid]);
     const isEditMode = mode === 'edit';
 
     const {
@@ -797,8 +803,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     title: 'Locked dashboard filter',
                     subtitle:
                         droppedLockedOverrides === 1
-                            ? 'A filter override from your URL was ignored because the dashboard editor locked that filter.'
-                            : `${droppedLockedOverrides} filter overrides from your URL were ignored because the dashboard editor locked those filters.`,
+                            ? 'A filter override was ignored because the dashboard editor locked that filter.'
+                            : `${droppedLockedOverrides} filter overrides were ignored because the dashboard editor locked those filters.`,
                 });
             }
 
@@ -998,8 +1004,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 title: 'Locked dashboard filter',
                 subtitle:
                     droppedCount === 1
-                        ? 'A temporary filter from your URL was ignored because the dashboard editor locked that filter.'
-                        : `${droppedCount} temporary filters from your URL were ignored because the dashboard editor locked those filters.`,
+                        ? 'A temporary filter was ignored because the dashboard editor locked that filter.'
+                        : `${droppedCount} temporary filters were ignored because the dashboard editor locked those filters.`,
             });
         }
     }, [dashboard?.filters, dashboardTemporaryFilters, showToastInfo]);
