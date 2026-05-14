@@ -29,6 +29,7 @@ import {
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import { AiAgentSkill, AiAgentSkillResource } from '../skills/types';
 
 type Pagination = KnexPaginateArgs & {
     totalPageCount: number;
@@ -222,3 +223,12 @@ export type RecordSqlApprovalFn = (
     decision: 'approved' | 'rejected',
     decidedByUserUuid: string | null,
 ) => Promise<boolean>;
+
+export type LoadAgentSkillFn = (
+    name: string,
+) => Promise<AiAgentSkill | undefined>;
+
+export type LoadAgentSkillResourceFn = (args: {
+    skillName: string;
+    resourceName: string;
+}) => Promise<AiAgentSkillResource | undefined>;

@@ -17,6 +17,8 @@ import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getImproveContext } from '../tools/improveContext';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
+import { getLoadSkill } from '../tools/loadSkill';
+import { getLoadSkillResource } from '../tools/loadSkillResource';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
@@ -215,6 +217,21 @@ const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
     });
 
+    const loadSkill =
+        args.availableSkills.length > 0
+            ? getLoadSkill({
+                  loadSkill: dependencies.loadSkill,
+              })
+            : null;
+
+    const loadSkillResource =
+        args.availableSkills.length > 0
+            ? getLoadSkillResource({
+                  loadSkill: dependencies.loadSkill,
+                  loadSkillResource: dependencies.loadSkillResource,
+              })
+            : null;
+
     const tools: ToolSet = {
         findContent,
         getDashboardCharts,
@@ -227,6 +244,8 @@ const getAgentTools = (
             ? { proposeChange }
             : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(loadSkill ? { loadSkill } : {}),
+        ...(loadSkillResource ? { loadSkillResource } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
@@ -250,6 +269,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
             availableExplores,
+            availableSkills: args.availableSkills,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
             canRunSql: args.canRunSql,

@@ -9,6 +9,7 @@ import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.
 import { ModelMessage } from 'ai';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
+import { AiAgentSkillReference } from '../skills/types';
 import {
     CreateChangeFn,
     CreateOrUpdateArtifactFn,
@@ -23,6 +24,8 @@ import {
     GetSavedChartFn,
     ListExploresFn,
     ListWarehouseTablesFn,
+    LoadAgentSkillFn,
+    LoadAgentSkillResourceFn,
     RecordSqlApprovalFn,
     RunAsyncQueryFn,
     RunSqlJobFn,
@@ -69,6 +72,7 @@ export type AiAgentArgs = AnyAiModel & {
     canRunSql: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    availableSkills: AiAgentSkillReference[];
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
@@ -117,6 +121,8 @@ export type AiAgentDependencies = {
     createChange: CreateChangeFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    loadSkill: LoadAgentSkillFn;
+    loadSkillResource: LoadAgentSkillResourceFn;
     perf: PerformanceMetrics;
 };
 

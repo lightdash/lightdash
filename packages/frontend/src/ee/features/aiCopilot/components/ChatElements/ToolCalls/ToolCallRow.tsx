@@ -26,6 +26,8 @@ import { type ToolCallSummary } from './utils/types';
 
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'improveContext',
+    'loadSkill',
+    'loadSkillResource',
     'proposeChange',
     'runSavedChart',
     'listWarehouseTables',

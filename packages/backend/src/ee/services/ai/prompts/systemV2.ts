@@ -1,15 +1,18 @@
 import { Explore, WarehouseTypes } from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
+import { AiAgentSkillReference } from '../skills/types';
 import { renderAvailableExplores } from './availableExplores';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
 import { getRunSqlSection } from './systemV2RunSql';
 import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
+import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
+    availableSkills?: AiAgentSkillReference[];
     instructions?: string;
     agentName?: string;
     date?: string;
@@ -77,9 +80,11 @@ export const getSystemPromptV2 = (args: {
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent);
 
+    const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
+
     return {
         role: 'system',
-        content,
+        content: skillsSection ? `${content}\n\n${skillsSection}` : content,
         providerOptions: {
             anthropic: { cacheControl: { type: 'ephemeral' } },
         },

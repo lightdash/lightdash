@@ -90,6 +90,20 @@ export const getToolCallChipLabel = (
         case 'improveContext':
         case 'proposeChange':
             return null;
+        case 'loadSkill': {
+            const args = toolArgs as { name?: string };
+            return args.name ? `skill: ${args.name}` : null;
+        }
+        case 'loadSkillResource': {
+            const args = toolArgs as {
+                skillName?: string;
+                resourceName?: string;
+            };
+            if (args.resourceName && args.skillName) {
+                return `${args.resourceName} from ${args.skillName}`;
+            }
+            return args.resourceName ?? null;
+        }
         default:
             return null;
     }

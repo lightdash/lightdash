@@ -160,6 +160,8 @@ export const ToolCallDescription: FC<{
         case 'listWarehouseTables':
         case 'describeWarehouseTable':
         case 'improveContext':
+        case 'loadSkill':
+        case 'loadSkillResource':
         case 'proposeChange':
         case 'runSavedChart':
             return <> </>;
