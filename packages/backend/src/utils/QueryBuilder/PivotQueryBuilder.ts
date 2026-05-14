@@ -1,4 +1,5 @@
 import {
+    convertItemTypeToDimensionType,
     DimensionType,
     FilterOperator,
     getAggregatedField,
@@ -773,8 +774,8 @@ export class PivotQueryBuilder {
         }
 
         const item = this.itemsMap[reference];
-        const fieldType = isDimension(item)
-            ? item.type
+        const fieldType = item
+            ? convertItemTypeToDimensionType(item)
             : PivotQueryBuilder.inferDimensionTypeFromValue(value);
 
         const filterRule: FilterRule<FilterOperator, unknown> = {
