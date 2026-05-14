@@ -1693,11 +1693,11 @@ export class SavedChartService
         },
     ): Promise<KnexPaginatedData<SchedulerRun[]>> {
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
-        if (scheduler.savedChartUuid !== chartUuid) {
-            throw new NotFoundError('Scheduler not found');
-        }
         const chart = await this.savedChartModel.getSummary(chartUuid);
         const auditedAbility = this.createAuditedAbility(user);
+        // Authorize before revealing whether the scheduler belongs to this
+        // chart, so unauthorized callers can't distinguish 404 (wrong chart)
+        // from 403 (right chart, no access).
         if (
             auditedAbility.cannot(
                 'manage',
@@ -1709,6 +1709,9 @@ export class SavedChartService
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (scheduler.savedChartUuid !== chartUuid) {
+            throw new NotFoundError('Scheduler not found');
         }
         return this.schedulerModel.getProjectSchedulerRuns({
             projectUuid: chart.projectUuid,

@@ -29,14 +29,7 @@ import {
     isAuthenticated,
 } from '../authentication/middlewares';
 import { BaseController } from '../baseController';
-
-const VALID_RUN_DESTINATIONS = [
-    'email',
-    'slack',
-    'msteams',
-    'gsheets',
-    'googlechat',
-] as const;
+import { VALID_SCHEDULER_RUN_DESTINATIONS } from '../schedulerConstants';
 
 @Route('/api/v2/saved/{chartUuid}')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -141,7 +134,7 @@ export class SavedChartControllerV2 extends BaseController {
             statuses: parseEnumList(statuses, SchedulerRunStatus, 'statuses'),
             destinations: parseWhitelistedList(
                 destinations,
-                VALID_RUN_DESTINATIONS,
+                VALID_SCHEDULER_RUN_DESTINATIONS,
                 'destinations',
             ),
         };

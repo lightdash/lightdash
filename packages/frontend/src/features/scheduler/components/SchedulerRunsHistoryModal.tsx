@@ -1,11 +1,11 @@
 import { type SchedulerRun } from '@lightdash/common';
 import { Button } from '@mantine-8/core';
 import { IconChevronLeft, IconHistory } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import LogsTable from '../../../components/SchedulersView/LogsTable';
-import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useGetSlackChannelName } from '../../../hooks/slack/useGetSlackChannelName';
 
 type Props = {
     onBack: () => void;
@@ -33,22 +33,7 @@ const SchedulerRunsHistoryModal: FC<Props> = ({
     schedulerName,
     projectUuid,
 }) => {
-    const { data: slackInstallation } = useGetSlack();
-    const organizationHasSlack = !!slackInstallation?.organizationUuid;
-    const slackChannelsQuery = useSlackChannels(
-        '',
-        { excludeArchived: false },
-        { enabled: organizationHasSlack },
-    );
-    const slackChannelMap = useMemo(() => {
-        const map = new Map<string, string>();
-        slackChannelsQuery?.data?.forEach((c) => map.set(c.id, c.name));
-        return map;
-    }, [slackChannelsQuery?.data]);
-    const getSlackChannelName = useCallback(
-        (channelId: string) => slackChannelMap.get(channelId) ?? null,
-        [slackChannelMap],
-    );
+    const { getSlackChannelName } = useGetSlackChannelName();
 
     const resourceScope = useMemo(
         () => ({ resourceType, resourceUuid, schedulerUuid }),

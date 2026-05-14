@@ -22,7 +22,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import RunDetailsModal from '../../../components/SchedulersView/RunDetailsModal';
-import { useGetSlack, useSlackChannels } from '../../../hooks/slack/useSlack';
+import { useGetSlackChannelName } from '../../../hooks/slack/useGetSlackChannelName';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFetchRunLogs } from '../hooks/useScheduler';
@@ -119,8 +119,6 @@ const SchedulersModal: FC<
     }, []);
 
     // Slack channel name resolution for the run details view
-    const { data: slackInstallation } = useGetSlack();
-    const organizationHasSlack = !!slackInstallation?.organizationUuid;
     const slackChannelIds = useMemo(() => {
         if (!selectedRun?.details || typeof selectedRun.details !== 'object') {
             return undefined;
@@ -129,26 +127,10 @@ const SchedulersModal: FC<
             .channel;
         return typeof channel === 'string' ? [channel] : undefined;
     }, [selectedRun]);
-    const slackChannelsQuery = useSlackChannels(
-        '',
-        {
-            excludeArchived: false,
-            includeChannelIds: slackChannelIds,
-        },
-        {
-            enabled:
-                organizationHasSlack && modalState === States.VIEW_RUN_DETAILS,
-        },
-    );
-    const getSlackChannelName = useCallback(
-        (channelId: string): string | null => {
-            const channel = slackChannelsQuery?.data?.find(
-                (c) => c.id === channelId,
-            );
-            return channel?.name ?? null;
-        },
-        [slackChannelsQuery?.data],
-    );
+    const { getSlackChannelName } = useGetSlackChannelName({
+        includeChannelIds: slackChannelIds,
+        enabled: modalState === States.VIEW_RUN_DETAILS,
+    });
 
     const fetchRunLogsMutation = useFetchRunLogs();
     const { showToastError } = useToaster();

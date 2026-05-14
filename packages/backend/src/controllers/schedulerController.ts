@@ -45,15 +45,7 @@ import {
     unauthorisedInDemo,
 } from './authentication';
 import { BaseController } from './baseController';
-
-// Valid destination types (whitelist for parseWhitelistedList)
-const VALID_DESTINATIONS = [
-    'email',
-    'slack',
-    'msteams',
-    'gsheets',
-    'googlechat',
-] as const;
+import { VALID_SCHEDULER_RUN_DESTINATIONS } from './schedulerConstants';
 
 @Route('/api/v1/schedulers')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -181,7 +173,7 @@ export class SchedulerController extends BaseController {
             ),
             destinations: parseWhitelistedList(
                 destinations,
-                VALID_DESTINATIONS,
+                VALID_SCHEDULER_RUN_DESTINATIONS,
                 'destinations',
             ),
             resourceType,

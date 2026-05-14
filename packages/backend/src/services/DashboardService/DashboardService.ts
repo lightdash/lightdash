@@ -1496,12 +1496,12 @@ export class DashboardService
         },
     ): Promise<KnexPaginatedData<SchedulerRun[]>> {
         const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
-        if (scheduler.dashboardUuid !== dashboardUuid) {
-            throw new NotFoundError('Scheduler not found');
-        }
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
         const auditedAbility = this.createAuditedAbility(user);
+        // Authorize before revealing whether the scheduler belongs to this
+        // dashboard, so unauthorized callers can't distinguish 404 (wrong
+        // dashboard) from 403 (right dashboard, no access).
         if (
             auditedAbility.cannot(
                 'manage',
@@ -1513,6 +1513,9 @@ export class DashboardService
             )
         ) {
             throw new ForbiddenError();
+        }
+        if (scheduler.dashboardUuid !== dashboardUuid) {
+            throw new NotFoundError('Scheduler not found');
         }
         return this.schedulerModel.getProjectSchedulerRuns({
             projectUuid: dashboard.projectUuid,
