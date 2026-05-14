@@ -1,6 +1,8 @@
+import { type AiAgentToolName } from '@lightdash/common';
+
 export type ToolCallSummary = {
     toolCallId: string;
-    toolName: string;
+    toolName: AiAgentToolName;
     toolArgs: unknown;
     /**
      * The tool's output once it has resolved. Populated for live streaming

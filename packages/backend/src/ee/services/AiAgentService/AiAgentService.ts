@@ -42,6 +42,7 @@ import {
     ForbiddenError,
     isExploreError,
     isSlackPrompt,
+    isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
     LightdashUser,
     NotFoundError,
@@ -2759,21 +2760,11 @@ export class AiAgentService extends BaseService {
             await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
 
         // Find the tool result for the propose_change that created this change
-        const proposeChangeResult = toolResults.find(
-            (result) =>
-                result.toolName === 'proposeChange' &&
-                result.metadata.status === 'success' &&
-                result.metadata.changeUuid === changeUuid,
-        );
+        const proposeChangeResult = toolResults
+            .filter(isToolProposeChangeSuccessResult)
+            .find((result) => result.metadata.changeUuid === changeUuid);
 
-        if (
-            !proposeChangeResult ||
-            !(
-                proposeChangeResult.toolName === 'proposeChange' &&
-                proposeChangeResult.metadata.status === 'success' &&
-                proposeChangeResult.metadata.changeUuid === changeUuid
-            )
-        ) {
+        if (!proposeChangeResult) {
             throw new NotFoundError(
                 `Propose change result not found for change: ${changeUuid}`,
             );
@@ -3078,10 +3069,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                     toolCallId: toolResult.toolCallId,
                                     toolName: toolResult.toolName,
                                     output:
-                                        toolResult.toolName ===
-                                            'proposeChange' &&
-                                        toolResult.metadata.status ===
-                                            'success' &&
+                                        isToolProposeChangeSuccessResult(
+                                            toolResult,
+                                        ) &&
                                         toolResult.metadata.userFeedback ===
                                             'rejected'
                                             ? {

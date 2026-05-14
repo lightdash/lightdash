@@ -26,7 +26,10 @@ interface Props extends Pick<
     threadUuid: string;
     promptUuid: string;
     toolResult:
-        | Extract<AiAgentToolResult, { toolName: 'proposeChange' }>
+        | Extract<
+              AiAgentToolResult,
+              { toolType: 'built-in'; toolName: 'proposeChange' }
+          >
         | undefined;
 }
 

@@ -21,6 +21,7 @@ import {
     type AiPromptContextInput,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
+import { ToolNameSchema } from './schemas/visualizations';
 import { type AiMetricQuery, type AiResultType } from './types';
 
 export * from './adminTypes';
@@ -419,32 +420,69 @@ export type ApiUpdateUserAgentPreferences = AiAgentUserPreferences;
 
 export type ApiUpdateUserAgentPreferencesResponse = ApiSuccessEmpty;
 
-export type AiAgentToolCall = {
+// TSOA does not support template literal types in API response models.
+// Runtime validation still enforces the `mcp_` prefix via isAiAgentMcpToolName.
+export type AiAgentMcpToolName = string;
+export type AiAgentToolType = 'built-in' | 'mcp';
+export type AiAgentToolName = ToolName | AiAgentMcpToolName;
+
+export const isAiAgentMcpToolName = (
+    toolName: string,
+): toolName is AiAgentMcpToolName => toolName.startsWith('mcp_');
+
+export const isAiAgentToolName = (
+    toolName: string,
+): toolName is AiAgentToolName =>
+    ToolNameSchema.safeParse(toolName).success ||
+    isAiAgentMcpToolName(toolName);
+
+type AiAgentBaseToolCall = {
     uuid: string;
     promptUuid: string;
     toolCallId: string;
     createdAt: Date;
-    // TODO: tsoa does not support zod infer schemas - https://github.com/lukeautry/tsoa/issues/1256
-    toolName: string; // ToolName zod enum
     toolArgs: object;
 };
 
-export type AiAgentToolResult = {
+export type AiAgentToolCall = AiAgentBaseToolCall &
+    (
+        | {
+              toolType: 'built-in';
+              // TODO: tsoa does not support zod infer schemas - https://github.com/lukeautry/tsoa/issues/1256
+              toolName: string;
+          }
+        | {
+              toolType: 'mcp';
+              toolName: AiAgentMcpToolName;
+          }
+    );
+
+type AiAgentBaseToolResult = {
     uuid: string;
     promptUuid: string;
     result: string;
     createdAt: Date;
     toolCallId: string;
-} & (
-    | {
-          toolName: 'proposeChange';
-          metadata: ToolProposeChangeOutput['metadata'];
-      }
-    | {
-          toolName: Exclude<ToolName, 'proposeChange'>;
-          metadata: AgentToolOutput['metadata'];
-      }
-);
+};
+
+export type AiAgentToolResult = AiAgentBaseToolResult &
+    (
+        | {
+              toolType: 'built-in';
+              toolName: 'proposeChange';
+              metadata: ToolProposeChangeOutput['metadata'];
+          }
+        | {
+              toolType: 'built-in';
+              toolName: Exclude<ToolName, 'proposeChange'>;
+              metadata: AgentToolOutput['metadata'];
+          }
+        | {
+              toolType: 'mcp';
+              toolName: AiAgentMcpToolName;
+              metadata: Record<string, unknown> | null;
+          }
+    );
 
 export type AiAgentReasoning = {
     uuid: string;

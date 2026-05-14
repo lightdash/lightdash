@@ -1,6 +1,9 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolName,
+    friendlyName,
+    isToolName,
     type ToolName,
 } from '@lightdash/common';
 import {
@@ -36,10 +39,16 @@ const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runSql']);
 // Max chips shown inline when collapsed before "+N more".
 const MAX_CHIPS_COLLAPSED = 3;
 
+const getMcpDisplayName = (toolName: string) => {
+    const maybeServerName = toolName.replace(/^mcp_/, '').split('__')[0];
+
+    return maybeServerName ? friendlyName(maybeServerName) : 'Tool';
+};
+
 export type ToolCallRowStatus = 'running' | 'done' | 'error';
 
 type Props = {
-    toolName: ToolName;
+    toolName: AiAgentToolName;
     toolCalls: ToolCallSummary[];
     status?: ToolCallRowStatus;
     /**
@@ -57,17 +66,22 @@ export const ToolCallRow: FC<Props> = ({
     extraBody,
 }) => {
     const Icon = getToolIcon(toolName);
-    const label =
-        status === 'running'
-            ? TOOL_DISPLAY_MESSAGES[toolName]
-            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[toolName];
+    const builtInToolName = isToolName(toolName) ? toolName : null;
+    const label = builtInToolName
+        ? status === 'running'
+            ? TOOL_DISPLAY_MESSAGES[builtInToolName]
+            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[builtInToolName]
+        : null;
     const hasDescription =
-        !TOOLS_WITHOUT_DESCRIPTION.has(toolName) || Boolean(extraBody);
+        (builtInToolName && !TOOLS_WITHOUT_DESCRIPTION.has(builtInToolName)) ||
+        Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
 
     const chipLabels: (string | null)[] = toolCalls.map((tc) =>
-        getToolCallChipLabel(toolName, tc.toolArgs),
+        builtInToolName
+            ? getToolCallChipLabel(builtInToolName, tc.toolArgs)
+            : null,
     );
     const visibleChips = chipLabels
         .map((c, idx) => ({ label: c, idx }))
@@ -83,13 +97,14 @@ export const ToolCallRow: FC<Props> = ({
         if (
             !isGrouped &&
             hasDescription &&
-            !HIDE_INLINE_PREVIEW.has(toolName)
+            builtInToolName &&
+            !HIDE_INLINE_PREVIEW.has(builtInToolName)
         ) {
             // Single call: show its description; clipped to one line by CSS.
             return (
                 <Box className={styles.inlineDescription}>
                     <ToolCallDescription
-                        toolName={toolName}
+                        toolName={builtInToolName}
                         toolCall={toolCalls[0]}
                     />
                 </Box>
@@ -131,9 +146,18 @@ export const ToolCallRow: FC<Props> = ({
                 className={styles.icon}
                 data-status={status}
             />
-            <Text size="xs" className={styles.label}>
-                {label}
-            </Text>
+            {label ? (
+                <Text size="xs" className={styles.label}>
+                    {label}
+                </Text>
+            ) : (
+                <Text size="xs" className={styles.label}>
+                    Used MCP {getMcpDisplayName(toolName)}:{' '}
+                    <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
+                        {toolName}
+                    </ToolCallChip>
+                </Text>
+            )}
             {isGrouped && (
                 <Box className={styles.countBadge}>{toolCalls.length}</Box>
             )}
@@ -171,13 +195,15 @@ export const ToolCallRow: FC<Props> = ({
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
                 <Stack gap={8} className={styles.body}>
-                    {toolCalls.map((tc) => (
-                        <ToolCallDescription
-                            key={tc.toolCallId}
-                            toolName={toolName}
-                            toolCall={tc}
-                        />
-                    ))}
+                    {builtInToolName
+                        ? toolCalls.map((tc) => (
+                              <ToolCallDescription
+                                  key={tc.toolCallId}
+                                  toolName={builtInToolName}
+                                  toolCall={tc}
+                              />
+                          ))
+                        : null}
                     {extraBody}
                 </Stack>
             </Collapse>

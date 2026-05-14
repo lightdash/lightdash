@@ -1,4 +1,8 @@
-import type { ToolName } from '@lightdash/common';
+import {
+    isToolName,
+    type AiAgentToolName,
+    type ToolName,
+} from '@lightdash/common';
 import {
     IconChartDots3,
     IconChartHistogram,
@@ -6,6 +10,7 @@ import {
     IconDatabase,
     IconLayoutDashboard,
     IconPencil,
+    IconPlugConnected,
     IconSchool,
     IconSearch,
     IconSelector,
@@ -15,7 +20,7 @@ import {
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
 
-export const getToolIcon = (toolName: ToolName) => {
+export const getToolIcon = (toolName: AiAgentToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
         {
             findExplores: IconDatabase,
@@ -39,5 +44,5 @@ export const getToolIcon = (toolName: ToolName) => {
             describeWarehouseTable: IconDatabase,
         };
 
-    return iconMap[toolName];
+    return isToolName(toolName) ? iconMap[toolName] : IconPlugConnected;
 };

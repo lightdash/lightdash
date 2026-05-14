@@ -47,8 +47,9 @@ import {
     CreateWebAppPrompt,
     CreateWebAppThread,
     generateSlug,
+    isAiAgentMcpToolName,
+    isAiAgentToolName,
     isThreadPrompt,
-    isToolName,
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
@@ -2100,21 +2101,8 @@ export class AiAgentModel {
                 referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 toolCalls: toolCalls
-                    .filter(
-                        (
-                            tc,
-                        ): tc is DbAiAgentToolCall & {
-                            tool_name: ToolName;
-                        } => isToolName(tc.tool_name),
-                    )
-                    .map((tc) => ({
-                        uuid: tc.ai_agent_tool_call_uuid,
-                        promptUuid: tc.ai_prompt_uuid,
-                        toolCallId: tc.tool_call_id,
-                        createdAt: tc.created_at,
-                        toolName: tc.tool_name,
-                        toolArgs: tc.tool_args,
-                    })),
+                    .filter((tc) => isAiAgentToolName(tc.tool_name))
+                    .map((tc) => this.parseToolCall(tc)),
                 toolResults,
                 reasoning,
                 savedQueryUuid: row.saved_query_uuid,
@@ -2764,21 +2752,8 @@ export class AiAgentModel {
                     referencedArtifacts,
                     modelConfig: row.model_config,
                     toolCalls: toolCalls
-                        .filter(
-                            (
-                                tc,
-                            ): tc is DbAiAgentToolCall & {
-                                tool_name: ToolName;
-                            } => isToolName(tc.tool_name),
-                        )
-                        .map((tc) => ({
-                            uuid: tc.ai_agent_tool_call_uuid,
-                            promptUuid: tc.ai_prompt_uuid,
-                            toolCallId: tc.tool_call_id,
-                            createdAt: tc.created_at,
-                            toolName: tc.tool_name,
-                            toolArgs: tc.tool_args,
-                        })),
+                        .filter((tc) => isAiAgentToolName(tc.tool_name))
+                        .map((tc) => this.parseToolCall(tc)),
                     toolResults,
                     reasoning,
                     savedQueryUuid: row.saved_query_uuid,
@@ -3691,16 +3666,65 @@ export class AiAgentModel {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    private parseToolResult(row: DbAiAgentToolResult): AiAgentToolResult {
-        const toolName = ToolNameSchema.parse(row.tool_name);
+    private parseToolCall(row: DbAiAgentToolCall): AiAgentToolCall {
+        const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
 
-        switch (toolName) {
+        if (parsedToolName.success) {
+            return {
+                uuid: row.ai_agent_tool_call_uuid,
+                promptUuid: row.ai_prompt_uuid,
+                toolCallId: row.tool_call_id,
+                createdAt: row.created_at,
+                toolType: 'built-in',
+                toolName: parsedToolName.data,
+                toolArgs: row.tool_args,
+            };
+        }
+
+        if (isAiAgentMcpToolName(row.tool_name)) {
+            return {
+                uuid: row.ai_agent_tool_call_uuid,
+                promptUuid: row.ai_prompt_uuid,
+                toolCallId: row.tool_call_id,
+                createdAt: row.created_at,
+                toolType: 'mcp',
+                toolName: row.tool_name,
+                toolArgs: row.tool_args,
+            };
+        }
+
+        throw new Error(`Unknown tool name: ${row.tool_name}`);
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private parseToolResult(row: DbAiAgentToolResult): AiAgentToolResult {
+        const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
+
+        if (!parsedToolName.success) {
+            if (isAiAgentMcpToolName(row.tool_name)) {
+                return {
+                    uuid: row.ai_agent_tool_result_uuid,
+                    promptUuid: row.ai_prompt_uuid,
+                    toolCallId: row.tool_call_id,
+                    toolType: 'mcp',
+                    toolName: row.tool_name,
+                    result: row.result,
+                    metadata: row.metadata as Record<string, unknown> | null,
+                    createdAt: row.created_at,
+                };
+            }
+
+            throw new Error(`Unknown tool result name: ${row.tool_name}`);
+        }
+
+        switch (parsedToolName.data) {
             case 'proposeChange':
                 return {
                     uuid: row.ai_agent_tool_result_uuid,
                     promptUuid: row.ai_prompt_uuid,
                     toolCallId: row.tool_call_id,
-                    toolName,
+                    toolType: 'built-in',
+                    toolName: parsedToolName.data,
                     result: row.result,
                     metadata:
                         toolProposeChangeOutputSchema.shape.metadata.parse(
@@ -3713,7 +3737,8 @@ export class AiAgentModel {
                     uuid: row.ai_agent_tool_result_uuid,
                     promptUuid: row.ai_prompt_uuid,
                     toolCallId: row.tool_call_id,
-                    toolName,
+                    toolType: 'built-in',
+                    toolName: parsedToolName.data,
                     result: row.result,
                     metadata: row.metadata as AgentToolOutput['metadata'],
                     createdAt: row.created_at,
@@ -3755,14 +3780,7 @@ export class AiAgentModel {
         return rows
             .filter((row) => row.result !== null)
             .map((row) => {
-                const toolCall = {
-                    uuid: row.ai_agent_tool_call_uuid,
-                    promptUuid: row.ai_prompt_uuid,
-                    toolCallId: row.tool_call_id,
-                    toolName: row.tool_name,
-                    toolArgs: row.tool_args,
-                    createdAt: row.created_at,
-                } satisfies AiAgentToolCall;
+                const toolCall = this.parseToolCall(row);
 
                 const toolResult = this.parseToolResult({
                     ai_agent_tool_result_uuid: row.ai_agent_tool_result_uuid!,
@@ -3939,7 +3957,10 @@ export class AiAgentModel {
             toolCallId: string;
             toolName: string;
             result: string;
-            metadata?: AgentToolOutput['metadata'];
+            metadata?:
+                | AgentToolOutput['metadata']
+                | Record<string, unknown>
+                | null;
         }>,
     ): Promise<string[]> {
         if (data.length === 0) return [];

@@ -1,8 +1,10 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolName,
     type AiAgentToolResult,
-    type ToolName,
+    friendlyName,
+    isToolName,
 } from '@lightdash/common';
 import {
     Box,
@@ -22,6 +24,7 @@ import bubbleStyles from '../AgentChatAssistantBubble.module.css';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
+import { ToolCallChip } from './ToolCallChip';
 import { ToolCallRow } from './ToolCallRow';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
@@ -30,7 +33,7 @@ import { getToolIcon } from './utils/toolIcons';
 import { type ToolCallSummary } from './utils/types';
 
 export type LiveActivityToolGroup = {
-    toolName: ToolName;
+    toolName: AiAgentToolName;
     calls: ToolCallSummary[];
     keyId: string;
 };
@@ -55,7 +58,7 @@ type Props = {
 
 const REASONING_PREVIEW_LENGTH = 140;
 
-const TOOLS_WITHOUT_PREVIEW = new Set<ToolName>([
+const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSql',
     'improveContext',
     'proposeChange',
@@ -63,6 +66,12 @@ const TOOLS_WITHOUT_PREVIEW = new Set<ToolName>([
     'listWarehouseTables',
     'describeWarehouseTable',
 ]);
+
+const getMcpDisplayName = (toolName: string) => {
+    const maybeServerName = toolName.replace(/^mcp_/, '').split('__')[0];
+
+    return maybeServerName ? friendlyName(maybeServerName) : 'Tool';
+};
 
 export const ReasoningHistoryRow: FC<{
     texts: string[];
@@ -164,12 +173,17 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
     isLive,
 }) => {
     const Icon = getToolIcon(group.toolName);
-    const label = isLive
-        ? TOOL_DISPLAY_MESSAGES[group.toolName]
-        : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[group.toolName];
+    const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
+    const label = builtInToolName
+        ? isLive
+            ? TOOL_DISPLAY_MESSAGES[builtInToolName]
+            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[builtInToolName]
+        : null;
     const isGrouped = group.calls.length > 1;
     const lastCall = group.calls[group.calls.length - 1];
-    const chipLabel = getToolCallChipLabel(group.toolName, lastCall.toolArgs);
+    const chipLabel = isToolName(group.toolName)
+        ? getToolCallChipLabel(group.toolName, lastCall.toolArgs)
+        : null;
     const showPreview = chipLabel && !TOOLS_WITHOUT_PREVIEW.has(group.toolName);
 
     return (
@@ -199,13 +213,32 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
                     />
                 </Box>
             </Box>
-            <Text
-                size="xs"
-                className={styles.latestLabel}
-                key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
-            >
-                {label}
-            </Text>
+            {label ? (
+                <Text
+                    size="xs"
+                    className={styles.latestLabel}
+                    key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
+                >
+                    {label}
+                </Text>
+            ) : (
+                <Group
+                    gap={4}
+                    wrap="nowrap"
+                    className={styles.latestMcpLabel}
+                    key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
+                >
+                    <Text size="xs" className={styles.latestLabel}>
+                        Using MCP {getMcpDisplayName(group.toolName)}:
+                    </Text>
+                    <ToolCallChip
+                        maxWidth={260}
+                        className={styles.latestMcpToolChip}
+                    >
+                        {group.toolName}
+                    </ToolCallChip>
+                </Group>
+            )}
             {isGrouped && (
                 <Box
                     className={styles.countBadge}
@@ -491,35 +524,53 @@ export const LiveActivityCard: FC<Props> = ({
                     )}
                     {latest && !hasPending && (
                         <Stack gap={4}>
-                            {latest.calls.map((tc) => {
-                                const trace =
-                                    latest.toolName === 'discoverFields'
-                                        ? (getDiscoverFieldsTraceFromCall(tc) ??
-                                          getDiscoverFieldsTrace(
-                                              toolResults?.find(
-                                                  (r) =>
-                                                      r.toolCallId ===
-                                                      tc.toolCallId,
-                                              ),
-                                          ))
-                                        : null;
-                                return (
-                                    <Box
-                                        key={tc.toolCallId}
-                                        className={styles.latestDescription}
-                                    >
-                                        <ToolCallDescription
-                                            toolName={latest.toolName}
-                                            toolCall={tc}
-                                        />
-                                        {trace && (
-                                            <DiscoverFieldsTrace
-                                                trace={trace}
-                                            />
-                                        )}
-                                    </Box>
-                                );
-                            })}
+                            {(() => {
+                                const latestBuiltInToolName = isToolName(
+                                    latest.toolName,
+                                )
+                                    ? latest.toolName
+                                    : null;
+
+                                return latestBuiltInToolName
+                                    ? latest.calls.map((tc) => {
+                                          const trace =
+                                              latestBuiltInToolName ===
+                                              'discoverFields'
+                                                  ? (getDiscoverFieldsTraceFromCall(
+                                                        tc,
+                                                    ) ??
+                                                    getDiscoverFieldsTrace(
+                                                        toolResults?.find(
+                                                            (r) =>
+                                                                r.toolCallId ===
+                                                                tc.toolCallId,
+                                                        ),
+                                                    ))
+                                                  : null;
+
+                                          return (
+                                              <Box
+                                                  key={tc.toolCallId}
+                                                  className={
+                                                      styles.latestDescription
+                                                  }
+                                              >
+                                                  <ToolCallDescription
+                                                      toolName={
+                                                          latestBuiltInToolName
+                                                      }
+                                                      toolCall={tc}
+                                                  />
+                                                  {trace && (
+                                                      <DiscoverFieldsTrace
+                                                          trace={trace}
+                                                      />
+                                                  )}
+                                              </Box>
+                                          );
+                                      })
+                                    : null;
+                            })()}
                         </Stack>
                     )}
                     {olderGroups.length > 0 && (
