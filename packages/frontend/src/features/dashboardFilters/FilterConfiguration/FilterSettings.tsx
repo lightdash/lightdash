@@ -346,7 +346,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                           ),
                                 );
                             }}
-                            label="Require value for dashboard to run"
+                            label="Require viewers to pick a value to load the dashboard"
                         />
                     </>
                 )}
