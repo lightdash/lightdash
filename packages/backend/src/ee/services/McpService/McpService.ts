@@ -1,4 +1,3 @@
-/* eslint-disable import/extensions */
 import { subject } from '@casl/ability';
 import {
     Account,
@@ -38,13 +37,13 @@ import {
     toolSearchFieldValuesArgsSchema,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
+import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
 import {
     ServerNotification,
     ServerRequest,
-} from '@modelcontextprotocol/sdk/types.js';
+} from '@modelcontextprotocol/sdk/types';
 import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
@@ -160,11 +159,34 @@ export type ExtraContext = {
     /** Project UUID passed via X-Lightdash-Project header; overrides stored context */
     headerProjectUuid?: string;
 };
-type McpProtocolContext = {
-    authInfo?: AuthInfo & {
-        extra: ExtraContext;
-    };
-};
+
+// Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
+// McpService methods expect. The MCP router (mcpRouter.ts) populates
+// `authInfo.extra` with ExtraContext before the SDK invokes any tool
+// callback; this parses that out so call sites don't need type casts.
+// `z.custom<T>()` is used for types we don't want to mirror as Zod schemas —
+// it asserts the type without runtime validation of the inner shape.
+const extraContextSchema = z.object({
+    user: z.custom<SessionUser>(),
+    account: z.custom<OauthAccount | ApiKeyAccount | ServiceAcctAccount>(),
+    headerUserAttributes: z.custom<UserAttributeValueMap>().optional(),
+    headerProjectUuid: z.string().optional(),
+});
+
+const mcpProtocolContextSchema = z.object({
+    authInfo: z
+        .intersection(
+            z.custom<AuthInfo>(),
+            z.object({ extra: extraContextSchema }),
+        )
+        .optional(),
+});
+
+type McpProtocolContext = z.infer<typeof mcpProtocolContextSchema>;
+
+const getMcpContext = (
+    extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+): McpProtocolContext => mcpProtocolContextSchema.parse(extra);
 
 export class McpService extends BaseService {
     private lightdashConfig: LightdashConfig;
@@ -353,7 +375,7 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.GET_LIGHTDASH_VERSION,
                 );
                 return {
@@ -361,7 +383,7 @@ export class McpService extends BaseService {
                         {
                             type: 'text',
                             text: this.getLightdashVersion(
-                                extra as McpProtocolContext,
+                                getMcpContext(extra),
                             ),
                         },
                     ],
@@ -388,27 +410,25 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 try {
-                    const { user } = this.getAccount(
-                        extra as McpProtocolContext,
-                    );
+                    const { user } = this.getAccount(getMcpContext(extra));
 
                     const projectUuid = await this.resolveProjectUuid(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                     this.trackToolCall(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                         McpToolName.LIST_EXPLORES,
                         projectUuid,
                     );
 
                     const tagsFromContext = await this.getTagsFromContext(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                     const userAttributeOverrides =
                         await this.getUserAttributeOverridesFromContext(
-                            extra as McpProtocolContext,
+                            getMcpContext(extra),
                         );
 
                     const listExplores = async () =>
@@ -432,7 +452,7 @@ export class McpService extends BaseService {
                     );
 
                     return await this.buildScopedResponse(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                         await McpService.streamToolResult(result),
                     );
                 } catch (error) {
@@ -466,12 +486,12 @@ export class McpService extends BaseService {
                 const args = _args as Omit<ToolFindExploresArgsV3, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.FIND_EXPLORES,
                     projectUuid,
                 );
@@ -479,16 +499,16 @@ export class McpService extends BaseService {
                 const findExplores: FindExploresFn =
                     await this.getFindExploresFunction(
                         argsWithProject,
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
-                const { user } = (extra as McpProtocolContext).authInfo!.extra;
+                const { user } = getMcpContext(extra).authInfo!.extra;
                 const tagsFromContext = await this.getTagsFromContext(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
                 const userAttributeOverrides =
                     await this.getUserAttributeOverridesFromContext(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
                 const availableExplores = await this.getAvailableExplores(
                     user,
@@ -515,7 +535,7 @@ export class McpService extends BaseService {
                 );
 
                 return this.buildScopedResponse(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     await McpService.streamToolResult(result),
                 );
             },
@@ -542,12 +562,12 @@ export class McpService extends BaseService {
                 const args = _args as Omit<ToolFindFieldsArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.FIND_FIELDS,
                     projectUuid,
                 );
@@ -555,7 +575,7 @@ export class McpService extends BaseService {
                 const { findFields, getExplore } =
                     await this.getFindFieldsFunction(
                         argsWithProject,
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                 const findFieldsTool = getFindFields({
@@ -570,7 +590,7 @@ export class McpService extends BaseService {
                 });
 
                 return this.buildScopedResponse(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     await McpService.streamToolResult(result),
                 );
             },
@@ -597,12 +617,12 @@ export class McpService extends BaseService {
                 const args = _args as Omit<ToolFindContentArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.FIND_CONTENT,
                     projectUuid,
                 );
@@ -610,7 +630,7 @@ export class McpService extends BaseService {
                 const findContent: FindContentFn =
                     await this.getFindContentFunction(
                         argsWithProject,
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                 const findContentTool = getFindContent({
@@ -623,7 +643,7 @@ export class McpService extends BaseService {
                 });
 
                 return this.buildScopedResponse(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     await McpService.streamToolResult(result),
                 );
             },
@@ -652,11 +672,11 @@ export class McpService extends BaseService {
                     >,
                 ) => {
                     const { user, organizationUuid } = this.getAccount(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                     this.trackToolCall(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                         McpToolName.LIST_PROJECTS,
                     );
 
@@ -724,11 +744,11 @@ export class McpService extends BaseService {
                         tags?: string[];
                     };
                     const { user, organizationUuid, account } = this.getAccount(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                     this.trackToolCall(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                         McpToolName.SET_PROJECT,
                         args.projectUuid,
                     );
@@ -812,11 +832,11 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 const { user, organizationUuid } = this.getAccount(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.GET_CURRENT_PROJECT,
                 );
 
@@ -882,12 +902,12 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 const args = _args as { projectUuid?: string };
-                const { user } = this.getAccount(extra as McpProtocolContext);
+                const { user } = this.getAccount(getMcpContext(extra));
 
                 await this.checkAiAgentsVisible(user);
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.LIST_AGENTS,
                 );
 
@@ -935,13 +955,13 @@ export class McpService extends BaseService {
             ) => {
                 const args = _args as { agentUuid: string };
                 const { user, organizationUuid } = this.getAccount(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
 
                 await this.checkAiAgentsVisible(user);
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.SET_AGENT,
                     args.agentUuid,
                 );
@@ -1017,11 +1037,11 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 const { user, organizationUuid } = this.getAccount(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.CLEAR_AGENT,
                 );
 
@@ -1077,13 +1097,13 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 const { user, organizationUuid } = this.getAccount(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
 
                 await this.checkAiAgentsVisible(user);
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.GET_CURRENT_AGENT,
                 );
 
@@ -1189,12 +1209,12 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
                 const argsWithProject = { ..._args, projectUuid };
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.RUN_METRIC_QUERY,
                     projectUuid,
                 );
@@ -1203,7 +1223,7 @@ export class McpService extends BaseService {
                     const { agentContext, runAsyncQuery } =
                         await this.getRunMetricQueryDependencies(
                             { projectUuid },
-                            extra as McpProtocolContext,
+                            getMcpContext(extra),
                         );
 
                     const queryTool =
@@ -1346,8 +1366,8 @@ export class McpService extends BaseService {
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
 
-                    const { user: mcpUser } = (extra as McpProtocolContext)
-                        .authInfo!.extra;
+                    const { user: mcpUser } =
+                        getMcpContext(extra).authInfo!.extra;
                     const shareUrl = await this.shareService.createShareUrl(
                         mcpUser,
                         explorePath,
@@ -1356,7 +1376,7 @@ export class McpService extends BaseService {
                     const exploreUrl = `${this.lightdashConfig.siteUrl}/share/${shareUrl.nanoid}`;
 
                     const metadata = await this.getActiveContextMetadata(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
                     const scopeInfo = [
                         metadata.agentName
@@ -1428,12 +1448,12 @@ export class McpService extends BaseService {
                 const args = _args as Omit<ToolSearchFieldValuesArgs, 'type'>;
 
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
                 const argsWithProject = { ...args, projectUuid };
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.SEARCH_FIELD_VALUES,
                     projectUuid,
                 );
@@ -1441,7 +1461,7 @@ export class McpService extends BaseService {
                 const searchFieldValues: SearchFieldValuesFn =
                     await this.getSearchFieldValuesFunction(
                         argsWithProject,
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                     );
 
                 const searchFieldValuesTool = getSearchFieldValues({
@@ -1456,7 +1476,7 @@ export class McpService extends BaseService {
                 );
 
                 return this.buildScopedResponse(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     await McpService.streamToolResult(result),
                 );
             },
@@ -1479,15 +1499,13 @@ export class McpService extends BaseService {
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
                 const args = _args as { sql: string; limit?: number };
-                const { user, account } = this.getAccount(
-                    extra as McpProtocolContext,
-                );
+                const { user, account } = this.getAccount(getMcpContext(extra));
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.RUN_SQL,
                     projectUuid,
                 );
@@ -1521,7 +1539,7 @@ export class McpService extends BaseService {
                                 ? `Columns: ${columns.join(', ')}`
                                 : '';
                         return await this.buildScopedResponse(
-                            extra as McpProtocolContext,
+                            getMcpContext(extra),
                             `Query returned 0 rows.${header ? ` ${header}` : ''}`,
                         );
                     }
@@ -1532,7 +1550,7 @@ export class McpService extends BaseService {
                     });
 
                     return await this.buildScopedResponse(
-                        extra as McpProtocolContext,
+                        getMcpContext(extra),
                         csv,
                     );
                 } catch (e) {
@@ -1567,13 +1585,13 @@ export class McpService extends BaseService {
                 _args: Record<string, never>,
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
-                const { user } = this.getAccount(extra as McpProtocolContext);
+                const { user } = this.getAccount(getMcpContext(extra));
                 const projectUuid = await this.resolveProjectUuid(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                 );
 
                 this.trackToolCall(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     McpToolName.LIST_VERIFIED_CONTENT,
                     projectUuid,
                 );
@@ -1585,7 +1603,7 @@ export class McpService extends BaseService {
                     );
 
                 return this.buildScopedResponse(
-                    extra as McpProtocolContext,
+                    getMcpContext(extra),
                     JSON.stringify(verifiedContent, null, 2),
                 );
             },
@@ -1604,7 +1622,7 @@ export class McpService extends BaseService {
                 _args: AnyType,
                 extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
             ) => {
-                const context = extra as McpProtocolContext;
+                const context = getMcpContext(extra);
                 const metadata = await this.getActiveContextMetadata(context);
 
                 let promptText: string;
