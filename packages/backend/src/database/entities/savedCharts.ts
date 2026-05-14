@@ -13,6 +13,7 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricType,
+    PivotSortAnchor,
     TableCalculationTemplate,
     TableCalculationType,
 } from '@lightdash/common';
@@ -154,7 +155,7 @@ type DbSavedChartVersionSort = {
     descending: boolean;
     nulls_first: boolean | null;
     order: number;
-    pivot_values: { reference: string; value: string | number | null }[] | null;
+    pivot_values: PivotSortAnchor[] | null;
 };
 
 export type CreateDbSavedChartVersionSort = Pick<
