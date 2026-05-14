@@ -5,6 +5,7 @@ import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
 } from '../store/hooks';
+import { useAiAgentThreadStreaming } from '../streaming/useAiAgentThreadStreamQuery';
 
 interface UseAiAgentThreadArtifactOptions {
     projectUuid: string | undefined;
@@ -23,6 +24,7 @@ export const useAiAgentThreadArtifact = ({
     const artifact = useAiAgentStoreSelector(
         (state) => state.aiArtifact.artifact,
     );
+    const isStreaming = useAiAgentThreadStreaming(threadUuid ?? '');
 
     const lastHandledMessageUuidRef = useRef<string | null>(null);
     const prevArtifactRef = useRef<typeof artifact>(null);
@@ -60,7 +62,13 @@ export const useAiAgentThreadArtifact = ({
         prevArtifactRef.current = artifact;
     }, [artifact, latestAssistantMessage]);
 
-    // Auto-select latest artifact if not already handled
+    // Auto-select latest artifact if not already handled. Defer while the
+    // thread is still streaming — the artifact gets appended to
+    // `message.artifacts` the moment its `runQuery`/`generateDashboard` tool
+    // call resolves, which is well before the assistant finishes producing
+    // its closing text. Opening the panel mid-stream yanks focus away from
+    // the message the user is reading. When `isStreaming` flips to false the
+    // hook re-runs and opens normally.
     useEffect(() => {
         if (
             !projectUuid ||
@@ -69,6 +77,7 @@ export const useAiAgentThreadArtifact = ({
             !latestAssistantMessage
         )
             return;
+        if (isStreaming) return;
         if (lastHandledMessageUuidRef.current === latestAssistantMessage.uuid)
             return;
         if (artifact?.messageUuid === latestAssistantMessage.uuid) return;
@@ -89,6 +98,7 @@ export const useAiAgentThreadArtifact = ({
         lastHandledMessageUuidRef.current = latestAssistantMessage.uuid;
     }, [
         artifact,
+        isStreaming,
         latestAssistantMessage,
         projectUuid,
         agentUuid,
