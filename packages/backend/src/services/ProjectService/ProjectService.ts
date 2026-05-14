@@ -1841,10 +1841,20 @@ export class ProjectService extends BaseService {
         const prevMetricsTreeNodes =
             await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
 
-        // Capture the explore names already in cache so we can emit an
-        // added/removed diff once the new explores are written (PROD-5931).
-        const previousExploreNames =
-            await this.projectModel.getCachedExploreNames(projectUuid);
+        // Best-effort: capture the explore names already in cache so we can
+        // emit an added/removed diff after the new explores are written
+        // (PROD-5931). Wrapped because this fetch must never interrupt the
+        // compile flow if the DB has a transient error.
+        let previousExploreNames: string[] | null = null;
+        try {
+            previousExploreNames =
+                await this.projectModel.getCachedExploreNames(projectUuid);
+        } catch (err) {
+            this.logger.warn('compile.completed previous-names fetch failed', {
+                projectUuid,
+                err: err instanceof Error ? err.message : String(err),
+            });
+        }
 
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
@@ -1860,10 +1870,10 @@ export class ProjectService extends BaseService {
         // "dashboard loaded with stale reference at T2".
         try {
             const NAME_SAMPLE_CAP = 50;
-            const previousNameSet = new Set(previousExploreNames);
             const newNames = explores.map((explore) => explore.name);
+            const previousNameSet = new Set(previousExploreNames ?? []);
             const newNameSet = new Set(newNames);
-            const removed = previousExploreNames.filter(
+            const removed = (previousExploreNames ?? []).filter(
                 (name) => !newNameSet.has(name),
             );
             const added = newNames.filter((name) => !previousNameSet.has(name));
@@ -1875,12 +1885,21 @@ export class ProjectService extends BaseService {
                 compilationSource,
                 requestMethod: requestMethod ?? null,
                 cliVersion: cliVersion ?? null,
-                previousExploreCount: previousExploreNames.length,
+                // null distinguishes "fetch failed" from "no previous explores"
+                previousExploreCount: previousExploreNames?.length ?? null,
                 newExploreCount: newNames.length,
-                addedExploreCount: added.length,
-                removedExploreCount: removed.length,
-                addedExploreNames: added.slice(0, NAME_SAMPLE_CAP),
-                removedExploreNames: removed.slice(0, NAME_SAMPLE_CAP),
+                addedExploreCount:
+                    previousExploreNames === null ? null : added.length,
+                removedExploreCount:
+                    previousExploreNames === null ? null : removed.length,
+                addedExploreNames:
+                    previousExploreNames === null
+                        ? null
+                        : added.slice(0, NAME_SAMPLE_CAP),
+                removedExploreNames:
+                    previousExploreNames === null
+                        ? null
+                        : removed.slice(0, NAME_SAMPLE_CAP),
             });
         } catch (err) {
             this.logger.warn('compile.completed log failed', {
