@@ -319,11 +319,14 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
-    /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise. */
+    /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise.
+     *  The target-vs-source equality short-circuit lives in `getSqlForTruncatedDate`
+     *  (and its EXTRACT siblings) so any call site that passes a timezone gets the
+     *  same no-op treatment — see `needsTimezoneWrap` in `timeFrames.ts`. */
     private get timezoneForDateTrunc(): string | undefined {
-        if (!this.args.useTimezoneAwareDateTrunc) return undefined;
-        if (this.columnTimezone === this.args.timezone) return undefined;
-        return this.args.timezone;
+        return this.args.useTimezoneAwareDateTrunc
+            ? this.args.timezone
+            : undefined;
     }
 
     private get columnTimezone(): string {
