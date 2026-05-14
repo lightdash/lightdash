@@ -7,11 +7,13 @@ import {
     Divider,
     Group,
     Paper,
+    Switch,
     Text,
     Textarea,
+    Tooltip,
 } from '@mantine-8/core';
-import { IconArrowUp, IconBrain } from '@tabler/icons-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { IconArrowUp, IconBrain, IconTerminal2 } from '@tabler/icons-react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
@@ -33,6 +35,10 @@ interface AgentChatInputProps {
     onModelChange?: (modelId: string) => void;
     extendedThinking?: boolean;
     onExtendedThinkingChange?: (enabled: boolean) => void;
+    sqlMode?: boolean;
+    onSqlModeChange?: (enabled: boolean) => void;
+    defaultValue?: string;
+    onValueChange?: (value: string) => void;
 }
 
 export const AgentChatInput = ({
@@ -49,13 +55,24 @@ export const AgentChatInput = ({
     onModelChange,
     extendedThinking = false,
     onExtendedThinkingChange,
+    sqlMode = false,
+    onSqlModeChange,
+    defaultValue,
+    onValueChange,
 }: AgentChatInputProps) => {
     // this is a workaround to prevent the enter key from being pressed when
     // the user is composing a character
     // see https://developer.mozilla.org/en-US/docs/Web/API/CompositionEvent for more details
     const [isComposing, setIsComposing] = useState(false);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [value, setValue] = useState('');
+    const [value, setValueState] = useState(defaultValue ?? '');
+    const setValue = useCallback(
+        (next: string) => {
+            setValueState(next);
+            onValueChange?.(next);
+        },
+        [onValueChange],
+    );
     const navigate = useNavigate();
 
     const hasValue = value.trim().length > 0;
@@ -92,7 +109,7 @@ export const AgentChatInput = ({
         return () => {
             elem.removeEventListener('keydown', handleKeyDown);
         };
-    }, [onSubmit, disabled, loading, value, isComposing]);
+    }, [onSubmit, disabled, loading, value, isComposing, setValue]);
 
     useLayoutEffect(() => {
         if (!inputRef.current) return;
@@ -152,7 +169,12 @@ export const AgentChatInput = ({
                     </Paper>
                 )}
 
-                <Box className={styles.minimalInputWrapper} pos="relative">
+                <Box
+                    className={`${styles.minimalInputWrapper} ${
+                        sqlMode ? styles.sqlModeActive : ''
+                    }`}
+                    pos="relative"
+                >
                     <Textarea
                         autoFocus
                         w="100%"
@@ -191,6 +213,46 @@ export const AgentChatInput = ({
                     </ActionIcon>
                 </Box>
 
+                {/* SQL mode switch — sits below the input so it never collides
+                    with typed text. Right-aligned so it visually anchors to
+                    the submit button above. Only renders when parent passes
+                    a handler (flag + permission gated). */}
+                {onSqlModeChange && !disabled && (
+                    <Group justify="flex-end" px="xs" pt="xs">
+                        <Tooltip
+                            multiline
+                            w={260}
+                            withArrow
+                            position="top"
+                            label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
+                        >
+                            <Group gap={6} align="center" wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconTerminal2}
+                                    size={14}
+                                    color={sqlMode ? 'indigo.5' : 'ldGray.6'}
+                                />
+                                <Text
+                                    size="xs"
+                                    c={sqlMode ? 'indigo.5' : 'dimmed'}
+                                    fw={500}
+                                >
+                                    SQL mode
+                                </Text>
+                                <Switch
+                                    size="xs"
+                                    color="indigo"
+                                    checked={sqlMode}
+                                    onChange={(e) =>
+                                        onSqlModeChange(e.currentTarget.checked)
+                                    }
+                                    aria-label="Toggle SQL mode"
+                                />
+                            </Group>
+                        </Tooltip>
+                    </Group>
+                )}
+
                 {showDisabledBanner && (
                     <Text size="xs" c="dimmed" ta="right" mt="xs" px="sm">
                         {disabledReason}
@@ -208,7 +270,11 @@ export const AgentChatInput = ({
             } ${showDisabledBanner ? styles.disabledBannerVisible : ''}`}
         >
             {/* Main input card */}
-            <Box className={styles.inputCard}>
+            <Box
+                className={`${styles.inputCard} ${
+                    sqlMode ? styles.sqlModeActive : ''
+                }`}
+            >
                 {/* Textarea */}
                 <Textarea
                     autoFocus
@@ -286,23 +352,67 @@ export const AgentChatInput = ({
                         )}
                     </Box>
 
-                    {/* Submit button */}
-                    <ActionIcon
-                        variant="filled"
-                        size="lg"
-                        className={styles.submitButton}
-                        disabled={disabled || isComposing || !hasValue}
-                        loading={loading}
-                        onClick={handleSubmit}
-                        aria-label="Send message"
-                    >
-                        <MantineIcon
-                            icon={IconArrowUp}
-                            color="ldGray.0"
-                            size={20}
-                            stroke={2}
-                        />
-                    </ActionIcon>
+                    <Group gap="md" align="center" wrap="nowrap">
+                        {/* SQL mode switch — only rendered when the parent
+                            has confirmed flag + permission, so visibility
+                            here is the visibility contract. Sits next to
+                            submit because it's a per-prompt intent toggle. */}
+                        {onSqlModeChange && !disabled && (
+                            <Tooltip
+                                multiline
+                                w={260}
+                                withArrow
+                                position="top"
+                                label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
+                            >
+                                <Group gap={6} align="center" wrap="nowrap">
+                                    <MantineIcon
+                                        icon={IconTerminal2}
+                                        size={14}
+                                        color={
+                                            sqlMode ? 'indigo.5' : 'ldGray.6'
+                                        }
+                                    />
+                                    <Text
+                                        size="xs"
+                                        c={sqlMode ? 'indigo.5' : 'dimmed'}
+                                        fw={500}
+                                    >
+                                        SQL mode
+                                    </Text>
+                                    <Switch
+                                        size="xs"
+                                        color="indigo"
+                                        checked={sqlMode}
+                                        onChange={(e) =>
+                                            onSqlModeChange(
+                                                e.currentTarget.checked,
+                                            )
+                                        }
+                                        aria-label="Toggle SQL mode"
+                                    />
+                                </Group>
+                            </Tooltip>
+                        )}
+
+                        {/* Submit button */}
+                        <ActionIcon
+                            variant="filled"
+                            size="lg"
+                            className={styles.submitButton}
+                            disabled={disabled || isComposing || !hasValue}
+                            loading={loading}
+                            onClick={handleSubmit}
+                            aria-label="Send message"
+                        >
+                            <MantineIcon
+                                icon={IconArrowUp}
+                                color="ldGray.0"
+                                size={20}
+                                stroke={2}
+                            />
+                        </ActionIcon>
+                    </Group>
                 </Box>
             </Box>
 

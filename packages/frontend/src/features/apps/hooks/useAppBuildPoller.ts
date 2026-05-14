@@ -1,9 +1,18 @@
+import {
+    APP_VERSION_TERMINAL_STATUSES,
+    type ApiGetAppResponse,
+} from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
 
+type GetAppResult = ApiGetAppResponse['results'];
+
 // Inline Web Worker that polls the API in the background.
 // Dedicated Workers continue running even when the parent tab is throttled/frozen.
+// Terminal statuses are interpolated at module load from the shared constant
+// so the worker string stays in sync with backend logic.
 const WORKER_CODE = `
+const TERMINAL_STATUSES = ${JSON.stringify([...APP_VERSION_TERMINAL_STATUSES])};
 let active = true;
 self.onmessage = (e) => {
     if (e.data.type === 'start') pollLoop(e.data.url, e.data.interval);
@@ -17,7 +26,7 @@ async function pollLoop(url, interval) {
                 const data = await res.json();
                 self.postMessage({ type: 'data', results: data.results });
                 const latest = data.results && data.results.versions && data.results.versions[0];
-                if (latest && latest.status !== 'building') {
+                if (latest && TERMINAL_STATUSES.includes(latest.status)) {
                     active = false;
                     return;
                 }
@@ -58,23 +67,39 @@ export function useAppBuildPoller(
 
         worker.onmessage = (e: MessageEvent) => {
             if (e.data.type === 'data' && e.data.results) {
+                const poll: GetAppResult = e.data.results;
                 queryClient.setQueryData(
                     ['app', projectUuid, appUuid],
                     (
                         old:
-                            | { pages: unknown[]; pageParams: unknown[] }
+                            | {
+                                  pages: GetAppResult[];
+                                  pageParams: unknown[];
+                              }
                             | undefined,
                     ) => ({
+                        // The poll uses limit=1, so its `hasMore` reflects that
+                        // limit rather than the original page size. Keep the
+                        // first page's `hasMore` so pagination stays accurate.
                         pages: [
-                            e.data.results,
+                            {
+                                ...poll,
+                                hasMore:
+                                    old?.pages?.[0]?.hasMore ?? poll.hasMore,
+                            },
                             ...(old?.pages?.slice(1) ?? []),
                         ],
                         pageParams: old?.pageParams ?? [undefined],
                     }),
                 );
 
-                const latest = e.data.results.versions?.[0];
-                if (latest && latest.status !== 'building') {
+                const latest = poll.versions?.[0];
+                if (
+                    latest &&
+                    (
+                        APP_VERSION_TERMINAL_STATUSES as readonly string[]
+                    ).includes(latest.status)
+                ) {
                     onDoneRef.current(
                         latest.version as number,
                         latest.status as string,

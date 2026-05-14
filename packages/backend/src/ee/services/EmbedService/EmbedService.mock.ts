@@ -42,6 +42,7 @@ export const mockAccountWithPermission: SessionAccount = {
         lastName: 'User',
         isTrackingAnonymized: false,
         isMarketingOptedIn: false,
+        timezone: null,
         isSetupComplete: true,
         userId: 1,
         role: OrganizationMemberRole.ADMIN,

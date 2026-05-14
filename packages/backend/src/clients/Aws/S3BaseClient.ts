@@ -28,6 +28,80 @@ export type S3BaseConfiguration =
     | undefined;
 
 /**
+ * Resolves S3 credentials from explicit keys, a credential chain, or SDK defaults.
+ * Returns the credentials property to assign to an S3ClientConfig, or undefined
+ * to let the SDK use its default resolution.
+ */
+export function resolveS3Credentials(config: {
+    accessKey?: string;
+    secretKey?: string;
+    useCredentialsFrom?: string[];
+}): S3ClientConfig['credentials'] | undefined {
+    if (config.accessKey && config.secretKey) {
+        Logger.debug('Using S3 storage with access key credentials');
+        return {
+            accessKeyId: config.accessKey,
+            secretAccessKey: config.secretKey,
+        };
+    }
+
+    const requestedSources = config.useCredentialsFrom;
+    const providerLabels: string[] = [];
+    const providers: Array<ReturnType<typeof fromEnv>> = [];
+
+    if (requestedSources && requestedSources.length > 0) {
+        for (const srcRaw of requestedSources) {
+            const src = srcRaw.toLowerCase();
+            switch (src) {
+                case 'env':
+                    providers.push(fromEnv());
+                    providerLabels.push('env');
+                    break;
+                case 'token_file':
+                case 'tokenfile':
+                    providers.push(fromTokenFile());
+                    providerLabels.push('token_file');
+                    break;
+                case 'ini':
+                case 'init': // support common typo
+                    providers.push(fromIni());
+                    providerLabels.push('ini');
+                    break;
+                case 'container_metadata':
+                case 'ecs':
+                    providers.push(fromContainerMetadata());
+                    providerLabels.push('container_metadata');
+                    break;
+                case 'instance_metadata':
+                case 'ec2':
+                    providers.push(fromInstanceMetadata());
+                    providerLabels.push('instance_metadata');
+                    break;
+                default:
+                    Logger.warn(
+                        `S3_USE_CREDENTIALS_FROM includes unknown source: ${srcRaw} - ignoring`,
+                    );
+            }
+        }
+    }
+
+    if (providers.length > 0) {
+        Logger.debug(
+            `Using S3 storage with IAM role credentials (credential chain): ${providerLabels.join(
+                ' -> ',
+            )}`,
+        );
+        return createCredentialChain(...providers);
+    }
+
+    // Do not set credentials to preserve default AWS SDK resolution
+    Logger.debug(
+        'Using S3 storage with default AWS SDK credential resolution (no explicit chain); set S3_USE_CREDENTIALS_FROM to customize',
+    );
+    return undefined;
+}
+
+/**
  * Base class that sets up the AWS S3 client and handles credentials logic.
  * - If explicit accessKey/secretKey are provided, uses them.
  * - Else, if useCredentialsFrom is provided and has valid entries, builds an explicit credential chain in that order.
@@ -47,8 +121,7 @@ export class S3BaseClient {
             return;
         }
 
-        const { endpoint, region, accessKey, secretKey, forcePathStyle } =
-            configuration;
+        const { endpoint, region, forcePathStyle } = configuration;
 
         const s3Config: S3ClientConfig = {
             region,
@@ -57,70 +130,9 @@ export class S3BaseClient {
             forcePathStyle,
         };
 
-        if (accessKey && secretKey) {
-            Object.assign(s3Config, {
-                credentials: {
-                    accessKeyId: accessKey,
-                    secretAccessKey: secretKey,
-                },
-            });
-            Logger.debug('Using S3 storage with access key credentials');
-        } else {
-            const requestedSources = configuration.useCredentialsFrom;
-            const providerLabels: string[] = [];
-            const providers: Array<ReturnType<typeof fromEnv>> = [];
-
-            if (requestedSources && requestedSources.length > 0) {
-                for (const srcRaw of requestedSources) {
-                    const src = srcRaw.toLowerCase();
-                    switch (src) {
-                        case 'env':
-                            providers.push(fromEnv());
-                            providerLabels.push('env');
-                            break;
-                        case 'token_file':
-                        case 'tokenfile':
-                            providers.push(fromTokenFile());
-                            providerLabels.push('token_file');
-                            break;
-                        case 'ini':
-                        case 'init': // support common typo
-                            providers.push(fromIni());
-                            providerLabels.push('ini');
-                            break;
-                        case 'container_metadata':
-                        case 'ecs':
-                            providers.push(fromContainerMetadata());
-                            providerLabels.push('container_metadata');
-                            break;
-                        case 'instance_metadata':
-                        case 'ec2':
-                            providers.push(fromInstanceMetadata());
-                            providerLabels.push('instance_metadata');
-                            break;
-                        default:
-                            Logger.warn(
-                                `S3_USE_CREDENTIALS_FROM includes unknown source: ${srcRaw} - ignoring`,
-                            );
-                    }
-                }
-            }
-
-            if (providers.length > 0) {
-                Object.assign(s3Config, {
-                    credentials: createCredentialChain(...providers),
-                });
-                Logger.debug(
-                    `Using S3 storage with IAM role credentials (credential chain): ${providerLabels.join(
-                        ' -> ',
-                    )}`,
-                );
-            } else {
-                // Do not set credentials to preserve default AWS SDK resolution
-                Logger.debug(
-                    'Using S3 storage with default AWS SDK credential resolution (no explicit chain); set S3_USE_CREDENTIALS_FROM to customize',
-                );
-            }
+        const credentials = resolveS3Credentials(configuration);
+        if (credentials) {
+            s3Config.credentials = credentials;
         }
 
         this.s3 = new S3(s3Config);

@@ -300,6 +300,12 @@ export interface ExplorerReduceState {
             label?: string;
             description?: string;
             fieldItem?: Item | AdditionalMetric;
+            tableMetadata?: {
+                name: string;
+                dbtPackageName?: string;
+                ymlPath?: string;
+                sqlPath?: string;
+            };
         };
         periodOverPeriodComparison: {
             isOpen: boolean;
@@ -320,6 +326,7 @@ export interface ExplorerReduceState {
     fromDashboard?: string;
     isExploreFromHere?: boolean;
     savedChart?: SavedChart;
+    unsavedColorPaletteUuid: string | null;
 
     // Pre-aggregate check state — computed once in useExplorerQueryEffects
     preAggregate: {

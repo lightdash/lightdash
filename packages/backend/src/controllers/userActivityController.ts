@@ -1,8 +1,8 @@
 import {
     AnyType,
+    ApiDownloadActivity,
     ApiErrorPayload,
     ApiJobScheduledResponse,
-    ApiUnusedContent,
     ApiUserActivity,
     ApiUserActivityDownloadCsv,
     ApiValidateResponse,
@@ -50,14 +50,14 @@ export class UserActivityController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Get('/{projectUuid}')
     @OperationId('getUserActivity')
-    async get(
+    async getUserActivity(
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiUserActivity> {
         this.setStatus(200);
         const userActivity = await req.services
             .getAnalyticsService()
-            .getUserActivity(projectUuid, req.user!);
+            .getUserActivity(projectUuid, req.account!);
         return {
             status: 'ok',
             results: userActivity,
@@ -76,14 +76,14 @@ export class UserActivityController extends BaseController {
     @SuccessResponse('200', 'Success')
     @Post('/{projectUuid}/download')
     @OperationId('downloadUserActivityCsv')
-    async post(
+    async exportUserActivityCsv(
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiUserActivityDownloadCsv> {
         this.setStatus(200);
         const userActivity = await req.services
             .getAnalyticsService()
-            .exportUserActivityRawCsv(projectUuid, req.user!);
+            .exportUserActivityRawCsv(projectUuid, req.account!);
         return {
             status: 'ok',
             results: userActivity,
@@ -91,8 +91,17 @@ export class UserActivityController extends BaseController {
     }
 
     /**
-     * Get unused content for a project showing charts and dashboards with little to no usage
-     * @summary Get unused content
+     * Get download activity log for a project, ordered by most recent first.
+     * Two pagination modes are supported:
+     *  - Offset mode: pass `page` (1-indexed) and `pageSize`. Response includes
+     *    `page`/`totalResults`/`totalPageCount`.
+     *  - Cursor mode: pass `cursor` (from a previous response's `nextCursor`) and
+     *    `pageSize`. `page` is ignored when `cursor` is provided. Avoids the count
+     *    query so `page`/`totalResults`/`totalPageCount` are null in the response.
+     * @summary Get download activity log
+     * @param pageSize number of items per page
+     * @param page page number (1-indexed); defaults to 1 if omitted
+     * @param cursor opaque cursor from a previous response's `nextCursor`
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -100,19 +109,27 @@ export class UserActivityController extends BaseController {
         unauthorisedInDemo,
     ])
     @SuccessResponse('200', 'Success')
-    @Get('/{projectUuid}/unused-content')
-    @OperationId('getUnusedContent')
-    async getUnusedContent(
+    @Get('/{projectUuid}/download-activity')
+    @OperationId('getDownloadActivity')
+    async getDownloadActivity(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-    ): Promise<ApiUnusedContent> {
+        @Query() pageSize: number,
+        @Query() page?: number,
+        @Query() cursor?: string,
+    ): Promise<ApiDownloadActivity> {
         this.setStatus(200);
-        const unusedContent = await req.services
+        const results = await req.services
             .getAnalyticsService()
-            .getUnusedContent(projectUuid, req.account!);
+            .getDownloadActivity(
+                projectUuid,
+                req.account!,
+                { page: page ?? 1, pageSize },
+                cursor,
+            );
         return {
             status: 'ok',
-            results: unusedContent,
+            results,
         };
     }
 }

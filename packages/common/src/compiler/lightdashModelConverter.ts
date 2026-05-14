@@ -79,6 +79,7 @@ export function convertLightdashModelToDbtModel(
         sets: model.sets,
         order_fields_by: model.order_fields_by,
         group_label: model.group_label,
+        groups: model.groups,
         sql_filter: model.sql_filter,
         sql_where: model.sql_where,
         sql_from: sqlFrom, // from_sql maps directly to sql_from

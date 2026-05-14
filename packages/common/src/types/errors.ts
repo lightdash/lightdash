@@ -510,8 +510,10 @@ export class NotImplementedError extends LightdashError {
         });
     }
 }
-export const getErrorMessage = (e: unknown) =>
-    e instanceof Error ? e.message : `Unknown ${typeof e} error`;
+export const getErrorMessage = (e: unknown) => {
+    if (e instanceof Error && e.message) return e.message;
+    return `Unknown ${typeof e} error`;
+};
 
 export class ScreenshotError extends LightdashError {
     constructor(

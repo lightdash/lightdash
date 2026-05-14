@@ -14,11 +14,11 @@ SELECT * FROM UNNEST([
 
 CREATE OR REPLACE TABLE test_nulls AS
 SELECT * FROM UNNEST([
-    STRUCT(1 AS id, 10.00 AS val_a, 'hello' AS val_b, 100 AS val_c),
-    STRUCT(2, NULL, 'world', 200),
-    STRUCT(3, 30.00, CAST(NULL AS STRING), 300),
-    STRUCT(4, NULL, CAST(NULL AS STRING), 400),
-    STRUCT(5, 50.00, 'test', 500)
+    STRUCT(1 AS id, 10.00 AS val_a, 'hello' AS val_b, 100 AS val_c, DATE '2024-01-15' AS val_d),
+    STRUCT(2, NULL, 'world', 200, CAST(NULL AS DATE)),
+    STRUCT(3, 30.00, CAST(NULL AS STRING), 300, DATE '2024-03-10'),
+    STRUCT(4, NULL, CAST(NULL AS STRING), 400, CAST(NULL AS DATE)),
+    STRUCT(5, 50.00, 'test', 500, DATE '2024-05-12')
 ]);
 
 CREATE OR REPLACE TABLE test_window AS

@@ -7,6 +7,7 @@ import type { WarehouseClient } from '../types/warehouse';
 import type { VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
 import { createVirtualView } from './virtualView';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 const fakeWarehouseClient: WarehouseClient = {
     credentials: {
@@ -46,6 +47,7 @@ const fakeWarehouseClient: WarehouseClient = {
     getEscapeStringQuoteChar: () => "''",
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     getMetricSql: () => '',
     concatString: (...args: string[]) => args.join(''),
     getAllTables: async () => [],

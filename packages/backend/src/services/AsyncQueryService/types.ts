@@ -51,6 +51,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     expirationSecondsOverride?: number;
 };
@@ -201,6 +202,7 @@ export type RunAsyncWarehouseQueryArgs = {
     originalColumns?: ResultColumns;
     query: string;
     queryCreatedAt: Date;
+    displayTimezone: string | null;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<

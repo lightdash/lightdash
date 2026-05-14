@@ -6,6 +6,7 @@ import {
     ApiGitFileOrDirectoryResponse,
     ApiGitFileSavedResponse,
     ApiGitPullRequestCreatedResponse,
+    assertRegisteredAccount,
     CreateGitBranchRequest,
     CreateGitPullRequestRequest,
 } from '@lightdash/common';
@@ -26,6 +27,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -49,12 +51,16 @@ export class GitFilesController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGitBranchesResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .listBranchesForProject(req.user!, projectUuid),
+                .listBranchesForProject(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
         };
     }
 
@@ -72,12 +78,18 @@ export class GitFilesController extends BaseController {
         @Query() path?: string,
         @Request() req?: express.Request,
     ): Promise<ApiGitFileOrDirectoryResponse> {
+        assertRegisteredAccount(req!.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
-                .getFileOrDirectory(req!.user!, projectUuid, branch, path),
+                .getFileOrDirectory(
+                    toSessionUser(req!.account),
+                    projectUuid,
+                    branch,
+                    path,
+                ),
         };
     }
 
@@ -105,13 +117,14 @@ export class GitFilesController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<ApiGitFileSavedResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
                 .saveFile(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     branch,
                     body.path,
@@ -145,11 +158,12 @@ export class GitFilesController extends BaseController {
         },
         @Request() req: express.Request,
     ): Promise<ApiGitFileDeletedResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getGitIntegrationService()
             .deleteFileFromRepo(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 branch,
                 body.path,
@@ -179,13 +193,14 @@ export class GitFilesController extends BaseController {
         @Body() body: CreateGitBranchRequest,
         @Request() req: express.Request,
     ): Promise<ApiGitBranchCreatedResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(201);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
                 .createBranchFromSource(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     body.name,
                     body.sourceBranch,
@@ -211,13 +226,14 @@ export class GitFilesController extends BaseController {
         @Body() body: CreateGitPullRequestRequest,
         @Request() req: express.Request,
     ): Promise<ApiGitPullRequestCreatedResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(201);
         return {
             status: 'ok',
             results: await this.services
                 .getGitIntegrationService()
                 .createPullRequestFromBranch(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     branch,
                     body.title,

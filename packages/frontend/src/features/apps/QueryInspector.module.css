@@ -1,3 +1,10 @@
+.iconOnly {
+    position: absolute;
+    bottom: var(--mantine-spacing-sm);
+    left: var(--mantine-spacing-sm);
+    z-index: 10;
+}
+
 .container {
     position: absolute;
     bottom: var(--mantine-spacing-sm);
@@ -31,9 +38,38 @@
     }
 }
 
+.resizeHandle {
+    height: 4px;
+    cursor: ns-resize;
+    flex-shrink: 0;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
+
+    &:hover {
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-3);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-ldDark-3);
+        }
+    }
+}
+
 .queryList {
     display: flex;
     flex-direction: column;
+}
+
+.emptyState {
+    padding: var(--mantine-spacing-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .queryRow {
@@ -64,17 +100,41 @@
     }
 }
 
-.queryDetails {
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-    padding-left: calc(var(--mantine-spacing-sm) + 24px);
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-
+.queryDetailsRow {
     @mixin light {
         background-color: var(--mantine-color-ldGray-0);
     }
     @mixin dark {
         background-color: var(--mantine-color-dark-8);
+    }
+}
+
+.queryDetails {
+    position: relative;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding-left: calc(var(--mantine-spacing-sm) + 24px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    flex: 1;
+    min-width: 0;
+}
+
+.openInExplore {
+    position: absolute;
+    top: var(--mantine-spacing-xs);
+    right: var(--mantine-spacing-sm);
+}
+
+.rawJsonPanel {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    flex-shrink: 0;
+    width: 30%;
+
+    @mixin light {
+        border-left: 1px solid var(--mantine-color-ldGray-2);
+    }
+    @mixin dark {
+        border-left: 1px solid var(--mantine-color-ldDark-4);
     }
 }

@@ -3,10 +3,16 @@
 import { JWT_HEADER_NAME, NotFoundError } from '@lightdash/common';
 import { NextFunction, Request, Response } from 'express';
 import { fromJwt } from '../../auth/account';
+import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { decodeLightdashJwt } from '../../auth/lightdashJwt';
 import { EmbedService } from '../../ee/services/EmbedService/EmbedService';
+import {
+    createAuditLogEvent,
+    createUnknownAuthActor,
+} from '../../logging/auditLog';
 import Logger from '../../logging/logger';
+import { logAuditEvent } from '../../logging/winston';
 
 /**
  * We don't have the parsed routes yet, so we get the path params in a
@@ -91,6 +97,7 @@ export async function jwtAuthMiddleware(
             projectUuid,
             embedToken,
         );
+        req.account.requestContext = requestContextFromExpress(req);
 
         // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
         // AuthenticatedRequest is not defined and TS won't let us use `this` in a typeguard outside of a class.
@@ -101,6 +108,31 @@ export async function jwtAuthMiddleware(
 
         next();
     } catch (error) {
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createUnknownAuthActor(),
+                    'login',
+                    {
+                        type: 'EmbedJwt',
+                        organizationUuid: 'unknown',
+                        projectUuid: req.project?.projectUuid,
+                    },
+                    { ip: req.ip, userAgent: req.get('user-agent') },
+                    'denied',
+                    error instanceof Error
+                        ? error.message
+                        : 'JWT authentication failed',
+                ),
+            );
+        } catch (auditErr) {
+            Logger.warn('Failed to log JWT auth audit event', {
+                error:
+                    auditErr instanceof Error
+                        ? auditErr.message
+                        : String(auditErr),
+            });
+        }
         next(error);
     }
 }

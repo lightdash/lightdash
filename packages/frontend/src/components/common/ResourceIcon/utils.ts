@@ -1,4 +1,4 @@
-import { assertUnreachable, ChartKind } from '@lightdash/common';
+import { ChartKind } from '@lightdash/common';
 import {
     IconChartArea,
     IconChartAreaLine,
@@ -50,9 +50,6 @@ export const getChartIcon = (chartKind: ChartKind | undefined) => {
         case ChartKind.SANKEY:
             return IconGitMerge;
         default:
-            return assertUnreachable(
-                chartKind,
-                `Chart type ${chartKind} not supported`,
-            );
+            return IconChartBar;
     }
 };

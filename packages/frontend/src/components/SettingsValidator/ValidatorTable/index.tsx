@@ -261,8 +261,8 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                 Cell: ({ row }) => {
                     const validationError = row.original;
                     const isPinned =
-                        pinnedValidation?.validationId ===
-                        validationError.validationId;
+                        pinnedValidation?.validationUuid ===
+                        validationError.validationUuid;
 
                     return (
                         <Flex
@@ -283,7 +283,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
                                             onUnpin();
                                         } else {
                                             deleteValidation(
-                                                validationError.validationId,
+                                                validationError.validationUuid,
                                             );
                                         }
                                         e.stopPropagation();
@@ -347,7 +347,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         enableTopToolbar: true,
         enableBottomToolbar: false,
         enableRowActions: false,
-        getRowId: (row) => String(row.validationId),
+        getRowId: (row) => row.validationUuid,
         renderTopToolbar: () => (
             <ValidatorTableTopToolbar
                 searchQuery={searchQuery}
@@ -380,7 +380,8 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         },
         mantineTableBodyRowProps: ({ row }) => {
             const isPinned =
-                pinnedValidation?.validationId === row.original.validationId;
+                pinnedValidation?.validationUuid ===
+                row.original.validationUuid;
             return {
                 className: isPinned ? classes.pinnedRow : classes.row,
             };

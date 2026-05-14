@@ -12,6 +12,11 @@ import moment from 'moment';
 import type { FindContentFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
+import {
+    CONTENT_DESCRIPTION_MAX_CHARS,
+    DASHBOARD_CHARTS_PREVIEW_COUNT,
+    truncate,
+} from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
 type Dependencies = {
@@ -42,7 +47,9 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
         >
             <name>{chart.name}</name>
             {chart.description && (
-                <description>{chart.description}</description>
+                <description>
+                    {truncate(chart.description, CONTENT_DESCRIPTION_MAX_CHARS)}
+                </description>
             )}
             {chart.firstViewedAt && (
                 <firstviewedat>
@@ -79,7 +86,9 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
         <searchrank>{dashboard.search_rank}</searchrank>
 
         {dashboard.description && (
-            <description>{dashboard.description}</description>
+            <description>
+                {truncate(dashboard.description, CONTENT_DESCRIPTION_MAX_CHARS)}
+            </description>
         )}
 
         {dashboard.firstViewedAt && (
@@ -104,14 +113,21 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
             </lastupdatedby>
         )}
         <charts count={dashboard.charts.length}>
-            {dashboard.charts.slice(0, 5).map((chart) => (
-                <chart chartUuid={chart.uuid} chartType={chart.chartType}>
-                    <name>{chart.name}</name>
-                    {chart.description && (
-                        <description>{chart.description}</description>
-                    )}
-                </chart>
-            ))}
+            {dashboard.charts
+                .slice(0, DASHBOARD_CHARTS_PREVIEW_COUNT)
+                .map((chart) => (
+                    <chart chartUuid={chart.uuid} chartType={chart.chartType}>
+                        <name>{chart.name}</name>
+                        {chart.description && (
+                            <description>
+                                {truncate(
+                                    chart.description,
+                                    CONTENT_DESCRIPTION_MAX_CHARS,
+                                )}
+                            </description>
+                        )}
+                    </chart>
+                ))}
         </charts>
         {dashboard.validationErrors && dashboard.validationErrors.length > 0 ? (
             <validationerrors count={dashboard.validationErrors.length} />

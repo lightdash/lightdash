@@ -1,3 +1,4 @@
+import { ALL_WAREHOUSES } from '../config';
 import type { TestCase } from '../types';
 
 // These test cases target P1 conditional aggregate functions that are NOT YET IMPLEMENTED.
@@ -13,7 +14,7 @@ export const conditionalAggCases: TestCase[] = [
         columns: { A: 'order_amount', B: 'category' },
         sourceTable: 'test_orders',
         expectedRows: [{ result: 665.00 }],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['aggregation', 'conditional', 'p1'],
     },
@@ -25,7 +26,7 @@ export const conditionalAggCases: TestCase[] = [
         columns: { A: 'order_amount' },
         sourceTable: 'test_orders',
         expectedRows: [{ result: 6 }],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['aggregation', 'conditional', 'p1'],
     },
@@ -37,7 +38,7 @@ export const conditionalAggCases: TestCase[] = [
         columns: { A: 'order_amount', B: 'category' },
         sourceTable: 'test_orders',
         expectedRows: [{ result: 113.50 }],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['aggregation', 'conditional', 'p1'],
     },

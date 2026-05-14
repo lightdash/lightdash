@@ -2,6 +2,7 @@ import {
     DimensionType,
     ExploreType,
     FieldType,
+    FilterOperator,
     MetricType,
     PRE_AGGREGATE_MATERIALIZED_TABLE_PLACEHOLDER,
     SupportedDbtAdapter,
@@ -16,12 +17,20 @@ const makeDimension = ({
     name,
     table,
     type = DimensionType.STRING,
+    sql,
+    compiledSql,
+    parameterReferences,
+    compilationError,
     timeInterval,
     timeIntervalBaseDimensionName,
 }: {
     name: string;
     table: string;
     type?: DimensionType;
+    sql?: string;
+    compiledSql?: string;
+    parameterReferences?: string[];
+    compilationError?: { message: string };
     timeInterval?: TimeFrames;
     timeIntervalBaseDimensionName?: string;
 }): CompiledDimension => ({
@@ -32,10 +41,12 @@ const makeDimension = ({
     label: name,
     table,
     tableLabel: table,
-    sql: `${table}.${name}`,
+    sql: sql ?? `${table}.${name}`,
     hidden: false,
-    compiledSql: `${table}.${name}`,
+    compiledSql: compiledSql ?? sql ?? `${table}.${name}`,
     tablesReferences: [table],
+    ...(parameterReferences ? { parameterReferences } : {}),
+    ...(compilationError ? { compilationError } : {}),
     ...(timeInterval ? { timeInterval } : {}),
     ...(timeIntervalBaseDimensionName ? { timeIntervalBaseDimensionName } : {}),
 });
@@ -60,6 +71,41 @@ const makeMetric = ({
     hidden: false,
     compiledSql: `${table}.${name}`,
     tablesReferences: [table],
+});
+
+const makeCustomMetric = ({
+    name,
+    table,
+    type,
+    sql,
+    compiledSql,
+    parameterReferences,
+    compilationError,
+    filters,
+}: {
+    name: string;
+    table: string;
+    type: MetricType;
+    sql?: string;
+    compiledSql?: string;
+    parameterReferences?: string[];
+    compilationError?: { message: string };
+    filters?: CompiledMetric['filters'];
+}): CompiledMetric => ({
+    index: 0,
+    fieldType: FieldType.METRIC,
+    type,
+    name,
+    label: name,
+    table,
+    tableLabel: table,
+    sql: sql ?? `${table}.${name}`,
+    hidden: false,
+    compiledSql: compiledSql ?? sql ?? `${table}.${name}`,
+    tablesReferences: [table],
+    ...(parameterReferences ? { parameterReferences } : {}),
+    ...(compilationError ? { compilationError } : {}),
+    ...(filters ? { filters } : {}),
 });
 
 const sourceExplore = (): Explore => ({
@@ -117,6 +163,11 @@ const sourceExplore = (): Explore => ({
                     table: 'orders',
                     type: MetricType.SUM,
                 }),
+                shipping_total: makeMetric({
+                    name: 'shipping_total',
+                    table: 'orders',
+                    type: MetricType.SUM,
+                }),
                 order_count: makeMetric({
                     name: 'order_count',
                     table: 'orders',
@@ -142,6 +193,18 @@ const sourceExplore = (): Explore => ({
                     table: 'orders',
                     type: MetricType.NUMBER,
                 }),
+                gross_total: makeCustomMetric({
+                    name: 'gross_total',
+                    table: 'orders',
+                    type: MetricType.NUMBER,
+                    sql: '${total_order_amount} + ${shipping_total}',
+                }),
+                total_order_amount_plus_average_customer_age: makeCustomMetric({
+                    name: 'total_order_amount_plus_average_customer_age',
+                    table: 'orders',
+                    type: MetricType.NUMBER,
+                    sql: '${total_order_amount} + ${customers.average_age}',
+                }),
             },
             lineageGraph: {},
         },
@@ -158,6 +221,11 @@ const sourceExplore = (): Explore => ({
                 }),
             },
             metrics: {
+                average_age: makeMetric({
+                    name: 'average_age',
+                    table: 'customers',
+                    type: MetricType.AVERAGE,
+                }),
                 max_customer_age: makeMetric({
                     name: 'max_customer_age',
                     table: 'customers',
@@ -292,6 +360,58 @@ describe('buildPreAggregateExplore', () => {
         );
     });
 
+    it('requires dependent metrics for supported number metrics', () => {
+        expect(() =>
+            buildPreAggregateExplore(sourceExplore(), {
+                name: 'number_metric_preagg',
+                dimensions: ['status'],
+                metrics: ['gross_total', 'total_order_amount'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "number_metric_preagg" metric "gross_total" requires dependent metrics "shipping_total" to be included in the pre-aggregate definition.',
+        );
+    });
+
+    it('keeps supported number metrics on the pre-aggregate explore and rewrites them to use materialized dependencies', () => {
+        const result = buildPreAggregateExplore(sourceExplore(), {
+            name: 'number_metric_preagg',
+            dimensions: ['status'],
+            metrics: ['gross_total', 'total_order_amount', 'shipping_total'],
+        });
+
+        expect(result.tables.orders.metrics.gross_total.compiledSql).toBe(
+            '(SUM(orders.orders_total_order_amount)) + (SUM(orders.orders_shipping_total))',
+        );
+        expect(
+            result.tables.orders.metrics.total_order_amount.compiledSql,
+        ).toBe('SUM(orders.orders_total_order_amount)');
+        expect(result.tables.orders.metrics.shipping_total.compiledSql).toBe(
+            'SUM(orders.orders_shipping_total)',
+        );
+    });
+
+    it('rewrites supported cross-model number metrics to use materialized dependencies from joined tables', () => {
+        const result = buildPreAggregateExplore(sourceExplore(), {
+            name: 'cross_model_number_metric_preagg',
+            dimensions: ['status'],
+            metrics: [
+                'total_order_amount_plus_average_customer_age',
+                'total_order_amount',
+                'customers.average_age',
+            ],
+        });
+
+        expect(
+            result.tables.orders.metrics
+                .total_order_amount_plus_average_customer_age.compiledSql,
+        ).toBe(
+            '(SUM(orders.orders_total_order_amount)) + (CAST(SUM(orders.customers_average_age__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.customers_average_age__count), 0) AS DOUBLE))',
+        );
+        expect(result.tables.customers.metrics.average_age.compiledSql).toBe(
+            'CAST(SUM(orders.customers_average_age__sum) AS DOUBLE) / CAST(NULLIF(SUM(orders.customers_average_age__count), 0) AS DOUBLE)',
+        );
+    });
+
     it('includes time dimension even when not in dimensions array', () => {
         const result = buildPreAggregateExplore(sourceExplore(), {
             name: 'time_dim_separate',
@@ -316,5 +436,197 @@ describe('buildPreAggregateExplore', () => {
         });
 
         expect(result.tables.orders.metrics.order_count).toBeDefined();
+    });
+
+    it('accepts eligible derived dimensions selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.status_label = makeDimension({
+            name: 'status_label',
+            table: 'orders',
+            sql: "concat(${status}, '-ok')",
+            compiledSql: "concat(orders.status, '-ok')",
+        });
+
+        const result = buildPreAggregateExplore(explore, {
+            name: 'derived_dimension_rollup',
+            dimensions: ['status_label'],
+            metrics: ['order_count'],
+        });
+
+        expect(result.tables.orders.dimensions.status_label).toBeDefined();
+        expect(result.tables.orders.dimensions.status_label.compiledSql).toBe(
+            'orders.orders_status_label',
+        );
+    });
+
+    it('rejects parameterized derived dimensions selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.parameterized_status = makeDimension({
+            name: 'parameterized_status',
+            table: 'orders',
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                    ELSE NULL
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['parameterized_status'],
+                metrics: ['order_count'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible dimension "parameterized_status": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
+    });
+
+    it('rejects user-attribute derived dimensions selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.region_aware_status = makeDimension({
+            name: 'region_aware_status',
+            table: 'orders',
+            sql: "case when ${ld.attr.region} = 'EMEA' then ${TABLE}.status end",
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['region_aware_status'],
+                metrics: ['order_count'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible dimension "region_aware_status": dimension "orders_region_aware_status" is not eligible for direct materialization (reason: user_attributes)',
+        );
+    });
+
+    it('rejects derived dimensions whose recursive dependency is ineligible', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.parameterized_status = makeDimension({
+            name: 'parameterized_status',
+            table: 'orders',
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                    ELSE NULL
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+        explore.tables.orders.dimensions.status_wrapper = makeDimension({
+            name: 'status_wrapper',
+            table: 'orders',
+            sql: '${parameterized_status}',
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['status_wrapper'],
+                metrics: ['order_count'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible dimension "status_wrapper": dimension "orders_parameterized_status" is not eligible for direct materialization (reason: parameter_references)',
+        );
+    });
+
+    it('accepts eligible custom sql metrics selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.amount = makeDimension({
+            name: 'amount',
+            table: 'orders',
+            type: DimensionType.NUMBER,
+            sql: '${TABLE}.amount',
+            compiledSql: 'orders.amount',
+        });
+        explore.tables.orders.metrics.order_revenue = makeCustomMetric({
+            name: 'order_revenue',
+            table: 'orders',
+            type: MetricType.SUM,
+            sql: '${amount}',
+            compiledSql: 'SUM(orders.amount)',
+        });
+
+        const result = buildPreAggregateExplore(explore, {
+            name: 'metric_rollup',
+            dimensions: ['status'],
+            metrics: ['order_revenue'],
+        });
+
+        expect(result.tables.orders.metrics.order_revenue).toBeDefined();
+        expect(result.tables.orders.metrics.order_revenue.compiledSql).toBe(
+            'SUM(orders.orders_order_revenue)',
+        );
+    });
+
+    it('rejects parameterized custom sql metrics selected by the pre-aggregate definition', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.metrics.parameterized_revenue = makeCustomMetric({
+            name: 'parameterized_revenue',
+            table: 'orders',
+            type: MetricType.SUM,
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.amount
+                    ELSE 0
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['status'],
+                metrics: ['parameterized_revenue'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible metric "parameterized_revenue": metric "orders_parameterized_revenue" is not eligible for pre-aggregation (reason: parameter_references)',
+        );
+    });
+
+    it('rejects custom sql metrics whose filter dimension is ineligible', () => {
+        const explore = sourceExplore();
+        explore.tables.orders.dimensions.parameterized_status = makeDimension({
+            name: 'parameterized_status',
+            table: 'orders',
+            sql: `
+                CASE
+                    WHEN \${lightdash.parameters.orders.region} = 'EMEA' THEN \${TABLE}.status
+                    ELSE NULL
+                END
+            `,
+            parameterReferences: ['orders.region'],
+        });
+        explore.tables.orders.metrics.filtered_revenue = makeCustomMetric({
+            name: 'filtered_revenue',
+            table: 'orders',
+            type: MetricType.SUM,
+            sql: '${TABLE}.amount',
+            compiledSql: 'SUM(orders.amount)',
+            filters: [
+                {
+                    id: 'metric-filter',
+                    target: {
+                        fieldRef: 'parameterized_status',
+                    },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                },
+            ],
+        });
+
+        expect(() =>
+            buildPreAggregateExplore(explore, {
+                name: 'invalid_rollup',
+                dimensions: ['status'],
+                metrics: ['filtered_revenue'],
+            }),
+        ).toThrow(
+            'Pre-aggregate "invalid_rollup" references ineligible metric "filtered_revenue": dimension "orders_parameterized_status" is not eligible for pre-aggregation metric filters (reason: parameter_references)',
+        );
     });
 });

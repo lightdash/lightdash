@@ -10,6 +10,7 @@ import {
     IconSearch,
     IconSelector,
     IconTable,
+    IconTerminal2,
     type TablerIconsProps,
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
@@ -31,6 +32,10 @@ export const getToolIcon = (toolName: ToolName) => {
             improveContext: IconSchool,
             proposeChange: IconPencil,
             runQuery: IconTable,
+            runSavedChart: IconChartHistogram,
+            runSql: IconTerminal2,
+            listWarehouseTables: IconDatabase,
+            describeWarehouseTable: IconDatabase,
         };
 
     return iconMap[toolName];

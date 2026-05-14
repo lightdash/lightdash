@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Group,
     Paper,
@@ -19,8 +20,11 @@ import {
     IconSend,
     IconTrash,
 } from '@tabler/icons-react';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { getRunStatusConfig } from '../../../components/SchedulersView/SchedulersViewUtils';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useProject } from '../../../hooks/useProject';
 import useApp from '../../../providers/App/useApp';
@@ -28,6 +32,8 @@ import { useSendNowSchedulerByUuid } from '../hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import ConfirmPauseSchedulerModal from './ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from './ConfirmSendNowModal';
+
+dayjs.extend(relativeTime);
 
 type SchedulersListItemProps = {
     scheduler: SchedulerAndTargets;
@@ -77,6 +83,15 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
             }),
         );
     }, [user.data, activeProjectUuid]);
+
+    const latestRunStatusConfig = useMemo(
+        () =>
+            scheduler.latestRun
+                ? getRunStatusConfig(scheduler.latestRun.runStatus)
+                : null,
+        [scheduler.latestRun],
+    );
+
     if (!project) {
         return null;
     }
@@ -103,6 +118,40 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                         <Text c="ldGray.6" fz={12}>
                             {scheduler.targets.length} recipients
                         </Text>
+
+                        <Box c="ldGray.4">
+                            <MantineIcon icon={IconCircleFilled} size={5} />
+                        </Box>
+
+                        {scheduler.latestRun && latestRunStatusConfig ? (
+                            <Tooltip
+                                withinPortal
+                                label={`Last run ${dayjs(
+                                    scheduler.latestRun.scheduledTime,
+                                ).fromNow()} (${dayjs(
+                                    scheduler.latestRun.scheduledTime,
+                                ).format('YYYY/MM/DD HH:mm')})`}
+                            >
+                                <Badge
+                                    variant="light"
+                                    size="sm"
+                                    radius="sm"
+                                    color={latestRunStatusConfig.color}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={latestRunStatusConfig.icon}
+                                            size={10}
+                                        />
+                                    }
+                                >
+                                    {latestRunStatusConfig.label}
+                                </Badge>
+                            </Tooltip>
+                        ) : (
+                            <Text c="ldGray.6" fz={12} fs="italic">
+                                Not run yet
+                            </Text>
+                        )}
                     </Group>
                 </Stack>
                 {!userCanManageScheduledDelivery &&

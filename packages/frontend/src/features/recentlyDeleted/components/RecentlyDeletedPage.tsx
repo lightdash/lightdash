@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    FeatureFlags,
     type DeletedContentWithDescendants,
 } from '@lightdash/common';
 import {
@@ -17,6 +18,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconAppWindow,
     IconCalendar,
     IconClock,
     IconFolder,
@@ -45,6 +47,7 @@ import {
 import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     useInfiniteDeletedContent,
@@ -58,6 +61,7 @@ import DeletedContentActionMenu from './DeletedContentActionMenu';
 
 function getDeletedContentDescription(
     item: DeletedContentWithDescendants,
+    dataAppsEnabled: boolean,
 ): string | null {
     const parts: string[] = [];
     if (item.contentType === ContentType.SPACE) {
@@ -72,6 +76,10 @@ function getDeletedContentDescription(
         if (item.chartCount > 0)
             parts.push(
                 `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
+            );
+        if (dataAppsEnabled && item.appCount > 0)
+            parts.push(
+                `${item.appCount} data app${item.appCount !== 1 ? 's' : ''}`,
             );
         if (item.schedulerCount > 0)
             parts.push(
@@ -127,9 +135,15 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
 
     const { health, user } = useApp();
     const retentionDays = health.data?.softDelete.retentionDays;
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
     const [selectedContentType, setSelectedContentType] = useState<
-        'all' | ContentType.CHART | ContentType.DASHBOARD | ContentType.SPACE
+        | 'all'
+        | ContentType.CHART
+        | ContentType.DASHBOARD
+        | ContentType.SPACE
+        | ContentType.DATA_APP
     >('all');
 
     const {
@@ -258,6 +272,13 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         color="violet.6"
                                     />
                                 );
+                            case ContentType.DATA_APP:
+                                return (
+                                    <IconBox
+                                        icon={IconAppWindow}
+                                        color="orange.6"
+                                    />
+                                );
                             default:
                                 return assertUnreachable(
                                     row.original,
@@ -267,6 +288,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     })();
                     const description = getDeletedContentDescription(
                         row.original,
+                        dataAppsEnabled,
                     );
                     return (
                         <Group gap="sm" wrap="nowrap">
@@ -398,6 +420,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                             contentType: item.contentType,
                                         });
                                         break;
+                                    case ContentType.DATA_APP:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     default:
                                         assertUnreachable(
                                             item,
@@ -427,6 +455,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                             contentType: item.contentType,
                                         });
                                         break;
+                                    case ContentType.DATA_APP:
+                                        permanentlyDelete({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     default:
                                         assertUnreachable(
                                             item,
@@ -447,6 +481,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             permanentlyDelete,
             isRestoring,
             isDeleting,
+            dataAppsEnabled,
         ],
     );
 

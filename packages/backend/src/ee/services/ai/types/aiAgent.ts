@@ -1,9 +1,10 @@
-import { AiAgent } from '@lightdash/common';
+import { AiAgent, WarehouseTypes } from '@lightdash/common';
 import { ModelMessage } from 'ai';
 import { AiModel, AiProvider } from '../models/types';
 import {
     CreateChangeFn,
     CreateOrUpdateArtifactFn,
+    DescribeWarehouseTableFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -11,16 +12,23 @@ import {
     GetExploreCompilerFn,
     GetExploreFn,
     GetPromptFn,
+    GetSavedChartFn,
     ListExploresFn,
+    ListWarehouseTablesFn,
+    RecordSqlApprovalFn,
     RunAsyncQueryFn,
+    RunSqlJobFn,
     SearchFieldValuesFn,
     SendFileFn,
+    SendSlackBlocksFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     TrackEventFn,
     UpdateProgressFn,
     UpdatePromptFn,
+    UpdateSlackMessageFn,
+    WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
@@ -36,6 +44,9 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    canRunSql: boolean;
+    warehouseType: WarehouseTypes | null;
+    warehouseSchema: string | null;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
@@ -65,8 +76,14 @@ export type AiAgentDependencies = {
     getExplore: GetExploreFn;
     getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runSqlJob: RunSqlJobFn;
+    listWarehouseTables: ListWarehouseTablesFn;
+    describeWarehouseTable: DescribeWarehouseTableFn;
+    getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
+    sendSlackBlocks: SendSlackBlocksFn;
+    updateSlackMessage: UpdateSlackMessageFn;
     updatePrompt: UpdatePromptFn;
     updateProgress: UpdateProgressFn;
     storeToolCall: StoreToolCallFn;
@@ -76,6 +93,8 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
+    waitForSqlApproval: WaitForSqlApprovalFn;
+    recordSqlApproval: RecordSqlApprovalFn;
     perf: PerformanceMetrics;
 };
 

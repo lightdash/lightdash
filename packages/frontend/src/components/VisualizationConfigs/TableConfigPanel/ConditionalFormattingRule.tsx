@@ -10,10 +10,9 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
+import { Accordion } from '@mantine-8/core';
 import {
-    ActionIcon,
     Center,
-    Collapse,
     Group,
     SegmentedControl,
     Select,
@@ -22,10 +21,8 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine/core';
-import { useHover } from '@mantine/hooks';
-import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import differenceBy from 'lodash/differenceBy';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import FieldSelect from '../../common/FieldSelect';
 import FilterInputComponent from '../../common/Filters/FilterInputs';
@@ -34,10 +31,10 @@ import {
     getFilterOptions,
 } from '../../common/Filters/FilterInputs/utils';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
-import MantineIcon from '../../common/MantineIcon';
+import { AccordionControl } from '../common/AccordionControl';
 
 interface ConditionalFormattingRuleProps {
-    isDefaultOpen?: boolean;
+    accordionValue: string;
     ruleIndex: number;
     rule: ConditionalFormattingWithFilterOperator;
     field: FilterableItem | undefined;
@@ -49,10 +46,11 @@ interface ConditionalFormattingRuleProps {
         comparisonType: ConditionalFormattingComparisonType,
     ) => void;
     onRemoveRule: () => void;
+    disabled?: boolean;
 }
 
 const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
-    isDefaultOpen = true,
+    accordionValue,
     ruleIndex,
     rule,
     field,
@@ -62,11 +60,9 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     onChangeRuleComparisonType,
     onRemoveRule,
     hasRemove,
+    disabled,
 }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-
-    const { ref, hovered } = useHover();
-    const [isOpen, setIsOpen] = useState(isDefaultOpen);
 
     const comparisonType = useMemo(() => {
         if (
@@ -213,34 +209,15 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
     }, [rule, compareField, field]);
 
     return (
-        <Stack spacing="xs" ref={ref}>
-            <Group noWrap position="apart">
-                <Group spacing="xs">
-                    <Text fw={500} fz="xs">
-                        Condition {ruleIndex + 1}
-                    </Text>
+        <Accordion.Item value={accordionValue}>
+            <AccordionControl
+                label={`Condition ${ruleIndex + 1}`}
+                disabled={disabled}
+                title={disabled ? 'Select a field first' : undefined}
+                onRemove={hasRemove ? onRemoveRule : undefined}
+            />
 
-                    {hasRemove && hovered && (
-                        <Tooltip
-                            label="Remove condition"
-                            position="left"
-                            withinPortal
-                        >
-                            <ActionIcon onClick={onRemoveRule}>
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-                </Group>
-
-                <ActionIcon onClick={() => setIsOpen(!isOpen)} size="sm">
-                    <MantineIcon
-                        icon={isOpen ? IconChevronUp : IconChevronDown}
-                    />
-                </ActionIcon>
-            </Group>
-
-            <Collapse in={isOpen}>
+            <Accordion.Panel>
                 <Stack spacing="xs">
                     <Group noWrap spacing="xs">
                         <Text fw={500} fz="xs" c="dimmed">
@@ -288,7 +265,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                     value: ConditionalFormattingComparisonType.TARGET_TO_VALUES,
                                 },
                             ]}
-                        ></SegmentedControl>
+                        />
                     </Group>
                     {isConditionalFormattingWithCompareTarget(rule) &&
                         isConditionalFormattingWithValues(rule) && (
@@ -298,6 +275,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 items={availableCompareFields}
                                 onChange={handleChangeCompareField}
                                 hasGrouping
+                                size="xs"
                                 placeholder="Compare field"
                             />
                         )}
@@ -305,6 +283,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         <Select
                             value={rule.operator}
                             data={filterOperatorOptions}
+                            size="xs"
                             onChange={(value) => {
                                 if (!value) return;
                                 onChangeRuleOperator(value as FilterOperator);
@@ -317,6 +296,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             display={field && filterType ? 'none' : 'block'}
                             placeholder="Value(s)"
                             data={[]}
+                            size="xs"
                             disabled={!field || !filterType}
                         />
 
@@ -335,6 +315,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                         <TextInput
                                             disabled={true}
                                             placeholder="Values"
+                                            size="xs"
                                         />
                                     )}
                                 </FiltersProvider>
@@ -342,6 +323,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         {isConditionalFormattingWithCompareTarget(rule) &&
                             !isConditionalFormattingWithValues(rule) && (
                                 <FieldSelect
+                                    size="xs"
                                     clearable
                                     item={compareField}
                                     items={availableCompareFields}
@@ -352,8 +334,8 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                             )}
                     </Group>
                 </Stack>
-            </Collapse>
-        </Stack>
+            </Accordion.Panel>
+        </Accordion.Item>
     );
 };
 

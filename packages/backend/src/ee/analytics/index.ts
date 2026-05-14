@@ -97,6 +97,15 @@ export type GenerateFormulaTableCalculationGenerated = BaseTrack & {
     };
 };
 
+export type ConvertSqlToFormulaGenerated = BaseTrack & {
+    event: 'ai.formula_table_calculation.converted_from_sql';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 export type GenerateTooltipGenerated = BaseTrack & {
     event: 'ai.tooltip.generated';
     properties: {

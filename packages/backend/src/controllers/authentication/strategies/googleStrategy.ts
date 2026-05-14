@@ -5,6 +5,7 @@ import {
     OpenIdIdentityIssuerType,
     OpenIdUser,
 } from '@lightdash/common';
+import express from 'express';
 import {
     GoogleCallbackParameters,
     Strategy as GoogleStrategy,
@@ -84,6 +85,12 @@ export const googlePassportStrategy: GoogleStrategy | undefined = !(
                           req.user,
                           inviteCode,
                           refreshToken,
+                          {
+                              ip: (req as express.Request).ip,
+                              userAgent: (req as express.Request).get(
+                                  'user-agent',
+                              ),
+                          },
                       );
                   return done(null, user);
               } catch (e) {

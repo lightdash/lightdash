@@ -1,0 +1,23 @@
+.conditionsGroup {
+    --accordion-radius: var(--mantine-radius-md);
+    margin-inline: calc(var(--mantine-spacing-xs) * -1);
+    position: relative;
+}
+
+.conditionsGroup > * {
+    background-color: var(--item-filled-color);
+
+    &:not(:last-of-type)::after {
+        content: 'AND';
+        position: absolute;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 0 var(--mantine-spacing-xs);
+        background-color: var(--item-filled-color);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        color: var(--mantine-color-ldGray-6);
+        z-index: 1;
+    }
+}

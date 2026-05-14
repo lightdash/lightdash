@@ -219,8 +219,6 @@ export const lightdashConfigMock: LightdashConfig = {
         defaultLimit: 500,
         csvCellsLimit: 100000,
         timezone: undefined,
-        useSqlPivotResults: false,
-        showExecutionTime: false,
         retryQueryOnTransientErrors: true,
         enableTimezoneSupport: undefined,
     },
@@ -254,9 +252,6 @@ export const lightdashConfigMock: LightdashConfig = {
         },
         events: undefined,
     },
-    scim: {
-        enabled: false,
-    },
     security: {
         contentSecurityPolicy: {
             reportOnly: false,
@@ -279,6 +274,7 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     headlessBrowser: {
         internalLightdashHost: 'https://test.lightdash.cloud',
+        internalLightdashHostIgnoreHttpsErrors: false,
         browserEndpoint: 'ws://headless-browser:3000',
         maxScreenshotRetries: 5,
         retryBaseDelayMs: 3000,
@@ -288,9 +284,6 @@ export const lightdashConfigMock: LightdashConfig = {
     },
     appearance: {},
     microsoftTeams: {
-        enabled: false,
-    },
-    googleChat: {
         enabled: false,
     },
     serviceAccount: {
@@ -308,14 +301,17 @@ export const lightdashConfigMock: LightdashConfig = {
     googleCloudPlatform: {
         projectId: 'test-project-id',
     },
+    managedAgent: {
+        anthropicApiKey: null,
+        skillIds: [],
+        schedule: '0 0 * * *',
+        sessionTimeoutMs: 300000,
+    },
     mcp: {
         enabled: true,
     },
     customRoles: {
         enabled: false,
-    },
-    dashboardComments: {
-        enabled: true,
     },
     echarts6: {
         enabled: false,
@@ -329,12 +325,6 @@ export const lightdashConfigMock: LightdashConfig = {
     funnelBuilder: {
         enabled: false,
     },
-    savedMetricsTree: {
-        enabled: undefined,
-    },
-    defaultUserSpaces: {
-        enabled: undefined,
-    },
     persistentDownloadUrls: {
         enabled: false,
         expirationSeconds: 259200,
@@ -345,6 +335,9 @@ export const lightdashConfigMock: LightdashConfig = {
     softDelete: {
         enabled: false,
         retentionDays: 30,
+    },
+    dashboardComments: {
+        enabled: true,
     },
     preAggregates: {
         enabled: false,
@@ -357,28 +350,17 @@ export const lightdashConfigMock: LightdashConfig = {
             region: 'mock_region',
         },
     },
-    userImpersonation: {
-        enabled: undefined,
-    },
-    changeChartExplore: {
-        enabled: undefined,
-    },
-    showHideRows: {
-        enabled: undefined,
-    },
-    metricDashboardFilters: {
-        enabled: undefined,
-    },
-    showHideColumns: {
-        enabled: undefined,
-    },
     appRuntime: {
         enabled: false,
         lightdashOrigin: 'https://test.lightdash.cloud',
         cdnOrigin: null,
         previewOrigin: null,
+        cspAllowedOrigins: [],
         s3: null,
         e2bApiKey: null,
+        e2bTemplateName: 'lightdash-data-app',
+        e2bTemplateTag: '',
     },
     enabledFeatureFlags: new Set<string>(),
+    disabledFeatureFlags: new Set<string>(),
 };

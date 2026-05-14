@@ -38,7 +38,10 @@ import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
 import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
-import { convertSdkFilterToDashboardFilter } from '../../ee/features/embed/EmbedDashboard/utils';
+import {
+    convertSdkFilterToDashboardFilter,
+    shouldDeferSdkFilters,
+} from '../../ee/features/embed/EmbedDashboard/utils';
 import { LightdashEventType } from '../../ee/features/embed/events/types';
 import { useEmbedEventEmitter } from '../../ee/features/embed/hooks/useEmbedEventEmitter';
 import useEmbed from '../../ee/providers/Embed/useEmbed';
@@ -244,6 +247,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const [havePinnedParametersChanged, setHavePinnedParametersChanged] =
         useState<boolean>(false);
 
+    // Parameter order state
+    const [parameterOrder, setParameterOrderState] = useState<string[]>([]);
+    const [hasParameterOrderChanged, setHasParameterOrderChanged] =
+        useState<boolean>(false);
+
     // Date zoom granularities state
     const allStandardGranularities = useMemo(
         () => Object.values(DateGranularity),
@@ -282,6 +290,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [dashboard?.config?.pinnedParameters, dashboard?.config]);
 
+    // Set parameter order when dashboard is loaded
+    useEffect(() => {
+        if (dashboard?.config?.parameterOrder !== undefined) {
+            setParameterOrderState(dashboard.config.parameterOrder);
+        } else if (dashboard?.config !== undefined) {
+            setParameterOrderState([]);
+        }
+    }, [dashboard?.config?.parameterOrder, dashboard?.config]);
+
     // Sync date zoom granularities from dashboard config
     // Note: Custom granularities from explores are added by DashboardGranularitySync
     useEffect(() => {
@@ -301,16 +318,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         );
     }, [dashboard?.config?.defaultDateZoomGranularity]);
 
-    // Set active tab when dashboard and tabs are loaded
+    // Set active tab when dashboard and tabs are loaded.
+    // In view mode, hidden tabs are not selectable — fall back to the first
+    // visible tab if the URL points at a hidden tab. In edit mode all tabs are selectable.
     useEffect(() => {
         if (dashboardTabs && dashboardTabs.length > 0) {
-            const matchedTab =
-                dashboardTabs.find((tab) => tab.uuid === tabUuid) ??
-                dashboardTabs[0];
-
-            setActiveTab(matchedTab);
+            const selectableTabs = isEditMode
+                ? dashboardTabs
+                : dashboardTabs.filter((tab) => !tab.hidden);
+            const tabsForFallback =
+                selectableTabs.length > 0 ? selectableTabs : dashboardTabs;
+            const urlMatch = selectableTabs.find((tab) => tab.uuid === tabUuid);
+            setActiveTab(urlMatch ?? tabsForFallback[0]);
         }
-    }, [dashboardTabs, tabUuid]);
+    }, [dashboardTabs, tabUuid, isEditMode]);
 
     // Apply scheduler parameters when provided (for scheduled deliveries)
     useEffect(() => {
@@ -338,17 +359,30 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
 
     const setParameter = useCallback(
         (key: string, value: ParameterValue | null) => {
-            if (
+            const isEmpty =
                 value === null ||
                 value === undefined ||
                 value === '' ||
-                (Array.isArray(value) && value.length === 0)
-            ) {
-                setParameters((prev) => {
-                    const newParams = { ...prev };
-                    delete newParams[key];
-                    return newParams;
-                });
+                (Array.isArray(value) && value.length === 0);
+
+            if (isEmpty) {
+                // In view mode, reverting to "no value" should fall back to the
+                // dashboard-saved default (which the tile queries also use), keeping
+                // the widget and queries in sync. In edit mode, clearing fully removes
+                // the override so authors can drop it.
+                const savedParam = savedParameters[key];
+                if (!isEditMode && savedParam) {
+                    setParameters((prev) => ({
+                        ...prev,
+                        [key]: savedParam,
+                    }));
+                } else {
+                    setParameters((prev) => {
+                        const newParams = { ...prev };
+                        delete newParams[key];
+                        return newParams;
+                    });
+                }
             } else {
                 setParameters((prev) => ({
                     ...prev,
@@ -359,7 +393,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 }));
             }
         },
-        [],
+        [isEditMode, savedParameters],
     );
 
     const clearAllParameters = useCallback(() => {
@@ -380,6 +414,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             return newPinnedParams;
         });
         setHavePinnedParametersChanged(true);
+    }, []);
+
+    const setParameterOrder = useCallback((order: string[]) => {
+        setParameterOrderState(order);
+        setHasParameterOrderChanged(true);
     }, []);
 
     const setDateZoomGranularities = useCallback(
@@ -673,11 +712,19 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
             const sdkFilters =
                 embed.mode === 'sdk' && embed.filters ? embed.filters : [];
             if (sdkFilters.length > 0) {
-                // Wait for available filters query to finish (success or error)
-                // so we can build cross-explore tileTargets.
-                // If the query failed, filterableFieldsByTileUuid will be
-                // undefined and we gracefully fall back to tileTargets: {}
-                if (isLoadingDashboardFilters) return;
+                // Wait until we have the data needed to build cross-explore
+                // tileTargets. `isLoadingDashboardFilters` alone is not
+                // enough because the available-filters query is disabled
+                // until tile metadata loads, and React Query reports a
+                // disabled query as not loading.
+                if (
+                    shouldDeferSdkFilters(
+                        savedChartUuidsAndTileUuids,
+                        filterableFieldsByTileUuid,
+                    )
+                ) {
+                    return;
+                }
 
                 updatedDashboardFilters.dimensions = sdkFilters.map(
                     (sdkFilter) =>
@@ -734,7 +781,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         overridesForSavedDashboardFilters,
         embed,
         applyInteractivityFiltering,
-        isLoadingDashboardFilters,
+        savedChartUuidsAndTileUuids,
         filterableFieldsByTileUuid,
     ]);
 
@@ -1390,6 +1437,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         toggleParameterPin,
         havePinnedParametersChanged,
         setHavePinnedParametersChanged,
+        parameterOrder,
+        setParameterOrder,
+        hasParameterOrderChanged,
+        setHasParameterOrderChanged,
         dateZoomGranularities,
         setDateZoomGranularities,
         haveDateZoomGranularitiesChanged,

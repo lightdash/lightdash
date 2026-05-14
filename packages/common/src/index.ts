@@ -51,6 +51,7 @@ export {
 export * from './authorization/jwtAbility';
 export * from './authorization/parseAccount';
 export * from './authorization/roleToScopeMapping';
+export * from './authorization/scopeAbilityBuilder';
 export * from './authorization/scopes';
 export * from './authorization/serviceAccountAbility';
 export * from './authorization/space/spaceAccessResolver';
@@ -131,6 +132,7 @@ export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationMemberProfile';
+export * from './types/organizationSso';
 export * from './types/organizationWarehouseCredentials';
 export * from './types/paginateResults';
 export * from './types/parameters';
@@ -203,7 +205,9 @@ export * from './utils/i18n/merge';
 export * from './utils/i18n/types';
 export * from './utils/item';
 export * from './utils/loadLightdashProjectConfig';
+export * from './utils/lightdashSqlVariables';
 export * from './utils/metricsExplorer';
+export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
 export * from './utils/projectMemberRole';
@@ -747,6 +751,7 @@ export function formatRow(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow {
     const resultRow: ResultRow = {};
     const columnNames = Object.keys(row || {});
@@ -759,7 +764,13 @@ export function formatRow(
         resultRow[columnName] = {
             value: {
                 raw: formatRawValue(item, value),
-                formatted: formatItemValue(item, value, false, parameters),
+                formatted: formatItemValue(
+                    item,
+                    value,
+                    false,
+                    parameters,
+                    timezone,
+                ),
             },
         };
     }
@@ -772,9 +783,10 @@ export function formatRows(
     itemsMap: ItemsMap,
     pivotValuesColumns?: Record<string, PivotValuesColumn> | null,
     parameters?: Record<string, unknown>,
+    timezone?: string,
 ): ResultRow[] {
     return rows.map((row) =>
-        formatRow(row, itemsMap, pivotValuesColumns, parameters),
+        formatRow(row, itemsMap, pivotValuesColumns, parameters, timezone),
     );
 }
 

@@ -64,6 +64,7 @@ import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { CatalogService } from '../../../services/CatalogService/CatalogService';
+import { ContentVerificationService } from '../../../services/ContentVerificationService';
 import { CsvService } from '../../../services/CsvService/CsvService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
@@ -128,6 +129,7 @@ export enum McpToolName {
     RUN_METRIC_QUERY = 'run_metric_query',
     RUN_SQL = 'run_sql',
     SEARCH_FIELD_VALUES = 'search_field_values',
+    LIST_VERIFIED_CONTENT = 'list_verified_content',
 }
 
 type McpServiceArguments = {
@@ -135,6 +137,7 @@ type McpServiceArguments = {
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
+    contentVerificationService: ContentVerificationService;
     projectModel: ProjectModel;
     projectService: ProjectService;
     savedSqlService: SavedSqlService;
@@ -170,6 +173,8 @@ export class McpService extends BaseService {
 
     private catalogService: CatalogService;
 
+    private contentVerificationService: ContentVerificationService;
+
     private projectService: ProjectService;
 
     private savedSqlService: SavedSqlService;
@@ -203,6 +208,7 @@ export class McpService extends BaseService {
         analytics,
         asyncQueryService,
         catalogService,
+        contentVerificationService,
         projectService,
         savedSqlService,
         schedulerService,
@@ -221,6 +227,7 @@ export class McpService extends BaseService {
         this.analytics = analytics;
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
+        this.contentVerificationService = contentVerificationService;
         this.projectService = projectService;
         this.savedSqlService = savedSqlService;
         this.schedulerService = schedulerService;
@@ -652,9 +659,10 @@ export class McpService extends BaseService {
                         ),
                 );
 
+                const auditedAbility = this.createAuditedAbility(user);
                 const projectList = allProjects
                     .filter((project) =>
-                        user.ability.can(
+                        auditedAbility.can(
                             'view',
                             subject('Project', {
                                 organizationUuid,
@@ -719,8 +727,9 @@ export class McpService extends BaseService {
                     account,
                 );
 
+                const auditedAbility = this.createAuditedAbility(user);
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'view',
                         subject('Project', {
                             projectUuid: args.projectUuid,
@@ -1473,6 +1482,7 @@ export class McpService extends BaseService {
                             projectUuid,
                             args.sql,
                             args.limit ?? 500,
+                            QueryExecutionContext.MCP_RUN_SQL,
                         );
 
                     const jobResult = await this.pollSqlJobToCompletion(
@@ -1521,6 +1531,46 @@ export class McpService extends BaseService {
                         isError: true,
                     };
                 }
+            },
+        );
+
+        this.mcpServer.registerTool(
+            McpToolName.LIST_VERIFIED_CONTENT,
+            {
+                description:
+                    'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
+                inputSchema: {},
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
+            },
+            async (
+                _args: Record<string, never>,
+                extra: RequestHandlerExtra<ServerRequest, ServerNotification>,
+            ) => {
+                const { user } = this.getAccount(extra as McpProtocolContext);
+                const projectUuid = await this.resolveProjectUuid(
+                    extra as McpProtocolContext,
+                );
+
+                this.trackToolCall(
+                    extra as McpProtocolContext,
+                    McpToolName.LIST_VERIFIED_CONTENT,
+                    projectUuid,
+                );
+
+                const verifiedContent =
+                    await this.contentVerificationService.listVerifiedContent(
+                        user,
+                        projectUuid,
+                    );
+
+                return this.buildScopedResponse(
+                    extra as McpProtocolContext,
+                    JSON.stringify(verifiedContent, null, 2),
+                );
             },
         );
 
@@ -1771,8 +1821,10 @@ export class McpService extends BaseService {
 
         // Validate header attributes if present (admin + narrowing check)
         if (headerUserAttributes) {
+            const auditedAbility = this.createAuditedAbility(user);
             validateUserAttributeOverrides(
                 user,
+                auditedAbility,
                 headerUserAttributes,
                 dbAttributes,
             );
@@ -1801,8 +1853,10 @@ export class McpService extends BaseService {
                 organizationUuid,
                 userUuid: user.userUuid,
             });
+        const auditedAbility = this.createAuditedAbility(user);
         validateUserAttributeOverrides(
             user,
+            auditedAbility,
             headerUserAttributes,
             dbAttributes,
         );
@@ -1923,8 +1977,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -2024,8 +2079,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -2099,8 +2155,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -2167,8 +2224,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -2202,7 +2260,7 @@ export class McpService extends BaseService {
                     ...metricQuery,
                     additionalMetrics: additionalMetrics ?? [],
                 },
-                context: QueryExecutionContext.MCP,
+                context: QueryExecutionContext.MCP_RUN_METRIC_QUERY,
                 userAttributeOverrides,
             });
 
@@ -2228,8 +2286,9 @@ export class McpService extends BaseService {
             account,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     projectUuid,
@@ -2267,6 +2326,7 @@ export class McpService extends BaseService {
                             false,
                             undefined,
                             userAttributeOverrides,
+                            QueryExecutionContext.MCP_SEARCH_FIELD_VALUES,
                         );
                     return results;
                 },

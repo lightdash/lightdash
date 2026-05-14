@@ -5,6 +5,8 @@ import {
     ApiErrorPayload,
     ApiFinalizeDeployResponse,
     ApiStartDeploySessionResponse,
+    assertRegisteredAccount,
+    LightdashCliVersionHeader,
 } from '@lightdash/common';
 import {
     Body,
@@ -19,6 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -49,7 +52,7 @@ export class DeployController extends BaseController {
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
-            .startDeploySession(req.user!, projectUuid);
+            .startDeploySession(req.account!, projectUuid);
         return {
             status: 'ok',
             results: result,
@@ -74,11 +77,12 @@ export class DeployController extends BaseController {
         @Path() sessionUuid: string,
         @Body() body: AnyType, // ApiAddDeployBatchRequest,
     ): Promise<ApiAddDeployBatchResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
             .addDeployBatch(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 sessionUuid,
                 (body as unknown as ApiAddDeployBatchRequest).explores,
@@ -107,10 +111,16 @@ export class DeployController extends BaseController {
         @Path() projectUuid: string,
         @Path() sessionUuid: string,
     ): Promise<ApiFinalizeDeployResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const result = await this.services
             .getDeployService()
-            .finalizeDeploy(req.user!, projectUuid, sessionUuid);
+            .finalizeDeploy(
+                toSessionUser(req.account),
+                projectUuid,
+                sessionUuid,
+                req.header(LightdashCliVersionHeader),
+            );
         return {
             status: 'ok',
             results: result,

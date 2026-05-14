@@ -1,0 +1,42 @@
+version: 2
+models:
+  - name: spanish_cities
+    description: |
+      # Spanish Cities
+
+      Cities in Spain with population >= 5,000, sourced from the
+      [GeoNames](https://www.geonames.org/) `cities5000` dataset
+      (CC BY 4.0). Sorted by population, capped at 5,000 rows
+      (the full set is 1,476 at this population threshold).
+      Dense regional dataset — useful for testing fixed-resolution
+      hexbin sizing (Region, City, District, Neighborhood).
+    columns:
+      - name: name
+        description: City name (UTF-8, native script where applicable)
+
+      - name: country_code
+        description: ISO-3166-1 alpha-2 country code (always "ES")
+
+      - name: lon
+        description: Longitude coordinate (-180 to 180)
+
+      - name: lat
+        description: Latitude coordinate (-90 to 90)
+
+      - name: population
+        description: Most recent population estimate from GeoNames
+        config:
+          meta:
+            metrics:
+              total_population:
+                type: sum
+                label: Total population
+                description: Sum of population across cities
+              average_population:
+                type: average
+                label: Average population
+                description: Average city population
+              city_count:
+                type: count
+                label: City count
+                description: Number of cities

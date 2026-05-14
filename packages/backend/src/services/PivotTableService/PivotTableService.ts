@@ -101,6 +101,7 @@ export class PivotTableService extends BaseService {
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
+        timezone,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -120,7 +121,8 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
-    }): Promise<{ fileUrl: string; truncated: boolean }> {
+        timezone?: string;
+    }): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
 
@@ -173,10 +175,12 @@ export class PivotTableService extends BaseService {
             organizationUuid,
             createdByUserUuid,
             expirationSecondsOverride,
+            timezone,
         });
 
         return {
             fileUrl: attachmentUrl.path,
+            s3FileUrl: attachmentUrl.localPath,
             truncated: finalTruncated,
         };
     }
@@ -200,6 +204,7 @@ export class PivotTableService extends BaseService {
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
+        timezone,
     }: {
         name?: string;
         projectUuid: string;
@@ -216,6 +221,7 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
+        timezone?: string;
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
@@ -228,7 +234,16 @@ export class PivotTableService extends BaseService {
 
         // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
         // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
-        const formattedRows = formatRows(rows, itemMap, pivotValuesColumnsMap);
+        const formattedRows = formatRows(
+            rows,
+            itemMap,
+            pivotValuesColumnsMap,
+            undefined,
+            timezone,
+        );
+
+        // Pivot CSV uses the same wall-clock temporal format as non-pivot
+        // CSV so spreadsheet apps auto-detect dates. See GLITCH-406.
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
@@ -238,6 +253,8 @@ export class PivotTableService extends BaseService {
             onlyRaw,
             maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            timezone,
+            formatTemporalsForSpreadsheet: true,
         });
 
         const csvContent = await new Promise<string>((resolve, reject) => {
@@ -296,7 +313,10 @@ export class PivotTableService extends BaseService {
         await fsPromise.writeFile(filePath, csvWithBOM);
 
         if (this.fileStorageClient.isEnabled()) {
-            await this.fileStorageClient.uploadCsv(csvContent, fileId);
+            const s3FileUrl = await this.fileStorageClient.uploadCsv(
+                csvContent,
+                fileId,
+            );
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(
@@ -324,7 +344,7 @@ export class PivotTableService extends BaseService {
             return {
                 filename: fileName,
                 path: url,
-                localPath: filePath,
+                localPath: s3FileUrl,
                 truncated,
             };
         }

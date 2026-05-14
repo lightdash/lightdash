@@ -35,7 +35,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     >([]);
     const [showConfigWarnings, setShowConfigWarnings] = useState(false);
 
-    const targetValidationId = useSearchParams('validationId');
+    const targetValidationUuid = useSearchParams('validationUuid');
     const navigate = useNavigate();
     const { pathname } = useLocation();
 
@@ -43,7 +43,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
 
     const { data: pinnedValidation } = usePinnedValidation(
         projectUuid,
-        targetValidationId ? Number(targetValidationId) : null,
+        targetValidationUuid,
     );
 
     const handleUnpin = useCallback(() => {
@@ -80,7 +80,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
     const deduplicatedData = useMemo(() => {
         if (!pinnedValidation) return flatData;
         return flatData.filter(
-            (item) => item.validationId !== pinnedValidation.validationId,
+            (item) => item.validationUuid !== pinnedValidation.validationUuid,
         );
     }, [flatData, pinnedValidation]);
 

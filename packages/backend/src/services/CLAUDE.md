@@ -82,25 +82,33 @@ export class MyNewService extends BaseService {
         this.config = lightdashConfig;
     }
 
-    async performOperation(user: SessionUser, data: any): Promise<Result> {
-        this.logger.info(`User ${user.userUuid} performing operation`);
+    async performOperation(
+        account: RegisteredAccount,
+        data: any,
+    ): Promise<Result> {
+        this.logger.info(`User ${account.user.userUuid} performing operation`);
 
         try {
-            // Implement business logic
+            // Enforce permissions via the audited ability — never call account.user.ability directly.
+            const ability = this.createAuditedAbility(account);
+            if (ability.cannot('manage', 'MyResource')) {
+                throw new ForbiddenError();
+            }
+
             this.logger.debug('Starting operation with data', { data });
 
             // Call models to persist data
             const result = await this.userModel.someOperation(data);
 
             this.logger.info('Operation completed successfully', {
-                userUuid: user.userUuid,
+                userUuid: account.user.userUuid,
                 resultId: result.id,
             });
 
             return { success: true, result };
         } catch (error) {
             this.logger.error('Operation failed', {
-                userUuid: user.userUuid,
+                userUuid: account.user.userUuid,
                 error: getErrorMessage(error),
             });
             throw error;
@@ -114,6 +122,7 @@ export class MyNewService extends BaseService {
 <importantToKnow>
 - Services are responsible for business logic, while models handle data persistence.
 - Services should validate inputs and enforce access control before performing operations.
+- Service methods should accept `account: RegisteredAccount` (or `Account` if the method legitimately serves embed/JWT callers) — not `user: SessionUser`. Use `account.user.userUuid` for ids and `account.organization.organizationUuid` for org context. Build CASL checks via `this.createAuditedAbility(account)`. See `docs/account-patterns.md` for the migration cheat sheet.
 - Use the logger provided by BaseService for consistent logging across services instead of importing Logger from 'logging/logger'. The logger is available as `this.logger` and supports debug, info, warn, and error levels.
 - Logger best practices:
   - Use `this.logger.debug()` for detailed debugging information
@@ -173,6 +182,7 @@ Permanent delete relies on DB CASCADE for cleanup (schedulers FK to charts/dashb
 <links>
 - Service architecture overview: @/packages/backend/src/services/ServiceRepository.ts
 - Base service class: @/packages/backend/src/services/BaseService.ts
+- Account patterns: @/docs/account-patterns.md
 - Example services:
   - @/packages/backend/src/services/UserService.ts
   - @/packages/backend/src/services/ProjectService/ProjectService.ts

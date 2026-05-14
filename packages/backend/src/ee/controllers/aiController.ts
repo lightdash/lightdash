@@ -7,6 +7,7 @@ import {
     ApiAiGenerateTooltipResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiErrorPayload,
+    assertRegisteredAccount,
     DashboardSummary,
     GenerateChartMetadataRequest,
     GenerateFormulaTableCalculationRequest,
@@ -28,6 +29,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -49,11 +51,12 @@ export class AiController extends BaseController {
         @Path() dashboardUuid: string,
         @Body() body: Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>,
     ): Promise<ApiAiDashboardSummaryResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().createDashboardSummary(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 dashboardUuid,
                 body,
@@ -70,11 +73,12 @@ export class AiController extends BaseController {
         @Path() projectUuid: string,
         @Path() dashboardUuidOrSlug: string,
     ): Promise<ApiAiGetDashboardSummaryResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().getDashboardSummary(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 dashboardUuidOrSlug,
             ),
@@ -98,11 +102,12 @@ export class AiController extends BaseController {
             currentVizConfig: string;
         },
     ): Promise<ApiAiGenerateCustomVizResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().generateCustomViz({
-                user: req.user!,
+                user: toSessionUser(req.account),
                 projectUuid,
                 ...body,
             }),
@@ -118,11 +123,12 @@ export class AiController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: GenerateChartMetadataRequest,
     ): Promise<ApiAiGenerateChartMetadataResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().generateChartMetadata(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body,
             ),
@@ -138,11 +144,12 @@ export class AiController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: GenerateTableCalculationRequest,
     ): Promise<ApiAiGenerateTableCalculationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().generateTableCalculation(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body,
             ),
@@ -158,11 +165,12 @@ export class AiController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: GenerateFormulaTableCalculationRequest,
     ): Promise<ApiAiGenerateFormulaTableCalculationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().generateFormulaTableCalculation(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body,
             ),
@@ -178,11 +186,12 @@ export class AiController extends BaseController {
         @Path() projectUuid: string,
         @Body() body: GenerateTooltipRequest,
     ): Promise<ApiAiGenerateTooltipResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getAiService().generateTooltip(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body,
             ),

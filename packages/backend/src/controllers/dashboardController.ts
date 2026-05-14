@@ -5,7 +5,7 @@ import {
     ApiPromoteDashboardResponse,
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
-    AuthorizationError,
+    assertRegisteredAccount,
     type ApiCreateDashboardSchedulerResponse,
     type ApiDashboardSchedulersResponse,
     type ApiGetDashboardHistoryResponse,
@@ -26,6 +26,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -55,12 +56,13 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPromoteDashboardResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .promoteDashboard(req.user!, dashboardUuid),
+                .promoteDashboard(toSessionUser(req.account), dashboardUuid),
         };
     }
 
@@ -78,12 +80,16 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPromotionChangesResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .getPromoteDashboardDiff(req.user!, dashboardUuid),
+                .getPromoteDashboardDiff(
+                    toSessionUser(req.account),
+                    dashboardUuid,
+                ),
         };
     }
 
@@ -101,12 +107,13 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardHistoryResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .getHistory(req.user!, dashboardUuid),
+                .getHistory(toSessionUser(req.account), dashboardUuid),
         };
     }
 
@@ -126,12 +133,17 @@ export class DashboardController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetDashboardVersionResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .getVersion(req.user!, dashboardUuid, versionUuid),
+                .getVersion(
+                    toSessionUser(req.account),
+                    dashboardUuid,
+                    versionUuid,
+                ),
         };
     }
 
@@ -155,10 +167,11 @@ export class DashboardController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getDashboardService()
-            .rollback(req.user!, dashboardUuid, versionUuid);
+            .rollback(toSessionUser(req.account), dashboardUuid, versionUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -178,13 +191,11 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiDashboardSchedulersResponse> {
-        if (!req.user) {
-            throw new AuthorizationError('User session not found');
-        }
+        assertRegisteredAccount(req.account);
 
         const schedulers = await this.services
             .getDashboardService()
-            .getSchedulers(req.user, dashboardUuid);
+            .getSchedulers(toSessionUser(req.account), dashboardUuid);
 
         this.setStatus(200);
 
@@ -210,12 +221,17 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiCreateDashboardSchedulerResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .createScheduler(req.user!, dashboardUuid, req.body),
+                .createScheduler(
+                    toSessionUser(req.account),
+                    dashboardUuid,
+                    req.body,
+                ),
         };
     }
 
@@ -237,12 +253,13 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiContentVerificationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .verifyDashboard(req.user!, dashboardUuid),
+                .verifyDashboard(toSessionUser(req.account), dashboardUuid),
         };
     }
 
@@ -264,10 +281,11 @@ export class DashboardController extends BaseController {
         @Path() dashboardUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiContentVerificationDeleteResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getDashboardService()
-            .unverifyDashboard(req.user!, dashboardUuid);
+            .unverifyDashboard(toSessionUser(req.account), dashboardUuid);
         return {
             status: 'ok',
             results: undefined,

@@ -9,10 +9,13 @@ import {
     type MetricFilterRule,
     type OrFilterGroup,
 } from '../types/filter';
+import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
+    applyDashboardFiltersForTile,
+    createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
@@ -218,6 +221,99 @@ describe('addFilterRule', () => {
             field: customSqlDimension,
         });
         expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
+    });
+});
+
+describe('createFilterRuleFromField — time-interval DATE dims', () => {
+    const monthDim = (baseType: DimensionType.TIMESTAMP | DimensionType.DATE) =>
+        ({
+            ...dimension('created_at_month', 'orders'),
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.MONTH,
+            timeIntervalBaseDimensionName: 'created_at',
+            timeIntervalBaseDimensionType: baseType,
+        }) as const;
+
+    // Paris Nov 2024 = 2024-10-31T23:00:00Z (UTC instant emitted by the
+    // DATE_TRUNC round-trip for a TIMESTAMP-base interval).
+    const parisNovInstant = '2024-10-31T23:00:00Z';
+    // NY Nov 2024 = 2024-11-01T05:00:00Z.
+    const nyNovInstant = '2024-11-01T05:00:00Z';
+    // DATE-base interval emits a calendar value anchored at UTC midnight.
+    const dateBaseNov = '2024-11-01T00:00:00Z';
+
+    test('TIMESTAMP-base: positive offset filter value matches displayed month', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            parisNovInstant,
+            'Europe/Paris',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('TIMESTAMP-base: negative offset filter value matches displayed month', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            nyNovInstant,
+            'America/New_York',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('TIMESTAMP-base: no timezone falls back to UTC extraction (pre-fix behavior)', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            parisNovInstant,
+        );
+        // Without project TZ, the UTC instant's calendar month is October.
+        expect(rule.values).toEqual(['2024-10']);
+    });
+
+    test('DATE-base: negative offset must NOT shift the calendar date back', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.DATE),
+            dateBaseNov,
+            'America/New_York',
+        );
+        // Shifting "Nov 1 UTC" into NY would land on Oct 31 — must not happen.
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('DATE-base: positive offset also stays on the calendar date', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.DATE),
+            dateBaseNov,
+            'Asia/Tokyo',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('plain DATE column (no timeInterval): negative offset must NOT shift', () => {
+        const plainDateDim = {
+            ...dimension('order_date', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const rule = createFilterRuleFromField(
+            plainDateDim,
+            '2024-11-01',
+            'America/New_York',
+        );
+        // Plain DATE columns are calendar values — shifting into NY would
+        // land on Oct 31 and silently corrupt the filter.
+        expect(rule.values).toEqual(['2024-11-01']);
+    });
+
+    test('plain DATE column (no timeInterval): positive offset must NOT shift', () => {
+        const plainDateDim = {
+            ...dimension('order_date', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const rule = createFilterRuleFromField(
+            plainDateDim,
+            '2024-11-01',
+            'Asia/Tokyo',
+        );
+        expect(rule.values).toEqual(['2024-11-01']);
     });
 });
 
@@ -1027,5 +1123,101 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
 
         // Verify filter-3 is not included (isSqlColumn is true but fieldId doesn't match)
         expect(result).toHaveLength(0);
+    });
+});
+
+describe('applyDashboardFiltersForTile', () => {
+    const baseMetricQuery: MetricQuery = {
+        exploreName: 'test',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+
+    const statusRule: DashboardFilterRule = {
+        id: 'f-status',
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: [true],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    const offExploreRule: DashboardFilterRule = {
+        id: 'f-off',
+        target: { fieldId: 'other_browser', tableName: 'other' },
+        operator: FilterOperator.EQUALS,
+        values: ['chrome'],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    test('drops rules whose fieldId is not in the explore', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [offExploreRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('drops rules whose tileTargets disable them for this tile', () => {
+        const disabledRule: DashboardFilterRule = {
+            ...statusRule,
+            tileTargets: { 't-1': false },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [disabledRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('merges applicable rules into the metric query', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [statusRule, offExploreRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toHaveLength(1);
+        expect(appliedDashboardFilters.dimensions[0].id).toBe('f-status');
+        const merged = (metricQuery.filters.dimensions as AndFilterGroup).and;
+        expect(merged).toHaveLength(1);
+        expect(merged[0]).toMatchObject({
+            target: { fieldId: 'orders_status' },
+            values: [true],
+        });
     });
 });

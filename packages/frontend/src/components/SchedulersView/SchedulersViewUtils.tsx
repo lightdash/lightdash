@@ -3,20 +3,25 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerResourceType,
+    SchedulerRunStatus,
     type SchedulerAndTargets,
     type SchedulerRun,
     type SchedulerWithLogs,
 } from '@lightdash/common';
 import { type MantineTheme } from '@mantine-8/core';
 import {
+    IconAlertCircle,
     IconAlertTriangleFilled,
+    IconCheck,
     IconCircleCheckFilled,
+    IconClock,
     IconClockFilled,
     IconCsv,
     IconFileTypePdf,
     IconFileTypeXls,
     IconPhoto,
     IconProgress,
+    IconRun,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { GSheetsIconFilled } from '../../components/common/GSheetsIcon';
@@ -130,6 +135,27 @@ export const getLogStatusIconWithoutTooltip = (
             );
         default:
             return assertUnreachable(status, 'Resource type not supported');
+    }
+};
+
+export const getRunStatusConfig = (status: SchedulerRunStatus) => {
+    switch (status) {
+        case SchedulerRunStatus.COMPLETED:
+            return { color: 'green', icon: IconCheck, label: 'Completed' };
+        case SchedulerRunStatus.PARTIAL_FAILURE:
+            return {
+                color: 'yellow',
+                icon: IconAlertCircle,
+                label: 'Partial failure',
+            };
+        case SchedulerRunStatus.FAILED:
+            return { color: 'red', icon: IconAlertCircle, label: 'Failed' };
+        case SchedulerRunStatus.RUNNING:
+            return { color: 'blue', icon: IconRun, label: 'Running' };
+        case SchedulerRunStatus.SCHEDULED:
+            return { color: 'gray', icon: IconClock, label: 'Scheduled' };
+        default:
+            return assertUnreachable(status, 'Unknown scheduler run status');
     }
 };
 

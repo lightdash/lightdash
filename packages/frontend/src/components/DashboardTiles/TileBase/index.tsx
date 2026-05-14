@@ -27,7 +27,6 @@ import {
     IconTrash,
 } from '@tabler/icons-react';
 import { useState } from 'react';
-import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useDelayedHover } from '../../../hooks/useDelayedHover';
 import MantineIcon from '../../common/MantineIcon';
 import DeleteChartTileThatBelongsToDashboardModal from '../../common/modal/DeleteChartTileThatBelongsToDashboardModal';
@@ -95,12 +94,8 @@ const TileBase = <T extends Dashboard['tiles'][number]>({
     const isMarkdownTileTitleEmpty =
         tile.type === DashboardTileTypes.MARKDOWN && !title;
 
-    const isContentVerificationEnabled = useContentVerificationEnabled();
     const hasMenuContent = isEditMode || !!extraMenuItems;
-    const isVerified =
-        isContentVerificationEnabled &&
-        verification !== null &&
-        verification !== undefined;
+    const isVerified = verification !== null && verification !== undefined;
     const hasHeaderContent = hasMenuContent || isVerified;
 
     return (

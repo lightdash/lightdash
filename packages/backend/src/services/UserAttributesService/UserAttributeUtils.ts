@@ -1,4 +1,4 @@
-import { subject } from '@casl/ability';
+import { subject, type Ability } from '@casl/ability';
 import {
     AuthorizationError,
     CorruptedExploreError,
@@ -8,6 +8,7 @@ import {
     UserAttributeValueMap,
 } from '@lightdash/common';
 import { z } from 'zod';
+import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 
 /**
  * Zod schema for parsing user attribute overrides from headers.
@@ -30,14 +31,18 @@ export const userAttributeOverridesSchema = z
  */
 export const validateUserAttributeOverrides = (
     user: SessionUser,
+    auditedAbility: CaslAuditWrapper<Ability>,
     headerAttributes: UserAttributeValueMap,
     dbAttributes: UserAttributeValueMap,
 ): void => {
     const { organizationUuid } = user;
+    if (!organizationUuid) {
+        throw new ForbiddenError('User is not part of an organization');
+    }
 
     // Check admin permission - only admins can override via header
     if (
-        user.ability.cannot(
+        auditedAbility.cannot(
             'manage',
             subject('Organization', { organizationUuid }),
         )

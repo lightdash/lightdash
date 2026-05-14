@@ -16,11 +16,6 @@ export enum FeatureFlags {
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**
-     * Enable dashboard comments
-     */
-    DashboardComments = 'dashboard-comments-enabled',
-
-    /**
      * Enable scheduler task that replaces custom metrics after project compile
      */
     ReplaceCustomMetricsOnCompile = 'replace-custom-metrics-on-compile',
@@ -48,34 +43,14 @@ export enum FeatureFlags {
     AiCustomViz = 'ai-custom-viz',
 
     /**
-     * Use workers for async query execution
-     */
-    WorkerQueryExecution = 'worker-query-execution',
-
-    /**
      * Enable SQL pivot results conversion to PivotData format
      */
     UseSqlPivotResults = 'use-sql-pivot-results',
 
     /**
-     * Enable the unused content dashboard showing least viewed charts and dashboards
-     */
-    UnusedContentDashboard = 'unused-content-dashboard',
-
-    /**
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
-
-    /**
-     * Enable saved metrics tree in metrics catalog
-     */
-    SavedMetricsTree = 'saved-metrics-tree',
-
-    /**
-     * Enable default personal spaces for project members
-     */
-    DefaultUserSpaces = 'default-user-spaces',
 
     /**
      * Enable Google Chat as a scheduled delivery destination
@@ -99,26 +74,10 @@ export enum FeatureFlags {
     ChangeChartExplore = 'change-chart-explore',
 
     /**
-     * Enable performance optimizations for charts with many series/data points.
-     * Switches to canvas renderer, hides overlapping labels, and enables
-     * data sampling for line charts when datasets are large.
-     */
-    LargeChartPerformance = 'large-chart-performance',
-
-    /**
-     * Enable content verification (verified seal for charts and dashboards)
-     */
-    ContentVerification = 'content-verification',
-
-    /**
-     * Enable show/hide N rows from start/end of chart data
-     */
-    ShowHideRows = 'show-hide-rows',
-
-    /**
      * Keep visited dashboard tabs mounted in the DOM (hidden) for instant
-     * re-switching. Disabled by default because large dashboards can spike
-     * browser memory to 3 GB+ when all tab data stays in memory.
+     * re-switching. Enabled by default; disabled per-org for orgs where
+     * large dashboards spiked browser memory to 3 GB+ from accumulated
+     * tab content.
      */
     DashboardTabsInMemory = 'dashboard-tabs-in-memory',
 
@@ -130,29 +89,54 @@ export enum FeatureFlags {
     MetricDashboardFilters = 'metric-dashboard-filters',
 
     /**
-     * Enable user-configurable column limit for pivoted queries
-     */
-    ShowHideColumns = 'show-hide-columns',
-
-    /**
-     * Use persistent preview URLs for Slack unfurl images instead of
-     * raw S3 signed URLs. When enabled, unfurl images are served via
-     * /api/v1/slack/preview/:id which mints fresh signed URLs on demand.
-     */
-    SlackUnfurlPersistentImages = 'slack-unfurl-persistent-images',
-
-    /**
-     * Enable Google Sheets-like formula editor in Table Calculations modal.
-     * When enabled, a "Formula" tab appears alongside SQL and Template tabs.
-     */
-    FormulaTableCalculations = 'table-calculations-spreadsheet-formulas',
-
-    /**
      * Enable data apps feature. Works alongside the APPS_RUNTIME_ENABLED
      * env var — data apps are enabled if either this flag or the env var
      * is true. Disabled by default.
      */
     EnableDataApps = 'enable-data-apps',
+
+    /**
+     * Enable AI Dashboard Summary feature (generates summaries of dashboard
+     * contents using the AI Copilot).
+     */
+    AiDashboardSummary = 'ai-dashboard-summary',
+
+    /**
+     * Enable Autopilot project health agent.
+     */
+    AiAutopilot = 'ai-autopilot',
+
+    /**
+     * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
+     * Gates the option in the Map Type segmented control. Existing charts
+     * already saved with the hexbin layer continue to render either way.
+     */
+    HexbinMap = 'hexbin-map',
+
+    /**
+     * Show the per-organization Single Sign-On settings panel (Azure AD and
+     * future SSO providers). Off by default while the domain-claim trust
+     * model is hardened — see security review notes. Enable per-org for
+     * vetted customers on shared multi-org instances.
+     */
+    SsoOrganizationSettings = 'sso-organization-settings',
+
+    /**
+     * Expose the "Leave organization" action in the General settings danger
+     * zone and accept the corresponding API call. When disabled the panel is
+     * hidden and the endpoint returns a 403 — protects against accidental
+     * self-removal during early rollout and lets us disable the feature
+     * per-org if it causes operational issues.
+     */
+    LeaveOrganization = 'leave-organization',
+
+    /**
+     * Enable query results caching. DB value (user/org override or flag
+     * default) takes precedence; falls back to the RESULTS_CACHE_ENABLED env
+     * var when no DB row is set. Lets shared-instance customers (eu1/app)
+     * opt in per-org without a redeploy.
+     */
+    ResultsCacheEnabled = 'results-cache-enabled',
 }
 
 export type FeatureFlag = {

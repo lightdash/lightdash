@@ -19,6 +19,7 @@ import {
     type WarehouseClient,
     type WarehouseTables,
 } from '../types/warehouse';
+import { defaultNullSafeEqualSql } from '../utils/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
@@ -64,6 +65,7 @@ export const warehouseClientMock: WarehouseClient = {
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
     getFloatingType: () => 'FLOAT',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getMetricSql: (sql, metric) => {
         switch (metric.type) {

@@ -2,6 +2,7 @@ import type { ContentType } from './content';
 import type {
     ResourceViewChartItem,
     ResourceViewDashboardItem,
+    ResourceViewDataAppItem,
     ResourceViewSpaceItem,
 } from './resourceViewItem';
 
@@ -17,7 +18,10 @@ export type ToggleFavoriteResponse = {
 };
 
 export type FavoriteItems = Array<
-    ResourceViewChartItem | ResourceViewDashboardItem | ResourceViewSpaceItem
+    | ResourceViewChartItem
+    | ResourceViewDashboardItem
+    | ResourceViewSpaceItem
+    | ResourceViewDataAppItem
 >;
 
 export type ApiFavoriteItems = {

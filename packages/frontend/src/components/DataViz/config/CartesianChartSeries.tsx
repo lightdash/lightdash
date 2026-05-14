@@ -8,17 +8,25 @@ import {
     type PivotChartLayout,
     type ValueLabelPositionOptions,
 } from '@lightdash/common';
-import { Accordion, SegmentedControl, Stack, Text } from '@mantine/core';
+import {
+    Accordion,
+    SegmentedControl,
+    Stack,
+    Text,
+    useMantineColorScheme,
+} from '@mantine-8/core';
 import { useMemo } from 'react';
 import {
     useAppSelector,
     useAppDispatch as useVizDispatch,
 } from '../../../features/sqlRunner/store/hooks';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { selectProjectUuid } from '../../../features/sqlRunner/store/sqlRunnerSlice';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { type BarChartActionsType } from '../store/barChartSlice';
 import { type LineChartActionsType } from '../store/lineChartSlice';
 import { selectCurrentCartesianChartState } from '../store/selectors';
+import classes from './CartesianChartSeries.module.css';
 import { SingleSeriesConfiguration } from './SingleSeriesConfiguration';
 
 type ConfigurableSeries = {
@@ -35,8 +43,15 @@ export const CartesianChartSeries = ({
     selectedChartType: ChartKind;
     actions: BarChartActionsType | LineChartActionsType;
 }) => {
-    const { data: org } = useOrganization();
-    const colors = org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
+    const projectUuid = useAppSelector(selectProjectUuid);
+    const { data: resolvedPalette } = useProjectColorPalette(
+        projectUuid || undefined,
+    );
+    const { colorScheme } = useMantineColorScheme();
+    const colors =
+        colorScheme === 'dark' && resolvedPalette?.darkColors?.length
+            ? resolvedPalette.darkColors
+            : (resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS);
     const dispatch = useVizDispatch();
 
     const currentConfig = useAppSelector((state) =>
@@ -145,7 +160,7 @@ export const CartesianChartSeries = ({
     };
 
     return (
-        <Stack mt="sm" spacing="xs">
+        <Stack mt="sm" gap="xs">
             {Object.keys(groupedSeries).length === 0 && (
                 <Text>No series found. Add a metric to create a series.</Text>
             )}
@@ -207,34 +222,17 @@ export const CartesianChartSeries = ({
                           <Accordion
                               key={referenceField}
                               variant="contained"
-                              sx={(theme) => ({
-                                  root: {
-                                      border: `1px solid ${theme.colors.ldGray[2]}`,
-                                  },
-                              })}
+                              className={classes.accordion}
                           >
                               <Accordion.Item value={referenceField} m={0}>
                                   <Accordion.Control
-                                      sx={(theme) => ({
-                                          backgroundColor:
-                                              theme.colorScheme === 'light'
-                                                  ? 'white'
-                                                  : 'transparent',
-                                      })}
+                                      className={classes.controlPanel}
                                   >
                                       <Config.Subheading>
                                           {friendlyName(referenceField)}
                                       </Config.Subheading>
                                   </Accordion.Control>
-                                  <Accordion.Panel
-                                      sx={(theme) => ({
-                                          backgroundColor:
-                                              theme.colorScheme === 'light'
-                                                  ? 'white'
-                                                  : 'transparent',
-                                          borderRadius: theme.radius.sm,
-                                      })}
-                                  >
+                                  <Accordion.Panel className={classes.panel}>
                                       {seriesArray.map((s, index) => (
                                           <SingleSeriesConfiguration
                                               key={`${s.reference}-${index}`}

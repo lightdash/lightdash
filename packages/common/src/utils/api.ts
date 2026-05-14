@@ -3,6 +3,7 @@ import { isRequestMethod, RequestMethod } from '../types/api';
 export const LightdashRequestMethodHeader = 'Lightdash-Request-Method';
 export const LightdashVersionHeader = 'Lightdash-Version';
 export const LightdashSdkVersionHeader = 'Lightdash-SDK-Version';
+export const LightdashCliVersionHeader = 'Lightdash-CLI-Version';
 
 export const getRequestMethod = (
     headerValue: string | undefined,

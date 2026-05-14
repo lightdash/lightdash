@@ -2,6 +2,7 @@
 // This rule is failing in CI but passes locally
 import { NextFunction, Request, Response } from 'express';
 import * as Account from '../../auth/account';
+import { requestContextFromExpress } from '../../auth/account/requestContext';
 import Logger from '../../logging/logger';
 
 /**
@@ -29,6 +30,9 @@ export function sessionAccountMiddleware(
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     req.account = Account.fromSession(req.user, req.headers.cookie || '');
+    const requestContext = requestContextFromExpress(req);
+    req.account.requestContext = requestContext;
+    req.user.requestContext = requestContext;
 
     next();
 }

@@ -1,5 +1,8 @@
 import type {
     AiAgent,
+    AiPromptContext,
+    AiPromptContextItem,
+    AiPromptContextItemInput,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
     ApiAiAgentThreadCreateRequest,
@@ -361,12 +364,37 @@ export const useAiAgentThread = (
 };
 
 // Helper functions for thread creation
+
+/**
+ * Builds an optimistic `AiPromptContextItem` from an input item by padding
+ * the resolved-only fields (name, version, kind) with `null`. Used to render
+ * the pinned card immediately on submit before the server response arrives.
+ */
+const toOptimisticContextItem = (
+    item: AiPromptContextItemInput,
+): AiPromptContextItem =>
+    item.type === 'chart'
+        ? {
+              type: 'chart',
+              chartUuid: item.chartUuid,
+              displayName: null,
+              pinnedVersionUuid: null,
+              chartKind: null,
+              runtimeOverrides: item.runtimeOverrides ?? null,
+          }
+        : {
+              ...item,
+              displayName: null,
+              pinnedVersionUuid: null,
+          };
+
 const createOptimisticMessages = (
     threadUuid: string,
     promptUuid: string,
     prompt: string,
     user: UserWithAbility,
     agent: AiAgent,
+    context: AiPromptContext = [],
 ) => {
     return [
         {
@@ -379,6 +407,7 @@ const createOptimisticMessages = (
                 name: `${user?.firstName} ${user?.lastName}`,
                 uuid: user?.userUuid ?? 'unknown',
             },
+            context,
         },
         {
             role: 'assistant' as const,
@@ -469,6 +498,12 @@ const createAgentThread = async (
 export const useCreateAgentThreadMutation = (
     agentUuid: string | undefined,
     projectUuid: string,
+    options?: {
+        onCreated?: (thread: ApiAiAgentThreadCreateResponse['results']) => void;
+        // Skip the default `navigate(...)` to the thread page. The launcher
+        // uses this because it routes via its own panel/dock instead.
+        skipNavigation?: boolean;
+    },
 ) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -482,13 +517,20 @@ export const useCreateAgentThreadMutation = (
     return useMutation<
         ApiAiAgentThreadCreateResponse['results'],
         ApiError,
-        ApiAiAgentThreadCreateRequest
+        ApiAiAgentThreadCreateRequest & {
+            optimisticContext?: AiPromptContext;
+            enableSqlMode?: boolean;
+        }
     >({
-        mutationFn: (data) =>
+        mutationFn: ({
+            optimisticContext: _optimisticContext,
+            enableSqlMode: _enableSqlMode,
+            ...data
+        }) =>
             agentUuid
                 ? createAgentThread(projectUuid, agentUuid, data)
                 : Promise.reject(),
-        onSuccess: async (thread) => {
+        onSuccess: async (thread, variables) => {
             // Invalidate both user-specific and all-users thread queries
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads'],
@@ -516,6 +558,13 @@ export const useCreateAgentThreadMutation = (
                             thread.firstMessage.message,
                             user!.data!,
                             agent!,
+                            // Prefer the caller's resolved metadata (name,
+                            // chartKind) if provided so the pinned card
+                            // renders correctly in the optimistic state.
+                            // Otherwise fall back to nulls and wait for the
+                            // post-stream refetch to fill them in.
+                            variables.optimisticContext ??
+                                variables.context?.map(toOptimisticContextItem),
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
@@ -531,6 +580,7 @@ export const useCreateAgentThreadMutation = (
                 agentUuid: thread.agentUuid,
                 threadUuid: thread.uuid,
                 messageUuid: thread.firstMessage.uuid,
+                enableSqlMode: variables.enableSqlMode,
                 onFinish: () =>
                     queryClient.invalidateQueries({
                         queryKey: [
@@ -553,12 +603,14 @@ export const useCreateAgentThreadMutation = (
                     }),
             });
 
-            void navigate(
-                `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
-                {
-                    viewTransition: true,
-                },
-            );
+            options?.onCreated?.(thread);
+
+            if (!options?.skipNavigation) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
+                    { viewTransition: true },
+                );
+            }
         },
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
@@ -602,10 +654,17 @@ export const useCreateAgentThreadMessageMutation = (
     return useMutation<
         ApiAiAgentThreadMessageCreateResponse['results'],
         ApiError,
-        ApiAiAgentThreadMessageCreateRequest,
+        ApiAiAgentThreadMessageCreateRequest & {
+            optimisticContext?: AiPromptContext;
+            enableSqlMode?: boolean;
+        },
         { messageUuid: string }
     >({
-        mutationFn: (data) =>
+        mutationFn: ({
+            optimisticContext: _optimisticContext,
+            enableSqlMode: _enableSqlMode,
+            ...data
+        }) =>
             agentUuid && threadUuid
                 ? createAgentThreadMessage(
                       projectUuid,
@@ -639,6 +698,8 @@ export const useCreateAgentThreadMessageMutation = (
                                 data.prompt,
                                 user!.data!,
                                 agent!,
+                                data.optimisticContext ??
+                                    data.context?.map(toOptimisticContextItem),
                             ),
                         ],
                     };
@@ -647,7 +708,7 @@ export const useCreateAgentThreadMessageMutation = (
 
             return { messageUuid };
         },
-        onSuccess: (data, _vars, context) => {
+        onSuccess: (data, vars, context) => {
             queryClient.setQueryData(
                 [AI_AGENTS_KEY, projectUuid, agentUuid, 'threads', threadUuid],
                 (
@@ -678,6 +739,7 @@ export const useCreateAgentThreadMessageMutation = (
                 agentUuid: agentUuid!,
                 threadUuid: threadUuid!,
                 messageUuid: data.uuid,
+                enableSqlMode: vars.enableSqlMode,
                 onFinish: () =>
                     queryClient.invalidateQueries([
                         AI_AGENTS_KEY,
@@ -725,14 +787,22 @@ export const useRetryAiAgentThreadMessageMutation = () => {
             agentUuid: string;
             threadUuid: string;
             messageUuid: string;
+            enableSqlMode?: boolean;
         }
     >({
-        mutationFn: ({ projectUuid, agentUuid, threadUuid, messageUuid }) =>
+        mutationFn: ({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            enableSqlMode,
+        }) =>
             streamMessage({
                 projectUuid,
                 agentUuid: agentUuid,
                 threadUuid: threadUuid,
                 messageUuid: messageUuid,
+                enableSqlMode,
                 refetchThread: () =>
                     queryClient.invalidateQueries({
                         queryKey: [

@@ -1,4 +1,4 @@
-import { OrganizationProject } from '@lightdash/common';
+import { OrganizationProject, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
 import { URL } from 'url';
 import { LightdashAnalytics } from '../analytics/analytics';
@@ -26,18 +26,32 @@ export const setProjectCommand = async (
         `> Set project returned response: ${JSON.stringify(projects)}`,
     );
 
+    // `set-project` configures the default (production) project. Preview
+    // projects are managed separately via `start-preview`/`stop-preview`,
+    // and storing one here causes the download prompt to show the same
+    // project under both "Preview" and "Production" labels.
+    const nonPreviewProjects = projects.filter(
+        (project) => project.type !== ProjectType.PREVIEW,
+    );
+
     if (projects.length === 0) return 'empty';
 
     let selectedProject: OrganizationProject | undefined;
 
     // --uuid or --name options
     if (uuid !== undefined || name !== undefined) {
-        selectedProject = projects.find(
+        const matchedProject = projects.find(
             (project) => project.name === name || project.projectUuid === uuid,
         );
+        if (matchedProject?.type === ProjectType.PREVIEW) {
+            throw new Error(
+                `Project "${matchedProject.name}" is a preview project and cannot be set as the default project. Use \`lightdash start-preview\` to work with preview projects.`,
+            );
+        }
+        selectedProject = matchedProject;
     } else if (GlobalState.isNonInteractive()) {
         GlobalState.debug('> Non-interactive mode: selecting first project');
-        [selectedProject] = projects;
+        [selectedProject] = nonPreviewProjects;
     } else {
         const SKIP_VALUE = '__skip__';
         const answers = await inquirer.prompt([
@@ -49,7 +63,7 @@ export const setProjectCommand = async (
                         name: "Don't select a project",
                         value: SKIP_VALUE,
                     },
-                    ...projects.map((project) => ({
+                    ...nonPreviewProjects.map((project) => ({
                         name: project.name,
                         value: project.projectUuid,
                     })),
@@ -62,7 +76,7 @@ export const setProjectCommand = async (
             return 'skipped';
         }
 
-        selectedProject = projects.find(
+        selectedProject = nonPreviewProjects.find(
             (project) => project.projectUuid === answers.project,
         );
     }

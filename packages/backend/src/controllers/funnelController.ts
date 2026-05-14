@@ -2,6 +2,7 @@ import {
     ApiErrorPayload,
     ApiFunnelEventNamesResponse,
     ApiFunnelQueryResponse,
+    assertRegisteredAccount,
     FunnelQueryRequest,
 } from '@lightdash/common';
 import {
@@ -19,6 +20,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -47,12 +49,13 @@ export class FunnelController extends BaseController {
         @Query() timestampFieldId: string,
         @Request() req: express.Request,
     ): Promise<ApiFunnelEventNamesResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getFunnelService()
             .getEventNames(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 exploreName,
                 eventDimensionId,
@@ -78,11 +81,12 @@ export class FunnelController extends BaseController {
         @Body() body: FunnelQueryRequest,
         @Request() req: express.Request,
     ): Promise<ApiFunnelQueryResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getFunnelService()
-            .runFunnelQuery(req.user!, projectUuid, body);
+            .runFunnelQuery(toSessionUser(req.account), projectUuid, body);
 
         return { status: 'ok', results };
     }

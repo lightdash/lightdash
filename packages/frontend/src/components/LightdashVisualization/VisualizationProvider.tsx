@@ -36,10 +36,7 @@ import {
 } from '../../hooks/useChartColorConfig/utils';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import Context from './context';
@@ -63,6 +60,7 @@ export type VisualizationProviderProps = {
     resultsData: InfiniteQueryResults & {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
+        resolvedTimezone?: string;
     };
     parameters?: ParametersValuesMap;
     isLoading: boolean;
@@ -145,7 +143,11 @@ const VisualizationProvider: FC<
         };
     }, [setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] = useState<
-        InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
+        InfiniteQueryResults & {
+            metricQuery?: MetricQuery;
+            fields?: ItemsMap;
+            resolvedTimezone?: string;
+        }
     >();
 
     const { data: useSqlPivotResults } = useServerFeatureFlag(
@@ -258,9 +260,11 @@ const VisualizationProvider: FC<
         [calculateKeyColorAssignment, itemsMap],
     );
 
-    const isCalculateSeriesColorEnabled = useClientFeatureFlag(
+    const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
     );
+    const isCalculateSeriesColorEnabled =
+        calculateSeriesColorFlag?.enabled ?? false;
 
     /**
      * Gets a shared color for a given series.
@@ -364,6 +368,7 @@ const VisualizationProvider: FC<
         isDashboard,
         isEditMode,
         isTouchDevice,
+        resolvedTimezone: lastValidResultsData?.resolvedTimezone,
     };
 
     switch (chartConfig.type) {

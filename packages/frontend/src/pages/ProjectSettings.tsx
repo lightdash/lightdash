@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
@@ -12,6 +11,7 @@ import { DefaultUserSpaces } from '../components/DefaultUserSpaces';
 import PreAggregateAudit from '../components/PreAggregateAudit';
 import PreAggregateMaterializations from '../components/PreAggregateMaterializations';
 import ProjectUserAccess from '../components/ProjectAccess';
+import ProjectAppearance from '../components/ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
@@ -24,7 +24,6 @@ import SettingsEmbed from '../ee/features/embed/SettingsEmbed';
 import { ProjectChangesets } from '../features/changesets/components/ProjectChangesets';
 import RecentlyDeletedPage from '../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../hooks/useProject';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 
 const ProjectSettings: FC = () => {
@@ -36,10 +35,6 @@ const ProjectSettings: FC = () => {
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
-    const { data: defaultUserSpacesFlag } = useServerFeatureFlag(
-        FeatureFlags.DefaultUserSpaces,
-    );
-    const isDefaultUserSpacesEnabled = defaultUserSpacesFlag?.enabled ?? false;
 
     const routes = useMemo<RouteObject[]>(() => {
         if (!projectUuid) {
@@ -65,6 +60,10 @@ const ProjectSettings: FC = () => {
                 element: <ProjectUserAccess projectUuid={projectUuid} />,
             },
             {
+                path: `/appearance`,
+                element: <ProjectAppearance projectUuid={projectUuid} />,
+            },
+            {
                 path: `/usageAnalytics`,
                 element: <SettingsUsageAnalytics projectUuid={projectUuid} />,
             },
@@ -84,16 +83,10 @@ const ProjectSettings: FC = () => {
                 path: `/dataOps`,
                 element: <DataOps projectUuid={projectUuid} />,
             },
-            ...(isDefaultUserSpacesEnabled
-                ? [
-                      {
-                          path: `/defaultUserSpaces`,
-                          element: (
-                              <DefaultUserSpaces projectUuid={projectUuid} />
-                          ),
-                      },
-                  ]
-                : []),
+            {
+                path: `/defaultUserSpaces`,
+                element: <DefaultUserSpaces projectUuid={projectUuid} />,
+            },
             ...(isSoftDeleteEnabled
                 ? [
                       {
@@ -153,7 +146,7 @@ const ProjectSettings: FC = () => {
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
         ];
-    }, [projectUuid, isSoftDeleteEnabled, isDefaultUserSpacesEnabled]);
+    }, [projectUuid, isSoftDeleteEnabled]);
     const routesElements = useRoutes(routes);
 
     if (error) {

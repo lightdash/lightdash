@@ -23,7 +23,6 @@ const TableRow: FC<{
     onClickDelete: (role: RoleWithScopes) => void;
 }> = ({ role, onClickDelete }) => {
     const { name, description, createdAt } = role;
-    console.log('description', description);
     const { ref: nameRef, isTruncated: isNameTruncated } =
         useIsTruncated<HTMLDivElement>();
     const { ref: descriptionRef, isTruncated: isDescriptionTruncated } =

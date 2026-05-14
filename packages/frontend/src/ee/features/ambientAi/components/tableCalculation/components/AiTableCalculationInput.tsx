@@ -1,7 +1,7 @@
 import type { GeneratedTableCalculation } from '@lightdash/common';
-import { ActionIcon, Box, Group, Text } from '@mantine/core';
+import { ActionIcon, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
-import { IconArrowUp, IconSparkles } from '@tabler/icons-react';
+import { IconArrowUp } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
 import { useCallback, useRef, useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -21,7 +21,15 @@ type Props = {
     onApply: (result: GeneratedTableCalculation) => void;
 };
 
-export const AiTableCalculationInput: FC<Props> = ({ currentSql, onApply }) => {
+/**
+ * Renders the body content (prompt editor + send button + error text) of
+ * the SQL table calculation AI input. The outer container + header live
+ * in `AiSlot`, which the consumer is expected to provide.
+ */
+export const AiTableCalculationInputBody: FC<Props> = ({
+    currentSql,
+    onApply,
+}) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -66,50 +74,40 @@ export const AiTableCalculationInput: FC<Props> = ({ currentSql, onApply }) => {
         [generate, currentSql],
     );
 
-    // Cmd+Enter / Ctrl+Enter to generate
     useHotkeys([['mod+Enter', handleGenerate]], [], true);
 
     return (
-        <Box className={styles.container}>
-            <Group spacing="xs" mb="xs">
-                <MantineIcon icon={IconSparkles} color="indigo.4" />
-                <Text size="xs" c="ldDark.9" fw={500}>
-                    Generate and improve your table calculation with AI
-                </Text>
-            </Group>
-
-            <Box className={styles.editorContainer}>
-                <AiPromptEditor
-                    explore={explore}
-                    metricQuery={metricQuery}
-                    onUpdate={handleEditorUpdate}
-                    onSubmit={handleSubmit}
-                    shouldClear={shouldClearEditor}
-                    onCleared={() => setShouldClearEditor(false)}
-                    disabled={isLoading}
+        <>
+            <AiPromptEditor
+                explore={explore}
+                metricQuery={metricQuery}
+                onUpdate={handleEditorUpdate}
+                onSubmit={handleSubmit}
+                shouldClear={shouldClearEditor}
+                onCleared={() => setShouldClearEditor(false)}
+                disabled={isLoading}
+            />
+            <ActionIcon
+                size="sm"
+                radius="xl"
+                onClick={handleGenerate}
+                disabled={isLoading}
+                loading={isLoading}
+                className={styles.generateButton}
+            >
+                <MantineIcon
+                    icon={IconArrowUp}
+                    color="ldGray.0"
+                    size={16}
+                    stroke={2}
                 />
-                <ActionIcon
-                    size="sm"
-                    radius="xl"
-                    onClick={handleGenerate}
-                    disabled={isLoading}
-                    loading={isLoading}
-                    className={styles.generateButton}
-                >
-                    <MantineIcon
-                        icon={IconArrowUp}
-                        color="ldGray.0"
-                        size={16}
-                        stroke={2}
-                    />
-                </ActionIcon>
-            </Box>
+            </ActionIcon>
 
             {error && (
                 <Text size="xs" c="red" mt="xs">
                     Failed to generate. Please try again.
                 </Text>
             )}
-        </Box>
+        </>
     );
 };

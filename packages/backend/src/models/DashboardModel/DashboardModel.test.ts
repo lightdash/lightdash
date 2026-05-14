@@ -744,4 +744,58 @@ describe('DashboardModel', () => {
             ),
         ).rejects.toThrowError(NotFoundError);
     });
+
+    test('should null out tile.tabUuid that does not match any tab in this version (PROD-5905)', async () => {
+        // Simulates the bad payload that triggered the FK violation in
+        // production: tabs[] empty (or missing the tile's tab) while a tile
+        // still carries a stale tabUuid.
+        const staleTabUuid = '00000000-0000-0000-0000-000000000000';
+        const versionWithStaleTabUuid: typeof addDashboardVersion = {
+            ...addDashboardVersion,
+            tabs: [],
+            tiles: [
+                {
+                    ...addDashboardVersion.tiles[0],
+                    tabUuid: staleTabUuid,
+                },
+            ],
+        };
+
+        tracker.on.select(DashboardsTableName).responseOnce([dashboardEntry]);
+        tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
+        tracker.on.insert(DashboardsTableName).responseOnce([dashboardEntry]);
+        tracker.on
+            .insert(DashboardVersionsTableName)
+            .responseOnce([dashboardVersionEntry]);
+        tracker.on
+            .insert(DashboardViewsTableName)
+            .responseOnce([dashboardViewEntry]);
+        tracker.on
+            .insert(DashboardTilesTableName)
+            .responseOnce([dashboardTileEntry]);
+        tracker.on.select(SavedChartsTableName).responseOnce([savedChartEntry]);
+        tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+        tracker.on.update(DashboardViewsTableName).responseOnce([]);
+
+        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
+
+        await expect(
+            model.addVersion(
+                expectedDashboard.uuid,
+                versionWithStaleTabUuid,
+                user,
+                projectUuid,
+            ),
+        ).resolves.not.toThrow();
+
+        const tilesInsert = tracker.history.insert.find((q) =>
+            q.sql.includes(DashboardTilesTableName),
+        );
+        expect(tilesInsert).toBeDefined();
+        // Stale uuid must have been dropped before the FK insert.
+        expect(tilesInsert!.bindings).not.toContain(staleTabUuid);
+        expect(tilesInsert!.bindings).toContain(null);
+    });
 });

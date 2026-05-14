@@ -17,6 +17,12 @@
             }
         }
     }
+
+    &:where([data-restricted='true']) {
+        cursor: not-allowed;
+        opacity: 0.55;
+        font-style: italic;
+    }
 }
 
 .actionIcon {

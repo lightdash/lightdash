@@ -24,11 +24,13 @@ const calculateTotalFromQuery = async ({
     projectUuid,
     metricQuery,
     explore,
+    invalidateCache,
     parameters,
 }: {
     projectUuid: string;
     metricQuery?: MetricQuery;
     explore?: string;
+    invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
 }): Promise<ApiCalculateTotalResponse['results']> => {
     if (!metricQuery || !explore) {
@@ -44,6 +46,7 @@ const calculateTotalFromQuery = async ({
             filters: convertDateFilters(metricQuery.filters),
         },
         parameters,
+        invalidateCache,
     };
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/projects/${projectUuid}/calculate-total`,
@@ -115,12 +118,14 @@ const postCalculateTotalFromQueryForEmbed = async ({
     projectUuid,
     metricQuery,
     explore,
+    invalidateCache,
     parameters,
 }: {
     embedToken: string;
     projectUuid: string;
     metricQuery: MetricQuery;
     explore: string;
+    invalidateCache?: boolean;
     parameters?: ParametersValuesMap;
 }): Promise<ApiCalculateTotalResponse['results']> => {
     const timezoneFixPayload: CalculateTotalFromQuery = {
@@ -130,6 +135,7 @@ const postCalculateTotalFromQueryForEmbed = async ({
             filters: convertDateFilters(metricQuery.filters),
         },
         parameters,
+        invalidateCache,
     };
     return lightdashApi<ApiCalculateTotalResponse['results']>({
         url: `/embed/${projectUuid}/calculate-total`,
@@ -196,6 +202,7 @@ export const useCalculateTotal = ({
               filters: metricQuery?.filters,
               metrics: metricQuery?.metrics,
               additionalMetrics: metricQuery?.additionalMetrics,
+              invalidateCache,
               parameters,
           };
 
@@ -218,6 +225,7 @@ export const useCalculateTotal = ({
                         projectUuid,
                         metricQuery,
                         explore,
+                        invalidateCache,
                         parameters,
                     })
                   : // Regular mode with saved chart
@@ -234,6 +242,7 @@ export const useCalculateTotal = ({
                             projectUuid,
                             metricQuery,
                             explore,
+                            invalidateCache,
                             parameters,
                         })
                       : Promise.reject(),

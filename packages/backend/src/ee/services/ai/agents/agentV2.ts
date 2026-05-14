@@ -11,14 +11,18 @@ import {
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
 import { getFindExplores } from '../tools/findExplores';
 import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getImproveContext } from '../tools/improveContext';
+import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getProposeChange } from '../tools/proposeChange';
 import { getRunQuery } from '../tools/runQuery';
+import { getRunSavedChart } from '../tools/runSavedChart';
+import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import type {
     AiAgentArgs,
@@ -26,7 +30,10 @@ import type {
     AiStreamAgentResponseArgs,
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
-import { getUserFacingErrorMessage } from '../utils/errorMessages';
+import {
+    AiAgentStepCapReachedError,
+    getUserFacingErrorMessage,
+} from '../utils/errorMessages';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -35,9 +42,11 @@ const createAiAgentLogger =
         }
     };
 
+const STEP_CAP = 40;
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
-    stopWhen: stepCountIs(20),
+    stopWhen: stepCountIs(STEP_CAP),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
@@ -110,6 +119,39 @@ const getAgentTools = (
         enableSelfImprovement: args.enableSelfImprovement,
     });
 
+    const runSavedChart = getRunSavedChart({
+        updateProgress: dependencies.updateProgress,
+        runAsyncQuery: dependencies.runAsyncQuery,
+        getSavedChart: dependencies.getSavedChart,
+        maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
+    });
+
+    const runSql = args.canRunSql
+        ? getRunSql({
+              updateProgress: dependencies.updateProgress,
+              runSqlJob: dependencies.runSqlJob,
+              getPrompt: dependencies.getPrompt,
+              sendFile: dependencies.sendFile,
+              updateSlackMessage: dependencies.updateSlackMessage,
+              siteUrl: args.siteUrl,
+              waitForSqlApproval: dependencies.waitForSqlApproval,
+              recordSqlApproval: dependencies.recordSqlApproval,
+          })
+        : null;
+
+    const listWarehouseTables = args.canRunSql
+        ? getListWarehouseTables({
+              listWarehouseTables: dependencies.listWarehouseTables,
+          })
+        : null;
+
+    const describeWarehouseTable = args.canRunSql
+        ? getDescribeWarehouseTable({
+              describeWarehouseTable: dependencies.describeWarehouseTable,
+          })
+        : null;
+
     const generateDashboard = getGenerateDashboardV2({
         getPrompt: dependencies.getPrompt,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
@@ -132,12 +174,16 @@ const getAgentTools = (
         findExplores,
         findFields,
         runQuery,
+        runSavedChart,
         generateDashboard,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(args.enableSelfImprovement && args.canManageAgent
             ? { proposeChange }
             : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
+        ...(runSql ? { runSql } : {}),
+        ...(listWarehouseTables ? { listWarehouseTables } : {}),
+        ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
     };
 
     logger(
@@ -158,6 +204,9 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             availableExplores,
             enableDataAccess: args.enableDataAccess,
             enableSelfImprovement: args.enableSelfImprovement,
+            canRunSql: args.canRunSql,
+            warehouseType: args.warehouseType,
+            warehouseSchema: args.warehouseSchema,
         }),
         ...args.messageHistory,
     ];
@@ -331,8 +380,12 @@ export const generateAgentResponse = async ({
 
         logger(
             'Generate Agent Response',
-            `Generation complete. Result text length: ${result.text.length}`,
+            `Generation complete. Result text length: ${result.text.length}, finishReason: ${result.finishReason}`,
         );
+
+        if (result.steps.length >= STEP_CAP && !result.text) {
+            throw new AiAgentStepCapReachedError(result.steps.length);
+        }
 
         const totalTime = Date.now() - startTime;
         dependencies.perf.measureGenerateResponseTime(totalTime);
@@ -546,10 +599,10 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: ({ usage, steps, reasoning }) => {
+            onFinish: ({ usage, steps, reasoning, finishReason }) => {
                 logger(
                     'On Finish',
-                    'Stream finished. Updating prompt with response.',
+                    `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
                 );
 
                 // Extract complete response from all steps instead of just the last text
@@ -557,10 +610,21 @@ export const streamAgentResponse = async ({
                     .flatMap((step) => step.text || [])
                     .join('\n');
 
-                void dependencies.updatePrompt({
-                    response: completeResponse,
-                    promptUuid: args.promptUuid,
-                });
+                const stepCapReached = steps.length >= STEP_CAP;
+
+                if (stepCapReached && !completeResponse) {
+                    void dependencies.updatePrompt({
+                        promptUuid: args.promptUuid,
+                        errorMessage: getUserFacingErrorMessage(
+                            new AiAgentStepCapReachedError(steps.length),
+                        ),
+                    });
+                } else {
+                    void dependencies.updatePrompt({
+                        response: completeResponse,
+                        promptUuid: args.promptUuid,
+                    });
+                }
 
                 logger(
                     'On Finish',
@@ -580,6 +644,8 @@ export const streamAgentResponse = async ({
                             typeof args.model === 'string'
                                 ? args.model
                                 : args.model.modelId,
+                        finishReason,
+                        stepCapReached,
                     },
                 });
                 logger(

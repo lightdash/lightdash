@@ -134,14 +134,8 @@ const UserAttributeModal: FC<{
         handleClose();
     };
 
-    if (userGroupsFeatureFlagQuery.isError) {
-        console.error(userGroupsFeatureFlagQuery.error);
-        throw new Error('Error fetching user groups feature flag');
-    }
-
     const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
+        userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     const { data: orgUsers } = useOrganizationUsers();
     const { data: groups } = useOrganizationGroups(

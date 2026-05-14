@@ -128,3 +128,24 @@ export type ApiRoleAssignmentListResponse = {
     status: 'ok';
     results: RoleAssignment[];
 };
+
+// Assignees of a custom role — used by the delete-confirmation UI to show
+// what's currently using a role before allowing deletion.
+export type RoleAssigneeKind =
+    | 'organization_user'
+    | 'project_user'
+    | 'project_group'
+    | 'service_account';
+
+export type RoleAssignee = {
+    kind: RoleAssigneeKind;
+    assigneeId: string; // userUuid | groupUuid | serviceAccountUuid
+    assigneeName: string;
+    projectUuid: string | null;
+    projectName: string | null;
+};
+
+export type ApiRoleAssigneesResponse = {
+    status: 'ok';
+    results: RoleAssignee[];
+};

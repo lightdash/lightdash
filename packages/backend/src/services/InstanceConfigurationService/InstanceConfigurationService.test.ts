@@ -37,6 +37,7 @@ const mockSessionUser: SessionUser = {
     abilityRules: {} as AnyType,
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     createdAt: new Date(),
     updatedAt: new Date(),
 };

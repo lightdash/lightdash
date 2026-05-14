@@ -9,6 +9,7 @@ import {
     MetricType,
     NumberSeparator,
     type CustomFormat,
+    type Dimension,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
 import {
@@ -16,11 +17,16 @@ import {
     applyDefaultFormat,
     convertCustomFormatToFormatExpression,
     currencies,
+    formatDate,
     formatItemValue,
     formatNumberValue,
+    formatTemporalCellForSpreadsheet,
+    formatTimestamp,
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     isMomentInput,
+    shouldShiftItemTimezone,
+    toIsoWithProjectOffset,
 } from './formatting';
 import {
     additionalMetric,
@@ -786,6 +792,114 @@ describe('Formatting', () => {
                     2021,
                 ),
             ).toEqual('2021');
+        });
+
+        test('formatItemValue DATE ignores display timezone for DATE-backed dimensions', () => {
+            const value = new Date('2026-03-03T00:00:00.000Z');
+            // DATE base: timezone must be ignored (no day-shift in negative offsets)
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.DATE,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03');
+            // TIMESTAMP base: timezone still applies
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-02');
+        });
+
+        test('formatItemValue ignores display timezone when skipTimezoneConversion is set', () => {
+            const value = new Date('2026-03-03T01:30:00.000Z');
+            // TIMESTAMP dim with skipTimezoneConversion renders in raw UTC
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.TIMESTAMP,
+                        skipTimezoneConversion: true,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03, 01:30:00:000 (+00:00)');
+            // DATE-base-TIMESTAMP child also opts out
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.DATE,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                        skipTimezoneConversion: true,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03');
+            // Sanity: same dim without the marker (default) still shifts
+            expect(
+                formatItemValue(
+                    {
+                        ...dimension,
+                        type: DimensionType.TIMESTAMP,
+                    },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-02, 14:30:00:000 (-11:00)');
+        });
+
+        test('shouldShiftItemTimezone respects skipTimezoneConversion', () => {
+            // The function is part of the public formatting surface used by
+            // pivot exports + Google Sheets — opt-out must short-circuit.
+            const tsBase: Dimension = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+            };
+            const tsBaseOptOut: Dimension = {
+                ...tsBase,
+                skipTimezoneConversion: true,
+            };
+            expect(shouldShiftItemTimezone(tsBase)).toBe(true);
+            expect(shouldShiftItemTimezone(tsBaseOptOut)).toBe(false);
+
+            const dateOverTs: Dimension = {
+                ...dimension,
+                type: DimensionType.DATE,
+                timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+            };
+            const dateOverTsOptOut: Dimension = {
+                ...dateOverTs,
+                skipTimezoneConversion: true,
+            };
+            expect(shouldShiftItemTimezone(dateOverTs)).toBe(true);
+            expect(shouldShiftItemTimezone(dateOverTsOptOut)).toBe(false);
         });
 
         test('formatItemValue should return the right format when field is Metric', () => {
@@ -1732,6 +1846,386 @@ describe('Formatting', () => {
                     }),
                 ).toBe('£1,000.50');
             });
+        });
+    });
+
+    describe('timezone-aware formatting', () => {
+        const utcTimestamp = '2020-04-04T02:00:00.000Z';
+
+        describe('formatDate', () => {
+            test('existing behavior unchanged when no timezone', () => {
+                const withTrue = formatDate(utcTimestamp, TimeFrames.DAY, true);
+                const withFalse = formatDate(
+                    utcTimestamp,
+                    TimeFrames.DAY,
+                    false,
+                );
+                const withDefault = formatDate(utcTimestamp, TimeFrames.DAY);
+                expect(withTrue).toBe('2020-04-04');
+                expect(withFalse).toBe(withDefault);
+            });
+
+            test('shifts UTC instant into project TZ for positive offsets (Tokyo)', () => {
+                // Tokyo midnight Jan 14 = UTC Jan 13 15:00
+                const tokyoMidnight = '2024-01-13T15:00:00.000Z';
+                expect(
+                    formatDate(
+                        tokyoMidnight,
+                        TimeFrames.DAY,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-01-14');
+            });
+
+            test('shifts UTC instant into project TZ for negative offsets (Pago_Pago)', () => {
+                // Pago_Pago midnight Jan 14 = UTC Jan 14 11:00
+                const ppMidnight = '2024-01-14T11:00:00.000Z';
+                expect(
+                    formatDate(
+                        ppMidnight,
+                        TimeFrames.DAY,
+                        false,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toBe('2024-01-14');
+            });
+
+            test('UTC project TZ is a no-op', () => {
+                const utcMidnight = '2024-01-14T00:00:00.000Z';
+                expect(
+                    formatDate(utcMidnight, TimeFrames.DAY, false, 'UTC'),
+                ).toBe('2024-01-14');
+            });
+
+            test('timezone takes precedence over convertToUTC', () => {
+                expect(
+                    formatDate(
+                        utcTimestamp,
+                        TimeFrames.DAY,
+                        true,
+                        'America/New_York',
+                    ),
+                ).toBe('2020-04-03');
+            });
+
+            test('year boundary falls on different years in Tokyo vs Pago_Pago', () => {
+                // Jan 1 00:00 UTC = Tokyo Jan 1 09:00 (2024), PP Dec 31 13:00 (2023)
+                const yearBoundary = '2024-01-01T00:00:00.000Z';
+                expect(
+                    formatDate(
+                        yearBoundary,
+                        TimeFrames.YEAR,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024');
+                expect(
+                    formatDate(
+                        yearBoundary,
+                        TimeFrames.YEAR,
+                        false,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toBe('2023');
+            });
+
+            test('month boundary shifts with positive offset (Tokyo)', () => {
+                // Tokyo Feb 1 00:00 = UTC Jan 31 15:00
+                const tokyoMonthBoundary = '2024-01-31T15:00:00.000Z';
+                expect(
+                    formatDate(
+                        tokyoMonthBoundary,
+                        TimeFrames.MONTH,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-02');
+            });
+
+            test('returns NaT for invalid input', () => {
+                expect(
+                    formatDate(
+                        'not a date',
+                        TimeFrames.DAY,
+                        false,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('NaT');
+            });
+        });
+
+        describe('formatTimestamp', () => {
+            test('formats timestamp in project timezone', () => {
+                const result = formatTimestamp(
+                    utcTimestamp,
+                    TimeFrames.SECOND,
+                    false,
+                    'America/New_York',
+                );
+                expect(result).toBe('2020-04-03, 22:00:00 (-04:00)');
+            });
+
+            test('formats timestamp with correct offset in MILLISECOND interval', () => {
+                const result = formatTimestamp(
+                    utcTimestamp,
+                    TimeFrames.MILLISECOND,
+                    false,
+                    'America/New_York',
+                );
+                expect(result).toContain('2020-04-03, 22:00:00:000');
+                expect(result).toContain('-04:00');
+            });
+
+            test('existing behavior unchanged when no timezone', () => {
+                const withTrue = formatTimestamp(
+                    utcTimestamp,
+                    TimeFrames.MILLISECOND,
+                    true,
+                );
+                expect(withTrue).toBe('2020-04-04, 02:00:00:000 (+00:00)');
+            });
+        });
+
+        describe('formatItemValue uniform timezone shift', () => {
+            const tsBase = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+            };
+
+            test('truncated HOUR shifts into project TZ (negative offset)', () => {
+                // Pago_Pago 15:00 Jan 14 = UTC Jan 15 02:00
+                const value = new Date('2024-01-15T02:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        { ...tsBase, timeInterval: TimeFrames.HOUR },
+                        value,
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toBe('2024-01-14, 15 (-11:00)');
+            });
+
+            test('truncated HOUR shifts into project TZ (positive offset)', () => {
+                // Tokyo 11:00 Jan 15 = UTC Jan 15 02:00
+                const value = new Date('2024-01-15T02:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        { ...tsBase, timeInterval: TimeFrames.HOUR },
+                        value,
+                        false,
+                        undefined,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-01-15, 11 (+09:00)');
+            });
+
+            test('RAW TIMESTAMP shifts into project TZ', () => {
+                const value = new Date('2024-01-15T02:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        { ...tsBase, timeInterval: TimeFrames.RAW },
+                        value,
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago',
+                    ),
+                ).toContain('(-11:00)');
+            });
+
+            test('DATE DAY shifts into project TZ (positive offset canary)', () => {
+                // Tokyo midnight Jan 14 = UTC Jan 13 15:00
+                const value = new Date('2024-01-13T15:00:00.000Z');
+                expect(
+                    formatItemValue(
+                        {
+                            ...dimension,
+                            type: DimensionType.DATE,
+                            timeInterval: TimeFrames.DAY,
+                        },
+                        value,
+                        false,
+                        undefined,
+                        'Asia/Tokyo',
+                    ),
+                ).toBe('2024-01-14');
+            });
+
+            test('no timezone is byte-identical to default', () => {
+                const value = new Date('2024-01-15T02:00:00.000Z');
+                const hourItem = {
+                    ...tsBase,
+                    timeInterval: TimeFrames.HOUR,
+                };
+                expect(formatItemValue(hourItem, value)).toBe(
+                    formatItemValue(
+                        hourItem,
+                        value,
+                        undefined,
+                        undefined,
+                        undefined,
+                    ),
+                );
+            });
+        });
+    });
+
+    describe('toIsoWithProjectOffset', () => {
+        const tz = 'Pacific/Pago_Pago'; // UTC-11, no DST
+
+        test('returns undefined when timezone is unset', () => {
+            expect(
+                toIsoWithProjectOffset('2024-01-15T02:00:00.000Z', undefined),
+            ).toBeUndefined();
+        });
+
+        test('returns undefined when timezone is UTC (no-op short-circuit)', () => {
+            expect(
+                toIsoWithProjectOffset('2024-01-15T02:00:00.000Z', 'UTC'),
+            ).toBeUndefined();
+        });
+
+        test('shifts a UTC ISO string into project offset', () => {
+            expect(toIsoWithProjectOffset('2024-01-15T02:00:00.000Z', tz)).toBe(
+                '2024-01-14T15:00:00.000-11:00',
+            );
+        });
+
+        test('always emits millis even when source had none', () => {
+            expect(toIsoWithProjectOffset('2024-01-15T02:00:00Z', tz)).toBe(
+                '2024-01-14T15:00:00.000-11:00',
+            );
+        });
+
+        test('accepts Date input', () => {
+            expect(
+                toIsoWithProjectOffset(
+                    new Date('2024-01-15T02:00:00.000Z'),
+                    tz,
+                ),
+            ).toBe('2024-01-14T15:00:00.000-11:00');
+        });
+
+        test('accepts numeric epoch ms', () => {
+            const epoch = Date.UTC(2024, 0, 15, 2, 0, 0, 0);
+            expect(toIsoWithProjectOffset(epoch, tz)).toBe(
+                '2024-01-14T15:00:00.000-11:00',
+            );
+        });
+
+        test('returns undefined for null/undefined/non-instant inputs', () => {
+            expect(toIsoWithProjectOffset(null, tz)).toBeUndefined();
+            expect(toIsoWithProjectOffset(undefined, tz)).toBeUndefined();
+            expect(toIsoWithProjectOffset({}, tz)).toBeUndefined();
+            expect(toIsoWithProjectOffset(['a'], tz)).toBeUndefined();
+        });
+
+        test('returns undefined for unparseable strings', () => {
+            expect(
+                toIsoWithProjectOffset('not-a-timestamp', tz),
+            ).toBeUndefined();
+        });
+
+        test('honors positive-offset zones (DST-aware via moment-timezone)', () => {
+            // Asia/Karachi is UTC+5 year-round, so 02:00 UTC -> 07:00 +05:00
+            expect(
+                toIsoWithProjectOffset(
+                    '2024-01-15T02:00:00.000Z',
+                    'Asia/Karachi',
+                ),
+            ).toBe('2024-01-15T07:00:00.000+05:00');
+        });
+    });
+
+    describe('formatTemporalCellForSpreadsheet', () => {
+        const tz = 'Pacific/Pago_Pago'; // UTC-11
+        const tsField = {
+            ...dimension,
+            type: DimensionType.TIMESTAMP,
+            name: 'event_timestamp',
+        };
+        const dateBaseTsField = {
+            ...dimension,
+            type: DimensionType.DATE,
+            name: 'event_timestamp_day',
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const calendarDateField = {
+            ...dimension,
+            type: DimensionType.DATE,
+            name: 'order_date',
+        };
+
+        test('TIMESTAMP shifts into project tz with millis', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    tsField,
+                    '2024-01-15T18:00:00.000Z',
+                    tz,
+                ),
+            ).toBe('2024-01-15 07:00:00.000');
+        });
+
+        test('TIMESTAMP without timezone formats wall-clock as-is', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    tsField,
+                    '2024-01-15T18:00:00.000Z',
+                    undefined,
+                ),
+            ).toBe('2024-01-15 18:00:00.000');
+        });
+
+        test('DATE-base-TS shifts into project tz', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    dateBaseTsField,
+                    '2024-01-15T11:00:00.000Z',
+                    tz,
+                ),
+            ).toBe('2024-01-15');
+        });
+
+        test('calendar DATE is not shifted even when tz is set', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    calendarDateField,
+                    '2024-01-15',
+                    tz,
+                ),
+            ).toBe('2024-01-15');
+        });
+
+        test('returns undefined for non-temporal fields', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(dimension, 'foo', tz),
+            ).toBeUndefined();
+            expect(
+                formatTemporalCellForSpreadsheet(metric, 42, tz),
+            ).toBeUndefined();
+        });
+
+        test('returns undefined for null / empty raw values', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(tsField, null, tz),
+            ).toBeUndefined();
+            expect(
+                formatTemporalCellForSpreadsheet(tsField, undefined, tz),
+            ).toBeUndefined();
+            expect(
+                formatTemporalCellForSpreadsheet(tsField, '', tz),
+            ).toBeUndefined();
+        });
+
+        test('accepts Date input', () => {
+            expect(
+                formatTemporalCellForSpreadsheet(
+                    tsField,
+                    new Date('2024-01-15T18:00:00.000Z'),
+                    tz,
+                ),
+            ).toBe('2024-01-15 07:00:00.000');
         });
     });
 });

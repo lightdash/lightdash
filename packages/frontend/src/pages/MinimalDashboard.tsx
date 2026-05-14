@@ -15,9 +15,11 @@ import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useParams } from 'react-router';
+import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
 import ChartTile from '../components/DashboardTiles/DashboardChartTile';
+import DataAppTile from '../components/DashboardTiles/DashboardDataAppTile';
 import HeadingTile from '../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../components/DashboardTiles/DashboardMarkdownTile';
@@ -80,6 +82,15 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     );
     const screenshotErroredTilesCount = useDashboardTileStatusContext(
         (c) => c.screenshotErroredTilesCount,
+    );
+    const expectedScreenshotTileUuids = useDashboardTileStatusContext(
+        (c) => c.expectedScreenshotTileUuids,
+    );
+    const screenshotReadyTileUuids = useDashboardTileStatusContext(
+        (c) => c.screenshotReadyTileUuids,
+    );
+    const screenshotErroredTileUuids = useDashboardTileStatusContext(
+        (c) => c.screenshotErroredTileUuids,
     );
 
     useEffect(() => {
@@ -164,6 +175,14 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                                     onDelete={() => {}}
                                     onEdit={() => {}}
                                 />
+                            ) : tile.type === DashboardTileTypes.DATA_APP ? (
+                                <DataAppTile
+                                    key={tile.uuid}
+                                    tile={tile}
+                                    isEditMode={false}
+                                    onDelete={() => {}}
+                                    onEdit={() => {}}
+                                />
                             ) : (
                                 assertUnreachable(
                                     tile,
@@ -175,6 +194,11 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                 </ResponsiveGridLayout>
             )}
 
+            <ScreenshotProgressIndicator
+                expectedTileUuids={expectedScreenshotTileUuids}
+                readyTileUuids={screenshotReadyTileUuids}
+                erroredTileUuids={screenshotErroredTileUuids}
+            />
             {isReadyForScreenshot && (
                 <ScreenshotReadyIndicator
                     tilesTotal={expectedScreenshotTilesCount}
@@ -222,9 +246,11 @@ const MinimalDashboard: FC = () => {
     const [activeTab, setActiveTab] = useState<DashboardTab | null>(null);
 
     useEffect(() => {
+        // Minimal/embed renders are always treated as view mode — hidden tabs
+        // should not be selectable. Fall back to the first visible tab.
+        const visibleTabs = dashboard?.tabs.filter((tab) => !tab.hidden) ?? [];
         const matchedTab =
-            dashboard?.tabs.find((tab) => tab.uuid === tabUuid) ??
-            dashboard?.tabs[0];
+            visibleTabs.find((tab) => tab.uuid === tabUuid) ?? visibleTabs[0];
         setActiveTab(matchedTab || null);
     }, [tabUuid, dashboard?.tabs]);
 

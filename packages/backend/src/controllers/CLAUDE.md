@@ -11,12 +11,15 @@ Key patterns:
 - Return `{status: 'ok', results: T}` for success responses
 - Access services via `this.services.get{Service}Service()`
 - Set HTTP status with `this.setStatus(201)` for non-200 responses
+- Pass `req.account` to services. Add `assertRegisteredAccount(req.account)` as the first line of any handler that does not intentionally serve embed/JWT traffic. See `docs/account-patterns.md`.
   </howToUse>
 
 <codeExample>
 
 ```typescript
 // Basic CRUD controller
+import { assertRegisteredAccount } from '@lightdash/common';
+
 @Route('/api/v1/projects')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
@@ -34,9 +37,10 @@ export class ProjectController extends BaseController {
         @Path() projectUuid: string,
         @Query() includePrivate?: boolean,
     ): Promise<ApiGetCharts> {
+        assertRegisteredAccount(req.account);
         const charts = await this.services
             .getSavedChartService()
-            .getAllSpaces(req.user!, projectUuid, includePrivate);
+            .getAllSpaces(req.account, projectUuid, includePrivate);
         return {
             status: 'ok',
             results: charts,
@@ -55,10 +59,11 @@ export class ProjectController extends BaseController {
         @Body() body: CreateSavedChart,
         @Request() req: express.Request,
     ): Promise<ApiCreateSavedChart> {
+        assertRegisteredAccount(req.account);
         this.setStatus(201);
         const chart = await this.services
             .getSavedChartService()
-            .createSavedChart(req.user!, projectUuid, body);
+            .createSavedChart(req.account, projectUuid, body);
         return {
             status: 'ok',
             results: chart,
@@ -87,7 +92,7 @@ export class ProjectController extends BaseController {
 - Use TSOA decorators for OpenAPI generation and routing
 - Services accessed via `this.services.get{Service}Service()`
 - Consistent response format: `{status: 'ok', results: T}`
-- User object available as `req.user!` in authenticated endpoints
+- Authenticated caller available as `req.account`. Narrow with `assertRegisteredAccount(req.account)` for registered-only endpoints. `req.user!` is the legacy shape — see `docs/account-patterns.md`.
 - All endpoints must have JSDoc comments with description first, then `@summary` tag (2-3 words)
 
 **V2 Differences:**
@@ -111,4 +116,5 @@ export class ProjectController extends BaseController {
 @packages/backend/src/controllers/userController.ts - User management example
 @packages/backend/src/controllers/projectController.ts - Complex resource controller
 @packages/backend/src/controllers/v2/ - V2 API controllers with async patterns
+@docs/account-patterns.md - Patterns for `req.account`, `assertRegisteredAccount`, `RegisteredAccount` vs `SessionUser`
 </links>

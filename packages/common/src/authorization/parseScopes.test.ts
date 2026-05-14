@@ -28,15 +28,12 @@ describe('parseScopes', () => {
 
         it('should handle mixed case scope names correctly', () => {
             const result = parseScopes({
-                scopes: [
-                    'export:dashboard_csv',
-                    'manage:personal_access_token',
-                ],
+                scopes: ['manage:custom_sql', 'manage:personal_access_token'],
                 isEnterprise: true,
             });
 
             expect(result.size).toBe(2);
-            expect(result.has('export:DashboardCsv')).toBe(true);
+            expect(result.has('manage:CustomSql')).toBe(true);
             expect(result.has('manage:PersonalAccessToken')).toBe(true);
         });
 
@@ -92,14 +89,14 @@ describe('parseScopes', () => {
         it('should transform snake_case to PascalCase correctly', () => {
             const result = parseScopes({
                 scopes: [
-                    'export:dashboard_csv',
+                    'manage:custom_sql',
                     'manage:personal_access_token',
                     'view:semantic_viewer',
                 ],
                 isEnterprise: true,
             });
 
-            expect(result.has('export:DashboardCsv')).toBe(true);
+            expect(result.has('manage:CustomSql')).toBe(true);
             expect(result.has('manage:PersonalAccessToken')).toBe(true);
             expect(result.has('view:SemanticViewer')).toBe(true);
         });

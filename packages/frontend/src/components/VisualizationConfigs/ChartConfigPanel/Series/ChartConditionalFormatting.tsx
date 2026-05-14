@@ -1,13 +1,14 @@
 import {
     createConditionalFormattingConfigWithSingleColor,
     getItemId,
+    isConditionalFormattingWithValues,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithSingleColor,
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
     type FilterOperator,
 } from '@lightdash/common';
-import { Accordion, Divider, Group } from '@mantine/core';
+import { Accordion, Divider, Group } from '@mantine-8/core';
 import { produce } from 'immer';
 import {
     Fragment,
@@ -19,7 +20,9 @@ import {
 } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import FieldSelect from '../../../common/FieldSelect';
+import { filterOperatorLabel } from '../../../common/Filters/FilterInputs/constants';
 import ColorSelector from '../../ColorSelector';
+import accordionClasses from '../../common/Accordion.module.css';
 import { AccordionControl } from '../../common/AccordionControl';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
@@ -115,10 +118,28 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
         [config, onChange],
     );
 
+    const description = useMemo(() => {
+        if (config.rules.length === 0) return undefined;
+        const firstRule = config.rules[0];
+        const operator =
+            filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
+        const values = isConditionalFormattingWithValues(firstRule)
+            ? (firstRule.values ?? []).join(', ')
+            : '';
+        const ruleStr = values ? `${operator} ${values}` : operator;
+        const extraCount = config.rules.length - 1;
+        const extra =
+            extraCount > 0
+                ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
+                : '';
+        return `${ruleStr}${extra}`;
+    }, [config.rules]);
+
     return (
         <Accordion.Item value={accordionValue}>
             <AccordionControl
                 label={`Rule ${index + 1}`}
+                description={description}
                 extraControlElements={
                     <ColorSelector
                         color={config.color}
@@ -133,12 +154,14 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
                 <Config.Section>
                     <FieldSelect
                         disabled
+                        size="xs"
                         item={field}
                         items={field ? [field] : []}
                         onChange={() => undefined}
                         hasGrouping
+                        label={<Config.Label>Select Field</Config.Label>}
                     />
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Config.Label>Color</Config.Label>
                         <ColorSelector
                             color={config.color}
@@ -295,17 +318,8 @@ export const ChartConditionalFormatting: FC<Props> = ({
                 variant="contained"
                 value={openItems}
                 onChange={handleAccordionChange}
-                styles={(theme) => ({
-                    control: {
-                        padding: theme.spacing.xs,
-                    },
-                    label: {
-                        padding: 0,
-                    },
-                    panel: {
-                        padding: 0,
-                    },
-                })}
+                className={accordionClasses.containedList}
+                transparentActiveItem
             >
                 {supportedConfigs.map((config, index) => (
                     <ChartConditionalFormattingItem

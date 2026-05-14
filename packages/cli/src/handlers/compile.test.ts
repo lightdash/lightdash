@@ -79,6 +79,7 @@ dimensions:
             defer: false,
             targetPath: undefined,
             favorState: false,
+            combineManifest: undefined,
             warehouseCredentials: false,
             disableTimestampConversion: false,
         });

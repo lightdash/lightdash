@@ -3,6 +3,9 @@ import {
     isNumericItem,
     MapChartLocation,
     MapChartType,
+    MapHexbinAggregation,
+    MapHexbinSizingMode,
+    MapHexbinValueBasis,
     MapTileBackground,
     type MapFieldConfig,
 } from '@lightdash/common';
@@ -75,6 +78,17 @@ export type LeafletMapConfig = {
         radius: number;
         blur: number;
         opacity: number;
+    };
+    hexbinConfig: {
+        opacity: number;
+        sizingMode: MapHexbinSizingMode;
+        /** Resolution to use when sizingMode === FIXED. */
+        fixedResolution: number;
+        valueBasis: MapHexbinValueBasis;
+        aggregation: MapHexbinAggregation;
+        showEmptyBins: boolean;
+        /** Hex6 or hex8 color string for empty-bin fill, or null = outline only. */
+        emptyBinColor: string | null;
     };
     tile: TileConfig;
     tileBackground: MapTileBackground;
@@ -236,6 +250,7 @@ const useLeafletMapConfig = ({
             maxBubbleSize,
             sizeFieldId,
             heatmapConfig,
+            hexbinConfig,
             tileBackground,
             darkModeTileBackground,
             backgroundColor,
@@ -285,7 +300,8 @@ const useLeafletMapConfig = ({
         const isLatLong =
             !locationType ||
             locationType === MapChartType.SCATTER ||
-            locationType === MapChartType.HEATMAP;
+            locationType === MapChartType.HEATMAP ||
+            locationType === MapChartType.HEXBIN;
 
         let scatterData: ScatterPoint[] | null = null;
         let regionData: RegionData[] | null = null;
@@ -584,6 +600,18 @@ const useLeafletMapConfig = ({
                 radius: heatmapConfig?.radius ?? 25,
                 blur: heatmapConfig?.blur ?? 15,
                 opacity: heatmapConfig?.opacity ?? 0.6,
+            },
+            hexbinConfig: {
+                opacity: hexbinConfig?.opacity ?? 0.7,
+                sizingMode:
+                    hexbinConfig?.sizingMode ?? MapHexbinSizingMode.DYNAMIC,
+                fixedResolution: hexbinConfig?.fixedResolution ?? 4,
+                valueBasis:
+                    hexbinConfig?.valueBasis ?? MapHexbinValueBasis.COUNT,
+                aggregation:
+                    hexbinConfig?.aggregation ?? MapHexbinAggregation.SUM,
+                showEmptyBins: hexbinConfig?.showEmptyBins ?? false,
+                emptyBinColor: hexbinConfig?.emptyBinColor ?? null,
             },
             tile: getTileConfig(
                 colorScheme === 'dark'

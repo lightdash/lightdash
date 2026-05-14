@@ -32,6 +32,8 @@ type Props = {
     missingRequiredParameters: string[];
     pinnedParameters: string[];
     onParameterPin: (parameterKey: string) => void;
+    parameterOrder: string[];
+    onParameterReorder: (order: string[]) => void;
     isDateZoomDisabled: boolean;
     onCollapse: () => void;
 };
@@ -49,6 +51,8 @@ export const DashboardFiltersBar: FC<Props> = ({
     missingRequiredParameters,
     pinnedParameters,
     onParameterPin,
+    parameterOrder,
+    onParameterReorder,
     isDateZoomDisabled,
     onCollapse,
 }) => {
@@ -133,6 +137,8 @@ export const DashboardFiltersBar: FC<Props> = ({
                                         }
                                         pinnedParameters={pinnedParameters}
                                         onParameterPin={onParameterPin}
+                                        parameterOrder={parameterOrder}
+                                        onParameterReorder={onParameterReorder}
                                         separator={parametersSeparator}
                                     />
                                     <PinnedParameters isEditMode={isEditMode} />

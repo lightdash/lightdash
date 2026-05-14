@@ -219,8 +219,10 @@ export const useExplorerQueryEffects = ({
 
     useEffect(() => {
         if (pendingFetch) {
-            runQuery();
-            dispatch(explorerActions.clearPendingFetch());
+            const dispatched = runQuery();
+            if (dispatched) {
+                dispatch(explorerActions.clearPendingFetch());
+            }
         }
     }, [pendingFetch, runQuery, dispatch]);
 

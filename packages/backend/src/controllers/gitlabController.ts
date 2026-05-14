@@ -1,4 +1,9 @@
-import { ApiSuccessEmpty, GitRepo, ParameterError } from '@lightdash/common';
+import {
+    ApiSuccessEmpty,
+    assertRegisteredAccount,
+    GitRepo,
+    ParameterError,
+} from '@lightdash/common';
 import {
     Delete,
     Get,
@@ -10,6 +15,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
@@ -40,10 +46,11 @@ export class GitlabController extends BaseController {
         @Request() req: express.Request,
         @Query() gitlab_instance_url?: string,
     ): Promise<void> {
+        assertRegisteredAccount(req.account);
         const context = await this.services
             .getGitlabAppService()
             .installRedirect(
-                req.user!,
+                toSessionUser(req.account),
                 gitlab_instance_url || 'https://gitlab.com',
             );
 
@@ -72,6 +79,7 @@ export class GitlabController extends BaseController {
         @Query() state?: string,
         @Query() gitlab_instance_url?: string,
     ): Promise<void> {
+        assertRegisteredAccount(req.account);
         if (!state || state !== req.session.oauth?.state) {
             this.setStatus(400);
             throw new ParameterError('State does not match');
@@ -80,7 +88,7 @@ export class GitlabController extends BaseController {
         const redirectUrl = await this.services
             .getGitlabAppService()
             .installCallback(
-                req.user!,
+                toSessionUser(req.account),
                 req.session.oauth,
                 code,
                 state,
@@ -101,9 +109,10 @@ export class GitlabController extends BaseController {
     async uninstallGitlabIntegration(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getGitlabAppService()
-            .deleteAppInstallation(req.user!);
+            .deleteAppInstallation(toSessionUser(req.account));
 
         this.setStatus(200);
         return {
@@ -124,13 +133,14 @@ export class GitlabController extends BaseController {
         status: 'ok';
         results: Array<GitRepo>;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
             status: 'ok',
             results: await this.services
                 .getGitlabAppService()
-                .getProjects(req.user!),
+                .getProjects(toSessionUser(req.account)),
         };
     }
 }

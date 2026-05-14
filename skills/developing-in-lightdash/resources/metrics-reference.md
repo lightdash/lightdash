@@ -46,7 +46,9 @@ models:
 | `count` | Count all rows | No |
 | `count_distinct` | Count unique values | No |
 | `sum` | Sum of values | No |
+| `sum_distinct` | Sum after de-duplicating rows by `distinct_keys` | No (needs `distinct_keys:`) |
 | `average` | Mean of values | No |
+| `average_distinct` | Mean (average) after de-duplicating rows by `distinct_keys` | No (needs `distinct_keys:`) |
 | `min` | Minimum value | No |
 | `max` | Maximum value | No |
 | `percentile` | Percentile value | No (needs `percentile:`) |
@@ -112,6 +114,55 @@ metrics:
     type: percentile
     percentile: 95              # Required for percentile type
     label: "P95 Response Time"
+```
+
+### Distinct Aggregation Configuration
+
+`sum_distinct` and `average_distinct` aggregate a column **after de-duplicating rows by one or more dimensions**. Useful for wide tables where a value is repeated across multiple rows (e.g. an order total denormalized onto every line item) and you want to count it only once per `distinct_keys` value.
+
+`distinct_keys` accepts a single dimension reference or a list:
+
+```yaml
+columns:
+  - name: order_total
+    meta:
+      dimension:
+        type: number
+      metrics:
+        # Single key — sum each order_id once
+        revenue:
+          type: sum_distinct
+          distinct_keys: order_id
+
+        # Composite key — array form
+        revenue_by_order_and_currency:
+          type: sum_distinct
+          distinct_keys:
+            - order_id
+            - currency_code
+
+        # Same syntax for averages
+        average_order_value:
+          type: average_distinct
+          distinct_keys: order_id
+```
+
+Defined at the model level with `sql:` (not tied to a single column):
+
+```yaml
+models:
+  - name: order_lines
+    meta:
+      metrics:
+        revenue:
+          type: sum_distinct
+          sql: "${TABLE}.order_total"
+          distinct_keys: order_id
+
+        average_order_value:
+          type: average_distinct
+          sql: "${TABLE}.order_total"
+          distinct_keys: order_id
 ```
 
 ### Metric Filters

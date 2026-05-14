@@ -8,10 +8,6 @@ export type DashboardTileStatusContextType = {
     oldestCacheTime: Date | undefined;
     addResultsCacheTime: (cacheMetadata?: CacheMetadata) => void;
     preAggregateStatuses: Record<string, TilePreAggregateStatus>;
-    addPreAggregateStatus: (
-        tileUuid: string,
-        cacheMetadata?: CacheMetadata,
-    ) => void;
     invalidateCache: boolean | undefined;
     isAutoRefresh: boolean;
     setIsAutoRefresh: (autoRefresh: boolean) => void;
@@ -39,4 +35,7 @@ export type DashboardTileStatusContextType = {
     screenshotReadyTilesCount: number;
     screenshotErroredTilesCount: number;
     expectedScreenshotTilesCount: number;
+    expectedScreenshotTileUuids: string[];
+    screenshotReadyTileUuids: string[];
+    screenshotErroredTileUuids: string[];
 };

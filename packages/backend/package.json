@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "0.2753.0",
+    "version": "0.2936.0",
     "private": true,
     "license": "MIT",
     "main": "dist/index",
@@ -43,13 +43,15 @@
         "rollback-all": "knex migrate:rollback --all --knexfile src/knexfile.ts",
         "rollback-all-production": "knex migrate:rollback --all --knexfile dist/knexfile.js",
         "repl": "node dist/ee/repl/index.js",
-        "repl-dev": "nodemon --exec tsx src/ee/repl/index.ts"
+        "repl-dev": "nodemon --exec tsx src/ee/repl/index.ts",
+        "upload-autopilot-skill": "tsx src/scripts/upload-autopilot-skill.ts"
     },
     "dependencies": {
         "@ai-sdk/amazon-bedrock": "4.0.48",
         "@ai-sdk/anthropic": "3.0.36",
         "@ai-sdk/azure": "3.0.26",
         "@ai-sdk/openai": "3.0.25",
+        "@anthropic-ai/sdk": "0.91.1",
         "@aws-sdk/client-s3": "3.992.0",
         "@aws-sdk/credential-providers": "3.995.0",
         "@aws-sdk/lib-storage": "3.995.0",
@@ -121,7 +123,7 @@
         "jsonwebtoken": "9.0.3",
         "knex": "2.5.1",
         "langchain": "0.3.37",
-        "lodash": "4.17.23",
+        "lodash": "4.18.1",
         "marked": "9.0.3",
         "moment": "2.29.4",
         "nanoid": "3.3.8",

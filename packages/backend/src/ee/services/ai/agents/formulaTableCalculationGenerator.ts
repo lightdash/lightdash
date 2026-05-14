@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     Compact,
     GenerateFormulaTableCalculationRequest,
     NumberSeparator,
@@ -213,14 +214,17 @@ function validateFormula(formula: string): string | null {
     }
 }
 
-export async function generateFormulaTableCalculation(
-    modelOptions: GeneratorModelOptions,
-    context: FormulaTableCalculationContext,
-): Promise<GeneratedFormulaTableCalculation> {
-    const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
-    const systemPrompt = buildSystemPrompt();
+function buildExistingNamesBlock(existing: string[]): string {
+    return existing.length > 0
+        ? `Note: These table calculation names are already taken: ${existing.join(', ')}`
+        : '';
+}
 
-    const userContent = `Create a formula table calculation based on this request: "${context.prompt}"
+function buildPromptModeContent(
+    context: Extract<FormulaTableCalculationContext, { mode: 'prompt' }>,
+    fieldReferenceGuide: string,
+): string {
+    return `Create a formula table calculation based on this request: "${context.prompt}"
 
 Data source: "${context.tableName}"
 
@@ -231,11 +235,51 @@ ${
     context.currentFormula
         ? `Current formula (user wants to improve/modify this):\n${context.currentFormula}\n`
         : ''
-}${
-        context.existingTableCalculations?.length
-            ? `Note: These table calculation names are already taken: ${context.existingTableCalculations.join(', ')}`
-            : ''
-    }`;
+}${buildExistingNamesBlock(context.existingTableCalculations)}`;
+}
+
+function buildConvertSqlModeContent(
+    context: Extract<FormulaTableCalculationContext, { mode: 'convert-sql' }>,
+    fieldReferenceGuide: string,
+): string {
+    return `Convert the following SQL expression into an equivalent formula expression. Use only the formula syntax described in the system prompt. Only use the available fields listed below — rewrite any column references to the provided field IDs.
+
+Source SQL:
+${context.sourceSql}
+
+Data source: "${context.tableName}"
+
+Available fields to reference:
+${fieldReferenceGuide}
+
+${buildExistingNamesBlock(context.existingTableCalculations)}`;
+}
+
+function buildUserContent(
+    context: FormulaTableCalculationContext,
+    fieldReferenceGuide: string,
+): string {
+    switch (context.mode) {
+        case 'prompt':
+            return buildPromptModeContent(context, fieldReferenceGuide);
+        case 'convert-sql':
+            return buildConvertSqlModeContent(context, fieldReferenceGuide);
+        default:
+            return assertUnreachable(
+                context,
+                'Unknown formula generation mode',
+            );
+    }
+}
+
+export async function generateFormulaTableCalculation(
+    modelOptions: GeneratorModelOptions,
+    context: FormulaTableCalculationContext,
+): Promise<GeneratedFormulaTableCalculation> {
+    const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
+    const systemPrompt = buildSystemPrompt();
+
+    const userContent = buildUserContent(context, fieldReferenceGuide);
 
     const callLLM = async (
         extraMessages: Array<{

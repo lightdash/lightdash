@@ -1,17 +1,25 @@
 import { Center, Loader } from '@mantine-8/core';
-import { useEffect } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
+import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useAiAgentThreadArtifact } from '../../features/aiCopilot/hooks/useAiAgentThreadArtifact';
+import { usePendingThreadRefetch } from '../../features/aiCopilot/hooks/usePendingThreadRefetch';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
     useCreateAgentThreadMessageMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
-import { useAiAgentThreadStreaming } from '../../features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
+import {
+    selectThreadSqlMode,
+    setThreadSqlMode,
+} from '../../features/aiCopilot/store/aiAgentThreadModeSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../features/aiCopilot/store/hooks';
 import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
@@ -50,23 +58,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         agentUuid,
         threadUuid,
     );
-    const isPending = thread?.messages?.some(
-        (message) =>
-            message.role === 'assistant' && message.status === 'pending',
+
+    const { isStreaming, isPending } = usePendingThreadRefetch(
+        thread,
+        threadUuid!,
+        refetch,
     );
 
-    const isStreaming = useAiAgentThreadStreaming(threadUuid!);
-
-    useEffect(() => {
-        if (!isPending) return;
-        if (isStreaming) return;
-
-        const interval = setInterval(() => {
-            void refetch();
-        }, 2000);
-
-        return () => clearInterval(interval);
-    }, [isPending, refetch, isStreaming]);
+    const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
+    const sqlMode = useAiAgentStoreSelector(
+        selectThreadSqlMode(threadUuid ?? ''),
+    );
+    const dispatch = useAiAgentStoreDispatch();
 
     const handleSubmit = (prompt: string) => {
         // Use modelConfig from first assistant message for follow-up messages
@@ -75,7 +78,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         );
         const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
 
-        void createAgentThreadMessage({ prompt, modelConfig });
+        void createAgentThreadMessage({
+            prompt,
+            modelConfig,
+            enableSqlMode: sqlModeAvailable && sqlMode,
+        });
     };
 
     if (isLoadingThread || !thread || agentQuery.isLoading) {
@@ -108,6 +115,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 messageCount={thread.messages?.length || 0}
                 projectUuid={projectUuid}
                 agentUuid={agentUuid}
+                sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                onSqlModeChange={
+                    sqlModeAvailable && threadUuid
+                        ? (enabled) =>
+                              dispatch(
+                                  setThreadSqlMode({
+                                      threadUuid,
+                                      enabled,
+                                  }),
+                              )
+                        : undefined
+                }
             />
         </AgentChatDisplay>
     );

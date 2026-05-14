@@ -1,28 +1,32 @@
+import { Ability } from '@casl/ability';
 import {
     AnyType,
+    CreateWarehouseCredentials,
     DimensionType,
+    ExecuteAsyncQueryRequestParams,
     ExploreType,
+    FeatureFlags,
+    FilterOperator,
     ForbiddenError,
     NotFoundError,
+    PossibleAbilities,
     QueryExecutionContext,
+    QueryHistory,
     QueryHistoryStatus,
+    ResultColumns,
     VizAggregationOptions,
     VizIndexType,
+    WarehouseClient,
     WarehouseTypes,
-    type CreateWarehouseCredentials,
-    type ExecuteAsyncQueryRequestParams,
-    type QueryHistory,
-    type ResultColumns,
-    type WarehouseClient,
 } from '@lightdash/common';
-import { type SshTunnel } from '@lightdash/warehouses';
+import type { SshTunnel } from '@lightdash/warehouses';
 import { Readable } from 'stream';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
-import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
+import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
-import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
 import type { PreAggregateModel } from '../../ee/models/PreAggregateModel';
@@ -37,6 +41,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import type { GroupsModel } from '../../models/GroupsModel';
 import type { JobModel } from '../../models/JobModel/JobModel';
 import type { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import type { OrganizationModel } from '../../models/OrganizationModel';
 import type { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import type { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -63,6 +68,7 @@ import { PersistentDownloadFileService } from '../PersistentDownloadFileService/
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import {
     allExplores,
+    buildAccount,
     expectedColumns,
     expectedFormattedRow,
     job,
@@ -106,6 +112,7 @@ const makeMockStrategy = (
     cleanupStats: jest.fn(async () => 0),
     getStats: noOpStrategy.getStats.bind(noOpStrategy),
     getResultsStorageClient: jest.fn(() => undefined),
+    auditDashboard: noOpStrategy.auditDashboard.bind(noOpStrategy),
 });
 
 // Import the mocked function
@@ -247,13 +254,27 @@ const getMockedAsyncQueryService = (
             })),
         } as unknown as S3ResultsFileStorageClient,
         featureFlagModel: {
-            get: jest.fn(async () => ({ enabled: false })),
+            // Mirror production behaviour: ResultsCacheEnabled resolves from
+            // the env-derived lightdashConfig.results.cacheEnabled when there
+            // is no DB row.
+            get: jest.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => {
+                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                        return {
+                            id: featureFlagId,
+                            enabled: lightdashConfig.results.cacheEnabled,
+                        };
+                    }
+                    return { id: featureFlagId, enabled: false };
+                },
+            ),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as OrganizationWarehouseCredentialsModel,
+        organizationModel: {} as OrganizationModel,
         pivotTableService: new PivotTableService({
             lightdashConfig,
             fileStorageClient: {} as FileStorageClient,
@@ -269,6 +290,9 @@ const getMockedAsyncQueryService = (
         ...overrides,
     });
 
+const getJsonlStream = (rows: Record<string, unknown>[]) =>
+    Readable.from(rows.map((row) => `${JSON.stringify(row)}\n`).join(''));
+
 describe('AsyncQueryService', () => {
     describe('executeAsyncQuery', () => {
         const serviceWithCache = getMockedAsyncQueryService({
@@ -282,7 +306,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
 
             jest.clearAllMocks();
 
@@ -354,6 +381,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -445,6 +474,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -545,14 +576,17 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
 
-            // THEN: findResultsCache called with invalidate flag (third parameter: true)
+            // THEN: findResultsCache called with invalidate flag (last parameter: true)
             expect(serviceWithCache.findResultsCache).toHaveBeenCalledWith(
                 projectUuid,
                 expect.any(String),
+                expect.any(Object), // account
                 true,
             );
 
@@ -606,6 +640,7 @@ describe('AsyncQueryService', () => {
             // Clear cache and mocks for this service
             serviceWithoutCache.warehouseClients = {};
             serviceWithoutCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => false),
                 findCachedResultsFile: jest.fn(),
             } as unknown as ICacheService;
 
@@ -640,6 +675,8 @@ describe('AsyncQueryService', () => {
                     sql: 'SELECT * FROM test',
                     fields: {},
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -648,6 +685,7 @@ describe('AsyncQueryService', () => {
             expect(findResultsCacheSpy).toHaveBeenCalledWith(
                 projectUuid,
                 expect.any(String), // cache key
+                expect.any(Object), // account
                 false, // invalidateCache
             );
 
@@ -731,6 +769,8 @@ describe('AsyncQueryService', () => {
                         'missing_param',
                         'another_missing_param',
                     ],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -808,6 +848,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -877,6 +919,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 {
                     query: {
@@ -956,6 +1000,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 {
                     query: {
@@ -1036,6 +1082,8 @@ describe('AsyncQueryService', () => {
                         intrinsicUserAttributes: {},
                     },
                     availableParameterDefinitions: {},
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -1165,7 +1213,10 @@ describe('AsyncQueryService', () => {
         beforeEach(() => {
             // clear in memory cache so new mock is applied
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
 
             jest.clearAllMocks();
         });
@@ -1630,7 +1681,10 @@ describe('AsyncQueryService', () => {
 
         beforeEach(() => {
             serviceWithCache.warehouseClients = {};
-            serviceWithCache.cacheService = {} as ICacheService;
+            serviceWithCache.cacheService = {
+                isResultsCacheEnabled: jest.fn(async () => true),
+                findCachedResultsFile: jest.fn(async () => null),
+            } as unknown as ICacheService;
             jest.clearAllMocks();
 
             serviceWithCache.findResultsCache = jest
@@ -1678,6 +1732,8 @@ describe('AsyncQueryService', () => {
                     fields: {},
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
                 },
                 { query: metricQueryMock },
             );
@@ -1772,6 +1828,7 @@ describe('AsyncQueryService', () => {
                     pivotConfiguration: undefined,
                     originalColumns: undefined,
                     queryCreatedAt: new Date(),
+                    displayTimezone: null,
                 };
 
                 // WHEN: runAsyncWarehouseQuery is called
@@ -1868,6 +1925,7 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration: undefined,
                 originalColumns: undefined,
                 queryCreatedAt: new Date(),
+                displayTimezone: null,
             };
 
             // WHEN: runAsyncWarehouseQuery is called
@@ -2169,6 +2227,261 @@ describe('AsyncQueryService', () => {
                         invalidateCache: false,
                     }),
                 ).rejects.toThrow();
+            });
+        });
+
+        describe('parameter resolution', () => {
+            // Regression for PROD-7497: virtual view "Save" sent the
+            // column-discovery query without parameter values. The placeholder
+            // ${lightdash.parameters.X} reached Postgres and produced a
+            // confusing `syntax error at or near "$"`. The service should
+            // detect unbound parameter references before hitting the warehouse
+            // and surface a clean ParameterError instead.
+            const sqlWithUnboundParam =
+                'SELECT * FROM jaffle.orders WHERE status = ${lightdash.parameters.no_default_param} LIMIT 10';
+
+            const buildService = (
+                projectParameterConfigs: {
+                    name: string;
+                    config: AnyType;
+                }[] = [],
+            ) => {
+                const mockProjectParametersModel = {
+                    find: jest.fn(async () => projectParameterConfigs),
+                };
+
+                const service = getMockedAsyncQueryService(
+                    lightdashConfigMock,
+                    {
+                        projectParametersModel:
+                            mockProjectParametersModel as unknown as ProjectParametersModel,
+                    },
+                );
+
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+
+                const streamQuery = jest.fn();
+
+                service._getWarehouseClient = jest.fn(async () => ({
+                    warehouseClient: {
+                        ...warehouseClientMock,
+                        streamQuery,
+                    },
+                    sshTunnel: mockSshTunnel,
+                }));
+
+                return { service, streamQuery };
+            };
+
+            it('throws ParameterError when SQL references a parameter that has no value and no default', async () => {
+                const { service, streamQuery } = buildService([
+                    {
+                        name: 'no_default_param',
+                        config: {
+                            label: 'No Default Param',
+                            options: ['completed', 'shipped'],
+                        },
+                    },
+                ]);
+
+                await expect(
+                    service.executeAsyncSqlQuery({
+                        account: sessionAccount,
+                        projectUuid,
+                        sql: sqlWithUnboundParam,
+                        // parameters intentionally omitted to simulate the
+                        // pre-fix frontend Save flow.
+                        context: QueryExecutionContext.SQL_RUNNER,
+                        invalidateCache: false,
+                    }),
+                ).rejects.toThrow(
+                    expect.objectContaining({
+                        name: 'ParameterError',
+                        message: expect.stringContaining('no_default_param'),
+                    }),
+                );
+
+                // Guardrail: we must not have shipped the unsubstituted SQL
+                // to the warehouse — that's the buggy behaviour we're fixing.
+                expect(streamQuery).not.toHaveBeenCalled();
+            });
+        });
+
+        describe('legacy total and subtotal flows', () => {
+            beforeEach(() => {
+                jest.clearAllMocks();
+            });
+
+            it('preserves dashboard filters and parameter precedence for saved chart totals', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const account = buildAccount();
+                account.user.ability = new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'Explore', action: ['manage'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                ]);
+
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(),
+                    executeAsyncQuery: jest.fn(
+                        warehouseClientMock.executeAsyncQuery,
+                    ),
+                };
+
+                (
+                    projectModel.getWarehouseClientFromCredentials as jest.Mock
+                ).mockReturnValue(warehouseClient);
+                (service as AnyType).savedChartModel = {
+                    get: jest.fn().mockResolvedValue({
+                        uuid: 'chart-1',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        spaceUuid: 'space-1',
+                        tableName: validExplore.name,
+                        metricQuery: metricQueryMock,
+                        parameters: {
+                            saved_only: 'saved',
+                            clash: 'saved',
+                        },
+                    }),
+                };
+                (service as AnyType).spacePermissionService = {
+                    getSpaceAccessContext: jest.fn().mockResolvedValue({
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                    }),
+                };
+                service.pollForQueryCompletion = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                    context: QueryExecutionContext.CALCULATE_TOTAL,
+                    resultsFileName: 'results.jsonl',
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    originalColumns: null,
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    metricQuery: metricQueryMock,
+                    createdByActorType: 'session',
+                    createdByUserUuid: 'user-uuid',
+                } satisfies Partial<QueryHistory>);
+                (
+                    service.resultsStorageClient.getDownloadStream as jest.Mock
+                ).mockReturnValue(getJsonlStream([{ a_met1: '456' }]));
+
+                await service.calculateTotalFromSavedChart(
+                    account,
+                    'chart-1',
+                    {
+                        dimensions: [
+                            {
+                                id: 'filter-1',
+                                target: {
+                                    fieldId: 'a_dim1',
+                                    tableName: 'a',
+                                },
+                                operator: FilterOperator.EQUALS,
+                                values: ['foo'],
+                                settings: {},
+                            },
+                        ],
+                        metrics: [],
+                        tableCalculations: [],
+                    } as AnyType,
+                    false,
+                    {
+                        clash: 'request',
+                    },
+                );
+
+                const createCall = (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mock.calls[0][1];
+
+                expect(createCall.metricQuery.filters.dimensions).toEqual(
+                    expect.objectContaining({
+                        and: [
+                            expect.objectContaining({
+                                target: expect.objectContaining({
+                                    fieldId: 'a_dim1',
+                                }),
+                            }),
+                        ],
+                    }),
+                );
+                expect(createCall.requestParameters.parameters).toEqual(
+                    expect.objectContaining({
+                        saved_only: 'saved',
+                        clash: 'request',
+                    }),
+                );
+            });
+
+            it('returns subtotals in the legacy formatted shape through async execution', async () => {
+                const service = getMockedAsyncQueryService(lightdashConfigMock);
+                const warehouseClient = {
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(),
+                    executeAsyncQuery: jest.fn(
+                        warehouseClientMock.executeAsyncQuery,
+                    ),
+                };
+
+                (
+                    projectModel.getWarehouseClientFromCredentials as jest.Mock
+                ).mockReturnValue(warehouseClient);
+                service.pollForQueryCompletion = jest
+                    .fn()
+                    .mockResolvedValue(undefined);
+                (service.queryHistoryModel.get as jest.Mock).mockResolvedValue({
+                    context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+                    resultsFileName: 'results.jsonl',
+                    pivotConfiguration: null,
+                    pivotValuesColumns: null,
+                    pivotTotalColumnCount: null,
+                    originalColumns: null,
+                    projectUuid,
+                    organizationUuid: projectSummary.organizationUuid,
+                    metricQuery: metricQueryMock,
+                    createdByActorType: 'session',
+                    createdByUserUuid: 'user-uuid',
+                } satisfies Partial<QueryHistory>);
+                (
+                    service.resultsStorageClient.getDownloadStream as jest.Mock
+                ).mockReturnValue(
+                    getJsonlStream([{ a_dim1: 'group-1', a_met1: '123' }]),
+                );
+
+                const result = await service.calculateSubtotalsFromQuery(
+                    sessionAccount,
+                    projectUuid,
+                    {
+                        explore: validExplore.name,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            dimensions: ['a_dim1', 'b_dim1'],
+                            tableCalculations: [],
+                        },
+                        columnOrder: ['a_dim1', 'b_dim1', 'a_met1'],
+                    },
+                );
+
+                expect(result).toEqual({
+                    a_dim1: [{ a_dim1: 'group-1', a_met1: '123' }],
+                });
+                expect(service.queryHistoryModel.create).toHaveBeenCalledTimes(
+                    1,
+                );
+                expect(warehouseClient.executeAsyncQuery).toHaveBeenCalled();
+                expect(warehouseClient.runQuery).not.toHaveBeenCalled();
             });
         });
     });

@@ -136,7 +136,6 @@ You must select exactly ONE agent from the list above by providing its exact UUI
 Please select the best agent to handle this query and explain your reasoning.`,
             },
         ],
-        temperature: 0.2,
     });
 
     return result.object;

@@ -2,8 +2,8 @@ import { ChartType } from '../types/savedCharts';
 import { getPivotConfig } from './pivotConfig';
 
 describe('getPivotConfig', () => {
-    describe('Cartesian chart visibleMetricFieldIds', () => {
-        it('sets visibleMetricFieldIds to yField for cartesian charts with pivot', () => {
+    describe('Cartesian chart pivot config', () => {
+        it('returns pivot config for cartesian charts with pivot', () => {
             const result = getPivotConfig({
                 chartConfig: {
                     type: ChartType.CARTESIAN,
@@ -20,75 +20,10 @@ describe('getPivotConfig', () => {
             });
 
             expect(result).toBeDefined();
-            expect(result?.visibleMetricFieldIds).toEqual([
-                'metric_a',
-                'metric_b',
-            ]);
-        });
-
-        it('includes table calculations in visibleMetricFieldIds when they are in yField', () => {
-            const result = getPivotConfig({
-                chartConfig: {
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        layout: {
-                            xField: 'dim_a',
-                            yField: [
-                                'metric_a',
-                                'revenue_per_order', // table calculation
-                            ],
-                        },
-                        eChartsConfig: { series: [] },
-                    },
-                },
-                pivotConfig: { columns: ['dim_b'] },
-                tableConfig: { columnOrder: [] },
-            });
-
-            expect(result).toBeDefined();
-            expect(result?.visibleMetricFieldIds).toEqual([
-                'metric_a',
-                'revenue_per_order',
-            ]);
-        });
-
-        it('does not set visibleMetricFieldIds when yField is empty', () => {
-            const result = getPivotConfig({
-                chartConfig: {
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        layout: {
-                            xField: 'dim_a',
-                            yField: [],
-                        },
-                        eChartsConfig: { series: [] },
-                    },
-                },
-                pivotConfig: { columns: ['dim_b'] },
-                tableConfig: { columnOrder: [] },
-            });
-
-            expect(result).toBeDefined();
-            expect(result?.visibleMetricFieldIds).toBeUndefined();
-        });
-
-        it('does not set visibleMetricFieldIds when yField is undefined', () => {
-            const result = getPivotConfig({
-                chartConfig: {
-                    type: ChartType.CARTESIAN,
-                    config: {
-                        layout: {
-                            xField: 'dim_a',
-                            yField: undefined,
-                        },
-                        eChartsConfig: { series: [] },
-                    },
-                },
-                pivotConfig: { columns: ['dim_b'] },
-                tableConfig: { columnOrder: [] },
-            });
-
-            expect(result).toBeDefined();
+            expect(result?.pivotDimensions).toEqual(['dim_b']);
+            expect(result?.metricsAsRows).toBe(false);
+            // visibleMetricFieldIds should NOT be set — sort-only columns
+            // are now excluded at the source via sortOnlyColumns
             expect(result?.visibleMetricFieldIds).toBeUndefined();
         });
 

@@ -30,7 +30,10 @@ export type UserActivity = {
         average_number_of_weekly_queries_per_user: string;
     }[];
     dashboardViews: ActivityViews[];
-    userMostViewedDashboards: (UserWithCount & { dashboardName: string })[];
+    userMostViewedDashboards: (UserWithCount & {
+        dashboardName: string;
+        dashboardUuid: string;
+    })[];
     chartViews: ActivityViews[];
 };
 
@@ -62,14 +65,36 @@ export type UnusedContent = {
     dashboards: UnusedContentItem[];
 };
 
-export type ApiUnusedContent = {
-    status: 'ok';
-    results: UnusedContent;
-};
-
 export type ViewStatistics = {
     views: number;
     firstViewedAt: Date | string | null;
+};
+
+export type DownloadAuditEntry = {
+    downloadUuid: string;
+    queryUuid: string;
+    userUuid: string | null;
+    userFirstName: string | null;
+    userLastName: string | null;
+    fileType: string;
+    downloadedAt: Date;
+    originalQueryContext: string | null;
+};
+
+export type DownloadActivityResults = {
+    data: DownloadAuditEntry[];
+    pagination: {
+        pageSize: number;
+        page: number | null;
+        totalPageCount: number | null;
+        totalResults: number | null;
+        nextCursor: string | null;
+    };
+};
+
+export type ApiDownloadActivity = {
+    status: 'ok';
+    results: DownloadActivityResults;
 };
 
 export enum QueryExecutionContext {
@@ -95,9 +120,12 @@ export enum QueryExecutionContext {
     CALCULATE_SUBTOTAL = 'calculateSubtotal',
     EMBED = 'embed',
     AI = 'ai',
-    MCP = 'mcp',
+    MCP_RUN_METRIC_QUERY = 'mcp.run_metric_query',
+    MCP_RUN_SQL = 'mcp.run_sql',
+    MCP_SEARCH_FIELD_VALUES = 'mcp.search_field_values',
     API = 'api',
     CLI = 'cli',
     METRICS_EXPLORER = 'metricsExplorer',
     PRE_AGGREGATE_MATERIALIZATION = 'preAggregateMaterialization',
+    DATA_APP_SAMPLE = 'dataAppSample',
 }

@@ -1,14 +1,16 @@
 import {
+    ToolNameSchema,
     type AiAgentMessageAssistant,
+    type ToolName,
     type ToolProposeChangeArgs,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Alert,
+    Box,
     Button,
     CopyButton,
     Group,
-    Loader,
     Paper,
     Popover,
     Stack,
@@ -30,18 +32,18 @@ import {
     IconThumbUp,
     IconThumbUpFilled,
 } from '@tabler/icons-react';
-import MDEditor from '@uiw/react-md-editor';
 import { memo, useCallback, useState, type FC } from 'react';
+// streamdown is a streaming-aware drop-in for react-markdown — used for the
+// final answer + intermediate text chunks in the AI bubble.
+import { Streamdown } from 'streamdown';
+import 'streamdown/styles.css';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import {
-    mdEditorComponents,
-    rehypeRemoveHeaderLinks,
-    useMdEditorStyle,
-} from '../../../../../utils/markdownUtils';
+import { useMdEditorStyle } from '../../../../../utils/markdownUtils';
 import {
     useRetryAiAgentThreadMessageMutation,
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
+import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
 import { setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
@@ -58,16 +60,125 @@ import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
-import { AiChartToolCalls } from './ToolCalls/AiChartToolCalls';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
-import { AiReasoning } from './ToolCalls/AiReasoning';
+import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
+import {
+    LiveActivityCard,
+    type LiveActivityToolGroup,
+} from './ToolCalls/LiveActivityCard';
+import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
+import { stripMarkdown } from './ToolCalls/utils/stripMarkdown';
+import { type ToolCallSummary } from './ToolCalls/utils/types';
+import { TypingDots } from './TypingDots';
+
+type ToolGroup = {
+    kind: 'toolGroup';
+    toolName: ToolName;
+    calls: ToolCallSummary[];
+    keyId: string;
+};
+type TextSegment = { kind: 'text'; text: string; idx: number };
+type SqlApprovalSegment = {
+    kind: 'sqlApproval';
+    toolCallId: string;
+    sql: string;
+    limit?: number;
+};
+type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
+
+const segmentStreamParts = (
+    parts: StreamPart[],
+    decidedToolCallIds: string[],
+): StreamSegment[] => {
+    const segments: StreamSegment[] = [];
+    parts.forEach((part, idx) => {
+        if (part.type === 'text') {
+            segments.push({ kind: 'text', text: part.text, idx });
+            return;
+        }
+        if (
+            part.toolName === 'improveContext' ||
+            part.toolName === 'proposeChange'
+        ) {
+            return;
+        }
+        if (
+            part.toolName === 'runSql' &&
+            !decidedToolCallIds.includes(part.toolCallId)
+        ) {
+            const args = part.toolArgs as { sql: string; limit?: number };
+            segments.push({
+                kind: 'sqlApproval',
+                toolCallId: part.toolCallId,
+                sql: args.sql,
+                limit: args.limit,
+            });
+            return;
+        }
+        const call: ToolCallSummary = {
+            toolCallId: part.toolCallId,
+            toolName: part.toolName,
+            toolArgs: part.toolArgs,
+        };
+        const last = segments[segments.length - 1];
+        if (
+            last &&
+            last.kind === 'toolGroup' &&
+            last.toolName === part.toolName
+        ) {
+            last.calls.push(call);
+        } else {
+            segments.push({
+                kind: 'toolGroup',
+                toolName: part.toolName,
+                calls: [call],
+                keyId: part.toolCallId,
+            });
+        }
+    });
+    return segments;
+};
+
+const groupPersistedToolCalls = (
+    calls: ToolCallSummary[],
+): { toolName: ToolName; calls: ToolCallSummary[]; keyId: string }[] => {
+    const groups: {
+        toolName: ToolName;
+        calls: ToolCallSummary[];
+        keyId: string;
+    }[] = [];
+    for (const tc of calls) {
+        const parsed = ToolNameSchema.safeParse(tc.toolName);
+        if (!parsed.success) continue;
+        const last = groups[groups.length - 1];
+        if (last && last.toolName === parsed.data) {
+            last.calls.push(tc);
+        } else {
+            groups.push({
+                toolName: parsed.data,
+                calls: [tc],
+                keyId: tc.toolCallId,
+            });
+        }
+    }
+    return groups;
+};
 
 const AssistantBubbleContent: FC<{
     message: AiAgentMessageAssistant;
     projectUuid: string;
     agentUuid: string;
 }> = ({ message, projectUuid, agentUuid }) => {
-    const streamingState = useAiAgentThreadStreamQuery(message.threadUuid);
+    const threadStreamingState = useAiAgentThreadStreamQuery(
+        message.threadUuid,
+    );
+    // The thread-level streaming state is shared across all messages on the
+    // thread. We must only use it for *this* message's bubble — otherwise the
+    // previous bubble would mirror the next prompt's parts.
+    const streamingState =
+        threadStreamingState?.messageUuid === message.uuid
+            ? threadStreamingState
+            : null;
     const isStreaming = useAiAgentThreadMessageStreaming(
         message.threadUuid,
         message.uuid,
@@ -174,58 +285,222 @@ const AssistantBubbleContent: FC<{
                 </Paper>
             )}
 
-            {isStreaming && streamingState?.reasoning && (
-                <AiReasoning
-                    reasoning={streamingState.reasoning}
-                    type="streaming"
-                />
-            )}
-            {!isStreaming && message.reasoning.length > 0 && (
-                <AiReasoning reasoning={message.reasoning} type="persisted" />
-            )}
-            {toolCalls.length > 0 ? (
-                <AiChartToolCalls
-                    toolCalls={toolCalls}
-                    type={isStreaming || isPending ? 'streaming' : 'persisted'}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                />
-            ) : null}
-            {messageContent.length > 0 ? (
-                <MDEditor.Markdown
-                    rehypeRewrite={rehypeRemoveHeaderLinks}
-                    source={messageContent}
-                    style={{ ...mdStyle, padding: `0.5rem 0` }}
-                    rehypePlugins={[rehypeAiAgentContentLinks]}
-                    components={{
-                        ...mdEditorComponents,
-                        a: ({ node, children, ...props }) => {
-                            const contentType =
-                                'data-content-type' in props &&
-                                typeof props['data-content-type'] === 'string'
-                                    ? props['data-content-type']
-                                    : undefined;
+            {/* Reasoning lives inside the LiveActivityCard at all times, so
+             *  there is one unified bento for the agent's process. */}
+            {(() => {
+                const segments = streamingState?.parts
+                    ? segmentStreamParts(
+                          streamingState.parts,
+                          streamingState.decidedToolCallIds,
+                      )
+                    : [];
 
-                            return (
-                                <ContentLink
-                                    contentType={contentType}
-                                    props={props}
-                                    message={message}
-                                    projectUuid={projectUuid}
-                                    agentUuid={agentUuid}
+                if (segments.length > 0) {
+                    // Tool segments are extracted into a single LiveActivityCard
+                    // pinned below the texts. Texts keep their interleaved order
+                    // with intermediates collapsed; the latest text stays open.
+                    const liveToolGroups: LiveActivityToolGroup[] = segments
+                        .filter(
+                            (
+                                s,
+                            ): s is Extract<typeof s, { kind: 'toolGroup' }> =>
+                                s.kind === 'toolGroup',
+                        )
+                        .map((s) => ({
+                            toolName: s.toolName,
+                            calls: s.calls,
+                            keyId: s.keyId,
+                        }));
+                    const sqlApprovals = segments.filter(
+                        (s): s is Extract<typeof s, { kind: 'sqlApproval' }> =>
+                            s.kind === 'sqlApproval',
+                    );
+                    const textSegments = segments.filter(
+                        (s): s is Extract<typeof s, { kind: 'text' }> =>
+                            s.kind === 'text',
+                    );
+                    // Only the most recent text chunk is ever visible — earlier
+                    // intermediate chunks collapse into the same single slot
+                    // and crossfade as new chunks arrive.
+                    const latestTextSeg = textSegments[textSegments.length - 1];
+                    const finalAnswerMd = latestTextSeg ? (
+                        <Box className={styles.aiMarkdown} style={mdStyle}>
+                            <Streamdown
+                                parseIncompleteMarkdown
+                                controls={false}
+                                animated
+                                mode={isStreaming ? 'streaming' : 'static'}
+                                rehypePlugins={[rehypeAiAgentContentLinks]}
+                                components={{
+                                    a: ({ node, children, ...props }) => {
+                                        const contentType =
+                                            'data-content-type' in props &&
+                                            typeof props[
+                                                'data-content-type'
+                                            ] === 'string'
+                                                ? props['data-content-type']
+                                                : undefined;
+                                        return (
+                                            <ContentLink
+                                                contentType={contentType}
+                                                props={props}
+                                                message={message}
+                                                projectUuid={projectUuid}
+                                                agentUuid={agentUuid}
+                                            >
+                                                {children}
+                                            </ContentLink>
+                                        );
+                                    },
+                                }}
+                            >
+                                {latestTextSeg.text}
+                            </Streamdown>
+                        </Box>
+                    ) : null;
+                    const pendingApprovalContent =
+                        sqlApprovals.length > 0 ? (
+                            <Stack gap={6}>
+                                {sqlApprovals.map((seg) => (
+                                    <SqlApprovalCard
+                                        key={seg.toolCallId}
+                                        projectUuid={projectUuid}
+                                        agentUuid={agentUuid}
+                                        threadUuid={message.threadUuid}
+                                        toolCallId={seg.toolCallId}
+                                        toolArgs={{
+                                            sql: seg.sql,
+                                            limit: seg.limit,
+                                        }}
+                                    />
+                                ))}
+                            </Stack>
+                        ) : null;
+                    return (
+                        <Stack gap="xs" pt="xs">
+                            {/* Activity card sits ABOVE the rolling preview /
+                             *  final answer so tool work reads top-to-bottom:
+                             *  what was done → the answer. After streaming we
+                             *  fold reasoning into the activity card so the
+                             *  answer remains the focal point. SQL approvals
+                             *  drop into the card's body, auto-expanded. */}
+                            {(liveToolGroups.length > 0 ||
+                                pendingApprovalContent ||
+                                (streamingState?.reasoning?.length ?? 0) > 0 ||
+                                (message.reasoning?.length ?? 0) > 0) && (
+                                <LiveActivityCard
+                                    toolGroups={liveToolGroups}
+                                    isLive={isStreaming}
+                                    streamingReasoning={
+                                        isStreaming
+                                            ? streamingState?.reasoning
+                                            : undefined
+                                    }
+                                    reasoning={
+                                        !isStreaming
+                                            ? message.reasoning
+                                            : undefined
+                                    }
+                                    pendingContent={pendingApprovalContent}
+                                />
+                            )}
+                            {latestTextSeg && isStreaming ? (
+                                <Box
+                                    key={`rolling-${latestTextSeg.idx}`}
+                                    className={styles.rollingPreview}
                                 >
-                                    {children}
-                                </ContentLink>
-                            );
-                        },
-                    }}
-                />
-            ) : null}
-            {isStreaming || isPending ? (
-                <Loader type="dots" color="gray" />
-            ) : null}
+                                    <Text
+                                        size="xs"
+                                        c="dimmed"
+                                        lineClamp={1}
+                                        className={styles.rollingPreviewText}
+                                    >
+                                        {stripMarkdown(latestTextSeg.text)}
+                                    </Text>
+                                </Box>
+                            ) : null}
+                            {latestTextSeg && !isStreaming ? (
+                                <Box className={styles.streamPart}>
+                                    {finalAnswerMd}
+                                </Box>
+                            ) : null}
+                        </Stack>
+                    );
+                }
+
+                // Fallback (page reload, no streamingState): activity card ON
+                // TOP showing what the agent did + reasoning folded in, then
+                // the final markdown answer below as the hero.
+                const renderableToolCalls = toolCalls.filter(
+                    (tc) =>
+                        tc.toolName !== 'improveContext' &&
+                        tc.toolName !== 'proposeChange',
+                );
+                const persistedToolGroups: LiveActivityToolGroup[] =
+                    groupPersistedToolCalls(renderableToolCalls);
+                return (
+                    <>
+                        <ImproveContextToolCall
+                            projectUuid={projectUuid}
+                            agentUuid={agentUuid}
+                            threadUuid={message.threadUuid}
+                            promptUuid={message.uuid}
+                        />
+                        {persistedToolGroups.length > 0 && (
+                            <LiveActivityCard
+                                toolGroups={persistedToolGroups}
+                                isLive={isStreaming || isPending}
+                                reasoning={message.reasoning}
+                            />
+                        )}
+                        {messageContent.length > 0 ? (
+                            <Box
+                                className={styles.aiMarkdown}
+                                style={{ ...mdStyle, paddingBlock: '0.5rem' }}
+                            >
+                                <Streamdown
+                                    parseIncompleteMarkdown
+                                    controls={false}
+                                    animated
+                                    mode="static"
+                                    rehypePlugins={[rehypeAiAgentContentLinks]}
+                                    components={{
+                                        a: ({ node, children, ...props }) => {
+                                            const contentType =
+                                                'data-content-type' in props &&
+                                                typeof props[
+                                                    'data-content-type'
+                                                ] === 'string'
+                                                    ? props['data-content-type']
+                                                    : undefined;
+
+                                            return (
+                                                <ContentLink
+                                                    contentType={contentType}
+                                                    props={props}
+                                                    message={message}
+                                                    projectUuid={projectUuid}
+                                                    agentUuid={agentUuid}
+                                                >
+                                                    {children}
+                                                </ContentLink>
+                                            );
+                                        },
+                                    }}
+                                >
+                                    {messageContent}
+                                </Streamdown>
+                            </Box>
+                        ) : null}
+                    </>
+                );
+            })()}
+            {/* TypingDots fill the gap until the first visible output lands —
+             *  any tool call or text part. Reasoning alone doesn't count: it
+             *  collapses by default and would otherwise leave the bubble silent.
+             *  Once a part exists, the bento + rolling preview take over. */}
+            {(isStreaming || isPending) &&
+                (streamingState?.parts?.length ?? 0) === 0 && <TypingDots />}
             {proposeChangeToolCall && (
                 <AiProposeChangeToolCall
                     change={proposeChangeToolCall.change}

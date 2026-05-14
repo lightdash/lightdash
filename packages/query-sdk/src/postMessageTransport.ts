@@ -22,6 +22,8 @@ export type SdkFetchRequest = {
     method: string;
     path: string;
     body?: unknown;
+    /** Transport metadata for dev tools (not sent to the API) */
+    metadata?: Record<string, unknown>;
 };
 
 export type SdkFetchResponse = {
@@ -33,6 +35,29 @@ export type SdkFetchResponse = {
 
 export type SdkReadyMessage = {
     type: 'lightdash:sdk:ready';
+};
+
+export type SdkScreenshotRequest = {
+    type: 'lightdash:sdk:screenshot-request';
+    id: string;
+};
+
+export type SdkScreenshotResponse = {
+    type: 'lightdash:sdk:screenshot-response';
+    id: string;
+    /** PNG blob rasterized inside the iframe. Absent when `error` is set. */
+    blob?: Blob;
+    error?: string;
+};
+
+/**
+ * Announced by the iframe SDK on mount so the parent can detect that
+ * screenshot capture is wired up. Older templates running in resumed
+ * sandboxes don't send this, so the parent leaves the Screenshot button
+ * hidden for them — mirrors the inspector availability handshake.
+ */
+export type SdkScreenshotAvailableMessage = {
+    type: 'lightdash:sdk:screenshot-available';
 };
 
 // ---------------------------------------------------------------------------
@@ -96,7 +121,12 @@ function createPostMessageFetchAdapter(config: {
         }
     });
 
-    return async <T>(method: string, path: string, body?: unknown): Promise<T> => {
+    return async <T>(
+        method: string,
+        path: string,
+        body?: unknown,
+        metadata?: Record<string, unknown>,
+    ): Promise<T> => {
         await readyPromise;
 
         const id = crypto.randomUUID();
@@ -119,6 +149,7 @@ function createPostMessageFetchAdapter(config: {
                 method,
                 path,
                 body,
+                ...(metadata ? { metadata } : {}),
             };
             targetWindow.postMessage(message, '*');
         });

@@ -57,6 +57,9 @@ const NavBarContent = ({
     );
 };
 
+const getNavBarRootElement = () =>
+    document.getElementById('navbar-header') ?? undefined;
+
 const NavBar = memo(({ isFixed = true }: NavBarProps) => {
     const { isFullscreen } = useFullscreen();
 
@@ -84,9 +87,7 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
             <Mantine8Provider
                 forceColorScheme="dark"
                 cssVariablesSelector="#navbar-header"
-                getRootElement={() =>
-                    document.getElementById('navbar-header') ?? undefined
-                }
+                getRootElement={getNavBarRootElement}
             >
                 {isImpersonating ? (
                     <ImpersonationBanner />

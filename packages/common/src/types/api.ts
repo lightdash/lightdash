@@ -1,3 +1,4 @@
+import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
@@ -23,11 +24,14 @@ import type {
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
     ApiAppendInstructionResponse,
-    ApiAppImageUploadUrlResponse,
+    ApiAppImageUploadResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
     ApiGetAppResponse,
     ApiGetUserAgentPreferencesResponse,
+    ApiManagedAgentActionResponse,
+    ApiManagedAgentRunResponse,
+    ApiManagedAgentRunsListResponse,
     ApiMyAppsResponse,
     ApiPreviewTokenResponse,
     ApiUpdateAiOrganizationSettingsResponse,
@@ -35,12 +39,10 @@ import type {
     DecodedEmbed,
     EmbedUrl,
 } from '../ee';
+import type { DashboardPreAggregateAudit } from '../ee/preAggregates/audit';
 import type { PivotValuesColumn } from '../visualizations/types';
 import {
-    type ApiUnusedContent,
     type ApiUserActivityDownloadCsv,
-    type UnusedContent,
-    type UnusedContentItem,
     type UserActivity,
     type ViewStatistics,
 } from './analytics';
@@ -131,6 +133,7 @@ import {
 } from './openIdIdentity';
 import {
     type AllowedEmailDomains,
+    type ApiProjectColorPaletteResponse,
     type OnboardingStatus,
     type Organization,
     type OrganizationProject,
@@ -141,6 +144,7 @@ import {
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
+import { type AzureAdSsoConfigSummary } from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
@@ -207,7 +211,7 @@ import {
     type SortBy,
 } from './sqlRunner';
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
-import { type TableBase } from './table';
+import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import {
     type LightdashUser,
@@ -223,6 +227,15 @@ import {
     type ValidationResponse,
 } from './validation';
 import { type ApiWarehouseTableFields } from './warehouse';
+
+export type ApiGetDashboardPreAggregateAuditResponse = {
+    status: 'ok';
+    results: DashboardPreAggregateAudit;
+};
+
+export type ApiRunDashboardPreAggregateAuditBody = {
+    dashboardFilters?: DashboardFilters;
+};
 
 export enum RequestMethod {
     CLI = 'CLI',
@@ -270,6 +283,8 @@ export type ApiCompiledQueryResults = {
 export type ApiExploresResults = SummaryExplore[];
 
 export type ApiExploreResults = Omit<Explore, 'unfilteredTables'>;
+
+export type ApiTableGroupsResults = Record<string, GroupType>;
 
 export type ApiStatusResults = 'loading' | 'ready' | 'error';
 
@@ -462,7 +477,6 @@ export type HealthState = {
     hasHeadlessBrowser: boolean;
     hasExtendedUsageAnalytics: boolean;
     hasCacheAutocompleResults: boolean;
-    hasResultsCaching: boolean;
     appearance: {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
@@ -497,11 +511,20 @@ export type HealthState = {
         enabled: boolean;
         retentionDays: number;
     };
+    dashboardComments: {
+        enabled: boolean;
+    };
     preAggregates: {
         enabled: boolean;
     };
     dataApps: {
-        enabled: boolean;
+        /**
+         * Origin where data-app preview iframes are served (e.g.,
+         * `https://analytics.lightdash.app`). Used by the frontend to construct
+         * the iframe URL and to validate postMessage origins. `null` means
+         * previews are served same-origin (dev / pre-cutover).
+         */
+        previewOrigin: string | null;
     };
 };
 
@@ -543,10 +566,19 @@ export type ApiAddDeployBatchResponse = {
     };
 };
 
+export type ApiDeployExploresResults = {
+    exploreCount: number;
+    warnings: ExploreWarningReport;
+};
+
+export type ApiSetExploresResponse = {
+    status: 'ok';
+    results: ApiDeployExploresResults;
+};
+
 export type ApiFinalizeDeployResponse = {
     status: 'ok';
-    results: {
-        exploreCount: number;
+    results: ApiDeployExploresResults & {
         status: DeploySessionStatus;
     };
 };
@@ -583,8 +615,13 @@ export type CreateProject = Omit<
     | 'organizationUuid'
     | 'schedulerTimezone'
     | 'queryTimezone'
+    | 'useProjectTimezoneInFilters'
+    | 'schedulerFailureNotifyRecipients'
+    | 'schedulerFailureIncludeContact'
+    | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'colorPaletteUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -614,8 +651,13 @@ export type UpdateProject = Omit<
     | 'type'
     | 'schedulerTimezone'
     | 'queryTimezone'
+    | 'useProjectTimezoneInFilters'
+    | 'schedulerFailureNotifyRecipients'
+    | 'schedulerFailureIncludeContact'
+    | 'schedulerFailureContactOverride'
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
+    | 'colorPaletteUuid'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };
@@ -788,6 +830,9 @@ export type UpdateUserArgs = {
     isTrackingAnonymized: boolean;
     isSetupComplete: boolean;
     isActive: boolean;
+    /* IANA timezone (e.g. 'America/New_York') used as the user's per-viewer
+       default. Null clears the preference and falls back to the project. */
+    timezone: string | null;
 };
 
 export type PasswordResetLink = {
@@ -877,14 +922,12 @@ type ApiResults =
     | SlackSettings
     | ApiSlackChannelsResponse['results']
     | UserActivity
-    | UnusedContent
-    | UnusedContentItem
-    | ApiUnusedContent
     | SchedulerAndTargets
     | SchedulerAndTargets[]
     | FieldValueSearchResult
     | ApiDownloadCsv
     | AllowedEmailDomains
+    | AzureAdSsoConfigSummary
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring
@@ -921,6 +964,7 @@ type ApiResults =
     | ApiDeleteComment
     | ApiSuccessEmpty
     | ApiCreateProjectResults
+    | ApiDeployExploresResults
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
@@ -1017,7 +1061,12 @@ type ApiResults =
     | ApiGetAppResponse['results']
     | ApiMyAppsResponse['results']
     | ApiPreviewTokenResponse['results']
-    | ApiAppImageUploadUrlResponse['results'];
+    | ApiAppImageUploadResponse['results']
+    | ApiProjectColorPaletteResponse['results']
+    | ApiManagedAgentRunResponse['results']
+    | ApiManagedAgentRunsListResponse['results']
+    | ApiManagedAgentActionResponse['results']
+    | DashboardPreAggregateAudit;
 // Note: EE API types removed from ApiResults to avoid circular imports
 // They can still be used with ApiResponse<T> by importing from '@lightdash/common'
 

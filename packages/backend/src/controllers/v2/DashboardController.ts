@@ -1,5 +1,5 @@
 import {
-    AuthorizationError,
+    assertRegisteredAccount,
     type ApiDashboardPaginatedSchedulersResponse,
     type ApiErrorPayload,
     type KnexPaginateArgs,
@@ -17,6 +17,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -34,6 +35,8 @@ export class DashboardControllerV2 extends BaseController {
      * @param req express request
      * @param pageSize number of items per page
      * @param page page number
+     * @param searchQuery filter schedulers by name
+     * @param includeLatestRun include the most recent run for each scheduler
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -45,11 +48,9 @@ export class DashboardControllerV2 extends BaseController {
         @Query() pageSize?: number,
         @Query() page?: number,
         @Query() searchQuery?: string,
+        @Query() includeLatestRun?: boolean,
     ): Promise<ApiDashboardPaginatedSchedulersResponse> {
-        if (!req.user) {
-            throw new AuthorizationError('User session not found');
-        }
-
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -65,10 +66,11 @@ export class DashboardControllerV2 extends BaseController {
             results: await this.services
                 .getDashboardService()
                 .getSchedulers(
-                    req.user,
+                    toSessionUser(req.account),
                     dashboardUuid,
                     searchQuery,
                     paginateArgs,
+                    includeLatestRun,
                 ),
         };
     }

@@ -4,6 +4,7 @@ import {
     type UserWithCount,
 } from '@lightdash/common';
 import {
+    Anchor,
     Box,
     Button,
     Card,
@@ -16,7 +17,7 @@ import {
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
@@ -74,13 +75,37 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
     );
 };
 
-const showTableViews = (key: string, views: ActivityViews[]) => {
+const getDashboardLink = (projectUuid: string, dashboardUuid: string) =>
+    `/projects/${projectUuid}/dashboards/${dashboardUuid}`;
+
+const getChartLink = (projectUuid: string, chartUuid: string) =>
+    `/projects/${projectUuid}/saved/${chartUuid}`;
+
+const showTableViews = ({
+    key,
+    projectUuid,
+    type,
+    views,
+}: {
+    key: string;
+    projectUuid: string;
+    type: 'chart' | 'dashboard';
+    views: ActivityViews[];
+}) => {
     return (
         <tbody>
             {views.map((view) => {
+                const to =
+                    type === 'dashboard'
+                        ? getDashboardLink(projectUuid, view.uuid)
+                        : getChartLink(projectUuid, view.uuid);
                 return (
                     <tr key={`${key}-${view.uuid}`}>
-                        <td>{view.name}</td>
+                        <td>
+                            <Anchor component={Link} to={to}>
+                                {view.name}
+                            </Anchor>
+                        </td>
                         <td>{view.count}</td>
                     </tr>
                 );
@@ -194,11 +219,12 @@ const UserActivity: FC = () => {
         useDownloadUserActivityCsv();
 
     const { data, isInitialLoading } = useUserActivity(params.projectUuid);
+    const projectUuid = params.projectUuid;
     if (sessionUser.data?.ability?.cannot('view', 'Analytics')) {
         return <ForbiddenPanel />;
     }
 
-    if (isInitialLoading || data === undefined) {
+    if (projectUuid === undefined || isInitialLoading || data === undefined) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading..." loading />
@@ -423,7 +449,17 @@ const UserActivity: FC = () => {
                                     >
                                         <td>{user.firstName} </td>
                                         <td>{user.lastName}</td>
-                                        <td>{user.dashboardName}</td>
+                                        <td>
+                                            <Anchor
+                                                component={Link}
+                                                to={getDashboardLink(
+                                                    projectUuid,
+                                                    user.dashboardUuid,
+                                                )}
+                                            >
+                                                {user.dashboardName}
+                                            </Anchor>
+                                        </td>
 
                                         <td>{user.count}</td>
                                     </tr>
@@ -445,10 +481,12 @@ const UserActivity: FC = () => {
                                         <th>Views</th>
                                     </tr>
                                 </thead>
-                                {showTableViews(
-                                    'dashboard-views',
-                                    data.dashboardViews,
-                                )}
+                                {showTableViews({
+                                    key: 'dashboard-views',
+                                    projectUuid,
+                                    type: 'dashboard',
+                                    views: data.dashboardViews,
+                                })}
                             </Table>
                         </VisualizationCard>
                         <VisualizationCard
@@ -462,7 +500,12 @@ const UserActivity: FC = () => {
                                         <th>Views</th>
                                     </tr>
                                 </thead>
-                                {showTableViews('chart-views', data.chartViews)}
+                                {showTableViews({
+                                    key: 'chart-views',
+                                    projectUuid,
+                                    type: 'chart',
+                                    views: data.chartViews,
+                                })}
                             </Table>
                         </VisualizationCard>
                     </>

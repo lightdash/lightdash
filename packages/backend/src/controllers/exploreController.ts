@@ -1,10 +1,13 @@
 import {
     AnyType,
+    ApiChartSummaryListResponse,
     ApiCompiledQueryResults,
     ApiErrorPayload,
     ApiExploreResults,
     ApiExploresResults,
-    ApiSuccessEmpty,
+    ApiSetExploresResponse,
+    assertRegisteredAccount,
+    LightdashCliVersionHeader,
     MetricQuery,
     type ApiFormulaValidationResults,
     type ApiPreAggregateCheckResponse,
@@ -26,6 +29,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -53,15 +57,21 @@ export class ExploreController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
         @Body() body: AnyType[], // tsoa doesn't seem to work with explores from CLI
-    ): Promise<ApiSuccessEmpty> {
+    ): Promise<ApiSetExploresResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
-        await this.services
+        const results = await this.services
             .getProjectService()
-            .setExplores(req.user!, projectUuid, body);
+            .setExplores(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+                req.header(LightdashCliVersionHeader),
+            );
 
         return {
             status: 'ok',
-            results: undefined,
+            results,
         };
     }
 
@@ -234,6 +244,33 @@ export class ExploreController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * List charts referencing a given explore
+     * @summary List charts by explore
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{exploreId}/charts')
+    @OperationId('GetChartsByExploreName')
+    async getChartsByExploreName(
+        @Path() exploreId: string,
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiChartSummaryListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getChartsByExploreName(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    exploreId,
+                ),
         };
     }
 }

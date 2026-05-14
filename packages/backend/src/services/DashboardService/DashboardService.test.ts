@@ -5,6 +5,7 @@ import {
     defineUserAbility,
     FilterOperator,
     ForbiddenError,
+    NotFoundError,
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
@@ -20,13 +21,13 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -141,11 +142,13 @@ describe('DashboardService', () => {
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
         catalogModel: {} as CatalogModel,
+        organizationModel: {
+            findColorPalette: jest.fn(async () => null),
+        } as unknown as OrganizationModel,
         spacePermissionService:
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
-        featureFlagService: {} as FeatureFlagService,
     });
     afterEach(() => {
         jest.clearAllMocks();
@@ -334,6 +337,29 @@ describe('DashboardService', () => {
             expect.objectContaining({
                 event: 'saved_chart.deleted',
             }),
+        );
+    });
+    test('should not fail save when an orphan chart is already gone', async () => {
+        // Race with a retried save: getOrphanedCharts returns a chart that
+        // permanentDelete then can't find. The save must still succeed.
+        (dashboardModel.getOrphanedCharts as jest.Mock).mockImplementationOnce(
+            async () => [{ uuid: 'missing_chart_uuid' }],
+        );
+        (savedChartModel.permanentDelete as jest.Mock).mockImplementationOnce(
+            async () => {
+                throw new NotFoundError('chart already deleted');
+            },
+        );
+
+        await expect(
+            service.update(user, dashboardUuid, updateDashboardTiles),
+        ).resolves.toBeDefined();
+
+        expect(savedChartModel.permanentDelete).toHaveBeenCalledTimes(1);
+        // The dashboard.updated + dashboard_version.created events still fire,
+        // but no saved_chart.deleted event for the already-missing chart.
+        expect(analyticsMock.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'saved_chart.deleted' }),
         );
     });
     test('should delete dashboard', async () => {

@@ -1,7 +1,8 @@
 import {
     type ApiError,
     type ApiGenerateAppResponse,
-    type AppImageAttachment,
+    type AppChartReference,
+    type AppDashboardReference,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -10,7 +11,9 @@ type IterateAppParams = {
     projectUuid: string;
     appUuid: string;
     prompt: string;
-    image?: AppImageAttachment;
+    imageIds?: string[];
+    charts?: AppChartReference[];
+    dashboard?: AppDashboardReference;
 };
 
 type IterateAppResult = ApiGenerateAppResponse['results'];
@@ -19,12 +22,14 @@ const iterateApp = async ({
     projectUuid,
     appUuid,
     prompt,
-    image,
+    imageIds,
+    charts,
+    dashboard,
 }: IterateAppParams): Promise<IterateAppResult> => {
     const data = await lightdashApi<IterateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/${appUuid}/versions`,
-        body: JSON.stringify({ prompt, image }),
+        body: JSON.stringify({ prompt, imageIds, charts, dashboard }),
     });
     return data;
 };

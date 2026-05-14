@@ -3,6 +3,7 @@ import { useElementSize } from '@mantine/hooks';
 import { memo, useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
+import ScreenshotProgressIndicator from '../components/common/ScreenshotProgressIndicator';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import LightdashVisualization from '../components/LightdashVisualization';
 import VisualizationProvider from '../components/LightdashVisualization/VisualizationProvider';
@@ -53,6 +54,7 @@ const MinimalExplorerContent = memo(() => {
             ...queryResults,
             metricQuery: query.data?.metricQuery,
             fields: query.data?.fields,
+            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
         }),
         [queryResults, query.data],
     );
@@ -101,6 +103,7 @@ const MinimalExplorerContent = memo(() => {
             explore={explore}
             queryUuid={query.data?.queryUuid}
             parameters={query.data?.usedParametersValues}
+            resolvedTimezone={query.data?.resolvedTimezone}
         >
             <VisualizationProvider
                 minimal
@@ -127,6 +130,19 @@ const MinimalExplorerContent = memo(() => {
                     </Box>
                 </MantineProvider>
 
+                <ScreenshotProgressIndicator
+                    expectedTileUuids={[savedChart.uuid]}
+                    readyTileUuids={
+                        isScreenshotReady && !hasQueryError
+                            ? [savedChart.uuid]
+                            : []
+                    }
+                    erroredTileUuids={
+                        isScreenshotReady && hasQueryError
+                            ? [savedChart.uuid]
+                            : []
+                    }
+                />
                 {isScreenshotReady && (
                     <ScreenshotReadyIndicator
                         tilesTotal={1}

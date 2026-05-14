@@ -1,4 +1,8 @@
-import { NotEnoughResults, ThresholdOperator } from '@lightdash/common';
+import {
+    FieldReferenceError,
+    NotEnoughResults,
+    ThresholdOperator,
+} from '@lightdash/common';
 import SchedulerTask from './SchedulerTask';
 import {
     resultsWithOneRow,
@@ -105,5 +109,279 @@ describe('isPositiveThresholdAlert', () => {
                 ),
             ).toBe(false);
         });
+    });
+});
+
+describe('evaluateThreshold', () => {
+    it('should return diagnostic fields when GREATER_THAN is met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.GREATER_THAN,
+                    fieldId: 'm',
+                    value: 50,
+                },
+            ],
+            [{ m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: true,
+            fieldId: 'm',
+            operator: ThresholdOperator.GREATER_THAN,
+            thresholdValue: 50,
+            rowCount: 1,
+            evaluatedRawValue: 100,
+            evaluatedParsedValue: 100,
+        });
+        expect(result.previousRawValue).toBeUndefined();
+        expect(result.previousParsedValue).toBeUndefined();
+    });
+
+    it('should return diagnostic fields when GREATER_THAN is not met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.GREATER_THAN,
+                    fieldId: 'm',
+                    value: 200,
+                },
+            ],
+            [{ m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: false,
+            fieldId: 'm',
+            operator: ThresholdOperator.GREATER_THAN,
+            thresholdValue: 200,
+            rowCount: 1,
+            evaluatedRawValue: 100,
+            evaluatedParsedValue: 100,
+        });
+        expect(result.previousRawValue).toBeUndefined();
+        expect(result.previousParsedValue).toBeUndefined();
+    });
+
+    it('should return diagnostic fields when LESS_THAN is met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.LESS_THAN,
+                    fieldId: 'm',
+                    value: 200,
+                },
+            ],
+            [{ m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: true,
+            fieldId: 'm',
+            operator: ThresholdOperator.LESS_THAN,
+            thresholdValue: 200,
+            rowCount: 1,
+            evaluatedRawValue: 100,
+            evaluatedParsedValue: 100,
+        });
+        expect(result.previousRawValue).toBeUndefined();
+        expect(result.previousParsedValue).toBeUndefined();
+    });
+
+    it('should return diagnostic fields when LESS_THAN is not met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.LESS_THAN,
+                    fieldId: 'm',
+                    value: 50,
+                },
+            ],
+            [{ m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: false,
+            fieldId: 'm',
+            operator: ThresholdOperator.LESS_THAN,
+            thresholdValue: 50,
+            rowCount: 1,
+            evaluatedRawValue: 100,
+            evaluatedParsedValue: 100,
+        });
+        expect(result.previousRawValue).toBeUndefined();
+        expect(result.previousParsedValue).toBeUndefined();
+    });
+
+    it('should return previous values when INCREASED_BY is met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.INCREASED_BY,
+                    fieldId: 'm',
+                    value: 10,
+                },
+            ],
+            [{ m: 120 }, { m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: true,
+            fieldId: 'm',
+            operator: ThresholdOperator.INCREASED_BY,
+            thresholdValue: 10,
+            rowCount: 2,
+            evaluatedRawValue: 120,
+            evaluatedParsedValue: 120,
+            previousRawValue: 100,
+            previousParsedValue: 100,
+        });
+    });
+
+    it('should return previous values when INCREASED_BY is not met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.INCREASED_BY,
+                    fieldId: 'm',
+                    value: 50,
+                },
+            ],
+            [{ m: 120 }, { m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: false,
+            fieldId: 'm',
+            operator: ThresholdOperator.INCREASED_BY,
+            thresholdValue: 50,
+            rowCount: 2,
+            evaluatedRawValue: 120,
+            evaluatedParsedValue: 120,
+            previousRawValue: 100,
+            previousParsedValue: 100,
+        });
+    });
+
+    it('should return previous values when DECREASED_BY is met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.DECREASED_BY,
+                    fieldId: 'm',
+                    value: 10,
+                },
+            ],
+            [{ m: 50 }, { m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: true,
+            fieldId: 'm',
+            operator: ThresholdOperator.DECREASED_BY,
+            thresholdValue: 10,
+            rowCount: 2,
+            evaluatedRawValue: 50,
+            evaluatedParsedValue: 50,
+            previousRawValue: 100,
+            previousParsedValue: 100,
+        });
+    });
+
+    it('should return previous values when DECREASED_BY is not met', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.DECREASED_BY,
+                    fieldId: 'm',
+                    value: 50,
+                },
+            ],
+            [{ m: 90 }, { m: 100 }],
+        );
+        expect(result).toMatchObject({
+            met: false,
+            fieldId: 'm',
+            operator: ThresholdOperator.DECREASED_BY,
+            thresholdValue: 50,
+            rowCount: 2,
+            evaluatedRawValue: 90,
+            evaluatedParsedValue: 90,
+            previousRawValue: 100,
+            previousParsedValue: 100,
+        });
+    });
+
+    it('should return diagnostic fields when results are empty', () => {
+        const result = SchedulerTask.evaluateThreshold(
+            [
+                {
+                    operator: ThresholdOperator.GREATER_THAN,
+                    fieldId: 'm',
+                    value: 50,
+                },
+            ],
+            [],
+        );
+        expect(result).toMatchObject({
+            met: false,
+            fieldId: 'm',
+            operator: ThresholdOperator.GREATER_THAN,
+            thresholdValue: 50,
+            rowCount: 0,
+            evaluatedRawValue: undefined,
+            evaluatedParsedValue: null,
+        });
+    });
+
+    it('should return null diagnostic fields when thresholds are empty', () => {
+        const result = SchedulerTask.evaluateThreshold([], [{ m: 100 }]);
+        expect(result).toMatchObject({
+            met: false,
+            fieldId: null,
+            operator: null,
+            thresholdValue: null,
+            rowCount: 1,
+            evaluatedRawValue: undefined,
+            evaluatedParsedValue: null,
+        });
+    });
+
+    it('should throw NotEnoughResults when INCREASED_BY has only one row', () => {
+        expect(() =>
+            SchedulerTask.evaluateThreshold(
+                [
+                    {
+                        operator: ThresholdOperator.INCREASED_BY,
+                        fieldId: 'm',
+                        value: 5,
+                    },
+                ],
+                [{ m: 100 }],
+            ),
+        ).toThrow(NotEnoughResults);
+    });
+
+    it('should throw NotEnoughResults when DECREASED_BY has only one row', () => {
+        expect(() =>
+            SchedulerTask.evaluateThreshold(
+                [
+                    {
+                        operator: ThresholdOperator.DECREASED_BY,
+                        fieldId: 'm',
+                        value: 5,
+                    },
+                ],
+                [{ m: 100 }],
+            ),
+        ).toThrow(NotEnoughResults);
+    });
+
+    it('should throw FieldReferenceError when fieldId is unknown', () => {
+        expect(() =>
+            SchedulerTask.evaluateThreshold(
+                [
+                    {
+                        operator: ThresholdOperator.GREATER_THAN,
+                        fieldId: 'unknown',
+                        value: 5,
+                    },
+                ],
+                [{ m: 100 }],
+            ),
+        ).toThrow(FieldReferenceError);
     });
 });

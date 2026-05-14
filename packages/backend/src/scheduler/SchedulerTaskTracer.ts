@@ -182,13 +182,25 @@ const getTagsForTask: {
     [SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS]: () => ({}),
+    [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: (payload) => ({
+        'project.uuid': payload.projectUuid,
+        'managed_agent.triggered_by': payload.triggeredBy ?? 'cron',
+    }),
+    [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
 } as const;
 
-// Generic accessor function
 const getTagsFromPayload = <T extends SchedulerTaskName>(
     taskName: T,
     payload: TaskPayloadMap[T],
-): Record<string, string> => getTagsForTask[taskName](payload);
+): Record<string, string> => {
+    const tagFn = getTagsForTask[taskName];
+    return typeof tagFn === 'function' ? tagFn(payload) : {};
+};
 
 /**
  * Traces a task and adds tags to the Sentry span
@@ -343,14 +355,19 @@ export const traceTask = <T extends SchedulerTaskName>(
  */
 export const traceTasks = (tasks: Partial<TypedTaskList>) => {
     const tracedTasks = Object.keys(tasks).reduce<TaskList>(
-        (accTasks, taskName) => ({
-            ...accTasks,
-            // NOTE: Graphile Worker requires the task to be of type Task, which is not typed. We need to cast it to unknown.
-            [taskName]: traceTask(
-                taskName as SchedulerTaskName,
-                tasks[taskName as keyof TypedTaskList] as TypedTask<unknown>,
-            ) as Task,
-        }),
+        (accTasks, taskName) => {
+            const handler = tasks[
+                taskName as keyof TypedTaskList
+            ] as TypedTask<unknown>;
+            return {
+                ...accTasks,
+                // NOTE: Graphile Worker requires the task to be of type Task, which is not typed. We need to cast it to unknown.
+                [taskName]: traceTask(
+                    taskName as SchedulerTaskName,
+                    handler,
+                ) as Task,
+            };
+        },
         {} as TaskList,
     );
     return tracedTasks;

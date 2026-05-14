@@ -53,7 +53,7 @@ models:
                 [View Profile](https://example.com/customer/${ value.raw }) | [Search Google](https://google.com/search?q=customer%20${ value.formatted | url_encode })
             metrics:
               unique_customer_count:
-                tags: ["ai"]
+                tags: ["ai", "period_metric"]
                 type: count_distinct
                 label: Unique customer count
                 description: Total number of customers

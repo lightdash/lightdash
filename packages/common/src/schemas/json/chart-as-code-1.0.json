@@ -1168,7 +1168,8 @@
                 "inTheCurrent",
                 "notInTheCurrent",
                 "inBetween",
-                "notInBetween"
+                "notInBetween",
+                "inPeriodToDate"
             ],
             "type": "string"
         },
@@ -1299,6 +1300,23 @@
                 "percent"
             ],
             "type": "string"
+        },
+        "FormulaTableCalculation": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/TableCalculationBase"
+                },
+                {
+                    "properties": {
+                        "formula": {
+                            "description": "Spreadsheet-like formula compiled to SQL at query time",
+                            "type": "string"
+                        }
+                    },
+                    "required": ["formula"],
+                    "type": "object"
+                }
+            ]
         },
         "FrameBoundary": {
             "properties": {
@@ -2622,60 +2640,62 @@
             "required": ["descending", "fieldId"],
             "type": "object"
         },
-        "TableCalculation": {
+        "SqlTableCalculation": {
             "allOf": [
                 {
-                    "properties": {
-                        "displayName": {
-                            "description": "Display name shown in the UI",
-                            "type": "string"
-                        },
-                        "format": {
-                            "$ref": "#/$defs/CustomFormat",
-                            "description": "Formatting options for the calculation"
-                        },
-                        "index": {
-                            "description": "Display order index",
-                            "format": "double",
-                            "type": "number"
-                        },
-                        "name": {
-                            "description": "Internal name of the table calculation",
-                            "type": "string"
-                        },
-                        "type": {
-                            "$ref": "#/$defs/TableCalculationType",
-                            "description": "Data type of the calculation result"
-                        }
-                    },
-                    "required": ["displayName", "name"],
-                    "type": "object"
+                    "$ref": "#/$defs/TableCalculationBase"
                 },
                 {
-                    "anyOf": [
-                        {
-                            "properties": {
-                                "sql": {
-                                    "description": "SQL expression for the calculation (can reference fields with ${table.field})",
-                                    "type": "string"
-                                }
-                            },
-                            "required": ["sql"],
-                            "type": "object"
-                        },
-                        {
-                            "properties": {
-                                "template": {
-                                    "$ref": "#/$defs/TableCalculationTemplate",
-                                    "description": "Template-based calculation (alternative to sql)"
-                                }
-                            },
-                            "required": ["template"],
-                            "type": "object"
+                    "properties": {
+                        "sql": {
+                            "description": "SQL expression for the calculation (can reference fields with ${table.field})",
+                            "type": "string"
                         }
-                    ]
+                    },
+                    "required": ["sql"],
+                    "type": "object"
                 }
             ]
+        },
+        "TableCalculation": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/SqlTableCalculation"
+                },
+                {
+                    "$ref": "#/$defs/TemplateTableCalculation"
+                },
+                {
+                    "$ref": "#/$defs/FormulaTableCalculation"
+                }
+            ]
+        },
+        "TableCalculationBase": {
+            "properties": {
+                "displayName": {
+                    "description": "Display name shown in the UI",
+                    "type": "string"
+                },
+                "format": {
+                    "$ref": "#/$defs/CustomFormat",
+                    "description": "Formatting options for the calculation"
+                },
+                "index": {
+                    "description": "Display order index",
+                    "format": "double",
+                    "type": "number"
+                },
+                "name": {
+                    "description": "Internal name of the table calculation",
+                    "type": "string"
+                },
+                "type": {
+                    "$ref": "#/$defs/TableCalculationType",
+                    "description": "Data type of the calculation result"
+                }
+            },
+            "required": ["displayName", "name"],
+            "type": "object"
         },
         "TableCalculationTemplate": {
             "anyOf": [
@@ -2945,6 +2965,23 @@
             },
             "required": ["type"],
             "type": "object"
+        },
+        "TemplateTableCalculation": {
+            "allOf": [
+                {
+                    "$ref": "#/$defs/TableCalculationBase"
+                },
+                {
+                    "properties": {
+                        "template": {
+                            "$ref": "#/$defs/TableCalculationTemplate",
+                            "description": "Template-based calculation (alternative to sql)"
+                        }
+                    },
+                    "required": ["template"],
+                    "type": "object"
+                }
+            ]
         },
         "TimeFrames": {
             "enum": [
@@ -3343,12 +3380,16 @@
                             "$ref": "#/$defs/ContentVerificationInfo"
                         }
                     ],
-                    "description": "Verification status of this chart. Read-only; ignored on upload."
+                    "description": "Detailed verification info (who/when). Read-only; ignored on upload."
                 },
                 {
                     "type": "null"
                 }
             ]
+        },
+        "verified": {
+            "description": "Declarative verification state.\n`true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the chart is verified.",
+            "type": "boolean"
         },
         "version": {
             "const": 1,

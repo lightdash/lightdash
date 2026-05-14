@@ -319,6 +319,7 @@ const FiltersCard: FC = memo(() => {
                     }}
                     baseTable={data?.baseTable}
                     parameterValues={parameterValues}
+                    metricQueryTimezone={metricQuery.timezone ?? undefined}
                 >
                     <FiltersForm
                         isEditMode={isEditMode}

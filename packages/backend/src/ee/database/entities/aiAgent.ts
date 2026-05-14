@@ -7,12 +7,19 @@ export type DbAiAgent = {
     organization_uuid: string;
     project_uuid: string;
     name: string;
+    slug: string;
     description: string | null;
     image_url: string | null;
     tags: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;
-    enable_reasoning: boolean;
+    /**
+     * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
+     * `agent-reasoning` was never enabled in PostHog so this column was effectively
+     * unused. Reasoning is now controlled per-prompt via `ai_prompt.model_config.reasoning`.
+     * Column kept on the table (DB default `false`); drop in a follow-up migration.
+     */
+    enable_reasoning?: boolean;
     version: number;
     created_at: Date;
     updated_at: Date;

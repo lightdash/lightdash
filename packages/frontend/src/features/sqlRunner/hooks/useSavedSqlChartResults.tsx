@@ -16,7 +16,7 @@ import { captureException } from '@sentry/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
@@ -64,10 +64,11 @@ export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
     const retryConfig = useQueryRetryConfig();
-    // Needed for organization colors
-    const { data: organization } = useOrganization();
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
+        dashboardUuid: isDashboardArgs(args) ? args.dashboardUuid : undefined,
+    });
 
     // Step 1: Get the chart
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
@@ -139,7 +140,7 @@ export const useSavedSqlChartResults = (
                     queryUuid: pivotChartData.queryUuid,
                     chartSpec: vizDataModel.getSpec(
                         chart.config.display,
-                        organization?.chartColors,
+                        resolvedPalette?.colors,
                     ),
                     fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                     resultsRunner,

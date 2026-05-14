@@ -7,6 +7,7 @@ import {
     CommercialMobileRoutes,
     CommercialWebAppRoutes,
 } from './ee/CommercialRoutes';
+import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -53,7 +54,9 @@ const router = sentryCreateBrowserRouter([
                                         <SchedulerJobsProvider>
                                             <ChartColorMappingContextProvider>
                                                 <SourceCodeEditorProvider>
-                                                    <Outlet />
+                                                    <AiAgentsGlobalProvider>
+                                                        <Outlet />
+                                                    </AiAgentsGlobalProvider>
                                                 </SourceCodeEditorProvider>
                                             </ChartColorMappingContextProvider>
                                         </SchedulerJobsProvider>

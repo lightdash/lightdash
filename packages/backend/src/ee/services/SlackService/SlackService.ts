@@ -39,5 +39,6 @@ export class CommercialSlackService extends SlackService {
         this.aiAgentService.handleClickOAuthButton(slackApp);
         this.aiAgentService.handleExecuteFollowUpTool(slackApp);
         this.aiAgentService.handleViewChangesetsButtonClick(slackApp);
+        this.aiAgentService.handleSqlApprovalButton(slackApp);
     }
 }

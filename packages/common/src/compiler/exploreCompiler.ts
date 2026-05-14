@@ -49,6 +49,10 @@ import {
     validateParameterNames,
     validateParameterReferences,
 } from './parameters';
+import {
+    getReferencedDimensionCaseInsensitive,
+    getReferencedTable,
+} from './referenceLookup';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -194,19 +198,7 @@ const getDimensionFromRequiredFilter = ({
         requiredFilter.target.fieldRef,
         baseTable,
     );
-    const table = tables[refTable];
-
-    if (!table) {
-        return undefined;
-    }
-
-    // Keep required/default filter reference matching case-insensitive,
-    // consistent with metric filter dimension matching in this compiler.
-    const dimensionRefName = Object.keys(table.dimensions).find(
-        (key) => key.toLowerCase() === refName.toLowerCase(),
-    );
-
-    return dimensionRefName ? table.dimensions[dimensionRefName] : undefined;
+    return getReferencedDimensionCaseInsensitive(refTable, refName, tables);
 };
 
 const getHiddenRequiredFilterRefs = ({
@@ -250,7 +242,9 @@ export type UncompiledExplore = {
     label: string;
     tags: string[];
     baseTable: string;
+    /** @deprecated Use groups instead */
     groupLabel?: string;
+    groups?: string[];
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
@@ -267,18 +261,6 @@ export type UncompiledExplore = {
     preAggregates?: PreAggregateDef[];
     caseSensitive?: boolean;
     projectDefaults?: LightdashProjectConfig['defaults'];
-};
-
-const getReferencedTable = (
-    refTable: string,
-    tables: Record<string, Table>,
-) => {
-    if (tables[refTable]) {
-        return tables[refTable];
-    }
-    return Object.values(tables).find(
-        (table) => table.name === refTable || table.originalName === refTable,
-    );
 };
 
 /**
@@ -315,6 +297,7 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
+        groups,
         warehouse,
         ymlPath,
         sqlPath,
@@ -652,6 +635,7 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
+            ...(groups && groups.length > 0 ? { groups } : {}),
             warehouse,
             ymlPath,
             sqlPath,
@@ -734,10 +718,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile dimension "${dimensionKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Dimension "${dimensionKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [dimensionKey]:
@@ -773,10 +758,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile metric "${metricKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Metric "${metricKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [metricKey]: ExploreCompiler.createMetricWithError(
@@ -1102,7 +1088,7 @@ export class ExploreCompiler {
                     metric.table,
                 );
 
-                const table = tables[refTable];
+                const table = getReferencedTable(refTable, tables);
 
                 if (!table) {
                     throw new CompileError(
@@ -1110,14 +1096,11 @@ export class ExploreCompiler {
                     );
                 }
 
-                // NOTE: date dimensions from explores have their time format uppercased (e.g. order_date_DAY) - see ticket: https://github.com/lightdash/lightdash/issues/5998
-                const dimensionRefName = Object.keys(table.dimensions).find(
-                    (key) => key.toLowerCase() === refName.toLowerCase(),
+                const dimensionField = getReferencedDimensionCaseInsensitive(
+                    refTable,
+                    refName,
+                    tables,
                 );
-
-                const dimensionField = dimensionRefName
-                    ? table.dimensions[dimensionRefName]
-                    : undefined;
 
                 if (!dimensionField) {
                     throw new CompileError(
@@ -1528,6 +1511,9 @@ export const createDimensionWithGranularity = (
             timeIntervalBaseDimensionName:
                 baseTimeDimension.timeIntervalBaseDimensionName ??
                 baseTimeDimension.name,
+            timeIntervalBaseDimensionType:
+                baseTimeDimension.timeIntervalBaseDimensionType ??
+                baseTimeDimension.type,
             type: timeFrameConfigs[newTimeInterval].getDimensionType(
                 baseTimeDimension.type,
             ),

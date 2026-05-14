@@ -1,6 +1,7 @@
 import {
     type ResourceViewChartItem,
     type ResourceViewDashboardItem,
+    type ResourceViewDataAppItem,
     type ResourceViewItem,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
@@ -61,7 +62,8 @@ export type ResourceViewItemActionState =
           item:
               | ResourceViewChartItem
               | ResourceViewDashboardItem
-              | ResourceViewSpaceItem;
+              | ResourceViewSpaceItem
+              | ResourceViewDataAppItem;
       }
     | {
           type: ResourceViewItemAction.SHARE;

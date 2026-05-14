@@ -1,11 +1,46 @@
+import { LightdashError, Project, ProjectType } from '@lightdash/common';
 import inquirer from 'inquirer';
-import { Config } from '../config';
+import { Config, unsetPreviewProject } from '../config';
 import GlobalState from '../globalState';
 import * as styles from '../styles';
+import { lightdashApi } from './dbt/apiClient';
 
 export type ProjectSelection = {
     projectUuid: string;
     isPreview: boolean;
+};
+
+const validatePreviewProject = async (
+    previewProjectUuid: string | undefined,
+): Promise<string | undefined> => {
+    if (!previewProjectUuid) {
+        return undefined;
+    }
+
+    try {
+        const project = await lightdashApi<Project>({
+            method: 'GET',
+            url: `/api/v1/projects/${previewProjectUuid}`,
+            body: undefined,
+        });
+
+        if (project.type === ProjectType.PREVIEW) {
+            return project.projectUuid;
+        }
+
+        await unsetPreviewProject();
+        return undefined;
+    } catch (error) {
+        if (
+            error instanceof LightdashError &&
+            (error.statusCode === 403 || error.statusCode === 404)
+        ) {
+            await unsetPreviewProject();
+            return undefined;
+        }
+
+        return previewProjectUuid;
+    }
 };
 
 /**
@@ -27,7 +62,9 @@ export const selectProject = async (
     }
 
     const mainProject = config.context?.project;
-    const previewProject = config.context?.previewProject;
+    const previewProject = await validatePreviewProject(
+        config.context?.previewProject,
+    );
     const previewName = config.context?.previewName;
     const mainProjectName = config.context?.projectName;
 
@@ -44,6 +81,14 @@ export const selectProject = async (
     // Only main project available (no active preview)
     if (mainProject && !previewProject) {
         return { projectUuid: mainProject, isPreview: false };
+    }
+
+    // If the stored main project is the same UUID as the preview project,
+    // the config was set up incorrectly (e.g. an older `set-project` allowed
+    // selecting a preview). Treat the project as a preview only — otherwise
+    // the prompt would show the same project under both labels.
+    if (mainProject && previewProject && mainProject === previewProject) {
+        return { projectUuid: previewProject, isPreview: true };
     }
 
     // Both are available - need to choose
@@ -103,6 +148,7 @@ export const logSelectedProject = (
     const { projectUuid, isPreview } = selection;
     const previewName = config.context?.previewName;
     const mainProjectName = config.context?.projectName;
+    const mainProjectUuid = config.context?.project;
 
     if (isPreview) {
         const name = previewName ? `"${previewName}"` : projectUuid;
@@ -110,7 +156,14 @@ export const logSelectedProject = (
             `\n${styles.success(`${action} preview project:`)} ${name}\n`,
         );
     } else {
-        const name = mainProjectName ? `"${mainProjectName}"` : projectUuid;
+        // Only use the cached project name when the selection actually points
+        // at the config-set project. With --project, the UUID can differ and
+        // the cached name would be misleading.
+        const isConfigProject = mainProjectUuid === projectUuid;
+        const name =
+            isConfigProject && mainProjectName
+                ? `"${mainProjectName}"`
+                : projectUuid;
         GlobalState.log(`\n${styles.success(`${action} project:`)} ${name}\n`);
     }
 };

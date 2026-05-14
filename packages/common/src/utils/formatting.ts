@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
-import timezone from 'dayjs/plugin/timezone';
-import moment, { type MomentInput } from 'moment';
+import dayjsTimezone from 'dayjs/plugin/timezone';
+import moment, { type MomentInput } from 'moment-timezone';
 import {
     format as formatWithExpression,
     isDateFormat,
@@ -42,7 +42,7 @@ import assertUnreachable from './assertUnreachable';
 import { evaluateConditionalFormatExpression } from './conditionalFormatExpressions';
 import { getItemType, isNumericItem } from './item';
 
-dayjs.extend(timezone);
+dayjs.extend(dayjsTimezone);
 
 export const currencies = [
     'USD',
@@ -135,8 +135,16 @@ export function formatDate(
     date: MomentInput,
     timeInterval: TimeFrames = TimeFrames.DAY,
     convertToUTC: boolean = false,
+    timezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(date).utc() : moment(date);
+    let momentDate;
+    if (timezone) {
+        momentDate = moment.utc(date).tz(timezone);
+    } else if (convertToUTC) {
+        momentDate = moment.utc(date);
+    } else {
+        momentDate = moment(date);
+    }
 
     if (!momentDate.isValid()) {
         return 'NaT';
@@ -145,19 +153,110 @@ export function formatDate(
     return momentDate.format(getDateFormat(timeInterval));
 }
 
+// Pass `timezone` to convert the UTC value into that zone. Pass `displayTimezone`
+// when the value is already wall-clock in that zone — it only appends the offset
+// suffix. Pass at most one.
 export function formatTimestamp(
     value: MomentInput,
     timeInterval: TimeFrames | undefined = TimeFrames.MILLISECOND,
     convertToUTC: boolean = false,
+    timezone?: string,
+    displayTimezone?: string,
 ): string {
-    const momentDate = convertToUTC ? moment(value).utc() : moment(value);
+    let momentDate;
+    if (timezone) {
+        momentDate = moment.utc(value).tz(timezone);
+    } else if (convertToUTC) {
+        momentDate = moment.utc(value);
+    } else {
+        momentDate = moment(value);
+    }
 
     if (!momentDate.isValid()) {
         return 'NaT';
     }
 
+    if (!timezone && displayTimezone) {
+        const offsetMinutes = moment.tz(value, displayTimezone).utcOffset();
+        return momentDate
+            .utcOffset(offsetMinutes, true)
+            .format(getTimeFormat(timeInterval));
+    }
+
     return momentDate.format(getTimeFormat(timeInterval));
 }
+
+// Date whose UTC components match `value` rendered in `timezone`.
+// ExcelJS serializes Date cells via UTC components and Excel cells
+// carry no zone — this is how we land project-tz wall-clock in a
+// real date cell. Resulting Date no longer represents a real instant.
+export function toExcelWallClockDate(
+    value: MomentInput,
+    timezone: string,
+): Date {
+    return moment.tz(value, timezone).utc(true).toDate();
+}
+
+// Re-encode a UTC instant as ISO 8601 in the project tz with an explicit
+// offset suffix (e.g. `2024-01-14T15:00:00.000-11:00`). Returns undefined
+// when there's nothing to shift; callers fall through to passthrough so
+// flag-off / UTC output stays bit-identical.
+export const toIsoWithProjectOffset = (
+    rawValue: unknown,
+    timezone: string | undefined,
+): string | undefined => {
+    if (!timezone || timezone === 'UTC') return undefined;
+    if (
+        typeof rawValue !== 'string' &&
+        typeof rawValue !== 'number' &&
+        !(rawValue instanceof Date)
+    ) {
+        return undefined;
+    }
+    const m = moment.utc(rawValue);
+    if (!m.isValid()) return undefined;
+    return m.tz(timezone).toISOString(true);
+};
+
+// TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and
+// dims with `skipTimezoneConversion` stay put. Used by spreadsheet exports.
+export const shouldShiftItemTimezone = (item: Item | undefined): boolean => {
+    if (!isField(item)) return false;
+    if (isDimension(item) && item.skipTimezoneConversion) return false;
+    if (item.type === DimensionType.TIMESTAMP) return true;
+    return (
+        item.type === DimensionType.DATE &&
+        isDimension(item) &&
+        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
+    );
+};
+
+// Renders a temporal cell as the wall-clock string Excel and Google Sheets
+// auto-detect as a date. TIMESTAMP → `YYYY-MM-DD HH:mm:ss.SSS`, DATE →
+// `YYYY-MM-DD`. Shifts into the project tz when the item is timezone-
+// shiftable (TIMESTAMP / DATE-base-TS) and a timezone is supplied; calendar
+// DATEs are formatted as-is. Returns undefined for non-temporal fields or
+// unparseable values so callers can fall through to their existing
+// formatting path.
+export const formatTemporalCellForSpreadsheet = (
+    item: Item | undefined,
+    rawValue: unknown,
+    timezone: string | undefined,
+): string | undefined => {
+    if (!isField(item)) return undefined;
+    const isTimestamp = item.type === DimensionType.TIMESTAMP;
+    const isDate = item.type === DimensionType.DATE;
+    if (!isTimestamp && !isDate) return undefined;
+    if (rawValue === null || rawValue === undefined || rawValue === '') {
+        return undefined;
+    }
+    const shouldShift = !!timezone && shouldShiftItemTimezone(item);
+    const m = shouldShift
+        ? moment.utc(rawValue as MomentInput).tz(timezone!)
+        : moment(rawValue as MomentInput);
+    if (!m.isValid()) return undefined;
+    return m.format(isTimestamp ? 'YYYY-MM-DD HH:mm:ss.SSS' : 'YYYY-MM-DD');
+};
 
 export function getLocalTimeDisplay(
     value: MomentInput,
@@ -772,6 +871,8 @@ export function formatItemValue(
     value: unknown,
     convertToUTC?: boolean,
     parameters?: Record<string, unknown>,
+    timezone?: string,
+    displayTimezone?: string,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -821,6 +922,32 @@ export function formatItemValue(
 
         if (isCustomSqlDimension(item) || 'type' in item) {
             const type = getItemType(item);
+            const effectiveTimezone =
+                isDimension(item) && item.skipTimezoneConversion
+                    ? undefined
+                    : timezone;
+
+            // Date/Timestamp table calculations may carry a CUSTOM format
+            // expression (e.g. "mmmm d, yyyy"). The default switch path
+            // hardwires formatDate/formatTimestamp and would silently drop
+            // it, so honour the custom expression first.
+            if (
+                (type === TableCalculationType.DATE ||
+                    type === TableCalculationType.TIMESTAMP) &&
+                customFormat?.type === CustomFormatType.CUSTOM &&
+                customFormat.custom &&
+                isMomentInput(value)
+            ) {
+                try {
+                    return formatValueWithExpression(
+                        customFormat.custom,
+                        value,
+                    );
+                } catch {
+                    // Fall through to the default date/timestamp render.
+                }
+            }
+
             switch (type) {
                 case TableCalculationType.STRING:
                 case DimensionType.STRING:
@@ -832,14 +959,25 @@ export function formatItemValue(
                     return formatBoolean(value);
                 case DimensionType.DATE:
                 case MetricType.DATE:
-                case TableCalculationType.DATE:
+                case TableCalculationType.DATE: {
+                    // Truncated dimensions whose base column is DATE have no
+                    // time component — applying a display timezone would
+                    // shift the calendar day (off-by-one in negative offsets).
+                    const dateTimezone =
+                        isDimension(item) &&
+                        item.timeIntervalBaseDimensionType ===
+                            DimensionType.DATE
+                            ? undefined
+                            : effectiveTimezone;
                     return isMomentInput(value)
                         ? formatDate(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
+                              dateTimezone,
                           )
                         : 'NaT';
+                }
                 case DimensionType.TIMESTAMP:
                 case MetricType.TIMESTAMP:
                 case TableCalculationType.TIMESTAMP:
@@ -848,6 +986,8 @@ export function formatItemValue(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
+                              effectiveTimezone,
+                              displayTimezone,
                           )
                         : 'NaT';
                 case MetricType.MAX:
@@ -857,6 +997,8 @@ export function formatItemValue(
                             value,
                             isDimension(item) ? item.timeInterval : undefined,
                             convertToUTC,
+                            effectiveTimezone,
+                            displayTimezone,
                         );
                     }
                     break;

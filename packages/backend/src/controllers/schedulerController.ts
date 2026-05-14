@@ -10,7 +10,7 @@ import {
     ApiSchedulerRunsResponse,
     ApiSchedulersResponse,
     ApiTestSchedulerResponse,
-    AuthorizationError,
+    assertRegisteredAccount,
     KnexPaginateArgs,
     ReassignSchedulerOwnerRequest,
     SchedulerJobStatus,
@@ -33,6 +33,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import {
     parseEnumList,
     parseUuidList,
@@ -84,6 +85,7 @@ export class SchedulerController extends BaseController {
         @Query() createdByUserUuids?: string,
         @Query() destinations?: string,
     ): Promise<ApiSchedulerLogsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -109,7 +111,7 @@ export class SchedulerController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .getSchedulerLogs(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     paginateArgs,
                     searchQuery,
@@ -154,6 +156,7 @@ export class SchedulerController extends BaseController {
         @Query() resourceType?: 'chart' | 'dashboard',
         @Query() resourceUuids?: string,
     ): Promise<ApiSchedulerRunsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         let paginateArgs: KnexPaginateArgs | undefined;
@@ -190,7 +193,7 @@ export class SchedulerController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .getSchedulerRuns(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     paginateArgs,
                     searchQuery,
@@ -214,13 +217,14 @@ export class SchedulerController extends BaseController {
         @Path() runId: string,
         @Request() req: express.Request,
     ): Promise<ApiSchedulerRunLogsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getRunLogs(req.user!, runId),
+                .getRunLogs(toSessionUser(req.account), runId),
         };
     }
 
@@ -256,6 +260,7 @@ export class SchedulerController extends BaseController {
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
     ): Promise<ApiSchedulersResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
 
@@ -279,7 +284,7 @@ export class SchedulerController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .getUserSchedulers(
-                    req.user!,
+                    toSessionUser(req.account),
                     paginateArgs,
                     searchQuery,
                     sort,
@@ -333,6 +338,7 @@ export class SchedulerController extends BaseController {
         @Query() destinations?: string,
         @Query() includeLatestRun?: boolean,
     ): Promise<ApiSchedulersResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         let paginateArgs: KnexPaginateArgs | undefined;
 
@@ -366,7 +372,7 @@ export class SchedulerController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .getSchedulers(
-                    req.user!,
+                    toSessionUser(req.account),
                     projectUuid,
                     paginateArgs,
                     searchQuery,
@@ -391,12 +397,13 @@ export class SchedulerController extends BaseController {
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSchedulerAndTargetsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getScheduler(req.user!, schedulerUuid),
+                .getScheduler(toSessionUser(req.account), schedulerUuid),
         };
     }
 
@@ -420,12 +427,17 @@ export class SchedulerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AnyType, // TODO: It should be UpdateSchedulerAndTargetsWithoutId but tsoa returns an error
     ): Promise<ApiSchedulerAndTargetsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .updateScheduler(req.user!, schedulerUuid, body),
+                .updateScheduler(
+                    toSessionUser(req.account),
+                    schedulerUuid,
+                    body,
+                ),
         };
     }
 
@@ -449,12 +461,17 @@ export class SchedulerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: { enabled: boolean },
     ): Promise<ApiSchedulerAndTargetsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .setSchedulerEnabled(req.user!, schedulerUuid, body.enabled),
+                .setSchedulerEnabled(
+                    toSessionUser(req.account),
+                    schedulerUuid,
+                    body.enabled,
+                ),
         };
     }
 
@@ -478,17 +495,14 @@ export class SchedulerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ReassignSchedulerOwnerRequest,
     ): Promise<ApiReassignSchedulerOwnerResponse> {
-        if (!req.user) {
-            throw new AuthorizationError('User session not found');
-        }
-
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
                 .reassignSchedulerOwner(
-                    req.user,
+                    toSessionUser(req.account),
                     projectUuid,
                     body.schedulerUuids,
                     body.newOwnerUserUuid,
@@ -517,10 +531,11 @@ export class SchedulerController extends BaseController {
         status: 'ok';
         results: undefined;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSchedulerService()
-            .deleteScheduler(req.user!, schedulerUuid);
+            .deleteScheduler(toSessionUser(req.account), schedulerUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -541,12 +556,13 @@ export class SchedulerController extends BaseController {
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiScheduledJobsResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSchedulerService()
-                .getScheduledJobs(req.user!, schedulerUuid),
+                .getScheduledJobs(toSessionUser(req.account), schedulerUuid),
         };
     }
 
@@ -596,6 +612,7 @@ export class SchedulerController extends BaseController {
         @Request() req: express.Request,
         @Body() body: AnyType, // TODO: It should be CreateSchedulerAndTargets but tsoa returns an error
     ): Promise<ApiTestSchedulerResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
@@ -604,7 +621,7 @@ export class SchedulerController extends BaseController {
                 jobId: (
                     await this.services
                         .getSchedulerService()
-                        .sendScheduler(req.user!, body)
+                        .sendScheduler(toSessionUser(req.account), body)
                 ).jobId,
             },
         };
@@ -628,6 +645,7 @@ export class SchedulerController extends BaseController {
         @Path() schedulerUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiTestSchedulerResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -635,7 +653,10 @@ export class SchedulerController extends BaseController {
                 jobId: (
                     await this.services
                         .getSchedulerService()
-                        .sendSchedulerByUuid(req.user!, schedulerUuid)
+                        .sendSchedulerByUuid(
+                            toSessionUser(req.account),
+                            schedulerUuid,
+                        )
                 ).jobId,
             },
         };

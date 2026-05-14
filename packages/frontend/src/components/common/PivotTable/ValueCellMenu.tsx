@@ -2,6 +2,8 @@ import {
     createDashboardFilterRuleFromField,
     isDimension,
     isDimensionValueInvalidDate,
+    isField,
+    isMetric,
     type ItemsMap,
     type ResultValue,
 } from '@lightdash/common';
@@ -94,7 +96,8 @@ const ValueCellMenuDropdownContent: FC<{
     const { track } = tracking;
 
     const hasUnderlyingData = getUnderlyingFieldValues && item;
-    const hasDrillInto = getUnderlyingFieldValues && item;
+    const hasDrillInto =
+        getUnderlyingFieldValues && item && isField(item) && isMetric(item);
 
     const handleOpenUnderlyingDataModal = () => {
         if (

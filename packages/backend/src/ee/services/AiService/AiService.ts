@@ -27,10 +27,10 @@ import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
-import { isFeatureFlagEnabled } from '../../../postHog';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
+    ConvertSqlToFormulaGenerated,
     CustomVizGenerated,
     DashboardSummaryCreated,
     DashboardSummaryViewed,
@@ -148,16 +148,13 @@ export class AiService {
         });
     }
 
-    private static async throwOnFeatureDisabled(user: SessionUser) {
-        const isAIDashboardSummaryEnabled = await isFeatureFlagEnabled(
-            'ai-dashboard-summary' as FeatureFlags,
+    private async throwOnFeatureDisabled(user: SessionUser) {
+        const { enabled } = await this.featureFlagService.get({
             user,
-            {
-                throwOnTimeout: true,
-            },
-        );
+            featureFlagId: FeatureFlags.AiDashboardSummary,
+        });
 
-        if (!isAIDashboardSummaryEnabled) {
+        if (!enabled) {
             throw new Error('AI Dashboard summary feature not enabled!');
         }
     }
@@ -242,15 +239,12 @@ export class AiService {
         }[];
         currentVizConfig: string;
     }) {
-        const isAICustomVizEnabled = await isFeatureFlagEnabled(
-            FeatureFlags.AiCustomViz,
+        const aiCustomVizFlag = await this.featureFlagService.get({
             user,
-            {
-                throwOnTimeout: true,
-            },
-        );
+            featureFlagId: FeatureFlags.AiCustomViz,
+        });
 
-        if (!isAICustomVizEnabled) {
+        if (!aiCustomVizFlag.enabled) {
             throw new Error('AI Custom viz feature not enabled!');
         }
         let openAiResponse: {
@@ -317,7 +311,7 @@ export class AiService {
         dashboardUuid: string,
         opts: Pick<DashboardSummary, 'context' | 'tone' | 'audiences'>,
     ) {
-        await AiService.throwOnFeatureDisabled(user);
+        await this.throwOnFeatureDisabled(user);
         const startTime = new Date().getTime();
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -426,7 +420,7 @@ export class AiService {
         projectUuid: string,
         dashboardUuidOrSlug: string,
     ) {
-        await AiService.throwOnFeatureDisabled(user);
+        await this.throwOnFeatureDisabled(user);
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
@@ -529,24 +523,30 @@ export class AiService {
 
         const result = await generateFormulaTableCalculationFromContext(
             modelOptions,
-            {
-                prompt: payload.prompt,
-                tableName: payload.tableName,
-                fieldsContext: payload.fieldsContext,
-                existingTableCalculations: payload.existingTableCalculations,
-                currentFormula: payload.currentFormula,
-            },
+            payload,
         );
 
-        this.analytics.track<GenerateFormulaTableCalculationGenerated>({
-            userId: user.userUuid,
-            event: 'ai.formula_table_calculation.generated',
-            properties: {
-                organizationId: user.organizationUuid!,
-                projectId: projectUuid,
+        if (payload.mode === 'convert-sql') {
+            this.analytics.track<ConvertSqlToFormulaGenerated>({
                 userId: user.userUuid,
-            },
-        });
+                event: 'ai.formula_table_calculation.converted_from_sql',
+                properties: {
+                    organizationId: user.organizationUuid!,
+                    projectId: projectUuid,
+                    userId: user.userUuid,
+                },
+            });
+        } else {
+            this.analytics.track<GenerateFormulaTableCalculationGenerated>({
+                userId: user.userUuid,
+                event: 'ai.formula_table_calculation.generated',
+                properties: {
+                    organizationId: user.organizationUuid!,
+                    projectId: projectUuid,
+                    userId: user.userUuid,
+                },
+            });
+        }
 
         return {
             formula: result.formula,

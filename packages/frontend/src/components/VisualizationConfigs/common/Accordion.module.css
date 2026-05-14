@@ -1,0 +1,56 @@
+.containedList {
+    --accordion-radius: var(--mantine-radius-md);
+}
+
+.containedList :global(.mantine-Accordion-control) {
+    padding: var(--mantine-spacing-xs);
+}
+
+.containedList :global(.mantine-Accordion-label) {
+    padding: 0;
+}
+
+.containedList :global(.mantine-Accordion-panel) {
+    padding: 0;
+}
+
+.controlLabel {
+    flex: 1;
+    min-width: 0;
+}
+
+.controlButton {
+    flex: 0;
+    &:hover {
+        background-color: transparent;
+    }
+}
+
+.controlRow [data-cf-rule-delete] {
+    opacity: 0;
+    transition: opacity 120ms ease;
+    pointer-events: none;
+}
+
+.controlRow:hover [data-cf-rule-delete] {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.controlDescriptionWrapper {
+    display: grid;
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition:
+        grid-template-rows 200ms ease,
+        opacity 200ms ease;
+}
+
+.controlDescriptionWrapper > * {
+    overflow: hidden;
+}
+
+[data-active] .controlDescriptionWrapper {
+    grid-template-rows: 0fr;
+    opacity: 0;
+}

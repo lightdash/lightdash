@@ -60,12 +60,13 @@ const FavoritesPanel: FC<Props> = ({
                             ResourceViewItemType.DASHBOARD,
                             ResourceViewItemType.CHART,
                         ],
+                        [ResourceViewItemType.DATA_APP],
                     ],
                 }}
                 headerProps={{
                     title: 'My favorites',
                     description:
-                        'Your personally favorited spaces, dashboards, and charts.',
+                        'Your personally favorited spaces, dashboards, charts, and data apps.',
                 }}
             />
         </PinnedItemsContext.Provider>

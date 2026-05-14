@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
+    getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
     isField,
@@ -395,7 +396,7 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
-    const { activeFields, query } = useExplorerQuery();
+    const { activeFields, query, validQueryArgs } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
     const resultsFields = query.data?.fields;
 
@@ -443,6 +444,12 @@ export const useColumns = (): TableColumn[] => {
             return baseItemsMap;
         }
 
+        // Resolve PoP metric overrides from their base metric (shared util)
+        const resolvedMetricOverrides = getMetricOverridesWithPopInheritance({
+            metricOverrides,
+            additionalMetrics,
+        });
+
         // Only apply overrides to items that have them
         return Object.fromEntries(
             Object.entries(baseItemsMap).map(([key, value]) => {
@@ -451,7 +458,8 @@ export const useColumns = (): TableColumn[] => {
                     return [key, value];
                 }
 
-                if (!metricOverrides[key]) return [key, value];
+                const override = resolvedMetricOverrides[key];
+                if (!override) return [key, value];
 
                 const itemWithoutLegacyFormat = omit(value, [
                     'format',
@@ -461,12 +469,12 @@ export const useColumns = (): TableColumn[] => {
                     key,
                     {
                         ...itemWithoutLegacyFormat,
-                        ...metricOverrides[key],
+                        ...override,
                     },
                 ];
             }),
         );
-    }, [baseItemsMap, metricOverrides, resultsFields]);
+    }, [baseItemsMap, metricOverrides, resultsFields, additionalMetrics]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
@@ -504,6 +512,7 @@ export const useColumns = (): TableColumn[] => {
             ? itemsInMetricQuery(resultsMetricQuery)
             : undefined,
         itemsMap: activeItemsMap,
+        invalidateCache: validQueryArgs?.invalidateCache,
         embedToken,
         parameters,
     });

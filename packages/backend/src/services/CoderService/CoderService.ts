@@ -55,6 +55,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
 import { PromoteService } from '../PromoteService/PromoteService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { paginateAsCode } from './pagination';
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -204,6 +205,7 @@ export class CoderService extends BaseService {
             contentType: ContentAsCodeType.CHART,
             downloadedAt: new Date(),
             parameters: chart.parameters,
+            verified: verificationMap.has(chart.uuid) ? true : undefined,
             verification: verificationMap.get(chart.uuid) ?? null,
         };
     }
@@ -415,6 +417,7 @@ export class CoderService extends BaseService {
             version: currentVersion,
             contentType: ContentAsCodeType.DASHBOARD,
             downloadedAt: new Date(),
+            verified: verificationMap.has(dashboard.uuid) ? true : undefined,
             verification: verificationMap.get(dashboard.uuid) ?? null,
         };
 
@@ -566,8 +569,9 @@ export class CoderService extends BaseService {
         content: T[],
         spaces: SpaceSummaryBase[],
     ): Promise<T[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.can(
+            auditedAbility.can(
                 'manage',
                 subject('Project', {
                     projectUuid: project.projectUuid,
@@ -608,8 +612,9 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -654,17 +659,15 @@ export class CoderService extends BaseService {
             dashboardSummaries,
             spaces,
         );
-        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
-        const offsetIndex = offset || 0;
-        const newOffset = Math.min(
-            offsetIndex + maxResults,
-            dashboardSummariesWithAccess.length,
-        );
-
-        const limitedDashboardSummaries = dashboardSummariesWithAccess.slice(
-            offsetIndex,
-            newOffset,
-        );
+        const {
+            page: limitedDashboardSummaries,
+            total: dashboardsTotal,
+            offset: newOffset,
+        } = paginateAsCode({
+            items: dashboardSummariesWithAccess,
+            offset,
+            pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
+        });
 
         const dashboardPromises = limitedDashboardSummaries.map((dash) =>
             this.dashboardModel.getByIdOrSlug(dash.uuid),
@@ -727,7 +730,7 @@ export class CoderService extends BaseService {
                     dashboardsWithAccess.some((d) => d.spaceUuid === s.uuid),
                 ),
             ),
-            total: dashboardSummariesWithAccess.length,
+            total: dashboardsTotal,
             offset: newOffset,
         };
     }
@@ -745,8 +748,9 @@ export class CoderService extends BaseService {
         }
 
         // Filter charts based on user permissions (from private spaces)
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -780,10 +784,6 @@ export class CoderService extends BaseService {
             excludeChartsSavedInDashboard: false,
             includeOrphanChartsWithinDashboard: true,
         });
-        const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
-
-        // Apply offset and limit to chart summaries
-        const offsetIndex = offset || 0;
         const spaceUuids = chartSummaries.map((chart) => chart.spaceUuid);
         // get all spaces to map  spaceSlug
         const spaces = await this.spaceModel.find({ spaceUuids });
@@ -793,14 +793,15 @@ export class CoderService extends BaseService {
             chartSummaries,
             spaces,
         );
-        const newOffset = Math.min(
-            offsetIndex + maxResults,
-            chartsSummariesWithAccess.length,
-        );
-        const limitedChartSummaries = chartsSummariesWithAccess.slice(
-            offsetIndex,
-            newOffset,
-        );
+        const {
+            page: limitedChartSummaries,
+            total: chartsTotal,
+            offset: newOffset,
+        } = paginateAsCode({
+            items: chartsSummariesWithAccess,
+            offset,
+            pageSize: this.lightdashConfig.contentAsCode.maxDownloads,
+        });
 
         const chartPromises = limitedChartSummaries.map((chart) =>
             this.savedChartModel.get(chart.uuid),
@@ -858,7 +859,7 @@ export class CoderService extends BaseService {
                     limitedChartSummaries.some((c) => c.spaceUuid === s.uuid),
                 ),
             ),
-            total: chartsSummariesWithAccess.length,
+            total: chartsTotal,
             offset: newOffset,
         };
     }
@@ -880,8 +881,9 @@ export class CoderService extends BaseService {
             throw new NotFoundError(`Project ${projectUuid} not found`);
         }
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -941,15 +943,15 @@ export class CoderService extends BaseService {
 
         // Apply pagination to the filtered results
         const maxResults = this.lightdashConfig.contentAsCode.maxDownloads;
-        const offsetIndex = offset || 0;
-        const paginatedSqlChartRows = accessibleSqlChartRows.slice(
-            offsetIndex,
-            offsetIndex + maxResults,
-        );
-        const newOffset = Math.min(
-            offsetIndex + paginatedSqlChartRows.length,
-            accessibleSqlChartRows.length,
-        );
+        const {
+            page: paginatedSqlChartRows,
+            total: sqlChartsTotal,
+            offset: newOffset,
+        } = paginateAsCode({
+            items: accessibleSqlChartRows,
+            offset,
+            pageSize: maxResults,
+        });
 
         const transformedSqlCharts = paginatedSqlChartRows.map((row) =>
             CoderService.transformSqlChart(
@@ -983,9 +985,87 @@ export class CoderService extends BaseService {
                     ),
                 ),
             ),
-            total: accessibleSqlChartRows.length,
+            total: sqlChartsTotal,
             offset: newOffset,
         };
+    }
+
+    private async syncVerification({
+        user,
+        projectUuid,
+        organizationUuid,
+        contentType,
+        contentUuid,
+        verified,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        organizationUuid: string;
+        contentType: ContentType;
+        contentUuid: string;
+        verified: boolean | undefined;
+    }): Promise<void> {
+        if (verified === undefined) return;
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid,
+                    projectUuid,
+                    uuid: projectUuid,
+                }),
+            )
+        ) {
+            // Warn and skip so CI pipelines run by non-admin deployers don't fail.
+            this.logger.warn(
+                `User ${user.userUuid} cannot ${
+                    verified ? 'verify' : 'unverify'
+                } ${contentType} ${contentUuid}; skipping verification sync.`,
+            );
+            return;
+        }
+
+        const current = await this.contentVerificationModel.getByContent(
+            contentType,
+            contentUuid,
+        );
+        const isCurrentlyVerified = current !== null;
+
+        if (verified && !isCurrentlyVerified) {
+            await this.contentVerificationModel.verify(
+                contentType,
+                contentUuid,
+                projectUuid,
+                user.userUuid,
+            );
+            this.analytics.track({
+                event: 'content_verification.created',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    contentType,
+                    contentId: contentUuid,
+                },
+            });
+        } else if (!verified && isCurrentlyVerified) {
+            await this.contentVerificationModel.unverify(
+                contentType,
+                contentUuid,
+            );
+            this.analytics.track({
+                event: 'content_verification.deleted',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    contentType,
+                    contentId: contentUuid,
+                },
+            });
+        }
     }
 
     async upsertChart(
@@ -1000,8 +1080,9 @@ export class CoderService extends BaseService {
     ) {
         const project = await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1106,6 +1187,15 @@ export class CoderService extends BaseService {
                 createChart,
             );
 
+            await this.syncVerification({
+                user,
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                contentType: ContentType.CHART,
+                contentUuid: newChart.uuid,
+                verified: chartAsCode.verified,
+            });
+
             console.info(
                 `Finished creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
             );
@@ -1184,6 +1274,15 @@ export class CoderService extends BaseService {
             promotionChanges,
         );
 
+        await this.syncVerification({
+            user,
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            contentType: ContentType.CHART,
+            contentUuid: chart.uuid,
+            verified: chartAsCode.verified,
+        });
+
         console.info(
             `Finished updating chart "${chartWithDefaults.name}" on project ${projectUuid}: ${promotionChanges.charts[0].action}`,
         );
@@ -1203,8 +1302,9 @@ export class CoderService extends BaseService {
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1472,6 +1572,7 @@ export class CoderService extends BaseService {
                 chartCount: 0,
                 dashboardCount: 0,
                 childSpaceCount: 0,
+                appCount: 0,
             },
             created: true,
         };
@@ -1489,8 +1590,9 @@ export class CoderService extends BaseService {
     ): Promise<PromotionChanges> {
         const project = await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
@@ -1551,6 +1653,15 @@ export class CoderService extends BaseService {
                 projectUuid,
             );
 
+            await this.syncVerification({
+                user,
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                contentType: ContentType.DASHBOARD,
+                contentUuid: newDashboard.uuid,
+                verified: dashboardAsCode.verified,
+            });
+
             return {
                 dashboards: [
                     {
@@ -1598,7 +1709,8 @@ export class CoderService extends BaseService {
             );
 
         PromoteService.checkPromoteDashboardPermissions(
-            user,
+            auditedAbility,
+            user.organizationUuid!,
             promotedDashboard,
             upstreamDashboard,
         );
@@ -1657,6 +1769,15 @@ export class CoderService extends BaseService {
             user,
             promotionChanges,
         );
+
+        await this.syncVerification({
+            user,
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            contentType: ContentType.DASHBOARD,
+            contentUuid: dashboard.uuid,
+            verified: dashboardAsCode.verified,
+        });
 
         console.info(
             `Finished updating dashboard "${dashboard.name}" on project ${projectUuid}: ${promotionChanges.dashboards[0].action}`,

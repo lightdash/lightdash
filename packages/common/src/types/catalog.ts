@@ -398,6 +398,8 @@ export type CatalogItemSummary = Pick<
     cachedExploreUuid: string;
     tableName: string;
     fieldType: string | undefined;
+    label: string | null;
+    description: string | null;
 };
 
 export type CatalogItemWithTagUuids = CatalogItemSummary & {

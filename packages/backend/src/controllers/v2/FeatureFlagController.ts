@@ -1,4 +1,4 @@
-import { ApiErrorPayload, FeatureFlag } from '@lightdash/common';
+import { ApiErrorPayload, FeatureFlag, isJwtUser } from '@lightdash/common';
 import {
     Get,
     OperationId,
@@ -10,6 +10,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import { BaseController } from '../baseController';
 
 @Route('/api/v2/feature-flag')
@@ -34,7 +35,10 @@ export class FeatureFlagController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getFeatureFlagService().get({
-                user: req.user,
+                user:
+                    req.account && !isJwtUser(req.account)
+                        ? toSessionUser(req.account)
+                        : undefined,
                 featureFlagId,
             }),
         };

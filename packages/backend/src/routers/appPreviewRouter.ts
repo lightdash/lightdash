@@ -5,9 +5,8 @@ import { validate as isValidUuid } from 'uuid';
 import { type AppRuntimeConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
-    PREVIEW_COOKIE_NAME,
-    PREVIEW_TOKEN_MAX_AGE_SECONDS,
     verifyPreviewToken,
+    type PreviewTokenPayload,
 } from './appPreviewToken';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
@@ -30,15 +29,19 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
 };
 
 const buildCspHeader = (config: AppRuntimeConfig): string => {
-    const { lightdashOrigin, cdnOrigin } = config;
+    const { lightdashOrigin, cdnOrigin, cspAllowedOrigins } = config;
+
+    const extra = cspAllowedOrigins.length
+        ? ` ${cspAllowedOrigins.join(' ')}`
+        : '';
 
     const directives: string[] = [
         `default-src 'none'`,
         `script-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `style-src 'self' 'unsafe-inline'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `connect-src 'self' ${lightdashOrigin} https:`,
+        `style-src 'self' 'unsafe-inline'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
+        `connect-src 'none'`,
         `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `font-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
+        `font-src 'self'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
         `frame-ancestors ${lightdashOrigin}`,
         `object-src 'none'`,
         `base-uri 'none'`,
@@ -56,24 +59,8 @@ const isSafeFilename = (filename: string): boolean =>
     /^[a-zA-Z0-9._-]+$/.test(filename) && !filename.includes('..');
 
 /**
- * Extracts a named cookie value from the Cookie header.
- */
-const getCookieValue = (
-    cookieHeader: string | undefined,
-    name: string,
-): string | undefined => {
-    if (!cookieHeader) return undefined;
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-    return match ? match[1] : undefined;
-};
-
-/**
  * Rewrites Vite-generated asset references in HTML to include a token
- * query parameter so they authenticate without cookies.
- *
- * This is needed when the iframe sandbox omits `allow-same-origin` —
- * the browser won't store cookies for an opaque origin, so asset
- * requests must carry the token themselves.
+ * query parameter so asset requests authenticate themselves.
  *
  * Matches patterns like:
  *   src="./assets/index-BxK29f.js"
@@ -88,6 +75,7 @@ const injectTokenIntoAssetUrls = (html: string, token: string): string =>
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
     lightdashSecret: string,
+    onPreviewView?: (payload: PreviewTokenPayload) => void,
 ): Router => {
     const router = express.Router({ strict: true });
 
@@ -201,16 +189,8 @@ export const createAppPreviewRouter = (
 
     // -- Auth middleware ------------------------------------------------
 
-    /**
-     * Verifies a token and translates the result into an HTTP response.
-     * Shared by both middleware variants.
-     */
-    const handleTokenVerification = (
-        token: string | undefined,
-        req: express.Request,
-        res: express.Response,
-        next: express.NextFunction,
-    ): void => {
+    /** Verifies a JWT from the `?token` query param. */
+    const requireToken: express.RequestHandler = (req, res, next) => {
         const { appUuid, version } = req.params;
 
         if (!isValidUuid(appUuid)) {
@@ -230,6 +210,9 @@ export const createAppPreviewRouter = (
             return;
         }
 
+        const token =
+            typeof req.query.token === 'string' ? req.query.token : undefined;
+
         const result = verifyPreviewToken(
             token,
             lightdashSecret,
@@ -245,43 +228,8 @@ export const createAppPreviewRouter = (
             return;
         }
 
+        res.locals.previewTokenPayload = result.payload;
         next();
-    };
-
-    /**
-     * Accepts a JWT from the `?token` query param, verifies it, and
-     * promotes it to a path-scoped HttpOnly cookie so subsequent asset
-     * requests are authenticated automatically by the browser.
-     */
-    const requireTokenAndSetCookie: express.RequestHandler = (
-        req,
-        res,
-        next,
-    ) => {
-        const token =
-            typeof req.query.token === 'string' ? req.query.token : undefined;
-
-        handleTokenVerification(token, req, res, () => {
-            const { appUuid, version } = req.params;
-            const cookiePath = `/api/apps/${appUuid}/versions/${version}/`;
-            res.cookie(PREVIEW_COOKIE_NAME, token!, {
-                path: cookiePath,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: PREVIEW_TOKEN_MAX_AGE_SECONDS * 1000,
-            });
-            next();
-        });
-    };
-
-    /** Accepts a JWT from a `?token` query param or the path-scoped cookie. */
-    const requireTokenOrCookie: express.RequestHandler = (req, res, next) => {
-        const token =
-            typeof req.query.token === 'string'
-                ? req.query.token
-                : getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
-        handleTokenVerification(token, req, res, next);
     };
 
     // -- Routes ---------------------------------------------------------
@@ -298,11 +246,10 @@ export const createAppPreviewRouter = (
     });
 
     // Serve index.html for an app version.
-    // Rewrites asset URLs to include the token so they work without cookies
-    // (needed when the iframe sandbox omits allow-same-origin).
+    // Rewrites asset URLs to include the token so asset requests authenticate.
     router.get(
         '/:appUuid/versions/:version/',
-        requireTokenAndSetCookie,
+        requireToken,
         async (req, res) => {
             const { appUuid, version } = req.params;
             const s3Key = `apps/${appUuid}/versions/${version}/index.html`;
@@ -316,30 +263,25 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            const token =
-                typeof req.query.token === 'string'
-                    ? req.query.token
-                    : undefined;
+            const token = req.query.token as string;
 
             setSecurityHeaders(res);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
 
-            if (token) {
-                const html = await bufferS3Body(result.body);
-                res.send(injectTokenIntoAssetUrls(html, token));
-            } else {
-                result.body.pipe(res);
-            }
+            onPreviewView?.(
+                res.locals.previewTokenPayload as PreviewTokenPayload,
+            );
+
+            const html = await bufferS3Body(result.body);
+            res.send(injectTokenIntoAssetUrls(html, token));
         },
     );
 
-    // Serve static assets (JS, CSS, fonts).
-    // Accepts either a ?token query param (for sandboxed iframes without
-    // allow-same-origin) or the path-scoped cookie (for normal browsers).
+    // Serve static assets (JS, CSS, fonts). Authenticated via ?token query param.
     router.get(
         '/:appUuid/versions/:version/assets/:filename',
-        requireTokenOrCookie,
+        requireToken,
         async (req, res) => {
             const { filename } = req.params;
 
@@ -370,6 +312,7 @@ export const createAppPreviewRouter = (
             // Allow cross-origin loading from sandboxed iframes (opaque origin).
             // Safe because assets are static build artifacts, not user data.
             res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
             res.setHeader('Content-Type', contentType);
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader(

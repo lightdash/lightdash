@@ -6,11 +6,19 @@ import {
 } from '@lightdash/common';
 import min from 'lodash/min';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
+import {
+    auditResponseToTileStatuses,
+    useDashboardPreAggregateAudit,
+} from '../../hooks/dashboard/useDashboardPreAggregateAudit';
+import useApp from '../App/useApp';
 import DashboardTileStatusContext from './tileStatusContext';
 import {
     type SqlChartTileMetadata,
     type TilePreAggregateStatus,
 } from './types';
+import useDashboardContext from './useDashboardContext';
 
 export type DashboardTileStatusProviderProps = {
     dashboardTiles: Dashboard['tiles'] | undefined;
@@ -34,9 +42,6 @@ const DashboardTileStatusProvider: React.FC<
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
     const [oldestCacheTime, setOldestCacheTime] = useState<Date | undefined>();
-    const [preAggregateStatuses, setPreAggregateStatuses] = useState<
-        Record<string, TilePreAggregateStatus>
-    >({});
     const [invalidateCache, setInvalidateCache] = useState<boolean>(
         defaultInvalidateCache === true,
     );
@@ -203,17 +208,6 @@ const DashboardTileStatusProvider: React.FC<
         }, {});
     }, [dashboardTiles]);
 
-    const tileTabsById = useMemo(() => {
-        if (!dashboardTiles) return {};
-        return dashboardTiles.reduce<Record<string, string | null | undefined>>(
-            (acc, tile) => {
-                acc[tile.uuid] = tile.tabUuid;
-                return acc;
-            },
-            {},
-        );
-    }, [dashboardTiles]);
-
     const addResultsCacheTime = useCallback((cacheMetadata?: CacheMetadata) => {
         if (
             cacheMetadata &&
@@ -229,7 +223,6 @@ const DashboardTileStatusProvider: React.FC<
 
     const clearCacheAndFetch = useCallback(() => {
         setOldestCacheTime(undefined);
-        setPreAggregateStatuses({});
         setLoadedTiles(new Set());
 
         // Causes results refetch
@@ -246,23 +239,29 @@ const DashboardTileStatusProvider: React.FC<
         [],
     );
 
-    const addPreAggregateStatus = useCallback(
-        (tileUuid: string, cacheMetadata?: CacheMetadata) => {
-            const preAggregate = cacheMetadata?.preAggregate ?? null;
-            setPreAggregateStatuses((prev) => ({
-                ...prev,
-                [tileUuid]: {
-                    tileUuid,
-                    tileName: tileNamesById[tileUuid] ?? tileUuid,
-                    hit: preAggregate?.hit ?? false,
-                    preAggregateName: preAggregate?.name ?? null,
-                    reason: preAggregate?.reason ?? null,
-                    hasPreAggregateMetadata: preAggregate !== null,
-                    tabUuid: tileTabsById[tileUuid],
-                },
-            }));
-        },
-        [tileNamesById, tileTabsById],
+    const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const dashboard = useDashboardContext((c) => c.dashboard);
+    const allFilters = useDashboardContext((c) => c.allFilters);
+    const { embedToken } = useEmbed();
+    const { health } = useApp();
+    const { pathname } = useLocation();
+    const isEmbedded = !!embedToken;
+    const isMinimal = pathname.startsWith('/minimal');
+    const preAggregatesEnabled = health.data?.preAggregates.enabled ?? false;
+    const { data: auditData } = useDashboardPreAggregateAudit({
+        projectUuid,
+        dashboardUuid: dashboard?.uuid,
+        dashboardFilters: allFilters,
+        enabled: !isEmbedded && !isMinimal && preAggregatesEnabled,
+    });
+    const preAggregateStatuses = useMemo<
+        Record<string, TilePreAggregateStatus>
+    >(
+        () =>
+            auditData
+                ? auditResponseToTileStatuses(auditData, tileNamesById)
+                : {},
+        [auditData, tileNamesById],
     );
 
     const value = useMemo(
@@ -270,7 +269,6 @@ const DashboardTileStatusProvider: React.FC<
             oldestCacheTime,
             addResultsCacheTime,
             preAggregateStatuses,
-            addPreAggregateStatus,
             invalidateCache,
             isAutoRefresh,
             setIsAutoRefresh,
@@ -290,12 +288,14 @@ const DashboardTileStatusProvider: React.FC<
             screenshotReadyTilesCount: screenshotReadyTiles.size,
             screenshotErroredTilesCount: screenshotErroredTiles.size,
             expectedScreenshotTilesCount: expectedScreenshotTileUuids.length,
+            expectedScreenshotTileUuids,
+            screenshotReadyTileUuids: Array.from(screenshotReadyTiles),
+            screenshotErroredTileUuids: Array.from(screenshotErroredTiles),
         }),
         [
             oldestCacheTime,
             addResultsCacheTime,
             preAggregateStatuses,
-            addPreAggregateStatus,
             invalidateCache,
             isAutoRefresh,
             clearCacheAndFetch,
@@ -311,9 +311,9 @@ const DashboardTileStatusProvider: React.FC<
             markTileScreenshotReady,
             markTileScreenshotErrored,
             isReadyForScreenshot,
-            screenshotReadyTiles.size,
-            screenshotErroredTiles.size,
-            expectedScreenshotTileUuids.length,
+            screenshotReadyTiles,
+            screenshotErroredTiles,
+            expectedScreenshotTileUuids,
         ],
     );
 

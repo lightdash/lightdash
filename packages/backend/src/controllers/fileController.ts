@@ -11,6 +11,7 @@ import {
 import express from 'express';
 import path from 'path';
 import { pipeline } from 'stream/promises';
+import { createContentDispositionHeader } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { BaseController } from './baseController';
 
 const NANOID_REGEX = /^[\w-]{21}$/;
@@ -62,9 +63,13 @@ export class FileController extends BaseController {
         const filename = path.basename(s3Key);
 
         res.setHeader('Content-Type', contentType);
+        // Use RFC 5987 encoding so non-ASCII characters in the filename
+        // (em-dashes, accented letters, emojis from dashboard names) don't
+        // make Node throw `ERR_INVALID_CHAR` on setHeader, which would turn
+        // the download into a ~200-byte JSON error response (PROD-7227).
         res.setHeader(
             'Content-Disposition',
-            `attachment; filename="${filename.replace(/"/g, '')}"`,
+            createContentDispositionHeader(filename),
         );
         res.setHeader('X-Robots-Tag', 'noindex, nofollow');
 

@@ -64,9 +64,17 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
 type ColumnConfigurationProps = {
     fieldId: string;
+
+    /**
+     * When provided, the freeze toggle controls all listed fieldIds together.
+     */
+    syncFreezeWith?: string[];
 };
 
-const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
+const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
+    fieldId,
+    syncFreezeWith,
+}) => {
     const { pivotDimensions, visualizationConfig } = useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
@@ -86,6 +94,26 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
     const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
     const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
+
+    // Pivoted dimensions become column headers and can't be frozen.
+    const shouldShowFreezeToggle = !isPivotingDimension;
+
+    // When syncFreezeWith is set, the lock visually reflects "any sibling
+    // frozen" and clicking flips the entire group in lockstep.
+
+    const isFrozenForDisplay = syncFreezeWith
+        ? syncFreezeWith.some((id) => isColumnFrozen(id))
+        : isColumnFrozen(fieldId);
+    const handleFreezeToggle = () => {
+        const next = !isFrozenForDisplay;
+        if (syncFreezeWith) {
+            syncFreezeWith.forEach((id) =>
+                updateColumnProperty(id, { frozen: next }),
+            );
+        } else {
+            updateColumnProperty(fieldId, { frozen: next });
+        }
+    };
 
     return (
         <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
@@ -150,15 +178,13 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                 </Box>
             </Tooltip>
 
-            {!pivotDimensions ? (
+            {shouldShowFreezeToggle ? (
                 <Tooltip
                     position="top"
                     withinPortal
                     opened={isFreezeTooltipVisible}
                     label={
-                        isColumnFrozen(fieldId)
-                            ? 'Unfreeze column'
-                            : 'Freeze column'
+                        isFrozenForDisplay ? 'Unfreeze column' : 'Freeze column'
                     }
                 >
                     <Box
@@ -170,16 +196,12 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({ fieldId }) => {
                             onClick={() => {
                                 // Close the tooltip. See comment above.
                                 setFreezeTooltipVisible(false);
-                                updateColumnProperty(fieldId, {
-                                    frozen: !isColumnFrozen(fieldId),
-                                });
+                                handleFreezeToggle();
                             }}
                         >
                             <MantineIcon
                                 icon={
-                                    isColumnFrozen(fieldId)
-                                        ? IconLock
-                                        : IconLockOpen
+                                    isFrozenForDisplay ? IconLock : IconLockOpen
                                 }
                             />
                         </ActionIcon>

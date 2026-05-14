@@ -115,8 +115,12 @@ export const ContentPanel: FC = () => {
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
 
-    // Get organization colors to generate chart specs with a color palette defined by the organization
+    // Resolved palette from the org → project → space → dashboard cascade.
+    // Falls back to org-level colors for brand-new (unsaved) SQL charts where
+    // no SqlChart has been loaded yet.
     const { data: organization } = useOrganization();
+    const chartColors =
+        savedSqlChart?.resolvedColorPalette.colors ?? organization?.chartColors;
     const { health } = useApp();
 
     const { showToastError } = useToaster();
@@ -721,7 +725,7 @@ export const ContentPanel: FC = () => {
                                                                                 c
                                                                             }
                                                                             spec={pivotedChartInfo?.data?.getChartSpec(
-                                                                                organization?.chartColors,
+                                                                                chartColors,
                                                                             )}
                                                                             isLoading={
                                                                                 !!pivotedChartInfo?.loading

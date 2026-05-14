@@ -77,6 +77,7 @@ export type FetchAdapter = <T>(
     method: string,
     path: string,
     body?: unknown,
+    metadata?: Record<string, unknown>,
 ) => Promise<T>;
 
 /**
@@ -175,10 +176,21 @@ export function createApiTransport(
             // Lightdash field IDs are `{table}_{column}`.
             // The SDK lets users write short names like 'driver_name'
             // and we qualify them to 'fct_race_results_driver_name'.
-            const qualify = (fieldId: string) =>
-                fieldId.startsWith(`${table}_`)
-                    ? fieldId
-                    : `${table}_${fieldId}`;
+            //
+            // For joined table fields, use dot notation: 'customers.name'
+            // which resolves to 'customers_name' (not 'orders_customers_name').
+            const qualify = (fieldId: string): string => {
+                // Dot notation: 'customers.name' → 'customers_name'
+                if (fieldId.includes('.')) {
+                    return fieldId.replace('.', '_');
+                }
+                // Already qualified with explore name
+                if (fieldId.startsWith(`${table}_`)) {
+                    return fieldId;
+                }
+                // Short name → qualify with explore name
+                return `${table}_${fieldId}`;
+            };
 
             const qualifiedDims = query.dimensions.map(qualify);
             const qualifiedMetrics = query.metrics.map(qualify);
@@ -200,14 +212,27 @@ export function createApiTransport(
                         descending: s.descending,
                     })),
                     limit: query.limit,
-                    tableCalculations: [],
+                    tableCalculations: query.tableCalculations,
+                    ...(query.additionalMetrics.length > 0
+                        ? { additionalMetrics: query.additionalMetrics }
+                        : {}),
+                    ...(query.customDimensions.length > 0
+                        ? { customDimensions: query.customDimensions }
+                        : {}),
                 },
             };
+
+            // Pass label as transport metadata (not in the API body)
+            // so the parent bridge can display it in the query inspector.
+            const metadata = query.label
+                ? { label: query.label }
+                : undefined;
 
             const execResult = await fetchFn<AsyncQueryResponse>(
                 'POST',
                 `/api/v2/projects/${config.projectUuid}/query/metric-query`,
                 body,
+                metadata,
             );
 
             const { queryUuid, fields } = execResult;

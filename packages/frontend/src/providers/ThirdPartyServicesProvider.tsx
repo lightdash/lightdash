@@ -141,6 +141,8 @@ const ThirdPartyServicesEnabledProvider: FC<React.PropsWithChildren<{}>> = ({
                     api_host: health.data?.posthog?.feApiHost,
                     autocapture: false,
                     capture_pageview: false,
+                    disable_session_recording: true,
+                    advanced_disable_feature_flags: true,
                 }}
             >
                 <PosthogIdentified>

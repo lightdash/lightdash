@@ -27,6 +27,10 @@ export default defineConfig({
                 replacement: resolve(__dirname, '../common/src/index.ts'),
             },
             {
+                find: '@lightdash/formula',
+                replacement: resolve(__dirname, '../formula/src/index.ts'),
+            },
+            {
                 find: '@lightdash/sdk/sdk.css',
                 replacement: resolve(__dirname, '../frontend/sdk/dist/sdk.css'),
             },

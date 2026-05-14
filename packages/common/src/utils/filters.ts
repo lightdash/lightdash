@@ -10,6 +10,7 @@ import {
     DimensionType,
     isCustomSqlDimension,
     isDimension,
+    isFilterableDimension,
     isTableCalculation,
     MetricType,
     TableCalculationType,
@@ -50,7 +51,8 @@ import { type MetricQuery } from '../types/metricQuery';
 import { type ResultColumn } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
-import { formatDate } from './formatting';
+import { getDimensionMapFromTables, getMetricsMapFromTables } from './fields';
+import { formatDate, shouldShiftItemTimezone } from './formatting';
 import { getItemId, getItemType, isDateItem } from './item';
 
 export const getFilterRulesFromGroup = (
@@ -213,6 +215,7 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     field: FilterableField | undefined,
     filterRule: T,
     values?: AnyType[] | null,
+    timezone?: string,
 ): T => {
     const filterRuleDefaults: Partial<FilterRule> = {};
 
@@ -297,10 +300,19 @@ export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
                             ? defaultTimeIntervalValues[fieldTimeInterval]
                             : moment();
 
+                    // Shift TIMESTAMP-base time-interval dims into the project
+                    // TZ before extracting the date. Plain DATE / DATE-base
+                    // intervals are calendar values and must not be shifted.
+                    const effectiveZone = shouldShiftItemTimezone(field)
+                        ? timezone || 'UTC'
+                        : 'UTC';
+
                     const dateValue = valueIsDate
                         ? formatDate(
-                              // Treat the date as UTC, then remove its timezone information before formatting
-                              moment.utc(value).format('YYYY-MM-DD'),
+                              moment
+                                  .utc(value)
+                                  .tz(effectiveZone)
+                                  .format('YYYY-MM-DD'),
                               // For QUARTER, we don't want to use the field's time interval(YYYY-[Q]Q) because the date is already in the correct format when generating the SQL
                               fieldTimeInterval === TimeFrames.QUARTER
                                   ? undefined
@@ -340,17 +352,20 @@ export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
     field: FilterableField,
     filterRule: T,
     values?: AnyType[] | null,
+    timezone?: string,
 ): T =>
     getFilterRuleWithDefaultValue(
         getFilterTypeFromItem(field),
         field,
         filterRule,
         values,
+        timezone,
     );
 
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
+    timezone?: string,
 ): FilterRule =>
     getFilterRuleFromFieldWithDefaultValue(
         field,
@@ -363,6 +378,7 @@ export const createFilterRuleFromField = (
                 value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
         },
         value ? [value] : [],
+        timezone,
     );
 
 export const matchFieldExact = (a: Field) => (b: Field) =>
@@ -374,7 +390,11 @@ export const matchFieldByTypeAndName = (a: Field) => (b: Field) =>
 export const matchFieldByType = (a: Field) => (b: Field) => a.type === b.type;
 
 export const isTileFilterable = (tile: DashboardTile) =>
-    ![DashboardTileTypes.MARKDOWN, DashboardTileTypes.LOOM].includes(tile.type);
+    ![
+        DashboardTileTypes.MARKDOWN,
+        DashboardTileTypes.LOOM,
+        DashboardTileTypes.DATA_APP,
+    ].includes(tile.type);
 
 const getDefaultTileTargets = (
     field: FilterableDimension | Metric | Field,
@@ -516,12 +536,14 @@ type AddFilterRuleArgs = {
     filters: Filters;
     field: FilterableField;
     value?: AnyType;
+    timezone?: string;
 };
 
 export const addFilterRule = ({
     filters,
     field,
     value,
+    timezone,
 }: AddFilterRuleArgs): Filters => {
     const groupKey = ((f: AnyType) => {
         if (isDimension(f) || isCustomSqlDimension(f)) {
@@ -540,7 +562,7 @@ export const addFilterRule = ({
             ...group,
             [getFilterGroupItemsPropertyName(group)]: [
                 ...getItemsFromFilterGroup(group),
-                createFilterRuleFromField(field, value),
+                createFilterRuleFromField(field, value, timezone),
             ],
         },
     };
@@ -1196,6 +1218,45 @@ export const addDashboardFiltersToMetricQuery = (
                 undefined,
             ),
         },
+    };
+};
+
+// Mirrors the UI's getAvailableFiltersForSavedQueries. Matching on field-id (not tableName) is the source of truth — see getDashboardFilterRulesForTables below for why.
+export const getAvailableFilterFieldIds = (explore: Explore): string[] => [
+    ...Object.entries(getDimensionMapFromTables(explore.tables))
+        .filter(([, field]) => isFilterableDimension(field) && !field.hidden)
+        .map(([fieldId]) => fieldId),
+    ...Object.entries(getMetricsMapFromTables(explore.tables))
+        .filter(([, field]) => !field.hidden)
+        .map(([fieldId]) => fieldId),
+];
+
+export const applyDashboardFiltersForTile = ({
+    tileUuid,
+    metricQuery,
+    dashboardFilters,
+    explore,
+}: {
+    tileUuid: string;
+    metricQuery: MetricQuery;
+    dashboardFilters: DashboardFilters;
+    explore: Explore;
+}): {
+    metricQuery: MetricQuery;
+    appliedDashboardFilters: DashboardFilters;
+} => {
+    const appliedDashboardFilters = getDashboardFiltersForTileAndTables(
+        tileUuid,
+        getAvailableFilterFieldIds(explore),
+        dashboardFilters,
+    );
+    return {
+        metricQuery: addDashboardFiltersToMetricQuery(
+            metricQuery,
+            appliedDashboardFilters,
+            explore,
+        ),
+        appliedDashboardFilters,
     };
 };
 

@@ -1,0 +1,25 @@
+### Login
+// @no-log
+POST http://localhost:8080/api/v1/login
+Content-Type: application/json
+
+{
+    "email": "demo@lightdash.com",
+    "password": "demo_password!"
+}
+
+
+### Refresh all pre-aggregates (v1) — async, returns jobIds
+POST http://localhost:8080/api/v1/projects/{{projectUuid}}/pre-aggregates/refresh
+
+### Refresh one pre-aggregate by definition name (v1)
+POST http://localhost:8080/api/v1/projects/{{projectUuid}}/pre-aggregates/definitions/orders_daily_avg_demo/refresh
+
+### List materializations (v2) — poll after refresh to see status
+GET http://localhost:8080/api/v2/projects/{{projectUuid}}/pre-aggregates/materializations
+
+### Stats (v2) — historical hit/miss counts per chart
+GET http://localhost:8080/api/v2/projects/{{projectUuid}}/pre-aggregates/stats
+
+### Dashboard audit (v2) — ZAP-329, per-tile hit/miss/ineligible decision
+GET http://localhost:8080/api/v2/projects/{{projectUuid}}/pre-aggregates/dashboards/{{dashboardUuid}}/audit

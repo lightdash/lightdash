@@ -12,6 +12,10 @@ type ScrollToTopProps = {
      * Optional scroll container. Defaults to window scrolling.
      */
     scrollContainer?: HTMLElement | null;
+    /**
+     * Distance from the bottom of the viewport in pixels.
+     */
+    bottom?: number;
 };
 
 /**
@@ -21,6 +25,7 @@ type ScrollToTopProps = {
 export const ScrollToTop: FC<ScrollToTopProps> = ({
     show,
     scrollContainer,
+    bottom = 24,
 }) => {
     const handleScrollToTop = () => {
         if (!scrollContainer) {
@@ -37,7 +42,7 @@ export const ScrollToTop: FC<ScrollToTopProps> = ({
     };
 
     return (
-        <Affix position={{ bottom: 24, right: 34 }}>
+        <Affix position={{ bottom, right: 34 }} zIndex={50}>
             <Transition transition="slide-up" mounted={show}>
                 {(transitionStyles) => (
                     <ActionIcon

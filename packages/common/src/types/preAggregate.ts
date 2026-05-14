@@ -69,6 +69,7 @@ export enum PreAggregateMissReason {
     TABLE_CALCULATION_PRESENT = 'table_calculation_present',
     USER_BYPASS = 'user_bypass',
     EXPLORE_RESOLUTION_ERROR = 'explore_resolution_error',
+    NO_ACTIVE_MATERIALIZATION = 'no_active_materialization',
 }
 
 export type PreAggregateMatchMiss =
@@ -111,9 +112,11 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.CUSTOM_METRIC_PRESENT;
+          fieldId: FieldId;
       }
     | {
           reason: PreAggregateMissReason.TABLE_CALCULATION_PRESENT;
+          fieldId: FieldId;
       }
     | {
           reason: PreAggregateMissReason.USER_BYPASS;
@@ -121,6 +124,9 @@ export type PreAggregateMatchMiss =
       }
     | {
           reason: PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR;
+      }
+    | {
+          reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION;
       };
 
 export type PreAggregateCheckResult =
@@ -185,13 +191,15 @@ export const preAggregateMissReasonLabels: Record<
         'Pre-aggregate filter not satisfied',
     [PreAggregateMissReason.GRANULARITY_TOO_FINE]: 'Granularity too fine',
     [PreAggregateMissReason.CUSTOM_DIMENSION_PRESENT]:
-        'Custom dimension present',
-    [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric present',
+        'Custom dimension detected',
+    [PreAggregateMissReason.CUSTOM_METRIC_PRESENT]: 'Custom metric detected',
     [PreAggregateMissReason.TABLE_CALCULATION_PRESENT]:
-        'Table calculation present',
+        'SQL Table calculation detected',
     [PreAggregateMissReason.USER_BYPASS]: 'Bypassed by user',
     [PreAggregateMissReason.EXPLORE_RESOLUTION_ERROR]:
         'Materialized explore not found',
+    [PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION]:
+        'No active materialization',
 };
 
 export const PRE_AGGREGATE_ROW_COUNT_WARNING_THRESHOLD = 1_000_000;

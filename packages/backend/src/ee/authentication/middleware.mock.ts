@@ -1,10 +1,51 @@
-import { SessionServiceAccount } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    OrganizationMemberRole,
+    PossibleAbilities,
+    ServiceAccount,
+    ServiceAccountScope,
+    SessionServiceAccount,
+    SessionUser,
+} from '@lightdash/common';
 import express from 'express';
 import { BaseService } from '../../services/BaseService';
 
-export const mockServiceAccount: SessionServiceAccount = {
+export const mockServiceAccount: ServiceAccount = {
+    uuid: 'test-service-account-uuid',
+    createdByUserUuid: 'admin-user-uuid',
     organizationUuid: 'test-org-uuid',
+    createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    expiresAt: null,
+    description: 'test scim token',
+    lastUsedAt: null,
+    rotatedAt: null,
+    scopes: [ServiceAccountScope.SCIM_MANAGE],
+    userUuid: 'sa-user-uuid',
+    roleUuid: null,
+    createdBy: null,
 };
+
+const mockSaSessionUser = {
+    userUuid: 'sa-user-uuid',
+    userId: 42,
+    email: undefined,
+    firstName: 'test scim token',
+    lastName: '',
+    organizationUuid: 'test-org-uuid',
+    organizationName: 'Test Org',
+    organizationCreatedAt: new Date('2024-01-01T00:00:00.000Z'),
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    timezone: null,
+    isSetupComplete: true,
+    role: OrganizationMemberRole.ADMIN,
+    isActive: false,
+    isPending: false,
+    createdAt: new Date('2024-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2024-01-01T00:00:00.000Z'),
+    ability: new Ability<PossibleAbilities>([]),
+    abilityRules: [],
+} as unknown as SessionUser;
 
 export const mockRequest = {
     headers: {
@@ -18,6 +59,11 @@ export const mockRequest = {
     services: {
         getServiceAccountService: jest.fn().mockReturnValue({
             authenticateScim: jest.fn().mockResolvedValue(mockServiceAccount),
+        }),
+        getUserService: jest.fn().mockReturnValue({
+            getSessionUserForServiceAccount: jest
+                .fn()
+                .mockResolvedValue(mockSaSessionUser),
         }),
     },
 } as unknown as express.Request;

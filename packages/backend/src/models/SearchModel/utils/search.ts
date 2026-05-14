@@ -162,8 +162,10 @@ export function getTableOrFieldMatchCount(
     tableOrField: CompiledTable | CompiledField,
 ) {
     const labelMatches = tableOrField.label.match(regex) ?? [];
+    const nameMatches = tableOrField.name.match(regex) ?? [];
     const descriptionMatches = tableOrField.description?.match(regex) ?? [];
 
     // remove duplicate matches
-    return new Set([...labelMatches, ...descriptionMatches]).size;
+    return new Set([...labelMatches, ...nameMatches, ...descriptionMatches])
+        .size;
 }

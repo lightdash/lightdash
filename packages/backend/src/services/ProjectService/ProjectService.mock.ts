@@ -51,6 +51,7 @@ export const user: SessionUser = {
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
     isSetupComplete: true,
+    timezone: null,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
     ability: new Ability<PossibleAbilities>([
@@ -336,8 +337,13 @@ export const projectWithSensitiveFields: Project = {
     },
     schedulerTimezone: 'UTC',
     queryTimezone: null,
+    useProjectTimezoneInFilters: false,
+    schedulerFailureNotifyRecipients: false,
+    schedulerFailureIncludeContact: false,
+    schedulerFailureContactOverride: null,
     createdByUserUuid: sessionAccount.user.id,
     hasDefaultUserSpaces: false,
+    colorPaletteUuid: null,
 };
 
 export const projectSummary: ProjectSummary = {
@@ -396,6 +402,7 @@ export const spacesWithSavedCharts: Space[] = [
         childSpaces: [],
         access: [],
         groupsAccess: [],
+        colorPaletteUuid: null,
     },
 ];
 
@@ -418,6 +425,7 @@ export const spacesWithNoSavedCharts: Space[] = [
         access: [],
         groupsAccess: [],
         childSpaces: [],
+        colorPaletteUuid: null,
     },
 ];
 
@@ -479,8 +487,6 @@ export const lightdashConfigWithNoSMTP: Pick<
         defaultLimit: 500,
         csvCellsLimit: 100,
         timezone: undefined,
-        useSqlPivotResults: false,
-        showExecutionTime: false,
         retryQueryOnTransientErrors: false,
         enableTimezoneSupport: undefined,
     },

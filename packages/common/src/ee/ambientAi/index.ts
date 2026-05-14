@@ -66,13 +66,22 @@ export type ApiAiGenerateTableCalculationResponse = {
     results: GeneratedTableCalculation;
 };
 
-export type GenerateFormulaTableCalculationRequest = {
-    prompt: string;
+export type FormulaAiContext = {
     tableName: string;
     fieldsContext: TableCalculationFieldContext[];
-    existingTableCalculations?: string[];
-    currentFormula?: string;
+    existingTableCalculations: string[];
 };
+
+export type GenerateFormulaTableCalculationRequest =
+    | ({
+          mode: 'prompt';
+          prompt: string;
+          currentFormula?: string;
+      } & FormulaAiContext)
+    | ({
+          mode: 'convert-sql';
+          sourceSql: string;
+      } & FormulaAiContext);
 
 export type GeneratedFormulaTableCalculation = {
     formula: string;

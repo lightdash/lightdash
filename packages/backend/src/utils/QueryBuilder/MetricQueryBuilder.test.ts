@@ -26,11 +26,13 @@ import {
 import {
     bigqueryClientMock,
     EXPLORE,
+    EXPLORE_NESTED_AGG_NAME_COLLISION,
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
     EXPLORE_WITH_DATE_DIMENSION,
     EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+    EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
     EXPLORE_WITH_NESTED_AGG,
     EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT,
     EXPLORE_WITH_SQL_FILTER,
@@ -44,6 +46,7 @@ import {
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
+    METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
     METRIC_QUERY_NESTED_AGG_COMPLEX,
     METRIC_QUERY_NESTED_AGG_CONDITIONAL,
     METRIC_QUERY_NESTED_AGG_COUNT_DISTINCT,
@@ -51,6 +54,7 @@ import {
     METRIC_QUERY_NESTED_AGG_MIXED_RAW,
     METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_MIXED_RAW_WITH_PURE,
+    METRIC_QUERY_NESTED_AGG_NAME_COLLISION,
     METRIC_QUERY_NESTED_AGG_NO_DIMS,
     METRIC_QUERY_NESTED_AGG_PRODUCT,
     METRIC_QUERY_NESTED_AGG_RAW_COL,
@@ -2348,6 +2352,56 @@ LIMIT 10`;
                 'dd_orders_total_revenue."orders_total_revenue"',
             );
         });
+
+        // SPK-333: when a non-aggregate metric references a sum_distinct metric
+        // AND another metric on the query forces fanout protection (cte_keys_/
+        // cte_metrics_/cte_unaffected), the non-aggregate metric must still
+        // route the sum_distinct reference through the dd CTE. Previously the
+        // fanout flow inlined the fallback SUM() into dd_base, referencing a
+        // table not in scope and producing invalid SQL.
+        test('non-aggregate referencing sum_distinct should route through dd CTE even with fanout protection', () => {
+            const result = buildQuery({
+                explore: EXPLORE_WITH_FANOUT_AND_DD_REFERENCE,
+                compiledMetricQuery: METRIC_QUERY_FANOUT_AND_DD_REFERENCE,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            });
+
+            // Fanout protection is active.
+            expect(result.query).toContain('cte_unaffected');
+            expect(result.query).toContain('cte_metrics_orders');
+            // Sum_distinct has its own dd CTE.
+            expect(result.query).toContain(
+                'dd_customers_total_order_amount_deduped',
+            );
+            // dd_base wraps the fanout result.
+            expect(result.query).toContain('dd_base');
+
+            // The inlined fallback SUM referencing "orders" outside its CTE
+            // scope must NOT appear anywhere (it would be invalid SQL inside
+            // dd_base, which projects FROM cte_unaffected CROSS JOIN ...).
+            expect(result.query).not.toContain(
+                'SUM(("orders".amount))) / NULLIF',
+            );
+
+            // The non-aggregate metric must reference the dd CTE alias for
+            // its sum_distinct dependency, not raw SQL.
+            expect(result.query).toContain(
+                'dd_customers_total_order_amount_deduped."customers_total_order_amount_deduped" / NULLIF',
+            );
+
+            // customers_average_customer_lifetime_value must be projected
+            // exactly once in the final SELECT — emitting it both via
+            // dd_base.* and explicitly in the outer SELECT produces
+            // "column specified more than once" errors on most warehouses.
+            const occurrences = (
+                result.query.match(
+                    /AS "customers_average_customer_lifetime_value"/g,
+                ) ?? []
+            ).length;
+            expect(occurrences).toBe(1);
+        });
     });
 
     describe('Table Calculations', () => {
@@ -4303,6 +4357,87 @@ describe('Date zoom with filters', () => {
         expect(result.query).toContain('"orders".created_at');
         expect(result.query).not.toContain('DATE_TRUNC');
     });
+
+    // PROD-880: WHERE LHS uses zoom grain when filter targets the zoom dim
+    test('Should use zoomed dim in WHERE for filter targeting dateZoomFilterTargetFieldId', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+            dateZoomFilterTargetFieldId: 'orders_created_at',
+        });
+
+        // SELECT uses zoom grain
+        expect(result.query).toContain(
+            `DATE_TRUNC('month', "orders".created_at) AS "orders_created_at"`,
+        );
+        // WHERE LHS also uses zoom grain (the fix)
+        expect(result.query).toContain(
+            `(DATE_TRUNC('month', "orders".created_at)) >= ('2024-09-01')`,
+        );
+        expect(result.query).toContain(
+            `(DATE_TRUNC('month', "orders".created_at)) <= ('2024-09-04')`,
+        );
+        // No raw column comparison should remain in the WHERE
+        expect(result.query).not.toContain(
+            `("orders".created_at) >= ('2024-09-01')`,
+        );
+    });
+
+    // PROD-880: guards against #12615 — range bounds must not collapse to the same value
+    test('Should preserve distinct bounds on inBetween filter after zoom rewrite', () => {
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: METRIC_QUERY_WITH_DATE_FILTER,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+            dateZoomFilterTargetFieldId: 'orders_created_at',
+        });
+
+        // Upper bound must NOT have been mutated to match the lower bound.
+        expect(result.query).toContain(`('2024-09-04')`);
+        expect(result.query).not.toMatch(
+            />= \('2024-09-01'\)[\s\S]*<= \('2024-09-01'\)/,
+        );
+    });
+
+    // PROD-880: filters on non-zoom fields stay at raw grain
+    test('Should leave filters on non-zoom fields targeting the raw column', () => {
+        const metricQueryWithUnrelatedFilter: CompiledMetricQuery = {
+            ...METRIC_QUERY_WITH_DATE_FILTER,
+            filters: {
+                dimensions: {
+                    id: 'root',
+                    and: [
+                        {
+                            id: '1',
+                            target: { fieldId: 'orders_order_id' },
+                            operator: FilterOperator.EQUALS,
+                            values: [42],
+                        },
+                    ],
+                },
+            },
+        };
+
+        const result = buildQuery({
+            explore: EXPLORE_WITH_DATE_DIMENSION_ZOOMED,
+            compiledMetricQuery: metricQueryWithUnrelatedFilter,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            originalExplore: EXPLORE_WITH_DATE_DIMENSION,
+            dateZoomFilterTargetFieldId: 'orders_created_at',
+        });
+
+        expect(result.query).toContain(`"orders".order_id`);
+        expect(result.query).toMatch(/order_id.*IN \(42\)|order_id.*= \(42\)/);
+    });
 });
 
 describe('Default sort behavior', () => {
@@ -4890,5 +5025,305 @@ describe('Nested aggregate metrics', () => {
         expect(result.query.match(/AS "my_table_max_value"/g)).toHaveLength(1);
         // The outer metric should appear once via nested_agg_results
         expect(result.query.match(/AS "my_table_sum_of_max"/g)).toHaveLength(1);
+    });
+
+    test('should resolve short-form metric refs against the outer metric table when a joined table has a same-named aggregate (PROD-7503)', () => {
+        // Repro: base table has a hidden helper `met_active_customers`
+        // (raw column). Joined table has an aggregate metric with the SAME
+        // name. The outer mixed metric `met_active_customers_agg` on the
+        // base table uses `${met_active_customers}` (short form) which must
+        // resolve to the base table's raw helper — NOT the joined table's
+        // pre-computed AVG in the nested_agg CTE.
+        const result = buildQuery({
+            explore: EXPLORE_NESTED_AGG_NAME_COLLISION,
+            compiledMetricQuery: METRIC_QUERY_NESTED_AGG_NAME_COLLISION,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        // The mixed CTE's MAX_BY must reference the base table's raw column,
+        // not the joined table's pre-aggregated value.
+        // (compileMetricReference wraps resolved refs in parens.)
+        expect(result.query).toContain(
+            'MAX_BY(("base_tbl".active_customers), ("base_tbl".updated_on))',
+        );
+        // Negative: the buggy SQL referenced the joined table's CTE column
+        // as the first argument to MAX_BY.
+        expect(result.query).not.toMatch(
+            /MAX_BY\(\s*nested_agg\."joined_tbl_met_active_customers"/,
+        );
+
+        // The pure-agg goal metric should still resolve correctly to the
+        // joined-table CTE column.
+        expect(result.query).toContain(
+            'nested_agg."joined_tbl_met_active_customers" AS "base_tbl_met_active_customers_goal"',
+        );
+    });
+});
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+describe('Timezone-aware EXTRACT-based time dimensions', () => {
+    const buildExtractExplore = (
+        baseType: DimensionType,
+        adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
+    ): Explore => ({
+        targetDatabase: adapter,
+        name: 'events',
+        label: 'events',
+        baseTable: 'events',
+        tags: [],
+        joinedTables: [],
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'db',
+                schema: 's',
+                sqlTable: '"events"',
+                primaryKey: ['id'],
+                dimensions: {
+                    id: {
+                        type: DimensionType.NUMBER,
+                        name: 'id',
+                        label: 'id',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.id',
+                        compiledSql: '"events".id',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at: {
+                        type: baseType,
+                        name: 'occurred_at',
+                        label: 'occurred_at',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.occurred_at',
+                        compiledSql: '"events".occurred_at',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at_day_of_week_index: {
+                        type: DimensionType.NUMBER,
+                        name: 'occurred_at_day_of_week_index',
+                        label: 'occurred_at_day_of_week_index',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_PART('DOW', \${TABLE}.occurred_at)`,
+                        // Compile-time UTC-only SQL (matches today's behavior)
+                        compiledSql: `DATE_PART('DOW', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.DAY_OF_WEEK_INDEX,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                    },
+                    occurred_at_week_num: {
+                        type: DimensionType.NUMBER,
+                        name: 'occurred_at_week_num',
+                        label: 'occurred_at_week_num',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_PART('WEEK', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_PART('WEEK', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.WEEK_NUM,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                    },
+                    occurred_at_day_of_week_name: {
+                        type: DimensionType.STRING,
+                        name: 'occurred_at_day_of_week_name',
+                        label: 'occurred_at_day_of_week_name',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `TO_CHAR(\${TABLE}.occurred_at, 'FMDay')`,
+                        compiledSql: `TO_CHAR("events".occurred_at, 'FMDay')`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.DAY_OF_WEEK_NAME,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                    },
+                },
+                metrics: {
+                    event_count: {
+                        type: MetricType.COUNT,
+                        fieldType: FieldType.METRIC,
+                        table: 'events',
+                        tableLabel: 'events',
+                        name: 'event_count',
+                        label: 'event_count',
+                        sql: '${TABLE}.id',
+                        compiledSql: 'COUNT("events".id)',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+    });
+
+    const baseDowQuery = (filterValues?: number[]): CompiledMetricQuery => ({
+        exploreName: 'events',
+        dimensions: ['events_occurred_at_day_of_week_index'],
+        metrics: ['events_event_count'],
+        filters: filterValues
+            ? {
+                  dimensions: {
+                      id: 'root',
+                      and: [
+                          {
+                              id: 'dow-eq',
+                              target: {
+                                  fieldId:
+                                      'events_occurred_at_day_of_week_index',
+                              },
+                              operator: FilterOperator.EQUALS,
+                              values: filterValues,
+                          },
+                      ],
+                  },
+              }
+            : {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    });
+
+    test('TIMESTAMP base + flag on + non-UTC TZ wraps SELECT (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: baseDowQuery(),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`,
+        );
+        // Bare UTC SQL must not be present
+        expect(query).not.toMatch(/DATE_PART\('DOW', "events"\.occurred_at\)/);
+    });
+
+    test('TIMESTAMP base + flag on + non-UTC TZ wraps WHERE filter LHS (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: baseDowQuery([1]),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        // Both SELECT and WHERE LHS must use the wrapped expression so they
+        // agree on what counts as e.g. Monday in the project zone.
+        const wrappedSql = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
+        expect(
+            query.match(new RegExp(escapeRegExp(wrappedSql), 'g')),
+        ).not.toBeNull();
+        expect(
+            query.match(new RegExp(escapeRegExp(wrappedSql), 'g'))!.length,
+        ).toBeGreaterThanOrEqual(2);
+    });
+
+    test('DATE base dimension + flag on + non-UTC TZ short-circuits (bare EXTRACT)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.DATE),
+            compiledMetricQuery: baseDowQuery(),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(`DATE_PART('DOW', "events".occurred_at)`);
+        expect(query).not.toContain('AT TIME ZONE');
+    });
+
+    test('TIMESTAMP base + flag off → bare EXTRACT', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: baseDowQuery(),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: false,
+        });
+        expect(query).toContain(`DATE_PART('DOW', "events".occurred_at)`);
+        expect(query).not.toContain('AT TIME ZONE');
+    });
+
+    test('Name variant (DAY_OF_WEEK_NAME) wraps with the project TZ', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: {
+                ...baseDowQuery(),
+                dimensions: ['events_occurred_at_day_of_week_name'],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `TO_CHAR(("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York', 'FMDay')`,
+        );
+    });
+
+    test('WEEK_NUM with non-default startOfWeek composes with the TZ wrap (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildExtractExplore(DimensionType.TIMESTAMP),
+            compiledMetricQuery: {
+                ...baseDowQuery(),
+                dimensions: ['events_occurred_at_week_num'],
+            },
+            warehouseSqlBuilder: {
+                ...warehouseClientMock,
+                getStartOfWeek: () => 2 /* Wednesday */,
+            },
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `DATE_PART('WEEK', (("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York' - interval '2 days'))`,
+        );
+    });
+
+    test('convert_timezone: false on base dim — SELECT skips the wrap, WHERE keeps it', () => {
+        const explore = buildExtractExplore(DimensionType.TIMESTAMP);
+        // Mark the base dim opted out of display conversion.
+        explore.tables.events.dimensions.occurred_at.skipTimezoneConversion = true;
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: baseDowQuery([1]),
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+
+        const wrapped = `DATE_PART('DOW', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York')`;
+        const bare = `DATE_PART('DOW', "events".occurred_at)`;
+
+        // Asymmetry: SELECT renders the bare expression, WHERE keeps the
+        // project-tz wrap so the filter still bounds by project-tz days.
+        const selectClause = query.slice(0, query.indexOf('WHERE'));
+        const whereClause = query.slice(query.indexOf('WHERE'));
+
+        expect(selectClause).toContain(bare);
+        expect(selectClause).not.toContain(wrapped);
+        expect(whereClause).toContain(wrapped);
     });
 });

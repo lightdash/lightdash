@@ -1,4 +1,5 @@
 import {
+    assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiSavedChartResponse,
     type ApiSuccessEmpty,
@@ -16,6 +17,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -66,9 +68,12 @@ export class ProjectSavedChartControllerV2 extends BaseController {
         @Path() chartUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getSavedChartService()
-            .delete(req.user!, chartUuidOrSlug, { projectUuid });
+            .delete(toSessionUser(req.account), chartUuidOrSlug, {
+                projectUuid,
+            });
         this.setStatus(200);
         return {
             status: 'ok',

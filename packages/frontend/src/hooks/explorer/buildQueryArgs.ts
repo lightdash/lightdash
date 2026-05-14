@@ -67,6 +67,11 @@ export function buildQueryArgs(options: {
 
     const pivotDimensions = options.savedChart.pivotConfig?.columns;
 
+    // View mode hits the saved-chart path (chartUuid) and respects the
+    // caller's cache flag. Edit mode hits the raw-query path, which must
+    // not be cached — the explore re-run is the user's signal to refetch.
+    const savedChartArgs = !isEditMode ? viewModeQueryArgs : undefined;
+
     return {
         projectUuid,
         tableId: tableName,
@@ -74,9 +79,9 @@ export function buildQueryArgs(options: {
             ...computedMetricQuery,
             pivotDimensions,
         },
-        ...(isEditMode ? {} : viewModeQueryArgs),
+        ...savedChartArgs,
         dateZoomGranularity,
-        invalidateCache: minimal,
+        invalidateCache: savedChartArgs ? minimal : true,
         usePreAggregateCache: options.usePreAggregateCache,
         parameters: parameters || {},
         pivotConfiguration,

@@ -160,6 +160,27 @@
                     "required": ["label", "sql"]
                 }
             }
+        },
+        "table_groups": {
+            "type": ["object", "null"],
+            "description": "Define labels and descriptions for the group keys referenced by models in their meta.groups array. Used to render nested table groups in the sidebar.",
+            "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                    "type": "object",
+                    "properties": {
+                        "label": {
+                            "description": "Display label shown in the sidebar for this table group",
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "description": {
+                            "description": "Optional description of this table group",
+                            "type": "string"
+                        }
+                    },
+                    "required": ["label"]
+                }
+            }
         }
     }
 }

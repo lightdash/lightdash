@@ -29,6 +29,7 @@ import { type VisualizationProviderProps } from '../../../components/LightdashVi
 import { type MetricQueryDataContext } from '../../../components/MetricQueryData/context';
 import {
     getExpectedSeriesMap,
+    isPivotSeriesOrderDeterminedByQuery,
     mergeExistingAndExpectedSeries,
 } from '../../../hooks/cartesianChartConfig/utils';
 import { useExplore } from '../../../hooks/useExplore';
@@ -385,8 +386,14 @@ export function useMetricVisualization({
             ...queryResults,
             metricQuery: executedMetricQuery,
             fields,
+            resolvedTimezone: createQuery.data?.resolvedTimezone ?? undefined,
         };
-    }, [queryResults, executedMetricQuery, createQuery.data?.fields]);
+    }, [
+        queryResults,
+        executedMetricQuery,
+        createQuery.data?.fields,
+        createQuery.data?.resolvedTimezone,
+    ]);
 
     const columnOrder = useMemo(() => {
         if (!executedMetricQuery) return [];
@@ -431,11 +438,11 @@ export function useMetricVisualization({
         });
 
         const pivotKeys = segmentDimensionId ? [segmentDimensionId] : undefined;
-        const sortedByPivot =
-            !!pivotKeys?.length &&
-            !!executedMetricQuery?.sorts?.some((sort) =>
-                pivotKeys.includes(sort.fieldId),
-            );
+        const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
+            pivotKeys,
+            chartConfig.config.layout.yField,
+            executedMetricQuery?.sorts,
+        );
 
         return mergeExistingAndExpectedSeries({
             expectedSeriesMap,

@@ -39,7 +39,14 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
-import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import {
     getGroupingValuesAndSubtotalKey,
     getSubtotalValueFromGroup,
@@ -61,12 +68,35 @@ import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdas
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
 import { countSubRows } from '../Table/utils';
+import {
+    getFrozenColumnLayout,
+    type FrozenColumnEntry,
+} from './getFrozenColumnLayout';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
-const ROW_NUMBER_COL_WIDTH = 50;
 const MIN_AUTO_COL_WIDTH = 50;
+
+const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
+    if (!frozen) return {};
+    return {
+        className: `${pivotStyles.stickyColumn}${
+            frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
+        }`,
+        style: { left: frozen.left },
+    };
+};
+
+const getStickyHeaderProps = (frozen: FrozenColumnEntry | undefined) => {
+    if (!frozen) return {};
+    return {
+        className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}${
+            frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
+        }`,
+        style: { left: frozen.left },
+    };
+};
 
 type MenuCallbackProps = {
     isOpen: boolean;
@@ -151,6 +181,53 @@ const PivotTable: FC<PivotTableProps> = ({
         onColumnWidthChange,
     });
 
+    // Track actual rendered widths of body cells by column id, used to keep
+    // frozen-column offsets aligned with reality. Without measurement, the
+    // layout has to guess (defaultColumnWidth) and offsets visibly drift
+    // when auto-sized cells differ from the guess.
+    const [measuredColumnWidths, setMeasuredColumnWidths] = useState<
+        Map<string, number>
+    >(() => new Map());
+    const cellObserversRef = useRef<Map<string, ResizeObserver>>(new Map());
+
+    useEffect(
+        () => () => {
+            cellObserversRef.current.forEach((obs) => obs.disconnect());
+            cellObserversRef.current.clear();
+        },
+        [],
+    );
+
+    const measureCellRef = useCallback(
+        (columnId: string) => (el: HTMLTableCellElement | null) => {
+            const existing = cellObserversRef.current.get(columnId);
+            if (existing) {
+                existing.disconnect();
+                cellObserversRef.current.delete(columnId);
+            }
+            if (!el) return;
+            const obs = new ResizeObserver(() => {
+                const width = el.getBoundingClientRect().width;
+                if (width === 0) return;
+                setMeasuredColumnWidths((prev) => {
+                    const current = prev.get(columnId);
+                    if (
+                        current !== undefined &&
+                        Math.abs(current - width) < 0.5
+                    ) {
+                        return prev;
+                    }
+                    const next = new Map(prev);
+                    next.set(columnId, width);
+                    return next;
+                });
+            });
+            obs.observe(el);
+            cellObserversRef.current.set(columnId, obs);
+        },
+        [],
+    );
+
     // Count label/index columns to compute offset from headerColIndex to pivotColumnInfo
     const numLabelCols = useMemo(
         () =>
@@ -172,6 +249,53 @@ const PivotTable: FC<PivotTableProps> = ({
                 (prop) => prop?.width !== undefined,
             ),
         [columnProperties],
+    );
+
+    // Width of the leftmost row-number column. Mirrors the formula used by
+    // the non-pivoted Table (see Table/TableProvider.tsx) so freeze offsets
+    // line up with the actual rendered column width.
+    const rowNumberWidth = useMemo(() => {
+        if (hideRowNumbers) return 0;
+        const rowCount = data.retrofitData.allCombinedData.length;
+        return `${rowCount}`.length * 10 + 20;
+    }, [hideRowNumbers, data.retrofitData.allCombinedData.length]);
+
+    // In metricsAsRows mode the leftmost label column shows metric names
+    // (Total order amount / Total completed order amount). Its synthetic
+    // fieldId in pivotColumnInfo isn't a key in columnProperties — the
+    // freeze toggle writes to the underlying metric fieldId instead. Map
+    // the metric flags to a single "is the label column frozen?" signal.
+    const isLabelColumnFrozen = useMemo(() => {
+        if (!data.pivotConfig.metricsAsRows) return false;
+        const labelMetricIds = new Set<string>();
+        for (const row of data.indexValues) {
+            for (const entry of row) {
+                if (entry.type === 'label') labelMetricIds.add(entry.fieldId);
+            }
+        }
+        for (const id of labelMetricIds) {
+            if (columnProperties[id]?.frozen === true) return true;
+        }
+        return false;
+    }, [data.indexValues, data.pivotConfig.metricsAsRows, columnProperties]);
+
+    const frozenLayout = useMemo(
+        () =>
+            getFrozenColumnLayout({
+                pivotColumnInfo: data.retrofitData.pivotColumnInfo,
+                columnProperties,
+                rowNumberWidth,
+                defaultColumnWidth: 100,
+                measuredWidths: measuredColumnWidths,
+                labelColumnFrozen: isLabelColumnFrozen,
+            }),
+        [
+            data.retrofitData.pivotColumnInfo,
+            columnProperties,
+            rowNumberWidth,
+            measuredColumnWidths,
+            isLabelColumnFrozen,
+        ],
     );
 
     const { columns, columnOrder, colWidths } = useMemo(() => {
@@ -210,7 +334,7 @@ const PivotTable: FC<PivotTableProps> = ({
         const newColWidths: (number | undefined)[] = [];
         if (!hideRowNumbers) {
             newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
-            newColWidths.push(ROW_NUMBER_COL_WIDTH);
+            newColWidths.push(rowNumberWidth);
         }
         if (allDimensionsPivoted) {
             newColumnOrder.push(allPivotedSpacerColumn.id);
@@ -249,6 +373,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 colIndex < finalHeaderInfoForColumns.length
                                     ? finalHeaderInfoForColumns[colIndex]
                                     : undefined,
+                            frozenLayout: frozenLayout.get(col.fieldId),
                         },
                         aggregatedCell: (info) => {
                             if (info.row.getIsGrouped()) {
@@ -329,7 +454,14 @@ const PivotTable: FC<PivotTableProps> = ({
             columnOrder: newColumnOrder,
             colWidths: newColWidths,
         };
-    }, [data, hideRowNumbers, getField, columnProperties]);
+    }, [
+        data,
+        hideRowNumbers,
+        getField,
+        columnProperties,
+        frozenLayout,
+        rowNumberWidth,
+    ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
     const minTableWidth = useMemo(() => {
@@ -701,21 +833,43 @@ const PivotTable: FC<PivotTableProps> = ({
                         index={headerRowIndex}
                     >
                         {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers ? null : headerRowIndex <
-                          data.headerValues.length - 1 ? (
-                            <Table.Cell
-                                isMinimal={isMinimal}
-                                withMinimalWidth={!hasCustomWidths}
-                            />
-                        ) : (
-                            <Table.CellHead
-                                isMinimal={isMinimal}
-                                withMinimalWidth={!hasCustomWidths}
-                                withBoldFont
-                            >
-                                #
-                            </Table.CellHead>
-                        )}
+                        {hideRowNumbers
+                            ? null
+                            : (() => {
+                                  const rowNumberSticky =
+                                      frozenLayout.size > 0
+                                          ? {
+                                                className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}`,
+                                                style: { left: 0 },
+                                            }
+                                          : ({} as {
+                                                className?: string;
+                                                style?: React.CSSProperties;
+                                            });
+                                  return headerRowIndex <
+                                      data.headerValues.length - 1 ? (
+                                      <Table.Cell
+                                          className={rowNumberSticky.className}
+                                          style={rowNumberSticky.style}
+                                          isMinimal={isMinimal}
+                                          w={rowNumberWidth}
+                                          miw={rowNumberWidth}
+                                          maw={rowNumberWidth}
+                                      />
+                                  ) : (
+                                      <Table.CellHead
+                                          className={rowNumberSticky.className}
+                                          style={rowNumberSticky.style}
+                                          isMinimal={isMinimal}
+                                          w={rowNumberWidth}
+                                          miw={rowNumberWidth}
+                                          maw={rowNumberWidth}
+                                          withBoldFont
+                                      >
+                                          #
+                                      </Table.CellHead>
+                                  );
+                              })()}
                         {/* renders the title labels */}
                         {data.titleFields[headerRowIndex].map(
                             (titleField, titleFieldIndex) => {
@@ -742,9 +896,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                     !isMinimal &&
                                     titleWidthKey;
 
+                                const titlePivotCol =
+                                    data.retrofitData.pivotColumnInfo[
+                                        titleFieldIndex
+                                    ];
+                                const titleStickyProps = titlePivotCol
+                                    ? getStickyHeaderProps(
+                                          frozenLayout.get(
+                                              titlePivotCol.fieldId,
+                                          ),
+                                      )
+                                    : {};
+
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        className={titleStickyProps.className}
+                                        style={titleStickyProps.style}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
                                             !hasCustomWidths && !titleWidth
@@ -753,6 +921,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        className={titleStickyProps.className}
+                                        style={titleStickyProps.style}
                                         withAlignRight={isHeaderTitle}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
@@ -841,9 +1011,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? colWidth
                                     : undefined;
 
+                            const headerValueStickyProps = colInfo
+                                ? getStickyHeaderProps(
+                                      frozenLayout.get(colInfo.fieldId),
+                                  )
+                                : {};
+
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
+                                    className={headerValueStickyProps.className}
+                                    style={headerValueStickyProps.style}
                                     isMinimal={isMinimal}
                                     withBoldFont={isLabel}
                                     withTooltip={description}
@@ -927,6 +1105,46 @@ const PivotTable: FC<PivotTableProps> = ({
                             index={rowIndex}
                         >
                             {row.getVisibleCells().map((cell, colIndex) => {
+                                // Measure body cell widths in the first row only.
+                                // Column widths are uniform across rows (CSS table
+                                // layout), so one measurement per column is enough.
+                                const measureRef =
+                                    virtualRow.index === 0
+                                        ? measureCellRef(cell.column.id)
+                                        : undefined;
+                                if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
+                                    const rowNumberStickyBody =
+                                        frozenLayout.size > 0
+                                            ? {
+                                                  className:
+                                                      pivotStyles.stickyColumn,
+                                                  style: { left: 0 },
+                                              }
+                                            : ({} as {
+                                                  className?: string;
+                                                  style?: React.CSSProperties;
+                                              });
+                                    return (
+                                        <Table.Cell
+                                            key={`row-number-${rowIndex}`}
+                                            ref={measureRef}
+                                            className={
+                                                rowNumberStickyBody.className
+                                            }
+                                            style={rowNumberStickyBody.style}
+                                            isMinimal={isMinimal}
+                                            w={rowNumberWidth}
+                                            miw={rowNumberWidth}
+                                            maw={rowNumberWidth}
+                                        >
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext(),
+                                            )}
+                                        </Table.Cell>
+                                    );
+                                }
+
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
                                 const isDataColumn =
@@ -1088,12 +1306,19 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 const cellWidth = meta?.width;
 
+                                const stickyCellProps = getStickyCellProps(
+                                    meta?.frozenLayout,
+                                );
+
                                 const TableCellComponent = isRowTotal
                                     ? Table.CellHead
                                     : Table.Cell;
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
+                                        ref={measureRef}
+                                        className={stickyCellProps.className}
+                                        style={stickyCellProps.style}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
                                         w={cellWidth}
@@ -1228,14 +1453,56 @@ const PivotTable: FC<PivotTableProps> = ({
                                 index={stickyIndex}
                             >
                                 {/* shows empty cell if row numbers are visible */}
-                                {hideRowNumbers ? null : <Table.Cell />}
+                                {hideRowNumbers
+                                    ? null
+                                    : (() => {
+                                          const footerRowNumberSticky =
+                                              frozenLayout.size > 0
+                                                  ? {
+                                                        className:
+                                                            pivotStyles.stickyColumn,
+                                                        style: { left: 0 },
+                                                    }
+                                                  : ({} as {
+                                                        className?: string;
+                                                        style?: React.CSSProperties;
+                                                    });
+                                          return (
+                                              <Table.Cell
+                                                  className={
+                                                      footerRowNumberSticky.className
+                                                  }
+                                                  style={
+                                                      footerRowNumberSticky.style
+                                                  }
+                                                  w={rowNumberWidth}
+                                                  miw={rowNumberWidth}
+                                                  maw={rowNumberWidth}
+                                              />
+                                          );
+                                      })()}
 
                                 {/* render the total label */}
                                 {data.columnTotalFields?.[totalRowIndex].map(
-                                    (totalLabel, totalColIndex) =>
-                                        totalLabel ? (
+                                    (totalLabel, totalColIndex) => {
+                                        const footerPivotCol =
+                                            data.retrofitData.pivotColumnInfo[
+                                                totalColIndex
+                                            ];
+                                        const footerStickyProps = footerPivotCol
+                                            ? getStickyCellProps(
+                                                  frozenLayout.get(
+                                                      footerPivotCol.fieldId,
+                                                  ),
+                                              )
+                                            : {};
+                                        return totalLabel ? (
                                             <Table.CellHead
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                className={
+                                                    footerStickyProps.className
+                                                }
+                                                style={footerStickyProps.style}
                                                 isMinimal={isMinimal}
                                                 withAlignRight
                                                 withBoldFont
@@ -1249,9 +1516,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                         ) : (
                                             <Table.Cell
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                className={
+                                                    footerStickyProps.className
+                                                }
+                                                style={footerStickyProps.style}
                                                 isMinimal={isMinimal}
                                             />
-                                        ),
+                                        );
+                                    },
                                 )}
 
                                 {row.map((total, totalColIndex) => {

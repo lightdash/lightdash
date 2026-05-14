@@ -5,7 +5,12 @@ import type { ChartKind } from './savedCharts';
 // ---------------------------------------------------------------------------
 // Utility: WithDescendantCounts
 // ---------------------------------------------------------------------------
-type DescendantCountKey = 'nestedSpace' | 'dashboard' | 'chart' | 'scheduler';
+type DescendantCountKey =
+    | 'nestedSpace'
+    | 'dashboard'
+    | 'chart'
+    | 'scheduler'
+    | 'app';
 
 export type WithDescendantCounts<T, K extends DescendantCountKey = never> = [
     K,
@@ -81,10 +86,30 @@ export type DeletedSpaceContentSummary = {
     organizationUuid: string;
 };
 
+export type DeletedDataAppContentSummary = {
+    uuid: string;
+    name: string;
+    description: string | null;
+    contentType: ContentType.DATA_APP;
+    deletedAt: Date;
+    deletedBy: {
+        userUuid: string;
+        firstName: string;
+        lastName: string;
+    } | null;
+    // Apps can be personal (no space), so these are nullable unlike for
+    // dashboards/charts which always belong to a space.
+    spaceUuid: string | null;
+    spaceName: string | null;
+    projectUuid: string;
+    organizationUuid: string;
+};
+
 export type DeletedContentSummary =
     | DeletedChartContentSummary
     | DeletedDashboardContentSummary
-    | DeletedSpaceContentSummary;
+    | DeletedSpaceContentSummary
+    | DeletedDataAppContentSummary;
 
 // ---------------------------------------------------------------------------
 // Content-with-descendant-counts (returned by ContentModel / API)
@@ -98,8 +123,9 @@ export type DeletedContentWithDescendants =
       >
     | WithDescendantCounts<
           DeletedSpaceContentSummary,
-          'nestedSpace' | 'dashboard' | 'chart' | 'scheduler'
-      >;
+          'nestedSpace' | 'dashboard' | 'chart' | 'scheduler' | 'app'
+      >
+    | WithDescendantCounts<DeletedDataAppContentSummary, never>;
 
 export type DeletedContentFilters = {
     projectUuids: string[];
@@ -127,6 +153,10 @@ export type DeletedContentItem =
     | {
           uuid: string;
           contentType: ContentType.SPACE;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.DATA_APP;
       };
 
 export type ApiRestoreContentBody = {

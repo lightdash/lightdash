@@ -1033,8 +1033,6 @@ export type LightdashConfig = {
         csvCellsLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
-        useSqlPivotResults: boolean | undefined;
-        showExecutionTime: boolean | undefined;
         retryQueryOnTransientErrors: boolean;
         enableTimezoneSupport: boolean | undefined;
     };
@@ -1129,9 +1127,6 @@ export type LightdashConfig = {
             enablePostMessage: boolean;
         };
     };
-    scim: {
-        enabled: boolean;
-    };
     serviceAccount: {
         enabled: boolean;
     };
@@ -1159,11 +1154,14 @@ export type LightdashConfig = {
     microsoftTeams: {
         enabled: boolean;
     };
-    googleChat: {
-        enabled: boolean;
-    };
     googleCloudPlatform: {
         projectId?: string;
+    };
+    managedAgent: {
+        anthropicApiKey: string | null;
+        skillIds: string[];
+        schedule: string;
+        sessionTimeoutMs: number;
     };
 
     initialSetup?: {
@@ -1226,9 +1224,6 @@ export type LightdashConfig = {
     };
     analyticsEmbedSecret?: string;
 
-    dashboardComments: {
-        enabled: boolean;
-    };
     echarts6: {
         enabled: boolean;
     };
@@ -1246,15 +1241,12 @@ export type LightdashConfig = {
     funnelBuilder: {
         enabled: boolean;
     };
-    savedMetricsTree: {
-        enabled: boolean | undefined;
-    };
-    defaultUserSpaces: {
-        enabled: boolean | undefined;
-    };
     softDelete: {
         enabled: boolean;
         retentionDays: number;
+    };
+    dashboardComments: {
+        enabled: boolean;
     };
     preAggregates: {
         enabled: boolean;
@@ -1264,23 +1256,9 @@ export type LightdashConfig = {
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
     };
-    userImpersonation: {
-        enabled: boolean | undefined;
-    };
-    changeChartExplore: {
-        enabled: boolean | undefined;
-    };
-    showHideRows: {
-        enabled: boolean | undefined;
-    };
-    metricDashboardFilters: {
-        enabled: boolean | undefined;
-    };
-    showHideColumns: {
-        enabled: boolean | undefined;
-    };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
+    disabledFeatureFlags: Set<string>;
 };
 
 export type SlackConfig = {
@@ -1293,7 +1271,6 @@ export type SlackConfig = {
     socketMode?: boolean;
     channelsCachedTime: number;
     supportUrl: string;
-    multiAgentChannelEnabled: boolean;
     /*
      This is the setting that controls whether we generate image previews for link shares in Slack
      @default true
@@ -1304,6 +1281,7 @@ export type HeadlessBrowserConfig = {
     host?: string;
     port?: string;
     internalLightdashHost: string;
+    internalLightdashHostIgnoreHttpsErrors: boolean;
     browserEndpoint: string;
     maxScreenshotRetries: number;
     retryBaseDelayMs: number;
@@ -1334,9 +1312,30 @@ export type AppRuntimeConfig = {
     enabled: boolean;
     lightdashOrigin: string;
     cdnOrigin: string | null;
+    /**
+     * Origin where data-app preview iframes are served, distinct from the
+     * Lightdash app origin (e.g., `https://acme.lightdash.app`). When null,
+     * previews are served same-origin — dev / pre-cutover behavior. The
+     * host filter rejects requests on this hostname unless the path matches
+     * the preview-router prefix.
+     */
     previewOrigin: string | null;
+    /**
+     * Additional origins allowed in the preview iframe CSP for style-src
+     * and font-src directives. Parsed from a comma-separated env var
+     * (e.g. `https://fonts.googleapis.com,https://fonts.gstatic.com`).
+     */
+    cspAllowedOrigins: string[];
     s3: S3Config | null;
     e2bApiKey: string | null;
+    e2bTemplateName: string;
+    /**
+     * Tag identifying which build of `e2bTemplateName` to launch sandboxes
+     * from. Composed into `name:tag` for `Sandbox.create`. Empty string falls
+     * back to E2B's implicit `default` tag — used as a transition state for
+     * deployments that haven't picked up a version-tagged build yet.
+     */
+    e2bTemplateTag: string;
 };
 
 export type IntercomConfig = {
@@ -1542,10 +1541,71 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         lightdashOrigin: process.env.APP_RUNTIME_LIGHTDASH_ORIGIN || siteUrl,
         cdnOrigin: process.env.APP_RUNTIME_CDN_ORIGIN || null,
         previewOrigin: process.env.APP_RUNTIME_PREVIEW_ORIGIN || null,
+        cspAllowedOrigins: (process.env.APP_RUNTIME_CSP_ALLOWED_ORIGINS || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
+        e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+        // Default to the running Lightdash version so prod always launches
+        // sandboxes from the matching template build (the release workflow
+        // guarantees this tag exists). Operators can override to roll back
+        // or pin during incidents.
+        e2bTemplateTag: process.env.E2B_TEMPLATE_TAG ?? (VERSION as string),
     };
 };
+
+/**
+ * Map of legacy per-flag env vars to their feature-flag IDs. Deprecated —
+ * operators should migrate to LIGHTDASH_ENABLE_FEATURE_FLAGS /
+ * LIGHTDASH_DISABLE_FEATURE_FLAGS. Entries here translate the legacy var into
+ * the unified allowlists for backward compatibility, so self-hosted
+ * deployments don't regress when a per-flag handler is removed during
+ * PostHog migration. Once an entry has soaked for ~6 months after the
+ * unified pattern is documented, delete it.
+ */
+const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
+    readonly [envVar: string, flagId: string]
+> = [
+    // Add per migration; truthy env value enables the flag.
+    ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
+    ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
+    // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
+    // translating to enabledFeatureFlags ensures both existing and new cloud
+    // instances pick up the DB-backed flag as enabled without needing per-DB
+    // bootstrapping.
+    ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
+    ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
+    // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
+    // from the feature flag) — keep the config field, but translate the env
+    // var to the unified allowlist for the flag system too.
+    ['GROUPS_ENABLED', 'user-groups-enabled'],
+    ['SHOW_EXECUTION_TIME', 'show-execution-time'],
+    // EMBEDDING_ENABLED is also read by HealthService (exposed via the health
+    // endpoint) and EmbedService (allowAll config). Keep the config field, but
+    // translate the env var to the unified allowlist for the flag system.
+    ['EMBEDDING_ENABLED', 'embedding'],
+    // SERVICE_ACCOUNT_ENABLED is also read by HealthService (exposed via the
+    // health endpoint). Keep the config field, but translate the env var to
+    // the unified allowlist for the flag system.
+    ['SERVICE_ACCOUNT_ENABLED', 'service-accounts'],
+    ['SCIM_ENABLED', 'scim-token-management'],
+    // ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED is also read by HealthService
+    // (exposed via the health endpoint). Keep the config field, but translate
+    // the env var to the unified allowlist for the flag system.
+    [
+        'ORGANIZATION_WAREHOUSE_CREDENTIALS_ENABLED',
+        'organization-warehouse-credentials',
+    ],
+    ['METRIC_DASHBOARD_FILTERS_ENABLED', 'metric-dashboard-filters'],
+];
+
+const LEGACY_DISABLE_ENV_VARS: ReadonlyArray<
+    readonly [envVar: string, flagId: string]
+> = [
+    // Add per migration; truthy env value disables the flag.
+];
 
 export const parseConfig = (): LightdashConfig => {
     const lightdashSecret = process.env.LIGHTDASH_SECRET;
@@ -1941,12 +2001,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_QUERY_MAX_PAGE_SIZE',
                 ) || 2500, // Defaults to default limit * 5
-            useSqlPivotResults: process.env.USE_SQL_PIVOT_RESULTS
-                ? process.env.USE_SQL_PIVOT_RESULTS !== 'false'
-                : undefined,
-            showExecutionTime: process.env.SHOW_EXECUTION_TIME
-                ? process.env.SHOW_EXECUTION_TIME === 'true'
-                : undefined,
             retryQueryOnTransientErrors: process.env
                 .LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS
                 ? process.env.LIGHTDASH_QUERY_RETRY_ON_TRANSIENT_ERRORS ===
@@ -1996,6 +2050,9 @@ export const parseConfig = (): LightdashConfig => {
             host: process.env.HEADLESS_BROWSER_HOST,
             internalLightdashHost:
                 process.env.INTERNAL_LIGHTDASH_HOST || siteUrl,
+            internalLightdashHostIgnoreHttpsErrors:
+                process.env.INTERNAL_LIGHTDASH_HOST_IGNORE_HTTPS_ERRORS ===
+                'true',
             browserEndpoint,
             maxScreenshotRetries: parseInt(
                 process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
@@ -2036,8 +2093,6 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ), // 10 minutes
             supportUrl: process.env.SLACK_SUPPORT_URL || '',
-            multiAgentChannelEnabled:
-                process.env.SLACK_MULTI_AGENT_CHANNEL_ENABLED === 'true',
             linkShareImagePreviewEnabled:
                 process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
@@ -2172,9 +2227,6 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
             },
         },
-        scim: {
-            enabled: process.env.SCIM_ENABLED === 'true',
-        },
         serviceAccount: {
             enabled: process.env.SERVICE_ACCOUNT_ENABLED === 'true',
         },
@@ -2217,11 +2269,23 @@ export const parseConfig = (): LightdashConfig => {
         microsoftTeams: {
             enabled: process.env.MICROSOFT_TEAMS_ENABLED === 'true',
         },
-        googleChat: {
-            enabled: process.env.GOOGLE_CHAT_ENABLED === 'true',
-        },
         googleCloudPlatform: {
             projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        },
+        managedAgent: {
+            anthropicApiKey:
+                process.env.MANAGED_AGENT_ANTHROPIC_API_KEY ||
+                process.env.ANTHROPIC_API_KEY ||
+                null,
+            skillIds: (process.env.MANAGED_AGENT_SKILL_IDS || '')
+                .split(',')
+                .map((skillId) => skillId.trim())
+                .filter(Boolean),
+            schedule: process.env.MANAGED_AGENT_SCHEDULE || '0 0 * * *',
+            sessionTimeoutMs: parseInt(
+                process.env.MANAGED_AGENT_SESSION_TIMEOUT_MS || '600000',
+                10,
+            ), // 10 minutes default
         },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
@@ -2232,9 +2296,6 @@ export const parseConfig = (): LightdashConfig => {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',
         },
         analyticsEmbedSecret: process.env.ANALYTICS_EMBED_SECRET,
-        dashboardComments: {
-            enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
-        },
         echarts6: {
             enabled: process.env.ECHARTS_V6_ENABLED === 'true',
         },
@@ -2249,17 +2310,8 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.FUNNEL_BUILDER_ENABLED === 'true' ||
                 lightdashMode === LightdashMode.PR,
         },
-        savedMetricsTree: {
-            enabled:
-                process.env.SAVED_METRICS_TREE_ENABLED === 'true'
-                    ? true
-                    : undefined,
-        },
-        defaultUserSpaces: {
-            enabled:
-                process.env.LIGHTDASH_DEFAULT_USER_SPACES_ENABLED === 'true'
-                    ? true
-                    : undefined,
+        dashboardComments: {
+            enabled: process.env.DISABLE_DASHBOARD_COMMENTS !== 'true',
         },
         softDelete: {
             enabled: process.env.SOFT_DELETE_ENABLED === 'true',
@@ -2279,38 +2331,24 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
         },
-        userImpersonation: {
-            enabled:
-                process.env.USER_IMPERSONATION_ENABLED === 'true'
-                    ? true
-                    : undefined,
-        },
-        changeChartExplore: {
-            enabled: process.env.CHANGE_CHART_EXPLORE_ENABLED
-                ? process.env.CHANGE_CHART_EXPLORE_ENABLED === 'true'
-                : undefined,
-        },
-        showHideRows: {
-            enabled: process.env.SHOW_HIDE_ROWS_ENABLED
-                ? process.env.SHOW_HIDE_ROWS_ENABLED === 'true'
-                : undefined,
-        },
-        metricDashboardFilters: {
-            enabled: process.env.METRIC_DASHBOARD_FILTERS_ENABLED
-                ? process.env.METRIC_DASHBOARD_FILTERS_ENABLED === 'true'
-                : undefined,
-        },
-        showHideColumns: {
-            enabled: process.env.SHOW_HIDE_COLUMNS_ENABLED
-                ? process.env.SHOW_HIDE_COLUMNS_ENABLED === 'true'
-                : undefined,
-        },
         appRuntime: parseAppRuntimeConfig(siteUrl),
-        enabledFeatureFlags: new Set(
-            (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+        enabledFeatureFlags: new Set([
+            ...(process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
                 .split(',')
                 .map((s) => s.trim())
                 .filter(Boolean),
-        ),
+            ...LEGACY_ENABLE_ENV_VARS.filter(
+                ([envVar]) => process.env[envVar] === 'true',
+            ).map(([, flagId]) => flagId),
+        ]),
+        disabledFeatureFlags: new Set([
+            ...(process.env.LIGHTDASH_DISABLE_FEATURE_FLAGS ?? '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean),
+            ...LEGACY_DISABLE_ENV_VARS.filter(
+                ([envVar]) => process.env[envVar] === 'true',
+            ).map(([, flagId]) => flagId),
+        ]),
     };
 };

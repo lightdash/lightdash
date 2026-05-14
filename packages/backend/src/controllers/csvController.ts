@@ -1,6 +1,7 @@
 import {
     ApiCsvUrlResponse,
     ApiErrorPayload,
+    assertRegisteredAccount,
     UnexpectedServerError,
 } from '@lightdash/common';
 import {
@@ -15,6 +16,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -36,10 +38,11 @@ export class CsvController extends BaseController {
         @Path() jobId: string,
         @Request() req: express.Request,
     ): Promise<ApiCsvUrlResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const csvDetails = await this.services
             .getSchedulerService()
-            .getGsheetExportStatus(req.user!, jobId);
+            .getGsheetExportStatus(toSessionUser(req.account), jobId);
         return {
             status: 'ok',
             results: {

@@ -13,7 +13,6 @@ import {
     DashboardTileTypes,
     DashboardVersionedFields,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -66,6 +65,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -74,7 +74,6 @@ import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
 import { BaseService } from '../BaseService';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -99,9 +98,9 @@ type DashboardServiceArguments = {
     slackClient: SlackClient;
     projectModel: ProjectModel;
     catalogModel: CatalogModel;
+    organizationModel: OrganizationModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    featureFlagService: FeatureFlagService;
 };
 
 export class DashboardService
@@ -132,6 +131,8 @@ export class DashboardService
 
     projectModel: ProjectModel;
 
+    organizationModel: OrganizationModel;
+
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -139,8 +140,6 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
-
-    featureFlagService: FeatureFlagService;
 
     constructor({
         lightdashConfig,
@@ -157,9 +156,9 @@ export class DashboardService
         slackClient,
         projectModel,
         catalogModel,
+        organizationModel,
         spacePermissionService,
         contentVerificationModel,
-        featureFlagService,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -174,32 +173,19 @@ export class DashboardService
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
+        this.organizationModel = organizationModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
-        this.featureFlagService = featureFlagService;
-    }
-
-    private async assertContentVerificationEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<void> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ContentVerification,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Content verification is not enabled');
-        }
     }
 
     async verifyDashboard(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<ContentVerificationInfo> {
-        await this.assertContentVerificationEnabled(user);
         const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { organizationUuid, projectUuid } = dashboard;
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -210,7 +196,7 @@ export class DashboardService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -219,14 +205,14 @@ export class DashboardService
 
         await this.contentVerificationModel.verify(
             ContentType.DASHBOARD,
-            dashboardUuid,
+            dashboard.uuid,
             projectUuid,
             user.userUuid,
         );
 
         const verification = await this.contentVerificationModel.getByContent(
             ContentType.DASHBOARD,
-            dashboardUuid,
+            dashboard.uuid,
         );
 
         if (!verification) {
@@ -237,9 +223,10 @@ export class DashboardService
             event: 'content_verification.created',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.DASHBOARD,
-                contentId: dashboardUuid,
+                contentId: dashboard.uuid,
             },
         });
 
@@ -248,11 +235,10 @@ export class DashboardService
 
     async unverifyDashboard(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<void> {
-        await this.assertContentVerificationEnabled(user);
         const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { organizationUuid, projectUuid } = dashboard;
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -263,7 +249,7 @@ export class DashboardService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -274,16 +260,17 @@ export class DashboardService
 
         await this.contentVerificationModel.unverify(
             ContentType.DASHBOARD,
-            dashboardUuid,
+            dashboard.uuid,
         );
 
         this.analytics.track({
             event: 'content_verification.deleted',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.DASHBOARD,
-                contentId: dashboardUuid,
+                contentId: dashboard.uuid,
             },
         });
     }
@@ -328,18 +315,29 @@ export class DashboardService
 
         await Promise.all(
             orphanedCharts.map(async (chart) => {
-                const deletedChart = await this.savedChartModel.permanentDelete(
-                    chart.uuid,
-                );
-                this.analytics.track({
-                    event: 'saved_chart.deleted',
-                    userId: user.userUuid,
-                    properties: {
-                        savedQueryId: deletedChart.uuid,
-                        projectId: deletedChart.projectUuid,
-                        softDelete: false,
-                    },
-                });
+                try {
+                    const deletedChart =
+                        await this.savedChartModel.permanentDelete(chart.uuid);
+                    this.analytics.track({
+                        event: 'saved_chart.deleted',
+                        userId: user.userUuid,
+                        properties: {
+                            savedQueryId: deletedChart.uuid,
+                            projectId: deletedChart.projectUuid,
+                            softDelete: false,
+                        },
+                    });
+                } catch (error) {
+                    // A retried save may have already deleted the orphan.
+                    // Don't fail the whole save response for it.
+                    if (error instanceof NotFoundError) {
+                        this.logger.warn(
+                            `Skipping already-deleted orphan chart ${chart.uuid} for dashboard ${dashboardUuid}`,
+                        );
+                        return;
+                    }
+                    throw error;
+                }
             }),
         );
     }
@@ -452,7 +450,10 @@ export class DashboardService
             if (!spaceContext) return false;
             const hasAbility = auditedAbility.can(
                 'view',
-                subject('Dashboard', { ...spaceContext, uuid: dashboard.uuid }),
+                subject('Dashboard', {
+                    ...spaceContext,
+                    metadata: { dashboardUuid: dashboard.uuid },
+                }),
             );
             return includePrivate
                 ? hasAbility
@@ -485,7 +486,18 @@ export class DashboardService
 
         const auditedAbility = this.createAuditedAbility(user);
 
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -627,7 +639,18 @@ export class DashboardService
         };
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('create', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -791,7 +814,7 @@ export class DashboardService
             'update',
             subject('Dashboard', {
                 ...currentSpace,
-                uuid: existingDashboardDao.uuid,
+                metadata: { dashboardUuid: existingDashboardDao.uuid },
             }),
         );
 
@@ -812,12 +835,24 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...newSpace,
-                        uuid: existingDashboardDao.uuid,
+                        metadata: { dashboardUuid: existingDashboardDao.uuid },
                     }),
                 );
                 if (!canUpdateDashboardInNewSpace) {
                     throw new ForbiddenError(
                         "You don't have access to the space this dashboard is being moved to",
+                    );
+                }
+            }
+
+            if (dashboard.colorPaletteUuid) {
+                const palette = await this.organizationModel.findColorPalette(
+                    existingDashboardDao.organizationUuid,
+                    dashboard.colorPaletteUuid,
+                );
+                if (!palette) {
+                    throw new ParameterError(
+                        'Color palette does not belong to this organization',
                     );
                 }
             }
@@ -828,6 +863,7 @@ export class DashboardService
                     name: dashboard.name,
                     description: dashboard.description,
                     spaceUuid: dashboard.spaceUuid,
+                    colorPaletteUuid: dashboard.colorPaletteUuid,
                 },
             );
 
@@ -993,10 +1029,10 @@ export class DashboardService
 
     async togglePinning(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<TogglePinnedItemInfo> {
         const existingDashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1017,7 +1053,7 @@ export class DashboardService
                 subject('PinnedItems', {
                     projectUuid,
                     organizationUuid,
-                    uuid: existingDashboard.uuid,
+                    metadata: { dashboardUuid: existingDashboard.uuid },
                 }),
             )
         ) {
@@ -1027,7 +1063,13 @@ export class DashboardService
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Dashboard', existingDashboard),
+                subject('Dashboard', {
+                    ...existingDashboard,
+                    metadata: {
+                        dashboardUuid: existingDashboard.uuid,
+                        dashboardName: existingDashboard.name,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -1038,12 +1080,12 @@ export class DashboardService
         if (pinnedListUuid) {
             await this.pinnedListModel.deleteItem({
                 pinnedListUuid,
-                dashboardUuid,
+                dashboardUuid: existingDashboard.uuid,
             });
         } else {
             await this.pinnedListModel.addItem({
                 projectUuid,
-                dashboardUuid,
+                dashboardUuid: existingDashboard.uuid,
             });
         }
 
@@ -1068,7 +1110,7 @@ export class DashboardService
             spaceUuid,
             pinnedListUuid: pinnedList.pinnedListUuid,
             isPinned: !!pinnedList.items.find(
-                (item) => item.dashboardUuid === dashboardUuid,
+                (item) => item.dashboardUuid === existingDashboard.uuid,
             ),
         };
     }
@@ -1093,7 +1135,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...currentSpaceContext,
-                        uuid: dashboard.uuid,
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 );
                 const newSpaceContext =
@@ -1105,7 +1147,7 @@ export class DashboardService
                     'update',
                     subject('Dashboard', {
                         ...newSpaceContext,
-                        uuid: dashboardToUpdate.uuid,
+                        metadata: { dashboardUuid: dashboardToUpdate.uuid },
                     }),
                 );
                 return (
@@ -1183,7 +1225,7 @@ export class DashboardService
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid },
                     }),
                 )
             ) {
@@ -1266,18 +1308,18 @@ export class DashboardService
 
     async softDelete(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'Dashboard',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid: dashboard.uuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
-            const dashboard =
-                await this.dashboardModel.getByIdOrSlug(dashboardUuid);
             const { inheritsFromOrgOrProject, access } =
                 await this.spacePermissionService.getSpaceAccessContext(
                     user.userUuid,
@@ -1292,7 +1334,7 @@ export class DashboardService
                         projectUuid: dashboard.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )
             ) {
@@ -1303,13 +1345,13 @@ export class DashboardService
         }
 
         const deletedDashboard = await this.dashboardModel.softDelete(
-            dashboardUuid,
+            dashboard.uuid,
             user.userUuid,
         );
 
         await this.schedulerService.softDeleteByDashboardUuid(
             user,
-            dashboardUuid,
+            dashboard.uuid,
             {
                 projectUuid: deletedDashboard.projectUuid,
                 organizationUuid: deletedDashboard.organizationUuid,
@@ -1320,18 +1362,18 @@ export class DashboardService
 
     async restore(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
+            dashboardUuidOrSlug,
             { deleted: true },
         );
 
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid: dashboard.uuid },
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
             });
@@ -1343,7 +1385,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )
             ) {
@@ -1351,11 +1393,11 @@ export class DashboardService
             }
         }
 
-        await this.dashboardModel.restore(dashboardUuid);
+        await this.dashboardModel.restore(dashboard.uuid);
 
         await this.schedulerService.restoreByDashboardUuid(
             user,
-            dashboardUuid,
+            dashboard.uuid,
             {
                 projectUuid: dashboard.projectUuid,
                 organizationUuid: dashboard.organizationUuid,
@@ -1367,7 +1409,7 @@ export class DashboardService
             event: 'dashboard.restored',
             userId: user.userUuid,
             properties: {
-                dashboardId: dashboardUuid,
+                dashboardId: dashboard.uuid,
                 projectId: dashboard.projectUuid,
             },
         });
@@ -1375,20 +1417,23 @@ export class DashboardService
 
     async permanentDelete(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         options?: SoftDeleteOptions,
     ): Promise<void> {
+        // 'any' so this works whether called directly on a soft-deleted
+        // dashboard (restore-then-purge flow) or via `delete()` on a
+        // not-yet-deleted dashboard (when softDelete config is off).
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            { deleted: 'any' },
+        );
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: dashboardUuid,
+                metadata: { dashboardUuid: dashboard.uuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
-            const dashboard = await this.dashboardModel.getByIdOrSlug(
-                dashboardUuid,
-                { deleted: true },
-            );
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -1396,7 +1441,7 @@ export class DashboardService
                     subject('DeletedContent', {
                         organizationUuid: dashboard.organizationUuid,
                         projectUuid: dashboard.projectUuid,
-                        uuid: dashboardUuid,
+                        metadata: { dashboardUuid: dashboard.uuid },
                     }),
                 )
             ) {
@@ -1404,7 +1449,7 @@ export class DashboardService
             }
         }
 
-        await this.dashboardModel.permanentDelete(dashboardUuid);
+        await this.dashboardModel.permanentDelete(dashboard.uuid);
     }
 
     async getSchedulers(
@@ -1412,12 +1457,13 @@ export class DashboardService
         dashboardUuid: string,
         searchQuery?: string,
         paginateArgs?: KnexPaginateArgs,
+        includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         const dashboard = await this.checkCreateScheduledDeliveryAccess(
             user,
             dashboardUuid,
         );
-        return this.schedulerModel.getSchedulers({
+        const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: dashboard.projectUuid,
             organizationUuid: dashboard.organizationUuid,
             paginateArgs,
@@ -1427,6 +1473,12 @@ export class DashboardService
                 resourceUuids: [dashboardUuid],
             },
         });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
     async createScheduler(
@@ -1540,7 +1592,18 @@ export class DashboardService
         ) {
             throw new ForbiddenError();
         }
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError(
                 "You don't have access to the space this dashboard belongs to",
             );
@@ -1579,7 +1642,7 @@ export class DashboardService
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access,
-                uuid: dashboard.uuid,
+                metadata: { dashboardUuid: dashboard.uuid },
             }),
         );
 
@@ -1603,7 +1666,7 @@ export class DashboardService
                     projectUuid: actor.projectUuid,
                     inheritsFromOrgOrProject: newSpace.inheritsFromOrgOrProject,
                     access: newSpace.access,
-                    uuid: dashboard.uuid,
+                    metadata: { dashboardUuid: dashboard.uuid },
                 }),
             );
 
@@ -1617,10 +1680,10 @@ export class DashboardService
 
     async getHistory(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
     ): Promise<DashboardHistory> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1634,6 +1697,10 @@ export class DashboardService
                     ...dashboardDao,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
+                    },
                 }),
             )
         ) {
@@ -1642,8 +1709,9 @@ export class DashboardService
             );
         }
 
-        const versions =
-            await this.dashboardModel.getLatestVersionSummaries(dashboardUuid);
+        const versions = await this.dashboardModel.getLatestVersionSummaries(
+            dashboardDao.uuid,
+        );
 
         this.analytics.track({
             event: 'dashboard_history.view',
@@ -1660,11 +1728,11 @@ export class DashboardService
 
     async getVersion(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         versionUuid: string,
     ): Promise<DashboardVersion> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -1678,6 +1746,10 @@ export class DashboardService
                     ...dashboardDao,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
+                    },
                 }),
             )
         ) {
@@ -1688,10 +1760,13 @@ export class DashboardService
 
         const [versionSummary, dashboard] = await Promise.all([
             this.dashboardModel.getVersionSummaryByUuid(
-                dashboardUuid,
+                dashboardDao.uuid,
                 versionUuid,
             ),
-            this.dashboardModel.getVersionByUuid(dashboardUuid, versionUuid),
+            this.dashboardModel.getVersionByUuid(
+                dashboardDao.uuid,
+                versionUuid,
+            ),
         ]);
 
         if (!dashboard) {
@@ -1793,16 +1868,16 @@ export class DashboardService
 
     async rollback(
         user: SessionUser,
-        dashboardUuid: string,
+        dashboardUuidOrSlug: string,
         versionUuid: string,
     ): Promise<void> {
         const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+            await this.dashboardModel.getByIdOrSlug(dashboardUuidOrSlug);
 
         // Check if trying to rollback to current version
         if (dashboardDao.versionUuid === versionUuid) {
             this.logger.info(
-                `Ignoring rollback request - version ${versionUuid} is already the current version for dashboard ${dashboardUuid}`,
+                `Ignoring rollback request - version ${versionUuid} is already the current version for dashboard ${dashboardDao.uuid}`,
             );
             return;
         }
@@ -1820,6 +1895,10 @@ export class DashboardService
                     ...dashboardDao,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        dashboardUuid: dashboardDao.uuid,
+                        dashboardName: dashboardDao.name,
+                    },
                 }),
             )
         ) {
@@ -1829,7 +1908,7 @@ export class DashboardService
         }
 
         const targetVersion = await this.dashboardModel.getVersionByUuid(
-            dashboardUuid,
+            dashboardDao.uuid,
             versionUuid,
         );
 
@@ -1841,7 +1920,7 @@ export class DashboardService
         await this.savedChartModel.transaction(async (tx) => {
             // Rollback dashboard version
             await this.dashboardModel.addVersion(
-                dashboardUuid,
+                dashboardDao.uuid,
                 {
                     tiles: targetVersion.tiles,
                     filters: targetVersion.filters,

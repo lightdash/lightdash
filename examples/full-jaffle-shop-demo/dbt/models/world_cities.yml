@@ -1,0 +1,40 @@
+version: 2
+models:
+  - name: world_cities
+    description: |
+      # World Cities
+
+      Population centres worldwide with population >= 5,000, sourced from the
+      [GeoNames](https://www.geonames.org/) `cities5000` dataset
+      (CC BY 4.0). Useful for testing geographic visualizations such as
+      hex-binning at global scale.
+    columns:
+      - name: name
+        description: City name (UTF-8, native script where applicable)
+
+      - name: country_code
+        description: ISO-3166-1 alpha-2 country code
+
+      - name: lon
+        description: Longitude coordinate (-180 to 180)
+
+      - name: lat
+        description: Latitude coordinate (-90 to 90)
+
+      - name: population
+        description: Most recent population estimate from GeoNames
+        config:
+          meta:
+            metrics:
+              total_population:
+                type: sum
+                label: Total population
+                description: Sum of population across cities
+              average_population:
+                type: average
+                label: Average population
+                description: Average city population
+              city_count:
+                type: count
+                label: City count
+                description: Number of cities

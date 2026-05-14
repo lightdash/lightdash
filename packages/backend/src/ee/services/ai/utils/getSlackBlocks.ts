@@ -78,6 +78,22 @@ export const getTextBlocks = (
     }));
 
 /**
+ * Converts standard markdown into Slack `markdown` blocks. Unlike `mrkdwn`
+ * inside a section block, the markdown block natively renders GitHub-flavoured
+ * markdown including tables, task lists, code blocks with language hints, etc.
+ *
+ * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
+ */
+export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
+    chunkSlackText(text).map(
+        (chunk) =>
+            ({
+                type: 'markdown',
+                text: chunk,
+            }) as unknown as Block,
+    );
+
+/**
  * Returns compact Slack blocks showing a "thinking" animation with a GIF.
  * Uses context block for smaller, dimmed text appearance.
  * Used while the AI agent is processing a request.
@@ -212,61 +228,59 @@ export function getFollowUpToolBlocks(
     ];
 }
 
+// Tool names whose successful results count as "an answer the user can score".
+// Discovery tools (findExplores, findFields, listWarehouseTables,
+// describeWarehouseTable) are deliberately excluded — they don't deliver a
+// final answer, only context for the agent.
+const ANSWER_PRODUCING_TOOLS = new Set([
+    'runQuery',
+    'runSql',
+    'runSavedChart',
+    'generateDashboard',
+]);
+
+// One compact footer: small "How did I do?" header + a single row with
+// thumbs and the chat permalink. Only rendered when at least one
+// answer-producing tool succeeded for this prompt.
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
-    artifacts?: AiArtifact[],
+    toolResults: AiAgentToolResult[],
+    agentUuid: string,
+    siteUrl: string,
 ): (Block | KnownBlock)[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // Show feedback blocks if we have artifacts with visualizations
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Check if any artifacts have chart or dashboard configs
-    const hasVisualization = artifacts.some(
-        (artifact) => artifact.chartConfig || artifact.dashboardConfig,
+    const hasAnswer = toolResults.some(
+        (r) =>
+            ANSWER_PRODUCING_TOOLS.has(r.toolName) &&
+            (r.metadata as { status?: string } | null)?.status === 'success',
     );
+    if (!hasAnswer) return [];
 
-    if (!hasVisualization) {
-        return [];
-    }
-
+    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
     return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                {
-                    type: 'plain_text',
-                    text: `🤖 How did I do?`,
-                },
-            ],
-        },
         {
             block_id: 'prompt_human_score',
             type: 'actions',
             elements: [
                 {
                     type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '👍',
-                        emoji: true,
-                    },
+                    text: { type: 'plain_text', text: '👍', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.upvote',
                 },
                 {
                     type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '👎',
-                        emoji: true,
-                    },
+                    text: { type: 'plain_text', text: '👎', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.downvote',
+                },
+                {
+                    type: 'button',
+                    text: {
+                        type: 'plain_text',
+                        text: 'View chat in Lightdash',
+                    },
+                    url: threadUrl,
+                    action_id: 'view_chat_in_lightdash',
                 },
             ],
         },
@@ -381,34 +395,17 @@ export function getDeepLinkBlocks(
     siteUrl: string,
     artifacts?: AiArtifact[],
 ): (Block | KnownBlock)[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // Show debug link when there are artifacts to inspect
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Check if any artifacts have dashboard configs
+    // Prominent "View Dashboard" link only — the regular "View chat in
+    // Lightdash" link now lives inside the unified feedback row.
+    if (!artifacts || artifacts.length === 0) return [];
     const hasDashboard = artifacts.some((artifact) => artifact.dashboardConfig);
-
-    // Add prominent dashboard link if dashboard artifact exists
-    if (hasDashboard) {
-        return [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
-                },
-            },
-        ];
-    }
-
+    if (!hasDashboard) return [];
     return [
         {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `<${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View chat in Lightdash ⚡️>`,
+                text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
             },
         },
     ];

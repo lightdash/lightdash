@@ -369,7 +369,7 @@ oauthRouter.get(
     async (req, res, next) => {
         try {
             const oauthService = getOAuthService(req);
-            const clients = await oauthService.listClients(req.user!);
+            const clients = await oauthService.listClients(req.account!);
             return res.json({ status: 'ok', results: clients });
         } catch (error) {
             return next(error);
@@ -386,7 +386,7 @@ oauthRouter.post(
         try {
             const { clientName, redirectUris } = req.body;
             const oauthService = getOAuthService(req);
-            const client = await oauthService.createAdminClient(req.user!, {
+            const client = await oauthService.createAdminClient(req.account!, {
                 clientName,
                 redirectUris,
             });
@@ -408,7 +408,7 @@ oauthRouter.patch(
             const { clientName, redirectUris } = req.body;
             const oauthService = getOAuthService(req);
             const client = await oauthService.updateClient(
-                req.user!,
+                req.account!,
                 clientId,
                 { clientName, redirectUris },
             );
@@ -428,7 +428,7 @@ oauthRouter.delete(
         try {
             const { clientId } = req.params;
             const oauthService = getOAuthService(req);
-            await oauthService.deleteClient(req.user!, clientId);
+            await oauthService.deleteClient(req.account!, clientId);
             return res.json({ status: 'ok', results: undefined });
         } catch (error) {
             return next(error);

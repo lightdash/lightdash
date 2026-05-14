@@ -50,7 +50,9 @@ export type LightdashModelMetric = DbtColumnLightdashMetric;
 export type LightdashModelExplore = {
     label?: string;
     description?: string;
+    /** @deprecated Use groups instead */
     group_label?: string;
+    groups?: string[];
     joins?: DbtModelJoin[]; // Reuses DbtModelJoin directly
     required_filters?: RequiredFilter[];
     default_filters?: RequiredFilter[];

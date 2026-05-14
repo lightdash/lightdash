@@ -164,7 +164,7 @@ const ResourceViewList: FC<ResourceViewListProps> = ({
                                                         fw={600}
                                                         to={{
                                                             pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                                            search: `?validationId=${item.data.validationErrors[0].validationId}`,
+                                                            search: `?validationUuid=${item.data.validationErrors[0].validationUuid}`,
                                                         }}
                                                         c="blue.4"
                                                         fz="xs"

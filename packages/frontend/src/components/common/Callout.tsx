@@ -40,6 +40,7 @@ interface CalloutProps extends Omit<AlertProps, 'title' | 'icon'> {
     title?: ReactNode;
     children?: ReactNode;
     hideIcon?: boolean;
+    icon?: ReactNode;
 }
 
 /**
@@ -62,17 +63,19 @@ const Callout: FC<CalloutProps> = ({
     title,
     children,
     hideIcon,
+    icon,
     ...alertProps
 }) => {
     const config = CALLOUT_CONFIG[variant];
     const IconComponent = config.icon;
+    const resolvedIcon = icon ?? <MantineIcon icon={IconComponent} size="lg" />;
 
     return (
         <Alert
             color={config.color}
             variant="light"
             radius="md"
-            icon={!hideIcon && <MantineIcon icon={IconComponent} size="lg" />}
+            icon={!hideIcon && resolvedIcon}
             title={title}
             {...alertProps}
         >

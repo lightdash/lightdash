@@ -15,11 +15,13 @@ import {
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    SavedChart,
     SlackPrompt,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    WarehouseTablesCatalog,
 } from '@lightdash/common';
 import {
     AiAgentResponseStreamed,
@@ -104,7 +106,25 @@ export type RunAsyncQueryFn = (
     fields: ItemsMap;
 }>;
 
+export type GetSavedChartFn = (chartUuid: string) => Promise<SavedChart>;
+
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
+
+export type SendSlackBlocksFn = (args: {
+    channelId: string;
+    threadTs: string;
+    organizationUuid: string;
+    text: string;
+    blocks: AnyType[];
+}) => Promise<{ ts: string }>;
+
+export type UpdateSlackMessageFn = (args: {
+    channelId: string;
+    organizationUuid: string;
+    ts: string;
+    text: string;
+    blocks: AnyType[];
+}) => Promise<void>;
 
 export type UpdatePromptFn = (
     prompt: UpdateWebAppResponse | UpdateSlackResponse,
@@ -169,3 +189,30 @@ export type CreateChangeFn = (
 ) => Promise<string>;
 
 export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
+
+export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
+    rows: Record<string, AnyType>[];
+    columns: string[];
+    rowCount: number;
+}>;
+
+export type ListWarehouseTablesFn = () => Promise<WarehouseTablesCatalog>;
+
+export type DescribeWarehouseTableFn = (args: {
+    table: string;
+    schema?: string;
+}) => Promise<{
+    columns: Array<{ name: string; type: string }>;
+    resolvedSchema: string | null;
+}>;
+
+export type WaitForSqlApprovalFn = (
+    toolCallId: string,
+    timeoutMs?: number,
+) => Promise<'approved' | 'rejected' | 'timeout'>;
+
+export type RecordSqlApprovalFn = (
+    toolCallId: string,
+    decision: 'approved' | 'rejected',
+    decidedByUserUuid: string | null,
+) => Promise<boolean>;

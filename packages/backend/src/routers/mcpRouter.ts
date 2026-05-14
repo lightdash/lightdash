@@ -79,6 +79,10 @@ const returnHeaderIfUnauthenticated = (
     if (req.account?.isAuthenticated()) {
         next();
     } else {
+        const authHeaderPresent = !!req.headers.authorization;
+        Logger.warn(
+            `[MCP] Auth failed — header present: ${authHeaderPresent}, account: ${req.account?.authentication?.type ?? 'none'}`,
+        );
         const oauthService = req.services.getOauthService();
         const baseUrl = oauthService.getSiteUrl();
         res.set(
@@ -100,6 +104,12 @@ mcpRouter.all(
     returnHeaderIfUnauthenticated,
     async (req, res) => {
         try {
+            const authType = req.account?.authentication?.type ?? 'none';
+            const userEmail = req.user?.email ?? 'unknown';
+            Logger.info(
+                `[MCP] ${req.method} request — auth: ${authType}, user: ${userEmail}`,
+            );
+
             const mcpService = getMcpService(req);
 
             // Check if MCP is enabled (either via config or AI Copilot flag)

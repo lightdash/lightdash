@@ -3,6 +3,7 @@ import {
     ApiBigqueryProjects,
     ApiErrorPayload,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
 } from '@lightdash/common';
 import {
     Get,
@@ -16,6 +17,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -35,10 +37,11 @@ export class BigquerySSOController extends BaseController {
         @Query() projectId: string,
         @Request() req: express.Request,
     ): Promise<ApiBigqueryDatasets> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const databases = await this.services
             .getProjectService()
-            .getBigqueryDatasets(req.user!, projectId);
+            .getBigqueryDatasets(toSessionUser(req.account), projectId);
 
         return {
             status: 'ok',
@@ -57,10 +60,11 @@ export class BigquerySSOController extends BaseController {
     async getBigQueryProjects(
         @Request() req: express.Request,
     ): Promise<ApiBigqueryProjects> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const projects = await this.services
             .getProjectService()
-            .getBigqueryProjects(req.user!);
+            .getBigqueryProjects(toSessionUser(req.account));
 
         return {
             status: 'ok',
@@ -77,11 +81,12 @@ export class BigquerySSOController extends BaseController {
     @Get('/is-authenticated')
     @OperationId('checkBigqueryAuthentication')
     async get(@Request() req: express.Request): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         // This will throw an error if the user is not authenticated with bigquery scopes
         await this.services
             .getUserService()
-            .getAccessToken(req.user!, 'bigquery');
+            .getAccessToken(toSessionUser(req.account), 'bigquery');
         return {
             status: 'ok',
             results: undefined,

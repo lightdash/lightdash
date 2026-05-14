@@ -105,7 +105,6 @@ export const BaseResponse: HealthState = {
         profilesSampleRate: 0,
     },
     hasCacheAutocompleResults: false,
-    hasResultsCaching: false,
     appearance: {
         overrideColorPalette: undefined,
         overrideColorPaletteName: undefined,
@@ -131,11 +130,14 @@ export const BaseResponse: HealthState = {
         enabled: false,
         retentionDays: 30,
     },
+    dashboardComments: {
+        enabled: true,
+    },
     preAggregates: {
         enabled: false,
     },
     dataApps: {
-        enabled: false,
+        previewOrigin: null,
     },
 };
 

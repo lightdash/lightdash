@@ -1,34 +1,43 @@
 import { subject } from '@casl/ability';
 import {
-    Account,
     AnyType,
+    assertIsAccountWithOrg,
+    DownloadActivityResults,
     ForbiddenError,
-    isUserWithOrg,
+    KnexPaginateArgs,
     NotFoundError,
+    PaginationError,
     SchedulerJobStatus,
-    SessionUser,
-    UnusedContent,
     UserActivity,
+    type Account,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify/sync';
 import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
+import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import { CsvService } from '../CsvService/CsvService';
 
 type AnalyticsServiceArguments = {
+    lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     analyticsModel: AnalyticsModel;
+    downloadAuditModel: DownloadAuditModel;
     projectModel: ProjectModel;
     csvService: CsvService;
 };
 
 export class AnalyticsService extends BaseService {
+    private readonly lightdashConfig: LightdashConfig;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly analyticsModel: AnalyticsModel;
+
+    private readonly downloadAuditModel: DownloadAuditModel;
 
     private readonly projectModel: ProjectModel;
 
@@ -36,9 +45,11 @@ export class AnalyticsService extends BaseService {
 
     constructor(args: AnalyticsServiceArguments) {
         super();
+        this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
         this.projectModel = args.projectModel;
         this.analyticsModel = args.analyticsModel;
+        this.downloadAuditModel = args.downloadAuditModel;
         this.csvService = args.csvService;
     }
 
@@ -48,19 +59,20 @@ export class AnalyticsService extends BaseService {
 
     async getUserActivity(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
     ): Promise<UserActivity> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        assertIsAccountWithOrg(account);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -69,34 +81,35 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.dashboard_viewed',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
-                organizationId: user.organizationUuid,
+                organizationId: account.organization.organizationUuid,
                 dashboardType: 'user_activity',
             },
         });
 
         return this.analyticsModel.getUserActivity(
             projectUuid,
-            user.organizationUuid,
+            account.organization.organizationUuid,
         );
     }
 
     async exportUserActivityRawCsv(
         projectUuid: string,
-        user: SessionUser,
+        account: Account,
     ): Promise<string> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
+        assertIsAccountWithOrg(account);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -105,10 +118,10 @@ export class AnalyticsService extends BaseService {
 
         this.analytics.track({
             event: 'usage_analytics.csv_download',
-            userId: user.userUuid,
+            userId: account.user.id,
             properties: {
                 projectId: projectUuid,
-                organizationId: user.organizationUuid,
+                organizationId: account.organization.organizationUuid,
                 dashboardType: 'user_activity',
             },
         });
@@ -131,23 +144,34 @@ export class AnalyticsService extends BaseService {
             fileName,
             projectUuid,
             organizationUuid,
-            createdByUserUuid: user.userUuid,
+            createdByUserUuid: account.user.id,
         });
         return upload.path;
     }
 
-    async getUnusedContent(
+    async getDownloadActivity(
         projectUuid: string,
         account: Account,
-    ): Promise<UnusedContent> {
-        const { organizationUuid } = await this.projectModel.get(projectUuid);
-
+        paginateArgs: KnexPaginateArgs,
+        cursor?: string,
+    ): Promise<DownloadActivityResults> {
+        const { maxPageSize } = this.lightdashConfig.query;
+        if (paginateArgs.pageSize > maxPageSize) {
+            throw new PaginationError(
+                `page size is too large, max is ${maxPageSize}`,
+            );
+        }
+        assertIsAccountWithOrg(account);
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.get(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            account.user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -155,15 +179,19 @@ export class AnalyticsService extends BaseService {
         }
 
         this.analytics.track({
-            event: 'usage_analytics.dashboard_viewed',
+            event: 'usage_analytics.download_activity_viewed',
             userId: account.user.id,
             properties: {
                 projectId: projectUuid,
-                organizationId: organizationUuid!,
-                dashboardType: 'user_activity',
+                organizationId: account.organization.organizationUuid,
             },
         });
 
-        return this.analyticsModel.getUnusedContent(projectUuid);
+        return this.downloadAuditModel.getDownloads(
+            organizationUuid,
+            projectUuid,
+            paginateArgs,
+            cursor,
+        );
     }
 }

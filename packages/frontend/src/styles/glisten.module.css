@@ -1,0 +1,45 @@
+/*
+ * Diagonal shine sweep used to indicate an in-progress AI/agent activity.
+ * Compose `.glisten` onto any pill/chip-like container to apply it.
+ * The container becomes the clipping context for the pseudo-element sweep,
+ * so children that need to sit above the sheen should set their own z-index.
+ */
+
+.glisten {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.glisten::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        110deg,
+        transparent 35%,
+        light-dark(rgba(207, 207, 207, 0.122), rgba(255, 255, 255, 0.077)) 50%,
+        transparent 65%
+    );
+    transform: translateX(-100%);
+    animation: glisten 4.2s ease-in-out infinite;
+    pointer-events: none;
+    z-index: 0;
+}
+
+@keyframes glisten {
+    0%,
+    70%,
+    100% {
+        transform: translateX(-100%);
+    }
+    45% {
+        transform: translateX(100%);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glisten::before {
+        animation: none;
+    }
+}

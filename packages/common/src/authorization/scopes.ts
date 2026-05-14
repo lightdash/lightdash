@@ -473,6 +473,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:OrganizationWarehouseCredentials',
+        description: 'View organization warehouse credentials',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationWarehouseCredentials',
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
@@ -544,14 +551,29 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:SqlRunner',
-        description: 'Run SQL queries directly',
+        description:
+            'Run SQL queries, execute SQL charts, and browse warehouse schema',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:CustomSql',
-        description: 'Create custom SQL queries',
+        description: 'Save SQL charts',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:CustomFields',
+        description: 'Create and edit custom dimensions',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:CustomSqlTableCalculations',
+        description: 'Create and edit SQL table calculations',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
@@ -613,29 +635,6 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 
-    // Sharing Scopes
-    {
-        name: 'export:DashboardCsv',
-        description: 'Can export dashboards and charts to CSV',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardImage',
-        description: 'Can export dashboards and charts to images',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardPdf',
-        description: 'Can export dashboards and charts to PDF',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-
     // AI Agent
     {
         name: 'view:AiAgent',
@@ -693,11 +692,63 @@ const scopes: Scope[] = [
 
     // Data Apps
     {
+        name: 'view:DataApp',
+        description: 'View data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
+            addAccessCondition(context),
+        ],
+    },
+    {
         name: 'manage:DataApp',
         description: 'Create and manage data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:DataApp@space',
+        description:
+            'Create, edit, and delete data apps in spaces where you have editor or admin access',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
+        ],
+    },
+    {
+        name: 'create:DataApp',
+        description: 'Create new data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:DataApp@self',
+        description: 'View own personal data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
+    },
+    {
+        name: 'manage:DataApp@self',
+        description: 'Edit and delete own personal data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
     },
 
     // Spotlight Scopes

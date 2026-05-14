@@ -72,6 +72,16 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             userUuid: member.userUuid,
         });
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -136,6 +146,38 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.EDITOR,
+                },
+            },
+        });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: {
+                    userUuid: member.userUuid,
+                    role: SpaceMemberRole.ADMIN,
+                },
+            },
+        });
+        // Create personal data apps; once created, the user can also view
+        // and manage their own. Moving an app into a space is gated
+        // separately by the target space's manage rule.
+        can('create', 'DataApp', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            createdByUserUuid: member.userUuid,
+        });
+        can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+            createdByUserUuid: member.userUuid,
+        });
 
         can('manage', 'Space', {
             projectUuid: member.projectUuid,
@@ -192,6 +234,12 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'CustomSql', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'CustomFields', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'CustomSqlTableCalculations', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'SqlRunner', {

@@ -4,6 +4,7 @@ import {
     CreateProjectMember,
     getErrorMessage,
     InviteLink,
+    MissingConfigError,
     PasswordResetLink,
     ProjectMemberRole,
     sanitizeHtml,
@@ -469,6 +470,43 @@ export default class EmailClient {
         });
     }
 
+    public async sendDeliveryFailureNotificationToRecipient(
+        recipient: string,
+        contentName: string | null,
+        contactSentence: string | null,
+    ) {
+        if (!this.canSendEmail()) {
+            throw new MissingConfigError('Email transporter not configured');
+        }
+
+        const baseSentenceHtml = contentName
+            ? `The scheduled delivery for <strong>"${sanitizeHtml(
+                  contentName,
+              )}"</strong> failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const baseSentenceText = contentName
+            ? `The scheduled delivery for "${contentName}" failed to run, and the delivery owner has been notified.`
+            : 'A scheduled delivery failed to run, and the delivery owner has been notified.';
+        const appendedHtml = contactSentence
+            ? ` ${sanitizeHtml(contactSentence)}`
+            : '';
+        const appendedText = contactSentence ? ` ${contactSentence}` : '';
+
+        return this.sendEmail({
+            to: recipient,
+            subject: contentName
+                ? `Scheduled delivery failed - "${contentName}"`
+                : 'Scheduled delivery failed',
+            template: 'genericNotification',
+            context: {
+                host: this.lightdashConfig.siteUrl,
+                title: 'Scheduled delivery failure',
+                message: `<p>${baseSentenceHtml}${appendedHtml}</p>`,
+            },
+            text: `${baseSentenceText}${appendedText}`,
+        });
+    }
+
     public async sendScheduledDeliveryTargetFailureEmail(
         recipient: string,
         schedulerName: string,
@@ -827,6 +865,50 @@ export default class EmailClient {
                 host: this.lightdashConfig.siteUrl,
             },
             text,
+        });
+    }
+
+    public async sendSchedulerModifiedByOtherUserEmail({
+        recipient,
+        modifyingUserName,
+        schedulerName,
+        actionVerb,
+        timestamp,
+        resourceUrl,
+    }: {
+        recipient: string;
+        modifyingUserName: string;
+        schedulerName: string;
+        actionVerb: 'updated' | 'deleted' | 'enabled' | 'disabled';
+        timestamp: string;
+        resourceUrl: string | undefined;
+    }) {
+        const safeModifier = sanitizeHtml(modifyingUserName);
+        const safeName = sanitizeHtml(schedulerName);
+        const message = `
+            <p style="margin: 0 0 12px 0;">
+                <strong>${safeModifier}</strong>
+                ${actionVerb} your scheduled delivery
+                <strong>&ldquo;${safeName}&rdquo;</strong>
+                on ${sanitizeHtml(timestamp)}.
+            </p>${
+                resourceUrl
+                    ? `\n            <p style="margin: 0;"><a href="${resourceUrl}" style="color: #7262FF; text-decoration: underline;">View the scheduled delivery</a></p>`
+                    : ''
+            }
+        `;
+        return this.sendEmail({
+            to: recipient,
+            subject: `Your scheduled delivery "${schedulerName}" was ${actionVerb}`,
+            template: 'genericNotification',
+            context: {
+                title: `Your scheduled delivery was ${actionVerb}`,
+                message,
+                host: this.lightdashConfig.siteUrl,
+            },
+            text: `${modifyingUserName} ${actionVerb} your scheduled delivery "${schedulerName}" on ${timestamp}.${
+                resourceUrl ? ` View it at ${resourceUrl}` : ''
+            }`,
         });
     }
 

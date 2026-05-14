@@ -100,6 +100,7 @@ export const scheduleDownloadQuery = async (
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
             pivotConfig: options.pivotConfig,
+            exportPivotedData: options.exportPivotedData,
             attachmentDownloadName: options.attachmentDownloadName,
         }),
         version: 'v2',
@@ -164,7 +165,7 @@ const executeAsyncQuery = (
                           }
                         : undefined,
                 },
-                invalidateCache: true, // Note: do not cache explore queries
+                invalidateCache: data.invalidateCache,
                 usePreAggregateCache: data.usePreAggregateCache,
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,
@@ -417,7 +418,7 @@ export const useInfiniteQueryResults = (
                         error: {
                             name: 'Error',
                             statusCode: 500,
-                            message: results.error ?? 'Query failed',
+                            message: results.error || 'Query failed',
                             data: {},
                         },
                     };

@@ -244,7 +244,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         title={tile.properties.chartName}
                         description={
                             chartResultsError?.error?.message ||
-                            'No data available'
+                            'Error running query'
                         }
                     />
                 )}

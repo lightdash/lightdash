@@ -8,6 +8,7 @@ import {
 import {
     Icon123,
     IconAbc,
+    IconAppWindow,
     IconBrowser,
     IconFolder,
     IconLayoutDashboard,
@@ -35,6 +36,8 @@ export const getOmnibarItemColor = (itemType: SearchItemType) => {
             return 'ldGray.7';
         case SearchItemType.SQL_CHART:
             return 'blue.7';
+        case SearchItemType.DATA_APP:
+            return 'orange.6';
         default:
             return assertUnreachable(
                 itemType,
@@ -67,6 +70,8 @@ export const getOmnibarItemIcon = (item: SearchItem) => {
             return IconBrowser;
         case SearchItemType.DASHBOARD_TAB:
             return IconLayoutNavbarInactive;
+        case SearchItemType.DATA_APP:
+            return IconAppWindow;
         default:
             return assertUnreachable(
                 item.type,

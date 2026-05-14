@@ -1,0 +1,392 @@
+.card {
+    position: relative;
+    border-radius: 10px;
+    padding: 7px 12px;
+    animation: cardSlideIn 280ms cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    font-family: var(--mantine-font-family);
+}
+
+/* Very soft ambient shimmer when an action is live — a faint band drifts
+ * across the bento, almost imperceptible. */
+.card[data-live='true']::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(
+        110deg,
+        transparent 0%,
+        var(--mantine-color-ldGray-2) 50%,
+        transparent 100%
+    );
+    background-size: 220% 100%;
+    background-position: -10% 0;
+    opacity: 0;
+    animation: bentoShimmer 3.6s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* Header + body sit above the shimmer pseudo-element. */
+.header,
+.history,
+.pending {
+    position: relative;
+    z-index: 1;
+}
+
+@keyframes bentoShimmer {
+    0% {
+        background-position: -25% 0;
+        opacity: 0;
+    }
+    20%,
+    80% {
+        opacity: 0.35;
+    }
+    100% {
+        background-position: 125% 0;
+        opacity: 0;
+    }
+}
+
+.header {
+    display: block;
+    text-align: left;
+    border-radius: 6px;
+}
+
+.latestSlot {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.latestRow {
+    height: 22px;
+    min-width: 0;
+}
+
+/* Wrapper that re-mounts whenever the active tool changes — drives the
+ * settle-in animation for the icon (subtle spring scale + tilt). */
+.iconSwap {
+    display: inline-flex;
+    flex-shrink: 0;
+    animation: iconSettle 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform-origin: center;
+}
+
+/* Small rounded "logo" chip around the tool icon — light background with a
+ * subtle border + soft shadow so the icon reads as a small UI chip rather
+ * than a heavy gray pill. */
+.iconChip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-ldGray-1)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldGray-3));
+    box-shadow: 0 1px 2px light-dark(rgba(15, 23, 42, 0.04), rgba(0, 0, 0, 0.2));
+    transition:
+        background-color 220ms ease,
+        border-color 220ms ease,
+        box-shadow 220ms ease;
+}
+
+.iconChip[data-live='true'] {
+    border-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-ldGray-4)
+    );
+    box-shadow: 0 1px 3px
+        light-dark(rgba(15, 23, 42, 0.07), rgba(0, 0, 0, 0.28));
+}
+
+.latestIcon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-7);
+    transition: color 220ms ease;
+}
+
+.latestIcon[data-live='true'] {
+    color: var(--mantine-color-ldGray-9);
+    animation: livePulse 1.6s ease-in-out infinite;
+}
+
+.latestLabel {
+    flex-shrink: 0;
+    line-height: 1;
+    color: var(--mantine-color-ldGray-8);
+    font-family: var(--mantine-font-family);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    animation: labelSettle 260ms ease-out;
+}
+
+.latestLabel[data-live='true'] {
+    animation: livePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes iconSettle {
+    0% {
+        opacity: 0;
+        transform: scale(0.55) rotate(-14deg);
+    }
+    55% {
+        opacity: 1;
+        transform: scale(1.12) rotate(2deg);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+    }
+}
+
+@keyframes labelSettle {
+    from {
+        opacity: 0;
+        transform: translateX(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.countBadge {
+    display: inline-flex;
+    align-items: center;
+    height: 16px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background-color: var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldGray-7);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+    animation: countPop 380ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes countPop {
+    0% {
+        opacity: 0;
+        transform: scale(0.4);
+    }
+    55% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes livePulse {
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+.latestPreview {
+    flex: 1;
+    min-width: 0;
+    letter-spacing: -0.005em;
+    animation: previewSlide 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes previewSlide {
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.counter {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+    letter-spacing: -0.005em;
+}
+
+.chevron {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+    /* Springy chevron rotation. */
+    transition:
+        transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        color 200ms ease;
+    opacity: 0.6;
+}
+
+.card:hover .chevron {
+    opacity: 1;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.card[data-expanded='true'] .chevron {
+    opacity: 1;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.history {
+    padding: 6px 0 2px 18px;
+    margin-top: 4px;
+    animation: historyReveal 380ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* History rows cascade in with staggered delays (see --row-delay) so opening
+ * the bento feels like a deck dealing rather than a flash. */
+.historyRow {
+    animation: historyRowSlide 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: var(--row-delay, 0ms);
+}
+
+@keyframes historyRowSlide {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.pending {
+    margin-left: -18px;
+    animation: pendingPop 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.latestDescription {
+    animation: pendingPop 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pendingPop {
+    from {
+        opacity: 0;
+        transform: translateY(2px) scale(0.985);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.reasoningRow {
+    border-radius: 6px;
+    padding: 0 8px;
+    margin: 0 -8px;
+}
+
+.reasoningHeader {
+    display: block;
+    text-align: left;
+    border-radius: 6px;
+    min-height: 22px;
+    padding: 1px 0;
+    transition: background-color 160ms ease;
+}
+
+.reasoningHeader:hover {
+    background-color: var(--mantine-color-ldGray-1);
+}
+
+.reasoningLabel {
+    flex-shrink: 0;
+    line-height: 1;
+    color: var(--mantine-color-ldGray-7);
+    font-weight: 450;
+    letter-spacing: -0.005em;
+}
+
+.reasoningLabel[data-live='true'] {
+    animation: reasoningLabelPulse 1.8s ease-in-out infinite;
+}
+
+.reasoningPreview {
+    flex: 1;
+    min-width: 0;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.reasoningPreviewLive {
+    animation: reasoningPreviewSwap 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes reasoningLabelPulse {
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes reasoningPreviewSwap {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.reasoningBody {
+    padding: 6px 0 4px;
+}
+
+@keyframes cardSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes historyReveal {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .card,
+    .card[data-live='true']::before,
+    .latestRow,
+    .iconSwap,
+    .latestLabel,
+    .latestPreview,
+    .countBadge,
+    .historyRow,
+    .history,
+    .latestIcon[data-live='true'],
+    .chevron {
+        animation: none;
+        transition: none;
+    }
+}

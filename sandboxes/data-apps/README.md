@@ -57,6 +57,38 @@ pnpm run dev
 pnpm run build
 ```
 
+## E2B template name and tag
+
+The build script (`build-sandbox.ts`) and the backend (`AppGenerateService`) both target the
+`lightdash-data-app` E2B template by default — this is the production template. Builds are
+identified by `name:tag` ([E2B template tags](https://e2b.dev/docs/template/tags)); the
+backend defaults its tag to the running Lightdash version.
+
+Override either side independently:
+
+| Env var                   | Used by                         | Default                                  |
+| ------------------------- | ------------------------------- | ---------------------------------------- |
+| `E2B_TEMPLATE_NAME`       | build script + backend          | `lightdash-data-app`                     |
+| `E2B_TEMPLATE_TAG`        | build script + backend          | empty (build) / running `VERSION` (backend) |
+| `E2B_TEMPLATE_EXTRA_TAGS` | build script (comma-separated)  | unset                                    |
+
+```bash
+# Build to a personal dev template, untagged (uses E2B's :default)
+E2B_TEMPLATE_NAME=lukas-dev-template pnpm run build
+
+# Build a versioned release-style image
+E2B_TEMPLATE_NAME=lightdash-data-app \
+E2B_TEMPLATE_TAG=0.2870.0 \
+E2B_TEMPLATE_EXTRA_TAGS=latest \
+  pnpm run build
+
+# Backend resolves the same vars to compose `name:tag` for Sandbox.create
+```
+
+In CI, the release-driven jobs in `.github/workflows/post-release.yml` handle publishing
+automatically — they tag each release as `lightdash-data-app:<version>` (and rolling
+`:latest`), rebuilding the image only when this folder or `packages/query-sdk/` changed.
+
 ## Related
 
 - **GLITCH-270** — E2B sandbox that runs this scaffold in production

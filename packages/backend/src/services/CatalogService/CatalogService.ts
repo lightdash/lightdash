@@ -159,7 +159,7 @@ export class CatalogService<
             ) {
                 const fields: CatalogField[] = Object.values(
                     explore.tables,
-                ).flatMap((t) => parseFieldsFromCompiledTable(t));
+                ).flatMap((t) => parseFieldsFromCompiledTable(t, explore.tags));
 
                 return [...acc, ...fields];
             }
@@ -693,12 +693,17 @@ export class CatalogService<
         catalogSearch: ApiCatalogSearch,
         context: CatalogSearchContext,
     ): Promise<KnexPaginatedData<(CatalogField | CatalogTable)[]>> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -723,6 +728,9 @@ export class CatalogService<
                 userAttributes,
                 catalogSearch,
                 context,
+                // Explicit cap: this is a project-wide browse search and the result
+                // can otherwise grow unbounded. Preserves the historical 50-row behaviour.
+                paginateArgs: { page: 1, pageSize: 50 },
             });
         }
 
@@ -749,12 +757,17 @@ export class CatalogService<
         // Right now we return the full cached explore based on name
         // We could extract some data to only return what we need instead
         // to make this request more lightweight
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -780,7 +793,7 @@ export class CatalogService<
         }
 
         const baseTable = explore.tables?.[explore.baseTable];
-        const fields = parseFieldsFromCompiledTable(baseTable);
+        const fields = parseFieldsFromCompiledTable(baseTable, explore.tags);
         const filteredFields = fields.filter((field) =>
             checkUserAttributesAccess(
                 field.requiredAttributes,
@@ -830,12 +843,17 @@ export class CatalogService<
         projectUuid: string,
         table: string,
     ): Promise<CatalogAnalytics> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -870,11 +888,17 @@ export class CatalogService<
         projectUuid: string,
         fieldId: string,
     ): Promise<CatalogAnalytics> {
-        const { organizationUuid } = user;
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -916,13 +940,18 @@ export class CatalogService<
         }: ApiCatalogSearch = {},
         sortArgs?: ApiSort,
     ): Promise<KnexPaginatedData<CatalogField[]>> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -947,7 +976,9 @@ export class CatalogService<
                 ownerUserUuids,
             },
             context,
-            paginateArgs,
+            // Explicit cap when caller omits paginateArgs: this is a project-wide
+            // metrics list and could otherwise grow unbounded.
+            paginateArgs: paginateArgs ?? { page: 1, pageSize: 50 },
             sortArgs,
         });
 
@@ -1026,13 +1057,15 @@ export class CatalogService<
 
         const { organizationUuid: tagOrganizationUuid } =
             await this.projectModel.getSummary(tag.projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid: tagOrganizationUuid,
+                    metadata: { tagUuid: tag.tagUuid, tagName: tag.name },
                 }),
             )
         ) {
@@ -1071,13 +1104,15 @@ export class CatalogService<
 
         const { organizationUuid: tagOrganizationUuid } =
             await this.projectModel.getSummary(tag.projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid: tagOrganizationUuid,
+                    metadata: { tagUuid: tag.tagUuid, tagName: tag.name },
                 }),
             )
         ) {
@@ -1095,9 +1130,10 @@ export class CatalogService<
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 // NOTE: being able to manage tags that the user can customise catalog items
                 subject('Tags', {
@@ -1133,13 +1169,18 @@ export class CatalogService<
         userAttributes?: UserAttributeValueMap;
         addDefaultTimeDimension?: boolean;
     }): Promise<MetricWithAssociatedTimeDimension[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1275,11 +1316,15 @@ export class CatalogService<
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1291,11 +1336,15 @@ export class CatalogService<
     async getAllMetricsTreeEdges(user: SessionUser, projectUuid: string) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1357,11 +1406,15 @@ export class CatalogService<
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1387,12 +1440,17 @@ export class CatalogService<
         context: CatalogSearchContext,
         tableName?: string,
     ): Promise<MetricWithAssociatedTimeDimension[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1416,6 +1474,9 @@ export class CatalogService<
             tablesConfiguration:
                 await this.projectModel.getTablesConfiguration(projectUuid),
             hasTimeDimension: true,
+            // Explicit cap: this v1 endpoint is project-wide when tableName is omitted
+            // and could otherwise grow unbounded. Use the v2 paginated endpoint for full results.
+            paginateArgs: { page: 1, pageSize: 50 },
         });
 
         const filteredMetrics = allCatalogMetrics.data.filter(
@@ -1446,12 +1507,17 @@ export class CatalogService<
         categoryNames?: string[],
         tags?: string[],
     ): Promise<KnexPaginatedData<CatalogField[]>> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1513,13 +1579,18 @@ export class CatalogService<
         tableName: string,
         context: CatalogSearchContext,
     ): Promise<CompiledDimension[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1563,13 +1634,18 @@ export class CatalogService<
         tableName: string,
         context: CatalogSearchContext,
     ): Promise<CompiledDimension[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1614,11 +1690,15 @@ export class CatalogService<
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1639,13 +1719,18 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
     ): Promise<boolean> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1659,13 +1744,18 @@ export class CatalogService<
         user: SessionUser,
         projectUuid: string,
     ): Promise<CatalogOwner[]> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1683,11 +1773,15 @@ export class CatalogService<
     ): Promise<KnexPaginatedData<MetricsTreeSummary[]>> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1703,11 +1797,16 @@ export class CatalogService<
     ): Promise<MetricsTreeWithDetails> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { metricsTreeUuidOrSlug },
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -1728,11 +1827,15 @@ export class CatalogService<
     ): Promise<MetricsTree> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -1764,11 +1867,16 @@ export class CatalogService<
     ): Promise<MetricsTreeLockInfo> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { metricsTreeUuid },
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -1789,11 +1897,16 @@ export class CatalogService<
     ): Promise<boolean> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { metricsTreeUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1812,11 +1925,16 @@ export class CatalogService<
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { metricsTreeUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -1833,11 +1951,16 @@ export class CatalogService<
     ): Promise<MetricsTreeWithDetails> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { metricsTreeUuid },
+                }),
             )
         ) {
             throw new ForbiddenError(
@@ -1877,11 +2000,16 @@ export class CatalogService<
     ): Promise<void> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('MetricsTree', { projectUuid, organizationUuid }),
+                subject('MetricsTree', {
+                    projectUuid,
+                    organizationUuid,
+                    metadata: { metricsTreeUuid },
+                }),
             )
         ) {
             throw new ForbiddenError(

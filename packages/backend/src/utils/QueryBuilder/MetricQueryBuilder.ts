@@ -10,6 +10,7 @@ import {
     DimensionType,
     Explore,
     ExploreCompiler,
+    extractableTimeFrames,
     extractTotalReferences,
     FieldReferenceError,
     FieldType,
@@ -58,6 +59,7 @@ import {
     sqlContainsAggregation,
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
+    timeFrameConfigs,
     TimeFrames,
     truncatableTimeFrames,
     UserAttributeValueMap,
@@ -131,10 +133,17 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
+    /**
+     * FieldId of the date-zoom-rewritten dimension. When set, WHERE filter
+     * rules targeting this field are compiled against the zoom-rewritten SQL
+     * so the click-filter grain matches the zoom grain (PROD-880).
+     */
+    dateZoomFilterTargetFieldId?: string;
     /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
     useTimezoneAwareDateTrunc?: boolean;
-    /** Warehouse session timezone — used to skip wrapping when it matches queryTimezone. */
-    dataTimezone?: string;
+    /** Timezone the column data is in — source for the timezone-aware wrap.
+     *  Derived from warehouse credentials via `getColumnTimezone`. */
+    columnTimezone?: string;
 };
 
 /**
@@ -313,24 +322,12 @@ export class MetricQueryBuilder {
     /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise. */
     private get timezoneForDateTrunc(): string | undefined {
         if (!this.args.useTimezoneAwareDateTrunc) return undefined;
-        if (this.shouldSkipTimezoneConversion()) return undefined;
+        if (this.columnTimezone === this.args.timezone) return undefined;
         return this.args.timezone;
     }
 
-    /**
-     * Skip timezone conversion when the effective input TZ matches the query TZ.
-     * Snowflake's effective input is always UTC (convertTimezone normalizes at
-     * compile time); all others use dataTimezone (defaulting to UTC).
-     */
-    private shouldSkipTimezoneConversion(): boolean {
-        const adapterType = this.args.warehouseSqlBuilder.getAdapterType();
-
-        const effectiveInputTz =
-            adapterType === SupportedDbtAdapter.SNOWFLAKE
-                ? 'UTC'
-                : (this.args.dataTimezone ?? 'UTC');
-
-        return effectiveInputTz === this.args.timezone;
+    private get columnTimezone(): string {
+        return this.args.columnTimezone ?? 'UTC';
     }
 
     // Contains the metrics from the Explore and the custom metrics from the metric query
@@ -479,6 +476,7 @@ export class MetricQueryBuilder {
             adapterType,
             startOfWeek,
             timezone: this.timezoneForDateTrunc,
+            columnTimezone: this.columnTimezone,
         });
         const popDimensionBaseId = `${popDimension.table}_${
             popDimension.timeIntervalBaseDimensionName ?? popDimension.name
@@ -581,25 +579,32 @@ export class MetricQueryBuilder {
         );
     }
 
-    /** Regenerates DATE_TRUNC with timezone conversion for truncatable timestamp dimensions. */
+    /**
+     * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
+     * extractable intervals.
+     *
+     * Base dims with `convert_timezone: false` are skipped — the dim renders
+     * in its raw warehouse value. Pass `respectConvertTimezone: false` from
+     * filter rendering so WHERE clauses keep wrapping regardless.
+     */
     private getTimezoneAwareDimensionSql(
         dimension: CompiledDimension,
         adapterType: SupportedDbtAdapter,
         startOfWeek: WeekDay | null | undefined,
+        respectConvertTimezone: boolean = true,
     ): string {
         const { timezone, useTimezoneAwareDateTrunc } = this.args;
 
-        // Skip non-truncatable intervals (DAY_OF_WEEK_INDEX, MONTH_NUM, etc.)
-        // which use EXTRACT/DATE_PART, not DATE_TRUNC.
-        if (
-            !useTimezoneAwareDateTrunc ||
-            !dimension.timeInterval ||
-            !truncatableTimeFrames.has(dimension.timeInterval)
-        ) {
+        if (!useTimezoneAwareDateTrunc || !dimension.timeInterval) {
             return dimension.compiledSql;
         }
 
-        // Get base dimension's compiledSql (before DATE_TRUNC)
+        const isTruncatable = truncatableTimeFrames.has(dimension.timeInterval);
+        const isExtractable = extractableTimeFrames.has(dimension.timeInterval);
+        if (!isTruncatable && !isExtractable) {
+            return dimension.compiledSql;
+        }
+
         const baseDimensionId = dimension.timeIntervalBaseDimensionName
             ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
             : undefined;
@@ -608,6 +613,7 @@ export class MetricQueryBuilder {
             ? this.exploreDimensions[baseDimensionId]
             : undefined;
 
+        // DATE base: no time component to shift, so the wrap would drift at midnight.
         if (
             !baseDimension?.compiledSql ||
             baseDimension.type !== DimensionType.TIMESTAMP
@@ -615,13 +621,30 @@ export class MetricQueryBuilder {
             return dimension.compiledSql;
         }
 
-        return getSqlForTruncatedDate(
+        if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
+            return dimension.compiledSql;
+        }
+
+        if (isTruncatable) {
+            return getSqlForTruncatedDate(
+                adapterType,
+                dimension.timeInterval,
+                baseDimension.compiledSql,
+                baseDimension.type,
+                startOfWeek,
+                timezone,
+                this.columnTimezone,
+            );
+        }
+
+        return timeFrameConfigs[dimension.timeInterval].getSql(
             adapterType,
             dimension.timeInterval,
             baseDimension.compiledSql,
             baseDimension.type,
             startOfWeek,
             timezone,
+            this.columnTimezone,
         );
     }
 
@@ -709,6 +732,7 @@ export class MetricQueryBuilder {
                         adapterType,
                         startOfWeek,
                         timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
                     });
 
                     assertValidDimensionRequiredAttribute(
@@ -1049,6 +1073,7 @@ export class MetricQueryBuilder {
                     adapterType,
                     startOfWeek,
                     timezone: this.timezoneForDateTrunc,
+                    columnTimezone: this.columnTimezone,
                 });
 
                 assertValidDimensionRequiredAttribute(
@@ -1385,8 +1410,17 @@ export class MetricQueryBuilder {
         }
 
         // Use the original (pre-date-zoom) explore for filter dimension lookups
-        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd expressions
-        const filterExplore = this.args.originalExplore ?? explore;
+        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd
+        // expressions. PROD-880: if caller opted in and this filter targets the
+        // zoom dimension, use the zoomed explore.
+        const isZoomedFilterField =
+            fieldType === FieldType.DIMENSION &&
+            this.args.dateZoomFilterTargetFieldId !== undefined &&
+            filterRuleWithParamReplacedValues.target.fieldId ===
+                this.args.dateZoomFilterTargetFieldId;
+        const filterExplore = isZoomedFilterField
+            ? explore
+            : (this.args.originalExplore ?? explore);
         const field =
             fieldType === FieldType.DIMENSION
                 ? [
@@ -1414,7 +1448,9 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
-        // Override filter dimension SQL to match the timezone-aware SELECT clause
+        // Override filter dimension SQL to match the timezone-aware SELECT
+        // clause. Filters always wrap by project tz — even for dims with
+        // `convert_timezone: false` — so pass `respectConvertTimezone: false`.
         const filterField = isDimension(field)
             ? {
                   ...field,
@@ -1422,6 +1458,7 @@ export class MetricQueryBuilder {
                       field,
                       adapterType,
                       startOfWeek,
+                      false,
                   ),
               }
             : field;
@@ -1448,7 +1485,7 @@ export class MetricQueryBuilder {
             }
         }
 
-        return renderWithErrorHandling(() =>
+        const renderedFilterSql = renderWithErrorHandling(() =>
             renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
                 filterField,
@@ -1463,6 +1500,19 @@ export class MetricQueryBuilder {
                 this.args.useTimezoneAwareDateTrunc,
             ),
         );
+
+        Logger.info('query.case_sensitive_applied', {
+            exploreName: explore.name,
+            ruleCaseSensitive:
+                filterRuleWithParamReplacedValues.caseSensitive ?? null,
+            fieldCaseSensitive:
+                'caseSensitive' in field ? (field.caseSensitive ?? null) : null,
+            exploreCaseSensitive: this.args.explore.caseSensitive ?? null,
+            fieldId: getItemId(field),
+            finalSqlContainsUpper: /UPPER\s*\(/i.test(renderedFilterSql),
+        });
+
+        return renderedFilterSql;
     }
 
     static getNullsFirstLast(sort: SortField) {
@@ -1897,6 +1947,14 @@ export class MetricQueryBuilder {
                 ({ outerMetricId }) => outerMetricId,
             ),
         );
+        // Non-aggregate metrics that reference a sum_distinct/average_distinct
+        // metric must be projected from the outer dd_base SELECT (where the
+        // dd_* CTE aliases exist), not inlined into this fanout flow's
+        // finalMetricSelects. Inlining would expand the ${sum_distinct} ref
+        // to its raw fallback SUM(...) referencing tables not in scope of
+        // the dd_base CTE. See SPK-333.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -1910,7 +1968,14 @@ export class MetricQueryBuilder {
                     isNonAggregateMetric(metricObject) &&
                     referencesAnotherTable
                 ) {
-                    metricsWithCteReferences.push(metricObject);
+                    // Defer dd-referencing metrics to the outer dd_base
+                    // SELECT (see nonAggReferencingDd above), but still
+                    // collect their transitively-referenced metrics so
+                    // non-dd dependencies (e.g. the count_distinct in the
+                    // denominator) still land in cte_unaffected/dd_base.
+                    if (!nonAggReferencingDd.has(getItemId(metricObject))) {
+                        metricsWithCteReferences.push(metricObject);
+                    }
                     const metricReferences = parseAllReferences(
                         metricObject.sql,
                         metricObject.table,
@@ -2187,6 +2252,7 @@ export class MetricQueryBuilder {
                             adapterType,
                             startOfWeek,
                             timezone: this.timezoneForDateTrunc,
+                            columnTimezone: this.columnTimezone,
                         });
                         const popDimensionFilters =
                             this.getPopDimensionsFilterSQL(popFieldId);
@@ -2306,10 +2372,19 @@ export class MetricQueryBuilder {
                 const notSumDistinct =
                     metric.type !== MetricType.SUM_DISTINCT &&
                     metric.type !== MetricType.AVERAGE_DISTINCT;
+                // Non-aggregate metrics referencing distinct metrics are
+                // projected by the outer dd_base SELECT (SPK-333). Keep
+                // them out of cte_unaffected so their broken compiledSql
+                // (which still inlines the sum_distinct as raw SUM) isn't
+                // emitted here either.
+                const notNonAggReferencingDd = !nonAggReferencingDd.has(
+                    getItemId(metric),
+                );
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
                     notSumDistinct &&
+                    notNonAggReferencingDd &&
                     !nestedAggOuterIds.has(getItemId(metric))
                 );
             });
@@ -2393,6 +2468,7 @@ export class MetricQueryBuilder {
                         adapterType,
                         startOfWeek,
                         timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
                     });
                     const popDimensionFilters =
                         this.getPopDimensionsFilterSQL(popFieldId);
@@ -3115,33 +3191,29 @@ export class MetricQueryBuilder {
 
             if (hasRawDep) {
                 // Mixed metric: replace aggregate dep refs with CTE 1 column
-                // refs manually, then let compileMetricSql resolve raw refs
-                // and ${TABLE} refs against the base table (which is in scope
-                // in CTE 3).
-                let mixedSql = preSql;
-                for (const [depId, depMetric] of aggregateInnerDeps) {
-                    const escapedName = depMetric.name.replace(
-                        /[.*+?^${}()|[\]\\]/g,
-                        '\\$&',
-                    );
-                    const escapedTable = depMetric.table.replace(
-                        /[.*+?^${}()|[\]\\]/g,
-                        '\\$&',
-                    );
-                    const cteRef = `${naCteName}.${fieldQuoteChar}${depId}${fieldQuoteChar}`;
-                    mixedSql = mixedSql
-                        .replace(
-                            new RegExp(`\\$\\{${escapedName}\\}`, 'g'),
-                            cteRef,
-                        )
-                        .replace(
-                            new RegExp(
-                                `\\$\\{${escapedTable}\\.${escapedName}\\}`,
-                                'g',
-                            ),
-                            cteRef,
+                // refs, then let compileMetricSql resolve raw refs and
+                // ${TABLE} refs against the base table (which is in scope in
+                // CTE 3). Resolve each ${ref} via getParsedReference so the
+                // short form ${name} maps to the outer metric's own table —
+                // not to a same-named metric on a joined table (PROD-7503).
+                const mixedSql = preSql.replace(
+                    lightdashVariablePattern,
+                    (fullMatch, ref) => {
+                        if (ref === 'TABLE') return fullMatch;
+                        const { refTable, refName } = getParsedReference(
+                            ref,
+                            outerMetric.table,
                         );
-                }
+                        const refItemId = getItemId({
+                            table: refTable,
+                            name: refName,
+                        });
+                        if (aggregateInnerDeps.has(refItemId)) {
+                            return `${naCteName}.${fieldQuoteChar}${refItemId}${fieldQuoteChar}`;
+                        }
+                        return fullMatch;
+                    },
+                );
 
                 // Compile remaining refs (raw metric refs, ${TABLE}, dimensions)
                 // against the explore tables — they resolve to base table columns.
@@ -3940,6 +4012,7 @@ export class MetricQueryBuilder {
                     adapterType,
                     startOfWeek,
                     timezone: this.timezoneForDateTrunc,
+                    columnTimezone: this.columnTimezone,
                 });
                 const popDimensionFilters =
                     this.getPopDimensionsFilterSQL(popFieldId);

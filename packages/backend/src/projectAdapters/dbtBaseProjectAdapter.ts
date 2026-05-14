@@ -371,10 +371,14 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     if (model.resource_type === 'seed') {
                         return [validModels, invalidModels];
                     }
+                    const metaGroups: string[] | undefined = model.meta.groups;
                     const exploreError: ExploreError = {
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
                         groupLabel: model.meta.group_label,
+                        ...(metaGroups && metaGroups.length > 0
+                            ? { groups: metaGroups }
+                            : {}),
                         errors: [
                             error.type === InlineErrorType.METADATA_PARSE_ERROR
                                 ? {

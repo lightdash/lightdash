@@ -182,7 +182,7 @@ export class SavedSqlService
                 action,
                 subject('SavedChart', {
                     ...ctx[spaceUuid],
-                    uuid: resource.savedSqlUuid ?? '',
+                    metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                 }),
             )
         ) {
@@ -197,7 +197,7 @@ export class SavedSqlService
                     action,
                     subject('SavedChart', {
                         ...ctx[resource.spaceUuid!],
-                        uuid: resource.savedSqlUuid ?? '',
+                        metadata: { savedSqlUuid: resource.savedSqlUuid ?? '' },
                     }),
                 )
             ) {
@@ -247,12 +247,21 @@ export class SavedSqlService
                 organizationId: savedChart.organization.organizationUuid,
             },
         });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
         return {
             ...savedChart,
             space: {
                 ...savedChart.space,
                 userAccess: spaceCtx.access[0],
             },
+            resolvedColorPalette,
         };
     }
 
@@ -270,7 +279,6 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             )
         ) {
@@ -334,7 +342,7 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             )
         ) {
@@ -404,7 +412,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: savedChart.organization.organizationUuid,
                 projectUuid,
             });
@@ -446,7 +454,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -478,7 +486,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid,
                 projectUuid,
             });
@@ -490,7 +498,7 @@ export class SavedSqlService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { projectUuid },
                     }),
                 )
             ) {
@@ -502,7 +510,7 @@ export class SavedSqlService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             );
 
@@ -534,7 +542,7 @@ export class SavedSqlService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -552,7 +560,7 @@ export class SavedSqlService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { projectUuid },
                     }),
                 )
             ) {
@@ -564,7 +572,7 @@ export class SavedSqlService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             );
 
@@ -583,6 +591,7 @@ export class SavedSqlService
         projectUuid: string,
         sql: string,
         limit?: number,
+        context: QueryExecutionContext = QueryExecutionContext.SQL_RUNNER,
     ): Promise<{ jobId: string }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -593,7 +602,6 @@ export class SavedSqlService
                 subject('Job', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             ) ||
             auditedAbility.cannot(
@@ -601,7 +609,6 @@ export class SavedSqlService
                 subject('SqlRunner', {
                     organizationUuid,
                     projectUuid,
-                    uuid: '',
                 }),
             )
         ) {
@@ -614,7 +621,7 @@ export class SavedSqlService
             projectUuid,
             sql,
             limit,
-            context: QueryExecutionContext.SQL_RUNNER,
+            context,
         });
 
         return { jobId };
@@ -654,7 +661,6 @@ export class SavedSqlService
                     subject('Job', {
                         organizationUuid,
                         projectUuid,
-                        uuid: '',
                     }),
                 ) ||
                 auditedAbility.cannot(
@@ -662,7 +668,6 @@ export class SavedSqlService
                     subject('SqlRunner', {
                         organizationUuid,
                         projectUuid,
-                        uuid: '',
                     }),
                 )
             ) {
@@ -767,7 +772,7 @@ export class SavedSqlService
         } else {
             this.logBypassEvent(user, 'update', {
                 type: 'SavedChart',
-                uuid: savedSqlUuid,
+                metadata: { savedSqlUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         }
@@ -794,30 +799,65 @@ export class SavedSqlService
         }
     }
 
-    async getSchedulers(
+    private async hasChartSpaceAccess(
+        user: SessionUser,
+        spaceUuid: string,
+    ): Promise<boolean> {
+        try {
+            return await this.spacePermissionService.can(
+                'view',
+                user,
+                spaceUuid,
+            );
+        } catch (e) {
+            return false;
+        }
+    }
+
+    private async checkCreateScheduledDeliveryAccess(
         user: SessionUser,
         projectUuid: string,
         savedSqlUuid: string,
-    ): Promise<SchedulerAndTargets[]> {
+    ): Promise<{ organizationUuid: string; spaceUuid: string }> {
         const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             projectUuid,
         });
         const { organizationUuid } = sqlChart.organization;
+        const spaceUuid = sqlChart.space.uuid;
 
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'create',
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedSqlUuid,
+                    metadata: { savedSqlUuid },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
+        if (!(await this.hasChartSpaceAccess(user, spaceUuid))) {
+            throw new ForbiddenError(
+                "You don't have access to the space this chart belongs to",
+            );
+        }
+
+        return { organizationUuid, spaceUuid };
+    }
+
+    async getSchedulers(
+        user: SessionUser,
+        projectUuid: string,
+        savedSqlUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        await this.checkCreateScheduledDeliveryAccess(
+            user,
+            projectUuid,
+            savedSqlUuid,
+        );
         return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
     }
 
@@ -827,24 +867,11 @@ export class SavedSqlService
         savedSqlUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        const sqlChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+        await this.checkCreateScheduledDeliveryAccess(
+            user,
             projectUuid,
-        });
-        const { organizationUuid } = sqlChart.organization;
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ScheduledDeliveries', {
-                    organizationUuid,
-                    projectUuid,
-                    uuid: savedSqlUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+            savedSqlUuid,
+        );
 
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(

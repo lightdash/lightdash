@@ -2,32 +2,32 @@ import { subject } from '@casl/ability';
 import {
     Comment,
     DashboardDAO,
-    FeatureFlags,
     ForbiddenError,
-    LightdashUser,
     SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import { LightdashConfig } from '../../config/parseConfig';
 import { CommentModel } from '../../models/CommentModel/CommentModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { NotificationsModel } from '../../models/NotificationsModel/NotificationsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
 type CommentServiceArguments = {
+    lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     dashboardModel: DashboardModel;
     commentModel: CommentModel;
     notificationsModel: NotificationsModel;
     userModel: UserModel;
-    featureFlagModel: FeatureFlagModel;
     spacePermissionService: SpacePermissionService;
 };
 
 export class CommentService extends BaseService {
+    lightdashConfig: LightdashConfig;
+
     analytics: LightdashAnalytics;
 
     dashboardModel: DashboardModel;
@@ -38,26 +38,24 @@ export class CommentService extends BaseService {
 
     userModel: UserModel;
 
-    featureFlagModel: FeatureFlagModel;
-
     spacePermissionService: SpacePermissionService;
 
     constructor({
+        lightdashConfig,
         analytics,
         dashboardModel,
         commentModel,
         notificationsModel,
         userModel,
-        featureFlagModel,
         spacePermissionService,
     }: CommentServiceArguments) {
         super();
+        this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.dashboardModel = dashboardModel;
         this.commentModel = commentModel;
         this.notificationsModel = notificationsModel;
         this.userModel = userModel;
-        this.featureFlagModel = featureFlagModel;
         this.spacePermissionService = spacePermissionService;
     }
 
@@ -78,17 +76,8 @@ export class CommentService extends BaseService {
         }
     }
 
-    private async isFeatureEnabled(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
-    ) {
-        const featureFlag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.DashboardComments,
-        });
-        if (!featureFlag.enabled)
+    private throwIfDisabled() {
+        if (!this.lightdashConfig.dashboardComments.enabled)
             throw new ForbiddenError('Feature not enabled');
     }
 
@@ -153,7 +142,7 @@ export class CommentService extends BaseService {
         replyTo: string | null,
         mentions: string[],
     ): Promise<string> {
-        await this.isFeatureEnabled(user);
+        this.throwIfDisabled();
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -165,7 +154,7 @@ export class CommentService extends BaseService {
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    name: dashboard.name,
+                    metadata: { dashboardName: dashboard.name },
                 }),
             )
         ) {
@@ -218,7 +207,7 @@ export class CommentService extends BaseService {
         dashboardUuidOrSlug: string,
         options?: { projectUuid?: string },
     ): Promise<Record<string, Comment[]>> {
-        await this.isFeatureEnabled(user);
+        this.throwIfDisabled();
 
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
@@ -234,7 +223,7 @@ export class CommentService extends BaseService {
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    name: dashboard.name,
+                    metadata: { dashboardName: dashboard.name },
                 }),
             )
         ) {
@@ -252,7 +241,7 @@ export class CommentService extends BaseService {
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { dashboardName: dashboard.name },
             }),
         );
 
@@ -268,7 +257,7 @@ export class CommentService extends BaseService {
         dashboardUuid: string,
         commentId: string,
     ): Promise<void> {
-        await this.isFeatureEnabled(user);
+        this.throwIfDisabled();
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -279,7 +268,7 @@ export class CommentService extends BaseService {
                 subject('DashboardComments', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
-                    name: dashboard.name,
+                    metadata: { dashboardName: dashboard.name },
                 }),
             )
         ) {
@@ -314,7 +303,7 @@ export class CommentService extends BaseService {
         dashboardUuid: string,
         commentId: string,
     ): Promise<void> {
-        await this.isFeatureEnabled(user);
+        this.throwIfDisabled();
 
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
@@ -331,7 +320,7 @@ export class CommentService extends BaseService {
             subject('DashboardComments', {
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { dashboardName: dashboard.name },
             }),
         );
 
@@ -347,7 +336,7 @@ export class CommentService extends BaseService {
                 type: 'DashboardComments',
                 organizationUuid: dashboard.organizationUuid,
                 projectUuid: dashboard.projectUuid,
-                name: dashboard.name,
+                metadata: { dashboardName: dashboard.name },
             });
         }
 

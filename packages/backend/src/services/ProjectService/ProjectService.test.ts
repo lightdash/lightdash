@@ -1,13 +1,18 @@
 import { Ability } from '@casl/ability';
 import {
     defineUserAbility,
+    FeatureFlags,
     FilterOperator,
     ForbiddenError,
+    MetricType,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    PreAggregateMissReason,
+    ProjectType,
     SessionUser,
     WarehouseTypes,
+    type ChartSummary,
     type Explore,
     type PossibleAbilities,
 } from '@lightdash/common';
@@ -28,6 +33,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -122,6 +128,9 @@ jest.mock('@lightdash/warehouses', () => ({
         connect: jest.fn(() => warehouseClientMock.credentials),
         disconnect: jest.fn(),
     })),
+    exchangeDatabricksOAuthCredentials: jest.fn(),
+    refreshDatabricksOAuthToken: jest.fn(),
+    DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
 }));
 
 const projectModel = {
@@ -145,12 +154,15 @@ const projectModel = {
         runQuery: jest.fn(async () => resultsWith1Row),
     })),
     findExploreByTableName: jest.fn(async () => validExplore),
+    getAllExploresFromCache: jest.fn(async () => ({})),
+    saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
 };
 const preAggregateModel = {
     upsertPreAggregateDefinitions: jest.fn(),
     getPreAggregateDefinitionsForProject: jest.fn(async () => []),
     getPreAggregateDefinitionByDefinitionName: jest.fn(async () => undefined),
+    getActiveMaterialization: jest.fn(async () => undefined),
 };
 const onboardingModel = {
     getByOrganizationUuid: jest.fn(async () => ({
@@ -160,12 +172,14 @@ const onboardingModel = {
 };
 const savedChartModel = {
     getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+    find: jest.fn(async () => [] as ChartSummary[]),
 };
 const jobModel = {
     get: jest.fn(async () => job),
 };
 const spaceModel = {
     getAllSpaces: jest.fn(async () => spacesWithSavedCharts),
+    find: jest.fn(async () => spacesWithSavedCharts),
 };
 
 const userAttributesModel = {
@@ -176,11 +190,26 @@ const schedulerClient = {
     deleteScheduledPreAggregateCronJobsForProject: jest.fn(
         async () => undefined,
     ),
+    indexCatalog: jest.fn(async () => ({ jobId: 'catalog-job-1' })),
     materializePreAggregate: jest.fn(async () => ({ jobId: 'job-1' })),
     schedulePreAggregateCronJobs: jest.fn(async () => []),
 };
 
-const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
+const catalogModel = {
+    getCatalogItemsWithTags: jest.fn(async () => []),
+    getCatalogItemsWithIcons: jest.fn(async () => []),
+    getAllMetricsTreeEdges: jest.fn(async () => []),
+    getAllMetricsTreeNodes: jest.fn(async () => []),
+};
+
+const projectCompileLogModel = {
+    insert: jest.fn(async () => undefined),
+};
+
+const getMockedProjectService = (
+    lightdashConfig: LightdashConfig,
+    overrides: { spacePermissionService?: SpacePermissionService } = {},
+) =>
     new ProjectService({
         lightdashConfig,
         analytics: analyticsMock,
@@ -213,26 +242,39 @@ const getMockedProjectService = (lightdashConfig: LightdashConfig) =>
         fileStorageClient: {} as FileStorageClient,
         groupsModel: {} as GroupsModel,
         tagsModel: {} as TagsModel,
-        catalogModel: {} as CatalogModel,
+        catalogModel: catalogModel as unknown as CatalogModel,
         contentModel: {} as ContentModel,
         encryptionUtil: {} as EncryptionUtil,
         userModel: {} as UserModel,
         featureFlagModel: {
-            get: jest.fn(async () => ({
-                id: '',
-                enabled: lightdashConfig.defaultUserSpaces.enabled ?? false,
-            })),
+            // Mirror production behaviour: ResultsCacheEnabled resolves from
+            // the env-derived lightdashConfig.results.cacheEnabled when there
+            // is no DB row.
+            get: jest.fn(
+                async ({ featureFlagId }: { featureFlagId: string }) => {
+                    if (featureFlagId === FeatureFlags.ResultsCacheEnabled) {
+                        return {
+                            id: featureFlagId,
+                            enabled: lightdashConfig.results.cacheEnabled,
+                        };
+                    }
+                    return { id: featureFlagId, enabled: false };
+                },
+            ),
         } as unknown as FeatureFlagModel,
         projectParametersModel: {
             find: jest.fn(async () => []),
         } as unknown as ProjectParametersModel,
         organizationWarehouseCredentialsModel:
             {} as unknown as OrganizationWarehouseCredentialsModel,
-        projectCompileLogModel: {} as ProjectCompileLogModel,
+        organizationModel: {} as unknown as OrganizationModel,
+        projectCompileLogModel:
+            projectCompileLogModel as unknown as ProjectCompileLogModel,
         adminNotificationService: {
             notifyConnectionSettingsChange: jest.fn(async () => undefined),
         } as unknown as AdminNotificationService,
-        spacePermissionService: {} as SpacePermissionService,
+        spacePermissionService:
+            overrides.spacePermissionService ?? ({} as SpacePermissionService),
     });
 
 const account = buildAccount({
@@ -405,7 +447,10 @@ describe('ProjectService', () => {
             jest.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
-            ).mockResolvedValue('mocked-access-token');
+            ).mockResolvedValue({
+                accessToken: 'mocked-access-token',
+                refreshToken: 'mocked-refresh-token',
+            });
 
             // Project credentials with Snowflake SSO that has a refreshToken
             // The project's refreshToken should be cleared and NOT used
@@ -481,7 +526,10 @@ describe('ProjectService', () => {
             jest.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
-            ).mockResolvedValue('mocked-access-token');
+            ).mockResolvedValue({
+                accessToken: 'mocked-access-token',
+                refreshToken: 'mocked-refresh-token',
+            });
 
             // Project credentials with Snowflake SSO
             const projectSnowflakeCredentials = {
@@ -549,7 +597,10 @@ describe('ProjectService', () => {
             jest.spyOn(
                 UserService,
                 'generateSnowflakeAccessToken',
-            ).mockResolvedValue('mocked-access-token');
+            ).mockResolvedValue({
+                accessToken: 'mocked-access-token',
+                refreshToken: 'mocked-refresh-token',
+            });
 
             // Mock project credentials with Snowflake SSO - requireUserCredentials is false
             // so the project's credentials should be used directly
@@ -603,6 +654,402 @@ describe('ProjectService', () => {
 
             // User credentials should NOT have been fetched
             expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
+        });
+
+        test('should persist rotated Snowflake refresh token to user_warehouse_credentials when Snowflake rotates it', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            jest.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockResolvedValue({
+                accessToken: 'mocked-access-token',
+                refreshToken: 'rotated-refresh-token',
+            });
+
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: 'sso',
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: 'sso',
+                    refreshToken: 'user-refresh-token',
+                },
+            };
+
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            const rotateRefreshTokenMock = jest.fn(async () => true);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.rotateRefreshToken =
+                rotateRefreshTokenMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            expect(rotateRefreshTokenMock).toHaveBeenCalledTimes(1);
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                'user-creds-uuid',
+                'user-refresh-token',
+                'rotated-refresh-token',
+            );
+        });
+
+        test('should not call rotateRefreshToken when Snowflake returns the same refresh token', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            jest.spyOn(
+                UserService,
+                'generateSnowflakeAccessToken',
+            ).mockResolvedValue({
+                accessToken: 'mocked-access-token',
+                refreshToken: 'user-refresh-token',
+            });
+
+            const projectSnowflakeCredentials = {
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: 'sso',
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectSnowflakeCredentials);
+
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                    authenticationType: 'sso',
+                    refreshToken: 'user-refresh-token',
+                },
+            };
+
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            const rotateRefreshTokenMock = jest.fn(async () => true);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.rotateRefreshToken =
+                rotateRefreshTokenMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            expect(rotateRefreshTokenMock).not.toHaveBeenCalled();
+        });
+
+        test('should persist rotated Databricks OAuth U2M refresh token to user_warehouse_credentials when Databricks rotates it', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            const { refreshDatabricksOAuthToken } = jest.requireMock(
+                '@lightdash/warehouses',
+            );
+            (refreshDatabricksOAuthToken as jest.Mock).mockResolvedValue({
+                accessToken: 'fresh-u2m-access-token',
+                refreshToken: 'rotated-u2m-refresh-token',
+            });
+
+            const projectDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_u2m',
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectDatabricksCredentials);
+
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType: 'oauth_u2m',
+                    serverHostName: 'test.databricks.com',
+                    refreshToken: 'user-u2m-refresh-token',
+                    oauthClientId: 'user-client-id',
+                },
+            };
+
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            const rotateRefreshTokenMock = jest.fn(async () => true);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.rotateRefreshToken =
+                rotateRefreshTokenMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            expect(rotateRefreshTokenMock).toHaveBeenCalledTimes(1);
+            expect(rotateRefreshTokenMock).toHaveBeenCalledWith(
+                'user-creds-uuid',
+                'user-u2m-refresh-token',
+                'rotated-u2m-refresh-token',
+            );
+        });
+
+        test('should not call rotateRefreshToken when Databricks returns the same refresh token', async () => {
+            // clear in memory cache so new mock is applied
+            service.warehouseClients = {};
+
+            const { refreshDatabricksOAuthToken } = jest.requireMock(
+                '@lightdash/warehouses',
+            );
+            (refreshDatabricksOAuthToken as jest.Mock).mockResolvedValue({
+                accessToken: 'fresh-u2m-access-token',
+                refreshToken: 'user-u2m-refresh-token',
+            });
+
+            const projectDatabricksCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_u2m',
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockImplementation(async () => projectDatabricksCredentials);
+
+            const userCredentials = {
+                uuid: 'user-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.DATABRICKS,
+                    authenticationType: 'oauth_u2m',
+                    serverHostName: 'test.databricks.com',
+                    refreshToken: 'user-u2m-refresh-token',
+                    oauthClientId: 'user-client-id',
+                },
+            };
+
+            const findForProjectWithSecretsMock = jest.fn(
+                async () => userCredentials,
+            );
+            const rotateRefreshTokenMock = jest.fn(async () => true);
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: jest.Mock;
+                        rotateRefreshToken: jest.Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.rotateRefreshToken =
+                rotateRefreshTokenMock;
+
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockImplementation((creds: Record<string, unknown>) => ({
+                ...warehouseClientMock,
+                credentials: creds,
+                runQuery: jest.fn(async () => resultsWith1Row),
+            }));
+
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            expect(rotateRefreshTokenMock).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getWarehouseCredentialsForEmbed', () => {
+        test('should refresh Databricks oauth_m2m credentials so the access token is populated', async () => {
+            const { exchangeDatabricksOAuthCredentials } = jest.requireMock(
+                '@lightdash/warehouses',
+            );
+
+            // Project credentials as stored in DB: m2m client id/secret but no token yet.
+            const projectCredentials = {
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_m2m',
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+                catalog: 'test_catalog',
+                oauthClientId: 'client-id',
+                oauthClientSecret: 'client-secret',
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockResolvedValueOnce(projectCredentials);
+
+            (
+                exchangeDatabricksOAuthCredentials as jest.Mock
+            ).mockResolvedValueOnce({
+                accessToken: 'fresh-m2m-access-token',
+                refreshToken: 'fresh-m2m-refresh-token',
+            });
+
+            const embedAccount = buildAccount({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            });
+
+            const credentials = await service.getWarehouseCredentialsForEmbed({
+                projectUuid,
+                // The mock buildAccount returns Account; AnonymousAccount is structurally compatible.
+                account: embedAccount as never,
+            });
+
+            expect(exchangeDatabricksOAuthCredentials).toHaveBeenCalledWith(
+                'test.databricks.com',
+                'client-id',
+                'client-secret',
+            );
+            // Token must be present, otherwise DatabricksWarehouseClient throws
+            // "Databricks OAuth access token is required for OAuth oauth_m2m authentication"
+            expect(credentials).toMatchObject({
+                token: 'fresh-m2m-access-token',
+                authenticationType: 'oauth_m2m',
+            });
+        });
+
+        test('should throw when project requires user credentials', async () => {
+            (
+                projectModel.getWarehouseCredentialsForProject as jest.Mock
+            ).mockResolvedValueOnce({
+                type: WarehouseTypes.DATABRICKS,
+                authenticationType: 'oauth_u2m',
+                serverHostName: 'test.databricks.com',
+                httpPath: '/sql/test',
+                database: 'test_db',
+                requireUserCredentials: true,
+            });
+
+            const embedAccount = buildAccount({
+                accountType: 'jwt',
+                userType: 'anonymous',
+            });
+
+            await expect(
+                service.getWarehouseCredentialsForEmbed({
+                    projectUuid,
+                    account: embedAccount as never,
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
         });
     });
 
@@ -1273,27 +1720,7 @@ describe('ProjectService', () => {
     });
 
     describe('updateDefaultUserSpaces', () => {
-        test('should throw ForbiddenError when feature flag is disabled', async () => {
-            const serviceWithFeatureOff = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: false },
-            });
-
-            await expect(
-                serviceWithFeatureOff.updateDefaultUserSpaces(
-                    user,
-                    projectUuid,
-                    { hasDefaultUserSpaces: true },
-                ),
-            ).rejects.toThrowError(ForbiddenError);
-        });
-
         test('should throw ForbiddenError when user cannot manage the project', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const viewerUser: SessionUser = {
                 ...user,
                 userUuid: 'viewer-uuid',
@@ -1309,20 +1736,13 @@ describe('ProjectService', () => {
             };
 
             await expect(
-                serviceWithFeatureOn.updateDefaultUserSpaces(
-                    viewerUser,
-                    projectUuid,
-                    { hasDefaultUserSpaces: true },
-                ),
+                service.updateDefaultUserSpaces(viewerUser, projectUuid, {
+                    hasDefaultUserSpaces: true,
+                }),
             ).rejects.toThrowError(ForbiddenError);
         });
 
         test('should delegate to projectModel when admin enables the feature', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const adminUser: SessionUser = {
                 ...user,
                 role: OrganizationMemberRole.ADMIN,
@@ -1336,11 +1756,9 @@ describe('ProjectService', () => {
                 ),
             };
 
-            await serviceWithFeatureOn.updateDefaultUserSpaces(
-                adminUser,
-                projectUuid,
-                { hasDefaultUserSpaces: true },
-            );
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: true,
+            });
 
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
                 1,
@@ -1352,11 +1770,6 @@ describe('ProjectService', () => {
         });
 
         test('should delegate to projectModel when admin disables the feature', async () => {
-            const serviceWithFeatureOn = getMockedProjectService({
-                ...lightdashConfigMock,
-                defaultUserSpaces: { enabled: true },
-            });
-
             const adminUser: SessionUser = {
                 ...user,
                 role: OrganizationMemberRole.ADMIN,
@@ -1370,11 +1783,9 @@ describe('ProjectService', () => {
                 ),
             };
 
-            await serviceWithFeatureOn.updateDefaultUserSpaces(
-                adminUser,
-                projectUuid,
-                { hasDefaultUserSpaces: false },
-            );
+            await service.updateDefaultUserSpaces(adminUser, projectUuid, {
+                hasDefaultUserSpaces: false,
+            });
 
             expect(projectModel.updateDefaultUserSpaces).toHaveBeenCalledTimes(
                 1,
@@ -1399,6 +1810,123 @@ describe('ProjectService', () => {
                 [],
             ),
         };
+
+        test('saveExploresToCacheAndIndexCatalog skips preview project materialization jobs', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+
+            (projectModel.get as jest.Mock).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                type: ProjectType.PREVIEW,
+            });
+
+            await serviceWithPreAggregatesEnabled.saveExploresToCacheAndIndexCatalog(
+                {
+                    userUuid: user.userUuid,
+                    projectUuid,
+                    explores: [validExplore],
+                    compilationSource: 'cli_deploy',
+                },
+            );
+
+            expect(
+                preAggregateModel.upsertPreAggregateDefinitions,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                preAggregateModel.getPreAggregateDefinitionsForProject,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.materializePreAggregate,
+            ).not.toHaveBeenCalled();
+            expect(
+                schedulerClient.schedulePreAggregateCronJobs,
+            ).not.toHaveBeenCalled();
+        });
+
+        test('checkPreAggregateMatch returns a miss when the pre-aggregate is not materialized', async () => {
+            const serviceWithPreAggregatesEnabled = getMockedProjectService({
+                ...lightdashConfigMock,
+                preAggregates: {
+                    ...lightdashConfigMock.preAggregates,
+                    enabled: true,
+                },
+            });
+            const sourceExplore = {
+                ...validExplore,
+                tables: {
+                    ...validExplore.tables,
+                    a: {
+                        ...validExplore.tables.a,
+                        metrics: {
+                            ...validExplore.tables.a.metrics,
+                            met1: {
+                                ...validExplore.tables.a.metrics.met1,
+                                type: MetricType.COUNT,
+                            },
+                        },
+                    },
+                },
+                preAggregates: [
+                    {
+                        name: 'rollup',
+                        dimensions: ['dim1'],
+                        metrics: ['met1'],
+                    },
+                ],
+            } as Explore;
+
+            (
+                projectModel.findExploresFromCache as jest.Mock
+            ).mockImplementation(
+                async (
+                    _projectUuid: string,
+                    _field: string,
+                    exploreNames: string[],
+                ) =>
+                    Object.fromEntries(
+                        exploreNames
+                            .map((exploreName) => [
+                                exploreName,
+                                {
+                                    [sourceExplore.name]: sourceExplore,
+                                    [preAggregateExplore.name]:
+                                        preAggregateExplore,
+                                }[exploreName],
+                            ])
+                            .filter(([, explore]) => explore !== undefined),
+                    ),
+            );
+            (
+                preAggregateModel.getActiveMaterialization as jest.Mock
+            ).mockResolvedValueOnce(undefined);
+
+            const result =
+                await serviceWithPreAggregatesEnabled.checkPreAggregateMatch({
+                    account: developerAccount,
+                    projectUuid,
+                    exploreName: sourceExplore.name,
+                    metricQuery: {
+                        ...metricQueryMock,
+                        tableCalculations: [],
+                    },
+                    usePreAggregateCache: true,
+                });
+
+            expect(result).toEqual({
+                hit: false,
+                reason: {
+                    reason: PreAggregateMissReason.NO_ACTIVE_MATERIALIZATION,
+                },
+            });
+            expect(
+                preAggregateModel.getActiveMaterialization,
+            ).toHaveBeenCalledWith(projectUuid, preAggregateExplore.name);
+        });
 
         test('refreshPreAggregates schedules only materializable definitions', async () => {
             (
@@ -1548,6 +2076,89 @@ describe('ProjectService', () => {
             expect(result.order_status).toBe('pending');
             // Saved param without request override is still included
             expect(result.region).toBe('US');
+        });
+    });
+
+    describe('getChartsByExploreName', () => {
+        const exploreName = 'orders';
+        const spaceUuid = 'uuid';
+        const chartSummaryMock: ChartSummary = {
+            uuid: 'chart-uuid',
+            name: 'Orders chart',
+            description: undefined,
+            spaceUuid,
+            spaceName: 'space',
+            projectUuid: defaultProject.projectUuid,
+            organizationUuid: projectSummary.organizationUuid,
+            pinnedListUuid: null,
+            chartKind: undefined,
+            dashboardUuid: null,
+            dashboardName: null,
+            slug: 'orders-chart',
+        };
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+        });
+
+        test('returns charts from accessible spaces for a valid explore name', async () => {
+            const spacePermissionService = {
+                getAccessibleSpaceUuids: jest.fn(async () => [spaceUuid]),
+            } as unknown as SpacePermissionService;
+            const serviceWithPermissions = getMockedProjectService(
+                lightdashConfigMock,
+                { spacePermissionService },
+            );
+            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([
+                chartSummaryMock,
+            ]);
+
+            const result = await serviceWithPermissions.getChartsByExploreName(
+                user,
+                defaultProject.projectUuid,
+                exploreName,
+            );
+
+            expect(savedChartModel.find).toHaveBeenCalledWith({
+                projectUuid: defaultProject.projectUuid,
+                spaceUuids: [spaceUuid],
+                exploreName,
+            });
+            expect(result).toEqual([chartSummaryMock]);
+        });
+
+        test('returns empty array when no charts use the given explore', async () => {
+            const spacePermissionService = {
+                getAccessibleSpaceUuids: jest.fn(async () => [spaceUuid]),
+            } as unknown as SpacePermissionService;
+            const serviceWithPermissions = getMockedProjectService(
+                lightdashConfigMock,
+                { spacePermissionService },
+            );
+            (savedChartModel.find as jest.Mock).mockResolvedValueOnce([]);
+
+            const result = await serviceWithPermissions.getChartsByExploreName(
+                user,
+                defaultProject.projectUuid,
+                'nonexistent_explore',
+            );
+
+            expect(result).toEqual([]);
+        });
+
+        test('throws ForbiddenError when user cannot view the project', async () => {
+            const restrictedUser = {
+                ...user,
+                ability: new Ability<PossibleAbilities>([]),
+            } as unknown as SessionUser;
+
+            await expect(
+                service.getChartsByExploreName(
+                    restrictedUser,
+                    defaultProject.projectUuid,
+                    exploreName,
+                ),
+            ).rejects.toThrow(ForbiddenError);
         });
     });
 });

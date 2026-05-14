@@ -31,6 +31,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
+import { OrganizationSsoModel } from './OrganizationSsoModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
 import { PersistentDownloadFileModel } from './PersistentDownloadFileModel';
@@ -90,6 +91,7 @@ export type ModelManifest = {
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
+    organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     passwordResetLinkModel: PasswordResetLinkModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
@@ -129,6 +131,7 @@ export type ModelManifest = {
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
     dashboardSummaryModel: unknown;
@@ -428,6 +431,17 @@ export class ModelRepository
         );
     }
 
+    public getOrganizationSsoModel(): OrganizationSsoModel {
+        return this.getModel(
+            'organizationSsoModel',
+            () =>
+                new OrganizationSsoModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
     public getPasswordResetLinkModel(): PasswordResetLinkModel {
         return this.getModel(
             'passwordResetLinkModel',
@@ -597,6 +611,7 @@ export class ModelRepository
                 new UserModel({
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
+                    featureFlagModel: this.getFeatureFlagModel(),
                 }),
         );
     }
@@ -647,7 +662,11 @@ export class ModelRepository
     public getSavedSqlModel(): SavedSqlModel {
         return this.getModel(
             'savedSqlModel',
-            () => new SavedSqlModel({ database: this.database }),
+            () =>
+                new SavedSqlModel({
+                    database: this.database,
+                    lightdashConfig: this.lightdashConfig,
+                }),
         );
     }
 
@@ -697,6 +716,10 @@ export class ModelRepository
             'tagsModel',
             () => new TagsModel({ database: this.database }),
         );
+    }
+
+    public getManagedAgentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('managedAgentModel');
     }
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {

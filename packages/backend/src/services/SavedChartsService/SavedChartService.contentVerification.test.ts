@@ -2,7 +2,6 @@ import { Ability } from '@casl/ability';
 import {
     ChartType,
     ContentType,
-    FeatureFlags,
     ForbiddenError,
     OrganizationMemberRole,
     PossibleAbilities,
@@ -15,13 +14,13 @@ import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
@@ -73,6 +72,7 @@ const adminUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     userId: 1,
     role: OrganizationMemberRole.ADMIN,
@@ -94,10 +94,6 @@ const editorUser = {
     ability: new Ability<PossibleAbilities>([
         { subject: 'SavedChart', action: ['view', 'update'] },
     ]),
-};
-
-const featureFlagService = {
-    get: jest.fn(),
 };
 
 const savedChartModel = {
@@ -150,50 +146,15 @@ describe('SavedChartService - Content Verification', () => {
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
-        featureFlagService: featureFlagService as unknown as FeatureFlagService,
+        organizationModel: {} as unknown as OrganizationModel,
     });
 
     afterEach(() => {
         jest.clearAllMocks();
     });
 
-    describe('Feature flag gating', () => {
-        it('should throw ForbiddenError on verifyChart when flag is disabled', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: false,
-            });
-
-            await expect(
-                service.verifyChart(adminUser, 'chart-uuid'),
-            ).rejects.toThrow(ForbiddenError);
-
-            await expect(
-                service.verifyChart(adminUser, 'chart-uuid'),
-            ).rejects.toThrow('Content verification is not enabled');
-
-            expect(contentVerificationModel.verify).not.toHaveBeenCalled();
-        });
-
-        it('should throw ForbiddenError on unverifyChart when flag is disabled', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: false,
-            });
-
-            await expect(
-                service.unverifyChart(adminUser, 'chart-uuid'),
-            ).rejects.toThrow(ForbiddenError);
-
-            expect(contentVerificationModel.unverify).not.toHaveBeenCalled();
-        });
-
-        it('should allow verifyChart when flag is enabled and user is admin', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
+    describe('CASL authorization', () => {
+        it('should allow verifyChart when user is admin', async () => {
             const result = await service.verifyChart(adminUser, 'chart-uuid');
 
             expect(result).toEqual(verificationInfo);
@@ -204,15 +165,8 @@ describe('SavedChartService - Content Verification', () => {
                 'user-uuid',
             );
         });
-    });
 
-    describe('CASL authorization', () => {
         it('should throw ForbiddenError when user lacks manage:ContentVerification', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
             await expect(
                 service.verifyChart(editorUser, 'chart-uuid'),
             ).rejects.toThrow(ForbiddenError);
@@ -225,11 +179,6 @@ describe('SavedChartService - Content Verification', () => {
         });
 
         it('should throw ForbiddenError on unverifyChart for non-admin', async () => {
-            featureFlagService.get.mockResolvedValue({
-                id: FeatureFlags.ContentVerification,
-                enabled: true,
-            });
-
             await expect(
                 service.unverifyChart(editorUser, 'chart-uuid'),
             ).rejects.toThrow(ForbiddenError);

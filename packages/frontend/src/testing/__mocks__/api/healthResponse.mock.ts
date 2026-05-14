@@ -101,7 +101,6 @@ export default function mockHealthResponse(
         hasGithub: false,
         hasGitlab: false,
         hasCacheAutocompleResults: false,
-        hasResultsCaching: false,
         hasMicrosoftTeams: false,
         appearance: {
             overrideColorPalette: undefined,
@@ -131,11 +130,14 @@ export default function mockHealthResponse(
             enabled: false,
             retentionDays: 30,
         },
+        dashboardComments: {
+            enabled: true,
+        },
         preAggregates: {
             enabled: false,
         },
         dataApps: {
-            enabled: false,
+            previewOrigin: null,
         },
         ...overrides,
     };

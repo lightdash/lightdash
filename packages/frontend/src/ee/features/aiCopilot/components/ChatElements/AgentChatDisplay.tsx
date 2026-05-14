@@ -106,8 +106,13 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     ))}
                 </Stack>
 
-                {enableAutoScroll ? (
-                    <ThreadScrollToBottom scrollAreaRef={viewport} />
+                {enableAutoScroll && projectUuid && agentUuid ? (
+                    <ThreadScrollToBottom
+                        scrollAreaRef={viewport}
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        threadUuid={thread.uuid}
+                    />
                 ) : null}
 
                 <Box

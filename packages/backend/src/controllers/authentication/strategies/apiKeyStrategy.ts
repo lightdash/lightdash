@@ -12,10 +12,17 @@ export const apiKeyPassportStrategy = ({
     new HeaderAPIKeyStrategy(
         { header: 'Authorization', prefix: 'ApiKey ' },
         true,
-        async (token, done) => {
+        async (token, done, req) => {
             try {
-                const user =
-                    await userService.loginWithPersonalAccessToken(token);
+                const user = await userService.loginWithPersonalAccessToken(
+                    token,
+                    req
+                        ? {
+                              ip: req.ip,
+                              userAgent: req.get('user-agent'),
+                          }
+                        : undefined,
+                );
                 return done(null, user);
             } catch {
                 return done(

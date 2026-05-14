@@ -17,6 +17,7 @@ import {
     ExploreError,
     ExploreType,
     getLtreePathFromSlug,
+    GroupType,
     IdContentMapping,
     isExploreError,
     NotFoundError,
@@ -40,6 +41,8 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateQueryTimezoneSettings,
+    UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
@@ -115,7 +118,6 @@ import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
 import { ChangesetModel } from '../ChangesetModel';
-import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
@@ -158,6 +160,7 @@ type RawSummaryRow = {
     label: Explore['label'];
     tags: Explore['tags'];
     groupLabel: Explore['groupLabel'] | null;
+    groups: Explore['groups'] | null;
     type: Explore['type'] | null;
     preAggregateSource: Explore['preAggregateSource'] | null;
     errors: ExploreError['errors'] | null; // Fatal errors from ExploreError
@@ -182,14 +185,11 @@ export class ProjectModel {
 
     private encryptionUtil: EncryptionUtil;
 
-    private readonly exploreCache: ExploreCache;
-
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
         this.changesetModel = args.changesetModel;
         this.encryptionUtil = args.encryptionUtil;
-        this.exploreCache = new ExploreCache();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -536,6 +536,9 @@ export class ProjectModel {
                               scheduler_timezone:
                                   copiedProjects[0].scheduler_timezone,
                               query_timezone: copiedProjects[0].query_timezone,
+                              use_project_timezone_in_filters:
+                                  copiedProjects[0]
+                                      .use_project_timezone_in_filters,
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
@@ -585,6 +588,40 @@ export class ProjectModel {
         await this.database('projects')
             .update({
                 project_defaults: projectDefaults,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
+    async updateColorPalette(
+        projectUuid: string,
+        colorPaletteUuid: string | null,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                color_palette_uuid: colorPaletteUuid,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
+    async getTableGroups(
+        projectUuid: string,
+    ): Promise<Record<string, GroupType>> {
+        const [row] = await this.database(ProjectTableName)
+            .select('table_groups')
+            .where('project_uuid', projectUuid);
+        return row?.table_groups ?? {};
+    }
+
+    async setTableGroups(
+        projectUuid: string,
+        tableGroups: Record<string, GroupType> | undefined,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                table_groups:
+                    tableGroups && Object.keys(tableGroups).length > 0
+                        ? tableGroups
+                        : null,
             })
             .where('project_uuid', projectUuid);
     }
@@ -682,10 +719,15 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
+                  use_project_timezone_in_filters: boolean;
+                  scheduler_failure_notify_recipients: boolean;
+                  scheduler_failure_include_contact: boolean;
+                  scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
+                  color_palette_uuid: string | null;
               }
             | {
                   name: string;
@@ -699,10 +741,15 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
+                  use_project_timezone_in_filters: boolean;
+                  scheduler_failure_notify_recipients: boolean;
+                  scheduler_failure_include_contact: boolean;
+                  scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
+                  color_palette_uuid: string | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -758,6 +805,18 @@ export class ProjectModel {
                             .ref('query_timezone')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('use_project_timezone_in_filters')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_notify_recipients')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_include_contact')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_contact_override')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('created_by_user_uuid')
                             .withSchema(ProjectTableName),
                         this.database
@@ -768,6 +827,9 @@ export class ProjectModel {
                             .withSchema(ProjectTableName),
                         this.database
                             .ref('project_defaults')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('color_palette_uuid')
                             .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
@@ -805,12 +867,21 @@ export class ProjectModel {
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     schedulerTimezone: project.scheduler_timezone,
                     queryTimezone: project.query_timezone,
+                    useProjectTimezoneInFilters:
+                        project.use_project_timezone_in_filters,
+                    schedulerFailureNotifyRecipients:
+                        project.scheduler_failure_notify_recipients,
+                    schedulerFailureIncludeContact:
+                        project.scheduler_failure_include_contact,
+                    schedulerFailureContactOverride:
+                        project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
                         undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
+                    colorPaletteUuid: project.color_palette_uuid ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1008,10 +1079,18 @@ export class ProjectModel {
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             schedulerTimezone: project.schedulerTimezone,
             queryTimezone: project.queryTimezone,
+            useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,
+            schedulerFailureNotifyRecipients:
+                project.schedulerFailureNotifyRecipients,
+            schedulerFailureIncludeContact:
+                project.schedulerFailureIncludeContact,
+            schedulerFailureContactOverride:
+                project.schedulerFailureContactOverride,
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
+            colorPaletteUuid: project.colorPaletteUuid ?? null,
         };
     }
 
@@ -1104,19 +1183,6 @@ export class ProjectModel {
                         projectUuid,
                     );
 
-                // Try to get from cache first
-                const cachedExplores = this.exploreCache?.getExplores(
-                    projectUuid,
-                    exploreNames,
-                    applyChangeset ? changeset?.updatedAt : undefined,
-                );
-                // NOTE: Explores are cached with the name key, so we don't need to return the cached explores if the key is uuid
-                if (cachedExplores && key === 'name') {
-                    span.setAttribute('cacheHit', true);
-                    // Return cached explores
-                    return cachedExplores;
-                }
-                // If not in cache, get from database
                 const query = this.database(CachedExploreTableName)
                     .select('explore', 'cached_explore_uuid')
                     .where('project_uuid', projectUuid);
@@ -1152,13 +1218,6 @@ export class ProjectModel {
                         finalExplores,
                     );
                 }
-
-                this.exploreCache?.setExplores(
-                    projectUuid,
-                    exploreNames,
-                    applyChangeset ? changeset?.updatedAt : undefined,
-                    finalExplores,
-                );
 
                 return finalExplores;
             },
@@ -1224,6 +1283,7 @@ export class ProjectModel {
                     explore->'label' as label,
                     explore->'tags' as tags,
                     explore->'groupLabel' as "groupLabel",
+                    explore->'groups' as "groups",
                     explore->'type' as type,
                     explore->'preAggregateSource' as "preAggregateSource",
                     explore->'errors' as errors,
@@ -1244,6 +1304,7 @@ export class ProjectModel {
             label: row.label,
             tags: row.tags,
             groupLabel: row.groupLabel ?? undefined,
+            groups: row.groups ?? undefined,
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,
@@ -1557,6 +1618,9 @@ export class ProjectModel {
                 )
                 .select('users.user_id')
                 .where('email', email)
+                // Defence: SAs have no email row so this is empty for them,
+                // but the explicit guard documents intent.
+                .andWhere('users.is_internal', false)
                 .andWhere(
                     `${OrganizationMembershipsTableName}.organization_id`,
                     project.organization_id,
@@ -1881,6 +1945,65 @@ export class ProjectModel {
                 'Unexpected error: failed to parse warehouse credentials',
             );
         }
+    }
+
+    /** Compare-and-swap on the credential's stored refreshToken. Invalidates the warehouse credentials cache on swap. */
+    async rotateRefreshToken(
+        projectUuid: string,
+        expectedOldRefreshToken: string,
+        newRefreshToken: string,
+    ): Promise<boolean> {
+        const swapped = await this.database.transaction(async (trx) => {
+            const row = await trx('warehouse_credentials')
+                .innerJoin(
+                    'projects',
+                    'warehouse_credentials.project_id',
+                    'projects.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select<
+                    { project_id: number; encrypted_credentials: Buffer }[]
+                >([
+                    'warehouse_credentials.project_id',
+                    'warehouse_credentials.encrypted_credentials',
+                ])
+                .forUpdate()
+                .first();
+            if (!row) {
+                return false;
+            }
+
+            let credentials: CreateWarehouseCredentials;
+            try {
+                credentials = JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials;
+            } catch {
+                return false;
+            }
+
+            const stored = (credentials as Partial<{ refreshToken: string }>)
+                .refreshToken;
+            if (stored !== expectedOldRefreshToken) {
+                return false;
+            }
+
+            (credentials as { refreshToken: string }).refreshToken =
+                newRefreshToken;
+            const encryptedCredentials = this.encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            );
+            await trx('warehouse_credentials')
+                .update({ encrypted_credentials: encryptedCredentials })
+                .where('project_id', row.project_id);
+            return true;
+        });
+
+        if (swapped) {
+            warehouseCredentialsCache?.del(projectUuid);
+        }
+
+        return swapped;
     }
 
     async duplicateContent(
@@ -3091,14 +3214,41 @@ export class ProjectModel {
             });
     }
 
-    async updateDefaultSchedulerTimezone(
+    async updateSchedulerSettings(
         projectUuid: string,
-        timezone: string,
+        settings: UpdateSchedulerSettings,
     ) {
+        const update: Partial<
+            Pick<
+                DbProject,
+                | 'scheduler_timezone'
+                | 'scheduler_failure_notify_recipients'
+                | 'scheduler_failure_include_contact'
+                | 'scheduler_failure_contact_override'
+            >
+        > = {};
+        if (settings.schedulerTimezone !== undefined) {
+            update.scheduler_timezone = settings.schedulerTimezone;
+        }
+        if (settings.schedulerFailureNotifyRecipients !== undefined) {
+            update.scheduler_failure_notify_recipients =
+                settings.schedulerFailureNotifyRecipients;
+        }
+        if (settings.schedulerFailureIncludeContact !== undefined) {
+            update.scheduler_failure_include_contact =
+                settings.schedulerFailureIncludeContact;
+        }
+        if (settings.schedulerFailureContactOverride !== undefined) {
+            update.scheduler_failure_contact_override =
+                settings.schedulerFailureContactOverride;
+        }
+
+        if (Object.keys(update).length === 0) {
+            return undefined;
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
-            .update({
-                scheduler_timezone: timezone,
-            })
+            .update(update)
             .where('project_uuid', projectUuid)
             .returning('*');
 
@@ -3121,21 +3271,54 @@ export class ProjectModel {
 
     async updateQueryTimezone(
         projectUuid: string,
-        timezone: string | null,
+        settings: UpdateQueryTimezoneSettings,
     ): Promise<DbProject> {
-        const [updatedProject] = await this.database(ProjectTableName)
-            .update({
-                query_timezone: timezone,
-            })
-            .where('project_uuid', projectUuid)
-            .returning('*');
+        const { queryTimezone, useProjectTimezoneInFilters } = settings;
 
-        if (!updatedProject) {
-            throw new NotFoundError(
-                `Cannot find project with id: ${projectUuid}`,
-            );
-        }
+        return this.database.transaction(async (trx) => {
+            const [current] = await trx(ProjectTableName)
+                .select('query_timezone', 'use_project_timezone_in_filters')
+                .where('project_uuid', projectUuid)
+                .forUpdate();
 
-        return updatedProject;
+            if (!current) {
+                throw new NotFoundError(
+                    `Cannot find project with id: ${projectUuid}`,
+                );
+            }
+
+            const resultingTimezone =
+                queryTimezone !== undefined
+                    ? queryTimezone
+                    : current.query_timezone;
+            const resultingUseProjectTimezoneInFilters =
+                useProjectTimezoneInFilters !== undefined
+                    ? useProjectTimezoneInFilters
+                    : current.use_project_timezone_in_filters;
+
+            if (
+                resultingUseProjectTimezoneInFilters &&
+                resultingTimezone === null
+            ) {
+                throw new ParameterError(
+                    'Cannot enable useProjectTimezoneInFilters without a project query timezone',
+                );
+            }
+
+            const [updatedProject] = await trx(ProjectTableName)
+                .update({
+                    ...(queryTimezone !== undefined && {
+                        query_timezone: queryTimezone,
+                    }),
+                    ...(useProjectTimezoneInFilters !== undefined && {
+                        use_project_timezone_in_filters:
+                            useProjectTimezoneInFilters,
+                    }),
+                })
+                .where('project_uuid', projectUuid)
+                .returning('*');
+
+            return updatedProject;
+        });
     }
 }

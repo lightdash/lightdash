@@ -61,9 +61,10 @@ if (!process.env.E2B_API_KEY) {
 // ---------------------------------------------------------------------------
 // Create sandbox
 // ---------------------------------------------------------------------------
-console.log('Creating sandbox from lightdash-data-app template...');
+const templateName = process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app';
+console.log(`Creating sandbox from ${templateName} template...`);
 
-const sandbox = await Sandbox.create('lightdash-data-app', {
+const sandbox = await Sandbox.create(templateName, {
     timeoutMs: 10 * 60 * 1000, // 10 min TTL
     envs: {
         ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,

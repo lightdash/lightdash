@@ -1,7 +1,4 @@
 import {
-    getItemMap,
-    isField,
-    isTableCalculation,
     type ApiError,
     type Explore,
     type GeneratedFormulaTableCalculation,
@@ -9,8 +6,9 @@ import {
     type MetricQuery,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { lightdashApi } from '../api';
+import { useFormulaAiContext } from './useFormulaAiContext';
 
 const GENERATION_TIMEOUT_MS = 15000;
 
@@ -40,23 +38,7 @@ export const useGenerateFormulaTableCalculation = ({
     onSuccess,
 }: UseGenerateFormulaTableCalculationOptions) => {
     const abortControllerRef = useRef<AbortController | null>(null);
-
-    const itemsMap = useMemo(() => {
-        if (!explore) return undefined;
-        return getItemMap(
-            explore,
-            metricQuery.additionalMetrics,
-            metricQuery.tableCalculations,
-            metricQuery.customDimensions,
-        );
-    }, [
-        explore,
-        metricQuery.additionalMetrics,
-        metricQuery.tableCalculations,
-        metricQuery.customDimensions,
-    ]);
-
-    const tableName = explore?.label ?? explore?.name ?? '';
+    const { buildContext, isReady } = useFormulaAiContext(explore, metricQuery);
 
     const mutation = useMutation<
         GeneratedFormulaTableCalculation,
@@ -65,8 +47,13 @@ export const useGenerateFormulaTableCalculation = ({
     >({
         onSuccess,
         mutationFn: ({ prompt, currentFormula }) => {
-            if (!projectUuid || !itemsMap) {
-                throw new Error('Project UUID and itemsMap are required');
+            if (!projectUuid) {
+                throw new Error('Project UUID is required');
+            }
+
+            const context = buildContext();
+            if (!context) {
+                throw new Error('Formula AI context is not ready');
             }
 
             abortControllerRef.current?.abort();
@@ -78,45 +65,13 @@ export const useGenerateFormulaTableCalculation = ({
                 controller.abort();
             }, GENERATION_TIMEOUT_MS);
 
-            const usedFieldIds = new Set([
-                ...metricQuery.dimensions,
-                ...metricQuery.metrics,
-                ...(metricQuery.tableCalculations ?? []).map((tc) => tc.name),
-            ]);
-
-            const baseTableName = explore?.baseTable ?? '';
-
-            const fieldsContext = Object.entries(itemsMap)
-                .filter(([id]) => usedFieldIds.has(id))
-                .map(([, item]) => ({
-                    name: item.name,
-                    table: isField(item) ? item.table : baseTableName,
-                    label: isField(item)
-                        ? item.label
-                        : isTableCalculation(item)
-                          ? (item.displayName ?? item.name)
-                          : item.name,
-                    type: item.type ?? 'unknown',
-                    description: isField(item) ? item.description : undefined,
-                    fieldType: isField(item)
-                        ? item.fieldType === 'dimension'
-                            ? ('dimension' as const)
-                            : ('metric' as const)
-                        : ('table_calculation' as const),
-                }));
-
-            const existingTableCalculations = (
-                metricQuery.tableCalculations ?? []
-            ).map((tc) => tc.displayName);
-
             return generateFormulaTableCalculationApi(
                 projectUuid,
                 {
+                    mode: 'prompt',
                     prompt,
-                    tableName,
-                    fieldsContext,
-                    existingTableCalculations,
                     currentFormula,
+                    ...context,
                 },
                 controller.signal,
             ).finally(() => {
@@ -127,10 +82,10 @@ export const useGenerateFormulaTableCalculation = ({
 
     const generate = useCallback(
         (prompt: string, currentFormula?: string) => {
-            if (!projectUuid || !itemsMap || !prompt.trim()) return;
+            if (!projectUuid || !isReady || !prompt.trim()) return;
             mutation.mutate({ prompt, currentFormula });
         },
-        [projectUuid, itemsMap, mutation],
+        [projectUuid, isReady, mutation],
     );
 
     const reset = useCallback(() => {

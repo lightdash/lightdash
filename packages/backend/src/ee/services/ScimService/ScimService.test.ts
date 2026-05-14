@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { ScimPatch } from 'scim-patch';
 import { ScimService } from './ScimService';
-import { mockUser, ScimServiceArgumentsMock } from './ScimService.mock';
+import {
+    mockScimAccount,
+    mockUser,
+    ScimServiceArgumentsMock,
+} from './ScimService.mock';
 
 describe('ScimService', () => {
     const service = new ScimService(ScimServiceArgumentsMock);
@@ -36,6 +40,7 @@ describe('ScimService', () => {
                 userId: 0,
                 isTrackingAnonymized: false,
                 isMarketingOptedIn: false,
+                timezone: null,
                 isSetupComplete: false,
             };
 
@@ -110,6 +115,7 @@ describe('ScimService', () => {
                 userId: 0,
                 isTrackingAnonymized: false,
                 isMarketingOptedIn: false,
+                timezone: null,
                 isSetupComplete: false,
             };
 
@@ -200,6 +206,7 @@ describe('ScimService', () => {
 
             // Call createUser
             await service.createUser({
+                account: mockScimAccount,
                 user: scimUser,
                 organizationUuid: 'org-uuid',
             });
@@ -241,6 +248,7 @@ describe('ScimService', () => {
 
             // Call createUser
             await service.createUser({
+                account: mockScimAccount,
                 user: scimUser,
                 organizationUuid: 'org-uuid',
             });
@@ -254,6 +262,86 @@ describe('ScimService', () => {
                 userUuid: mockUser.userUuid,
                 role: OrganizationMemberRole.ADMIN, // Provided role
             });
+        });
+
+        test('should adopt orphan user (verified email but no organization) instead of creating', async () => {
+            const orphanUser = {
+                ...mockUser,
+                userUuid: 'orphan-uuid',
+                email: 'orphan@example.com',
+                organizationUuid: undefined, // orphan: no org membership
+            } as unknown as LightdashUser;
+            const {
+                userModel,
+                organizationMemberProfileModel,
+                openIdIdentityModel,
+            } = ScimServiceArgumentsMock;
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                orphanUser,
+            );
+
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: 'orphan@example.com',
+                name: { givenName: 'Orphan', familyName: 'User' },
+                active: true,
+                emails: [{ value: 'orphan@example.com', primary: true }],
+            };
+
+            await service.createUser({
+                account: mockScimAccount,
+                user: scimUser,
+                organizationUuid: 'org-uuid',
+            });
+
+            // Adoption: existing user joined to org, no new user created,
+            // openid_identity rows are NOT wiped.
+            expect(userModel.createUser).not.toHaveBeenCalled();
+            expect(
+                openIdIdentityModel.deleteIdentitiesByEmail,
+            ).not.toHaveBeenCalled();
+            expect(
+                organizationMemberProfileModel.createOrganizationMembershipByUuid,
+            ).toHaveBeenCalledWith({
+                organizationUuid: 'org-uuid',
+                userUuid: 'orphan-uuid',
+                role: OrganizationMemberRole.MEMBER,
+            });
+        });
+
+        test('should throw 409 (and NOT wipe openid) when user already belongs to an organization', async () => {
+            const userWithOrg = {
+                ...mockUser,
+                email: 'existing@example.com',
+                organizationUuid: 'some-org-uuid',
+            } as unknown as LightdashUser;
+            const { userModel, openIdIdentityModel } = ScimServiceArgumentsMock;
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                userWithOrg,
+            );
+
+            const scimUser = {
+                schemas: [ScimSchemaType.USER],
+                userName: 'existing@example.com',
+                name: { givenName: 'Existing', familyName: 'User' },
+                active: true,
+                emails: [{ value: 'existing@example.com', primary: true }],
+            };
+
+            await expect(
+                service.createUser({
+                    account: mockScimAccount,
+                    user: scimUser,
+                    organizationUuid: 'org-uuid',
+                }),
+            ).rejects.toThrow(/already in use/);
+
+            // The bug: previously, openid was deleted before the throw.
+            // After the fix, no deletion occurs.
+            expect(
+                openIdIdentityModel.deleteIdentitiesByEmail,
+            ).not.toHaveBeenCalled();
+            expect(userModel.createUser).not.toHaveBeenCalled();
         });
 
         test('should throw error when invalid role is provided in extension schema', async () => {
@@ -283,6 +371,7 @@ describe('ScimService', () => {
             // Call createUser with the invalid role and expect it to throw an error
             await expect(
                 service.createUser({
+                    account: mockScimAccount,
                     user: scimUser,
                     organizationUuid: 'org-uuid',
                 }),
@@ -322,6 +411,7 @@ describe('ScimService', () => {
             };
 
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -375,6 +465,7 @@ describe('ScimService', () => {
             // Call updateUser with the invalid role and expect it to throw an error
             await expect(
                 service.updateUser({
+                    account: mockScimAccount,
                     user: scimUser,
                     userUuid: mockUser.userUuid,
                     organizationUuid: mockUser.organizationUuid,
@@ -411,6 +502,7 @@ describe('ScimService', () => {
 
             // Call updateUser with the valid role
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -474,6 +566,7 @@ describe('ScimService', () => {
 
             // Call updateUser with roles
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -528,6 +621,7 @@ describe('ScimService', () => {
 
             // Call updateUser with organization role
             await service.updateUser({
+                account: mockScimAccount,
                 user: scimUser,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
@@ -563,6 +657,7 @@ describe('ScimService', () => {
 
             // Call patchUser with the patch operation
             await service.patchUser({
+                account: mockScimAccount,
                 userUuid: mockUser.userUuid,
                 organizationUuid: mockUser.organizationUuid,
                 patchOp,

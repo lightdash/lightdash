@@ -19,7 +19,10 @@ import {
     type VizTableConfig,
 } from '../visualizations/types';
 import { type Dashboard } from './dashboard';
-import { type Organization } from './organization';
+import {
+    type Organization,
+    type ResolvedProjectColorPalette,
+} from './organization';
 import { type ParametersValuesMap } from './parameters';
 import { type Project } from './projects';
 import { type RawResultRow } from './results';
@@ -257,6 +260,13 @@ export type SqlChart = {
     views: number;
     firstViewedAt: Date;
     lastViewedAt: Date;
+    /**
+     * Fully resolved palette for this SQL chart, computed from the
+     * org → project → space → dashboard hierarchy. SQL charts have no
+     * per-chart override — set the palette via the containing space,
+     * dashboard, project, or organization.
+     */
+    readonly resolvedColorPalette: ResolvedProjectColorPalette;
 };
 
 export type CreateSqlChart = {

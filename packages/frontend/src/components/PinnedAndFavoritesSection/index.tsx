@@ -18,12 +18,14 @@ import PinnedItemsPanel from '../PinnedItemsPanel';
 const GRID_GROUPS = [
     [ResourceViewItemType.SPACE],
     [ResourceViewItemType.DASHBOARD, ResourceViewItemType.CHART],
+    [ResourceViewItemType.DATA_APP],
 ];
 
 const TYPE_SORT_ORDER: Record<string, number> = {
     [ResourceViewItemType.SPACE]: 0,
     [ResourceViewItemType.DASHBOARD]: 1,
     [ResourceViewItemType.CHART]: 2,
+    [ResourceViewItemType.DATA_APP]: 3,
 };
 
 const sortByType = (a: ResourceViewItem, b: ResourceViewItem): number =>
@@ -73,7 +75,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         name: 'My favorites',
                         icon: <MantineIcon icon={IconStar} size="sm" />,
                         infoTooltipText:
-                            'Your personally favorited spaces, dashboards, and charts.',
+                            'Your personally favorited spaces, dashboards, charts, and data apps.',
                         hasReorder: false,
                         sort: sortByType,
                         filter: (item) =>
@@ -91,7 +93,7 @@ const PinnedAndFavoritesSection: FC<Props> = ({
                         name: userCanManage ? 'Pinned items' : 'Pinned for you',
                         icon: <MantineIcon icon={IconPin} size="sm" />,
                         infoTooltipText: userCanManage
-                            ? 'Pin Spaces, Dashboards and Charts to the top of the homepage to guide your business users to the right content.'
+                            ? 'Pin Spaces, Dashboards, Charts and Data apps to the top of the homepage to guide your business users to the right content.'
                             : 'Your data team have pinned these items to help guide you towards the most relevant content!',
                         hasReorder: userCanManage,
                         filter: (item) =>

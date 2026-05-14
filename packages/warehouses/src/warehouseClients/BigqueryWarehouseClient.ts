@@ -230,6 +230,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 // empty string is not a valid value for location
                 location: credentials.location || undefined,
                 maxRetries: credentials.retries,
+                apiEndpoint: credentials.accessUrl || undefined,
 
                 ...(credentials.authenticationType ===
                 BigqueryAuthenticationType.ADC

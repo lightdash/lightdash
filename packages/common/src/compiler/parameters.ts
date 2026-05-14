@@ -89,10 +89,30 @@ export const validateParameterReferences = (
     );
 
     if (missingParameters.length > 0) {
+        // When a short-form reference (e.g. `attribution_source`) doesn't match
+        // but a model-prefixed parameter does (e.g. `model.attribution_source`),
+        // surface the correct full reference so the user knows what to write.
+        const hints = missingParameters.reduce<string[]>((acc, missing) => {
+            if (missing.includes('.')) return acc;
+            const matches = availableParameters.filter((p) =>
+                p.endsWith(`.${missing}`),
+            );
+            if (matches.length === 0) return acc;
+            const suggestions = matches
+                .map((m) => `\${lightdash.parameters.${m}}`)
+                .join(' or ');
+            acc.push(
+                `"${missing}" is a model-level parameter — use the model name prefix: ${suggestions}`,
+            );
+            return acc;
+        }, []);
+
+        const hintMsg = hints.length > 0 ? ` Hint: ${hints.join('; ')}` : '';
+
         throw new CompileError(
             `Failed to compile explore "${tableName}". Missing parameters: ${missingParameters.join(
                 ', ',
-            )}`,
+            )}.${hintMsg}`,
             {},
         );
     }

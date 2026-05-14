@@ -1,0 +1,16 @@
+.swatchInteractive {
+    cursor: pointer;
+    transition: opacity 100ms ease;
+}
+
+.swatchInteractive:hover {
+    opacity: 0.8;
+}
+
+.swatchStatic {
+    cursor: default;
+}
+
+.colorOverlayGradient {
+    background: var(--cs-gradient);
+}

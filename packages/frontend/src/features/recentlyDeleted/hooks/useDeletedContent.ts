@@ -104,7 +104,16 @@ export function useRestoreDeletedContent(projectUuid: string) {
                                           `/projects/${projectUuid}/spaces/${item.uuid}`,
                                       ),
                               }
-                            : undefined,
+                            : item.contentType === ContentType.DATA_APP
+                              ? {
+                                    children: 'Go to app',
+                                    icon: IconArrowRight,
+                                    onClick: () =>
+                                        navigate(
+                                            `/projects/${projectUuid}/apps/${item.uuid}`,
+                                        ),
+                                }
+                              : undefined,
             });
             await invalidateContent(queryClient, projectUuid);
             await queryClient.invalidateQueries(['deletedContent']);

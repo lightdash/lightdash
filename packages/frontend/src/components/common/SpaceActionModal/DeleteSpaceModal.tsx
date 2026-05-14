@@ -1,11 +1,14 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Group, Skeleton, Text, TextInput } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { type DeleteSpaceModalBody } from '.';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceDeleteImpact } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
 import Callout from '../Callout';
@@ -42,6 +45,8 @@ const DeleteSpaceModalContent: FC<
         data?.projectUuid,
         data?.uuid,
     );
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
     if (isLoadingImpact) {
         return <Skeleton height={40} radius="sm" />;
@@ -58,7 +63,8 @@ const DeleteSpaceModalContent: FC<
     const hasContent =
         descendantCount > 0 ||
         impact.chartCount > 0 ||
-        impact.dashboardCount > 0;
+        impact.dashboardCount > 0 ||
+        (dataAppsEnabled && impact.appCount > 0);
 
     if (!hasContent) {
         return null;
@@ -122,6 +128,24 @@ const DeleteSpaceModalContent: FC<
                         {impact.dashboardCount !== 1 ? 's' : ''}
                     </Text>
                 </Group>
+                {dataAppsEnabled && (
+                    <Group gap={4}>
+                        <MantineIcon
+                            icon={IconAppWindow}
+                            size="sm"
+                            color={softDeleteEnabled ? 'yellow.7' : 'red.7'}
+                            stroke={1.5}
+                        />
+                        <Text
+                            size="sm"
+                            fw={700}
+                            c={softDeleteEnabled ? 'yellow.7' : 'red.7'}
+                        >
+                            {impact.appCount} data app
+                            {impact.appCount !== 1 ? 's' : ''}
+                        </Text>
+                    </Group>
+                )}
             </Group>
         </Callout>
     );

@@ -1,28 +1,30 @@
 import {
     Accordion,
-    ActionIcon,
     Box,
     Flex,
     Group,
-    Menu,
+    Stack,
     Text,
-    Tooltip,
     type AccordionControlProps as MantineAccordionControlProps,
-} from '@mantine/core';
-import { IconDots, IconTrash } from '@tabler/icons-react';
+} from '@mantine-8/core';
+import { IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
+import classes from './Accordion.module.css';
+import { ConfirmDeleteButton } from './ConfirmDeleteButton';
 
 type Props = {
     label: string;
-    onControlClick: () => void;
-    onRemove: () => void;
+    description?: string;
+    onControlClick?: () => void;
+    onRemove?: () => void;
     extraControlElements?: React.ReactNode;
+    disabled?: boolean;
 } & MantineAccordionControlProps;
 
-// NOTE: Custom Accordion.Control component so that we can add more interactive elements to the control without nesting them inside the Accordion.Control component
 export const AccordionControl: FC<Props> = ({
     label,
+    description,
     onControlClick,
     onRemove,
     extraControlElements,
@@ -30,16 +32,13 @@ export const AccordionControl: FC<Props> = ({
 }) => {
     return (
         <Flex
-            px="xs"
+            py="xs"
+            pl="sm"
             pos="relative"
             align="center"
             gap="xs"
-            sx={(theme) => ({
-                borderRadius: theme.radius.sm,
-                '&:hover': {
-                    backgroundColor: theme.colors.ldGray[0],
-                },
-            })}
+            className={classes.controlRow}
+            h={description ? '45px' : undefined}
         >
             {extraControlElements && (
                 <Box
@@ -50,44 +49,36 @@ export const AccordionControl: FC<Props> = ({
                     {extraControlElements}
                 </Box>
             )}
-            <Text
-                fw={500}
-                size="xs"
-                truncate
-                sx={{ flex: 1 }}
+            <Stack
+                gap={0}
+                className={classes.controlLabel}
                 onClick={onControlClick}
             >
-                {label}
-            </Text>
-            <Group noWrap ml="sm" spacing="lg">
-                <Tooltip
-                    variant="xs"
-                    label={`Remove ${label}`}
-                    position="right"
-                    withinPortal
-                >
-                    <Menu withArrow offset={-2}>
-                        <Menu.Target>
-                            <ActionIcon variant="transparent">
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                icon={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={onRemove}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Delete
-                                </Text>
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                </Tooltip>
+                <Text fw={500} size="xs" truncate>
+                    {label}
+                </Text>
+                {description && (
+                    <div className={classes.controlDescriptionWrapper}>
+                        <Text size="xs" c="dimmed" truncate lh={1.1}>
+                            {description}
+                        </Text>
+                    </div>
+                )}
+            </Stack>
+            <Group wrap="nowrap" ml="sm" gap="xs">
+                {onRemove && (
+                    <ConfirmDeleteButton
+                        data-cf-rule-delete
+                        aria-label={`Remove ${label}`}
+                        onConfirm={onRemove}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ConfirmDeleteButton>
+                )}
                 <Accordion.Control
-                    w="sm"
-                    sx={{ flex: 0 }}
+                    px="sm"
+                    variant="transparent"
+                    className={classes.controlButton}
                     onClick={onControlClick}
                     {...props}
                 />

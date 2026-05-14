@@ -19,14 +19,14 @@ services:
         entrypoint: '/init-minio.sh'
 
     db-dev:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         restart: always
         environment:
             POSTGRES_PASSWORD: password
         ports:
             - '5432:5432'
         volumes:
-            - postgres_data:/var/lib/postgresql/data
+            - postgres_data:/var/lib/postgresql
 
     headless-browser:
         build:

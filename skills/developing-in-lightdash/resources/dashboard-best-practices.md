@@ -245,6 +245,7 @@ filters:
         fieldId: orders_region
         tableName: orders
       values: []                # No default = show all regions
+      disabled: true            # Important: This keeps the filter available on the dashboard without applying it until a value is provided
 ```
 
 **When to use default values:**

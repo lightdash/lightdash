@@ -3,6 +3,7 @@ import {
     ApiContentActionBody,
     ApiContentBulkActionBody,
     assertUnreachable,
+    BulkActionable,
     ChartSourceType,
     ContentActionMove,
     ContentType,
@@ -13,12 +14,15 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     NotFoundError,
+    ParameterError,
     SessionUser,
     SpaceContentBase,
     SummaryContent,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { intersection } from 'lodash';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ContentModel } from '../../models/ContentModel/ContentModel';
 import {
     ContentArgs,
@@ -44,6 +48,8 @@ type ContentServiceArguments = {
     savedChartService: SavedChartService;
     savedSqlService: SavedSqlService;
     spacePermissionService: SpacePermissionService;
+    appMoveService: BulkActionable<Knex> | undefined;
+    appGenerateService: AppGenerateService | undefined;
 };
 
 export class ContentService extends BaseService {
@@ -65,6 +71,10 @@ export class ContentService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    appMoveService: BulkActionable<Knex> | undefined;
+
+    appGenerateService: AppGenerateService | undefined;
+
     constructor(args: ContentServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -78,6 +88,22 @@ export class ContentService extends BaseService {
         this.savedChartService = args.savedChartService;
         this.savedSqlService = args.savedSqlService;
         this.spacePermissionService = args.spacePermissionService;
+        this.appMoveService = args.appMoveService;
+        this.appGenerateService = args.appGenerateService;
+    }
+
+    private getAppMoveService(): BulkActionable<Knex> {
+        if (!this.appMoveService) {
+            throw new ParameterError('Data apps are not available');
+        }
+        return this.appMoveService;
+    }
+
+    private getAppGenerateService(): AppGenerateService {
+        if (!this.appGenerateService) {
+            throw new ParameterError('Data apps are not available');
+        }
+        return this.appGenerateService;
     }
 
     async find(
@@ -107,8 +133,10 @@ export class ContentService extends BaseService {
                     subject('Project', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
-                        uuid: project.projectUuid,
-                        name: project.name,
+                        metadata: {
+                            projectUuid: project.projectUuid,
+                            projectName: project.name,
+                        },
                     }),
                 ),
             )
@@ -213,8 +241,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -271,6 +298,12 @@ export class ContentService extends BaseService {
                             moveToSpaceArgs,
                             moveToSpaceOptions,
                         );
+                    case ContentType.DATA_APP:
+                        return this.getAppMoveService().moveToSpace(
+                            user,
+                            moveToSpaceArgs,
+                            moveToSpaceOptions,
+                        );
                     default:
                         return assertUnreachable(c, 'Unknown content type');
                 }
@@ -309,8 +342,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -362,6 +394,12 @@ export class ContentService extends BaseService {
                     moveToSpaceArgs,
                     moveToSpaceOptions,
                 );
+            case ContentType.DATA_APP:
+                return this.getAppMoveService().moveToSpace(
+                    user,
+                    moveToSpaceArgs,
+                    moveToSpaceOptions,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -396,8 +434,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -419,6 +456,7 @@ export class ContentService extends BaseService {
             ContentType.CHART,
             ContentType.DASHBOARD,
             ContentType.SPACE,
+            ContentType.DATA_APP,
         ];
 
         return this.contentModel.findDeletedContents(
@@ -453,8 +491,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -478,6 +515,12 @@ export class ContentService extends BaseService {
                 return this.dashboardService.restore(user, item.uuid);
             case ContentType.SPACE:
                 return this.spaceService.restore(user, item.uuid);
+            case ContentType.DATA_APP:
+                return this.getAppGenerateService().restoreApp(
+                    user,
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }
@@ -504,8 +547,7 @@ export class ContentService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
-                    name: projectName,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -535,6 +577,12 @@ export class ContentService extends BaseService {
                 return this.dashboardService.permanentDelete(user, item.uuid);
             case ContentType.SPACE:
                 return this.spaceService.permanentDelete(user, item.uuid);
+            case ContentType.DATA_APP:
+                return this.getAppGenerateService().permanentDeleteApp(
+                    user,
+                    projectUuid,
+                    item.uuid,
+                );
             default:
                 return assertUnreachable(item, 'Unknown content type');
         }

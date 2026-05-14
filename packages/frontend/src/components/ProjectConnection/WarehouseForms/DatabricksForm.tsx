@@ -178,23 +178,24 @@ const DatabricksForm: FC<{
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
     // Build authentication options based on SSO availability
-    const authOptions = isSsoEnabled
-        ? [
-              {
-                  value: DatabricksAuthenticationType.OAUTH_U2M,
-                  label: getSsoLabel(WarehouseTypes.DATABRICKS),
-              },
-              {
-                  value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
-                  label: PERSONAL_ACCESS_TOKEN_LABEL,
-              },
-          ]
-        : [
-              {
-                  value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
-                  label: PERSONAL_ACCESS_TOKEN_LABEL,
-              },
-          ];
+    const authOptions = [
+        ...(isSsoEnabled
+            ? [
+                  {
+                      value: DatabricksAuthenticationType.OAUTH_U2M,
+                      label: getSsoLabel(WarehouseTypes.DATABRICKS),
+                  },
+              ]
+            : []),
+        {
+            value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+            label: PERSONAL_ACCESS_TOKEN_LABEL,
+        },
+        {
+            value: DatabricksAuthenticationType.OAUTH_M2M,
+            label: 'OAuth Machine-to-Machine (Service Principal)',
+        },
+    ];
 
     const computes = form.values.warehouse?.compute ?? [];
     const addCompute = () => {
@@ -320,10 +321,46 @@ const DatabricksForm: FC<{
                         }
                         disabled={disabled}
                     />
+                ) : authenticationType ===
+                  DatabricksAuthenticationType.OAUTH_M2M ? (
+                    <Stack spacing="sm">
+                        <PasswordInput
+                            name="warehouse.oauthClientId"
+                            {...form.getInputProps('warehouse.oauthClientId')}
+                            label="OAuth Client ID"
+                            description="Service principal client ID (UUID)."
+                            required={requireSecrets}
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            disabled={disabled}
+                        />
+                        <PasswordInput
+                            name="warehouse.oauthClientSecret"
+                            {...form.getInputProps(
+                                'warehouse.oauthClientSecret',
+                            )}
+                            label="OAuth Client Secret"
+                            description="Service principal client secret."
+                            required={requireSecrets}
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            disabled={disabled}
+                        />
+                    </Stack>
                 ) : (
                     <DatabricksSSOInput
                         isAuthenticated={isAuthenticated}
-                        disabled={disabled || !isServerHostNameProvided}
+                        // OAuth re-auth writes to the current user's own credentials,
+                        // not the project's warehouse config — so it must stay
+                        // available even when the rest of the form is locked
+                        // (preview projects, missing update permission, mid-save).
+                        disabled={!isServerHostNameProvided}
                         disabledTooltip={databricksSsoDisabledTooltip}
                         openLoginPopup={openLoginPopup}
                     />

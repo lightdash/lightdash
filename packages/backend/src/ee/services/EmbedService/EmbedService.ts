@@ -28,12 +28,13 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
+    getAvailableFilterFieldIds,
+    getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
     getFilterInteractivityValue,
     getItemId,
-    getMetrics,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isChartContent,
@@ -45,7 +46,6 @@ import {
     isFilterableDimension,
     isFilterInteractivityEnabled,
     isParameterInteractivityEnabled,
-    LightdashSessionUser,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
@@ -152,6 +152,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         { expiresIn, ...jwtData }: CreateEmbedJwt,
     ): Promise<EmbedUrl> {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -160,7 +161,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -193,9 +194,11 @@ export class EmbedService extends BaseService {
     }
 
     async getConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -203,7 +206,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -224,10 +227,12 @@ export class EmbedService extends BaseService {
     }
 
     async createConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -235,7 +240,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -258,7 +263,7 @@ export class EmbedService extends BaseService {
             this.lightdashConfig.embedding.allowAll.charts,
         );
 
-        return this.getConfig(user, projectUuid);
+        return this.getConfig(account, projectUuid);
     }
 
     async updateDashboards(
@@ -269,6 +274,7 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
         }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -277,7 +283,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -303,6 +309,7 @@ export class EmbedService extends BaseService {
             allowAllCharts,
         }: UpdateEmbed,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -313,7 +320,7 @@ export class EmbedService extends BaseService {
         });
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -513,12 +520,33 @@ export class EmbedService extends BaseService {
             canExportPagePdf,
             canDateZoom,
         } = decodedToken.content;
-        const selectedPalette = paletteUuid
-            ? await this.organizationModel.findColorPalette(
-                  dashboard.organizationUuid,
-                  paletteUuid,
-              )
-            : null;
+        // Embed paletteUuid query param overrides everything; otherwise fall back
+        // through chart → dashboard → space → project → org via the resolver.
+        let selectedPalette: {
+            colors: string[];
+            darkColors: string[] | null;
+        } | null = null;
+        if (paletteUuid) {
+            const override = await this.organizationModel.findColorPalette(
+                dashboard.organizationUuid,
+                paletteUuid,
+            );
+            if (override) {
+                selectedPalette = {
+                    colors: override.colors,
+                    darkColors: override.darkColors,
+                };
+            }
+        } else {
+            const resolved = await this.savedChartModel.resolveColorPalette({
+                projectUuid: dashboard.projectUuid,
+                dashboardUuid: dashboard.uuid,
+            });
+            selectedPalette = {
+                colors: resolved.colors,
+                darkColors: resolved.darkColors,
+            };
+        }
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',
@@ -773,11 +801,20 @@ export class EmbedService extends BaseService {
         }
     }
 
-    private async _getWarehouseClient(projectUuid: string, explore: Explore) {
+    private async _getWarehouseClient(
+        account: AnonymousAccount,
+        projectUuid: string,
+        explore: Explore,
+    ) {
+        // Resolve via ProjectService so OAuth tokens are refreshed before use
+        // (e.g. Databricks oauth_m2m must exchange client_id+secret for an
+        // access token — fetching the raw row from the model would yield an
+        // empty `token` and crash the warehouse client).
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectService.getWarehouseCredentialsForEmbed({
                 projectUuid,
-            );
+                account,
+            });
 
         const { warehouseClient, sshTunnel } =
             await this.projectService._getWarehouseClient(
@@ -829,6 +866,7 @@ export class EmbedService extends BaseService {
         timezone,
         dateZoomGranularity,
         combinedParameters,
+        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         metricQuery: MetricQuery;
@@ -846,8 +884,10 @@ export class EmbedService extends BaseService {
         timezone: string;
         dateZoomGranularity?: DateGranularity | string;
         combinedParameters?: ParametersValuesMap;
+        useTimezoneAwareDateTrunc: boolean;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            account,
             projectUuid,
             explore,
         );
@@ -862,12 +902,6 @@ export class EmbedService extends BaseService {
             projectUuid,
             filteredExplore,
         );
-
-        const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            });
 
         const compiledQuery = await ProjectService._compileQuery({
             metricQuery,
@@ -884,13 +918,18 @@ export class EmbedService extends BaseService {
             parameters: combinedParameters,
             availableParameterDefinitions,
             useTimezoneAwareDateTrunc,
-            dataTimezone: warehouseClient.credentials.dataTimezone,
+            columnTimezone: getColumnTimezone(warehouseClient.credentials),
         });
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
                 projectUuid,
                 userUuid: null,
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
                 context: QueryExecutionContext.EMBED,
                 warehouseClient,
                 metricQuery,
@@ -935,14 +974,7 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = [
-            ...getDimensions(explore)
-                .filter((f) => isFilterableDimension(f) && !f.hidden)
-                .map(getItemId),
-            ...getMetrics(explore)
-                .filter((f) => !f.hidden)
-                .map(getItemId),
-        ];
+        const availableFieldIds = getAvailableFilterFieldIds(explore);
 
         let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
             tileUuid,
@@ -1187,7 +1219,15 @@ export class EmbedService extends BaseService {
         const timezone = resolveQueryTimezone(
             metricQueryWithDashboardOverrides,
             projectTimezone,
+            null,
         );
+
+        const isTimezoneSupportEnabled =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid,
+            });
+        const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
@@ -1207,6 +1247,7 @@ export class EmbedService extends BaseService {
             timezone,
             dateZoomGranularity,
             combinedParameters,
+            useTimezoneAwareDateTrunc: isTimezoneSupportEnabled,
         });
 
         return {
@@ -1217,7 +1258,13 @@ export class EmbedService extends BaseService {
                 access: [],
             },
             explore,
-            rows: formatRows(rows, fields),
+            rows: formatRows(
+                rows,
+                fields,
+                undefined,
+                undefined,
+                displayTimezone,
+            ),
             cacheMetadata,
             metricQuery: metricQueryWithDashboardOverrides,
             fields,
@@ -1356,13 +1403,9 @@ export class EmbedService extends BaseService {
                 dashboardFilters,
             );
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            explore,
-        );
-
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
+        const filteredExplore = getFilteredExplore(explore, userAttributes);
 
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
@@ -1383,39 +1426,14 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
-        const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            });
-
         try {
-            const { totalQuery: totalMetricQuery } =
-                await ProjectService._getCalculateTotalQuery(
-                    timezone,
-                    userAttributes,
-                    intrinsicUserAttributes,
-                    explore,
-                    metricQuery,
-                    warehouseClient,
-                    availableParameterDefinitions,
-                    combinedParameters,
-                    useTimezoneAwareDateTrunc,
-                    warehouseClient.credentials.dataTimezone,
-                );
-
-            const { rows } = await this._runEmbedQuery({
+            const row = await this.asyncQueryService.calculateMetricQueryTotal({
+                account,
                 projectUuid,
-                metricQuery: totalMetricQuery,
-                explore,
+                organizationUuid: chart.organizationUuid,
+                metricQuery,
+                explore: filteredExplore,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     embed: 'true',
                     external_id: account.user.id,
@@ -1426,18 +1444,19 @@ export class EmbedService extends BaseService {
                     explore_name: chart.tableName,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
-                account,
-                timezone,
-                combinedParameters,
+                parameters: combinedParameters,
+                invalidateCache,
+                userAccessControls: {
+                    userAttributes,
+                    intrinsicUserAttributes,
+                },
             });
 
-            if (rows.length === 0) {
+            if (!row) {
                 throw new NotFoundError('No results found');
             }
 
-            const row = rows[0];
-
-            return row;
+            return row as Record<string, number>;
         } catch (e) {
             if (e instanceof NotSupportedError) {
                 this.logger.warn(e.message);
@@ -1504,6 +1523,7 @@ export class EmbedService extends BaseService {
             dashboardUuid,
             combinedParameters,
             dateZoom,
+            invalidateCache,
         );
     }
 
@@ -1519,6 +1539,7 @@ export class EmbedService extends BaseService {
         dashboardUuid?: string,
         combinedParameters?: ParametersValuesMap,
         dateZoom?: DateZoom,
+        invalidateCache?: boolean,
     ) {
         // Use the shared utility to prepare dimension groups
         const { dimensionGroupsToSubtotal, analyticsData } =
@@ -1541,66 +1562,40 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        if (dimensionGroupsToSubtotal.length === 0) {
+            return {};
+        }
 
-        // Run the query for each dimension group using embed query runner
-        const subtotalsPromises = dimensionGroupsToSubtotal.map<
-            Promise<[string, Record<string, unknown>[]]>
-        >(async (subtotalDimensions) => {
-            let subtotals: Record<string, unknown>[] = [];
+        const { userAttributes, intrinsicUserAttributes } =
+            this.getAccessControls(account);
 
-            try {
-                // Use utility to create properly configured subtotal query
-                const { metricQuery: subtotalMetricQuery } =
-                    SubtotalsCalculator.createSubtotalQueryConfig(
-                        metricQuery,
-                        subtotalDimensions,
-                        pivotDimensions,
-                    );
-
-                const { rows, fields } = await this._runEmbedQuery({
-                    projectUuid,
-                    metricQuery: subtotalMetricQuery,
-                    explore,
-                    queryTags: {
-                        embed: 'true',
-                        external_id: account.user.id,
-                        project_uuid: projectUuid,
-                        organization_uuid: organizationUuid || '',
-                        chart_uuid: chartUuid || '',
-                        dashboard_uuid: dashboardUuid || '',
-                        explore_name: explore.name,
-                        query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
-                    },
-                    account,
-                    timezone,
-                    combinedParameters,
-                    dateZoomGranularity: dateZoom?.granularity,
-                });
-
-                // Format raw rows (this matches the logic in ProjectService)
-                subtotals = formatRawRows(rows, fields) as Record<
-                    string,
-                    number
-                >[];
-            } catch (e) {
-                this.logger.error(
-                    `Error running subtotal query for dimensions ${subtotalDimensions.join(
-                        ',',
-                    )}`,
-                );
-            }
-
-            return [
-                SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
-                subtotals,
-            ] satisfies [string, Record<string, unknown>[]];
+        return this.asyncQueryService.calculateMetricQuerySubtotals({
+            account,
+            projectUuid,
+            organizationUuid: organizationUuid || '',
+            metricQuery,
+            explore: getFilteredExplore(explore, userAttributes),
+            context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+            queryTags: {
+                embed: 'true',
+                external_id: account.user.id,
+                project_uuid: projectUuid,
+                organization_uuid: organizationUuid || '',
+                chart_uuid: chartUuid || '',
+                dashboard_uuid: dashboardUuid || '',
+                explore_name: explore.name,
+                query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+            },
+            columnOrder,
+            pivotDimensions,
+            parameters: combinedParameters,
+            dateZoom,
+            invalidateCache,
+            userAccessControls: {
+                userAttributes,
+                intrinsicUserAttributes,
+            },
         });
-
-        const subtotalsEntries = await Promise.all(subtotalsPromises);
-        return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
     }
 
     /**
@@ -1626,13 +1621,9 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            explore,
-        );
-
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
+        const filteredExplore = getFilteredExplore(explore, userAttributes);
 
         // Handle parameter interactivity - only accept user parameters if enabled
         const acceptedUserParameters =
@@ -1647,42 +1638,14 @@ export class EmbedService extends BaseService {
             acceptedUserParameters,
         );
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
-            data.metricQuery,
-            projectTimezone,
-        );
-        const useTimezoneAwareDateTrunc =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-            });
-
         try {
-            const { totalQuery: totalMetricQuery } =
-                await ProjectService._getCalculateTotalQuery(
-                    timezone,
-                    userAttributes,
-                    intrinsicUserAttributes,
-                    explore,
-                    data.metricQuery,
-                    warehouseClient,
-                    availableParameterDefinitions,
-                    combinedParameters,
-                    useTimezoneAwareDateTrunc,
-                    warehouseClient.credentials.dataTimezone,
-                );
-
-            const { rows } = await this._runEmbedQuery({
+            const row = await this.asyncQueryService.calculateMetricQueryTotal({
+                account,
                 projectUuid,
-                metricQuery: totalMetricQuery,
-                explore,
+                organizationUuid,
+                metricQuery: data.metricQuery,
+                explore: filteredExplore,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     embed: 'true',
                     external_id: account.user.id,
@@ -1692,16 +1655,19 @@ export class EmbedService extends BaseService {
                     explore_name: data.explore,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
-                account,
-                timezone,
-                combinedParameters,
+                parameters: combinedParameters,
+                invalidateCache: data.invalidateCache,
+                userAccessControls: {
+                    userAttributes,
+                    intrinsicUserAttributes,
+                },
             });
 
-            if (rows.length === 0) {
+            if (!row) {
                 throw new NotFoundError('No results found');
             }
 
-            return rows[0] as Record<string, number>;
+            return row as Record<string, number>;
         } catch (e) {
             if (e instanceof NotSupportedError) {
                 this.logger.warn(e.message);
@@ -1759,6 +1725,7 @@ export class EmbedService extends BaseService {
             undefined, // no dashboardUuid for raw query
             combinedParameters,
             data.dateZoom,
+            data.invalidateCache,
         );
     }
 
@@ -1783,7 +1750,7 @@ export class EmbedService extends BaseService {
         tableName?: string;
         fieldId?: string;
     }): Promise<FieldValueSearchResult> {
-        const { dashboardUuids, allowAllDashboards } =
+        const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
         const { dashboardUuid } = account.access.content;
 
@@ -1872,7 +1839,17 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const timezone = resolveQueryTimezone(
+            metricQuery,
+            projectTimezone,
+            null,
+        );
+
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid: dashboard.organizationUuid,
+            });
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,
@@ -1889,6 +1866,7 @@ export class EmbedService extends BaseService {
             },
             account,
             timezone,
+            useTimezoneAwareDateTrunc,
         });
 
         return {

@@ -1,0 +1,46 @@
+.wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-xl);
+    margin: auto;
+    max-width: 560px;
+    width: 100%;
+}
+
+.heading {
+    text-align: center;
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.card {
+    padding: var(--mantine-spacing-md);
+    border: 1px solid var(--mantine-color-default-border);
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+
+    &:hover {
+        border-color: var(--mantine-color-blue-5);
+
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-1);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-ldDark-4);
+        }
+    }
+}
+
+.cardIcon {
+    flex-shrink: 0;
+}
+
+.cardTitle {
+    line-height: 1.2;
+}

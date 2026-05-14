@@ -1583,3 +1583,55 @@ describe('visibleMetricFieldIds in pivotQueryResults', () => {
         expect(result.dataColumnCount).toBe(6);
     });
 });
+
+describe('convertSqlPivotedRowsToPivotData metric ordering (#19838 / #19919)', () => {
+    it('orders metricsAsRows row labels by columnOrder, not valuesColumns first-occurrence', () => {
+        // baseMetricsArray was previously derived via Array.from(new Set(...)),
+        // which preserves valuesColumns first-occurrence order rather than the
+        // user's metric selection sequence (columnOrder). With metricsAsRows: true
+        // this produced metric label rows in the wrong order. Fixed in PR #19910
+        // by sorting by columnOrder.indexOf.
+        //
+        // valuesColumns order in COMPLEX_SQL_PIVOT_DETAILS:
+        //   payments_total_revenue, orders_average_order_size, orders_total_order_amount
+        // columnOrder below intentionally reverses that, so the two derivations diverge.
+        const columnOrder = [
+            'payments_payment_method',
+            'orders_order_date_year',
+            'orders_is_completed',
+            'orders_promo_code',
+            'orders_total_order_amount',
+            'payments_total_revenue',
+            'orders_average_order_size',
+        ];
+
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: COMPLEX_SQL_PIVOTED_ROWS,
+            pivotDetails: COMPLEX_SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: true,
+                columnOrder,
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // In metricsAsRows mode each indexValues row ends with a metric label.
+        const metricRowOrder = result.indexValues
+            .map((row) => row[row.length - 1])
+            .filter(
+                (entry): entry is { type: 'label'; fieldId: string } =>
+                    entry.type === 'label',
+            )
+            .map((entry) => entry.fieldId);
+
+        expect(metricRowOrder).toEqual([
+            'orders_total_order_amount',
+            'payments_total_revenue',
+            'orders_average_order_size',
+        ]);
+    });
+});

@@ -12,6 +12,7 @@ import { ErrorRequestHandler, Request, RequestHandler } from 'express';
 import passport from 'passport';
 import { URL } from 'url';
 import { fromApiKey, fromOauth } from '../../auth/account/account';
+import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { lightdashConfig } from '../../config/lightdashConfig';
 import { authenticateServiceAccount } from '../../ee/authentication';
@@ -19,7 +20,15 @@ import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
     if (req.account?.isAuthenticated() || req.user?.userUuid) {
-        if (req.account?.user?.isActive || req.user?.isActive) {
+        // Service-account principals run on a dedicated user row that is
+        // intentionally `is_active = false` (defense-in-depth against any
+        // login path). The `isActive` gate is for human deactivation, so
+        // skip it for the service-account auth type.
+        if (
+            req.account?.authentication?.type === 'service-account' ||
+            req.account?.user?.isActive ||
+            req.user?.isActive
+        ) {
             next();
         } else {
             // Destroy session if user is deactivated and return error
@@ -74,10 +83,13 @@ export const allowOauthAuthentication: RequestHandler = (req, res, next) => {
                             req.account?.authentication?.type,
                         );
                     }
+                    req.user = user;
                     if (user) {
                         req.account = fromOauth(user, token);
+                        const requestContext = requestContextFromExpress(req);
+                        req.account.requestContext = requestContext;
+                        req.user!.requestContext = requestContext;
                     }
-                    req.user = user;
                     next();
                 })
                 .catch((userError) => {
@@ -133,6 +145,9 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             req.user!,
                             req.headers.authorization || '',
                         );
+                        const requestContext = requestContextFromExpress(req);
+                        req.account.requestContext = requestContext;
+                        req.user.requestContext = requestContext;
                     }
                     next();
                 },
@@ -166,10 +181,13 @@ export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
                             req.account?.authentication?.type,
                         );
                     }
+                    req.user = user;
                     if (user) {
                         req.account = fromOauth(user, token);
+                        const requestContext = requestContextFromExpress(req);
+                        req.account.requestContext = requestContext;
+                        req.user!.requestContext = requestContext;
                     }
-                    req.user = user;
                     next();
                 })
                 .catch((userError) => {
@@ -210,7 +228,7 @@ export const storeOIDCRedirect: RequestHandler = (req, res, next) => {
 };
 
 export const storeSlackContext: RequestHandler = (req, res, next) => {
-    const { team, channel, message, thread_ts: threadTs } = req.query;
+    const { team, channel, message, thread_ts: threadTs, trigger } = req.query;
     req.session.slack = {};
 
     if (typeof team === 'string') {
@@ -224,6 +242,9 @@ export const storeSlackContext: RequestHandler = (req, res, next) => {
     }
     if (typeof threadTs === 'string') {
         req.session.slack.threadTs = threadTs;
+    }
+    if (trigger === 'vote' || trigger === 'app_mention') {
+        req.session.slack.trigger = trigger;
     }
 
     next();

@@ -1,5 +1,8 @@
 import {
     GetObjectCommand,
+    HeadObjectCommand,
+    NoSuchKey,
+    NotFound,
     PutObjectCommandInput,
     S3,
     S3ServiceException,
@@ -381,6 +384,26 @@ export class S3Client extends S3BaseClient implements FileStorageClient {
         );
 
         return url;
+    }
+
+    async objectExists(fileName: string): Promise<boolean> {
+        if (!this.lightdashConfig.s3?.bucket || this.s3 === undefined) {
+            throw new MissingConfigError('S3 configuration is not set');
+        }
+        try {
+            await this.s3.send(
+                new HeadObjectCommand({
+                    Bucket: this.lightdashConfig.s3.bucket,
+                    Key: fileName,
+                }),
+            );
+            return true;
+        } catch (error) {
+            if (error instanceof NoSuchKey || error instanceof NotFound) {
+                return false;
+            }
+            throw error;
+        }
     }
 
     isEnabled(): boolean {

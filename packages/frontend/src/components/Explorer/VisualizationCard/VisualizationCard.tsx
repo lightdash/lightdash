@@ -36,9 +36,12 @@ import {
     selectSavedChart,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
+    selectUnsavedColorPaletteUuid,
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useColorPalettes } from '../../../hooks/appearance/useOrganizationAppearance';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
@@ -57,6 +60,7 @@ import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
 import { SeriesContextMenu } from './SeriesContextMenu';
+import VisualizationTimezone from './VisualizationTimezone';
 import VisualizationWarning from './VisualizationWarning';
 
 export type EchartsClickEvent = {
@@ -67,26 +71,72 @@ export type EchartsClickEvent = {
 
 type Props = {
     projectUuid?: string;
+    onScreenshotReady?: () => void;
+    onScreenshotError?: () => void;
 };
 
-const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
+const VisualizationCard: FC<Props> = memo((props) => {
+    const {
+        projectUuid: fallBackUUid,
+        onScreenshotReady,
+        onScreenshotError,
+    } = props;
     const { health } = useApp();
     const { data: org } = useOrganization();
     const { colorScheme } = useMantineColorScheme();
     const dispatch = useExplorerDispatch();
 
-    const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && org?.chartDarkColors) {
-            return org.chartDarkColors;
-        }
-        return org?.chartColors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, org?.chartColors, org?.chartDarkColors]);
-
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
 
-    const { query, queryResults, isLoading, getDownloadQueryUuid } =
-        useExplorerQuery();
+    const projectUuid = savedChart?.projectUuid || fallBackUUid;
+    const stagedColorPaletteUuid = useExplorerSelector(
+        selectUnsavedColorPaletteUuid,
+    );
+    const isPaletteStagedDirty =
+        savedChart !== undefined &&
+        stagedColorPaletteUuid !== savedChart.colorPaletteUuid;
+    const resolverChartUuid =
+        isPaletteStagedDirty && stagedColorPaletteUuid === null
+            ? undefined
+            : savedChart?.uuid;
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
+        chartUuid: resolverChartUuid,
+        dashboardUuid: savedChart?.dashboardUuid ?? undefined,
+    });
+
+    const { data: palettes } = useColorPalettes({
+        enabled: isPaletteStagedDirty && stagedColorPaletteUuid !== null,
+    });
+    const stagedPalette = useMemo(() => {
+        if (!isPaletteStagedDirty || stagedColorPaletteUuid === null) {
+            return undefined;
+        }
+        return palettes?.find(
+            (p) => p.colorPaletteUuid === stagedColorPaletteUuid,
+        );
+    }, [isPaletteStagedDirty, stagedColorPaletteUuid, palettes]);
+
+    const colorPalette = useMemo(() => {
+        if (stagedPalette) {
+            if (colorScheme === 'dark' && stagedPalette.darkColors) {
+                return stagedPalette.darkColors;
+            }
+            return stagedPalette.colors;
+        }
+        if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
+            return resolvedPalette.darkColors;
+        }
+        return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
+    }, [colorScheme, resolvedPalette, stagedPalette]);
+
+    const {
+        query,
+        queryResults,
+        isLoading,
+        getDownloadQueryUuid,
+        validQueryArgs,
+    } = useExplorerQuery();
     const isLoadingQueryResults = isLoading || queryResults.isFetchingRows;
 
     const resultsData = useMemo(
@@ -94,6 +144,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
             ...queryResults,
             metricQuery: query.data?.metricQuery,
             fields: query.data?.fields,
+            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
         }),
         [query.data, queryResults],
     );
@@ -145,8 +196,6 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
         () => toggleExpandedSection(ExplorerSection.VISUALIZATION),
         [toggleExpandedSection],
     );
-
-    const projectUuid = savedChart?.projectUuid || fallBackUUid;
 
     const { data: explore } = useExplore(unsavedChartVersion.tableName);
 
@@ -292,6 +341,7 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                 containerHeight={containerHeight}
                 isDashboard={false}
                 isEditMode={isEditMode}
+                invalidateCache={validQueryArgs?.invalidateCache}
             >
                 <CollapsableCard
                     title="Chart"
@@ -316,6 +366,14 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                     rightHeaderElement={
                         isOpen && (
                             <>
+                                <VisualizationTimezone
+                                    resolvedTimezone={
+                                        query.data?.resolvedTimezone
+                                    }
+                                    metricQueryTimezone={
+                                        query.data?.metricQuery?.timezone
+                                    }
+                                />
                                 {isEditMode ? (
                                     <Button
                                         {...COLLAPSABLE_CARD_BUTTON_PROPS}
@@ -386,6 +444,8 @@ const VisualizationCard: FC<Props> = memo(({ projectUuid: fallBackUUid }) => {
                         ref={measureRef}
                         className="sentry-block ph-no-capture"
                         data-testid="visualization"
+                        onScreenshotReady={onScreenshotReady}
+                        onScreenshotError={onScreenshotError}
                     />
                     <SeriesContextMenu
                         echartsSeriesClickEvent={echartsClickEvent?.event}

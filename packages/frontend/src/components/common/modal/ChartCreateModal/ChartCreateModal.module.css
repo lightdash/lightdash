@@ -4,4 +4,5 @@
     bottom: 0;
     z-index: 2;
     padding: var(--mantine-spacing-md);
+    background-color: var(--mantine-color-body);
 }

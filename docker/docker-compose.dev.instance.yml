@@ -4,7 +4,7 @@ volumes:
 
 services:
     db-dev:
-        image: pgvector/pgvector:pg16
+        image: pgvector/pgvector:pg18
         container_name: ${LD_CONTAINER_PREFIX:-docker}-db-dev-1
         restart: always
         environment:
@@ -12,4 +12,4 @@ services:
         ports:
             - '${LD_PG_PORT:-5432}:5432'
         volumes:
-            - postgres_data:/var/lib/postgresql/data
+            - postgres_data:/var/lib/postgresql

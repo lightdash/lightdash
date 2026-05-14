@@ -1,6 +1,14 @@
-import { DashboardTileTypes, PromotionAction } from '@lightdash/common';
+import { Ability } from '@casl/ability';
+import {
+    DashboardTileTypes,
+    OrganizationMemberRole,
+    PossibleAbilities,
+    PromotionAction,
+    SessionUser,
+} from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -1240,5 +1248,86 @@ describe('PromoteService promoting and mutating changes', () => {
                 },
             },
         ]);
+    });
+});
+
+describe('PromoteService permission checks', () => {
+    const buildAuditedAbility = (
+        rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+    ) => {
+        const developerUser: SessionUser = {
+            ...user,
+            role: OrganizationMemberRole.DEVELOPER,
+            ability: new Ability<PossibleAbilities>(rules),
+        };
+        return new CaslAuditWrapper(developerUser.ability, developerUser);
+    };
+
+    test('PROD-7288: allows overwrite of an existing dashboard in an unchanged existing space when user has promote Dashboard but not manage Space', () => {
+        const auditedAbility = buildAuditedAbility([
+            { subject: 'Dashboard', action: ['promote'] },
+        ]);
+
+        expect(() =>
+            PromoteService.checkPromoteDashboardPermissions(
+                auditedAbility,
+                'organization-uuid',
+                promotedDashboard,
+                existingUpstreamDashboard,
+            ),
+        ).not.toThrow();
+    });
+
+    test('throws when promotion would rename the upstream space and user lacks manage Space', () => {
+        const auditedAbility = buildAuditedAbility([
+            { subject: 'Dashboard', action: ['promote'] },
+        ]);
+        const renamedSource = {
+            ...promotedDashboard,
+            space: {
+                ...promotedDashboard.space,
+                name: 'Renamed jaffle shop',
+            },
+        };
+
+        expect(() =>
+            PromoteService.checkPromoteDashboardPermissions(
+                auditedAbility,
+                'organization-uuid',
+                renamedSource,
+                existingUpstreamDashboard,
+            ),
+        ).toThrow(/do not have access to modify this space/);
+    });
+
+    test('throws when promoting into a brand-new upstream space and user lacks create Space', () => {
+        const auditedAbility = buildAuditedAbility([
+            { subject: 'Dashboard', action: ['promote', 'manage'] },
+        ]);
+
+        expect(() =>
+            PromoteService.checkPromoteDashboardPermissions(
+                auditedAbility,
+                'organization-uuid',
+                promotedDashboard,
+                missingUpstreamDashboard,
+            ),
+        ).toThrow(/do not have access to create a space/);
+    });
+
+    test('allows promoting into a brand-new upstream space when user has create Space and manage Dashboard', () => {
+        const auditedAbility = buildAuditedAbility([
+            { subject: 'Dashboard', action: ['promote', 'manage'] },
+            { subject: 'Space', action: ['create'] },
+        ]);
+
+        expect(() =>
+            PromoteService.checkPromoteDashboardPermissions(
+                auditedAbility,
+                'organization-uuid',
+                promotedDashboard,
+                missingUpstreamDashboard,
+            ),
+        ).not.toThrow();
     });
 });

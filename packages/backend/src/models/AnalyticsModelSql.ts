@@ -19,6 +19,7 @@ from users
   LEFT JOIN project_group_access ON project_group_access.group_uuid = group_memberships.group_uuid
 WHERE
   emails.is_primary = true
+  AND users.is_internal = false
   AND (
       (organization_memberships.role != 'member'
         AND organization_uuid = '${organizationUuid}')
@@ -235,6 +236,7 @@ WITH RankedResults AS (
       u.user_uuid,
       u.first_name,
       u.last_name,
+      d.dashboard_uuid,
       d."name" AS dashboard_name,
       COUNT(dv.dashboard_uuid) AS dashboard_count,
       ROW_NUMBER() OVER (PARTITION BY u.first_name ORDER BY COUNT(dv.dashboard_uuid) DESC) AS rank
@@ -245,12 +247,13 @@ WITH RankedResults AS (
   left join projects on projects.project_id = s.project_id
   WHERE projects.project_uuid = '${projectUuid}'
     AND u.user_uuid IS NOT NULL
-  GROUP BY u.user_uuid, u.first_name, u.last_name, d."name"
+  GROUP BY u.user_uuid, u.first_name, u.last_name, d.dashboard_uuid, d."name"
 )
 SELECT
   user_uuid,
   first_name,
   last_name,
+  dashboard_uuid,
   dashboard_name,
   dashboard_count as count
 FROM RankedResults

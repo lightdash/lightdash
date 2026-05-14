@@ -16,6 +16,7 @@ import {
     type ToolGetDashboardChartsArgs,
     type ToolName,
     type ToolRunQueryArgs,
+    type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
@@ -28,11 +29,18 @@ import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
+import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
 }> = ({ toolName, toolCall }) => {
+    // Mid-stream the toolArgs payload can arrive before any input chunks have
+    // been parsed. Casting an undefined value and reading fields throws, so
+    // bail until args exist.
+    if (!toolCall.toolArgs || typeof toolCall.toolArgs !== 'object') {
+        return <> </>;
+    }
     switch (toolName) {
         case 'findExplores':
             const toolArgsFindExplores = toolCall.toolArgs as
@@ -140,8 +148,19 @@ export const ToolCallDescription: FC<{
                     title={chartToolArgs.title}
                 />
             );
+        case 'runSql':
+            const sqlToolArgs = toolCall.toolArgs as ToolRunSqlArgs;
+            return (
+                <SqlRunToolCallDescription
+                    sql={sqlToolArgs.sql}
+                    limit={sqlToolArgs.limit}
+                />
+            );
+        case 'listWarehouseTables':
+        case 'describeWarehouseTable':
         case 'improveContext':
         case 'proposeChange':
+        case 'runSavedChart':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

@@ -1,9 +1,11 @@
-import { Card, Paper, Text } from '@mantine-8/core';
+import { Card, Group, Paper, Text } from '@mantine-8/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import {
     forwardRef,
+    Fragment,
     useEffect,
     useImperativeHandle,
+    useMemo,
     useRef,
     useState,
     type ReactNode,
@@ -25,6 +27,10 @@ type SuggestionListProps<T extends SuggestionItem> = SuggestionProps<T> & {
         isSelected: boolean,
         onClick: () => void,
     ) => ReactNode;
+    /** When provided, items are grouped under headers in their existing order. */
+    getGroupKey?: (item: T) => string;
+    /** Display labels for each group key. Falls back to the raw key. */
+    groupLabels?: Record<string, string>;
     emptyMessage?: string;
 };
 
@@ -34,6 +40,30 @@ export const SuggestionList = forwardRef<
 >((props, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const { items, getGroupKey, groupLabels } = props;
+
+    const groupedItems = useMemo(() => {
+        if (!getGroupKey) return null;
+        const order: string[] = [];
+        const map = new Map<
+            string,
+            { items: SuggestionItem[]; firstIndex: number }
+        >();
+        items.forEach((item, index) => {
+            const key = getGroupKey(item);
+            if (!map.has(key)) {
+                map.set(key, { items: [], firstIndex: index });
+                order.push(key);
+            }
+            map.get(key)!.items.push(item);
+        });
+        return order.map((key) => ({
+            key,
+            label: groupLabels?.[key] ?? key,
+            ...map.get(key)!,
+        }));
+    }, [items, getGroupKey, groupLabels]);
 
     const selectItem = (index: number) => {
         if (index >= props.items.length) return;
@@ -81,6 +111,14 @@ export const SuggestionList = forwardRef<
         );
     }
 
+    const renderRow = (item: SuggestionItem, index: number) => (
+        <div key={item.id} data-index={index}>
+            {props.renderItem(item, index === selectedIndex, () =>
+                selectItem(index),
+            )}
+        </div>
+    );
+
     return (
         <Paper
             ref={containerRef}
@@ -89,13 +127,41 @@ export const SuggestionList = forwardRef<
             p={0}
             className={styles.container}
         >
-            {props.items.map((item, index) => (
-                <div key={item.id} data-index={index}>
-                    {props.renderItem(item, index === selectedIndex, () =>
-                        selectItem(index),
-                    )}
-                </div>
-            ))}
+            <div className={styles.list}>
+                {groupedItems
+                    ? groupedItems.map((group) => (
+                          <Fragment key={group.key}>
+                              <div className={styles.groupHeader}>
+                                  {group.label}
+                              </div>
+                              {group.items.map((item, i) =>
+                                  renderRow(item, group.firstIndex + i),
+                              )}
+                          </Fragment>
+                      ))
+                    : props.items.map((item, index) => renderRow(item, index))}
+            </div>
+            <Group gap="xs" wrap="nowrap" className={styles.footer}>
+                <Group gap={4} wrap="nowrap">
+                    <kbd className={styles.kbd}>↑</kbd>
+                    <kbd className={styles.kbd}>↓</kbd>
+                    <Text size="xs" inherit>
+                        navigate
+                    </Text>
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                    <kbd className={styles.kbd}>↵</kbd>
+                    <Text size="xs" inherit>
+                        select
+                    </Text>
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                    <kbd className={styles.kbd}>esc</kbd>
+                    <Text size="xs" inherit>
+                        close
+                    </Text>
+                </Group>
+            </Group>
         </Paper>
     );
 });

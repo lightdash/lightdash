@@ -122,7 +122,7 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
 
                         {dataAppsFlag.data?.enabled && (
                             <Can
-                                I="manage"
+                                I="create"
                                 this={subject('DataApp', {
                                     organizationUuid:
                                         user.data?.organizationUuid,

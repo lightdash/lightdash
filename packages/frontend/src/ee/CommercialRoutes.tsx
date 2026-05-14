@@ -21,6 +21,7 @@ import { SlackAuthSuccess } from './pages/SlackAuthSuccess';
 const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
     {
         path: '/embed',
+        handle: { hideAILauncher: true },
         element: <EmbeddedApp />,
         children: [
             {
@@ -93,6 +94,7 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
     },
     {
         path: '/projects/:projectUuid/ai-agents',
+        handle: { hideAILauncher: true },
         element: (
             <PrivateRoute>
                 <AiAgentsRootLayout />

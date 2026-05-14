@@ -1459,6 +1459,52 @@ describe('Filter SQL', () => {
             );
             expect(sql).toContain('UPPER');
         });
+
+        test('filter-rule-level caseSensitive overrides case-sensitive field and explore', () => {
+            const fieldCaseSensitive = {
+                ...mockDimension,
+                caseSensitive: true,
+            };
+            const filterRuleOverride: FilterRule = {
+                ...caseFilter,
+                caseSensitive: false,
+            };
+            const sql = renderFilterRuleSqlFromField(
+                filterRuleOverride,
+                fieldCaseSensitive,
+                '"',
+                "'",
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                true, // explore-level is also case-sensitive
+            );
+            expect(sql).toContain('UPPER');
+        });
+
+        test('filter-rule-level caseSensitive=true overrides case-insensitive field', () => {
+            const fieldCaseInsensitive = {
+                ...mockDimension,
+                caseSensitive: false,
+            };
+            const filterRuleOverride: FilterRule = {
+                ...caseFilter,
+                caseSensitive: true,
+            };
+            const sql = renderFilterRuleSqlFromField(
+                filterRuleOverride,
+                fieldCaseInsensitive,
+                '"',
+                "'",
+                (str: string) => str,
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                false,
+            );
+            expect(sql).not.toContain('UPPER');
+        });
     });
 
     test('should return 1=1 if filter is disabled', () => {
@@ -1648,6 +1694,37 @@ describe('case sensitivity', () => {
   AND
   UPPER(${stringFilterDimension}) NOT LIKE UPPER('%Jerry%') OR (${stringFilterDimension}) IS NULL)`);
     });
+
+    test.each<[FilterOperator, string]>([
+        [FilterOperator.EQUALS, `(UPPER(${stringFilterDimension})) IN ('1')`],
+        [
+            FilterOperator.NOT_EQUALS,
+            `((UPPER(${stringFilterDimension})) NOT IN ('1') OR (${stringFilterDimension}) IS NULL)`,
+        ],
+        [
+            FilterOperator.STARTS_WITH,
+            `UPPER(${stringFilterDimension}) LIKE '1%'`,
+        ],
+        [FilterOperator.ENDS_WITH, `UPPER(${stringFilterDimension}) LIKE '%1'`],
+    ])(
+        'should coerce numeric values to strings when caseSensitive is false for %s',
+        (operator, expectedSql) => {
+            const filter: FilterRule = {
+                id: 'test',
+                target: { fieldId: 'test' },
+                operator,
+                values: [1],
+            };
+            expect(
+                renderStringFilterSql(
+                    stringFilterDimension,
+                    filter,
+                    "'",
+                    false, // caseSensitive = false
+                ),
+            ).toBe(expectedSql);
+        },
+    );
 
     test('should respect field-level caseSensitive over explore-level', () => {
         const field = {
@@ -2470,4 +2547,259 @@ describe('DATE dimension filters are server-timezone-independent', () => {
             );
         },
     );
+});
+
+describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () => {
+    const equalsFilter: FilterRule<FilterOperator, unknown> = {
+        id: 'id',
+        target: { fieldId: 'fieldId' },
+        operator: FilterOperator.EQUALS,
+        values: ['2024-01-15'],
+    };
+
+    test('DATE-over-TIMESTAMP filter wraps literal in project TZ when parameter is true', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.TIMESTAMP,
+        );
+        expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+        expect(sql).toContain("'2024-01-15'::timestamp");
+    });
+
+    test('DATE filter leaves literal bare when parameter is omitted', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+        );
+        expect(sql).not.toContain('AT TIME ZONE');
+    });
+
+    test('DATE filter over a DATE base emits a bare literal even when parameter is true', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.DATE,
+        );
+        expect(sql).not.toContain('AT TIME ZONE');
+        expect(sql).not.toContain('::timestamp');
+    });
+
+    test('BigQuery DATE-over-TIMESTAMP filter emits TIMESTAMP(literal, tz)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.BIGQUERY,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.TIMESTAMP,
+        );
+        expect(sql).toContain("TIMESTAMP('2024-01-15', 'Asia/Tokyo')");
+        expect(sql).not.toContain('::timestamp');
+    });
+
+    test('BigQuery DATE filter over a DATE base emits a bare literal (no TIMESTAMP wrap)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.BIGQUERY,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.DATE,
+        );
+        expect(sql).not.toContain('TIMESTAMP(');
+        expect(sql).toContain("'2024-01-15'");
+    });
+
+    test('ClickHouse DATE-over-TIMESTAMP filter anchors literal with toDateTime(literal, tz)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.CLICKHOUSE,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.TIMESTAMP,
+        );
+        expect(sql).toContain("toDateTime('2024-01-15', 'Asia/Tokyo')");
+        expect(sql).not.toContain('::timestamp');
+    });
+
+    test('ClickHouse DATE filter over a DATE base emits a bare literal (no toDateTime wrap)', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.DATE,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.CLICKHOUSE,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.DATE,
+        );
+        expect(sql).not.toContain('toDateTime(');
+    });
+
+    test('TIMESTAMP filter does not wrap literal even when parameter is true', () => {
+        const sql = renderFilterRuleSql(
+            equalsFilter,
+            DimensionType.TIMESTAMP,
+            DimensionSqlMock,
+            "'",
+            (s: string) => s,
+            null,
+            SupportedDbtAdapter.POSTGRES,
+            'Asia/Tokyo',
+            true,
+            undefined,
+            true,
+            DimensionType.TIMESTAMP,
+        );
+        expect(sql).not.toContain("AT TIME ZONE 'Asia/Tokyo'");
+    });
+
+    describe('relative filters', () => {
+        beforeEach(() => {
+            jest.setSystemTime(new Date('2026-04-22 00:00:00 GMT').getTime());
+        });
+
+        const renderWithParam = (
+            filter: FilterRule<FilterOperator, unknown>,
+            useTimezoneAwareDateTrunc: boolean,
+            baseTimeIntervalDimensionType: DimensionType = DimensionType.TIMESTAMP,
+        ) =>
+            renderFilterRuleSql(
+                filter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                'Asia/Tokyo',
+                true,
+                undefined,
+                useTimezoneAwareDateTrunc,
+                baseTimeIntervalDimensionType,
+            );
+
+        test('inThePast completed day wraps boundaries in project TZ', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
+            };
+            const sql = renderWithParam(filter, true);
+            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+            expect(sql).toContain("'2026-04-21'::timestamp");
+        });
+
+        test('inTheCurrent day wraps boundaries in project TZ', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_CURRENT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days },
+            };
+            const sql = renderWithParam(filter, true);
+            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+            expect(sql).toContain("'2026-04-22'::timestamp");
+        });
+
+        test('inTheNext day wraps boundaries in project TZ', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_NEXT,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days, completed: false },
+            };
+            const sql = renderWithParam(filter, true);
+            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+        });
+
+        test('inThePast completed day leaves boundaries bare when parameter is omitted', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [1],
+                settings: { unitOfTime: UnitOfTime.days, completed: true },
+            };
+            const sql = renderWithParam(filter, false);
+            expect(sql).not.toContain('AT TIME ZONE');
+        });
+
+        test('inThePast completed weeks on a DATE-backed dimension does not wrap BigQuery literals in TIMESTAMP', () => {
+            const filter: FilterRule<FilterOperator, unknown> = {
+                id: 'id',
+                target: { fieldId: 'fieldId' },
+                operator: FilterOperator.IN_THE_PAST,
+                values: [14],
+                settings: { unitOfTime: UnitOfTime.weeks, completed: true },
+            };
+            const sql = renderFilterRuleSql(
+                filter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.BIGQUERY,
+                'Asia/Tokyo',
+                true,
+                undefined,
+                true,
+                DimensionType.DATE,
+            );
+            expect(sql).not.toContain('TIMESTAMP(');
+        });
+    });
 });

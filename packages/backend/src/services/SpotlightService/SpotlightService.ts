@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     NotFoundError,
-    type SessionUser,
+    type Account,
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -35,17 +35,22 @@ export class SpotlightService extends BaseService {
     }
 
     async createSpotlightTableConfig(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         tableConfig: Pick<SpotlightTableConfig, 'columnConfig'>,
     ): Promise<void> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: projectSummary.name,
+                    },
                 }),
             )
         ) {
@@ -59,16 +64,21 @@ export class SpotlightService extends BaseService {
     }
 
     async getSpotlightTableConfig(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<SpotlightTableConfig> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: projectSummary.name,
+                    },
                 }),
             )
         ) {
@@ -90,16 +100,21 @@ export class SpotlightService extends BaseService {
     }
 
     async resetSpotlightTableConfig(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<void> {
         const projectSummary = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SpotlightTableConfig', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: projectSummary.name,
+                    },
                 }),
             )
         ) {

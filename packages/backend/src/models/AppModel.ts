@@ -1,17 +1,24 @@
 import {
     NotFoundError,
+    type AppVersionResources,
     type KnexPaginateArgs,
     type KnexPaginatedData,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
+    APP_VERSION_TERMINAL_STATUSES,
     AppsTableName,
     AppVersionsTableName,
+    isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
     type DbAppVersion,
 } from '../database/entities/apps';
+import { OrganizationTableName } from '../database/entities/organizations';
+import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
+import { SpaceTableName } from '../database/entities/spaces';
+import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 
 type AppModelArguments = {
@@ -27,9 +34,19 @@ export class AppModel {
 
     async createWithVersion(
         app: Pick<DbApp, 'project_uuid' | 'created_by_user_uuid'> &
-            Partial<Pick<DbApp, 'app_id' | 'name' | 'description'>>,
+            Partial<
+                Pick<
+                    DbApp,
+                    | 'app_id'
+                    | 'name'
+                    | 'description'
+                    | 'template'
+                    | 'space_uuid'
+                >
+            >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
+        resources?: AppVersionResources,
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const [appRow] = await trx(AppsTableName)
@@ -41,6 +58,13 @@ export class AppModel {
                     app_id: appRow.app_id,
                     status,
                     created_by_user_uuid: appRow.created_by_user_uuid,
+                    ...(resources
+                        ? {
+                              resources: JSON.stringify(
+                                  resources,
+                              ) as unknown as AppVersionResources,
+                          }
+                        : {}),
                 })
                 .returning('*');
             return { app: appRow, version: versionRow };
@@ -60,16 +84,16 @@ export class AppModel {
                 status,
                 error: error ?? null,
                 status_message: statusMessage ?? null,
-                status_updated_at: new Date(),
+                status_updated_at: this.database.fn.now() as unknown as Date,
             });
     }
 
     /**
-     * Update version status only if it is currently 'building'.
+     * Update version status only if it is currently in progress.
      * Returns true if the update was applied, false if the version was
      * already in a terminal state (e.g. cancelled by the user).
      */
-    async updateVersionStatusIfBuilding(
+    async updateVersionStatusIfInProgress(
         appId: string,
         version: number,
         status: AppVersionStatus,
@@ -77,12 +101,13 @@ export class AppModel {
         statusMessage?: string | null,
     ): Promise<boolean> {
         const updatedRows = await this.database(AppVersionsTableName)
-            .where({ app_id: appId, version, status: 'building' })
+            .where({ app_id: appId, version })
+            .whereNotIn('status', [...APP_VERSION_TERMINAL_STATUSES])
             .update({
                 status,
                 error: error ?? null,
                 status_message: statusMessage ?? null,
-                status_updated_at: new Date(),
+                status_updated_at: this.database.fn.now() as unknown as Date,
             });
         return updatedRows > 0;
     }
@@ -96,19 +121,116 @@ export class AppModel {
             .where({ app_id: appId, version })
             .update({
                 status_message: statusMessage,
-                status_updated_at: new Date(),
+                status_updated_at: this.database.fn.now() as unknown as Date,
             });
     }
 
-    async getApp(appId: string, projectUuid: string): Promise<DbApp> {
-        const row = await this.database(AppsTableName)
-            .where({ app_id: appId, project_uuid: projectUuid })
-            .whereNull('deleted_at')
+    /**
+     * Bump status_updated_at without changing any other fields, but only if
+     * the version is still in progress. Used as a wall-clock heartbeat so
+     * that releaseStaleLocks doesn't force-release a healthy job whose
+     * current stage has gone quiet (e.g. Claude composing a single large
+     * Write tool call). Returns true if the row was bumped.
+     */
+    async touchVersionIfInProgress(
+        appId: string,
+        version: number,
+    ): Promise<boolean> {
+        const updatedRows = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .whereNotIn('status', [...APP_VERSION_TERMINAL_STATUSES])
+            .update({
+                status_updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updatedRows > 0;
+    }
+
+    async getVersionStatus(
+        appId: string,
+        version: number,
+    ): Promise<AppVersionStatus> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .select('status')
             .first();
+        if (!row) {
+            throw new NotFoundError(
+                `App version not found: ${appId} v${version}`,
+            );
+        }
+        return row.status;
+    }
+
+    async getApp(
+        appId: string,
+        projectUuid: string,
+    ): Promise<
+        DbApp & {
+            organization_uuid: string;
+            pinned_list_uuid: string | null;
+            pinned_list_order: number | null;
+        }
+    > {
+        const row = await this.findApp(appId, projectUuid);
         if (!row) {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    async findApp(
+        appId: string,
+        projectUuid: string,
+    ): Promise<
+        | (DbApp & {
+              organization_uuid: string;
+              pinned_list_uuid: string | null;
+              pinned_list_order: number | null;
+          })
+        | undefined
+    > {
+        return this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                (DbApp & {
+                    organization_uuid: string;
+                    pinned_list_uuid: string | null;
+                    pinned_list_order: number | null;
+                })[]
+            >(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
+            )
+            .first();
+    }
+
+    async getVersion(
+        appId: string,
+        version: number,
+    ): Promise<DbAppVersion | null> {
+        const row = await this.database(AppVersionsTableName)
+            .where({ app_id: appId, version })
+            .first();
+        return row ?? null;
     }
 
     async getLatestVersion(appId: string): Promise<DbAppVersion | null> {
@@ -127,11 +249,23 @@ export class AppModel {
         return row ?? null;
     }
 
+    async appImageExists(appId: string, imageId: string): Promise<boolean> {
+        const row = await this.database(AppVersionsTableName)
+            .where('app_id', appId)
+            .whereRaw(`resources->'images' @> ?::jsonb`, [
+                JSON.stringify([{ imageId }]),
+            ])
+            .select(this.database.raw('1'))
+            .first();
+        return !!row;
+    }
+
     async createVersion(
         appId: string,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
         createdByUserUuid: string,
+        resources?: AppVersionResources,
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -139,6 +273,13 @@ export class AppModel {
                 app_id: appId,
                 status,
                 created_by_user_uuid: createdByUserUuid,
+                ...(resources
+                    ? {
+                          resources: JSON.stringify(
+                              resources,
+                          ) as unknown as AppVersionResources,
+                      }
+                    : {}),
             })
             .returning('*');
         return row;
@@ -152,15 +293,48 @@ export class AppModel {
         name: string;
         description: string;
         createdByUserUuid: string;
-        versions: DbAppVersion[];
+        organizationUuid: string;
+        spaceUuid: string | null;
+        template: DbApp['template'];
+        pinnedListUuid: string | null;
+        pinnedListOrder: number | null;
+        versions: (DbAppVersion & {
+            created_by_user_first_name: string | null;
+            created_by_user_last_name: string | null;
+        })[];
         hasMore: boolean;
     }> {
         const limit = opts.limit ?? 20;
         const query = this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
             .leftJoin(
                 AppVersionsTableName,
                 `${AppsTableName}.app_id`,
                 `${AppVersionsTableName}.app_id`,
+            )
+            // LEFT JOIN: surfaces the version author's display name to the
+            // chat UI. We don't filter `is_internal` / `is_active` because
+            // service accounts cannot create app versions today; if a row's
+            // user is hard-deleted the join misses and the service layer
+            // collapses `createdByUser` to null.
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${AppVersionsTableName}.created_by_user_uuid`,
+            )
+            .leftJoin(
+                PinnedAppTableName,
+                `${PinnedAppTableName}.app_uuid`,
+                `${AppsTableName}.app_id`,
             )
             .where(`${AppsTableName}.app_id`, appId)
             .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
@@ -170,6 +344,13 @@ export class AppModel {
                 `${AppsTableName}.name`,
                 `${AppsTableName}.description`,
                 `${AppsTableName}.created_by_user_uuid`,
+                `${AppsTableName}.space_uuid`,
+                `${AppsTableName}.template`,
+                `${OrganizationTableName}.organization_uuid`,
+                `${PinnedAppTableName}.pinned_list_uuid`,
+                `${PinnedAppTableName}.order as pinned_list_order`,
+                `${UserTableName}.first_name as created_by_user_first_name`,
+                `${UserTableName}.last_name as created_by_user_last_name`,
             )
             .orderBy(`${AppVersionsTableName}.version`, 'desc')
             .limit(limit + 1);
@@ -186,6 +367,13 @@ export class AppModel {
             name: string;
             description: string;
             created_by_user_uuid: string;
+            space_uuid: string | null;
+            template: DbApp['template'];
+            organization_uuid: string;
+            pinned_list_uuid: string | null;
+            pinned_list_order: number | null;
+            created_by_user_first_name: string | null;
+            created_by_user_last_name: string | null;
         })[] = await query;
 
         // Left join: if app doesn't exist, zero rows → 404
@@ -198,18 +386,40 @@ export class AppModel {
             name,
             description,
             created_by_user_uuid: createdByUserUuid,
+            space_uuid: spaceUuid,
+            template,
+            organization_uuid: organizationUuid,
+            pinned_list_uuid: pinnedListUuid,
+            pinned_list_order: pinnedListOrder,
         } = rows[0];
 
         // If app exists but no versions match, we get one row with all nulls
         const versions = rows.filter(
-            (r): r is DbAppVersion & { name: string; description: string } =>
-                r.version !== null,
+            (
+                r,
+            ): r is DbAppVersion & {
+                name: string;
+                description: string;
+                created_by_user_uuid: string;
+                space_uuid: string | null;
+                template: DbApp['template'];
+                organization_uuid: string;
+                pinned_list_uuid: string | null;
+                pinned_list_order: number | null;
+                created_by_user_first_name: string | null;
+                created_by_user_last_name: string | null;
+            } => r.version !== null,
         );
         const hasMore = versions.length > limit;
         return {
             name,
             description,
             createdByUserUuid,
+            organizationUuid,
+            spaceUuid,
+            template,
+            pinnedListUuid,
+            pinnedListOrder,
             versions: versions.slice(0, limit),
             hasMore,
         };
@@ -231,6 +441,73 @@ export class AppModel {
         return row;
     }
 
+    /**
+     * Atomically set auto-generated name/description, but only for fields
+     * that are still at their empty-string default. Used by the background
+     * pipeline so it cannot clobber edits the user made while the build
+     * was running.
+     */
+    async setMetadataIfUnset(
+        appId: string,
+        projectUuid: string,
+        metadata: { name: string; description: string },
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({
+                name: this.database.raw(
+                    `CASE WHEN ${AppsTableName}.name = '' THEN ? ELSE ${AppsTableName}.name END`,
+                    [metadata.name],
+                ) as unknown as string,
+                description: this.database.raw(
+                    `CASE WHEN ${AppsTableName}.description = '' THEN ? ELSE ${AppsTableName}.description END`,
+                    [metadata.description],
+                ) as unknown as string,
+            })
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    async moveToSpace(
+        {
+            appId,
+            projectUuid,
+            targetSpaceUuid,
+        }: {
+            appId: string;
+            projectUuid: string;
+            targetSpaceUuid: string;
+        },
+        { tx = this.database }: { tx?: Knex } = {},
+    ): Promise<void> {
+        const space = await tx(SpaceTableName)
+            .select(`${SpaceTableName}.space_uuid`)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${SpaceTableName}.space_uuid`, targetSpaceUuid)
+            .andWhere(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first();
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const updated = await tx(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({ space_uuid: targetSpaceUuid });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+    }
+
     async listMyApps(
         userUuid: string,
         paginateArgs?: KnexPaginateArgs,
@@ -239,6 +516,7 @@ export class AppModel {
             {
                 app: DbApp;
                 projectName: string;
+                spaceName: string | null;
                 lastVersion: Pick<DbAppVersion, 'version' | 'status'> | null;
             }[]
         >
@@ -262,11 +540,18 @@ export class AppModel {
                 `${AppsTableName}.project_uuid`,
                 `${ProjectTableName}.project_uuid`,
             )
+            .leftJoin(SpaceTableName, function joinSpaces() {
+                this.on(
+                    `${AppsTableName}.space_uuid`,
+                    `${SpaceTableName}.space_uuid`,
+                ).andOnNull(`${SpaceTableName}.deleted_at`);
+            })
             .where(`${AppsTableName}.created_by_user_uuid`, userUuid)
             .whereNull(`${AppsTableName}.deleted_at`)
             .select(
                 `${AppsTableName}.*`,
                 `${ProjectTableName}.name as project_name`,
+                `${SpaceTableName}.name as space_name`,
                 `${AppVersionsTableName}.version as last_version`,
                 `${AppVersionsTableName}.status as last_version_status`,
             )
@@ -276,6 +561,7 @@ export class AppModel {
 
         type RowWithVersion = DbApp & {
             project_name: string;
+            space_name: string | null;
             last_version: number | null;
             last_version_status: string | null;
         };
@@ -286,12 +572,14 @@ export class AppModel {
             data: rows.map(
                 ({
                     project_name,
+                    space_name,
                     last_version,
                     last_version_status,
                     ...app
                 }) => ({
                     app,
                     projectName: project_name,
+                    spaceName: space_name,
                     lastVersion: last_version
                         ? {
                               version: last_version,
@@ -304,6 +592,79 @@ export class AppModel {
         };
     }
 
+    async softDelete(
+        appId: string,
+        projectUuid: string,
+        deletedByUserUuid: string,
+    ): Promise<void> {
+        const updated = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .update({
+                deleted_at: this.database.fn.now() as unknown as Date,
+                deleted_by_user_uuid: deletedByUserUuid,
+            });
+        if (updated === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+    }
+
+    async permanentDelete(appId: string, projectUuid: string): Promise<void> {
+        // app_versions rows cascade via FK (ON DELETE CASCADE).
+        const deleted = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .delete();
+        if (deleted === 0) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+    }
+
+    /**
+     * Fetch an app regardless of soft-delete state. Used by restore and by
+     * cascading permanent-delete (where the app row is already soft-deleted
+     * from a prior cascade step).
+     */
+    async getAppIncludingDeleted(
+        appId: string,
+        projectUuid: string,
+    ): Promise<DbApp & { organization_uuid: string }> {
+        const row = await this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .andWhere(`${AppsTableName}.project_uuid`, projectUuid)
+            .select<(DbApp & { organization_uuid: string })[]>(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .first();
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    async restore(appId: string, projectUuid: string): Promise<void> {
+        const updated = await this.database(AppsTableName)
+            .where({ app_id: appId, project_uuid: projectUuid })
+            .whereNotNull('deleted_at')
+            .update({
+                deleted_at: null,
+                deleted_by_user_uuid: null,
+            });
+        if (updated === 0) {
+            throw new NotFoundError(`Deleted app not found: ${appId}`);
+        }
+    }
+
     async updateSandboxId(
         appId: string,
         sandboxId: string | null,
@@ -311,5 +672,32 @@ export class AppModel {
         await this.database(AppsTableName)
             .where({ app_id: appId })
             .update({ sandbox_id: sandboxId });
+    }
+
+    /**
+     * Release graphile locks on appGeneratePipeline jobs whose corresponding
+     * app_version has not advanced within `threshold` — the previous worker
+     * is presumed dead. Released jobs are picked up on the next poll and
+     * resumed from their last completed stage.
+     *
+     * Returns the number of jobs released.
+     */
+    async releaseStaleLocks(
+        terminalStatuses: readonly string[],
+        threshold: string,
+    ): Promise<number> {
+        const result = await this.database.raw<{ rowCount: number }>(
+            `UPDATE graphile_worker.jobs j
+             SET locked_at = NULL, locked_by = NULL, run_at = now()
+             FROM app_versions v
+             WHERE j.task_identifier = 'appGeneratePipeline'
+               AND j.locked_at IS NOT NULL
+               AND v.app_id = (j.payload->>'appUuid')::uuid
+               AND v.version = (j.payload->>'version')::int
+               AND v.status <> ALL(?::text[])
+               AND v.status_updated_at < now() - ?::interval`,
+            [[...terminalStatuses], threshold],
+        );
+        return result.rowCount ?? 0;
     }
 }

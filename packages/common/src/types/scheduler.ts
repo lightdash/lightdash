@@ -16,6 +16,7 @@ export type SchedulerCsvOptions = {
     formatted: boolean;
     limit: 'table' | 'all' | number;
     asAttachment?: boolean;
+    exportPivotedData?: boolean;
 };
 
 export type SchedulerImageOptions = {
@@ -499,6 +500,12 @@ export type TraceTaskBase = {
     schedulerUuid?: string;
 };
 
+export type ManagedAgentHeartbeatTriggeredBy = 'cron' | 'manual' | 'on_enable';
+
+export type ManagedAgentHeartbeatPayload = TraceTaskBase & {
+    triggeredBy?: ManagedAgentHeartbeatTriggeredBy;
+};
+
 export type QueueTraceProperties = {
     traceHeader?: string;
     baggageHeader?: string;
@@ -525,6 +532,7 @@ export enum LightdashPage {
     DASHBOARD = 'dashboard',
     CHART = 'chart',
     EXPLORE = 'explore',
+    SQL_CHART = 'sql_chart',
 }
 
 export type NotificationPayloadBase = {
@@ -713,6 +721,7 @@ export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     encodedJwt?: string;
 };

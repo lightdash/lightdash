@@ -1,6 +1,6 @@
 import {
+    CommercialFeatureFlags,
     CustomFormatType,
-    FeatureFlags,
     getErrorMessage,
     getItemId,
     isFormulaTableCalculation,
@@ -13,15 +13,18 @@ import {
     type TableCalculation,
     type TableCalculationTemplate,
 } from '@lightdash/common';
+import { SUPPORTED_DIALECTS, type Dialect } from '@lightdash/formula';
 import {
     ActionIcon,
-    Badge,
+    Anchor,
     Box,
     Button,
+    CopyButton,
+    Divider,
     Group,
+    HoverCard,
     Loader,
-    SegmentedControl,
-    Select,
+    Popover,
     Stack,
     Text,
     TextInput,
@@ -29,9 +32,15 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import {
+    IconAlertTriangle,
     IconCalculator,
+    IconCheck,
+    IconCopy,
+    IconLock,
     IconMaximize,
     IconMinimize,
+    IconSparkles,
+    IconWand,
 } from '@tabler/icons-react';
 import {
     lazy,
@@ -39,14 +48,15 @@ import {
     useCallback,
     useEffect,
     useMemo,
+    useRef,
     useState,
     type FC,
 } from 'react';
+import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
 import { type ValueOf } from 'type-fest';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
-import { FormatForm } from '../../../components/Explorer/FormatForm';
 import {
     selectCustomDimensions,
     selectMetricQuery,
@@ -54,11 +64,16 @@ import {
     selectTableName,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import useHealth from '../../../hooks/health/useHealth';
 import useToaster from '../../../hooks/toaster/useToaster';
+import { useConvertSqlToFormula } from '../../../hooks/useConvertSqlToFormula';
 import { useExplore } from '../../../hooks/useExplore';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useProject } from '../../../hooks/useProject';
+import { useCannotAuthorCustomSqlTableCalculations } from '../../../hooks/user/useCannotAuthorCustomSqlTableCalculations';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getUniqueTableCalculationName } from '../utils';
-import { FormulaForm } from './FormulaForm/FormulaForm';
+import { FormatRow } from './FormatRow/FormatRow';
+import { FormulaForm, type FormulaFormHandle } from './FormulaForm/FormulaForm';
 import classes from './TableCalculationModal.module.css';
 import { TemplateViewer } from './TemplateViewer/TemplateViewer';
 
@@ -103,24 +118,75 @@ const TableCalculationModal: FC<Props> = ({
 }) => {
     const [isExpanded, toggleExpanded] = useToggle(false);
 
+    const { projectUuid } = useParams<{ projectUuid: string }>();
+    const { data: project } = useProject(projectUuid);
+    const { data: health } = useHealth();
+
+    // Formula support is pinned to what the formula package can compile for
+    // this warehouse — `SUPPORTED_DIALECTS` is the single source of truth
+    // shared with the backend mapper.
+    const isFormulaSupported =
+        !!project?.warehouseConnection &&
+        (SUPPORTED_DIALECTS as readonly string[]).includes(
+            project.warehouseConnection.type as Dialect,
+        );
+
+    const isAmbientAiEnabled = health?.ai?.isAmbientAiEnabled === true;
+    const { data: customRolesFlag } = useServerFeatureFlag(
+        CommercialFeatureFlags.CustomRoles,
+    );
+    const isCustomRolesEnabled =
+        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
+    const requestContext = useMemo(() => {
+        const tcLabel =
+            tableCalculation?.displayName || 'this SQL table calculation';
+        const chartUrl =
+            typeof window !== 'undefined'
+                ? window.location.href.replace(/\/edit\/?$/, '')
+                : '';
+        return { tcLabel, chartUrl };
+    }, [tableCalculation?.displayName]);
+    const accessRequestMessage = useMemo(
+        () =>
+            isCustomRolesEnabled
+                ? `Hi! Could you grant me 'Manage custom SQL table calculations' via a custom role? I need it to edit '${requestContext.tcLabel}' on this chart: ${requestContext.chartUrl}`
+                : `Hi! Could you grant me SQL access for table calculations? I need to edit '${requestContext.tcLabel}' on this chart: ${requestContext.chartUrl}`,
+        [requestContext, isCustomRolesEnabled],
+    );
+    const changeRequestMessage = useMemo(
+        () =>
+            `Hi! Could you update the SQL of '${requestContext.tcLabel}' on this chart? ${requestContext.chartUrl}`,
+        [requestContext],
+    );
+
+    const isNewCalculation = !tableCalculation;
     const hasTemplate = tableCalculation
         ? isTemplateTableCalculation(tableCalculation)
         : false;
     const hasFormula = tableCalculation
         ? isFormulaTableCalculation(tableCalculation)
         : false;
-    const defaultMode = hasFormula
-        ? EditMode.FORMULA
-        : hasTemplate
-          ? EditMode.TEMPLATE
+    // Editing an existing calc: lock to its own mode (can't map SQL back to
+    // formula, and switching would throw away the user's work). New calc:
+    // Formula when the warehouse supports it, SQL otherwise.
+    const defaultMode = tableCalculation
+        ? hasFormula
+            ? EditMode.FORMULA
+            : hasTemplate
+              ? EditMode.TEMPLATE
+              : EditMode.SQL
+        : isFormulaSupported
+          ? EditMode.FORMULA
           : EditMode.SQL;
     const [editMode, setEditMode] = useState<EditMode>(defaultMode);
 
-    const { addToastError } = useToaster();
+    useEffect(() => {
+        if (isNewCalculation && isFormulaSupported) {
+            setEditMode(EditMode.FORMULA);
+        }
+    }, [isNewCalculation, isFormulaSupported]);
 
-    const isFormulaEnabled = useClientFeatureFlag(
-        FeatureFlags.FormulaTableCalculations,
-    );
+    const { addToastError } = useToaster();
 
     const tableName = useExplorerSelector(selectTableName);
     const metricQuery = useExplorerSelector(selectMetricQuery);
@@ -137,7 +203,7 @@ const TableCalculationModal: FC<Props> = ({
                     : '',
             formula:
                 tableCalculation && isFormulaTableCalculation(tableCalculation)
-                    ? tableCalculation.formula.replace(/^=/, '')
+                    ? tableCalculation.formula
                     : '',
             type: tableCalculation?.type || TableCalculationType.NUMBER,
             format: {
@@ -170,7 +236,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const validateName = useCallback(
         (label: string) => {
-            if (!label) return null;
+            if (!label || !label.trim()) return 'Name is required';
 
             if (tableCalculation && tableCalculation.displayName === label) {
                 return null;
@@ -200,6 +266,7 @@ const TableCalculationModal: FC<Props> = ({
 
     const form = useForm<TableCalculationFormInputs>({
         initialValues,
+        validateInputOnBlur: true,
         validate: {
             name: validateName,
         },
@@ -208,22 +275,108 @@ const TableCalculationModal: FC<Props> = ({
     const [formulaParseError, setFormulaParseError] = useState<string | null>(
         null,
     );
+    const formulaFormRef = useRef<FormulaFormHandle>(null);
 
-    const [formulaKey, setFormulaKey] = useState(0);
-
-    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
+    const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
 
     useEffect(() => {
         if (opened) {
-            setFormulaGeneratedByAi(false);
             setSqlGeneratedByAi(false);
+            setFormulaGeneratedByAi(false);
         }
     }, [opened]);
 
     const handleSqlAiApplied = useCallback(() => {
         setSqlGeneratedByAi(true);
     }, []);
+
+    const handleFormulaAiApply = useCallback(
+        (result: GeneratedFormulaTableCalculation) => {
+            const f = result.formula.startsWith('=')
+                ? result.formula
+                : `=${result.formula}`;
+            form.setFieldValue('formula', f);
+            if (!form.values.name.trim() && result.displayName) {
+                form.setFieldValue('name', result.displayName);
+            }
+            if (
+                form.values.type === TableCalculationType.NUMBER &&
+                result.type &&
+                result.type !== TableCalculationType.NUMBER
+            ) {
+                form.setFieldValue('type', result.type);
+            }
+            if (
+                form.values.format.type === CustomFormatType.DEFAULT &&
+                result.format &&
+                result.format.type !== CustomFormatType.DEFAULT
+            ) {
+                form.setFieldValue('format', result.format);
+            }
+            setFormulaGeneratedByAi(true);
+        },
+        [form],
+    );
+
+    const {
+        convert: convertSqlToFormula,
+        reset: resetConversion,
+        result: conversionResult,
+        isLoading: isConvertingSql,
+        error: conversionError,
+    } = useConvertSqlToFormula({
+        projectUuid,
+        explore,
+        metricQuery,
+    });
+
+    const isExistingSqlCalc =
+        !!tableCalculation && isSqlTableCalculation(tableCalculation);
+
+    const cannotAuthorSqlTcs =
+        useCannotAuthorCustomSqlTableCalculations(projectUuid) === true;
+    const showConvertToFormulaButton =
+        isExistingSqlCalc &&
+        isFormulaSupported &&
+        isAmbientAiEnabled &&
+        editMode === EditMode.SQL;
+
+    const showConversionPreview =
+        editMode === EditMode.SQL &&
+        (isConvertingSql || !!conversionResult || !!conversionError);
+
+    useEffect(() => {
+        if (!opened) {
+            resetConversion();
+        }
+    }, [opened, resetConversion]);
+
+    const handleConvertClick = useCallback(() => {
+        convertSqlToFormula(form.values.sql);
+    }, [convertSqlToFormula, form.values.sql]);
+
+    const handleConvertApply = useCallback(() => {
+        if (!conversionResult) return;
+        // Convert is a transliteration of SQL → formula: only swap the
+        // expression. Name, result type, and display format were already
+        // chosen by the user on the existing SQL calc — keep them.
+        setEditMode(EditMode.FORMULA);
+        const f = conversionResult.formula.startsWith('=')
+            ? conversionResult.formula
+            : `=${conversionResult.formula}`;
+        form.setFieldValue('formula', f);
+        setFormulaGeneratedByAi(true);
+        resetConversion();
+    }, [conversionResult, form, resetConversion]);
+
+    const handleConvertDiscard = useCallback(() => {
+        resetConversion();
+    }, [resetConversion]);
+
+    const handleConvertRetry = useCallback(() => {
+        convertSqlToFormula(form.values.sql);
+    }, [convertSqlToFormula, form.values.sql]);
 
     const isFormulaInvalid =
         editMode === EditMode.FORMULA &&
@@ -236,13 +389,6 @@ const TableCalculationModal: FC<Props> = ({
         if (validation.hasErrors) return;
 
         const { name, sql, formula, format, type } = form.values;
-        if (name.length === 0) {
-            addToastError({
-                title: 'Name cannot be empty',
-                key: 'table-calculation-modal',
-            });
-            return;
-        }
         try {
             const isNewCalculation = !tableCalculation;
             const nameChanged =
@@ -275,13 +421,16 @@ const TableCalculationModal: FC<Props> = ({
                     { mode: 'template', generatedByAi: false },
                 );
             } else if (editMode === EditMode.FORMULA) {
+                const normalizedFormula = formula.startsWith('=')
+                    ? formula
+                    : `=${formula}`;
                 onSave(
                     {
                         name: finalName,
                         displayName: name,
                         format,
                         type,
-                        formula: `=${formula}`,
+                        formula: normalizedFormula,
                     },
                     {
                         mode: 'formula',
@@ -316,8 +465,8 @@ const TableCalculationModal: FC<Props> = ({
         tableCalculation,
         tableCalculations,
         editedTemplate,
-        formulaGeneratedByAi,
         sqlGeneratedByAi,
+        formulaGeneratedByAi,
         onSave,
         addToastError,
     ]);
@@ -343,66 +492,51 @@ const TableCalculationModal: FC<Props> = ({
         [],
     );
 
-    const handleFormulaAiApply = useCallback(
-        (result: GeneratedFormulaTableCalculation) => {
-            form.setFieldValue('formula', result.formula);
-            form.setFieldValue('name', result.displayName);
-            if (result.type) {
-                form.setFieldValue('type', result.type);
+    const selectedTableCalculationType =
+        form.values.type ?? TableCalculationType.NUMBER;
+
+    const handleDataTypeChange = useCallback(
+        (next: TableCalculationType) => {
+            const prev = form.values.type ?? TableCalculationType.NUMBER;
+            // Switching to a different "format family" wipes format state —
+            // a date format expression makes no sense for a number value, etc.
+            const familyOf = (t: TableCalculationType) =>
+                t === TableCalculationType.DATE ||
+                t === TableCalculationType.TIMESTAMP
+                    ? 'date'
+                    : t === TableCalculationType.NUMBER
+                      ? 'numeric'
+                      : 'plain';
+            if (familyOf(prev) !== familyOf(next)) {
+                form.setFieldValue('format', {
+                    type: CustomFormatType.DEFAULT,
+                    separator: NumberSeparator.DEFAULT,
+                });
             }
-            if (result.format) {
-                form.setFieldValue('format', result.format);
-            }
-            setFormulaKey((k) => k + 1);
-            setFormulaGeneratedByAi(true);
+            form.setFieldValue('type', next);
         },
         [form],
     );
 
-    const tableCalculationTypeOptions = useMemo(
-        () => Object.values(TableCalculationType),
-        [],
-    );
+    const sqlReadOnly = cannotAuthorSqlTcs && editMode === EditMode.SQL;
+    const canSwitchEditMode =
+        isNewCalculation && isFormulaSupported && !cannotAuthorSqlTcs;
+    const editorLabel = editMode === EditMode.FORMULA ? 'Formula' : 'SQL';
+    const switchEditModeLabel =
+        editMode === EditMode.FORMULA
+            ? 'Use SQL instead'
+            : 'Use formula instead';
+    const handleSwitchEditMode = useCallback(() => {
+        setEditMode(
+            editMode === EditMode.FORMULA ? EditMode.SQL : EditMode.FORMULA,
+        );
+    }, [editMode]);
 
-    const handleTypeChange = useCallback(
-        (value: string | null) => {
-            if (
-                value &&
-                tableCalculationTypeOptions.includes(
-                    value as TableCalculationType,
-                )
-            ) {
-                form.setFieldValue('type', value as TableCalculationType);
-            }
-        },
-        [form, tableCalculationTypeOptions],
-    );
-
-    const editModeOptions = useMemo(
-        () => [
-            { value: EditMode.SQL, label: 'SQL' },
-            {
-                value: EditMode.FORMULA,
-                label: isFormulaEnabled ? (
-                    'Formula'
-                ) : (
-                    <Group gap={6} wrap="nowrap" justify="center">
-                        <Text span>Formula</Text>
-                        <Badge
-                            size="xs"
-                            variant="filled"
-                            color="indigo"
-                            radius="sm"
-                        >
-                            Coming soon
-                        </Badge>
-                    </Group>
-                ),
-                disabled: !isFormulaEnabled,
-            },
-        ],
-        [isFormulaEnabled],
-    );
+    const saveButtonLabel = tableCalculation
+        ? 'Save changes'
+        : editMode === EditMode.FORMULA
+          ? 'Create formula'
+          : 'Create SQL calculation';
 
     return (
         <MantineModal
@@ -431,58 +565,139 @@ const TableCalculationModal: FC<Props> = ({
                     disabled={
                         (editMode === EditMode.SQL &&
                             form.values.sql.length === 0) ||
-                        isFormulaInvalid
+                        isFormulaInvalid ||
+                        sqlReadOnly
                     }
                 >
-                    {tableCalculation ? 'Save changes' : 'Create'}
+                    {saveButtonLabel}
                 </Button>
             }
             cancelLabel="Cancel"
+            bodyScrollAreaMaxHeight={
+                isExpanded ? 'calc(95vh - 140px)' : 'calc(78vh - 140px)'
+            }
             modalRootProps={{
                 closeOnClickOutside: false,
                 styles: isExpanded
                     ? {
                           content: {
                               minWidth: '90vw',
-                              height: '80vh',
-                              maxHeight: '90vh',
                           },
                       }
                     : undefined,
             }}
         >
-            <Stack gap="lg">
-                <Group gap="md" align="flex-start">
-                    <TextInput
-                        label="Name"
-                        required
-                        placeholder="E.g. Cumulative order count"
-                        data-testid="table-calculation-name-input"
-                        flex={2}
-                        {...form.getInputProps('name')}
-                    />
-                    <Select
-                        label="Data type"
-                        flex={1}
-                        {...form.getInputProps('type')}
-                        onChange={handleTypeChange}
-                        data={tableCalculationTypeOptions}
-                    />
-                </Group>
-
-                <Stack gap="xs">
-                    <Text fz="sm" fw={600}>
-                        Input
-                    </Text>
-
-                    {!hasTemplate && (
-                        <SegmentedControl
-                            value={editMode}
-                            onChange={(value) => setEditMode(value as EditMode)}
-                            data={editModeOptions}
-                            size="xs"
-                        />
-                    )}
+            <Stack gap="xs">
+                <Stack gap={2}>
+                    <Group className={classes.inputModeHeader}>
+                        <Group gap={6} wrap="nowrap">
+                            <Text fz="sm" fw={600}>
+                                {editorLabel}
+                            </Text>
+                            {editMode === EditMode.FORMULA &&
+                                formulaParseError && (
+                                    <HoverCard
+                                        withArrow
+                                        width={320}
+                                        position="bottom-start"
+                                        shadow="md"
+                                        openDelay={100}
+                                        closeDelay={150}
+                                    >
+                                        <HoverCard.Target>
+                                            <Box style={{ display: 'flex' }}>
+                                                <MantineIcon
+                                                    icon={IconAlertTriangle}
+                                                    color="red.6"
+                                                    size="sm"
+                                                />
+                                            </Box>
+                                        </HoverCard.Target>
+                                        <HoverCard.Dropdown>
+                                            <Stack gap="xs">
+                                                <Text
+                                                    size="xs"
+                                                    c="red.7"
+                                                    style={{
+                                                        wordBreak: 'break-word',
+                                                        whiteSpace: 'pre-wrap',
+                                                    }}
+                                                >
+                                                    {formulaParseError}
+                                                </Text>
+                                                {isAmbientAiEnabled && (
+                                                    <Group justify="flex-end">
+                                                        <Button
+                                                            size="compact-xs"
+                                                            variant="default"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconSparkles
+                                                                    }
+                                                                    size="sm"
+                                                                />
+                                                            }
+                                                            onClick={() =>
+                                                                formulaFormRef.current?.fixWithAi(
+                                                                    formulaParseError,
+                                                                )
+                                                            }
+                                                        >
+                                                            Fix with AI
+                                                        </Button>
+                                                    </Group>
+                                                )}
+                                            </Stack>
+                                        </HoverCard.Dropdown>
+                                    </HoverCard>
+                                )}
+                        </Group>
+                        {canSwitchEditMode && (
+                            <Anchor
+                                size="xs"
+                                c="dimmed"
+                                onClick={handleSwitchEditMode}
+                                className={classes.switchEditModeLink}
+                            >
+                                {switchEditModeLabel}
+                            </Anchor>
+                        )}
+                        {showConvertToFormulaButton && (
+                            <Tooltip
+                                label="Use AI to suggest a formula equivalent of your SQL. You can review and edit it before saving."
+                                withArrow
+                                multiline
+                                w={260}
+                                disabled={showConversionPreview}
+                            >
+                                <Button
+                                    variant="light"
+                                    color="indigo"
+                                    size="compact-xs"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconWand}
+                                            size="sm"
+                                        />
+                                    }
+                                    onClick={handleConvertClick}
+                                    loading={isConvertingSql}
+                                    disabled={
+                                        !form.values.sql ||
+                                        form.values.sql.trim().length === 0
+                                    }
+                                    style={{
+                                        visibility: showConversionPreview
+                                            ? 'hidden'
+                                            : 'visible',
+                                    }}
+                                >
+                                    Convert to formula
+                                </Button>
+                            </Tooltip>
+                        )}
+                    </Group>
 
                     <Box
                         key={editMode}
@@ -502,7 +717,7 @@ const TableCalculationModal: FC<Props> = ({
                             />
                         ) : editMode === EditMode.FORMULA ? (
                             <FormulaForm
-                                key={formulaKey}
+                                ref={formulaFormRef}
                                 explore={explore}
                                 metricQuery={metricQuery}
                                 formula={form.values.formula}
@@ -512,12 +727,187 @@ const TableCalculationModal: FC<Props> = ({
                                 onChange={(text) =>
                                     form.setFieldValue('formula', text)
                                 }
-                                onValidationChange={setFormulaParseError}
                                 onAiApply={handleFormulaAiApply}
+                                onValidationChange={setFormulaParseError}
                                 isFullScreen={isExpanded}
                             />
                         ) : (
-                            <Box className={classes.sqlEditorBorder}>
+                            <Box
+                                className={classes.sqlEditorBorder}
+                                pos="relative"
+                            >
+                                {sqlReadOnly && !showConversionPreview && (
+                                    <Box
+                                        pos="absolute"
+                                        top={8}
+                                        right={8}
+                                        style={{ zIndex: 5 }}
+                                    >
+                                        <Popover
+                                            position="bottom-end"
+                                            withArrow
+                                            shadow="md"
+                                            width={300}
+                                        >
+                                            <Popover.Target>
+                                                <Button
+                                                    variant="default"
+                                                    size="compact-xs"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconLock}
+                                                            size="sm"
+                                                        />
+                                                    }
+                                                >
+                                                    View only
+                                                </Button>
+                                            </Popover.Target>
+                                            <Popover.Dropdown>
+                                                <Stack gap="xs">
+                                                    <Text size="xs" fw={600}>
+                                                        You don't have
+                                                        permission to edit SQL
+                                                        here.
+                                                    </Text>
+                                                    <Text size="xs" c="dimmed">
+                                                        Use formulas instead —
+                                                        no SQL required,
+                                                        validated as you type,
+                                                        and they work in any
+                                                        warehouse.
+                                                    </Text>
+                                                    {showConvertToFormulaButton && (
+                                                        <Button
+                                                            size="compact-xs"
+                                                            variant="light"
+                                                            color="indigo"
+                                                            leftSection={
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconWand
+                                                                    }
+                                                                    size="sm"
+                                                                />
+                                                            }
+                                                            onClick={
+                                                                handleConvertClick
+                                                            }
+                                                            loading={
+                                                                isConvertingSql
+                                                            }
+                                                            disabled={
+                                                                !form.values
+                                                                    .sql ||
+                                                                form.values.sql.trim()
+                                                                    .length ===
+                                                                    0
+                                                            }
+                                                            fullWidth
+                                                        >
+                                                            Convert to formula
+                                                        </Button>
+                                                    )}
+                                                    <Divider
+                                                        my={2}
+                                                        label="or"
+                                                        labelPosition="center"
+                                                    />
+                                                    <Text size="xs" c="dimmed">
+                                                        Ask an admin or
+                                                        developer
+                                                        {isCustomRolesEnabled ? (
+                                                            <>
+                                                                {' '}
+                                                                to grant{' '}
+                                                                <Text
+                                                                    component="span"
+                                                                    fw={600}
+                                                                    inherit
+                                                                >
+                                                                    Manage
+                                                                    custom SQL
+                                                                    table
+                                                                    calculations
+                                                                </Text>{' '}
+                                                                via a custom
+                                                                role.
+                                                            </>
+                                                        ) : (
+                                                            ' for SQL access.'
+                                                        )}
+                                                    </Text>
+                                                    <CopyButton
+                                                        value={
+                                                            accessRequestMessage
+                                                        }
+                                                        timeout={2000}
+                                                    >
+                                                        {({ copied, copy }) => (
+                                                            <Button
+                                                                size="compact-xs"
+                                                                variant="default"
+                                                                color={
+                                                                    copied
+                                                                        ? 'teal'
+                                                                        : undefined
+                                                                }
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            copied
+                                                                                ? IconCheck
+                                                                                : IconCopy
+                                                                        }
+                                                                        size="sm"
+                                                                    />
+                                                                }
+                                                                onClick={copy}
+                                                            >
+                                                                {copied
+                                                                    ? 'Copied!'
+                                                                    : 'Copy access request'}
+                                                            </Button>
+                                                        )}
+                                                    </CopyButton>
+                                                    <CopyButton
+                                                        value={
+                                                            changeRequestMessage
+                                                        }
+                                                        timeout={2000}
+                                                    >
+                                                        {({ copied, copy }) => (
+                                                            <Button
+                                                                size="compact-xs"
+                                                                variant="default"
+                                                                color={
+                                                                    copied
+                                                                        ? 'teal'
+                                                                        : undefined
+                                                                }
+                                                                leftSection={
+                                                                    <MantineIcon
+                                                                        icon={
+                                                                            copied
+                                                                                ? IconCheck
+                                                                                : IconCopy
+                                                                        }
+                                                                        size="sm"
+                                                                    />
+                                                                }
+                                                                onClick={copy}
+                                                            >
+                                                                {copied
+                                                                    ? 'Copied!'
+                                                                    : 'Copy SQL change request'}
+                                                            </Button>
+                                                        )}
+                                                    </CopyButton>
+                                                </Stack>
+                                            </Popover.Dropdown>
+                                        </Popover>
+                                    </Box>
+                                )}
                                 <Suspense
                                     fallback={
                                         <Box
@@ -536,6 +926,23 @@ const TableCalculationModal: FC<Props> = ({
                                         focusOnRender={true}
                                         onCmdEnter={handleConfirm}
                                         onAiApplied={handleSqlAiApplied}
+                                        readOnly={sqlReadOnly}
+                                        conversionState={
+                                            showConversionPreview
+                                                ? {
+                                                      isLoading:
+                                                          isConvertingSql,
+                                                      error: conversionError,
+                                                      result: conversionResult,
+                                                      onApply:
+                                                          handleConvertApply,
+                                                      onDiscard:
+                                                          handleConvertDiscard,
+                                                      onRetry:
+                                                          handleConvertRetry,
+                                                  }
+                                                : undefined
+                                        }
                                     />
                                 </Suspense>
                             </Box>
@@ -543,10 +950,20 @@ const TableCalculationModal: FC<Props> = ({
                     </Box>
                 </Stack>
 
-                <FormatForm
+                <FormatRow
+                    format={form.values.format}
                     formatInputProps={getFormatInputProps}
                     setFormatFieldValue={setFormatFieldValue}
-                    format={form.values.format}
+                    dataType={selectedTableCalculationType}
+                    onDataTypeChange={handleDataTypeChange}
+                />
+
+                <TextInput
+                    label="Name"
+                    required
+                    placeholder="E.g. Cumulative order count"
+                    data-testid="table-calculation-name-input"
+                    {...form.getInputProps('name')}
                 />
             </Stack>
         </MantineModal>

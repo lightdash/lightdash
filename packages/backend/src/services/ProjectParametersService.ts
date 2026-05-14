@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ForbiddenError,
     KnexPaginateArgs,
-    type SessionUser,
+    type Account,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
@@ -39,7 +39,7 @@ export class ProjectParametersService extends BaseService {
     }
 
     async findProjectParametersPaginated(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
         options?: {
@@ -48,13 +48,18 @@ export class ProjectParametersService extends BaseService {
             sortOrder?: 'asc' | 'desc';
         },
     ) {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
             )
         ) {
             throw new ForbiddenError();

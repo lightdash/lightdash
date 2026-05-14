@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getFormattedValue,
     isLineSeriesOption,
     type PivotReference,
@@ -9,7 +8,6 @@ import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
 import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
-import { useClientFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
@@ -140,11 +138,8 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             onSeriesContextMenu,
             itemsMap,
             resultsData,
+            resolvedTimezone,
         } = useVisualizationContext();
-
-        const isLargeChartPerformanceEnabled = useClientFeatureFlag(
-            FeatureFlags.LargeChartPerformance,
-        );
 
         const { selectedLegends, onLegendChange } =
             useLegendDoubleClickSelection();
@@ -253,7 +248,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 ...(props.isInDashboard && { useCoarsePointer: true }),
             };
 
-            if (!isLargeChartPerformanceEnabled || !eChartsOptions) {
+            if (!eChartsOptions) {
                 return baseOpts;
             }
             const seriesCount = eChartsOptions.series?.length ?? 0;
@@ -264,11 +259,7 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                 return { ...baseOpts, renderer: 'canvas' };
             }
             return baseOpts;
-        }, [
-            isLargeChartPerformanceEnabled,
-            eChartsOptions,
-            props.isInDashboard,
-        ]);
+        }, [eChartsOptions, props.isInDashboard]);
 
         // When using canvas renderer, resolve CSS variables to computed values
         // since canvas doesn't have DOM access to resolve var(--...) strings.
@@ -285,6 +276,10 @@ const SimpleChart: FC<SimpleChartProps> = memo(
         const mouseOverTimer = useRef<
             ReturnType<typeof setTimeout> | undefined
         >(undefined);
+        const highlightTimer = useRef<
+            ReturnType<typeof setTimeout> | undefined
+        >(undefined);
+        const hasDispatchedHighlight = useRef(false);
 
         const handleOnMouseOver = useCallback(
             (params: any) => {
@@ -386,6 +381,9 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                                                           dim,
                                                           itemsMap,
                                                           true,
+                                                          undefined,
+                                                          undefined,
+                                                          resolvedTimezone,
                                                       )
                                                     : axisValue;
 
@@ -409,31 +407,57 @@ const SimpleChart: FC<SimpleChartProps> = memo(
                         }
                     }
                     // Wait for tooltip to change from `axis` to `item` and keep hovered on item highlighted
-                    setTimeout(() => {
+                    if (highlightTimer.current) {
+                        clearTimeout(highlightTimer.current);
+                    }
+                    highlightTimer.current = setTimeout(() => {
                         eCharts.dispatchAction({
                             type: 'highlight',
                             seriesIndex: params.seriesIndex,
                         });
+                        hasDispatchedHighlight.current = true;
+                        highlightTimer.current = undefined;
                     }, 100);
                 }
             },
-            [chartRef, eChartsOptions?.tooltip, itemsMap],
+            [chartRef, eChartsOptions?.tooltip, itemsMap, resolvedTimezone],
         );
 
         const handleOnMouseOut = useCallback(() => {
+            // Cancel any pending highlight that hasn't fired yet so we don't
+            // re-highlight after the cursor has already left the chart area.
+            if (highlightTimer.current) {
+                clearTimeout(highlightTimer.current);
+                highlightTimer.current = undefined;
+            }
+            // Explicitly clear emphasis state, but only if we previously
+            // dispatched a manual `highlight`. That manual dispatch bypasses
+            // ECharts' automatic mouseout downplay, so without this mirror
+            // the focused series stays blurred-focused when the cursor leaves.
+            // When no manual highlight was dispatched (e.g. fast hovers under
+            // the 100ms threshold), ECharts' built-in mouseout handles cleanup
+            // and dispatching downplay here interferes with internal state on
+            // mixed charts during rapid bar↔line transitions.
+            if (hasDispatchedHighlight.current) {
+                const eCharts = chartRef.current?.getEchartsInstance();
+                if (eCharts) {
+                    eCharts.dispatchAction({ type: 'downplay' });
+                }
+                hasDispatchedHighlight.current = false;
+            }
             // Debounce the reset to prevent rapid axis<->item tooltip flicker
             // when moving between adjacent series elements in mixed charts
             if (mouseOverTimer.current) {
                 clearTimeout(mouseOverTimer.current);
             }
             mouseOverTimer.current = setTimeout(() => {
-                const eCharts = chartRef.current?.getEchartsInstance();
-                if (eCharts) {
+                const echartsInstance = chartRef.current?.getEchartsInstance();
+                if (echartsInstance) {
                     isItemTooltipActive.current = false;
                     const tooltipOptions =
                         resolvedEChartsOptions?.tooltip ??
                         eChartsOptions?.tooltip;
-                    eCharts.setOption(
+                    echartsInstance.setOption(
                         {
                             tooltip: tooltipOptions,
                         },

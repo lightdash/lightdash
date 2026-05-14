@@ -52,7 +52,7 @@ export class UserAttributesController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getUserAttributesService()
-                .getAll(req.user!, context),
+                .getAll(req.account!, context),
         };
     }
 
@@ -79,7 +79,7 @@ export class UserAttributesController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getUserAttributesService()
-                .create(req.user!, body),
+                .create(req.account!, body),
         };
     }
 
@@ -108,7 +108,7 @@ export class UserAttributesController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getUserAttributesService()
-                .update(req.user!, userAttributeUuid, body),
+                .update(req.account!, userAttributeUuid, body),
         };
     }
 
@@ -133,7 +133,7 @@ export class UserAttributesController extends BaseController {
 
         await this.services
             .getUserAttributesService()
-            .delete(req.user!, userAttributeUuid);
+            .delete(req.account!, userAttributeUuid);
         return {
             status: 'ok',
             results: undefined,

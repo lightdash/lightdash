@@ -1,4 +1,5 @@
 import {
+    assertRegisteredAccount,
     type ApiDashboardResponse,
     type ApiErrorPayload,
     type ApiGetComments,
@@ -20,6 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -44,14 +46,19 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiDashboardResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .getByIdOrSlug(req.user!, dashboardUuidOrSlug, {
-                    projectUuid,
-                }),
+                .getByIdOrSlug(
+                    toSessionUser(req.account),
+                    dashboardUuidOrSlug,
+                    {
+                        projectUuid,
+                    },
+                ),
         };
     }
 
@@ -73,12 +80,13 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Body() body: UpdateDashboard,
         @Request() req: express.Request,
     ): Promise<ApiDashboardResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .update(req.user!, dashboardUuidOrSlug, body, {
+                .update(toSessionUser(req.account), dashboardUuidOrSlug, body, {
                     projectUuid,
                 }),
         };
@@ -101,9 +109,12 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getDashboardService()
-            .delete(req.user!, dashboardUuidOrSlug, { projectUuid });
+            .delete(toSessionUser(req.account), dashboardUuidOrSlug, {
+                projectUuid,
+            });
         this.setStatus(200);
         return {
             status: 'ok',
@@ -124,14 +135,19 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
     ): Promise<ApiGetComments> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getCommentService()
-                .findCommentsForDashboard(req.user!, dashboardUuidOrSlug, {
-                    projectUuid,
-                }),
+                .findCommentsForDashboard(
+                    toSessionUser(req.account),
+                    dashboardUuidOrSlug,
+                    {
+                        projectUuid,
+                    },
+                ),
         };
     }
 }

@@ -21,7 +21,12 @@ import {
 import { type ResultRow, type ResultValue } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import { getArrayValue, getObjectValue } from '../utils/accessors';
-import { formatItemValue } from '../utils/formatting';
+import {
+    formatItemValue,
+    formatTemporalCellForSpreadsheet,
+    shouldShiftItemTimezone,
+    toIsoWithProjectOffset,
+} from '../utils/formatting';
 
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
@@ -1577,6 +1582,13 @@ type PivotResultsParams = {
     onlyRaw: boolean;
     maxColumnLimit: number;
     undefinedCharacter?: string;
+    // When set + onlyRaw + the cell's field is TIMESTAMP, the emitted value
+    // is the warehouse instant shifted into the project tz with an explicit
+    // offset suffix. No-op for other modes / fields.
+    timezone?: string;
+    // When true, shiftable temporal cells (header + body, both modes) emit
+    // the wall-clock format spreadsheet apps auto-detect as a date.
+    formatTemporalsForSpreadsheet?: boolean;
 };
 
 export const pivotResultsAsData = ({
@@ -1589,6 +1601,8 @@ export const pivotResultsAsData = ({
     maxColumnLimit,
     undefinedCharacter = '',
     pivotDetails,
+    timezone,
+    formatTemporalsForSpreadsheet = false,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1617,11 +1631,30 @@ export const pivotResultsAsData = ({
           });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
+    const pickValue = (
+        cellValue: ResultValue | undefined,
+        fieldId: string,
+    ): string => {
+        const item = itemMap[fieldId];
+        if (formatTemporalsForSpreadsheet) {
+            const spreadsheetTemporal = formatTemporalCellForSpreadsheet(
+                item,
+                cellValue?.raw,
+                timezone,
+            );
+            if (spreadsheetTemporal !== undefined) return spreadsheetTemporal;
+        }
+        const base = (cellValue?.[formatField] as string) ?? '';
+        if (!onlyRaw || !timezone) return base;
+        if (!shouldShiftItemTimezone(item)) return base;
+        const shifted = toIsoWithProjectOffset(cellValue?.raw, timezone);
+        return shifted ?? base;
+    };
     const headers = pivotedResults.headerValues.reduce<string[][]>(
         (acc, row, i) => {
             const values = row.map((header) =>
                 'value' in header
-                    ? (header.value[formatField] as string)
+                    ? pickValue(header.value, header.fieldId)
                     : getFieldLabel(header.fieldId),
             );
             const fields = pivotedResults.titleFields[i];
@@ -1654,8 +1687,7 @@ export const pivotResultsAsData = ({
         const cells: PivotResultsDataCell[] = fieldIds.map((fieldId) => ({
             raw: row[fieldId]?.value?.raw ?? '',
             formatted:
-                (row[fieldId]?.value?.[formatField] as string) ||
-                undefinedCharacter,
+                pickValue(row[fieldId]?.value, fieldId) || undefinedCharacter,
             fieldId,
         }));
         return [...noIndexPrefix, ...cells];

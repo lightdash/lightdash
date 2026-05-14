@@ -1,6 +1,7 @@
 import {
     ApiErrorPayload,
     ApiSuccess,
+    assertRegisteredAccount,
     ProjectDefaults,
 } from '@lightdash/common';
 import {
@@ -17,6 +18,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -67,8 +69,9 @@ export class ProjectDefaultsController extends BaseController {
         @Request() req: express.Request,
         @Body() defaults: ProjectDefaults,
     ): Promise<ApiSuccess<undefined>> {
+        assertRegisteredAccount(req.account);
         await this.services.getProjectService().replaceProjectDefaults({
-            user: req.user!,
+            user: toSessionUser(req.account),
             projectUuid,
             defaults,
         });

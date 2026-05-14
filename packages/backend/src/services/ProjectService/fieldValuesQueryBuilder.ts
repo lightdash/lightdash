@@ -55,6 +55,12 @@ export async function getFieldValuesMetricQuery({
         throw new ParameterError(`Query limit can not exceed ${maxLimit}`);
     }
 
+    if (!table) {
+        throw new ParameterError(
+            'Field value search requires a non-empty "table"',
+        );
+    }
+
     let explore = await exploreResolver.findExploreByTableName(
         projectUuid,
         table,
@@ -96,6 +102,8 @@ export async function getFieldValuesMetricQuery({
             },
             operator: FilterOperator.INCLUDE,
             values: [search],
+            // Autocomplete ignores the field's caseSensitive setting.
+            caseSensitive: false,
         },
         {
             id: uuidv4(),
@@ -107,6 +115,11 @@ export async function getFieldValuesMetricQuery({
         },
     ];
     if (filters) {
+        if (!Array.isArray(filters.and)) {
+            throw new ParameterError(
+                'Filters must include an "and" array of filter rules',
+            );
+        }
         const filtersCompatibleWithExplore = filters.and.filter(
             (filter) =>
                 isFilterRule(filter) &&

@@ -169,9 +169,9 @@ The CLI is installed globally by end users (`npm i -g @lightdash/cli`), so trans
    npm view axios time --json
    ```
 3. A caret range like `^1.13.4` will resolve to the latest matching version at install time — including a malicious one. If the compromised version falls within a transitive dep's semver range, **all published @lightdash/cli versions using that transitive dep are affected** for any user who does a fresh install during the compromise window.
-4. Verify what a fresh install resolves to right now:
+4. Verify what a fresh install resolves to right now (wrapped with `sfw` to block known-malicious packages — requires `npm i -g sfw` once):
    ```bash
-   tmp=$(mktemp -d) && cd "$tmp" && npm init -y --silent && npm install @lightdash/cli --package-lock-only && cat package-lock.json | python3 -c "import sys,json; [print(f'{k}: {v[\"version\"]}') for k,v in json.load(sys.stdin).get('packages',{}).items() if k.endswith('/<suspect-package>')]" && rm -rf "$tmp"
+   tmp=$(mktemp -d) && cd "$tmp" && npm init -y --silent && sfw npm install @lightdash/cli --package-lock-only && cat package-lock.json | python3 -c "import sys,json; [print(f'{k}: {v[\"version\"]}') for k,v in json.load(sys.stdin).get('packages',{}).items() if k.endswith('/<suspect-package>')]" && rm -rf "$tmp"
    ```
 5. Pin the dependency to a known-good exact version using a pnpm override in the root `package.json` (no caret, no tilde).
 

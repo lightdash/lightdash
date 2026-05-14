@@ -6,10 +6,6 @@ const PREVIEW_TOKEN_MAX_AGE_SECONDS = 3600; // 1 hour
 const PREVIEW_TOKEN_ISSUER = 'lightdash';
 const PREVIEW_TOKEN_AUDIENCE = 'app-preview';
 
-/** Cookie name used to carry the preview token on asset requests. */
-export const PREVIEW_COOKIE_NAME = '__preview_token';
-export { PREVIEW_TOKEN_MAX_AGE_SECONDS };
-
 export type PreviewTokenPayload = {
     type: typeof PREVIEW_TOKEN_TYPE;
     appUuid: string;

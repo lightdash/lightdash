@@ -51,5 +51,7 @@ export interface FileStorageClient {
 
     getFileUrl(fileName: string, expiresIn?: number): Promise<string>;
 
+    objectExists(fileName: string): Promise<boolean>;
+
     isEnabled(): boolean;
 }

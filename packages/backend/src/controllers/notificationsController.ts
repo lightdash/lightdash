@@ -4,6 +4,7 @@ import {
     ApiNotificationResourceType,
     ApiNotificationUpdateParams,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
 } from '@lightdash/common';
 import {
     Body,
@@ -20,6 +21,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -42,9 +44,10 @@ export class NotificationsController extends BaseController {
         @Request() req: express.Request,
         @Query() type: ApiNotificationResourceType,
     ): Promise<ApiGetNotifications> {
+        assertRegisteredAccount(req.account);
         const results = await this.services
             .getNotificationService()
-            .getNotifications(req.user!.userUuid, type);
+            .getNotifications(toSessionUser(req.account).userUuid, type);
 
         this.setStatus(200);
         return {

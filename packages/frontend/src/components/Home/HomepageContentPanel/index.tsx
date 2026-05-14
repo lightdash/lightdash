@@ -10,7 +10,6 @@ import { Button } from '@mantine-8/core';
 import { IconChartBar, IconPlus } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useNavigate } from 'react-router';
-import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
 import { useVerifiedContentForHomepage } from '../../../hooks/useVerifiedContentList';
 import useApp from '../../../providers/App/useApp';
@@ -27,7 +26,6 @@ export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
     const MAX_NUMBER_OF_ITEMS_IN_PANEL = 10;
     const navigate = useNavigate();
     const { health } = useApp();
-    const isContentVerificationEnabled = useContentVerificationEnabled();
 
     const { data: verifiedContentData } =
         useVerifiedContentForHomepage(projectUuid);
@@ -53,24 +51,18 @@ export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
                 ),
                 category: ResourceItemCategory.RECENTLY_UPDATED,
             })) ?? [];
-        const verifiedItems = isContentVerificationEnabled
-            ? (verifiedContentData?.map((item) => ({
-                  ...wrapResource(
-                      item,
-                      'chartType' in item
-                          ? ResourceViewItemType.CHART
-                          : ResourceViewItemType.DASHBOARD,
-                  ),
-                  category: ResourceItemCategory.VERIFIED,
-              })) ?? [])
-            : [];
+        const verifiedItems =
+            verifiedContentData?.map((item) => ({
+                ...wrapResource(
+                    item,
+                    'chartType' in item
+                        ? ResourceViewItemType.CHART
+                        : ResourceViewItemType.DASHBOARD,
+                ),
+                category: ResourceItemCategory.VERIFIED,
+            })) ?? [];
         return [...mostPopularItems, ...recentlyUpdatedItems, ...verifiedItems];
-    }, [
-        data?.mostPopular,
-        data?.recentlyUpdated,
-        verifiedContentData,
-        isContentVerificationEnabled,
-    ]);
+    }, [data?.mostPopular, data?.recentlyUpdated, verifiedContentData]);
 
     const handleCreateChart = () => {
         void navigate(`/projects/${projectUuid}/tables`);
@@ -102,23 +94,18 @@ export const HomepageContentPanel: FC<Props> = ({ data, projectUuid }) => {
                         'category' in item &&
                         item.category === ResourceItemCategory.RECENTLY_UPDATED,
                 },
-                ...(isContentVerificationEnabled
-                    ? [
-                          {
-                              id: 'verified',
-                              name: 'Verified',
-                              filter: (item: ResourceViewItem) =>
-                                  'category' in item &&
-                                  item.category ===
-                                      ResourceItemCategory.VERIFIED,
-                              emptyStateProps: {
-                                  title: 'No verified content yet',
-                                  description: undefined,
-                                  action: undefined,
-                              },
-                          },
-                      ]
-                    : []),
+                {
+                    id: 'verified',
+                    name: 'Verified',
+                    filter: (item: ResourceViewItem) =>
+                        'category' in item &&
+                        item.category === ResourceItemCategory.VERIFIED,
+                    emptyStateProps: {
+                        title: 'No verified content yet',
+                        description: undefined,
+                        action: undefined,
+                    },
+                },
             ]}
             listProps={{
                 enableSorting: false,

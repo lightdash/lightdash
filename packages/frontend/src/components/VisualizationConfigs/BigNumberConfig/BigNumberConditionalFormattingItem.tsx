@@ -1,6 +1,8 @@
 import {
     createConditionalFormattingRuleWithValues,
+    isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
+    isConditionalFormattingWithValues,
     type ConditionalFormattingConfig,
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
@@ -8,29 +10,22 @@ import {
 } from '@lightdash/common';
 import {
     Accordion,
-    ActionIcon,
-    Box,
     Button,
-    Divider,
+    Flex,
     Group,
-    Menu,
     Stack,
-    Text,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import {
-    IconDots,
-    IconMoon,
-    IconPlus,
-    IconSun,
-    IconTrash,
-} from '@tabler/icons-react';
+import { IconMoon, IconPlus, IconSun } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { Fragment, useCallback, useState, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
+import { filterOperatorLabel } from '../../common/Filters/FilterInputs/constants';
 import FiltersProvider from '../../common/Filters/FiltersProvider';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../ColorSelector';
+import { AccordionControl } from '../common/AccordionControl';
 import { Config } from '../common/Config';
+import classes from './BigNumberConditionalFormattingItem.module.css';
 import BigNumberConditionalFormattingRule from './BigNumberConditionalFormattingRule';
 
 type Props = {
@@ -51,12 +46,15 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
     onRemove,
 }) => {
     const { colorScheme } = useMantineColorScheme();
-    const [isAddingRule, setIsAddingRule] = useState(false);
+    const [openConditions, setOpenConditions] = useState<string[]>(() =>
+        isConditionalFormattingConfigWithSingleColor(value)
+            ? value.rules.map((_, i) => `${i}`)
+            : [],
+    );
 
     const handleAddRule = useCallback(() => {
-        setIsAddingRule(true);
-
         if (isConditionalFormattingConfigWithSingleColor(value)) {
+            const newIndex = value.rules.length;
             onChange(
                 produce(value, (draft) => {
                     draft.rules.push(
@@ -64,6 +62,7 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                     );
                 }),
             );
+            setOpenConditions((prev) => [...prev, `${newIndex}`]);
         }
     }, [onChange, value]);
 
@@ -74,6 +73,14 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                     produce(value, (draft) => {
                         draft.rules.splice(index, 1);
                     }),
+                );
+                setOpenConditions((prev) =>
+                    prev
+                        .filter((v) => v !== `${index}`)
+                        .map((v) => {
+                            const i = Number(v);
+                            return i > index ? `${i - 1}` : v;
+                        }),
                 );
             }
         },
@@ -138,52 +145,66 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
     const controlLabel = `Rule ${configIndex}`;
     const accordionValue = `${configIndex}`;
 
+    const description = useMemo(() => {
+        if (isConditionalFormattingConfigWithColorRange(value)) {
+            const min = value.rule.min === 'auto' ? 'auto' : value.rule.min;
+            const max = value.rule.max === 'auto' ? 'auto' : value.rule.max;
+            return `Range ${min}–${max}`;
+        }
+
+        if (
+            isConditionalFormattingConfigWithSingleColor(value) &&
+            value.rules.length > 0
+        ) {
+            const firstRule = value.rules[0];
+            const operator =
+                filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
+            const values = isConditionalFormattingWithValues(firstRule)
+                ? (firstRule.values ?? []).join(', ')
+                : '';
+            const ruleStr = values ? `${operator} ${values}` : operator;
+            const extraCount = value.rules.length - 1;
+            const extra =
+                extraCount > 0
+                    ? ` +${extraCount} ${extraCount === 1 ? 'rule' : 'rules'}`
+                    : '';
+            return `${ruleStr}${extra}`;
+        }
+
+        return undefined;
+    }, [value]);
+
     const lightColor = isConditionalFormattingConfigWithSingleColor(value)
         ? value.color
         : colorPalette[0];
     const darkColor = isConditionalFormattingConfigWithSingleColor(value)
         ? (value.darkColor ?? value.color)
         : colorPalette[0];
-    const previewColor = colorScheme === 'dark' ? darkColor : lightColor;
+    const previewColor = isConditionalFormattingConfigWithSingleColor(value)
+        ? colorScheme === 'dark'
+            ? darkColor
+            : lightColor
+        : value.color.start;
+    const previewSecondaryColor = !isConditionalFormattingConfigWithSingleColor(
+        value,
+    )
+        ? value.color.end
+        : undefined;
 
     return (
         <Accordion.Item value={accordionValue}>
-            <Accordion.Control
-                icon={
+            <AccordionControl
+                label={controlLabel}
+                description={description}
+                extraControlElements={
                     <ColorSelector
                         color={previewColor}
+                        secondaryColor={previewSecondaryColor}
                         swatches={colorPalette}
                     />
                 }
-            >
-                <Group justify="space-between" wrap="nowrap">
-                    <Text fw={500} size="xs" truncate>
-                        {controlLabel}
-                    </Text>
-                    <Menu withArrow offset={-2}>
-                        <Menu.Target>
-                            <ActionIcon
-                                variant="transparent"
-                                color="gray"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconTrash} />}
-                                color="red"
-                                onClick={onRemove}
-                            >
-                                <Text fz="xs" fw={500}>
-                                    Delete
-                                </Text>
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                </Group>
-            </Accordion.Control>
+                onRemove={onRemove}
+            />
             <Accordion.Panel>
                 <Stack gap="xs">
                     <FiltersProvider>
@@ -212,21 +233,32 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                         </Group>
 
                         {isConditionalFormattingConfigWithSingleColor(value) ? (
-                            <Box
-                                p="xs"
-                                style={(theme) => ({
-                                    backgroundColor: theme.colors.ldGray[1],
-                                    border: `1px solid ${theme.colors.ldGray[4]}`,
-                                    borderRadius: theme.radius.md,
-                                })}
-                            >
-                                {value.rules.map((rule, ruleIndex) => (
-                                    <Fragment key={ruleIndex}>
+                            <>
+                                <Flex justify="space-between">
+                                    <Config.Label>Conditions</Config.Label>
+                                    <Button
+                                        size="compact-xs"
+                                        variant="subtle"
+                                        leftSection={
+                                            <MantineIcon icon={IconPlus} />
+                                        }
+                                        onClick={handleAddRule}
+                                    >
+                                        Add
+                                    </Button>
+                                </Flex>
+                                <Accordion
+                                    multiple
+                                    chevronPosition="right"
+                                    variant="contained"
+                                    className={classes.conditionsGroup}
+                                    value={openConditions}
+                                    onChange={setOpenConditions}
+                                >
+                                    {value.rules.map((rule, ruleIndex) => (
                                         <BigNumberConditionalFormattingRule
-                                            isDefaultOpen={
-                                                value.rules.length === 1 ||
-                                                isAddingRule
-                                            }
+                                            key={ruleIndex}
+                                            accordionValue={`${ruleIndex}`}
                                             hasRemove={value.rules.length > 1}
                                             ruleIndex={ruleIndex}
                                             rule={rule}
@@ -249,34 +281,9 @@ export const BigNumberConditionalFormattingItem: FC<Props> = ({
                                                 handleRemoveRule(ruleIndex)
                                             }
                                         />
-
-                                        {ruleIndex !==
-                                            value.rules.length - 1 && (
-                                            <Divider
-                                                mt="xs"
-                                                label={
-                                                    <Config.Label>
-                                                        AND
-                                                    </Config.Label>
-                                                }
-                                                labelPosition="center"
-                                            />
-                                        )}
-                                    </Fragment>
-                                ))}
-                            </Box>
-                        ) : null}
-
-                        {isConditionalFormattingConfigWithSingleColor(value) ? (
-                            <Button
-                                style={{ alignSelf: 'start' }}
-                                variant="subtle"
-                                size="compact-sm"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={handleAddRule}
-                            >
-                                Add new condition
-                            </Button>
+                                    ))}
+                                </Accordion>
+                            </>
                         ) : null}
                     </FiltersProvider>
                 </Stack>

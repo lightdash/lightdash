@@ -23,6 +23,7 @@ const calculateSubtotalsFromQuery = async (
     pivotDimensions?: string[],
     parameters?: ParametersValuesMap,
     dateZoom?: DateZoom,
+    invalidateCache?: boolean,
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore: explore,
@@ -34,6 +35,7 @@ const calculateSubtotalsFromQuery = async (
         pivotDimensions,
         parameters,
         dateZoom,
+        invalidateCache,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/projects/${projectUuid}/calculate-subtotals`,
@@ -83,6 +85,7 @@ const postCalculateSubtotalsFromQueryForEmbed = async (
     pivotDimensions?: string[],
     parameters?: ParametersValuesMap,
     dateZoom?: DateZoom,
+    invalidateCache?: boolean,
 ): Promise<ApiCalculateSubtotalsResponse['results']> => {
     const timezoneFixPayload: CalculateSubtotalsFromQuery = {
         explore,
@@ -94,6 +97,7 @@ const postCalculateSubtotalsFromQueryForEmbed = async (
         pivotDimensions,
         parameters,
         dateZoom,
+        invalidateCache,
     };
     return lightdashApi<ApiCalculateSubtotalsResponse['results']>({
         url: `/embed/${projectUuid}/calculate-subtotals`,
@@ -171,6 +175,7 @@ export const useCalculateSubtotals = ({
                         pivotDimensions,
                         parameters,
                         dateZoom,
+                        invalidateCache,
                     )
                   : // Regular mode with raw query
                     projectUuid && metricQuery && explore && columnOrder
@@ -182,6 +187,7 @@ export const useCalculateSubtotals = ({
                           pivotDimensions,
                           parameters,
                           dateZoom,
+                          invalidateCache,
                       )
                     : Promise.reject(),
         {

@@ -34,6 +34,7 @@ import type { InfiniteQueryResults } from '../useQueryResults';
 import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import {
     getExpectedSeriesMap,
+    isPivotSeriesOrderDeterminedByQuery,
     mergeExistingAndExpectedSeries,
     sortDimensions,
 } from './utils';
@@ -53,6 +54,7 @@ type Args = {
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined;
     setPivotDimensions: React.Dispatch<
@@ -190,18 +192,9 @@ const useCartesianChartConfig = ({
     cartesianType,
     tableCalculationsMetadata,
 }: Args) => {
-    const { data: showHideColumnsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideColumns,
-    );
-    const isShowHideColumnsEnabled = showHideColumnsFlag?.enabled ?? false;
-
     const [columnLimit, setColumnLimit] = useState<number | undefined>(
         initialChartConfig?.columnLimit,
     );
-
-    const effectiveColumnLimit = isShowHideColumnsEnabled
-        ? columnLimit
-        : undefined;
 
     const [dirtyLayout, setDirtyLayout] = useState<
         Partial<CartesianChart['layout']> | undefined
@@ -1116,14 +1109,13 @@ const useCartesianChartConfig = ({
                     yFields: dirtyLayout.yField,
                     defaultLabel,
                     itemsMap,
-                    columnLimit: effectiveColumnLimit,
+                    columnLimit,
                 });
-                // Check if any sort field matches a pivot dimension
-                const sortedByPivot =
-                    !!pivotKeys?.length &&
-                    !!resultsData?.metricQuery?.sorts?.some((sort) =>
-                        pivotKeys.includes(sort.fieldId),
-                    );
+                const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
+                    pivotKeys,
+                    dirtyLayout.yField,
+                    resultsData?.metricQuery?.sorts,
+                );
 
                 const newSeries = mergeExistingAndExpectedSeries({
                     expectedSeriesMap,
@@ -1158,7 +1150,7 @@ const useCartesianChartConfig = ({
         referenceLines,
         itemsMap,
         seriesHiddenStatesKey, // Re-run when series hidden states change
-        effectiveColumnLimit,
+        columnLimit,
     ]);
 
     const { dirtyChartType } = useMemo(() => {
@@ -1265,9 +1257,7 @@ const useCartesianChartConfig = ({
             conditionalFormattings,
             metadata: dirtyMetadata,
             rowLimit,
-            columnLimit: isShowHideColumnsEnabled
-                ? columnLimit
-                : initialChartConfig?.columnLimit,
+            columnLimit,
         };
     }, [
         dirtyLayout,
@@ -1277,9 +1267,7 @@ const useCartesianChartConfig = ({
         tooltip,
         tooltipSort,
         rowLimit,
-        isShowHideColumnsEnabled,
         columnLimit,
-        initialChartConfig?.columnLimit,
     ]);
 
     const updateMetadata = useCallback(
@@ -1344,7 +1332,7 @@ const useCartesianChartConfig = ({
         updateMetadata,
         rowLimit,
         setRowLimit,
-        columnLimit: effectiveColumnLimit,
+        columnLimit,
         setColumnLimit,
     };
 };

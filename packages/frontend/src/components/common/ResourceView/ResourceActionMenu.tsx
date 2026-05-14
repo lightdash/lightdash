@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useLocation, useParams } from 'react-router';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -41,7 +42,6 @@ import {
     useVerifyChartMutation,
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
-import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useProject } from '../../../hooks/useProject';
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import useApp from '../../../providers/App/useApp';
@@ -85,7 +85,6 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
     const isPinned = !!item.data.pinnedListUuid;
     const isDashboardPage = location.pathname.includes('/dashboards');
 
-    const isContentVerificationEnabled = useContentVerificationEnabled();
     const isChartOrDashboard =
         isResourceViewItemChart(item) || isResourceViewItemDashboard(item);
     const isVerified = isChartOrDashboard && item.data.verification !== null;
@@ -205,6 +204,22 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                 ) === true;
             break;
         }
+        case ResourceViewItemType.DATA_APP: {
+            const userAccess = spaces.find(
+                (space) => space.uuid === item.data.spaceUuid,
+            )?.userAccess;
+            userCanManage =
+                user.data?.ability?.can(
+                    'manage',
+                    subject('DataApp', {
+                        organizationUuid,
+                        projectUuid,
+                        access: userAccess ? [userAccess] : [],
+                        createdByUserUuid: item.data.createdByUserUuid,
+                    }),
+                ) === true;
+            break;
+        }
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }
@@ -267,6 +282,24 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                         </Menu.Item>
                     )}
 
+                    {isChartOrDashboard && !isSqlChart && (
+                        <AskAiAgentMenuItem
+                            projectUuid={projectUuid}
+                            chartUuid={
+                                isResourceViewItemChart(item)
+                                    ? item.data.uuid
+                                    : undefined
+                            }
+                            dashboardUuid={
+                                isResourceViewItemDashboard(item)
+                                    ? item.data.uuid
+                                    : undefined
+                            }
+                            clickedFrom="resource_action_menu"
+                            withDivider={userCanManage && !favoritesContext}
+                        />
+                    )}
+
                     {userCanManage && favoritesContext && <Menu.Divider />}
 
                     {userCanManage && (
@@ -283,7 +316,9 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 }}
                                 style={isSqlChart ? { display: 'none' } : {}}
                             >
-                                Rename
+                                {item.type === ResourceViewItemType.SPACE
+                                    ? 'Update space'
+                                    : 'Rename'}
                             </Menu.Item>
 
                             {item.type === ResourceViewItemType.CHART ||
@@ -326,7 +361,8 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 )}
                             {userCanPromoteChart &&
                                 !isSqlChart &&
-                                item.type !== ResourceViewItemType.SPACE && (
+                                item.type !== ResourceViewItemType.SPACE &&
+                                item.type !== ResourceViewItemType.DATA_APP && (
                                     <Tooltip
                                         label="You must enable first an upstream project in settings > Data ops"
                                         disabled={
@@ -405,8 +441,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 </Menu.Item>
                             ) : null}
 
-                            {isContentVerificationEnabled &&
-                                userCanManageVerification &&
+                            {userCanManageVerification &&
                                 isChartOrDashboard &&
                                 !hideVerification && (
                                     <Menu.Item
@@ -513,7 +548,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             });
                                         }}
                                     >
-                                        Delete {item.type}
+                                        Delete{' '}
+                                        {item.type ===
+                                        ResourceViewItemType.DATA_APP
+                                            ? 'data app'
+                                            : item.type}
                                     </Menu.Item>
                                 </>
                             )}

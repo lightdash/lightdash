@@ -7,3 +7,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+/* Stacking order:
+ *   100 — sticky body cells (above non-sticky body, below thead)
+ *   110 — <thead>/<tfoot> from LightTable (vertical sticky sections)
+ *   120 — sticky header cells (the frozen corner: above everything)
+ * Big gaps so later additions don't have to renumber.
+ */
+.stickyColumn {
+    position: sticky !important;
+    z-index: 100;
+    background-color: light-dark(
+        var(--mantine-color-background-0),
+        var(--mantine-color-ldGray-0)
+    ) !important;
+}
+
+.stickyHeaderColumn {
+    z-index: 120;
+}
+
+.stickyColumnLast {
+    box-shadow: 4px 0 4px -2px rgba(0, 0, 0, 0.1);
+}

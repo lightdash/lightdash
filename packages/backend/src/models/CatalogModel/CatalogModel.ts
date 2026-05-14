@@ -802,6 +802,7 @@ export class CatalogModel {
                 `chart_usage`,
                 `${CatalogTableName}.joined_tables`,
                 `${CatalogTableName}.table_name`,
+                `${CatalogTableName}.yaml_tags`,
                 `icon`,
                 `${CatalogTableName}.owner_user_uuid`,
                 `owner_user.first_name as owner_first_name`,
@@ -1008,9 +1009,17 @@ export class CatalogModel {
         }
 
         if (tags && tags.length > 0) {
+            // Match either the explore's table-level tags (jsonb) OR the
+            // catalog item's own field-level yaml_tags (text[]).
+            // For Field rows yaml_tags holds the metric/dimension's tags;
+            // for Table rows it holds the explore's tags.
+            const placeholders = tags.map(() => '?').join(',');
             catalogItemsQuery = catalogItemsQuery.whereRaw(
-                `${CachedExploreTableName}.explore->'tags' \\?| ARRAY[${tags.map(() => '?').join(',')}]`,
-                tags,
+                `(
+                    ${CachedExploreTableName}.explore->'tags' \\?| ARRAY[${placeholders}]
+                    OR ${CatalogTableName}.yaml_tags && ARRAY[${placeholders}]::text[]
+                )`,
+                [...tags, ...tags],
             );
         }
 
@@ -1226,10 +1235,7 @@ export class CatalogModel {
             catalogItemsQuery.select<
                 (DbCatalog & { explore: Explore; search_rank: number })[]
             >(),
-            {
-                page: paginateArgs?.page ?? 1,
-                pageSize: paginateArgs?.pageSize ?? 50,
-            },
+            paginateArgs,
         );
 
         const tagsPerItem = await this.getTagsPerItem(
@@ -1502,6 +1508,8 @@ export class CatalogModel {
             projectUuid: i.project_uuid,
             name: i.name,
             type: i.type,
+            label: i.label,
+            description: i.description,
             tableName: i.table_name,
             fieldType: i.field_type,
         }));
@@ -1522,6 +1530,8 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CatalogTableName}.project_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
+                `${CatalogTableName}.description`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.table_name`,
@@ -1572,6 +1582,8 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CatalogTableName}.project_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
+                `${CatalogTableName}.description`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.table_name`,
@@ -1591,6 +1603,8 @@ export class CatalogModel {
             cachedExploreUuid: i.cached_explore_uuid,
             projectUuid: i.project_uuid,
             name: i.name,
+            label: i.label,
+            description: i.description,
             type: i.type,
             fieldType: i.field_type,
             tableName: i.table_name,
@@ -1614,6 +1628,8 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CatalogTableName}.project_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
+                `${CatalogTableName}.description`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.icon`,
@@ -1633,6 +1649,8 @@ export class CatalogModel {
                 `${CatalogTableName}.cached_explore_uuid`,
                 `${CatalogTableName}.project_uuid`,
                 `${CatalogTableName}.name`,
+                `${CatalogTableName}.label`,
+                `${CatalogTableName}.description`,
                 `${CatalogTableName}.type`,
                 `${CatalogTableName}.field_type`,
                 `${CatalogTableName}.table_name`,
@@ -1645,6 +1663,8 @@ export class CatalogModel {
             cachedExploreUuid: i.cached_explore_uuid,
             projectUuid: i.project_uuid,
             name: i.name,
+            label: i.label,
+            description: i.description,
             type: i.type,
             fieldType: i.field_type,
             tableName: i.table_name,

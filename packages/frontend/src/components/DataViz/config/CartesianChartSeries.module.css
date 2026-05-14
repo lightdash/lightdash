@@ -1,0 +1,12 @@
+.accordion {
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.controlPanel {
+    background-color: light-dark(white, transparent);
+}
+
+.panel {
+    background-color: light-dark(white, transparent);
+    border-radius: var(--mantine-radius-sm);
+}

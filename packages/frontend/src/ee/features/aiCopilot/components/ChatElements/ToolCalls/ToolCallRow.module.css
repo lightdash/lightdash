@@ -1,0 +1,192 @@
+.row {
+    border-radius: 6px;
+    padding: 0 8px;
+    margin: 0 -8px;
+    font-family: var(--mantine-font-family);
+}
+
+.rowButton {
+    display: block;
+    text-align: left;
+    border-radius: 6px;
+}
+
+.head {
+    height: 22px;
+    min-height: 22px;
+}
+
+.icon {
+    flex-shrink: 0;
+    color: var(--mantine-color-ldGray-5);
+    transition: color 220ms ease;
+}
+
+.icon[data-status='running'] {
+    color: var(--mantine-color-ldGray-7);
+    animation: toolCallPulse 1.6s ease-in-out infinite;
+}
+
+.icon[data-status='error'] {
+    color: var(--mantine-color-red-5);
+}
+
+.label {
+    flex-shrink: 0;
+    line-height: 1;
+    color: var(--mantine-color-ldGray-7);
+    font-family: var(--mantine-font-family);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+}
+
+.countBadge {
+    display: inline-flex;
+    align-items: center;
+    height: 16px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background-color: var(--mantine-color-ldGray-2);
+    color: var(--mantine-color-ldGray-7);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
+}
+
+/* Single-line preview slot — anything inside is clipped to one line with a
+ * fade-out gradient on the right edge so badges/chips don't visually crash
+ * into the chevron. */
+.previewSlot {
+    min-width: 0;
+    flex: 1;
+    height: 20px;
+    overflow: hidden;
+    position: relative;
+    padding-right: 12px;
+    mask-image: linear-gradient(
+        to right,
+        black calc(100% - 36px),
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to right,
+        black calc(100% - 36px),
+        transparent 100%
+    );
+}
+
+.inlineDescription {
+    display: flex;
+    align-items: center;
+    height: 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    color: var(--mantine-color-ldGray-6);
+}
+
+/* Force any wrapping flex container inside the inline clip onto a single
+ * line — the row only has 20px of height, so badges that would otherwise
+ * wrap to a second row would get clipped weirdly. The expanded body view
+ * (outside this selector) keeps its natural wrap=wrap behaviour. */
+.inlineDescription :global(.mantine-8-Group-root) {
+    flex-wrap: nowrap;
+}
+
+.chips {
+    height: 20px;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow: hidden;
+}
+
+/* Pure entry animation — the chip's visual style comes from ToolCallChip
+ * (Mantine Badge) so chips here match every other chip in the activity card. */
+.chipAppear {
+    animation: chipAppear 320ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.overflow {
+    flex-shrink: 0;
+    letter-spacing: -0.005em;
+    align-self: center;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.count {
+    letter-spacing: -0.005em;
+    align-self: center;
+    color: var(--mantine-color-ldGray-5);
+}
+
+.chevron {
+    flex-shrink: 0;
+    margin-left: 8px;
+    color: var(--mantine-color-ldGray-5);
+    transition:
+        transform 180ms ease,
+        opacity 180ms ease,
+        color 180ms ease;
+    opacity: 0.4;
+}
+
+.rowButton:hover .chevron {
+    opacity: 1;
+    color: var(--mantine-color-ldGray-7);
+}
+
+.row[data-expanded='true'] .chevron {
+    opacity: 1;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.body {
+    padding: 2px 0 6px 22px;
+    color: var(--mantine-color-ldGray-7);
+    animation: bodyReveal 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toolCallPulse {
+    0%,
+    100% {
+        opacity: 0.45;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes chipAppear {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes bodyReveal {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .icon[data-status='running'],
+    .chipAppear,
+    .body,
+    .chevron,
+    .rowButton {
+        animation: none;
+        transition: none;
+    }
+}

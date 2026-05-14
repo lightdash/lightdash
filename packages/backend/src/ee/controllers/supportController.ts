@@ -1,4 +1,8 @@
-import { AnyType, ApiErrorPayload } from '@lightdash/common';
+import {
+    AnyType,
+    ApiErrorPayload,
+    assertRegisteredAccount,
+} from '@lightdash/common';
 import {
     Body,
     Hidden,
@@ -11,6 +15,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -42,10 +47,11 @@ export class SupportController extends BaseController {
             network: AnyType[];
         },
     ): Promise<{ status: 'ok' }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         await this.getSupportService().shareWithSupport(
-            req.user!,
+            toSessionUser(req.account),
             body,
             req.headers,
         );

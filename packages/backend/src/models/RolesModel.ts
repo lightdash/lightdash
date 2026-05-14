@@ -10,12 +10,14 @@ import {
     ProjectMemberRole,
     ProjectType,
     Role,
+    RoleAssignee,
     RoleAssignment,
     RoleWithScopes,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
+import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import {
     DbProjectMembership,
     ProjectMembershipsTableName,
@@ -286,6 +288,159 @@ export class RolesModel {
         }
     }
 
+    // The three FK sources that block role deletion (RESTRICT in
+    // 20250807212731_add_custom_roles), unioned into a single flat list for
+    // the delete-confirmation modal. The org-membership branch additionally
+    // LEFT JOINs `service_accounts` so SA-linked user rows surface as
+    // `service_account` instead of `organization_user` — service accounts
+    // are invisible in the regular member UI, so without this distinction
+    // the modal would mislabel them as users.
+    async getRoleAssignees(roleUuid: string): Promise<RoleAssignee[]> {
+        const orgRows = await this.database(OrganizationMembershipsTableName)
+            .join(
+                UserTableName,
+                `${OrganizationMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .leftJoin(
+                'service_accounts',
+                'service_accounts.service_account_user_uuid',
+                `${UserTableName}.user_uuid`,
+            )
+            .where(`${OrganizationMembershipsTableName}.role_uuid`, roleUuid)
+            .select<
+                Array<{
+                    userUuid: string;
+                    firstName: string;
+                    lastName: string;
+                    serviceAccountUuid: string | null;
+                    serviceAccountDescription: string | null;
+                }>
+            >(
+                `${UserTableName}.user_uuid as userUuid`,
+                `${UserTableName}.first_name as firstName`,
+                `${UserTableName}.last_name as lastName`,
+                'service_accounts.service_account_uuid as serviceAccountUuid',
+                'service_accounts.description as serviceAccountDescription',
+            );
+
+        const projectUserRows = await this.database(ProjectMembershipsTableName)
+            .join(
+                UserTableName,
+                `${ProjectMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .join(
+                ProjectTableName,
+                `${ProjectMembershipsTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .where(`${ProjectMembershipsTableName}.role_uuid`, roleUuid)
+            .select<
+                Array<{
+                    userUuid: string;
+                    firstName: string;
+                    lastName: string;
+                    projectUuid: string;
+                    projectName: string;
+                }>
+            >(
+                `${UserTableName}.user_uuid as userUuid`,
+                `${UserTableName}.first_name as firstName`,
+                `${UserTableName}.last_name as lastName`,
+                `${ProjectTableName}.project_uuid as projectUuid`,
+                `${ProjectTableName}.name as projectName`,
+            );
+
+        const projectGroupRows = await this.database(
+            ProjectGroupAccessTableName,
+        )
+            .join(
+                GroupTableName,
+                `${ProjectGroupAccessTableName}.group_uuid`,
+                `${GroupTableName}.group_uuid`,
+            )
+            .join(
+                ProjectTableName,
+                `${ProjectGroupAccessTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
+            .where(`${ProjectGroupAccessTableName}.role_uuid`, roleUuid)
+            .select<
+                Array<{
+                    groupUuid: string;
+                    groupName: string;
+                    projectUuid: string;
+                    projectName: string;
+                }>
+            >(
+                `${GroupTableName}.group_uuid as groupUuid`,
+                `${GroupTableName}.name as groupName`,
+                `${ProjectTableName}.project_uuid as projectUuid`,
+                `${ProjectTableName}.name as projectName`,
+            );
+
+        const fullName = (
+            firstName: string,
+            lastName: string,
+            fallback: string,
+        ) => `${firstName ?? ''} ${lastName ?? ''}`.trim() || fallback;
+
+        const assignees: RoleAssignee[] = [];
+
+        for (const row of orgRows) {
+            if (row.serviceAccountUuid) {
+                assignees.push({
+                    kind: 'service_account',
+                    assigneeId: row.serviceAccountUuid,
+                    assigneeName:
+                        row.serviceAccountDescription ||
+                        'Unnamed service account',
+                    projectUuid: null,
+                    projectName: null,
+                });
+            } else {
+                assignees.push({
+                    kind: 'organization_user',
+                    assigneeId: row.userUuid,
+                    assigneeName: fullName(
+                        row.firstName,
+                        row.lastName,
+                        row.userUuid,
+                    ),
+                    projectUuid: null,
+                    projectName: null,
+                });
+            }
+        }
+
+        for (const row of projectUserRows) {
+            assignees.push({
+                kind: 'project_user',
+                assigneeId: row.userUuid,
+                assigneeName: fullName(
+                    row.firstName,
+                    row.lastName,
+                    row.userUuid,
+                ),
+                projectUuid: row.projectUuid,
+                projectName: row.projectName,
+            });
+        }
+
+        for (const row of projectGroupRows) {
+            assignees.push({
+                kind: 'project_group',
+                assigneeId: row.groupUuid,
+                assigneeName: row.groupName,
+                projectUuid: row.projectUuid,
+                projectName: row.projectName,
+            });
+        }
+
+        return assignees;
+    }
+
     async unassignCustomRoleFromUser(
         userUuid: string,
         projectUuid: string,
@@ -322,6 +477,12 @@ export class RolesModel {
                 Pick<Project, 'type'>
         >
     > {
+        type Row = {
+            project_uuid: string;
+            project_type: ProjectType;
+            role: ProjectMemberRole | null;
+            role_uuid: string | null;
+        };
         const rows = await (tx || this.database)('project_memberships')
             .leftJoin(
                 'projects',
@@ -329,7 +490,12 @@ export class RolesModel {
                 'projects.project_id',
             )
             .leftJoin('users', 'project_memberships.user_id', 'users.user_id')
-            .select('*')
+            .select<Row[]>([
+                'projects.project_uuid',
+                'projects.project_type',
+                'project_memberships.role',
+                'project_memberships.role_uuid',
+            ])
             .where('users.user_uuid', userUuid);
 
         return rows.map((row) => ({
@@ -667,6 +833,10 @@ export class RolesModel {
             tx || this.database
         )('organization_memberships')
             .join('users', 'organization_memberships.user_id', 'users.user_id')
+            // Hide internal user records (service accounts, etc.) from the
+            // role-assignment admin UI; they're shown via their entity table
+            // (e.g. /service-accounts), not the role assignments listing.
+            .where('users.is_internal', false)
             .join(
                 'organizations',
                 'organization_memberships.organization_id',

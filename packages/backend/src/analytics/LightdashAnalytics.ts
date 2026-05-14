@@ -6,6 +6,7 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentType,
     DbtProjectType,
     getRequestMethod,
     LightdashInstallType,
@@ -249,6 +250,7 @@ type QueryExecutionEvent = BaseTrack & {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
+        executionSource?: QueryExecutionSource;
         cacheMetadata?: CacheMetadata;
     } & (
         | PaginatedMetricQueryExecutionProperties
@@ -257,12 +259,15 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
+type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
     properties: {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes;
+        executionSource: QueryExecutionSource;
         warehouseExecutionTimeMs: number | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -275,6 +280,45 @@ type QueryErrorEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes | undefined;
+        executionSource: QueryExecutionSource;
+    };
+};
+
+type PreAggregateQueryEvent = BaseTrack & {
+    event: 'pre_aggregate.hit' | 'pre_aggregate.miss';
+    properties: {
+        organizationId: string | undefined;
+        projectId: string;
+        context: QueryExecutionContext;
+        exploreName: string;
+        routingTarget: 'warehouse' | 'pre_aggregate' | 'materialization';
+        routeMode?: 'required' | 'opportunistic';
+        preAggregateName?: string;
+        chartId?: string;
+        dashboardId?: string;
+        missReason?: string;
+    };
+};
+
+type MaterializationEvent = BaseTrack & {
+    event: 'materialization.completed' | 'materialization.failed';
+    properties: {
+        organizationId: string | undefined;
+        materializationUuid: string;
+        projectId: string;
+        preAggregateDefinitionUuid: string;
+        preAggregateName?: string;
+        trigger: string;
+        queryId?: string;
+        materializationStatus?: 'active' | 'superseded' | 'failed';
+        queryStatus?: QueryHistoryStatus;
+        format?: 'jsonl' | 'parquet';
+        rowCount?: number | null;
+        columnCount?: number | null;
+        totalBytes?: number | null;
+        warehouseExecutionTimeMs?: number | null;
+        totalDurationMs: number;
+        errorMessage?: string;
     };
 };
 
@@ -312,6 +356,7 @@ type ResultsCacheWriteEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         cacheKey: string;
+        executionSource: QueryExecutionSource;
         totalRowCount: number | null;
     };
 };
@@ -432,6 +477,46 @@ type RestoredSavedChartEvent = BaseTrack & {
     properties: {
         projectId: string;
         savedQueryId: string;
+    };
+};
+
+type FormulaTableCalculationSavedEvent = BaseTrack & {
+    event: 'formula_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        // `created` covers first-time chart creation AND duplication; `updated`
+        // covers saveVersion (the path that persists table-calc edits on an
+        // existing chart). The two together let us separate adopters from
+        // iterators in Lightdash analytics.
+        action: 'created' | 'updated';
+        formulaCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type SqlTableCalculationSavedEvent = BaseTrack & {
+    event: 'sql_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        sqlCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type TemplateTableCalculationSavedEvent = BaseTrack & {
+    event: 'template_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        templateCount: number;
+        totalTableCalculationCount: number;
     };
 };
 
@@ -1110,6 +1195,140 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export type DataAppCreatedEvent = BaseTrack & {
+    event: 'data_app.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        promptLength: number;
+        imageCount: number;
+    };
+};
+
+export type DataAppIteratedEvent = BaseTrack & {
+    event: 'data_app.iterated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        iterationNumber: number;
+        promptLength: number;
+        imageCount: number;
+        previousVersionStatus: string | null;
+        msSinceLastVersion: number | null;
+    };
+};
+
+export type DataAppVersionCancelledEvent = BaseTrack & {
+    event: 'data_app.version.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        stageAtCancellation: string;
+        msElapsedBeforeCancel: number;
+    };
+};
+
+export type DataAppVersionCompletedEvent = BaseTrack & {
+    event: 'data_app.version.completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        isIteration: boolean;
+        wasResumed: boolean;
+        totalDurationMs: number;
+        sandboxMs?: number;
+        resumeMs?: number;
+        restoreMs?: number;
+        catalogMs?: number;
+        generateMs?: number;
+        buildMs?: number;
+        packageMs?: number;
+        uploadMs?: number;
+        buildFixAttempts: number;
+        buildFixGenerationMs: number;
+        toolCallCount: number;
+        catalogTableCount: number;
+        catalogDimensionCount: number;
+        catalogMetricCount: number;
+        catalogYamlBytes: number;
+        distBytes: number;
+        sourceBytes: number;
+    };
+};
+
+export type DataAppVersionFailedEvent = BaseTrack & {
+    event: 'data_app.version.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        isIteration: boolean;
+        failureStage:
+            | 'sandbox'
+            | 'catalog'
+            | 'generating'
+            | 'building'
+            | 'packaging'
+            | 'db'
+            | 'config'
+            | 'timeout';
+        errorMessage: string;
+        buildFixAttempts: number;
+        totalDurationMs: number;
+        sandboxMs?: number;
+        resumeMs?: number;
+        restoreMs?: number;
+        catalogMs?: number;
+        generateMs?: number;
+        buildMs?: number;
+    };
+};
+
+export type DataAppImageUploadedEvent = BaseTrack & {
+    event: 'data_app.image_uploaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid?: string;
+        mimeType: string;
+        sizeBytes?: number;
+    };
+};
+
+export type DataAppViewedEvent = BaseTrack & {
+    event: 'data_app.view';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+    };
+};
+
+export type DataAppEvent =
+    | DataAppCreatedEvent
+    | DataAppIteratedEvent
+    | DataAppVersionCancelledEvent
+    | DataAppVersionCompletedEvent
+    | DataAppVersionFailedEvent
+    | DataAppImageUploadedEvent
+    | DataAppViewedEvent;
+
 export type CommentsEvent = BaseTrack & {
     event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
     userId: string;
@@ -1121,6 +1340,115 @@ export type CommentsEvent = BaseTrack & {
         isOwner?: boolean;
     };
 };
+
+export type ManagedAgentSettingsCreatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+    };
+};
+
+export type ManagedAgentSettingsUpdatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+        changes: Array<
+            'enabled' | 'disabled' | 'schedule' | 'slack_channel' | 'tools'
+        >;
+        previousEnabled: boolean;
+        previousSchedule: string;
+    };
+};
+
+export type ManagedAgentRunNowTriggeredEvent = BaseTrack & {
+    event: 'managed_agent.run_now_triggered';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        schedule: string;
+    };
+};
+
+export type ManagedAgentActionReversedEvent = BaseTrack & {
+    event: 'managed_agent.action_reversed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        actionType: string;
+        actionCategory: 'undo' | 'dismiss';
+        targetType: string;
+        sessionId: string;
+        actionAgeMs: number;
+    };
+};
+
+export type ManagedAgentRunStartedEvent = BaseTrack & {
+    event: 'managed_agent.run_started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        schedule: string;
+        hasSlackChannel: boolean;
+    };
+};
+
+export type ManagedAgentRunCompletedEvent = BaseTrack & {
+    event: 'managed_agent.run_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        status: 'completed' | 'error';
+        durationMs: number;
+        actionCount: number;
+        actionCountsByType: Record<string, number>;
+        slackPosted: boolean;
+        error: string | null;
+    };
+};
+
+export type ManagedAgentActionCreatedEvent = BaseTrack & {
+    event: 'managed_agent.action_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string | null;
+        sessionId: string;
+        actionType: string;
+        targetType: string;
+    };
+};
+
+export type ManagedAgentEvent =
+    | ManagedAgentSettingsCreatedEvent
+    | ManagedAgentSettingsUpdatedEvent
+    | ManagedAgentRunNowTriggeredEvent
+    | ManagedAgentActionReversedEvent
+    | ManagedAgentRunStartedEvent
+    | ManagedAgentRunCompletedEvent
+    | ManagedAgentActionCreatedEvent;
 
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
@@ -1420,6 +1748,10 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         aiAgentId: string;
         threadId: string | undefined;
         context: 'slack' | 'web_app';
+        hasPinnedContext: boolean;
+        pinnedContextCount: number;
+        pinnedChartCount: number;
+        pinnedDashboardCount: number;
     };
 };
 
@@ -1445,6 +1777,8 @@ export type AiAgentResponseStreamed = BaseTrack & {
         usageTokensCount: number;
         stepsCount: number;
         model: string;
+        finishReason: string;
+        stepCapReached: boolean;
     };
 };
 
@@ -1545,6 +1879,17 @@ export type AiAgentToolCallEvent = BaseTrack & {
     };
 };
 
+export type ContentVerificationEvent = BaseTrack & {
+    event: 'content_verification.created' | 'content_verification.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentType;
+        contentId: string;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -1599,6 +1944,8 @@ type TypedEvent =
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent
+    | PreAggregateQueryEvent
+    | MaterializationEvent
     | QueryPageEvent
     | ResultsCacheCreateEvent
     | ResultsCacheWriteEvent
@@ -1608,6 +1955,9 @@ type TypedEvent =
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
+    | FormulaTableCalculationSavedEvent
+    | SqlTableCalculationSavedEvent
+    | TemplateTableCalculationSavedEvent
     | CreateSavedChartEvent
     | ChartHistoryEvent
     | ViewChartVersionEvent
@@ -1656,6 +2006,7 @@ type TypedEvent =
     | SchedulerRestoredEvent
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
+    | DataAppEvent
     | PinnedListUpdated
     | FavoriteToggled
     | DownloadCsv
@@ -1676,6 +2027,7 @@ type TypedEvent =
     | RestoredSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent
+    | ManagedAgentEvent
     | VirtualViewEvent
     | GithubInstallEvent
     | WriteBackEvent
@@ -1700,6 +2052,7 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
+    | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;
 

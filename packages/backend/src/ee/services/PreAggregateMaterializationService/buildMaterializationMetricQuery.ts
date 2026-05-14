@@ -17,25 +17,12 @@ import {
     type MetricQuery,
     type PreAggregateDef,
 } from '@lightdash/common';
-
-const getDimensionsByReference = (sourceExplore: Explore) =>
-    Object.values(sourceExplore.tables).reduce<
-        Map<string, CompiledDimension[]>
-    >((acc, table) => {
-        Object.values(table.dimensions).forEach((dimension) => {
-            preAggregateUtils
-                .getDimensionReferences({
-                    dimension,
-                    baseTable: sourceExplore.baseTable,
-                })
-                .forEach((reference) => {
-                    const existingDimensions = acc.get(reference) || [];
-                    acc.set(reference, [...existingDimensions, dimension]);
-                });
-        });
-
-        return acc;
-    }, new Map<string, CompiledDimension[]>());
+import { assertDimensionEligibleForDirectMaterialization } from '../../preAggregates/eligibility';
+import {
+    getDimensionsByReference,
+    getSelectedDimension,
+    selectPreAggregateMetrics,
+} from '../../preAggregates/shared';
 
 const getAverageMetricComponents = (
     metric: CompiledMetric,
@@ -77,55 +64,10 @@ const assertUniqueMetricFieldId = ({
 };
 
 const getDimensionFieldId = ({
-    sourceExplore,
-    preAggregateDef,
-    dimensionReference,
+    dimension,
 }: {
-    sourceExplore: Explore;
-    preAggregateDef: PreAggregateDef;
-    dimensionReference: string;
-}): FieldId => {
-    const dimensionsByReference = getDimensionsByReference(sourceExplore);
-    const candidates = dimensionsByReference.get(dimensionReference) || [];
-
-    if (candidates.length === 0) {
-        throw new Error(
-            `Pre-aggregate "${preAggregateDef.name}" references unknown dimension "${dimensionReference}"`,
-        );
-    }
-
-    const isTimeDimensionReference =
-        !!preAggregateDef.timeDimension &&
-        preAggregateUtils.getDimensionBaseName(candidates[0]) ===
-            preAggregateDef.timeDimension;
-
-    if (
-        isTimeDimensionReference &&
-        preAggregateDef.granularity &&
-        preAggregateDef.timeDimension
-    ) {
-        const timeGranularityDimension = candidates.find(
-            (dimension) =>
-                preAggregateUtils.getDimensionBaseName(dimension) ===
-                    preAggregateDef.timeDimension &&
-                dimension.timeInterval === preAggregateDef.granularity,
-        );
-
-        if (!timeGranularityDimension) {
-            throw new Error(
-                `Pre-aggregate "${preAggregateDef.name}" is missing time granularity field "${preAggregateDef.timeDimension}_${preAggregateDef.granularity.toLowerCase()}"`,
-            );
-        }
-
-        return getItemId(timeGranularityDimension);
-    }
-
-    const exactBaseDimension = candidates.find(
-        (dimension) => !dimension.timeInterval,
-    );
-
-    return getItemId(exactBaseDimension ?? candidates[0]);
-};
+    dimension: CompiledDimension;
+}): FieldId => getItemId(dimension);
 
 const hasTimeDimensionReference = ({
     sourceExplore,
@@ -198,11 +140,12 @@ export const buildMaterializationMetricQuery = ({
     preAggregateDef: PreAggregateDef;
     materializationConfig: MaterializationConfig;
 }): MaterializationMetricQueryPayload => {
-    const metricsByReference = preAggregateUtils.getMetricsByReference({
-        tables: sourceExplore.tables,
-        baseTable: sourceExplore.baseTable,
-    });
+    const dimensionsByReference = getDimensionsByReference(sourceExplore);
     const dimensionReferences = [...preAggregateDef.dimensions];
+    const { materializedMetrics } = selectPreAggregateMetrics({
+        sourceExplore,
+        preAggregateDef,
+    });
 
     if (
         preAggregateDef.timeDimension &&
@@ -212,13 +155,39 @@ export const buildMaterializationMetricQuery = ({
         dimensionReferences.push(preAggregateDef.timeDimension);
     }
 
+    const resolveSelectedDimension = (
+        dimensionReference: string,
+    ): CompiledDimension => {
+        const dimension = getSelectedDimension({
+            dimensionsByReference,
+            preAggregateDef,
+            dimensionReference,
+        });
+
+        assertDimensionEligibleForDirectMaterialization({
+            sourceExplore,
+            preAggregateDef,
+            dimensionReference,
+            dimension,
+        });
+
+        return dimension;
+    };
+
+    const selectedDimensions = Array.from(
+        new Map(
+            dimensionReferences.map((dimensionReference) => [
+                dimensionReference,
+                resolveSelectedDimension(dimensionReference),
+            ]),
+        ).values(),
+    );
+
     const dimensions = Array.from(
         new Set(
-            dimensionReferences.map((dimensionReference) =>
+            selectedDimensions.map((dimension) =>
                 getDimensionFieldId({
-                    sourceExplore,
-                    preAggregateDef,
-                    dimensionReference,
+                    dimension,
                 }),
             ),
         ),
@@ -227,38 +196,26 @@ export const buildMaterializationMetricQuery = ({
     const timeDimensionFieldId =
         preAggregateDef.timeDimension && preAggregateDef.granularity
             ? getDimensionFieldId({
-                  sourceExplore,
-                  preAggregateDef,
-                  dimensionReference: preAggregateDef.timeDimension,
+                  dimension: resolveSelectedDimension(
+                      preAggregateDef.timeDimension,
+                  ),
               })
             : null;
 
-    const metricsByFieldId = preAggregateDef.metrics.reduce<
-        Map<FieldId, CompiledMetric>
-    >((acc, metricReference) => {
-        const metricLookup = metricsByReference.get(metricReference);
-
-        if (!metricLookup) {
-            throw new Error(
-                `Pre-aggregate "${preAggregateDef.name}" references unknown metric "${metricReference}"`,
-            );
-        }
-
-        acc.set(metricLookup.fieldId, metricLookup.metric);
-
-        return acc;
-    }, new Map<FieldId, CompiledMetric>());
-
     const selectedMetricFieldIds = new Set<FieldId>();
     const additionalMetrics: AdditionalMetric[] = [];
-    const metricComponents = Array.from(metricsByFieldId.entries()).reduce<
+    const metricComponents = materializedMetrics.reduce<
         Record<string, MaterializationMetricComponent[]>
-    >((acc, [metricFieldId, metric]) => {
+    >((acc, { fieldId: metricFieldId, metric }) => {
         const representation = preAggregateUtils.getMetricRepresentation(
             metric.type,
         );
 
         switch (representation.kind) {
+            case PreAggregateMetricRepresentationKind.UNSUPPORTED:
+                throw new Error(
+                    `Unsupported metric type "${metric.type}" for pre-aggregate materialization`,
+                );
             case PreAggregateMetricRepresentationKind.DECOMPOSED: {
                 const [sumMetric, countMetric] =
                     getAverageMetricComponents(metric);
@@ -321,10 +278,6 @@ export const buildMaterializationMetricQuery = ({
                 ];
 
                 return acc;
-            case PreAggregateMetricRepresentationKind.UNSUPPORTED:
-                throw new Error(
-                    `Unsupported metric type "${metric.type}" for pre-aggregate materialization`,
-                );
             default:
                 return assertUnreachable(
                     representation,

@@ -67,11 +67,38 @@ export const useServiceAccounts = () => {
         },
     });
 
+    const rotateAccount = useMutation<
+        CreateServiceAccountResult,
+        ApiError,
+        { uuid: string; expiresAt: string }
+    >({
+        mutationKey: [CACHE_KEY],
+        mutationFn: ({ uuid, expiresAt }) =>
+            lightdashApi<CreateServiceAccountResult>({
+                method: 'PATCH',
+                url: `/service-accounts/${uuid}/rotate`,
+                body: JSON.stringify({ expiresAt }),
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([CACHE_KEY]);
+            showToastSuccess({
+                title: `Success! Your token was rotated.`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to rotate token`,
+                apiError: error,
+            });
+        },
+    });
+
     return useMemo(() => {
         return {
             listAccounts,
             createAccount,
             deleteAccount,
+            rotateAccount,
         };
-    }, [listAccounts, createAccount, deleteAccount]);
+    }, [listAccounts, createAccount, deleteAccount, rotateAccount]);
 };

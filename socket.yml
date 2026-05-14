@@ -1,0 +1,24 @@
+version: 2
+
+triggerPaths:
+  - "package.json"
+  - "packages/*/package.json"
+  - "packages/frontend/sdk/package.json"
+  - "pnpm-lock.yaml"
+  - ".npmrc"
+  - "pnpm-workspace.yaml"
+
+projectIgnorePaths:
+  - "examples/**"
+  - "**/node_modules"
+  - "packages/e2e/cypress/**"
+  - "packages/formula-tests/**"
+
+githubApp:
+  enabled: true
+  pullRequestAlertsEnabled: true
+  dependencyOverviewEnabled: true
+  projectReportsEnabled: true
+  ignoreUsers:
+    - "dependabot[bot]"
+    - "renovate[bot]"

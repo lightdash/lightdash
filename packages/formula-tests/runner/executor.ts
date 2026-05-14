@@ -13,6 +13,13 @@ function normalizeValue(val: any): any {
     if (typeof val === 'number') return val;
     if (typeof val === 'boolean') return val;
     if (typeof val === 'string') {
+        // Athena's GetQueryResults marshals every cell as a `VarCharValue`
+        // string, including booleans. Recognise the canonical lowercase
+        // forms so a comparison query returning `true` matches the
+        // expected boolean. Other warehouses already return a typed
+        // bool/number and skip this branch.
+        if (val === 'true') return true;
+        if (val === 'false') return false;
         const num = Number(val);
         if (!isNaN(num) && val.trim() !== '') return num;
         return val;
@@ -34,6 +41,17 @@ function valuesMatch(expected: any, actual: any): boolean {
     if (typeof normExpected === 'number' && typeof normActual === 'number') {
         // Allow small floating point differences
         return Math.abs(normExpected - normActual) < 0.01;
+    }
+
+    // Warehouses differ on how they serialize BOOLEAN — Postgres/DuckDB
+    // return true/false, ClickHouse returns 0/1 (UInt8). Treat these as
+    // equivalent so tests don't have to care which side of the wire it came
+    // back on.
+    if (typeof normExpected === 'boolean' && typeof normActual === 'number') {
+        return normExpected === (normActual !== 0);
+    }
+    if (typeof normActual === 'boolean' && typeof normExpected === 'number') {
+        return normActual === (normExpected !== 0);
     }
 
     return normExpected === normActual;
@@ -66,6 +84,8 @@ export async function runTestCase(
         sql = compile(testCase.formula, {
             dialect: warehouse.dialect,
             columns: testCase.columns,
+            defaultOrderBy: testCase.defaultOrderBy,
+            weekStartDay: testCase.weekStartDay,
         });
     } catch (e: unknown) {
         const message = e instanceof Error ? e.message : String(e);

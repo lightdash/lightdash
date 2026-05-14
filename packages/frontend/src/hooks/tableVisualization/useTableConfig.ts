@@ -40,6 +40,7 @@ const useTableConfig = (
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined,
     itemsMap: ItemsMap | undefined,
@@ -230,6 +231,7 @@ const useTableConfig = (
                   explore: resultsData?.metricQuery?.exploreName,
                   fieldIds: selectedItemIds,
                   itemsMap,
+                  invalidateCache,
                   showColumnCalculation:
                       tableChartConfig?.showColumnCalculation,
                   embedToken,
@@ -258,6 +260,7 @@ const useTableConfig = (
                   embedToken,
                   parameters,
                   dateZoom,
+                  invalidateCache,
               },
     );
 
@@ -456,18 +459,17 @@ const useTableConfig = (
 
     const updateColumnProperty = useCallback(
         (field: string, properties: Partial<ColumnProperties>) => {
-            const newProperties =
-                field in columnProperties
-                    ? { ...columnProperties[field], ...properties }
-                    : {
-                          ...properties,
-                      };
-            setColumnProperties({
-                ...columnProperties,
-                [field]: newProperties,
-            });
+            // functional setter so consecutive calls compose correctly
+
+            setColumnProperties((prev) => ({
+                ...prev,
+                [field]:
+                    field in prev
+                        ? { ...prev[field], ...properties }
+                        : { ...properties },
+            }));
         },
-        [columnProperties],
+        [],
     );
 
     const handleSetConditionalFormattings = useCallback(

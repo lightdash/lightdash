@@ -92,5 +92,55 @@ describe('SQL Code Generation', () => {
             const sql = compile('=A + B', { dialect: 'duckdb', columns });
             expect(sql).toBe('("order_amount" + "tax")');
         });
+
+        it('uses double-quote for Redshift', () => {
+            const sql = compile('=A + B', { dialect: 'redshift', columns });
+            expect(sql).toBe('("order_amount" + "tax")');
+        });
+
+        it('uses `%` modulo for Redshift (Postgres-compatible)', () => {
+            const sql = compile('=A % B', { dialect: 'redshift', columns });
+            expect(sql).toBe('("order_amount" % "tax")');
+        });
+
+        it('uses backtick quoting for Databricks', () => {
+            const sql = compile('=A + B', { dialect: 'databricks', columns });
+            expect(sql).toBe('(`order_amount` + `tax`)');
+        });
+
+        it('uses MOD() for Databricks modulo', () => {
+            const sql = compile('=A % B', { dialect: 'databricks', columns });
+            expect(sql).toBe('MOD(`order_amount`, `tax`)');
+        });
+
+        it('uses backslash string escaping for Databricks', () => {
+            const sql = compile(`=IF(C = "O'Brien", 1, 0)`, {
+                dialect: 'databricks',
+                columns,
+            });
+            expect(sql).toBe(
+                `CASE WHEN (\`category\` = 'O\\'Brien') THEN 1 ELSE 0 END`,
+            );
+        });
+
+        it('uses double-quote for ClickHouse (matches ClickhouseSqlBuilder)', () => {
+            const sql = compile('=A + B', { dialect: 'clickhouse', columns });
+            expect(sql).toBe('("order_amount" + "tax")');
+        });
+
+        it('casts to Float64 for ClickHouse modulo (preserves decimal precision)', () => {
+            const sql = compile('=A % B', { dialect: 'clickhouse', columns });
+            expect(sql).toBe('(toFloat64("order_amount") % toFloat64("tax"))');
+        });
+
+        it('uses doubled single-quote + backslash-escaped backslashes for ClickHouse strings', () => {
+            const sql = compile(`=IF(C = "O'Brien", 1, 0)`, {
+                dialect: 'clickhouse',
+                columns,
+            });
+            expect(sql).toBe(
+                `CASE WHEN ("category" = 'O''Brien') THEN 1 ELSE 0 END`,
+            );
+        });
     });
 });

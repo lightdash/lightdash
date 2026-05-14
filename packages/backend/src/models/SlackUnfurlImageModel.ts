@@ -40,4 +40,10 @@ export class SlackUnfurlImageModel {
 
         return row;
     }
+
+    async delete(nanoid: string): Promise<void> {
+        await this.database(SlackUnfurlImageTableName)
+            .where('nanoid', nanoid)
+            .delete();
+    }
 }

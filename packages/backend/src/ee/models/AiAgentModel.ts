@@ -23,6 +23,9 @@ import {
     AiAgentUserPreferences,
     AiArtifact,
     AiEvalRunResultAssessment,
+    AiPromptContext,
+    AiPromptContextInput,
+    AiPromptContextItem,
     AiResultType,
     AiThread,
     AiWebAppPrompt,
@@ -33,11 +36,13 @@ import {
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
     assertUnreachable,
+    ChartKind,
     CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
     CreateWebAppPrompt,
     CreateWebAppThread,
+    generateSlug,
     isThreadPrompt,
     isToolName,
     KnexPaginateArgs,
@@ -57,8 +62,16 @@ import { Knex } from 'knex';
 import moment from 'moment';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AiAgentReasoningTableName } from '../../database/entities/aiAgentReasoning';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../../database/entities/dashboards';
 import { DbEmail, EmailTableName } from '../../database/entities/emails';
 import { DbProject, ProjectTableName } from '../../database/entities/projects';
+import {
+    SavedChartsTableName,
+    SavedChartVersionsTableName,
+} from '../../database/entities/savedCharts';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
@@ -67,19 +80,25 @@ import { wrapSentryTransaction } from '../../utils';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiPromptContextEntityType,
+    AiPromptContextTableName,
     AiPromptTableName,
     AiSlackPromptTableName,
     AiSlackThreadTableName,
+    AiSqlApprovalTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
     DbAiAgentToolCall,
     DbAiAgentToolResult,
     DbAiPrompt,
+    DbAiPromptContext,
     DbAiSlackPrompt,
     DbAiSlackThread,
+    DbAiSqlApproval,
     DbAiThread,
     DbAiWebAppPrompt,
+    type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
     AiAgentGroupAccessTableName,
@@ -116,6 +135,7 @@ import {
     DbAiEvalRunResult,
     DbAiEvalRunResultAssessment,
 } from '../database/entities/aiEvals';
+import { type SqlApprovalDecision } from '../services/ai/tools/sqlApprovals';
 
 type Dependencies = {
     database: Knex;
@@ -235,7 +255,6 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
-                enableReasoning: `${AiAgentTableName}.enable_reasoning`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -369,7 +388,6 @@ export class AiAgentModel {
                 imageUrl: `${AiAgentTableName}.image_url`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
-                enableReasoning: `${AiAgentTableName}.enable_reasoning`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -465,6 +483,26 @@ export class AiAgentModel {
         return agent;
     }
 
+    private static async generateUniqueSlug(
+        trx: Knex,
+        projectUuid: string,
+        name: string,
+    ): Promise<string> {
+        const baseSlug = generateSlug(name);
+        const matchingSlugs: string[] = await trx(AiAgentTableName)
+            .where({ project_uuid: projectUuid })
+            .where('slug', 'like', `${baseSlug}%`)
+            .pluck('slug');
+
+        let slug = baseSlug;
+        let inc = 0;
+        while (matchingSlugs.includes(slug)) {
+            inc += 1;
+            slug = `${baseSlug}-${inc}`;
+        }
+        return slug;
+    }
+
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
@@ -479,16 +517,22 @@ export class AiAgentModel {
             | 'spaceAccess'
             | 'enableDataAccess'
             | 'enableSelfImprovement'
-            | 'enableReasoning'
             | 'version'
         > & {
             organizationUuid: string;
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
+            const slug = await AiAgentModel.generateUniqueSlug(
+                trx,
+                args.projectUuid,
+                args.name,
+            );
+
             const [agent] = await trx(AiAgentTableName)
                 .insert({
                     name: args.name,
+                    slug,
                     project_uuid: args.projectUuid,
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,
@@ -496,7 +540,6 @@ export class AiAgentModel {
                     image_url: null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
-                    enable_reasoning: args.enableReasoning,
                     version: args.version,
                 })
                 .returning('*');
@@ -588,7 +631,6 @@ export class AiAgentModel {
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
-                enableReasoning: agent.enable_reasoning,
                 version: agent.version,
             };
         });
@@ -627,9 +669,6 @@ export class AiAgentModel {
                               enable_self_improvement:
                                   args.enableSelfImprovement,
                           }
-                        : {}),
-                    ...(args.enableReasoning !== undefined
-                        ? { enable_reasoning: args.enableReasoning }
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
@@ -757,7 +796,6 @@ export class AiAgentModel {
                 spaceAccess,
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
-                enableReasoning: agent.enable_reasoning,
                 version: agent.version,
             };
         });
@@ -1456,6 +1494,7 @@ export class AiAgentModel {
         const referencedArtifactsMap = await this.findThreadReferencedArtifacts(
             { promptUuids },
         );
+        const contextMap = await this.getContextForPromptUuids(promptUuids);
 
         const messagesPromises = promptRows.map(async (row) => {
             const messages: AiAgentMessage<{
@@ -1475,6 +1514,7 @@ export class AiAgentModel {
                     name: row.user_name,
                     slackUserId: row.slack_user_id,
                 },
+                context: contextMap.get(row.ai_prompt_uuid) ?? [],
             });
 
             const toolCalls = await this.getToolCallsForPrompt(
@@ -2143,6 +2183,12 @@ export class AiAgentModel {
                         uuid: row.user_uuid,
                         name: row.user_name,
                     },
+                    context:
+                        (
+                            await this.getContextForPromptUuids([
+                                row.ai_prompt_uuid,
+                            ])
+                        ).get(row.ai_prompt_uuid) ?? [],
                 } satisfies AiAgentMessageUser;
             case 'assistant':
                 const toolCalls = await this.getToolCallsForPrompt(
@@ -2760,8 +2806,214 @@ export class AiAgentModel {
                 user_uuid: data.createdByUserUuid,
             });
 
+            if (data.context && data.context.length > 0) {
+                await AiAgentModel.insertPromptContext(
+                    trx,
+                    row.ai_prompt_uuid,
+                    data.context,
+                );
+            }
+
             return row.ai_prompt_uuid;
         });
+    }
+
+    private static async insertPromptContext(
+        trx: Knex.Transaction,
+        promptUuid: string,
+        context: AiPromptContextInput,
+    ): Promise<void> {
+        const chartUuids = context.flatMap((c) =>
+            c.type === 'chart' ? [c.chartUuid] : [],
+        );
+        const dashboardUuids = context.flatMap((c) =>
+            c.type === 'dashboard' ? [c.dashboardUuid] : [],
+        );
+
+        const chartLookup = new Map(
+            (
+                await trx(SavedChartsTableName)
+                    .leftJoin(
+                        SavedChartVersionsTableName,
+                        `${SavedChartsTableName}.saved_query_id`,
+                        `${SavedChartVersionsTableName}.saved_query_id`,
+                    )
+                    .whereIn(
+                        `${SavedChartsTableName}.saved_query_uuid`,
+                        chartUuids,
+                    )
+                    .whereNull(`${SavedChartsTableName}.deleted_at`)
+                    .distinctOn(`${SavedChartsTableName}.saved_query_uuid`)
+                    .orderBy([
+                        {
+                            column: `${SavedChartsTableName}.saved_query_uuid`,
+                        },
+                        {
+                            column: `${SavedChartVersionsTableName}.created_at`,
+                            order: 'desc',
+                            nulls: 'last',
+                        },
+                    ])
+                    .select<
+                        {
+                            saved_query_uuid: string;
+                            name: string;
+                            saved_queries_version_uuid: string | null;
+                        }[]
+                    >({
+                        saved_query_uuid: `${SavedChartsTableName}.saved_query_uuid`,
+                        name: `${SavedChartsTableName}.name`,
+                        saved_queries_version_uuid: `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
+                    })
+            ).map((r) => [r.saved_query_uuid, r] as const),
+        );
+
+        const dashboardLookup = new Map(
+            (
+                await trx(DashboardsTableName)
+                    .leftJoin(
+                        DashboardVersionsTableName,
+                        `${DashboardsTableName}.dashboard_id`,
+                        `${DashboardVersionsTableName}.dashboard_id`,
+                    )
+                    .whereIn(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuids,
+                    )
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
+                    .orderBy([
+                        {
+                            column: `${DashboardsTableName}.dashboard_uuid`,
+                        },
+                        {
+                            column: `${DashboardVersionsTableName}.created_at`,
+                            order: 'desc',
+                            nulls: 'last',
+                        },
+                    ])
+                    .select<
+                        {
+                            dashboard_uuid: string;
+                            name: string;
+                            dashboard_version_uuid: string | null;
+                        }[]
+                    >({
+                        dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                        name: `${DashboardsTableName}.name`,
+                        dashboard_version_uuid: `${DashboardVersionsTableName}.dashboard_version_uuid`,
+                    })
+            ).map((r) => [r.dashboard_uuid, r] as const),
+        );
+
+        const rows = context.map((ctx) => {
+            switch (ctx.type) {
+                case 'chart': {
+                    const chart = chartLookup.get(ctx.chartUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'chart' as AiPromptContextEntityType,
+                        entity_uuid: ctx.chartUuid,
+                        pinned_version_uuid:
+                            chart?.saved_queries_version_uuid ?? null,
+                        display_name: chart?.name ?? null,
+                        runtime_overrides: ctx.runtimeOverrides ?? null,
+                    };
+                }
+                case 'dashboard': {
+                    const dashboard = dashboardLookup.get(ctx.dashboardUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'dashboard' as AiPromptContextEntityType,
+                        entity_uuid: ctx.dashboardUuid,
+                        pinned_version_uuid:
+                            dashboard?.dashboard_version_uuid ?? null,
+                        display_name: dashboard?.name ?? null,
+                    };
+                }
+                default:
+                    return assertUnreachable(
+                        ctx,
+                        'Unknown AiPromptContextInput type',
+                    );
+            }
+        });
+
+        await trx(AiPromptContextTableName).insert(rows);
+    }
+
+    async getContextForPromptUuids(
+        promptUuids: string[],
+    ): Promise<Map<string, AiPromptContext>> {
+        const grouped = new Map<string, AiPromptContext>();
+        if (promptUuids.length === 0) return grouped;
+
+        const rows = await this.database(AiPromptContextTableName)
+            .whereIn('ai_prompt_uuid', promptUuids)
+            .orderBy('created_at', 'asc')
+            .select<DbAiPromptContext[]>('*');
+
+        const chartUuids = rows
+            .filter((r) => r.entity_type === 'chart')
+            .map((r) => r.entity_uuid);
+        const chartKindByUuid = new Map(
+            (
+                await this.database(SavedChartsTableName)
+                    .whereIn('saved_query_uuid', chartUuids)
+                    .whereNull('deleted_at')
+                    .select<
+                        {
+                            saved_query_uuid: string;
+                            last_version_chart_kind: string | null;
+                        }[]
+                    >('saved_query_uuid', 'last_version_chart_kind')
+            ).map(
+                (r) =>
+                    [
+                        r.saved_query_uuid,
+                        (r.last_version_chart_kind as ChartKind | null) ?? null,
+                    ] as const,
+            ),
+        );
+
+        for (const row of rows) {
+            const existing = grouped.get(row.ai_prompt_uuid) ?? [];
+            existing.push(
+                AiAgentModel.toAiPromptContextItem(row, chartKindByUuid),
+            );
+            grouped.set(row.ai_prompt_uuid, existing);
+        }
+
+        return grouped;
+    }
+
+    private static toAiPromptContextItem(
+        row: DbAiPromptContext,
+        chartKindByUuid: Map<string, ChartKind | null>,
+    ): AiPromptContextItem {
+        switch (row.entity_type) {
+            case 'chart':
+                return {
+                    type: 'chart',
+                    chartUuid: row.entity_uuid,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
+                    runtimeOverrides: row.runtime_overrides,
+                    chartKind: chartKindByUuid.get(row.entity_uuid) ?? null,
+                };
+            case 'dashboard':
+                return {
+                    type: 'dashboard',
+                    dashboardUuid: row.entity_uuid,
+                    pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
+                };
+            default:
+                return assertUnreachable(
+                    row.entity_type,
+                    `Unknown ai_prompt_context.entity_type`,
+                );
+        }
     }
 
     async existsSlackPromptsByChannelAndTimestamps(
@@ -2988,6 +3240,131 @@ export class AiAgentModel {
         return this.database(AiAgentToolCallTableName)
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
+    }
+
+    async findSqlApprovalContext(toolCallId: string): Promise<
+        | {
+              promptUuid: string;
+              threadUuid: string;
+              agentUuid: string | null;
+              toolName: string;
+              hasResult: boolean;
+          }
+        | undefined
+    > {
+        const row = await this.database(AiAgentToolCallTableName)
+            .where(`${AiAgentToolCallTableName}.tool_call_id`, toolCallId)
+            .innerJoin(
+                AiPromptTableName,
+                `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .innerJoin(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .leftJoin(AiAgentToolResultTableName, function joinResult() {
+                this.on(
+                    `${AiAgentToolResultTableName}.tool_call_id`,
+                    '=',
+                    `${AiAgentToolCallTableName}.tool_call_id`,
+                ).andOn(
+                    `${AiAgentToolResultTableName}.ai_prompt_uuid`,
+                    '=',
+                    `${AiAgentToolCallTableName}.ai_prompt_uuid`,
+                );
+            })
+            .select<
+                Array<{
+                    promptUuid: string;
+                    threadUuid: string;
+                    agentUuid: string | null;
+                    toolName: string;
+                    resultUuid: string | null;
+                }>
+            >(
+                `${AiAgentToolCallTableName}.ai_prompt_uuid as promptUuid`,
+                `${AiAgentToolCallTableName}.tool_name as toolName`,
+                `${AiThreadTableName}.ai_thread_uuid as threadUuid`,
+                `${AiThreadTableName}.agent_uuid as agentUuid`,
+                `${AiAgentToolResultTableName}.ai_agent_tool_result_uuid as resultUuid`,
+            )
+            .first();
+
+        if (!row) {
+            return undefined;
+        }
+        return {
+            promptUuid: row.promptUuid,
+            threadUuid: row.threadUuid,
+            agentUuid: row.agentUuid,
+            toolName: row.toolName,
+            hasResult: row.resultUuid !== null,
+        };
+    }
+
+    // ---------------------------------------------------------------
+    // SQL approval bus — DB-backed so it works across pods and
+    // survives restarts. See `ai_sql_approval` migration.
+    // ---------------------------------------------------------------
+
+    /**
+     * Records a user's decision for a pending SQL approval. First write
+     * wins — `ON CONFLICT (tool_call_id) DO NOTHING` means double-clicks
+     * (or a race between Slack and the web UI) are safely ignored.
+     *
+     * @returns `true` if this call recorded the decision; `false` if a
+     *   decision was already in place.
+     */
+    async recordSqlApproval(
+        toolCallId: string,
+        decision: AiSqlApprovalDecision,
+        decidedByUserUuid: string | null,
+    ): Promise<boolean> {
+        const inserted = await this.database<DbAiSqlApproval>(
+            AiSqlApprovalTableName,
+        )
+            .insert({
+                tool_call_id: toolCallId,
+                decision,
+                decided_by_user_uuid: decidedByUserUuid,
+            })
+            .onConflict('tool_call_id')
+            .ignore()
+            .returning('tool_call_id');
+        return inserted.length > 0;
+    }
+
+    /**
+     * Polls `ai_sql_approval` for a decision keyed by `toolCallId`.
+     * Resolves to the decision once one is recorded, or `'timeout'`
+     * after `timeoutMs` of no activity.
+     */
+    async waitForSqlApproval(
+        toolCallId: string,
+        timeoutMs: number = 5 * 60 * 1000,
+        pollIntervalMs: number = 500,
+    ): Promise<SqlApprovalDecision> {
+        const deadline = Date.now() + timeoutMs;
+        /* eslint-disable no-await-in-loop -- polling is intentional and
+           sequential; we want to wait between queries, not fire in parallel. */
+        while (Date.now() < deadline) {
+            const row = await this.database<DbAiSqlApproval>(
+                AiSqlApprovalTableName,
+            )
+                .where({ tool_call_id: toolCallId })
+                .select('decision')
+                .first();
+            if (row) return row.decision;
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) break;
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve, Math.min(pollIntervalMs, remaining));
+            });
+        }
+        /* eslint-enable no-await-in-loop */
+        return 'timeout';
     }
 
     async getToolResultsForPrompt(

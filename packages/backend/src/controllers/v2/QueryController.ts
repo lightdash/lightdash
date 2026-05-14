@@ -535,6 +535,7 @@ export class QueryController extends BaseController {
             columnOrder: body.columnOrder,
             hiddenFields: body.hiddenFields,
             pivotConfig: body.pivotConfig,
+            exportPivotedData: body.exportPivotedData,
             attachmentDownloadName: body.attachmentDownloadName,
         });
 
@@ -574,6 +575,7 @@ export class QueryController extends BaseController {
                 columnOrder: body.columnOrder,
                 hiddenFields: body.hiddenFields,
                 pivotConfig: body.pivotConfig,
+                exportPivotedData: body.exportPivotedData,
                 attachmentDownloadName: body.attachmentDownloadName,
             });
 

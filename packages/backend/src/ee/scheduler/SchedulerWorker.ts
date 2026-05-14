@@ -1,23 +1,32 @@
 import {
     EE_SCHEDULER_TASKS,
     getErrorMessage,
+    getManagedAgentScheduleCron,
     isSchedulerTaskName,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
 } from '@lightdash/common';
+import Logger from '../../logging/logger';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { tryJobOrTimeout } from '../../scheduler/SchedulerJobTimeout';
-import { SchedulerTaskArguments } from '../../scheduler/SchedulerTask';
-import { SchedulerWorker } from '../../scheduler/SchedulerWorker';
+import {
+    SchedulerWorker,
+    SchedulerWorkerArguments,
+} from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
+import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 
-const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
-type CommercialSchedulerWorkerArguments = SchedulerTaskArguments & {
+type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
     embedService: EmbedService;
+    managedAgentService: ManagedAgentService;
+    appGenerateService: AppGenerateService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -25,10 +34,30 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly embedService: EmbedService;
 
+    protected readonly managedAgentService: ManagedAgentService;
+
+    protected readonly appGenerateService: AppGenerateService;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
         this.embedService = args.embedService;
+        this.managedAgentService = args.managedAgentService;
+        this.appGenerateService = args.appGenerateService;
+    }
+
+    protected getCronItems() {
+        return [
+            ...super.getCronItems(),
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS,
+                pattern: '*/2 * * * *', // Every 2 minutes
+                options: {
+                    backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+        ];
     }
 
     protected getTaskList(): Partial<TypedEETaskList> {
@@ -104,6 +133,100 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         });
                     },
                 );
+            },
+            [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async (payload) => {
+                const { projectUuid } = payload;
+                const triggeredBy = payload.triggeredBy ?? 'cron';
+                const settings = (
+                    await this.managedAgentService.getEnabledProjects()
+                ).find((project) => project.projectUuid === projectUuid);
+
+                if (!settings) {
+                    Logger.info(
+                        `Managed agent disabled for project ${projectUuid}, stopping heartbeat loop`,
+                    );
+                    return;
+                }
+
+                const aiAutopilotEnabled =
+                    await this.managedAgentService.isAiAutopilotEnabledForProject(
+                        settings,
+                    );
+                if (!aiAutopilotEnabled) {
+                    Logger.info(
+                        `AI autopilot feature flag disabled for project ${projectUuid}, skipping managed agent heartbeat`,
+                    );
+                    return;
+                }
+
+                Logger.info(
+                    `Running managed agent heartbeat for project ${projectUuid} (${triggeredBy})`,
+                );
+
+                const { runUuid } = await this.managedAgentService.startRun(
+                    projectUuid,
+                    triggeredBy,
+                );
+
+                try {
+                    await this.managedAgentService.runHeartbeat(
+                        projectUuid,
+                        runUuid,
+                    );
+                    Logger.info(
+                        `Heartbeat completed for project ${projectUuid}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        `Error during heartbeat for project ${projectUuid}:`,
+                        error,
+                    );
+                } finally {
+                    if (triggeredBy === 'cron') {
+                        const schedule =
+                            getManagedAgentScheduleCron(settings.schedule) ??
+                            this.lightdashConfig.managedAgent.schedule;
+                        await this.schedulerClient.scheduleManagedAgentHeartbeat(
+                            schedule,
+                            projectUuid,
+                        );
+                    }
+                }
+            },
+            [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.appGenerateService.runPipeline(payload);
+                        },
+                    ),
+                    helpers.job,
+                    APP_GENERATE_TIMEOUT_MS,
+                    async (_job, e) => {
+                        const marked = await this.appGenerateService.markError(
+                            payload.appUuid,
+                            payload.version,
+                            e,
+                            'Build timed out. Please try again.',
+                        );
+                        if (marked) {
+                            this.appGenerateService.trackTimeoutFailure(
+                                payload,
+                                e,
+                            );
+                        }
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
+                await this.appGenerateService.sweepStaleLocks();
             },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,

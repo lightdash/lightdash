@@ -10,12 +10,20 @@ export const localPassportStrategy = ({
     userService: UserService;
 }) =>
     new LocalStrategy(
-        { usernameField: 'email', passwordField: 'password' },
-        async (email, password, done) => {
+        {
+            usernameField: 'email',
+            passwordField: 'password',
+            passReqToCallback: true,
+        },
+        async (req, email, password, done) => {
             try {
                 const user = await userService.loginWithPassword(
                     email,
                     password,
+                    {
+                        ip: req.ip,
+                        userAgent: req.get('user-agent'),
+                    },
                 );
                 return done(null, user);
             } catch (e) {

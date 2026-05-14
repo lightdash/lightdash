@@ -442,6 +442,22 @@ type AiAgentChartExploredEvent = {
     };
 };
 
+export type AiAgentAskClickedSource =
+    | 'dashboard_header'
+    | 'dashboard_chart_tile'
+    | 'saved_chart_header'
+    | 'resource_action_menu';
+
+type AiAgentAskClickedEvent = {
+    name: EventName.AI_AGENT_ASK_CLICKED;
+    properties: {
+        userId: string | undefined;
+        organizationId: string | undefined;
+        projectId: string | undefined;
+        clickedFrom: AiAgentAskClickedSource;
+    };
+};
+
 type ThemeToggledEvent = {
     name: EventName.THEME_TOGGLED;
     properties: {
@@ -523,6 +539,7 @@ export type EventData =
     | AiAgentChartHowItsCalculatedClickedEvent
     | AiAgentChartCreatedEvent
     | AiAgentChartExploredEvent
+    | AiAgentAskClickedEvent
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent

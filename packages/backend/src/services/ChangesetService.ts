@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     Change,
     ChangesetWithChanges,
     ForbiddenError,
-    SessionUser,
 } from '@lightdash/common';
 import { CatalogModel } from '../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../models/ChangesetModel';
@@ -31,15 +31,16 @@ export class ChangesetService extends BaseService {
     }
 
     async findActiveChangesetWithChangesByProjectUuid(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<ChangesetWithChanges | undefined> {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
@@ -54,16 +55,18 @@ export class ChangesetService extends BaseService {
     }
 
     async getChange(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         changeUuid: string,
     ): Promise<Change> {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid!,
+                    metadata: { changeUuid },
                 }),
             )
         ) {
@@ -76,16 +79,18 @@ export class ChangesetService extends BaseService {
     }
 
     async revertChange(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         changeUuid: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid!,
+                    metadata: { changeUuid },
                 }),
             )
         ) {
@@ -127,15 +132,16 @@ export class ChangesetService extends BaseService {
     }
 
     async revertAllChanges(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Explore', {
                     projectUuid,
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
