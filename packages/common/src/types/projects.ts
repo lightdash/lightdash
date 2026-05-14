@@ -611,6 +611,7 @@ export type Project = {
     hasDefaultUserSpaces: boolean;
     projectDefaults?: ProjectDefaults;
     colorPaletteUuid: string | null;
+    expiresAt: Date | null;
 };
 
 export type ProjectSummary = Pick<

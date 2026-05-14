@@ -92,7 +92,9 @@ const NavBar = memo(({ isFixed = true }: NavBarProps) => {
                 {isImpersonating ? (
                     <ImpersonationBanner />
                 ) : (
-                    isCurrentProjectPreview && <PreviewBanner />
+                    isCurrentProjectPreview && (
+                        <PreviewBanner expiresAt={project?.expiresAt ?? null} />
+                    )
                 )}
                 <Box
                     component="header"

@@ -30,6 +30,7 @@ import {
     useMantineTheme,
 } from '@mantine-8/core';
 import {
+    IconCalendarTime,
     IconCheck,
     IconClock,
     IconCopy,
@@ -430,6 +431,34 @@ const ProjectManagementPanel: FC = () => {
                         {new Date(row.original.createdAt).toLocaleDateString()}
                     </Text>
                 ),
+            },
+            {
+                accessorKey: 'expiresAt',
+                header: 'Expires',
+                enableSorting: true,
+                sortUndefined: 1,
+                size: 120,
+                Header: ({ column }) => (
+                    <Group gap="two" wrap="nowrap">
+                        <MantineIcon icon={IconCalendarTime} color="ldGray.6" />
+                        {column.columnDef.header}
+                    </Group>
+                ),
+                Cell: ({ row }) => {
+                    const { expiresAt } = row.original;
+                    if (!expiresAt) {
+                        return (
+                            <Text fz="sm" c="ldGray.5">
+                                {'—'}
+                            </Text>
+                        );
+                    }
+                    return (
+                        <Text fz="sm" c="ldGray.7">
+                            {new Date(expiresAt).toLocaleDateString()}
+                        </Text>
+                    );
+                },
             },
             {
                 id: 'actions',

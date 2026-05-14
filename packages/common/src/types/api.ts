@@ -615,6 +615,7 @@ export type CreateProject = Omit<
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
+    | 'expiresAt'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
     copyWarehouseConnectionFromUpstreamProject?: boolean;
@@ -651,6 +652,7 @@ export type UpdateProject = Omit<
     | 'createdByUserUuid'
     | 'hasDefaultUserSpaces'
     | 'colorPaletteUuid'
+    | 'expiresAt'
 > & {
     warehouseConnection: CreateWarehouseCredentials;
 };

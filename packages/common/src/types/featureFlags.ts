@@ -147,11 +147,6 @@ export enum FeatureFlags {
      * no regression.
      */
     AiDiscoverFieldsSubagent = 'ai-discover-fields-subagent',
-
-    /**
-     * Enable auto-cleanup of preview projects (expiration tracking, cron deletion, visibility filtering)
-     */
-    PreviewAutoCleanup = 'preview-auto-cleanup',
 }
 
 export type FeatureFlag = {

@@ -344,6 +344,7 @@ export const projectWithSensitiveFields: Project = {
     createdByUserUuid: sessionAccount.user.id,
     hasDefaultUserSpaces: false,
     colorPaletteUuid: null,
+    expiresAt: null,
 };
 
 export const projectSummary: ProjectSummary = {

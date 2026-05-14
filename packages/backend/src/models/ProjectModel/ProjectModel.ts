@@ -739,6 +739,7 @@ export class ProjectModel {
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
+                  expires_at: Date | null;
               }
             | {
                   name: string;
@@ -761,6 +762,7 @@ export class ProjectModel {
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
+                  expires_at: Date | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -842,6 +844,9 @@ export class ProjectModel {
                         this.database
                             .ref('color_palette_uuid')
                             .withSchema(ProjectTableName),
+                        this.database
+                            .ref('expires_at')
+                            .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
                     .where('projects.project_uuid', projectUuid);
@@ -893,6 +898,7 @@ export class ProjectModel {
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
+                    expiresAt: project.expires_at ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -1102,6 +1108,7 @@ export class ProjectModel {
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
             colorPaletteUuid: project.colorPaletteUuid ?? null,
+            expiresAt: project.expiresAt,
         };
     }
 

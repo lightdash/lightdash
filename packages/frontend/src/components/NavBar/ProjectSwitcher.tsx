@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     assertUnreachable,
-    FeatureFlags,
     ProjectType,
     type OrganizationProject,
 } from '@lightdash/common';
@@ -40,7 +39,6 @@ import {
 import { useIsTruncated } from '../../hooks/useIsTruncated';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
-import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
@@ -115,18 +113,10 @@ const ProjectItem: FC<{
     handleProjectChange: (newUuid: string) => void;
     searchQuery?: string;
     isActive?: boolean;
-    showExpiration?: boolean;
-}> = ({
-    item,
-    handleProjectChange,
-    searchQuery,
-    isActive = false,
-    showExpiration = false,
-}) => {
+}> = ({ item, handleProjectChange, searchQuery, isActive = false }) => {
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
-    const expiresInDays = showExpiration
-        ? getExpiresInDays(item.expiresAt)
-        : null;
+    const isPreview = item.type === ProjectType.PREVIEW;
+    const expiresInDays = isPreview ? getExpiresInDays(item.expiresAt) : null;
 
     return (
         <Menu.Item
@@ -160,7 +150,19 @@ const ProjectItem: FC<{
                 </Tooltip>
 
                 <Group gap="xs" wrap="nowrap">
-                    {expiresInDays !== null && (
+                    {isActive && (
+                        <Badge
+                            color="green"
+                            variant="light"
+                            size="sm"
+                            radius="sm"
+                            fw={450}
+                            className={classes.badge}
+                        >
+                            Active
+                        </Badge>
+                    )}
+                    {isPreview && expiresInDays !== null && (
                         <Badge
                             color="orange"
                             variant="light"
@@ -172,18 +174,6 @@ const ProjectItem: FC<{
                             {expiresInDays === 0
                                 ? 'Expires today'
                                 : `Expires in ${expiresInDays}d`}
-                        </Badge>
-                    )}
-                    {isActive && (
-                        <Badge
-                            color="green"
-                            variant="light"
-                            size="sm"
-                            radius="sm"
-                            fw={450}
-                            className={classes.badge}
-                        >
-                            Active
                         </Badge>
                     )}
                 </Group>
@@ -241,12 +231,6 @@ const ProjectSwitcher = () => {
     const { mutate: setLastProjectMutation } = useUpdateActiveProjectMutation();
     const location = useLocation();
     const isHomePage = !!useMatch(`/projects/${activeProjectUuid}/home`);
-
-    const { data: previewAutoCleanupFlag } = useServerFeatureFlag(
-        FeatureFlags.PreviewAutoCleanup,
-    );
-    const isPreviewAutoCleanupEnabled =
-        previewAutoCleanupFlag?.enabled ?? false;
 
     const [isCreatePreviewOpen, setIsCreatePreview] = useState(false);
     const [groupStates, setGroupStates] = useState<GroupStates>({
@@ -575,9 +559,6 @@ const ProjectSwitcher = () => {
                                                     isActive={
                                                         item.projectUuid ===
                                                         activeProjectUuid
-                                                    }
-                                                    showExpiration={
-                                                        isPreviewAutoCleanupEnabled
                                                     }
                                                 />
                                             ))}

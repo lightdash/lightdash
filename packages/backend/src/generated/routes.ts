@@ -9542,6 +9542,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['findContent'] },
                 { dataType: 'enum', enums: ['findExplores'] },
                 { dataType: 'enum', enums: ['findFields'] },
+                { dataType: 'enum', enums: ['discoverFields'] },
                 { dataType: 'enum', enums: ['searchFieldValues'] },
                 { dataType: 'enum', enums: ['findDashboards'] },
                 { dataType: 'enum', enums: ['findCharts'] },
@@ -21024,6 +21025,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                expiresAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 colorPaletteUuid: {
                     dataType: 'union',
                     subSchemas: [
@@ -24516,6 +24525,14 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                expiresAt: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'datetime' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 warehouseType: { ref: 'WarehouseTypes' },
                 upstreamProjectUuid: {
                     dataType: 'union',
