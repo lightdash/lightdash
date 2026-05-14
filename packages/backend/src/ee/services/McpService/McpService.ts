@@ -326,29 +326,17 @@ export class McpService extends BaseService {
         return { content };
     }
 
-    static async streamToolResult(
-        result:
-            | { result: string }
-            | AsyncIterable<{
-                  result: string;
-              }>,
+    static async streamToolResult<T extends { result: string }>(
+        result: T | AsyncIterable<T>,
     ): Promise<string> {
-        if (
-            'result' in result &&
-            typeof result.result === 'string' &&
-            Symbol.asyncIterator in result === false
-        ) {
-            return result.result;
+        if (Symbol.asyncIterator in result) {
+            let out = '';
+            for await (const chunk of result) {
+                out += chunk.result;
+            }
+            return out;
         }
-
-        let out = '';
-        for await (const chunk of result as AsyncIterable<{
-            result: string;
-            metadata: { status: 'error' | 'success' };
-        }>) {
-            out += chunk.result;
-        }
-        return out;
+        return result.result;
     }
 
     private getMcpCompatibleSchema(schema: z.ZodSchema<unknown>): ZodRawShape {
