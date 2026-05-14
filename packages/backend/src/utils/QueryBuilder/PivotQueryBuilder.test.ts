@@ -28,7 +28,15 @@ const mockWarehouseSqlBuilder = {
     getStartOfWeek: () => WeekDay.MONDAY,
     getNullSafeEqualSql: defaultNullSafeEqualSql,
     getStringQuoteChar: () => "'",
-    escapeString: (v: string) => v.replaceAll("'", "''"),
+    // Mirrors WarehouseBaseSqlBuilder.escapeString: double quotes, strip SQL
+    // comments, escape backslashes, drop null bytes.
+    escapeString: (v: string) =>
+        v
+            .replaceAll("'", "''")
+            .replace(/--.*$/gm, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replaceAll('\\', '\\\\')
+            .replaceAll('\0', ''),
 } as unknown as WarehouseSqlBuilder;
 
 const replaceWhitespace = (str: string) => str.replace(/\s+/g, ' ').trim();
@@ -787,8 +795,8 @@ describe('PivotQueryBuilder', () => {
             );
             const result = builder.toSql();
 
-            // Single quote doubled → injection payload becomes a string literal.
-            expect(result).toContain("'completed''); DROP TABLE x;--'");
+            // Quote doubled and trailing -- comment stripped: payload is now an inert string literal.
+            expect(result).toContain("'completed''); DROP TABLE x;'");
             expect(result).not.toContain("'completed'); DROP TABLE x;--");
         });
 
@@ -839,6 +847,46 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('cr."status" = \'shipped\'');
             expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac');
             expect(result).toContain('CROSS JOIN "orders_anchor_column" ac');
+        });
+
+        test('Pinned sort: partial pin (covers only some groupBy columns) falls back to col_idx = 1', () => {
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'status' },
+                    { reference: 'channel' },
+                ],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'status', value: 'completed' },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            // Pin doesn't cover 'channel', so the WHERE falls back rather than
+            // matching only on 'status' (which could pick multiple anchor rows).
+            expect(result).toContain('"revenue_anchor_column" AS (');
+            expect(replaceWhitespace(result)).toContain(
+                'FROM column_ranking cr WHERE "col_idx" = 1',
+            );
+            expect(result).not.toContain('cr."status" = \'completed\'');
         });
 
         test('Pinned sort: pivotValues with unknown groupBy reference falls back to col_idx = 1', () => {

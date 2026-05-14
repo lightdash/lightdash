@@ -765,30 +765,29 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Builds the WHERE clause that selects which row of `column_ranking` becomes
-     * the anchor. When pivotValues is provided and references valid groupBy columns,
-     * the WHERE matches those values null-safely. Otherwise falls back to the
-     * leftmost pivot column (col_idx = 1).
+     * Builds the WHERE clause that picks the anchor row from `column_ranking`.
+     * Requires a full pin (one value per groupBy column) — partial or stale pins
+     * fall back to the leftmost pivot column so the anchor row stays predictable.
      */
     private buildAnchorWhereClause(
         pivotValues: VizSortBy['pivotValues'] | undefined,
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
-        if (!pivotValues?.length) {
-            return `${q}col_idx${q} = 1`;
-        }
-        const validRefs = new Set(groupByColumns.map((c) => c.reference));
-        const valid = pivotValues.filter((pv) => validRefs.has(pv.reference));
-        if (valid.length === 0) {
-            // Stale pin — fall back so the anchor is never empty.
-            return `${q}col_idx${q} = 1`;
-        }
-        return valid
-            .map((pv) =>
+        const fallback = `${q}col_idx${q} = 1`;
+        if (!pivotValues?.length) return fallback;
+
+        const pinByRef = new Map(pivotValues.map((pv) => [pv.reference, pv]));
+        const fullyCovered = groupByColumns.every((c) =>
+            pinByRef.has(c.reference),
+        );
+        if (!fullyCovered) return fallback;
+
+        return groupByColumns
+            .map((c) =>
                 this.warehouseSqlBuilder.getNullSafeEqualSql(
-                    `cr.${q}${pv.reference}${q}`,
-                    this.encodeLiteralValue(pv.value),
+                    `cr.${q}${c.reference}${q}`,
+                    this.encodeLiteralValue(pinByRef.get(c.reference)!.value),
                 ),
             )
             .join(' AND ');
@@ -842,21 +841,13 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Generates row anchor CTEs for value columns that have sorts.
-     * When sorting by a metric, rows are ordered by their metric value in the first pivot column
-     * (anchor column), not by their MIN/MAX across all columns. This matches user expectations
-     * when they click to sort by a metric - they expect ordering by the leftmost visible column.
+     * Generates row anchor CTEs for sorted value columns. Each row anchor pulls
+     * the metric value at its anchor column via CROSS JOIN, so row ordering uses
+     * that single column rather than an aggregate across all columns.
      *
-     * Uses CROSS JOIN with anchor_column CTE instead of scalar subqueries for cleaner SQL.
-     *
-     * @param indexColumns - Normalized index columns
-     * @param valuesColumns - Value columns configuration
-     * @param groupByColumns - Group by columns
-     * @param sortBy - Sort configuration
-     * @param perMetricAnchorCte - Optional map of metric reference → anchor_column CTE name.
-     *   When a metric has its own entry, the row anchor CROSS JOINs that CTE instead of
-     *   the shared `anchor_column`. Used when any sort entry has `pivotValues`.
-     * @returns Record mapping CTE names to their SQL definitions
+     * @param perMetricAnchorCte - Optional map of metric → anchor CTE name. When
+     *   set, the row anchor CROSS JOINs that CTE instead of the shared
+     *   `anchor_column`. Used when any sort has `pivotValues`.
      */
     private getRowAnchorCTEs(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
