@@ -646,6 +646,8 @@ export const streamAgentResponse = async ({
                                 : args.model.modelId,
                         finishReason,
                         stepCapReached,
+                        sqlModeRequested: args.sqlModeRequested,
+                        canRunSql: args.canRunSql,
                     },
                 });
                 logger(

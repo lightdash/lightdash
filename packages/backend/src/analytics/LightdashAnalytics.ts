@@ -1779,6 +1779,25 @@ export type AiAgentResponseStreamed = BaseTrack & {
         model: string;
         finishReason: string;
         stepCapReached: boolean;
+        sqlModeRequested: boolean;
+        canRunSql: boolean;
+    };
+};
+
+export type AiAgentStreamStartedEvent = BaseTrack & {
+    event: 'ai_agent.stream_started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        threadId: string;
+        promptId: string;
+        model: string;
+        context: 'slack' | 'web_app';
+        sqlModeRequested: boolean;
+        canRunSql: boolean;
     };
 };
 
@@ -2050,6 +2069,8 @@ type TypedEvent =
     | AiAgentEvalAppendedEvent
     | McpToolCallEvent
     | AiAgentToolCallEvent
+    | AiAgentStreamStartedEvent
+    | AiAgentResponseStreamed
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
     | ContentVerificationEvent

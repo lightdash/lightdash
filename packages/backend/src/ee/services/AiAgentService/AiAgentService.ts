@@ -3634,6 +3634,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             telemetryEnabled: this.lightdashConfig.ai.copilot.telemetryEnabled,
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
+            sqlModeRequested: enableSqlMode,
             canRunSql,
             warehouseType,
             warehouseSchema,
@@ -3716,6 +3717,26 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             },
         };
+
+        this.analytics.track({
+            event: 'ai_agent.stream_started',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+                projectId: agentSettings.projectUuid,
+                aiAgentId: agentSettings.uuid,
+                agentName: agentSettings.name,
+                threadId: prompt.threadUuid,
+                promptId: prompt.promptUuid,
+                model:
+                    typeof args.model === 'string'
+                        ? args.model
+                        : args.model.modelId,
+                context: isSlackPrompt(prompt) ? 'slack' : 'web_app',
+                sqlModeRequested: enableSqlMode,
+                canRunSql,
+            },
+        });
 
         return stream
             ? streamAgentResponse({ args, dependencies })

@@ -44,6 +44,7 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    sqlModeRequested: boolean;
     canRunSql: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
