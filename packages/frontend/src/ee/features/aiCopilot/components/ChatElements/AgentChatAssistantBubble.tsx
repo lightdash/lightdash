@@ -66,10 +66,11 @@ import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
     LiveActivityCard,
+    ReasoningHistoryRow,
     type LiveActivityToolGroup,
 } from './ToolCalls/LiveActivityCard';
+import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
-import { stripMarkdown } from './ToolCalls/utils/stripMarkdown';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
 
@@ -321,16 +322,19 @@ const AssistantBubbleContent: FC<{
                         (s): s is Extract<typeof s, { kind: 'text' }> =>
                             s.kind === 'text',
                     );
-                    // Only the most recent text chunk is ever visible — earlier
-                    // intermediate chunks collapse into the same single slot
-                    // and crossfade as new chunks arrive.
                     const latestTextSeg = textSegments[textSegments.length - 1];
                     const finalAnswerMd = latestTextSeg ? (
-                        <Box className={styles.aiMarkdown} style={mdStyle}>
+                        <Box
+                            className={`${styles.aiMarkdown} ${
+                                isStreaming ? styles.streamingNarration : ''
+                            }`}
+                            style={mdStyle}
+                        >
                             <Streamdown
                                 parseIncompleteMarkdown
                                 controls={false}
-                                animated
+                                caret="block"
+                                isAnimating={isStreaming}
                                 mode={isStreaming ? 'streaming' : 'static'}
                                 remarkPlugins={[remarkGfm, remarkEmoji]}
                                 rehypePlugins={[rehypeAiAgentContentLinks]}
@@ -380,49 +384,38 @@ const AssistantBubbleContent: FC<{
                             </Stack>
                         ) : null;
                     return (
-                        <Stack gap="xs" pt="xs">
+                        <Stack gap={4} pt="xs">
                             {/* Activity card sits ABOVE the rolling preview /
                              *  final answer so tool work reads top-to-bottom:
                              *  what was done → the answer. After streaming we
                              *  fold reasoning into the activity card so the
                              *  answer remains the focal point. SQL approvals
                              *  drop into the card's body, auto-expanded. */}
+                            {(() => {
+                                const reasoningTexts = toReasoningTexts(
+                                    !isStreaming
+                                        ? message.reasoning
+                                        : undefined,
+                                    isStreaming
+                                        ? streamingState?.reasoning
+                                        : undefined,
+                                );
+                                return reasoningTexts.length > 0 ? (
+                                    <ReasoningHistoryRow
+                                        texts={reasoningTexts}
+                                        isLive={isStreaming}
+                                    />
+                                ) : null;
+                            })()}
                             {(liveToolGroups.length > 0 ||
-                                pendingApprovalContent ||
-                                (streamingState?.reasoning?.length ?? 0) > 0 ||
-                                (message.reasoning?.length ?? 0) > 0) && (
+                                pendingApprovalContent) && (
                                 <LiveActivityCard
                                     toolGroups={liveToolGroups}
                                     isLive={isStreaming}
-                                    streamingReasoning={
-                                        isStreaming
-                                            ? streamingState?.reasoning
-                                            : undefined
-                                    }
-                                    reasoning={
-                                        !isStreaming
-                                            ? message.reasoning
-                                            : undefined
-                                    }
                                     pendingContent={pendingApprovalContent}
                                 />
                             )}
-                            {latestTextSeg && isStreaming ? (
-                                <Box
-                                    key={`rolling-${latestTextSeg.idx}`}
-                                    className={styles.rollingPreview}
-                                >
-                                    <Text
-                                        size="xs"
-                                        c="dimmed"
-                                        lineClamp={1}
-                                        className={styles.rollingPreviewText}
-                                    >
-                                        {stripMarkdown(latestTextSeg.text)}
-                                    </Text>
-                                </Box>
-                            ) : null}
-                            {latestTextSeg && !isStreaming ? (
+                            {latestTextSeg ? (
                                 <Box className={styles.streamPart}>
                                     {finalAnswerMd}
                                 </Box>
@@ -453,7 +446,15 @@ const AssistantBubbleContent: FC<{
                             <LiveActivityCard
                                 toolGroups={persistedToolGroups}
                                 isLive={isStreaming || isPending}
-                                reasoning={message.reasoning}
+                            />
+                        )}
+                        {message.reasoning && message.reasoning.length > 0 && (
+                            <ReasoningHistoryRow
+                                texts={toReasoningTexts(
+                                    message.reasoning,
+                                    undefined,
+                                )}
+                                isLive={false}
                             />
                         )}
                         {messageContent.length > 0 ? (

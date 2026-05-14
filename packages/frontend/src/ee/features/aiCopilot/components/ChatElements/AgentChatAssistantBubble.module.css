@@ -25,8 +25,13 @@
         filter 360ms ease;
 }
 
-/* Rolling one-line preview: when a new text chunk arrives during streaming,
- * the React key flips and this Box remounts, replaying the swap animation. */
+.streamingNarration {
+    color: var(--mantine-color-ldGray-7);
+    transition:
+        color 320ms ease,
+        opacity 320ms ease;
+}
+
 .rollingPreview {
     padding: 2px 0;
     animation: rollingPreviewSwap 360ms cubic-bezier(0.16, 1, 0.3, 1);

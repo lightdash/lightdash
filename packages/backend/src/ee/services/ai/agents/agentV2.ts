@@ -1,7 +1,6 @@
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
-    APICallError,
     generateText,
     smoothStream,
     stepCountIs,
@@ -660,8 +659,8 @@ export const streamAgentResponse = async ({
                 );
             },
             experimental_transform: smoothStream({
-                delayInMs: 20,
-                chunking: 'line',
+                delayInMs: 40,
+                chunking: 'word',
             }),
             onError: ({ error }) => {
                 console.error(error);

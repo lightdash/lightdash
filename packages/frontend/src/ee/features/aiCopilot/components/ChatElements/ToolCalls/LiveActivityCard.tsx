@@ -1,7 +1,6 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
-    type AiAgentReasoning,
     type ToolName,
 } from '@lightdash/common';
 import {
@@ -12,7 +11,7 @@ import {
     Text,
     UnstyledButton,
 } from '@mantine-8/core';
-import { IconChevronRight } from '@tabler/icons-react';
+import { IconChevronRight, IconNotes } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
 import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
@@ -34,15 +33,9 @@ export type LiveActivityToolGroup = {
     keyId: string;
 };
 
-type StreamingReasoning = { reasoningId: string; parts: string[] };
-
 type Props = {
     toolGroups: LiveActivityToolGroup[];
     isLive: boolean;
-    /** Persisted reasoning blocks (after streaming completes). */
-    reasoning?: AiAgentReasoning[];
-    /** Streaming reasoning blocks (latest part rolls in as preview). */
-    streamingReasoning?: StreamingReasoning[];
     /**
      * Pending interactive content (e.g. SqlApprovalCard awaiting user
      * decision). When present, the card auto-expands and renders this in the
@@ -54,21 +47,6 @@ type Props = {
 
 const REASONING_PREVIEW_LENGTH = 140;
 
-const toReasoningTexts = (
-    persisted: AiAgentReasoning[] | undefined,
-    streaming: StreamingReasoning[] | undefined,
-): string[] => {
-    if (streaming && streaming.length > 0) {
-        return streaming
-            .map((r) => r.parts.join('\n\n'))
-            .filter((t) => t.length > 0);
-    }
-    if (persisted && persisted.length > 0) {
-        return persisted.map((r) => r.text).filter((t) => t.length > 0);
-    }
-    return [];
-};
-
 const TOOLS_WITHOUT_PREVIEW = new Set<ToolName>([
     'runSql',
     'improveContext',
@@ -78,10 +56,10 @@ const TOOLS_WITHOUT_PREVIEW = new Set<ToolName>([
     'describeWarehouseTable',
 ]);
 
-const ReasoningHistoryRow: FC<{ texts: string[]; isLive: boolean }> = ({
-    texts,
-    isLive,
-}) => {
+export const ReasoningHistoryRow: FC<{
+    texts: string[];
+    isLive: boolean;
+}> = ({ texts, isLive }) => {
     const [open, setOpen] = useState(false);
     const combined = texts.join('\n\n');
     // While streaming, the preview is the *latest* reasoning chunk (it rolls
@@ -102,6 +80,24 @@ const ReasoningHistoryRow: FC<{ texts: string[]; isLive: boolean }> = ({
                 className={styles.reasoningHeader}
             >
                 <Group gap={8} align="center" wrap="nowrap">
+                    {isLive ? (
+                        <Box className={styles.iconChip} data-live="true">
+                            <MantineIcon
+                                icon={IconNotes}
+                                size={12}
+                                stroke={1.7}
+                                className={styles.reasoningIcon}
+                                data-live="true"
+                            />
+                        </Box>
+                    ) : (
+                        <MantineIcon
+                            icon={IconNotes}
+                            size={13}
+                            stroke={1.6}
+                            className={styles.reasoningIcon}
+                        />
+                    )}
                     <Text
                         size="xs"
                         className={styles.reasoningLabel}
@@ -228,13 +224,9 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
 export const LiveActivityCard: FC<Props> = ({
     toolGroups,
     isLive,
-    reasoning,
-    streamingReasoning,
     pendingContent,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
-    const reasoningTexts = toReasoningTexts(reasoning, streamingReasoning);
-    const hasReasoning = reasoningTexts.length > 0;
 
     // When the latest tool changes, auto-expand for runSql (so users see the
     // query immediately) and auto-collapse otherwise. The user's explicit
@@ -253,8 +245,7 @@ export const LiveActivityCard: FC<Props> = ({
         else setUserExpanded(false);
     }, [latestKeyId, latestToolName]);
 
-    if (toolGroups.length === 0 && !pendingContent && !hasReasoning)
-        return null;
+    if (toolGroups.length === 0 && !pendingContent) return null;
 
     const hasPending = pendingContent != null;
     // When there's a pending approval, the conceptual *latest* action is the
@@ -274,7 +265,7 @@ export const LiveActivityCard: FC<Props> = ({
     );
     const olderGroups = latest ? toolGroups.slice(0, -1) : toolGroups;
     const olderCount = latest ? totalCalls - latest.calls.length : totalCalls;
-    const hasHistory = olderCount > 0 || hasReasoning;
+    const hasHistory = olderCount > 0;
     // Auto-expand whenever there's pending interactive content so the user
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || userExpanded;
@@ -353,14 +344,6 @@ export const LiveActivityCard: FC<Props> = ({
                                     awaiting approval
                                 </Text>
                             </Group>
-                        ) : hasReasoning ? (
-                            <Text
-                                size="xs"
-                                className={styles.latestLabel}
-                                data-live={isLive ? 'true' : 'false'}
-                            >
-                                Thinking
-                            </Text>
                         ) : null}
                     </Box>
                     {olderCount > 0 && (
@@ -424,12 +407,6 @@ export const LiveActivityCard: FC<Props> = ({
                                 </Box>
                             ))}
                         </Stack>
-                    )}
-                    {hasReasoning && (
-                        <ReasoningHistoryRow
-                            texts={reasoningTexts}
-                            isLive={isLive}
-                        />
                     )}
                 </Stack>
             </Collapse>
