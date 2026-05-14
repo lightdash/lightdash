@@ -687,7 +687,7 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('FROM pivot_query p CROSS JOIN');
         });
 
-        test('Pinned sort: pivotValues swaps WHERE col_idx = 1 for a null-safe value match on the pinned column', () => {
+        test('Pinned sort: pivotValues swaps WHERE col_idx = 1 for a value match on the pinned column', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -718,12 +718,12 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('"revenue_anchor_column" AS (');
             expect(result).not.toContain('anchor_column AS (');
             expect(replaceWhitespace(result)).toContain(
-                '(cr."status" = \'completed\' OR (cr."status" IS NULL AND \'completed\' IS NULL))',
+                '(cr."status") IN (\'completed\')',
             );
             expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac');
         });
 
-        test('Pinned sort: numeric and null pivot values are literal-encoded correctly', () => {
+        test('Pinned sort: numeric and null pivot values emit type-correct SQL', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
                 valuesColumns: [
@@ -755,12 +755,149 @@ describe('PivotQueryBuilder', () => {
             );
             const result = builder.toSql();
 
-            // Numbers bare, null as keyword.
+            // Number → NUMBER filter (bare numeric literal, IN syntax).
             expect(replaceWhitespace(result)).toContain(
-                '(cr."segment_id" = 42 OR (cr."segment_id" IS NULL AND 42 IS NULL))',
+                '(cr."segment_id") IN (42)',
             );
+            // Null → IS NULL (strict equality with NULL never matches).
             expect(replaceWhitespace(result)).toContain(
-                '(cr."channel" = NULL OR (cr."channel" IS NULL AND NULL IS NULL))',
+                '(cr."channel") IS NULL',
+            );
+        });
+
+        test('Pinned sort: boolean pivot value emits native TRUE/FALSE (not a string literal)', () => {
+            const booleanDim = {
+                name: 'is_completed',
+                table: 'orders',
+                tableLabel: 'Orders',
+                label: 'Is completed',
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.BOOLEAN,
+                sql: '${TABLE}.is_completed',
+                hidden: false,
+            } as unknown as CompiledDimension;
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'is_completed' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'is_completed', value: false },
+                        ],
+                    },
+                ],
+            };
+            const itemsMap: ItemsMap = { is_completed: booleanDim };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                undefined,
+                itemsMap,
+            );
+            const result = builder.toSql();
+
+            // Native boolean literal — no quotes around `false`, which is what
+            // BigQuery / Snowflake require (string='false' is a type error there).
+            expect(replaceWhitespace(result)).toContain(
+                '(cr."is_completed") = false',
+            );
+            expect(result).not.toContain('(cr."is_completed") = \'false\'');
+        });
+
+        test('Pinned sort: boolean inferred from JS type when dimension is unknown (fallback)', () => {
+            // No itemsMap → falls back to inferDimensionTypeFromValue, which
+            // recognizes typeof === 'boolean' and emits native TRUE/FALSE.
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'is_completed' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'is_completed', value: true },
+                        ],
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const result = builder.toSql();
+
+            expect(replaceWhitespace(result)).toContain(
+                '(cr."is_completed") = true',
+            );
+        });
+
+        test('Pinned sort: DATE pivot value emits date filter SQL when itemsMap exposes the type', () => {
+            const dateDim = {
+                name: 'order_date',
+                table: 'orders',
+                tableLabel: 'Orders',
+                label: 'Order date',
+                fieldType: FieldType.DIMENSION,
+                type: DimensionType.DATE,
+                sql: '${TABLE}.order_date',
+                hidden: false,
+            } as unknown as CompiledDimension;
+
+            const pivotConfiguration = {
+                indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'order_date' }],
+                sortBy: [
+                    {
+                        reference: 'revenue',
+                        direction: SortByDirection.DESC,
+                        pivotValues: [
+                            { reference: 'order_date', value: '2024-01-01' },
+                        ],
+                    },
+                ],
+            };
+            const itemsMap: ItemsMap = { order_date: dateDim };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+                undefined,
+                itemsMap,
+            );
+            const result = builder.toSql();
+
+            // Date filter emits parenthesized literal — typed by the warehouse
+            // dialect, not a bare string comparison. Exact format depends on
+            // adapter, but the date value should appear and the column-side
+            // expression should not be wrapped in a cast in the default path.
+            expect(replaceWhitespace(result)).toContain(
+                '(cr."order_date") = (\'2024-01-01\')',
             );
         });
 
@@ -843,8 +980,8 @@ describe('PivotQueryBuilder', () => {
             expect(result).toContain('"orders_anchor_column" AS (');
             expect(result).not.toContain('anchor_column AS (');
 
-            expect(result).toContain('cr."status" = \'completed\'');
-            expect(result).toContain('cr."status" = \'shipped\'');
+            expect(result).toContain('(cr."status") IN (\'completed\')');
+            expect(result).toContain('(cr."status") IN (\'shipped\')');
             expect(result).toContain('CROSS JOIN "revenue_anchor_column" ac');
             expect(result).toContain('CROSS JOIN "orders_anchor_column" ac');
         });

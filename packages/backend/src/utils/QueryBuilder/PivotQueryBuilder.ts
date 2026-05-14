@@ -1,4 +1,6 @@
 import {
+    DimensionType,
+    FilterOperator,
     getAggregatedField,
     getItemId,
     getParsedReference,
@@ -11,14 +13,17 @@ import {
     normalizeIndexColumns,
     ParameterError,
     parseTableCalculationFunctions,
+    renderFilterRuleSql,
     SortByDirection,
     TableCalculationFunctionCompiler,
     TimeFrames,
     VizAggregationOptions,
     VizSortBy,
     WarehouseSqlBuilder,
+    type FilterRule,
     type ItemsMap,
     type PivotConfiguration,
+    type PivotSortAnchor,
     type TableCalculation,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
@@ -751,17 +756,57 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Encodes a JS literal value as a SQL literal for inclusion in a WHERE clause.
-     * Numbers pass through; strings are warehouse-escaped and string-quoted; null
-     * becomes the SQL keyword. Non-finite numbers fall back to NULL.
+     * Renders a single anchor equality predicate by delegating to the filter
+     * compiler, so boolean/date/timestamp pins emit type-correct SQL on every
+     * warehouse. Null pins short-circuit to `IS NULL` since strict equality
+     * never matches NULL columns.
      */
-    private encodeLiteralValue(value: string | number | null): string {
-        if (value === null) return 'NULL';
-        if (typeof value === 'number') {
-            return Number.isFinite(value) ? String(value) : 'NULL';
+    private renderAnchorEqualitySql(
+        reference: string,
+        value: PivotSortAnchor['value'],
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const colSql = `cr.${q}${reference}${q}`;
+
+        if (value === null) {
+            return `(${colSql}) IS NULL`;
         }
-        const sq = this.warehouseSqlBuilder.getStringQuoteChar();
-        return `${sq}${this.warehouseSqlBuilder.escapeString(value)}${sq}`;
+
+        const item = this.itemsMap[reference];
+        const fieldType = isDimension(item)
+            ? item.type
+            : PivotQueryBuilder.inferDimensionTypeFromValue(value);
+
+        const filterRule: FilterRule<FilterOperator, unknown> = {
+            id: 'pivot-anchor',
+            target: { fieldId: reference },
+            operator: FilterOperator.EQUALS,
+            values: [value],
+        };
+
+        return renderFilterRuleSql(
+            filterRule,
+            fieldType,
+            colSql,
+            this.warehouseSqlBuilder.getStringQuoteChar(),
+            (s) => this.warehouseSqlBuilder.escapeString(s),
+            this.warehouseSqlBuilder.getStartOfWeek(),
+            this.warehouseSqlBuilder.getAdapterType(),
+        );
+    }
+
+    /**
+     * Fallback dimension type used when the pin's `reference` isn't a known
+     * dimension in `itemsMap` (mostly tests). Cannot recover DATE/TIMESTAMP
+     * from a string value here — callers in production paths always pass a
+     * populated itemsMap.
+     */
+    private static inferDimensionTypeFromValue(
+        value: string | number | boolean,
+    ): DimensionType {
+        if (typeof value === 'boolean') return DimensionType.BOOLEAN;
+        if (typeof value === 'number') return DimensionType.NUMBER;
+        return DimensionType.STRING;
     }
 
     /**
@@ -785,9 +830,9 @@ export class PivotQueryBuilder {
 
         return groupByColumns
             .map((c) =>
-                this.warehouseSqlBuilder.getNullSafeEqualSql(
-                    `cr.${q}${c.reference}${q}`,
-                    this.encodeLiteralValue(pinByRef.get(c.reference)!.value),
+                this.renderAnchorEqualitySql(
+                    c.reference,
+                    pinByRef.get(c.reference)!.value,
                 ),
             )
             .join(' AND ');
