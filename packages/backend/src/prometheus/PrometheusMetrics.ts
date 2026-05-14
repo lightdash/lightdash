@@ -163,11 +163,7 @@ export default class PrometheusMetrics {
         }
         return req.path && req.path.length > 0 ? req.path : '/';
     }
-
-    /**
-     * Records request duration into `http_server_requests_seconds` (histogram: _bucket, _count, _sum).
-     * Safe to mount when Prometheus is disabled (no-op).
-     */
+    
     public httpServerRequestMetricsMiddleware(): express.RequestHandler {
         return (req, res, next) => {
             const histogram = this.httpServerRequestsDurationSeconds;
@@ -258,13 +254,16 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
-                this.httpServerRequestsDurationSeconds = new prometheus.Histogram({
-                    name: 'http_server_requests_seconds',
-                    help: 'HTTP server request duration in seconds',
-                    labelNames: ['method', 'uri', 'status_code'],
-                    buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
-                    ...rest,
-                });
+                if (this.config.extendedMetricsEnabled) {
+                    this.httpServerRequestsDurationSeconds =
+                        new prometheus.Histogram({
+                            name: 'http_server_requests_seconds',
+                            help: 'HTTP server request duration in seconds',
+                            labelNames: ['method', 'uri', 'status_code'],
+                            buckets: [0.1, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
+                            ...rest,
+                        });
+                }
 
                 // Initialize AI Agent response time histograms
                 this.aiAgentGenerateResponseDurationHistogram =
