@@ -1841,6 +1841,11 @@ export class ProjectService extends BaseService {
         const prevMetricsTreeNodes =
             await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
 
+        // Capture the explore names already in cache so we can emit an
+        // added/removed diff once the new explores are written (PROD-5931).
+        const previousExploreNames =
+            await this.projectModel.getCachedExploreNames(projectUuid);
+
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
         const { organizationUuid } =
@@ -1849,6 +1854,40 @@ export class ProjectService extends BaseService {
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
         );
+
+        // Wide observability event for explore lifecycle. Pair with the
+        // `dashboard.loaded` event to correlate "table removed at T1" with
+        // "dashboard loaded with stale reference at T2".
+        try {
+            const NAME_SAMPLE_CAP = 50;
+            const previousNameSet = new Set(previousExploreNames);
+            const newNames = explores.map((explore) => explore.name);
+            const newNameSet = new Set(newNames);
+            const removed = previousExploreNames.filter(
+                (name) => !newNameSet.has(name),
+            );
+            const added = newNames.filter((name) => !previousNameSet.has(name));
+
+            this.logger.info('compile.completed', {
+                projectUuid,
+                organizationUuid,
+                jobUuid: jobUuid ?? null,
+                compilationSource,
+                requestMethod: requestMethod ?? null,
+                cliVersion: cliVersion ?? null,
+                previousExploreCount: previousExploreNames.length,
+                newExploreCount: newNames.length,
+                addedExploreCount: added.length,
+                removedExploreCount: removed.length,
+                addedExploreNames: added.slice(0, NAME_SAMPLE_CAP),
+                removedExploreNames: removed.slice(0, NAME_SAMPLE_CAP),
+            });
+        } catch (err) {
+            this.logger.warn('compile.completed log failed', {
+                projectUuid,
+                err: err instanceof Error ? err.message : String(err),
+            });
+        }
 
         const compilationReport = calculateCompilationReport({ explores });
         const project = await this.projectModel.get(projectUuid);

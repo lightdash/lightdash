@@ -155,6 +155,7 @@ const projectModel = {
     })),
     findExploreByTableName: jest.fn(async () => validExplore),
     getAllExploresFromCache: jest.fn(async () => ({})),
+    getCachedExploreNames: jest.fn(async () => []),
     saveExploresToCache: jest.fn(async () => ({ cachedExploreUuids: [] })),
     updateDefaultUserSpaces: jest.fn(async () => undefined),
 };
