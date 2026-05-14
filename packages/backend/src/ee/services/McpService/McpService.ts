@@ -473,7 +473,8 @@ export class McpService extends BaseService {
                         getMcpContext(extra),
                     );
 
-                const { user } = getMcpContext(extra).authInfo!.extra;
+                const { user } = this.getAccount(getMcpContext(extra));
+
                 const tagsFromContext = await this.getTagsFromContext(
                     getMcpContext(extra),
                 );
@@ -932,7 +933,7 @@ export class McpService extends BaseService {
                     context: {
                         projectUuid: existingContext?.context.projectUuid ?? '',
                         projectName: existingContext?.context.projectName ?? '',
-                        tags: existingContext?.context.tags ?? null,
+                        tags: existingContext?.context.tags || null,
                         agentUuid: agent.uuid,
                         agentName: agent.name,
                     },
@@ -996,7 +997,7 @@ export class McpService extends BaseService {
                     context: {
                         projectUuid: existingContext?.context.projectUuid ?? '',
                         projectName: existingContext?.context.projectName ?? '',
-                        tags: existingContext?.context.tags ?? null,
+                        tags: existingContext?.context.tags || null,
                         agentUuid: null,
                         agentName: null,
                     },
@@ -1299,10 +1300,10 @@ export class McpService extends BaseService {
                         JSON.stringify(exploreConfigState),
                     )}&isExploreFromHere=true`;
 
-                    const { user: mcpUser } =
-                        getMcpContext(extra).authInfo!.extra;
+                    const { user } = this.getAccount(getMcpContext(extra));
+
                     const shareUrl = await this.shareService.createShareUrl(
-                        mcpUser,
+                        user,
                         explorePath,
                         exploreParams,
                     );
@@ -1539,13 +1540,14 @@ export class McpService extends BaseService {
             async (_args, extra) => {
                 const context = getMcpContext(extra);
                 const metadata = await this.getActiveContextMetadata(context);
+                const { user } = this.getAccount(context);
 
                 let promptText: string;
 
                 if (metadata.agentUuid) {
                     try {
                         const agent = await this.aiAgentService.getAgent(
-                            context.authInfo!.extra.user,
+                            user,
                             metadata.agentUuid,
                             undefined,
                             { includeSummaryContext: true },
@@ -1652,10 +1654,10 @@ export class McpService extends BaseService {
     }
 
     async getProjectUuidFromContext(context: McpProtocolContext) {
-        const { user, headerProjectUuid } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const user = context.authInfo?.extra.user;
+        const headerProjectUuid = context.authInfo?.extra.headerProjectUuid;
 
-        if (!user || !organizationUuid) {
+        if (!user || !user.organizationUuid) {
             return undefined;
         }
 
@@ -1665,49 +1667,46 @@ export class McpService extends BaseService {
 
         const contextRow = await this.mcpContextModel.getContext(
             user.userUuid,
-            organizationUuid,
+            user.organizationUuid,
         );
 
         return contextRow?.context.projectUuid;
     }
 
     async getTagsFromContext(context: McpProtocolContext) {
-        const { user } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const user = context.authInfo?.extra.user;
 
-        if (!user || !organizationUuid) {
+        if (!user || !user.organizationUuid) {
             return null;
         }
 
         const contextRow = await this.mcpContextModel.getContext(
             user.userUuid,
-            organizationUuid,
+            user.organizationUuid,
         );
 
-        return contextRow?.context.tags ?? null;
+        return contextRow?.context.tags || null;
     }
 
     async getAgentUuidFromContext(context: McpProtocolContext) {
-        const { user } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const user = context.authInfo?.extra.user;
 
-        if (!user || !organizationUuid) {
+        if (!user || !user.organizationUuid) {
             return null;
         }
 
         const contextRow = await this.mcpContextModel.getContext(
             user.userUuid,
-            organizationUuid,
+            user.organizationUuid,
         );
 
         return contextRow?.context.agentUuid ?? null;
     }
 
     async getActiveContextMetadata(context: McpProtocolContext) {
-        const { user } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const user = context.authInfo?.extra.user;
 
-        if (!user || !organizationUuid) {
+        if (!user || !user.organizationUuid) {
             return {
                 projectUuid: null,
                 projectName: null,
@@ -1719,7 +1718,7 @@ export class McpService extends BaseService {
 
         const contextRow = await this.mcpContextModel.getContext(
             user.userUuid,
-            organizationUuid,
+            user.organizationUuid,
         );
 
         if (!contextRow) {
@@ -1747,17 +1746,18 @@ export class McpService extends BaseService {
     async getMergedUserAttributes(
         context: McpProtocolContext,
     ): Promise<UserAttributeValueMap> {
-        const { user, headerUserAttributes } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const user = context.authInfo?.extra.user;
+        const headerUserAttributes =
+            context.authInfo?.extra.headerUserAttributes;
 
-        if (!user || !organizationUuid) {
+        if (!user || !user.organizationUuid) {
             return {};
         }
 
         // Get database defaults
         const dbAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
+                organizationUuid: user.organizationUuid,
                 userUuid: user.userUuid,
             });
 
@@ -1778,10 +1778,11 @@ export class McpService extends BaseService {
     async getUserAttributeOverridesFromContext(
         context: McpProtocolContext,
     ): Promise<UserAttributeValueMap | undefined> {
-        const { user, headerUserAttributes } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const user = context.authInfo?.extra.user;
+        const headerUserAttributes =
+            context.authInfo?.extra.headerUserAttributes;
 
-        if (!user || !organizationUuid) {
+        if (!user || !user.organizationUuid) {
             return undefined;
         }
 
@@ -1792,7 +1793,7 @@ export class McpService extends BaseService {
         // Validate header attributes (admin + narrowing check)
         const dbAttributes =
             await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
+                organizationUuid: user.organizationUuid,
                 userUuid: user.userUuid,
             });
         const auditedAbility = this.createAuditedAbility(user);
@@ -1807,7 +1808,8 @@ export class McpService extends BaseService {
     }
 
     async resolveProjectUuid(context: McpProtocolContext) {
-        const { user, account, headerProjectUuid } = context.authInfo!.extra;
+        const headerProjectUuid = context.authInfo?.extra.headerProjectUuid;
+
         const projectUuid = await this.getProjectUuidFromContext(context);
         if (!projectUuid) {
             throw new ForbiddenError(
@@ -1819,10 +1821,13 @@ export class McpService extends BaseService {
         // otherwise any tool that doesn't re-check (e.g. list_explores) would
         // leak project metadata cross-tenant.
         if (headerProjectUuid && headerProjectUuid === projectUuid) {
+            const { user, account } = this.getAccount(context);
+
             const project = await this.projectService.getProject(
                 projectUuid,
                 account,
             );
+
             const auditedAbility = this.createAuditedAbility(user);
             if (
                 auditedAbility.cannot(
@@ -1930,13 +1935,8 @@ export class McpService extends BaseService {
         },
         context: McpProtocolContext,
     ): Promise<FindExploresFn> {
-        const { user, account } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const { user, account } = this.getAccount(context);
         const { projectUuid } = toolArgs;
-
-        if (!user || !organizationUuid || !account) {
-            throw new ForbiddenError();
-        }
 
         const project = await this.projectService.getProject(
             projectUuid,
@@ -2032,13 +2032,8 @@ export class McpService extends BaseService {
         toolArgs: Omit<ToolFindFieldsArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<{ findFields: FindFieldFn; getExplore: GetExploreFn }> {
-        const { user, account } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const { user, account } = this.getAccount(context);
         const { projectUuid } = toolArgs;
-
-        if (!user || !organizationUuid || !account) {
-            throw new ForbiddenError();
-        }
 
         const project = await this.projectService.getProject(
             projectUuid,
@@ -2108,13 +2103,8 @@ export class McpService extends BaseService {
         toolArgs: Omit<ToolFindContentArgs, 'type'> & { projectUuid: string },
         context: McpProtocolContext,
     ): Promise<FindContentFn> {
-        const { user, account } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const { user, account } = this.getAccount(context);
         const { projectUuid } = toolArgs;
-
-        if (!user || !organizationUuid || !account) {
-            throw new ForbiddenError();
-        }
 
         const project = await this.projectService.getProject(
             projectUuid,
@@ -2177,13 +2167,8 @@ export class McpService extends BaseService {
         agentContext: AgentContext;
         runAsyncQuery: RunAsyncQueryFn;
     }> {
-        const { user, account } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const { user, account } = this.getAccount(context);
         const { projectUuid } = toolArgs;
-
-        if (!user || !organizationUuid || !account) {
-            throw new ForbiddenError();
-        }
 
         const project = await this.projectService.getProject(
             projectUuid,
@@ -2239,13 +2224,8 @@ export class McpService extends BaseService {
         },
         context: McpProtocolContext,
     ): Promise<SearchFieldValuesFn> {
-        const { user, account } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+        const { user, account } = this.getAccount(context);
         const { projectUuid } = toolArgs;
-
-        if (!user || !organizationUuid || !account) {
-            throw new ForbiddenError();
-        }
 
         const project = await this.projectService.getProject(
             projectUuid,
@@ -2345,18 +2325,16 @@ export class McpService extends BaseService {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public getAccount(context: McpProtocolContext): {
-        user: SessionUser;
-        organizationUuid: string;
-        account: Account;
-    } {
-        const { user, account } = context.authInfo!.extra;
-        const { organizationUuid } = user;
+    public getAccount(context: McpProtocolContext) {
+        const user = context.authInfo?.extra.user;
+        const account = context.authInfo?.extra.account;
 
-        if (!user || !organizationUuid || !account) {
-            throw new ForbiddenError();
+        if (!user || !user.organizationUuid || !account) {
+            throw new ForbiddenError(
+                'MCP request is missing authenticated user context',
+            );
         }
-        return { user, organizationUuid, account };
+        return { user, account, organizationUuid: user.organizationUuid };
     }
 
     public canAccessMcp(context: McpProtocolContext): boolean {
