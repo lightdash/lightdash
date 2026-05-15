@@ -1,7 +1,7 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "username": "lightdash-bot",
-  "gitAuthor": "lightdash-bot <bot@lightdash.com>",
+  "gitAuthor": "lightdash-bot <131011178+lightdash-bot@users.noreply.github.com>",
   "platform": "github",
   "onboarding": false,
   "requireConfig": "optional",
