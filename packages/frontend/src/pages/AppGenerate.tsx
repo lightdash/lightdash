@@ -107,6 +107,11 @@ import { useIterateApp } from '../features/apps/hooks/useIterateApp';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
+import {
+    mergeChatMessages,
+    type ChatChart,
+    type ChatMessage,
+} from '../features/apps/utils/mergeChatMessages';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
@@ -135,33 +140,8 @@ function parseElementRefLabel(label: string): ElementRef | null {
     return { tag: m[1] ?? '', text: m[2] ?? '', loc: m[3] ?? '' };
 }
 
-type ChatChart = {
-    name: string;
-    uuid: string;
-    chartKind?: ChartKind;
-};
-
-type ChatMessage = {
-    role: 'user' | 'assistant';
-    content: string;
-    imagePreviewUrls: string[];
-    imageResourceIds: string[];
-    charts: ChatChart[];
-    dashboardName: string | null;
-    clarifications: AppClarification[];
-    appUuid: string | null;
-    version: number | null;
-    // Wall-clock time for the meta line on the bubble. For user messages,
-    // when the prompt was submitted; for terminal assistant messages
-    // (ready/error), when the build transitioned (`statusUpdatedAt`).
-    // The mid-build/clarifying placeholder doesn't render meta at all, so
-    // this field has no effect on in-progress state.
-    timestamp: Date;
-    // Display name of the version author for `role === 'user'` bubbles.
-    // Assistant bubbles always pass `null` — they intentionally render
-    // nameless.
-    userName: string | null;
-};
+// ChatChart and ChatMessage are imported from `features/apps/utils/mergeChatMessages`
+// alongside the merge helper, so the type and the merge logic stay collocated.
 
 const AppResourceImage: FC<{
     projectUuid: string;
@@ -730,10 +710,25 @@ const AppGenerate: FC = () => {
         });
     }, [allVersions, activeAppUuid]);
 
-    // Merge: history messages first, then any optimistic local messages
+    // Highest server-known version number, used by `mergeChatMessages` to drop
+    // optimistic local bubbles whose corresponding server version has already
+    // landed in history.
+    const maxHistoryVersion = useMemo(
+        () => allVersions.reduce((max, v) => Math.max(max, v.version), 0),
+        [allVersions],
+    );
+
+    // Merge history with the optimistic queue, dropping any local user bubble
+    // whose `submittedAtVersion` is older than `maxHistoryVersion` — see
+    // `mergeChatMessages` for the dedup contract.
     const messages = useMemo(
-        () => [...historyMessages, ...localMessages],
-        [historyMessages, localMessages],
+        () =>
+            mergeChatMessages(
+                historyMessages,
+                localMessages,
+                maxHistoryVersion,
+            ),
+        [historyMessages, localMessages, maxHistoryVersion],
     );
 
     // The starter-template wizard only shows for v1 of a brand-new app -
@@ -1201,6 +1196,12 @@ const AppGenerate: FC = () => {
                         [user.data?.firstName, user.data?.lastName]
                             .filter((s): s is string => !!s && s.length > 0)
                             .join(' ') || null,
+                    // Snapshot the highest server version known at submit time.
+                    // Once history catches up past this number the optimistic
+                    // bubble is dropped by `mergeChatMessages` — even if the
+                    // brittle `serverVersionCount`-based clear effect misses
+                    // a transition.
+                    submittedAtVersion: maxHistoryVersion,
                 },
             ]);
             promptEditorRef.current?.clear();
