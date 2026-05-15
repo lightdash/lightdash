@@ -1,3 +1,15 @@
+# [0.2957.0](https://github.com/lightdash/lightdash/compare/0.2956.1...0.2957.0) (2026-05-15)
+
+
+### Bug Fixes
+
+* **data-apps:** dedupe optimistic chat bubble against server history ([#23132](https://github.com/lightdash/lightdash/issues/23132)) ([c82216d](https://github.com/lightdash/lightdash/commit/c82216d9d99c8d263908e3b33536a5b5818ccecd))
+
+
+### Features
+
+* **ai-agent:** persist subagent findExplores/findFields tool results ([#23116](https://github.com/lightdash/lightdash/issues/23116)) ([0bd92f7](https://github.com/lightdash/lightdash/commit/0bd92f72279b956015ec43af3ee3c3d56e1cc133))
+
 ## [0.2956.1](https://github.com/lightdash/lightdash/compare/0.2956.0...0.2956.1) (2026-05-15)
 
 
