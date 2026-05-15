@@ -1263,13 +1263,6 @@ export class ProjectModel {
         );
     }
 
-    async getCachedExploreNames(projectUuid: string): Promise<string[]> {
-        const rows = await this.database(CachedExploreTableName)
-            .select<{ name: string }[]>('name')
-            .where('project_uuid', projectUuid);
-        return rows.map((row) => row.name);
-    }
-
     async findVirtualViewsFromCache(
         projectUuid: string,
     ): Promise<Record<string, Explore | ExploreError>> {
