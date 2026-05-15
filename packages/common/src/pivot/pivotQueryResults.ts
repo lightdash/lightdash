@@ -1,6 +1,7 @@
 import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
 import { type Entries } from 'type-fest';
+import { LightdashParameters } from '../compiler/parameters';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError, UnexpectedServerError } from '../types/errors';
 import {
@@ -32,6 +33,29 @@ import {
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
 type FieldLabelFunction = (fieldId: string) => string | undefined;
+
+// Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
+// (parameters live on the client). For flat tables, useColumns re-formats per
+// cell. The pivot path stores backend values verbatim, so we do the same
+// per-cell overlay here whenever the field's format references parameters.
+const reformatCellWithParameters = (
+    value: ResultValue | null | undefined,
+    item: ItemsMap[string] | undefined,
+    parameters: ParametersValuesMap | undefined,
+): ResultValue | null | undefined => {
+    if (!value || !item || !parameters) return value;
+    if (!('format' in item) || typeof item.format !== 'string') return value;
+    if (
+        !item.format.includes(`\${${LightdashParameters.PREFIX_SHORT}`) &&
+        !item.format.includes(`\${${LightdashParameters.PREFIX}`)
+    ) {
+        return value;
+    }
+    return {
+        raw: value.raw,
+        formatted: formatItemValue(item, value.raw, false, parameters),
+    };
+};
 
 type PivotQueryResultsArgs = {
     pivotConfig: PivotConfig;
@@ -748,7 +772,13 @@ export const pivotQueryResults = ({
         const row = rows[nRow];
         for (let nMetric = 0; nMetric < metrics.length; nMetric += 1) {
             const metric = metrics[nMetric];
-            const { value } = row?.[metric.fieldId] ?? {};
+            const { value: rawCellValue } = row?.[metric.fieldId] ?? {};
+            const value =
+                reformatCellWithParameters(
+                    rawCellValue,
+                    getField(metric.fieldId),
+                    parameters,
+                ) ?? null;
 
             const rowKeys = [
                 ...indexDimensions.map((d) => row[d].value.raw),
@@ -1184,7 +1214,11 @@ export const convertSqlPivotedRowsToPivotData = ({
                     );
 
                     return matchingColumn && row[matchingColumn.pivotColumnName]
-                        ? row[matchingColumn.pivotColumnName].value
+                        ? (reformatCellWithParameters(
+                              row[matchingColumn.pivotColumnName].value,
+                              getField(metric),
+                              parameters,
+                          ) ?? null)
                         : null;
                 });
 
@@ -1203,7 +1237,11 @@ export const convertSqlPivotedRowsToPivotData = ({
 
             return filteredValuesColumns.map((valueCol) =>
                 row[valueCol.pivotColumnName]
-                    ? row[valueCol.pivotColumnName].value
+                    ? (reformatCellWithParameters(
+                          row[valueCol.pivotColumnName].value,
+                          getField(valueCol.referenceField),
+                          parameters,
+                      ) ?? null)
                     : null,
             );
         });
@@ -1397,7 +1435,15 @@ export const convertSqlPivotedRowsToPivotData = ({
                       }__${colIndex}`;
 
                 if (row[valueCol.pivotColumnName]) {
-                    combinedRow[fieldId] = row[valueCol.pivotColumnName];
+                    const cell = row[valueCol.pivotColumnName];
+                    const reformatted = reformatCellWithParameters(
+                        cell.value,
+                        getField(valueCol.referenceField),
+                        parameters,
+                    );
+                    combinedRow[fieldId] = reformatted
+                        ? { value: reformatted }
+                        : cell;
                 }
             });
 
