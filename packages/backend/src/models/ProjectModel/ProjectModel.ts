@@ -2846,9 +2846,11 @@ export class ProjectModel {
                 SavedChartCustomSqlDimensionsTableName,
                 [],
             );
-            await copyChartVersionContent('saved_queries_version_sorts', [
-                'saved_queries_version_sort_id',
-            ]);
+            await copyChartVersionContent(
+                'saved_queries_version_sorts',
+                ['saved_queries_version_sort_id'],
+                { pivot_values: (value: AnyType) => JSON.stringify(value) },
+            );
             await copyChartVersionContent('saved_queries_version_fields', [
                 'saved_queries_version_field_id',
             ]);
