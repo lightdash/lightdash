@@ -1,3 +1,10 @@
+## [0.2950.3](https://github.com/lightdash/lightdash/compare/0.2950.2...0.2950.3) (2026-05-15)
+
+
+### Bug Fixes
+
+* **timezone:** symmetric source/target short-circuit on filter literals ([#23098](https://github.com/lightdash/lightdash/issues/23098)) ([eaa35b1](https://github.com/lightdash/lightdash/commit/eaa35b1a9460f90ad7273bdd89f568e3b8662705))
+
 ## [0.2950.2](https://github.com/lightdash/lightdash/compare/0.2950.1...0.2950.2) (2026-05-15)
 
 
