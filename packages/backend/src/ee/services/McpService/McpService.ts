@@ -36,13 +36,17 @@ import {
     toolSearchFieldValuesArgsSchema,
     UserAttributeValueMap,
 } from '@lightdash/common';
-import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp';
-import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol';
+// eslint-disable-next-line import/extensions
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+// eslint-disable-next-line import/extensions
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+// eslint-disable-next-line import/extensions
+import { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/protocol.js';
 import {
     ServerNotification,
     ServerRequest,
-} from '@modelcontextprotocol/sdk/types';
+    // eslint-disable-next-line import/extensions
+} from '@modelcontextprotocol/sdk/types.js';
 import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
