@@ -1254,6 +1254,10 @@ export class AppGenerateService extends BaseService {
         }
     }
 
+    private static readonly MAX_GENERATION_ATTEMPTS = 3;
+
+    private static readonly GENERATION_RETRY_DELAY_MS = 5_000;
+
     private async runClaudeGeneration(
         sandbox: Sandbox,
         appUuid: string,
@@ -1266,95 +1270,136 @@ export class AppGenerateService extends BaseService {
         toolCallCount: number;
     }> {
         const start = performance.now();
-        const processor = new ClaudeStreamProcessor();
-        let responseText: string | null = null;
 
         // When the sandbox was resumed from a previous iteration, use
         // --continue so Claude has the full conversation history of what
         // it built before. For fresh sandboxes, start a new session.
-        const sessionFlags = continueSession ? '--continue -p' : '-p';
+        // On retry we promote to --continue if the failed attempt
+        // produced *any* stream event — that means a session exists on
+        // disk and we want to resume rather than throw away the work
+        // Claude already did. If no event ever arrived (CLI died on
+        // startup) we keep the original flags, since --continue would
+        // just fail with "no session to resume".
+        const runAttempt = async (
+            attempt: number,
+            forceContinue: boolean,
+        ): Promise<{
+            durationMs: number;
+            responseText: string | null;
+            toolCallCount: number;
+        }> => {
+            const sessionFlags =
+                continueSession || forceContinue ? '--continue -p' : '-p';
+            const processor = new ClaudeStreamProcessor();
+            let responseText: string | null = null;
+            let sessionEstablished = false;
 
-        const result = await sandbox.commands.run(
-            `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
-                `--model sonnet ` +
-                `--verbose --output-format stream-json --include-partial-messages ` +
-                `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
-                `--append-system-prompt-file /app/skill.md`,
-            {
-                cwd: '/app',
-                timeoutMs: 55 * 60 * 1000,
-                envs: { ANTHROPIC_API_KEY: anthropicApiKey },
-                onStdout: (chunk) => {
-                    for (const event of processor.feedChunk(chunk)) {
-                        switch (event.kind) {
-                            case 'thinking_started':
-                                this.logger.info(
-                                    `App ${appUuid}: claude turn #${event.turn}: thinking`,
-                                );
-                                this.updateAppStatus(
-                                    appUuid,
-                                    version,
-                                    'Thinking',
-                                );
-                                break;
-                            case 'thinking_snippet':
-                                this.updateAppStatus(
-                                    appUuid,
-                                    version,
-                                    event.snippet,
-                                );
-                                break;
-                            case 'tool_use': {
-                                this.logger.info(
-                                    `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
-                                );
-                                // description can be comma-separated
-                                // (e.g. "Write foo.tsx, Read bar.tsx") —
-                                // use only the first tool for the status.
-                                const firstTool =
-                                    event.description.split(', ')[0];
-                                this.updateAppStatus(
-                                    appUuid,
-                                    version,
-                                    AppGenerateService.toolDescriptionToStatusMessage(
-                                        firstTool,
-                                    ),
-                                );
-                                break;
+            const result = await sandbox.commands.run(
+                `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
+                    `--model sonnet ` +
+                    `--verbose --output-format stream-json --include-partial-messages ` +
+                    `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
+                    `--append-system-prompt-file /app/skill.md`,
+                {
+                    cwd: '/app',
+                    timeoutMs: 55 * 60 * 1000,
+                    envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                    onStdout: (chunk) => {
+                        for (const event of processor.feedChunk(chunk)) {
+                            sessionEstablished = true;
+                            switch (event.kind) {
+                                case 'thinking_started':
+                                    this.logger.info(
+                                        `App ${appUuid}: claude turn #${event.turn}: thinking`,
+                                    );
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        'Thinking',
+                                    );
+                                    break;
+                                case 'thinking_snippet':
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        event.snippet,
+                                    );
+                                    break;
+                                case 'tool_use': {
+                                    this.logger.info(
+                                        `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
+                                    );
+                                    // description can be comma-separated
+                                    // (e.g. "Write foo.tsx, Read bar.tsx") —
+                                    // use only the first tool for the status.
+                                    const firstTool =
+                                        event.description.split(', ')[0];
+                                    this.updateAppStatus(
+                                        appUuid,
+                                        version,
+                                        AppGenerateService.toolDescriptionToStatusMessage(
+                                            firstTool,
+                                        ),
+                                    );
+                                    break;
+                                }
+                                case 'result_text':
+                                    responseText = event.text;
+                                    break;
+                                default:
+                                    assertUnreachable(
+                                        event,
+                                        'Unhandled Claude stream event',
+                                    );
                             }
-                            case 'result_text':
-                                responseText = event.text;
-                                break;
-                            default:
-                                assertUnreachable(
-                                    event,
-                                    'Unhandled Claude stream event',
-                                );
                         }
-                    }
+                    },
+                    onStderr: (chunk) => {
+                        this.logger.debug(
+                            `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
+                        );
+                    },
                 },
-                onStderr: (chunk) => {
-                    this.logger.debug(
-                        `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
-                    );
-                },
-            },
-        );
-        const toolCallCount = processor.totalToolCalls;
-        const durationMs = AppGenerateService.elapsed(start);
-        this.logger.info(
-            `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms)`,
-        );
+            );
+            const toolCallCount = processor.totalToolCalls;
+            const durationMs = AppGenerateService.elapsed(start);
+            this.logger.info(
+                `App ${appUuid}: Claude code generation completed (exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+            );
 
-        if (result.exitCode !== 0) {
+            if (result.exitCode === 0) {
+                if (attempt > 1) {
+                    this.logger.info(
+                        `App ${appUuid}: Claude generation recovered after ${attempt - 1} retry(ies)`,
+                    );
+                }
+                return { durationMs, responseText, toolCallCount };
+            }
+
             this.logger.debug(
                 `App ${appUuid}: Claude stderr (tail): ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
             );
-            throw new Error(
-                `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
+
+            if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
+                throw new Error(
+                    `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
+                );
+            }
+
+            this.logger.warn(
+                `App ${appUuid}: Claude generation failed (exit ${result.exitCode}), retrying (attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
-        }
-        return { durationMs, responseText, toolCallCount };
+            this.updateAppStatus(appUuid, version, 'Hit a snag, retrying');
+            await new Promise<void>((resolve) => {
+                setTimeout(
+                    resolve,
+                    AppGenerateService.GENERATION_RETRY_DELAY_MS,
+                );
+            });
+            return runAttempt(attempt + 1, forceContinue || sessionEstablished);
+        };
+
+        return runAttempt(1, false);
     }
 
     /**
