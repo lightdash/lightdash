@@ -1501,6 +1501,7 @@ export class MetricQueryBuilder {
                 this.args.explore.caseSensitive ?? true,
                 baseDimensionSql,
                 this.args.useTimezoneAwareDateTrunc,
+                this.columnTimezone,
             ),
         );
 
