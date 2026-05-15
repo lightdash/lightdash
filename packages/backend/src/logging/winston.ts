@@ -124,6 +124,8 @@ if (lightdashConfig.logging.outputs.includes('console')) {
             level:
                 lightdashConfig.logging.consoleLevel ||
                 lightdashConfig.logging.level,
+            handleExceptions: true,
+            handleRejections: true,
         }),
     );
 }
@@ -145,6 +147,7 @@ if (lightdashConfig.logging.outputs.includes('file')) {
 export const winstonLogger = winston.createLogger({
     levels,
     transports,
+    exitOnError: false,
 });
 
 const PAST_TENSE_ACTIONS: Record<string, string> = {
