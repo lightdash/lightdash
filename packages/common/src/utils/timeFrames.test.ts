@@ -194,6 +194,22 @@ describe('TimeFrames', () => {
             ).toEqual('TIMESTAMP_TRUNC(${TABLE}.created, DAY)');
         });
 
+        test('Snowflake asymmetric wrap coerces input to NTZ so TIMESTAMP_TZ columns are accepted by the 3-arg form', () => {
+            // Snowflake's 3-arg CONVERT_TIMEZONE rejects TIMESTAMP_TZ.
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    'Asia/Tokyo',
+                ),
+            ).toEqual(
+                "CONVERT_TIMEZONE('Asia/Tokyo', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', 'Asia/Tokyo', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${TABLE}.created)))))",
+            );
+        });
+
         test('should get sql where start of the week is Monday for ClickHouse', () => {
             // Monday (startOfWeek=0): must pass mode 1 to toStartOfWeek() so it returns Monday not Sunday
             expect(
@@ -652,21 +668,24 @@ describe('TimeFrames', () => {
             );
         });
 
-        test('Snowflake toProjectTz defaults sourceTimezone to UTC', () => {
+        test('Snowflake toProjectTz defaults sourceTimezone to UTC and coerces input to NTZ', () => {
+            // Inner CONVERT_TIMEZONE('UTC', col) + TO_TIMESTAMP_NTZ defends
+            // against TIMESTAMP_TZ/LTZ columns that the 3-arg form would
+            // otherwise reject — see the comment block on the map entry.
             const { toProjectTz } =
                 dateTruncTimezoneConversions[SupportedDbtAdapter.SNOWFLAKE];
             expect(toProjectTz('col', 'America/New_York')).toEqual(
-                `CONVERT_TIMEZONE('UTC', 'America/New_York', col)`,
+                `CONVERT_TIMEZONE('UTC', 'America/New_York', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col)))`,
             );
         });
 
-        test('Snowflake toProjectTz threads explicit sourceTimezone into CONVERT_TIMEZONE', () => {
+        test('Snowflake toProjectTz threads explicit sourceTimezone into the outer CONVERT_TIMEZONE', () => {
             const { toProjectTz } =
                 dateTruncTimezoneConversions[SupportedDbtAdapter.SNOWFLAKE];
             expect(
                 toProjectTz('col', 'America/New_York', 'America/New_York'),
             ).toEqual(
-                `CONVERT_TIMEZONE('America/New_York', 'America/New_York', col)`,
+                `CONVERT_TIMEZONE('America/New_York', 'America/New_York', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col)))`,
             );
         });
     });
@@ -726,7 +745,7 @@ describe('TimeFrames', () => {
                     tz,
                 ),
             ).toEqual(
-                `CONVERT_TIMEZONE('${tz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', '${tz}', ${col})))`,
+                `CONVERT_TIMEZONE('${tz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('UTC', '${tz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col})))))`,
             );
         });
 
@@ -747,7 +766,7 @@ describe('TimeFrames', () => {
                     sourceTz,
                 ),
             ).toEqual(
-                `CONVERT_TIMEZONE('${queryTz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('${sourceTz}', '${queryTz}', ${col})))`,
+                `CONVERT_TIMEZONE('${queryTz}', 'UTC', DATE_TRUNC('DAY', CONVERT_TIMEZONE('${sourceTz}', '${queryTz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col})))))`,
             );
         });
     });
@@ -784,15 +803,19 @@ describe('TimeFrames', () => {
             ).toEqual(`TIMESTAMP(col) AT TIME ZONE 'America/New_York'`);
         });
 
-        test('Snowflake uses CONVERT_TIMEZONE', () => {
+        test('Snowflake coerces input to NTZ before the 3-arg CONVERT_TIMEZONE', () => {
+            // Mirrors the dateTruncTimezoneConversions[SNOWFLAKE] shape — see
+            // the comment block on the map entry for why.
             expect(
                 dateExtractsTimezoneConversions[
                     SupportedDbtAdapter.SNOWFLAKE
                 ].toExtractInputTz('col', 'America/New_York'),
-            ).toEqual(`CONVERT_TIMEZONE('UTC', 'America/New_York', col)`);
+            ).toEqual(
+                `CONVERT_TIMEZONE('UTC', 'America/New_York', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col)))`,
+            );
         });
 
-        test('Snowflake threads explicit sourceTimezone into CONVERT_TIMEZONE', () => {
+        test('Snowflake threads explicit sourceTimezone into the outer CONVERT_TIMEZONE', () => {
             expect(
                 dateExtractsTimezoneConversions[
                     SupportedDbtAdapter.SNOWFLAKE
@@ -802,7 +825,7 @@ describe('TimeFrames', () => {
                     'America/New_York',
                 ),
             ).toEqual(
-                `CONVERT_TIMEZONE('America/New_York', 'America/New_York', col)`,
+                `CONVERT_TIMEZONE('America/New_York', 'America/New_York', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', col)))`,
             );
         });
 
@@ -870,7 +893,7 @@ describe('TimeFrames', () => {
             ],
             [
                 SupportedDbtAdapter.SNOWFLAKE,
-                `DATE_PART('DOW', CONVERT_TIMEZONE('UTC', '${tz}', ${col}))`,
+                `DATE_PART('DOW', CONVERT_TIMEZONE('UTC', '${tz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col}))))`,
             ],
             [
                 SupportedDbtAdapter.POSTGRES,
@@ -921,7 +944,7 @@ describe('TimeFrames', () => {
             ],
             [
                 SupportedDbtAdapter.SNOWFLAKE,
-                `DATE_PART('MONTH', CONVERT_TIMEZONE('UTC', '${tz}', ${col}))`,
+                `DATE_PART('MONTH', CONVERT_TIMEZONE('UTC', '${tz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col}))))`,
             ],
             [
                 SupportedDbtAdapter.POSTGRES,
@@ -1129,8 +1152,22 @@ describe('TimeFrames', () => {
                     sourceTz,
                 ),
             ).toEqual(
-                `DATE_PART('MONTH', CONVERT_TIMEZONE('${sourceTz}', '${queryTz}', ${col}))`,
+                `DATE_PART('MONTH', CONVERT_TIMEZONE('${sourceTz}', '${queryTz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col}))))`,
             );
+        });
+
+        // Regression: 3-arg CONVERT_TIMEZONE rejects TIMESTAMP_TZ inputs.
+        test('regression: EXTRACT wrap coerces input to NTZ so TIMESTAMP_TZ columns are accepted', () => {
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.HOUR_OF_DAY_NUM,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toContain(`TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col}))`);
         });
     });
 
@@ -1149,7 +1186,7 @@ describe('TimeFrames', () => {
             ],
             [
                 SupportedDbtAdapter.SNOWFLAKE,
-                `DECODE(TO_CHAR(CONVERT_TIMEZONE('UTC', '${tz}', ${col}), 'DY'), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
+                `DECODE(TO_CHAR(CONVERT_TIMEZONE('UTC', '${tz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col}))), 'DY'), 'Mon', 'Monday', 'Tue', 'Tuesday', 'Wed', 'Wednesday', 'Thu', 'Thursday', 'Fri', 'Friday', 'Sat', 'Saturday', 'Sun', 'Sunday')`,
             ],
             [
                 SupportedDbtAdapter.DATABRICKS,
@@ -1264,5 +1301,19 @@ describe('TimeFrames', () => {
                 );
             },
         );
+
+        // Regression: name path routes through the extract map.
+        test('regression: name path coerces input to NTZ so TIMESTAMP_TZ columns are accepted', () => {
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                ),
+            ).toContain(`TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${col}))`);
+        });
     });
 });

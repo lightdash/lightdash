@@ -101,9 +101,10 @@ export const dateTruncTimezoneConversions: Record<
         toProjectTz: (sql) => sql,
         toUTC: (sql) => sql,
     },
+    // 3-arg CONVERT_TIMEZONE rejects TIMESTAMP_TZ/LTZ; normalize to NTZ first.
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz, sourceTimezone = 'UTC') =>
-            `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
+            `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${sql})))`,
         toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
     },
     [SupportedDbtAdapter.POSTGRES]: {
@@ -167,9 +168,10 @@ export const dateExtractsTimezoneConversions: Record<
     [SupportedDbtAdapter.BIGQUERY]: {
         toExtractInputTz: (sql, tz) => `TIMESTAMP(${sql}) AT TIME ZONE '${tz}'`,
     },
+    // Mirrors dateTruncTimezoneConversions[SNOWFLAKE]; name path reads this too.
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toExtractInputTz: (sql, tz, sourceTimezone = 'UTC') =>
-            `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
+            `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ${sql})))`,
     },
     [SupportedDbtAdapter.POSTGRES]: {
         toExtractInputTz: (sql, tz) =>
