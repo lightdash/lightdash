@@ -1803,7 +1803,7 @@ export class AiAgentService extends BaseService {
             return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
-            throw new Error('Failed to generate agent thread response');
+            throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }
 
@@ -1855,11 +1855,8 @@ export class AiAgentService extends BaseService {
             );
             return response;
         } catch (e) {
-            console.error(e);
             Logger.error('Failed to generate agent thread response:', e);
-            throw new Error('Failed to generate agent thread response', {
-                cause: e,
-            });
+            throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }
 

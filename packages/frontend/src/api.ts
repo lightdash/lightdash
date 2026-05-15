@@ -256,9 +256,18 @@ export const lightdashApiStream = ({
         },
         body,
         signal,
-    }).then((r) => {
+    }).then(async (r) => {
         if (!r.ok) {
-            throw r;
+            let error: unknown;
+            try {
+                error = await r.json();
+            } catch {
+                throw new Error(
+                    'We are currently unable to reach the Lightdash server. Please try again in a few moments.',
+                );
+            }
+
+            throw new Error(handleError(error).error.message);
         }
         return r;
     });

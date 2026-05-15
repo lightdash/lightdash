@@ -34,6 +34,24 @@ export const getUserFacingErrorMessage = (
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 
+    if (errorMessage.includes('MCP HTTP Transport Error')) {
+        if (
+            errorMessage.includes('HTTP 401') ||
+            errorMessage.includes('Unauthorized')
+        ) {
+            return 'The MCP server rejected the saved credentials. Check the MCP server authentication settings, then try again.';
+        }
+
+        if (
+            errorMessage.includes('HTTP 403') ||
+            errorMessage.includes('Forbidden')
+        ) {
+            return 'The MCP server refused access. Check that the connected account has permission to use this MCP server.';
+        }
+
+        return 'We could not connect to the MCP server. Check that it is available and try again.';
+    }
+
     // Context/token limit errors
     if (
         errorMessage.includes('context_length_exceeded') ||
