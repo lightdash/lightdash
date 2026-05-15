@@ -1,3 +1,10 @@
+# [0.2951.0](https://github.com/lightdash/lightdash/compare/0.2950.5...0.2951.0) (2026-05-15)
+
+
+### Features
+
+* standardize managed agent tool list results with limits and formatting ([#23099](https://github.com/lightdash/lightdash/issues/23099)) ([9ece55d](https://github.com/lightdash/lightdash/commit/9ece55d674710ee337c671613619fc90549b4b33))
+
 ## [0.2950.5](https://github.com/lightdash/lightdash/compare/0.2950.4...0.2950.5) (2026-05-15)
 
 
