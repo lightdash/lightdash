@@ -19,7 +19,13 @@ import {
     IconMessageCircleShare,
 } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import {
+    Link,
+    useBlocker,
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router';
 import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -177,6 +183,22 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             });
             form.resetDirty(values);
         }
+    });
+
+    const hasUnsavedChanges =
+        form.isDirty() && !isCreatingAgent && !isUpdatingAgent;
+
+    useBlocker(({ currentLocation, nextLocation }) => {
+        if (
+            !hasUnsavedChanges ||
+            currentLocation.pathname === nextLocation.pathname
+        ) {
+            return false;
+        }
+
+        return !window.confirm(
+            'You have unsaved changes to this agent. Are you sure you want to leave without saving?',
+        );
     });
 
     useEffect(() => {
