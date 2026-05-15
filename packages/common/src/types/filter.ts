@@ -401,6 +401,10 @@ export const applyDimensionOverrides = (
                 return {
                     ...override,
                     tileTargets: dimension.tileTargets,
+                    // Lock state belongs to the saved dashboard and must not
+                    // be assertable from URL/scheduler overrides — always
+                    // re-apply the saved rule's lockedTabUuids.
+                    lockedTabUuids: dimension.lockedTabUuids,
                 };
             }
             return dimension;
