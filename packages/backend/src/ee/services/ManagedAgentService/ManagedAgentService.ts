@@ -47,6 +47,11 @@ import {
 } from '../../clients/ManagedAgentClient';
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
+import {
+    formatManagedAgentToolListResult,
+    getManagedAgentToolResultLimit,
+    summarizeManagedAgentBrokenContent,
+} from './toolResults';
 
 type RunsCursor = { startedAt: Date; runUuid: string };
 
@@ -1697,7 +1702,7 @@ export class ManagedAgentService extends BaseService {
     ): Promise<string> {
         const actions = await this.managedAgentModel.getRecentActions(
             projectUuid,
-            limit ?? 50,
+            getManagedAgentToolResultLimit(limit, 50),
         );
         const visibleActions = (
             await Promise.all(
@@ -1713,7 +1718,7 @@ export class ManagedAgentService extends BaseService {
                 ),
             )
         ).filter((action): action is ManagedAgentAction => action !== null);
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             visibleActions.map((a) => ({
                 action_uuid: a.actionUuid,
                 action_type: a.actionType,
@@ -1757,7 +1762,7 @@ export class ManagedAgentService extends BaseService {
                 }),
             )
         ).filter((item) => item !== null);
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             visibleItems.map((item) => ({
                 uuid: item.contentUuid,
                 name: item.contentName,
@@ -1821,7 +1826,9 @@ export class ManagedAgentService extends BaseService {
                 }),
             )
         ).filter((validation) => validation !== null);
-        return JSON.stringify(visibleValidations);
+        return formatManagedAgentToolListResult(
+            summarizeManagedAgentBrokenContent(visibleValidations),
+        );
     }
 
     private async handleGetPreviewProjects(
@@ -1851,9 +1858,15 @@ export class ManagedAgentService extends BaseService {
                         : null,
                 ),
             )
-        ).filter((preview) => preview !== null);
+        )
+            .filter((preview) => preview !== null)
+            .sort(
+                (a, b) =>
+                    new Date(a.createdAt).getTime() -
+                    new Date(b.createdAt).getTime(),
+            );
 
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             visiblePreviews.map((p) => ({
                 uuid: p.projectUuid,
                 name: p.name,
@@ -1920,7 +1933,7 @@ export class ManagedAgentService extends BaseService {
             this.analyticsModel.getLastViewedAtForDashboards(dashboardUuids),
         ]);
 
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             allItems.map((item) => ({
                 uuid: item.uuid,
                 name: item.name,
@@ -2548,7 +2561,7 @@ chartConfig:
         projectUuid: string,
         input: Record<string, unknown>,
     ): Promise<string> {
-        const limit = (input.limit as number) ?? 30;
+        const limit = getManagedAgentToolResultLimit(input.limit, 30);
         const days = (input.days as number) ?? 30;
 
         const questions = await this.managedAgentModel.getUserQuestions(
@@ -2557,7 +2570,7 @@ chartConfig:
             limit,
         );
 
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             questions.map((q) => ({
                 question: q.prompt,
                 asked_by: q.userName,
@@ -2572,7 +2585,7 @@ chartConfig:
         input: Record<string, unknown>,
     ): Promise<string> {
         const thresholdMs = (input.threshold_ms as number) ?? 2000;
-        const limit = (input.limit as number) ?? 20;
+        const limit = getManagedAgentToolResultLimit(input.limit, 20);
 
         const slowQueries = await this.managedAgentModel.getSlowQueries(
             projectUuid,
@@ -2600,7 +2613,7 @@ chartConfig:
             )
         ).filter((query) => query !== null);
 
-        return JSON.stringify(
+        return formatManagedAgentToolListResult(
             visibleQueries.map((q) => ({
                 execution_time_ms: q.executionTimeMs,
                 execution_time_seconds: (q.executionTimeMs / 1000).toFixed(1),
