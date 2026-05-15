@@ -1,3 +1,4 @@
+import type { MCPClient } from '@ai-sdk/mcp';
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -7,8 +8,10 @@ import {
     streamText,
     StreamTextResult,
     type Output,
+    type ToolSet,
 } from 'ai';
 import Logger from '../../../../logging/logger';
+import { createHttpMcpClient } from '../AiAgentMcpRuntimeClient';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
@@ -45,17 +48,30 @@ const createAiAgentLogger =
 
 const STEP_CAP = 40;
 
+type AgentToolSetup = {
+    tools: ToolSet;
+    closeMcpClients: () => Promise<void>;
+};
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(STEP_CAP),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
-const getAgentTools = (
+const sanitizeMcpToolKeyPart = (value: string) => {
+    const sanitized = value
+        .replace(/[^a-zA-Z0-9_]+/g, '_')
+        .replace(/^_+/, '')
+        .replace(/_+$/, '');
+    return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
+};
+
+const getAgentTools = async (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
     availableExplores: Explore[],
-) => {
+): Promise<AgentToolSetup> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Agent Tools',
@@ -183,7 +199,7 @@ const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
     });
 
-    const tools = {
+    const tools: ToolSet = {
         findContent,
         getDashboardCharts,
         ...(discoverFields ? { discoverFields } : {}),
@@ -202,11 +218,79 @@ const getAgentTools = (
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
     };
 
+    if (args.mcpServers.length === 0) {
+        logger(
+            'Agent Tools',
+            `Successfully retrieved agent tools: ${Object.keys(tools).join(', ')}`,
+        );
+        return {
+            tools,
+            closeMcpClients: async () => undefined,
+        };
+    }
+
+    const mcpClients: MCPClient[] = [];
+    const usedToolNames = new Set(Object.keys(tools));
+
+    try {
+        for await (const mcpServer of args.mcpServers) {
+            logger(
+                'Agent Tools',
+                `Connecting to MCP server: ${mcpServer.name} (${mcpServer.url})`,
+            );
+
+            const mcpClient = await createHttpMcpClient(mcpServer, (error) => {
+                Logger.error(
+                    `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
+                    error,
+                );
+            });
+            mcpClients.push(mcpClient);
+
+            const mcpTools = await mcpClient.tools();
+            const serverPrefix = sanitizeMcpToolKeyPart(mcpServer.name);
+
+            for (const [toolName, toolDefinition] of Object.entries(mcpTools)) {
+                const toolSuffix = sanitizeMcpToolKeyPart(toolName);
+                const baseToolName = `mcp_${serverPrefix}_${toolSuffix}`;
+                let namespacedToolName = baseToolName;
+                let collisionCount = 1;
+
+                while (usedToolNames.has(namespacedToolName)) {
+                    collisionCount += 1;
+                    namespacedToolName = `${baseToolName}_${collisionCount}`;
+                }
+
+                usedToolNames.add(namespacedToolName);
+                tools[namespacedToolName] = toolDefinition as ToolSet[string];
+            }
+        }
+    } catch (error) {
+        await Promise.allSettled(mcpClients.map((client) => client.close()));
+        throw error;
+    }
+
     logger(
         'Agent Tools',
         `Successfully retrieved agent tools: ${Object.keys(tools).join(', ')}`,
     );
-    return tools;
+    return {
+        tools,
+        closeMcpClients: async () => {
+            const results = await Promise.allSettled(
+                mcpClients.map((client) => client.close()),
+            );
+
+            for (const result of results) {
+                if (result.status === 'rejected') {
+                    Logger.error(
+                        '[AiAgent][MCP] Failed to close MCP client',
+                        result.reason,
+                    );
+                }
+            }
+        },
+    };
 };
 
 const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
@@ -273,7 +357,11 @@ export const generateAgentResponse = async ({
     );
     const availableExplores = await dependencies.listExplores();
     const messages = getAgentMessages(args, availableExplores);
-    const tools = getAgentTools(args, dependencies, availableExplores);
+    const { tools, closeMcpClients } = await getAgentTools(
+        args,
+        dependencies,
+        availableExplores,
+    );
 
     const startTime = Date.now();
     const modelName = args.model.modelId;
@@ -315,9 +403,7 @@ export const generateAgentResponse = async ({
                                         args.promptUuid
                                     }: ${toolCall.toolName} (ID: ${
                                         toolCall.toolCallId
-                                    }) (ARGS: ${JSON.stringify(
-                                        toolCall.input,
-                                    )})`,
+                                    }) (ARGS: ${JSON.stringify(toolCall.input)})`,
                                 );
 
                                 dependencies.trackEvent({
@@ -368,9 +454,7 @@ export const generateAgentResponse = async ({
                                         args.promptUuid
                                     }: ${toolResult.toolName} (ID: ${
                                         toolResult.toolCallId
-                                    }) (RESULT: ${JSON.stringify(
-                                        toolResult.output,
-                                    )})`,
+                                    }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                                 );
                                 const output =
                                     toolResult.output as AgentToolOutput;
@@ -430,6 +514,8 @@ export const generateAgentResponse = async ({
         });
 
         throw error;
+    } finally {
+        await closeMcpClients();
     }
 };
 
@@ -452,13 +538,27 @@ export const streamAgentResponse = async ({
     );
     const availableExplores = await dependencies.listExplores();
     const messages = getAgentMessages(args, availableExplores);
-    const tools = getAgentTools(args, dependencies, availableExplores);
+    const { tools, closeMcpClients } = await getAgentTools(
+        args,
+        dependencies,
+        availableExplores,
+    );
 
     const startTime = Date.now();
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
+    let mcpClientsClosed = false;
     const modelName =
         typeof args.model === 'string' ? args.model : args.model.modelId;
+
+    const cleanupMcpClients = async () => {
+        if (mcpClientsClosed) {
+            return;
+        }
+
+        mcpClientsClosed = true;
+        await closeMcpClients();
+    };
 
     try {
         logger(
@@ -627,7 +727,7 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: ({ usage, steps, reasoning, finishReason }) => {
+            onFinish: async ({ usage, steps, reasoning, finishReason }) => {
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -686,6 +786,8 @@ export const streamAgentResponse = async ({
                 dependencies.perf.measureStreamResponseTime(
                     Date.now() - startTime,
                 );
+
+                await cleanupMcpClients();
             },
             experimental_transform: smoothStream({
                 delayInMs: 40,
@@ -714,6 +816,8 @@ export const streamAgentResponse = async ({
                     promptUuid: args.promptUuid,
                     errorMessage: userFacingMessage,
                 });
+
+                void cleanupMcpClients();
             },
             experimental_telemetry: getAgentTelemetryConfig(
                 'streamAgentResponse',
@@ -746,6 +850,7 @@ export const streamAgentResponse = async ({
             errorMessage: userFacingMessage,
         });
 
+        await cleanupMcpClients();
         throw error;
     }
 };

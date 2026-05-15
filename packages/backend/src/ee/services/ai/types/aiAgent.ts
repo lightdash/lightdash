@@ -1,5 +1,8 @@
-import { AiAgent, WarehouseTypes } from '@lightdash/common';
+import { AiAgent, AiMcpServer, WarehouseTypes } from '@lightdash/common';
+// eslint-disable-next-line import/extensions
+import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
+import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import {
     CreateChangeFn,
@@ -33,8 +36,15 @@ import {
 
 type AnyAiModel<P = AiProvider> = P extends AiProvider ? AiModel<P> : never;
 
+export type AiAgentMcpServer = AiMcpServer & {
+    resolvedCredential: AiMcpCredentialPayload | null;
+    resolvedCredentialScope: 'shared' | 'user' | null;
+    oauthProvider?: OAuthClientProvider;
+};
+
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
+    mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
     threadUuid: string;

@@ -168,6 +168,9 @@ importers:
       '@ai-sdk/azure':
         specifier: 3.0.26
         version: 3.0.26(zod@3.25.55)
+      '@ai-sdk/mcp':
+        specifier: 1.0.41
+        version: 1.0.41(zod@3.25.55)
       '@ai-sdk/openai':
         specifier: 3.0.25
         version: 3.0.25(zod@3.25.55)
@@ -1755,6 +1758,12 @@ packages:
 
   '@ai-sdk/gateway@3.0.34':
     resolution: {integrity: sha512-ZS1dWai5DINQOv3bpNi3ua9+yt3jnRaux3CwEr/ai9qETp6T+2wcpZyw+0jUHo1He/Lznw//AQh4zhdwHnTWrg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/mcp@1.0.41':
+    resolution: {integrity: sha512-AfA0jb6tTnfcieLx1d6breTmuae0fz67UNcBrCgZqPqaZ1NIlJT5uyXx+78pgYOuDHo0GtHECVhI1a9lkZnzgA==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -16917,6 +16926,13 @@ snapshots:
       '@ai-sdk/provider': 3.0.7
       '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
       '@vercel/oidc': 3.1.0
+      zod: 3.25.55
+
+  '@ai-sdk/mcp@1.0.41(zod@3.25.55)':
+    dependencies:
+      '@ai-sdk/provider': 3.0.10
+      '@ai-sdk/provider-utils': 4.0.27(zod@3.25.55)
+      pkce-challenge: 5.0.0
       zod: 3.25.55
 
   '@ai-sdk/openai@3.0.25(zod@3.25.55)':

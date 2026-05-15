@@ -326,11 +326,18 @@ import {
     AiAgentGroupAccessTableName,
     AiAgentInstructionVersionsTable,
     AiAgentInstructionVersionsTableName,
+    AiAgentIntegrationTable,
     AiAgentIntegrationTableName,
+    AiAgentMcpServerTable,
+    AiAgentMcpServerTableName,
     AiAgentSlackIntegrationTable,
     AiAgentSlackIntegrationTableName,
     AiAgentTable,
     AiAgentTableName,
+    AiMcpServerCredentialTable,
+    AiMcpServerCredentialTableName,
+    AiMcpServerTable,
+    AiMcpServerTableName,
 } from '../ee/database/entities/aiAgent';
 import {
     AiAgentUserPreferencesTable,
@@ -480,6 +487,9 @@ declare module 'knex/types/tables' {
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
         [AiAgentInstructionVersionsTableName]: AiAgentInstructionVersionsTable;
+        [AiMcpServerTableName]: AiMcpServerTable;
+        [AiMcpServerCredentialTableName]: AiMcpServerCredentialTable;
+        [AiAgentMcpServerTableName]: AiAgentMcpServerTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;

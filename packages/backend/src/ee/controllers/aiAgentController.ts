@@ -25,18 +25,22 @@ import {
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiAgentVerifiedQuestionsResponse,
+    ApiAiMcpServerListResponse,
+    ApiAiMcpServerResponse,
     ApiAppendEvaluationRequest,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
     ApiCloneThreadResponse,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
+    ApiCreateAiMcpServer,
     ApiCreateEvaluationRequest,
     ApiCreateEvaluationResponse,
     ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
     ApiRevertChangeRequest,
     ApiRevertChangeResponse,
+    ApiStartAiMcpOAuthResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
     ApiUpdateEvaluationRequest,
@@ -163,6 +167,104 @@ export class AiAgentController extends BaseController {
 
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
+    @Get('/mcpServers')
+    @OperationId('listMcpServers')
+    async listMcpServers(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAiMcpServerListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listMcpServers(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('201', 'Created')
+    @Post('/mcpServers')
+    @OperationId('createMcpServer')
+    async createMcpServer(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ApiCreateAiMcpServer,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(201);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().createMcpServer(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/oauth/start')
+    @OperationId('startMcpOAuthConnection')
+    async startMcpOAuthConnection(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiStartAiMcpOAuthResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: {
+                authorizationUrl:
+                    await this.getAiAgentService().startMcpOAuthConnection(
+                        toSessionUser(req.account),
+                        projectUuid,
+                        mcpServerUuid,
+                    ),
+            },
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/oauth/disconnect')
+    @OperationId('disconnectMcpOAuthConnection')
+    async disconnectMcpOAuthConnection(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        await this.getAiAgentService().disconnectMcpOAuthConnection(
+            toSessionUser(req.account),
+            projectUuid,
+            mcpServerUuid,
+        );
+        return {
+            status: 'ok',
+            results: undefined,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
     @Get('/{agentUuid}')
     @OperationId('getAgent')
     async getAgent(
@@ -180,6 +282,27 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: agent,
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/mcpServers')
+    @OperationId('listAgentMcpServers')
+    async listAgentMcpServers(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+    ): Promise<ApiAiMcpServerListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().listAgentMcpServers(
+                toSessionUser(req.account),
+                projectUuid,
+                agentUuid,
+            ),
         };
     }
 
