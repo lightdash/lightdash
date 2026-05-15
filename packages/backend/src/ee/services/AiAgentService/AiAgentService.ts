@@ -127,6 +127,7 @@ import {
     getFilteredExplore,
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
+import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { AiAgentModel } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -1367,12 +1368,12 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('MCP server name is required');
         }
 
-        let normalizedUrl: string;
-        try {
-            normalizedUrl = new URL(body.url).toString();
-        } catch {
-            throw new ParameterError('Invalid MCP server URL');
-        }
+        const normalizedUrl = (
+            await validatePublicHttpUrl(body.url, {
+                allowedProtocols: ['http:', 'https:'],
+                allowPrivateAddresses: process.env.NODE_ENV === 'test',
+            })
+        ).toString();
 
         const credentialScope =
             body.credentialScope ??
@@ -1442,7 +1443,7 @@ export class AiAgentService extends BaseService {
             }
         } catch (error) {
             throw new ParameterError(
-                `Could not connect to MCP server: ${
+                `We couldn't connect to this MCP server. Check the URL and authentication settings, then try again. Details: ${
                     error instanceof Error ? error.message : String(error)
                 }`,
             );
