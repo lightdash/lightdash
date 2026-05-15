@@ -1,3 +1,15 @@
+## [0.2950.5](https://github.com/lightdash/lightdash/compare/0.2950.4...0.2950.5) (2026-05-15)
+
+
+### Bug Fixes
+
+* **query-sdk:** pass settings.completed through Filter to API ([#23107](https://github.com/lightdash/lightdash/issues/23107)) ([7d4022c](https://github.com/lightdash/lightdash/commit/7d4022cc3bb0918853e052efed81f69f8580c6c5))
+
+
+### Performance Improvements
+
+* **validation:** scope project row-lock to avoid streaming dbt_connection bytea ([#23104](https://github.com/lightdash/lightdash/issues/23104)) ([24935cd](https://github.com/lightdash/lightdash/commit/24935cd625b2074ca2b52810c0f09c8fa10a218b))
+
 ## [0.2950.4](https://github.com/lightdash/lightdash/compare/0.2950.3...0.2950.4) (2026-05-15)
 
 
