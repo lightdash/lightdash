@@ -4494,6 +4494,68 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(pivotQueryBody).toContain('cr.`col_idx`');
         });
 
+        test('Pivot SQL on Databricks emits column_ranking CTE for metric sort without row dimensions (#PROD-5983)', () => {
+            // https://linear.app/lightdash/issue/PROD-5983
+            // Repro: pivot chart on Databricks with metric-based sorting and
+            // NO row dimensions. The precomputed-rankings path was gated on
+            // indexColumns.length > 0, so this case fell through to inline
+            // `DENSE_RANK() OVER (ORDER BY <metric>_column_anchor.<value>, ...)`
+            // inside pivot_query. Spark inlines the column_anchor CTE and can't
+            // resolve the qualified column reference inside the Window ORDER BY,
+            // producing `Cannot find column index for attribute
+            // '<metric>_column_anchor_value'`.
+            // Expectation: column_ranking is emitted (self-contained, with its
+            // JOIN to column_anchor scoped inside the CTE), pivot_query joins
+            // it for col_idx, and row_index is a literal 1 since there are no
+            // row dimensions. row_ranking is NOT emitted — nothing to rank.
+            const mockDatabricksBuilder = {
+                getFieldQuoteChar: () => '`',
+                getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+                getStartOfWeek: () => WeekDay.MONDAY,
+                getNullSafeEqualSql: defaultNullSafeEqualSql,
+            } as unknown as WarehouseSqlBuilder;
+
+            const pivotConfiguration = {
+                indexColumn: [],
+                valuesColumns: [
+                    {
+                        reference: 'count',
+                        aggregation: VizAggregationOptions.COUNT,
+                    },
+                ],
+                groupByColumns: [{ reference: 'event' }],
+                sortBy: [
+                    { reference: 'count', direction: SortByDirection.DESC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockDatabricksBuilder,
+            );
+
+            const result = builder.toSql();
+
+            // column_ranking must exist — that's the whole point of this fix.
+            expect(result).toContain('column_ranking AS (');
+
+            // row_ranking and row_anchor have no work without row dimensions.
+            expect(result).not.toContain('row_ranking AS (');
+            expect(result).not.toContain('`count_row_anchor`');
+
+            // pivot_query must take the precomputed-rankings shape:
+            //   - no inline DENSE_RANK (the bug shape that references
+            //     <metric>_column_anchor inside a Window ORDER BY),
+            //   - row_index is a literal 1,
+            //   - column_index comes from the joined column_ranking CTE.
+            const pivotQueryRegex = /pivot_query AS \(([^)]+)\)/;
+            const pivotQueryBody = result.match(pivotQueryRegex)?.[1] ?? '';
+            expect(pivotQueryBody).not.toContain('DENSE_RANK');
+            expect(pivotQueryBody).toContain('1 AS `row_index`');
+            expect(pivotQueryBody).toContain('cr.`col_idx`');
+        });
+
         test('nullsFirst on a value-column sort propagates through anchor CTE and row_index (#19202)', () => {
             // https://github.com/lightdash/lightdash/issues/19202
             // Repro: SQL pivot pipeline + sort by a metric with nullsFirst
