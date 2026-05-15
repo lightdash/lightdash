@@ -1,3 +1,10 @@
+# [0.2949.0](https://github.com/lightdash/lightdash/compare/0.2948.0...0.2949.0) (2026-05-15)
+
+
+### Features
+
+* add cron job to auto-delete expired preview projects ([#3733](https://github.com/lightdash/lightdash/issues/3733)) ([#20937](https://github.com/lightdash/lightdash/issues/20937)) ([7097c05](https://github.com/lightdash/lightdash/commit/7097c05c5722364d010098f956aae5891bd00518))
+
 # [0.2948.0](https://github.com/lightdash/lightdash/compare/0.2947.1...0.2948.0) (2026-05-14)
 
 
