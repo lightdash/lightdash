@@ -156,3 +156,25 @@ ORDER BY
 LIMIT
   5"
 `;
+
+exports[`MetricQueryBuilder snapshot: core queries matches snapshot for selected fields using intrinsic user attributes 1`] = `
+"SELECT
+  CASE
+    WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "table1".shared
+    ELSE 'other'
+  END AS "table1_user_email_status",
+  SUM(
+    CASE
+      WHEN 'mock@lightdash.com' = 'mock@lightdash.com' THEN "table1".number_column
+      ELSE 0
+    END
+  ) AS "table1_user_email_metric"
+FROM
+  "db"."schema"."table1" AS "table1"
+GROUP BY
+  1
+ORDER BY
+  "table1_user_email_metric" DESC
+LIMIT
+  10"
+`;

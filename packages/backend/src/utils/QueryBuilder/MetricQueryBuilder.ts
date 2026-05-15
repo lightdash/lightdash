@@ -840,7 +840,14 @@ export class MetricQueryBuilder {
                 adapterType,
                 startOfWeek,
             );
-            selects[id] = `  ${sql} AS ${quotedAlias}`;
+            const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+                sql,
+                intrinsicUserAttributes,
+                userAttributes,
+                warehouseSqlBuilder,
+                { noWrap: true },
+            );
+            selects[id] = `  ${sqlWithUserAttributes} AS ${quotedAlias}`;
         });
 
         if (customBinDimensionSql?.selects) {
@@ -1143,8 +1150,15 @@ export class MetricQueryBuilder {
                     return;
                 }
                 // Add select
+                const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+                    metric.compiledSql,
+                    this.args.intrinsicUserAttributes,
+                    this.args.userAttributes ?? {},
+                    warehouseSqlBuilder,
+                    { noWrap: true },
+                );
                 selects.add(
-                    `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+                    `  ${sqlWithUserAttributes} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
                 );
                 // Add tables
                 (metric.tablesReferences || [metric.table]).forEach((table) =>
