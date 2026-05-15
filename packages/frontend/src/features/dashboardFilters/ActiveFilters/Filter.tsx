@@ -27,7 +27,7 @@ import {
     IconLockOpen,
     IconX,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
 import {
     formatDisplayValue,
     getConditionalRuleLabel,
@@ -88,6 +88,39 @@ const Filter: FC<Props> = ({
         lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
     const isLockedOnActiveTab = isFilterLockedOnTab(filterRule, activeTabUuid);
     const { track } = useTracking();
+    const handleLockToggle = useCallback(
+        (e: MouseEvent) => {
+            e.stopPropagation();
+            if (!activeTabUuid) return;
+            const existing = filterRule.lockedTabUuids ?? [];
+            const nextTabUuids = isLockedOnActiveTab
+                ? existing.filter((uuid) => uuid !== activeTabUuid)
+                : [...existing, activeTabUuid];
+            track({
+                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                properties: {
+                    action: isLockedOnActiveTab ? 'unlock' : 'lock',
+                    dashboardUuid: dashboard?.uuid,
+                    tabUuid: activeTabUuid,
+                    fieldId: filterRule.target.fieldId,
+                    tableName: filterRule.target.tableName,
+                },
+            });
+            onUpdate({
+                ...filterRule,
+                lockedTabUuids:
+                    nextTabUuids.length > 0 ? nextTabUuids : undefined,
+            });
+        },
+        [
+            activeTabUuid,
+            dashboard?.uuid,
+            filterRule,
+            isLockedOnActiveTab,
+            onUpdate,
+            track,
+        ],
+    );
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -324,54 +357,9 @@ const Filter: FC<Props> = ({
                                                         withinPortal
                                                     >
                                                         <ActionIcon
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const existing =
-                                                                    filterRule.lockedTabUuids ??
-                                                                    [];
-                                                                const nextTabUuids =
-                                                                    isLockedOnActiveTab
-                                                                        ? existing.filter(
-                                                                              (
-                                                                                  uuid,
-                                                                              ) =>
-                                                                                  uuid !==
-                                                                                  activeTabUuid,
-                                                                          )
-                                                                        : [
-                                                                              ...existing,
-                                                                              activeTabUuid,
-                                                                          ];
-                                                                track({
-                                                                    name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
-                                                                    properties:
-                                                                        {
-                                                                            action: isLockedOnActiveTab
-                                                                                ? 'unlock'
-                                                                                : 'lock',
-                                                                            dashboardUuid:
-                                                                                dashboard?.uuid,
-                                                                            tabUuid:
-                                                                                activeTabUuid,
-                                                                            fieldId:
-                                                                                filterRule
-                                                                                    .target
-                                                                                    .fieldId,
-                                                                            tableName:
-                                                                                filterRule
-                                                                                    .target
-                                                                                    .tableName,
-                                                                        },
-                                                                });
-                                                                onUpdate({
-                                                                    ...filterRule,
-                                                                    lockedTabUuids:
-                                                                        nextTabUuids.length >
-                                                                        0
-                                                                            ? nextTabUuids
-                                                                            : undefined,
-                                                                });
-                                                            }}
+                                                            onClick={
+                                                                handleLockToggle
+                                                            }
                                                             size="xs"
                                                             color="dark"
                                                             radius="xl"

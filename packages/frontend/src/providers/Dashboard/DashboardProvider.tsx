@@ -833,6 +833,38 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         activeTab,
     ]);
 
+    // Derive the effective temporary filters by stripping any that would
+    // conflict with a filter locked on the currently active tab. Done at
+    // read time (useMemo) rather than write-back-to-state so the user's
+    // intent is preserved when they switch tabs — temp filters re-appear
+    // on tabs where the saved filter isn't locked.
+    const {
+        filters: safeTemporaryFilters,
+        droppedCount: lockedTemporaryDroppedCount,
+    } = useMemo(() => {
+        if (!dashboard?.filters) {
+            return { filters: dashboardTemporaryFilters, droppedCount: 0 };
+        }
+        return stripOverridesForLockedFiltersOnTab(
+            dashboard.filters,
+            dashboardTemporaryFilters,
+            activeTab?.uuid,
+        );
+    }, [dashboard?.filters, dashboardTemporaryFilters, activeTab]);
+
+    useEffect(() => {
+        if (lockedTemporaryDroppedCount === 0) return;
+        if (hasNotifiedLockedOverrideRef.current) return;
+        hasNotifiedLockedOverrideRef.current = true;
+        showToastInfo({
+            title: 'Locked dashboard filter',
+            subtitle:
+                lockedTemporaryDroppedCount === 1
+                    ? 'A temporary filter was ignored because the dashboard editor locked it on this tab.'
+                    : `${lockedTemporaryDroppedCount} temporary filters were ignored because the dashboard editor locked them on this tab.`,
+        });
+    }, [lockedTemporaryDroppedCount, showToastInfo]);
+
     // Updates url with temp and overridden filters and deep compare to avoid unnecessary re-renders for dashboardTemporaryFilters
     // Only sync URL in regular dashboards or 'direct' embed mode (not 'sdk' mode)
     useDeepCompareEffect(() => {
@@ -844,15 +876,15 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         const newParams = new URLSearchParams(search);
 
         if (
-            dashboardTemporaryFilters?.dimensions?.length === 0 &&
-            dashboardTemporaryFilters?.metrics?.length === 0
+            safeTemporaryFilters?.dimensions?.length === 0 &&
+            safeTemporaryFilters?.metrics?.length === 0
         ) {
             newParams.delete('tempFilters');
         } else {
             newParams.set(
                 'tempFilters',
                 JSON.stringify(
-                    compressDashboardFiltersToParam(dashboardTemporaryFilters),
+                    compressDashboardFiltersToParam(safeTemporaryFilters),
                 ),
             );
         }
@@ -884,7 +916,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [
         dashboardFilters,
-        dashboardTemporaryFilters,
+        safeTemporaryFilters,
         navigate,
         pathname,
         overridesForSavedDashboardFilters,
@@ -993,36 +1025,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     });
 
-    // Strip temporary filters that conflict with a filter locked on the
-    // currently active tab. Re-runs whenever the active tab changes so the
-    // lock evaluation always reflects the tab being viewed.
-    useEffect(() => {
-        if (!dashboard?.filters) return;
-        const { filters: safeTemporaryFilters, droppedCount } =
-            stripOverridesForLockedFiltersOnTab(
-                dashboard.filters,
-                dashboardTemporaryFilters,
-                activeTab?.uuid,
-            );
-        if (droppedCount === 0) return;
-        setDashboardTemporaryFilters(safeTemporaryFilters);
-        if (!hasNotifiedLockedOverrideRef.current) {
-            hasNotifiedLockedOverrideRef.current = true;
-            showToastInfo({
-                title: 'Locked dashboard filter',
-                subtitle:
-                    droppedCount === 1
-                        ? 'A temporary filter was ignored because the dashboard editor locked it on this tab.'
-                        : `${droppedCount} temporary filters were ignored because the dashboard editor locked them on this tab.`,
-            });
-        }
-    }, [
-        dashboard?.filters,
-        dashboardTemporaryFilters,
-        showToastInfo,
-        activeTab,
-    ]);
-
     // Apply default date zoom granularity when dashboard loads (if no URL override).
     // Uses a ref for `search` so URL changes don't re-trigger this effect —
     // it should only fire when the configured default changes (initial load + after saves).
@@ -1106,18 +1108,18 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         return {
             dimensions: [
                 ...dashboardFilters.dimensions,
-                ...dashboardTemporaryFilters?.dimensions,
+                ...safeTemporaryFilters?.dimensions,
             ],
             metrics: [
                 ...dashboardFilters.metrics,
-                ...dashboardTemporaryFilters?.metrics,
+                ...safeTemporaryFilters?.metrics,
             ],
             tableCalculations: [
                 ...dashboardFilters.tableCalculations,
-                ...dashboardTemporaryFilters?.tableCalculations,
+                ...safeTemporaryFilters?.tableCalculations,
             ],
         };
-    }, [dashboardFilters, dashboardTemporaryFilters]);
+    }, [dashboardFilters, safeTemporaryFilters]);
 
     // Watch for filter changes and emit events (skip initial render)
     useEffect(() => {
@@ -1473,7 +1475,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setActiveTab,
         setDashboardTemporaryFilters,
         dashboardFilters,
-        dashboardTemporaryFilters,
+        dashboardTemporaryFilters: safeTemporaryFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,
         removeDimensionDashboardFilter,
