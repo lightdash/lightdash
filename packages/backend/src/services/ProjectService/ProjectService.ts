@@ -740,6 +740,13 @@ export class ProjectService extends BaseService {
                 userUuid: userId || '',
             });
 
+        // Service accounts have no email and no row in the `emails` table —
+        // `getPrimaryEmailStatus` would 404. They also have no intrinsic
+        // email attributes to attach.
+        if (account?.isServiceAccount()) {
+            return { userAttributes, intrinsicUserAttributes: {} };
+        }
+
         const emailStatus = await this.emailModel.getPrimaryEmailStatus(userId);
         const intrinsicUserAttributes = emailStatus.isVerified
             ? getIntrinsicUserAttributes({ email })
