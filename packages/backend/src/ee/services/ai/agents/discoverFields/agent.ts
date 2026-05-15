@@ -1,5 +1,6 @@
 import { Explore } from '@lightdash/common';
 import {
+    smoothStream,
     stepCountIs,
     streamText,
     tool,
@@ -117,6 +118,10 @@ export const runDiscoverFieldsAgent = (
         messages,
         abortSignal: args.abortSignal,
         experimental_context: new AgentContext(args.availableExplores),
+        experimental_transform: smoothStream({
+            delayInMs: 40,
+            chunking: 'line',
+        }),
         experimental_telemetry: getAgentTelemetryConfig(
             'discoverFieldsSubagent',
             args.telemetry,
