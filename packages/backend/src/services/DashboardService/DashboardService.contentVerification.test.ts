@@ -95,13 +95,9 @@ describe('DashboardService - Content Verification', () => {
         pinnedListModel: {} as unknown as PinnedListModel,
         schedulerModel: {} as unknown as SchedulerModel,
         schedulerService: {} as unknown as SchedulerService,
-        savedChartModel: {
-            getInfoForAvailableFilters: jest.fn(async () => []),
-        } as unknown as SavedChartModel,
+        savedChartModel: {} as unknown as SavedChartModel,
         savedChartService: {} as unknown as SavedChartService,
-        projectModel: {
-            getCachedExploreNames: jest.fn(async () => []),
-        } as unknown as ProjectModel,
+        projectModel: {} as unknown as ProjectModel,
         slackClient: {} as unknown as SlackClient,
         schedulerClient: {} as unknown as SchedulerClient,
         catalogModel: {} as unknown as CatalogModel,
