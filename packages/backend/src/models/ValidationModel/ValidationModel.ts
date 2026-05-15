@@ -82,6 +82,7 @@ export class ValidationModel {
         await this.database.transaction(async (trx) => {
             // Lock the project to avoid concurrent validation updates
             await trx(ProjectTableName)
+                .select('project_uuid')
                 .where('project_uuid', projectUuid)
                 .forUpdate();
 
@@ -152,6 +153,7 @@ export class ValidationModel {
         await this.database.transaction(async (trx) => {
             // Lock the project to avoid concurrent validation updates
             await trx(ProjectTableName)
+                .select('project_uuid')
                 .where('project_uuid', projectUuid)
                 .forUpdate();
 
