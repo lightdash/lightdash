@@ -1,4 +1,4 @@
-import { Explore } from '@lightdash/common';
+import { AgentToolOutput, Explore } from '@lightdash/common';
 import {
     smoothStream,
     stepCountIs,
@@ -20,6 +20,13 @@ import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
 const SUBAGENT_STEP_CAP = 10;
 
+const SUBAGENT_PERSISTED_TOOL_NAMES = ['findExplores', 'findFields'] as const;
+type SubagentPersistedToolName = (typeof SUBAGENT_PERSISTED_TOOL_NAMES)[number];
+const isSubagentPersistedToolName = (
+    name: string,
+): name is SubagentPersistedToolName =>
+    (SUBAGENT_PERSISTED_TOOL_NAMES as readonly string[]).includes(name);
+
 export type DiscoverFieldsAgentDependencies = Pick<
     AiAgentDependencies,
     | 'findExplores'
@@ -27,6 +34,7 @@ export type DiscoverFieldsAgentDependencies = Pick<
     | 'getExplore'
     | 'updateProgress'
     | 'storeToolCall'
+    | 'storeToolResults'
 >;
 
 export type DiscoverFieldsAgentArgs = {
@@ -127,29 +135,48 @@ export const runDiscoverFieldsAgent = (
             args.telemetry,
         ),
         onChunk: ({ chunk }) => {
-            if (
-                chunk.type !== 'tool-call' ||
-                (chunk.toolName !== 'findExplores' &&
-                    chunk.toolName !== 'findFields')
-            ) {
+            if (chunk.type === 'tool-call') {
+                if (!isSubagentPersistedToolName(chunk.toolName)) return;
+                inflightWrites.push(
+                    dependencies
+                        .storeToolCall({
+                            promptUuid: args.promptUuid,
+                            toolCallId: chunk.toolCallId,
+                            toolName: chunk.toolName,
+                            toolArgs: (chunk.input as object) ?? {},
+                            parentToolCallId: args.parentToolCallId,
+                        })
+                        .catch((err) => {
+                            Logger.error(
+                                '[DiscoverFieldsSubagent] storeToolCall failed',
+                                err,
+                            );
+                        }),
+                );
                 return;
             }
-            inflightWrites.push(
-                dependencies
-                    .storeToolCall({
-                        promptUuid: args.promptUuid,
-                        toolCallId: chunk.toolCallId,
-                        toolName: chunk.toolName,
-                        toolArgs: (chunk.input as object) ?? {},
-                        parentToolCallId: args.parentToolCallId,
-                    })
-                    .catch((err) => {
-                        Logger.error(
-                            '[DiscoverFieldsSubagent] storeToolCall failed',
-                            err,
-                        );
-                    }),
-            );
+            if (chunk.type === 'tool-result') {
+                if (!isSubagentPersistedToolName(chunk.toolName)) return;
+                const output = chunk.output as AgentToolOutput;
+                inflightWrites.push(
+                    dependencies
+                        .storeToolResults([
+                            {
+                                promptUuid: args.promptUuid,
+                                toolCallId: chunk.toolCallId,
+                                toolName: chunk.toolName,
+                                result: output.result,
+                                metadata: output.metadata,
+                            },
+                        ])
+                        .catch((err) => {
+                            Logger.error(
+                                '[DiscoverFieldsSubagent] storeToolResults failed',
+                                err,
+                            );
+                        }),
+                );
+            }
         },
     });
 
