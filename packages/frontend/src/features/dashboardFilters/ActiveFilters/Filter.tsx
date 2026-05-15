@@ -3,6 +3,7 @@ import {
     DimensionType,
     FeatureFlags,
     getFilterTypeFromItemType,
+    isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
@@ -73,6 +74,8 @@ const Filter: FC<Props> = ({
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTabUuid = activeTab?.uuid;
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
     );
@@ -81,6 +84,7 @@ const Filter: FC<Props> = ({
     );
     const isLockFilterEnabled =
         lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
+    const isLockedOnActiveTab = isFilterLockedOnTab(filterRule, activeTabUuid);
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -200,7 +204,7 @@ const Filter: FC<Props> = ({
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
-    const isReadOnlyLocked = !!filterRule.locked && !isEditMode && !isTemporary;
+    const isReadOnlyLocked = isLockedOnActiveTab && !isEditMode && !isTemporary;
 
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
@@ -298,10 +302,11 @@ const Filter: FC<Props> = ({
                                     <Group gap={2} wrap="nowrap">
                                         {isLockFilterEnabled &&
                                             isEditMode &&
-                                            !isTemporary && (
+                                            !isTemporary &&
+                                            activeTabUuid && (
                                                 <span
                                                     className={
-                                                        filterRule.locked
+                                                        isLockedOnActiveTab
                                                             ? classes.lockSlotActive
                                                             : classes.lockSlot
                                                     }
@@ -309,18 +314,38 @@ const Filter: FC<Props> = ({
                                                     <Tooltip
                                                         fz="xs"
                                                         label={
-                                                            filterRule.locked
-                                                                ? 'Unlock filter'
-                                                                : 'Lock filter for viewers'
+                                                            isLockedOnActiveTab
+                                                                ? 'Unlock filter on this tab'
+                                                                : 'Lock filter on this tab'
                                                         }
                                                         withinPortal
                                                     >
                                                         <ActionIcon
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
+                                                                const existing =
+                                                                    filterRule.lockedTabUuids ??
+                                                                    [];
+                                                                const nextTabUuids =
+                                                                    isLockedOnActiveTab
+                                                                        ? existing.filter(
+                                                                              (
+                                                                                  uuid,
+                                                                              ) =>
+                                                                                  uuid !==
+                                                                                  activeTabUuid,
+                                                                          )
+                                                                        : [
+                                                                              ...existing,
+                                                                              activeTabUuid,
+                                                                          ];
                                                                 onUpdate({
                                                                     ...filterRule,
-                                                                    locked: !filterRule.locked,
+                                                                    lockedTabUuids:
+                                                                        nextTabUuids.length >
+                                                                        0
+                                                                            ? nextTabUuids
+                                                                            : undefined,
                                                                 });
                                                             }}
                                                             size="xs"
@@ -328,15 +353,15 @@ const Filter: FC<Props> = ({
                                                             radius="xl"
                                                             variant="subtle"
                                                             aria-label={
-                                                                filterRule.locked
-                                                                    ? 'Unlock filter'
-                                                                    : 'Lock filter for viewers'
+                                                                isLockedOnActiveTab
+                                                                    ? 'Unlock filter on this tab'
+                                                                    : 'Lock filter on this tab'
                                                             }
                                                         >
                                                             <MantineIcon
                                                                 size="sm"
                                                                 icon={
-                                                                    filterRule.locked
+                                                                    isLockedOnActiveTab
                                                                         ? IconLock
                                                                         : IconLockOpen
                                                                 }
@@ -345,12 +370,12 @@ const Filter: FC<Props> = ({
                                                     </Tooltip>
                                                 </span>
                                             )}
-                                        {!isEditMode && filterRule.locked && (
+                                        {!isEditMode && isLockedOnActiveTab && (
                                             <span
                                                 className={
                                                     classes.lockSlotActive
                                                 }
-                                                aria-label="Filter is locked"
+                                                aria-label="Filter is locked on this tab"
                                             >
                                                 <MantineIcon
                                                     size="sm"

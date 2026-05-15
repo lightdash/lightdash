@@ -355,7 +355,7 @@ const FilterConfiguration: FC<Props> = ({
     );
 
     const isLockedRequiredMissingValue =
-        !!draftFilterRule?.locked &&
+        !!draftFilterRule?.lockedTabUuids?.length &&
         !!draftFilterRule?.required &&
         !hasFilterValueSet(draftFilterRule);
 

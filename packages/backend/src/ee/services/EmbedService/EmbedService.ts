@@ -45,6 +45,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    isFilterLockedOnTab,
     isParameterInteractivityEnabled,
     MetricQuery,
     NotFoundError,
@@ -56,7 +57,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
     SortField,
-    stripOverridesForLockedFilters,
+    stripOverridesForLockedFiltersOnTab,
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
@@ -976,6 +977,11 @@ export class EmbedService extends BaseService {
     ) {
         const availableFieldIds = getAvailableFilterFieldIds(explore);
 
+        // Look up which tab this tile belongs to so we can evaluate lock state
+        // for the right tab. Tiles created before tabs may have null/undefined.
+        const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
+        const tileTabUuid = tile?.tabUuid ?? undefined;
+
         let effectiveFilters: DashboardFilters = dashboard.filters;
 
         if (
@@ -983,26 +989,27 @@ export class EmbedService extends BaseService {
             isFilterInteractivityEnabled(account.access.filtering)
         ) {
             const { filters: safeOverrides, droppedCount } =
-                stripOverridesForLockedFilters(
+                stripOverridesForLockedFiltersOnTab(
                     dashboard.filters,
                     dashboardFilters,
+                    tileTabUuid,
                 );
 
             if (droppedCount > 0) {
                 this.logger.debug(
-                    `Stripped ${droppedCount} embed filter override(s) targeting locked dashboard filters on dashboard ${dashboard.uuid}`,
+                    `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
                 );
             }
 
             const lockedDimensions = dashboard.filters.dimensions.filter(
-                (rule) => rule.locked,
+                (rule) => isFilterLockedOnTab(rule, tileTabUuid),
             );
-            const lockedMetrics = dashboard.filters.metrics.filter(
-                (rule) => rule.locked,
+            const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
+                isFilterLockedOnTab(rule, tileTabUuid),
             );
             const lockedTableCalculations =
-                dashboard.filters.tableCalculations.filter(
-                    (rule) => rule.locked,
+                dashboard.filters.tableCalculations.filter((rule) =>
+                    isFilterLockedOnTab(rule, tileTabUuid),
                 );
 
             effectiveFilters = {

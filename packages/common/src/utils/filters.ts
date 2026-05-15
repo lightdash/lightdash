@@ -908,10 +908,22 @@ export const getDashboardFiltersForTile = (
     ]),
 });
 
-const buildLockedTargetKeys = (rules: DashboardFilterRule[]): Set<string> => {
+export const isFilterLockedOnTab = (
+    rule: Pick<DashboardFilterRule, 'lockedTabUuids'>,
+    tabUuid: string | undefined,
+): boolean => {
+    if (!rule.lockedTabUuids || rule.lockedTabUuids.length === 0) return false;
+    if (!tabUuid) return false;
+    return rule.lockedTabUuids.includes(tabUuid);
+};
+
+const buildLockedTargetKeysForTab = (
+    rules: DashboardFilterRule[],
+    tabUuid: string | undefined,
+): Set<string> => {
     const keys = new Set<string>();
     rules.forEach((rule) => {
-        if (rule.locked) {
+        if (isFilterLockedOnTab(rule, tabUuid)) {
             keys.add(`${rule.target.tableName}::${rule.target.fieldId}`);
         }
     });
@@ -942,21 +954,27 @@ export type StripOverridesForLockedFiltersResult = {
     droppedCount: number;
 };
 
-export const stripOverridesForLockedFilters = (
+/**
+ * Drop override rules that target a field whose saved filter is locked on the
+ * given tab. When `tabUuid` is undefined nothing is stripped — lock state only
+ * applies when we know which tab is being evaluated.
+ */
+export const stripOverridesForLockedFiltersOnTab = (
     saved: DashboardFilters,
     overrides: DashboardFilters,
+    tabUuid: string | undefined,
 ): StripOverridesForLockedFiltersResult => {
     const dimensions = dropRulesTargetingLockedFields(
         overrides.dimensions,
-        buildLockedTargetKeys(saved.dimensions),
+        buildLockedTargetKeysForTab(saved.dimensions, tabUuid),
     );
     const metrics = dropRulesTargetingLockedFields(
         overrides.metrics,
-        buildLockedTargetKeys(saved.metrics),
+        buildLockedTargetKeysForTab(saved.metrics, tabUuid),
     );
     const tableCalculations = dropRulesTargetingLockedFields(
         overrides.tableCalculations,
-        buildLockedTargetKeys(saved.tableCalculations),
+        buildLockedTargetKeysForTab(saved.tableCalculations, tabUuid),
     );
     return {
         filters: {
