@@ -2083,7 +2083,10 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
-                ProjectService.getPreviewExpiresAt(createProject.type),
+                ProjectService.getPreviewExpiresAt(
+                    createProject.type,
+                    createProject.expiresInHours,
+                ),
             );
 
         // Do not give this user admin permissions on this new project,
@@ -2288,13 +2291,16 @@ export class ProjectService extends BaseService {
 
     static PREVIEW_PROJECT_TTL_DAYS = 30;
 
-    static getPreviewExpiresAt(type: ProjectType): Date | null {
+    static getPreviewExpiresAt(
+        type: ProjectType,
+        expiresInHours?: number,
+    ): Date | null {
         if (type !== ProjectType.PREVIEW) return null;
         const now = new Date();
-        return new Date(
-            now.getTime() +
-                ProjectService.PREVIEW_PROJECT_TTL_DAYS * 24 * 60 * 60 * 1000,
-        );
+        const ttlMs = expiresInHours
+            ? Number(expiresInHours) * 60 * 60 * 1000
+            : ProjectService.PREVIEW_PROJECT_TTL_DAYS * 24 * 60 * 60 * 1000;
+        return new Date(now.getTime() + ttlMs);
     }
 
     static getAnalyticProperties(
@@ -2388,7 +2394,10 @@ export class ProjectService extends BaseService {
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
-                        ProjectService.getPreviewExpiresAt(createProject.type),
+                        ProjectService.getPreviewExpiresAt(
+                            createProject.type,
+                            createProject.expiresInHours,
+                        ),
                     );
                     // Give admin user permissions to user who created this project even if he is an admin
                     if (user.email) {
