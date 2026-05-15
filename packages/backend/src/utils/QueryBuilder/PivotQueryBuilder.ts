@@ -1,4 +1,7 @@
 import {
+    convertItemTypeToDimensionType,
+    DimensionType,
+    FilterOperator,
     getAggregatedField,
     getItemId,
     getParsedReference,
@@ -11,14 +14,17 @@ import {
     normalizeIndexColumns,
     ParameterError,
     parseTableCalculationFunctions,
+    renderFilterRuleSql,
     SortByDirection,
     TableCalculationFunctionCompiler,
     TimeFrames,
     VizAggregationOptions,
     VizSortBy,
     WarehouseSqlBuilder,
+    type FilterRule,
     type ItemsMap,
     type PivotConfiguration,
+    type PivotSortAnchor,
     type TableCalculation,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
@@ -495,6 +501,8 @@ export class PivotQueryBuilder {
             // Create values order parts
             const valuesOrderByParts = sortBy
                 .filter(isValueColumn)
+                // Pinned sorts reorder rows only; columns keep natural order.
+                .filter((sort) => !sort.pivotValues?.length)
                 .reduce<string[]>((acc, sort) => {
                     const sortDirection =
                         sort.direction === SortByDirection.DESC
@@ -503,14 +511,8 @@ export class PivotQueryBuilder {
                     const nullsClause = PivotQueryBuilder.getNullsFirstLast(
                         sort.nullsFirst,
                     );
-                    // Use column anchor value for value columns
                     const colAnchorCteName = `${sort.reference}_column_anchor`;
-
-                    // todo: current SQL does not work with value sorting and multiple group columns
-                    if (
-                        groupByColumns.length === 1 &&
-                        metricFirstValueQueries[colAnchorCteName]
-                    ) {
+                    if (metricFirstValueQueries[colAnchorCteName]) {
                         acc.push(
                             `${q}${colAnchorCteName}${q}.${q}${colAnchorCteName}_value${q}${sortDirection}${nullsClause}`,
                         );
@@ -755,18 +757,105 @@ export class PivotQueryBuilder {
     }
 
     /**
-     * Generates the anchor_column CTE that identifies the groupBy value(s) with column_index = 1.
-     * This is the "first pivot column" - when users sort by a metric, rows are ordered by
-     * their metric value in this column (e.g., the latest month when columns are sorted DESC by date).
-     * Uses ORDER BY + LIMIT 1 for deterministic selection of a single anchor value.
+     * Renders a single anchor equality predicate by delegating to the filter
+     * compiler, so boolean/date/timestamp pins emit type-correct SQL on every
+     * warehouse. Null pins short-circuit to `IS NULL` since strict equality
+     * never matches NULL columns.
+     */
+    private renderAnchorEqualitySql(
+        reference: string,
+        value: PivotSortAnchor['value'],
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const colSql = `cr.${q}${reference}${q}`;
+
+        if (value === null) {
+            return `(${colSql}) IS NULL`;
+        }
+
+        const item = this.itemsMap[reference];
+        const fieldType = item
+            ? convertItemTypeToDimensionType(item)
+            : PivotQueryBuilder.inferDimensionTypeFromValue(value);
+
+        const filterRule: FilterRule<FilterOperator, unknown> = {
+            id: 'pivot-anchor',
+            target: { fieldId: reference },
+            operator: FilterOperator.EQUALS,
+            values: [value],
+        };
+
+        return renderFilterRuleSql(
+            filterRule,
+            fieldType,
+            colSql,
+            this.warehouseSqlBuilder.getStringQuoteChar(),
+            (s) => this.warehouseSqlBuilder.escapeString(s),
+            this.warehouseSqlBuilder.getStartOfWeek(),
+            this.warehouseSqlBuilder.getAdapterType(),
+        );
+    }
+
+    /**
+     * Fallback dimension type used when the pin's `reference` isn't a known
+     * dimension in `itemsMap` (mostly tests). Cannot recover DATE/TIMESTAMP
+     * from a string value here — callers in production paths always pass a
+     * populated itemsMap.
+     */
+    private static inferDimensionTypeFromValue(
+        value: string | number | boolean,
+    ): DimensionType {
+        if (typeof value === 'boolean') return DimensionType.BOOLEAN;
+        if (typeof value === 'number') return DimensionType.NUMBER;
+        return DimensionType.STRING;
+    }
+
+    /**
+     * Builds the WHERE clause that picks the anchor row from `column_ranking`.
+     * Requires a full pin (one value per groupBy column) — partial or stale pins
+     * fall back to the leftmost pivot column so the anchor row stays predictable.
+     */
+    private buildAnchorWhereClause(
+        pivotValues: VizSortBy['pivotValues'] | undefined,
+        groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
+    ): string {
+        const q = this.warehouseSqlBuilder.getFieldQuoteChar();
+        const fallback = `${q}col_idx${q} = 1`;
+        if (!pivotValues?.length) return fallback;
+
+        const pinByRef = new Map(pivotValues.map((pv) => [pv.reference, pv]));
+        const fullyCovered = groupByColumns.every((c) =>
+            pinByRef.has(c.reference),
+        );
+        if (!fullyCovered) return fallback;
+
+        return groupByColumns
+            .map((c) =>
+                this.renderAnchorEqualitySql(
+                    c.reference,
+                    pinByRef.get(c.reference)!.value,
+                ),
+            )
+            .join(' AND ');
+    }
+
+    /**
+     * Generates the anchor_column CTE that identifies the groupBy value(s) used as
+     * the row-sort anchor. By default this is the "first pivot column" (col_idx = 1):
+     * when users sort by a metric, rows are ordered by their metric value in this
+     * column (e.g. the latest month when columns are sorted DESC by date). When
+     * `pivotValues` is provided, the WHERE clause pins the anchor to a specific
+     * pivot column instead. Uses ORDER BY + LIMIT 1 for deterministic selection.
      *
      * @param groupByColumns - Group by columns
      * @param sortBy - Sort configuration to determine ORDER BY direction
+     * @param pivotValues - Optional pin identifying which pivot column is the anchor
      * @returns SQL for the anchor_column CTE
      */
     private getAnchorColumnSQL(
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
+        pivotValues?: VizSortBy['pivotValues'],
     ): string {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
 
@@ -786,31 +875,32 @@ export class PivotQueryBuilder {
             return `cr.${q}${col.reference}${q} ${direction}`;
         });
 
+        const whereClause = this.buildAnchorWhereClause(
+            pivotValues,
+            groupByColumns,
+        );
+
         // ORDER BY + LIMIT 1 ensures deterministic, scalar result
-        return `SELECT ${selectParts} FROM column_ranking cr WHERE ${q}col_idx${q} = 1 ORDER BY ${orderByParts.join(
+        return `SELECT ${selectParts} FROM column_ranking cr WHERE ${whereClause} ORDER BY ${orderByParts.join(
             ', ',
         )} LIMIT 1`;
     }
 
     /**
-     * Generates row anchor CTEs for value columns that have sorts.
-     * When sorting by a metric, rows are ordered by their metric value in the first pivot column
-     * (anchor column), not by their MIN/MAX across all columns. This matches user expectations
-     * when they click to sort by a metric - they expect ordering by the leftmost visible column.
+     * Generates row anchor CTEs for sorted value columns. Each row anchor pulls
+     * the metric value at its anchor column via CROSS JOIN, so row ordering uses
+     * that single column rather than an aggregate across all columns.
      *
-     * Uses CROSS JOIN with anchor_column CTE instead of scalar subqueries for cleaner SQL.
-     *
-     * @param indexColumns - Normalized index columns
-     * @param valuesColumns - Value columns configuration
-     * @param groupByColumns - Group by columns
-     * @param sortBy - Sort configuration
-     * @returns Record mapping CTE names to their SQL definitions
+     * @param perMetricAnchorCte - Optional map of metric → anchor CTE name. When
+     *   set, the row anchor CROSS JOINs that CTE instead of the shared
+     *   `anchor_column`. Used when any sort has `pivotValues`.
      */
     private getRowAnchorCTEs(
         indexColumns: ReturnType<typeof normalizeIndexColumns>,
         valuesColumns: PivotConfiguration['valuesColumns'],
         groupByColumns: NonNullable<PivotConfiguration['groupByColumns']>,
         sortBy: PivotConfiguration['sortBy'],
+        perMetricAnchorCte?: Map<string, string>,
     ): Record<string, { cteName: string; sql: string }> {
         const q = this.warehouseSqlBuilder.getFieldQuoteChar();
         const result: Record<string, { cteName: string; sql: string }> = {};
@@ -849,10 +939,16 @@ export class PivotQueryBuilder {
             );
 
             const rowAnchorCteName = `${valCol.reference}_row_anchor`;
+            const anchorCteName =
+                perMetricAnchorCte?.get(valCol.reference) ?? 'anchor_column';
+            const anchorCteRef =
+                anchorCteName === 'anchor_column'
+                    ? 'anchor_column'
+                    : `${q}${anchorCteName}${q}`;
 
             // Use CROSS JOIN with anchor_column and conditional aggregation
             // MAX is used because there should be at most one value per (indexCols, anchorCol)
-            const rowAnchorSql = `SELECT ${indexColumnRefs}, MAX(CASE WHEN ${anchorMatchConditions} THEN q.${q}${fieldName}${q} END) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query q CROSS JOIN anchor_column ac GROUP BY ${indexColumnGroupBy}`;
+            const rowAnchorSql = `SELECT ${indexColumnRefs}, MAX(CASE WHEN ${anchorMatchConditions} THEN q.${q}${fieldName}${q} END) AS ${q}${rowAnchorCteName}_value${q} FROM group_by_query q CROSS JOIN ${anchorCteRef} ac GROUP BY ${indexColumnGroupBy}`;
 
             result[rowAnchorCteName] = {
                 cteName: rowAnchorCteName,
@@ -881,7 +977,7 @@ export class PivotQueryBuilder {
     ): {
         columnAnchorCTEs: string[];
         columnRankingCTE: string | null;
-        anchorColumnCTE: string | null;
+        anchorColumnCTEs: string[];
         rowAnchorCTEs: string[];
         metricFirstValueQueries: Record<
             string,
@@ -910,7 +1006,7 @@ export class PivotQueryBuilder {
         const needsRowAnchor = hasMetricSort && indexColumns.length > 0;
 
         let columnRankingCTE: string | null = null;
-        let anchorColumnCTE: string | null = null;
+        let anchorColumnCTEs: string[] = [];
         let rowAnchorCTEs: string[] = [];
         let rowAnchorQueries: Record<string, { cteName: string; sql: string }> =
             {};
@@ -925,19 +1021,44 @@ export class PivotQueryBuilder {
             );
             columnRankingCTE = `column_ranking AS (${columnRankingSQL})`;
 
-            // Generate anchor_column CTE
-            const anchorColumnSQL = this.getAnchorColumnSQL(
-                groupByColumns,
-                sortBy,
-            );
-            anchorColumnCTE = `anchor_column AS (${anchorColumnSQL})`;
+            // Any pinned sort upgrades the shared anchor_column to per-metric
+            // anchors so two metrics can pin different columns independently.
+            const hasAnyPin =
+                sortBy?.some((s) => s.pivotValues?.length) ?? false;
 
-            // Generate row anchor CTEs using anchor_column
+            const perMetricAnchorCte = new Map<string, string>();
+
+            if (hasAnyPin && valuesColumns) {
+                valuesColumns.forEach((valCol) => {
+                    const sortConfig = sortBy?.find(
+                        (s) => s.reference === valCol.reference,
+                    );
+                    if (!sortConfig) return;
+                    const anchorCteName = `${valCol.reference}_anchor_column`;
+                    const anchorSQL = this.getAnchorColumnSQL(
+                        groupByColumns,
+                        sortBy,
+                        sortConfig.pivotValues,
+                    );
+                    anchorColumnCTEs.push(
+                        `${q}${anchorCteName}${q} AS (${anchorSQL})`,
+                    );
+                    perMetricAnchorCte.set(valCol.reference, anchorCteName);
+                });
+            } else {
+                const anchorColumnSQL = this.getAnchorColumnSQL(
+                    groupByColumns,
+                    sortBy,
+                );
+                anchorColumnCTEs = [`anchor_column AS (${anchorColumnSQL})`];
+            }
+
             rowAnchorQueries = this.getRowAnchorCTEs(
                 indexColumns,
                 valuesColumns,
                 groupByColumns,
                 sortBy,
+                hasAnyPin ? perMetricAnchorCte : undefined,
             );
             rowAnchorCTEs = Object.values(rowAnchorQueries).map(
                 ({ cteName, sql }) => `${q}${cteName}${q} AS (${sql})`,
@@ -953,7 +1074,7 @@ export class PivotQueryBuilder {
         return {
             columnAnchorCTEs,
             columnRankingCTE,
-            anchorColumnCTE,
+            anchorColumnCTEs,
             rowAnchorCTEs,
             metricFirstValueQueries,
         };
@@ -1298,7 +1419,7 @@ export class PivotQueryBuilder {
         const {
             columnAnchorCTEs,
             columnRankingCTE,
-            anchorColumnCTE,
+            anchorColumnCTEs,
             rowAnchorCTEs,
             metricFirstValueQueries,
         } = this.getMetricAnchorCTEs(
@@ -1374,7 +1495,7 @@ export class PivotQueryBuilder {
             `group_by_query AS (${groupByQuery})`,
             ...columnAnchorCTEs,
             ...(columnRankingCTE ? [columnRankingCTE] : []),
-            ...(anchorColumnCTE ? [anchorColumnCTE] : []),
+            ...anchorColumnCTEs,
             ...rowAnchorCTEs,
             ...(rowRankingCTE ? [rowRankingCTE] : []),
             `pivot_query AS (${pivotQuery})`,
