@@ -19,6 +19,7 @@
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
   "commitMessageExtra": "({{updateType}})",
+  "recreateClosed": true,
   "labels": ["dependencies"],
   "dependencyDashboardApproval": false,
   "lockFileMaintenance": {
