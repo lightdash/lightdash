@@ -58,7 +58,7 @@ Use the fieldId in \`queryConfig.metrics\`, \`chartConfig.yAxisMetrics\`, \`sort
 - Field \`hints\` are written for you and override the field description.
 - Any field used in \`sorts\` must also appear in \`dimensions\`, \`metrics\`, or \`tableCalculations\`. To sort by an ordering field (e.g. \`order_date_month_num\`) while displaying another (e.g. \`order_date_month_name\`), include both in dimensions.
 - For date dimensions, pick the granularity the user asked for (\`order_date_month\` over \`order_date\` if they said "by month").
-- **Joined vs base table fields with similar names**: base tables typically represent events (an order, a visit, a payment) — their fields describe attributes at the time of that event. Joined tables represent entities (a customer, a product) — their fields describe persistent attributes. When the user mentions an entity by name and both tables have a similar-looking field, prefer the joined-table field unless the description clearly says event-level granularity. The \`isFromJoinedTable="true"\` marker identifies joined fields.
+- The field-discovery tool surfaces joined-table fields it considers relevant; trust its selection rather than substituting a base-table field with a similar name. Joined-table fields are marked \`isFromJoinedTable="true"\` in the discovery handoff.
 
 {{cross_explore_join_rule}}
 
