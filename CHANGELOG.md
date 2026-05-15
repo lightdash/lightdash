@@ -1,3 +1,10 @@
+# [0.2960.0](https://github.com/lightdash/lightdash/compare/0.2959.0...0.2960.0) (2026-05-15)
+
+
+### Features
+
+* **database:** configurable migration list validation ([#23139](https://github.com/lightdash/lightdash/issues/23139)) ([a712065](https://github.com/lightdash/lightdash/commit/a712065c9aeee447ba9a5fb53f49ee00b4a5e80c))
+
 # [0.2959.0](https://github.com/lightdash/lightdash/compare/0.2958.0...0.2959.0) (2026-05-15)
 
 
