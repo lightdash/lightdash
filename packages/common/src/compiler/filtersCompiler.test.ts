@@ -2920,5 +2920,46 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             );
             expect(sql).not.toContain('toDateTime(');
         });
+
+        test('Postgres: non-matching source/target preserves the AT TIME ZONE wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                'America/New_York',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).toContain("AT TIME ZONE 'America/New_York'");
+            expect(sql).toContain("'2024-01-15'::timestamp");
+        });
+
+        test('ClickHouse: non-matching source/target preserves the toDateTime wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'America/New_York',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).toContain(
+                "toDateTime('2024-01-15', 'America/New_York')",
+            );
+        });
     });
 });
