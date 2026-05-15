@@ -23,12 +23,12 @@ type Props = {
      *  (the configured preview-host), or the parent's own origin in the
      *  same-origin fallback case. */
     expectedPreviewOrigin: string;
-    /** Stable identity for the served bundle (e.g. `${appUuid}:${version}`).
-     *  Drives the inspector/screenshot availability resets — changes here
-     *  mean a new bundle whose SDK capabilities are unknown, so we re-await
-     *  the announces. A pure URL bump (e.g. the manual refresh counter)
-     *  keeps this stable so the Inspect/Screenshot buttons don't flash off
-     *  and back on. */
+    /** Stable identity scope for the SDK capability handshake — typically the
+     *  app UUID. Drives the inspector/screenshot availability resets, so a
+     *  change here means a new app whose SDK capabilities are unknown and we
+     *  re-await the announces. Pure URL bumps (manual refresh counter) and
+     *  version switches within the same app keep this stable so the
+     *  Inspect/Screenshot buttons don't flicker off-then-back-on each time. */
     identityKey: string;
     onQueryEvent?: (event: QueryEvent) => void;
     onElementSelected?: (event: ElementSelectedEvent) => void;

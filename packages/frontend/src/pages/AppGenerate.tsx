@@ -34,6 +34,7 @@ import {
     IconArrowUp,
     IconDots,
     IconExternalLink,
+    IconArrowBackUp,
     IconFolderPlus,
     IconFolderSymlink,
     IconPencil,
@@ -63,6 +64,7 @@ import {
     useParams,
 } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../components/common/modal/AppUpdateModal';
@@ -243,7 +245,7 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
                 ref={ref}
                 src={previewUrl}
                 expectedPreviewOrigin={previewOrigin}
-                identityKey={`${appUuid}:${version}`}
+                identityKey={appUuid}
                 onQueryEvent={onQueryEvent}
                 inspectorEnabled={inspectorEnabled}
                 onElementSelected={onElementSelected}
@@ -504,7 +506,7 @@ const AppGenerate: FC = () => {
         setSelectedDashboard(null);
         setImageAttachments([]);
         setLocalMessages([]);
-        setPreviewApp(null);
+        setPin(null);
         setTrackedQueries([]);
         setInspectorEnabled(false);
         setInspectorAvailable(false);
@@ -765,43 +767,114 @@ const AppGenerate: FC = () => {
     const hasUnloadedEarlierVersions =
         hasNextPage && !allVersions.some((v) => v.version === 1);
 
-    // Stable reference for the preview — only updates when a new version
-    // becomes ready, preventing iframe reloads during status polling.
-    const latestReadyPreview = useMemo(() => {
-        if (allVersions.length === 0 || !activeAppUuid) return null;
-        // Find the highest-numbered ready version
-        const ready = [...allVersions]
-            .sort((a, b) => b.version - a.version)
-            .find((v) => v.status === 'ready');
-        if (!ready) return null;
-        return { appUuid: activeAppUuid, version: ready.version };
-    }, [allVersions, activeAppUuid]);
-    const [previewApp, setPreviewApp] = useState(latestReadyPreview);
-    useEffect(() => {
+    // Latest ready version for this app. Updates as new versions finish
+    // building — preview defaults to this unless the user pins an older one.
+    const latestReadyVersion = useMemo(() => {
+        if (allVersions.length === 0) return null;
+        return (
+            [...allVersions]
+                .sort((a, b) => b.version - a.version)
+                .find((v) => v.status === 'ready') ?? null
+        );
+    }, [allVersions]);
+
+    // User-pinned version override. `null` = follow latest ready (default).
+    // We snapshot the app uuid and the latest ready version at the moment of
+    // pinning so the pin can self-invalidate via the derived
+    // `effectivePinnedVersion` below — no useEffect+setState chain needed
+    // (lightdash frontend rule).
+    const [pin, setPin] = useState<{
+        appUuid: string;
+        version: number;
+        /** Latest ready version at the moment of pinning. The pin is treated
+         *  as cleared once a newer build finishes past this snapshot. */
+        pinnedAtLatest: number | null;
+    } | null>(null);
+
+    // Effective pinned version after applying invalidation rules:
+    //  - pin from a different app (user navigated away) → ignore.
+    //  - a newer ready version exists than at pin time → ignore (the user
+    //    just authored a fresh prompt; show them the result, not the stale
+    //    review state).
+    //  - the pinned version is no longer in the ready set → ignore.
+    // Polling cycles where latestReadyVersion stays the same are no-ops, so
+    // the pin survives normal refetches.
+    const effectivePinnedVersion = useMemo(() => {
+        if (pin === null || pin.appUuid !== activeAppUuid) return null;
         if (
-            latestReadyPreview &&
-            (latestReadyPreview.appUuid !== previewApp?.appUuid ||
-                latestReadyPreview.version !== previewApp?.version)
+            pin.pinnedAtLatest !== null &&
+            latestReadyVersion !== null &&
+            latestReadyVersion.version > pin.pinnedAtLatest
         ) {
-            setPreviewApp(latestReadyPreview);
-            // The new bundle re-runs its queries from scratch, so the
-            // previous version's entries are stale. With "Persist" on we
-            // flip in-flight ones to a terminal "interrupted" state instead
-            // of clearing — the iframe that would have polled their
-            // queryUuids is gone, so they'd otherwise sit non-terminal.
-            if (persistLogs) {
-                interruptInFlightQueries();
-            } else {
-                setTrackedQueries([]);
-            }
+            return null;
         }
-    }, [
-        latestReadyPreview,
-        previewApp?.appUuid,
-        previewApp?.version,
-        persistLogs,
-        interruptInFlightQueries,
-    ]);
+        const stillReady = allVersions.some(
+            (v) => v.version === pin.version && v.status === 'ready',
+        );
+        return stillReady ? pin.version : null;
+    }, [pin, activeAppUuid, latestReadyVersion, allVersions]);
+
+    // Effective preview target: derived pin wins over latest ready.
+    const previewApp = useMemo(() => {
+        if (!activeAppUuid) return null;
+        if (effectivePinnedVersion !== null) {
+            return { appUuid: activeAppUuid, version: effectivePinnedVersion };
+        }
+        if (!latestReadyVersion) return null;
+        return { appUuid: activeAppUuid, version: latestReadyVersion.version };
+    }, [activeAppUuid, effectivePinnedVersion, latestReadyVersion]);
+
+    // Pin the preview to a specific version. Captures the current latest as
+    // the "pinned-at" snapshot so the derived state can decide later when
+    // the pin has become stale.
+    const pinPreviewToVersion = useCallback(
+        (version: number) => {
+            if (!activeAppUuid) return;
+            setPin({
+                appUuid: activeAppUuid,
+                version,
+                pinnedAtLatest: latestReadyVersion?.version ?? null,
+            });
+        },
+        [activeAppUuid, latestReadyVersion],
+    );
+
+    // Build the `version` prop for an assistant bubble's `ChatBubbleMeta`.
+    // Extracted so the arrow-function `onPreview` captures a `number` rather
+    // than `number | null` — TS won't carry inline ternary narrowing into a
+    // closure, but it does narrow this function's parameter directly.
+    const buildBubbleVersionInfo = (bubbleVersion: number) => ({
+        version: bubbleVersion,
+        isActive: previewApp?.version === bubbleVersion,
+        onPreview: () => pinPreviewToVersion(bubbleVersion),
+    });
+
+    // Whether the user is currently looking at a version other than the
+    // latest ready one. Drives the "viewing older version" banner.
+    const isViewingOlderVersion =
+        previewApp !== null &&
+        latestReadyVersion !== null &&
+        previewApp.version !== latestReadyVersion.version;
+
+    // When the effective preview version changes (auto-bump to a newer
+    // build, or a user click pinning an older one), the iframe reloads and
+    // re-runs its metric queries from scratch. With "Persist" on we flip
+    // in-flight entries to a terminal "interrupted" state — the iframe that
+    // would have polled their queryUuids is gone, so they'd otherwise sit
+    // non-terminal forever. Without persist we just clear the log.
+    const lastPreviewVersionRef = useRef<number | null>(null);
+    useEffect(() => {
+        const next = previewApp?.version ?? null;
+        if (lastPreviewVersionRef.current === next) return;
+        const prev = lastPreviewVersionRef.current;
+        lastPreviewVersionRef.current = next;
+        if (prev === null) return; // Initial render — nothing to clean up.
+        if (persistLogs) {
+            interruptInFlightQueries();
+        } else {
+            setTrackedQueries([]);
+        }
+    }, [previewApp?.version, persistLogs, interruptInFlightQueries]);
 
     // Manual refresh counter for the preview iframe. The iframe URL embeds
     // this value, so bumping it forces the browser to reload the iframe and
@@ -1581,6 +1654,15 @@ const AppGenerate: FC = () => {
                                                                 msg.timestamp
                                                             }
                                                             userName={null}
+                                                            version={
+                                                                msg.appUuid &&
+                                                                msg.version !==
+                                                                    null
+                                                                    ? buildBubbleVersionInfo(
+                                                                          msg.version,
+                                                                      )
+                                                                    : undefined
+                                                            }
                                                         />
                                                         {msg.appUuid ? (
                                                             <ReactMarkdownPreview
@@ -1772,7 +1854,38 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         {/* Chat Input */}
-                        {!wizardCoversInput && (
+                        {!wizardCoversInput && isViewingOlderVersion && (
+                            <Box className={classes.chatInputArea}>
+                                <Callout
+                                    variant="info"
+                                    title={`You're viewing version ${previewApp?.version}`}
+                                >
+                                    <Text size="sm">
+                                        New prompts always continue from the
+                                        latest build. Return to version{' '}
+                                        {latestReadyVersion?.version} to keep
+                                        iterating.
+                                    </Text>
+                                    <Button
+                                        mt="sm"
+                                        size="xs"
+                                        variant="light"
+                                        color="blue"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconArrowBackUp}
+                                                size={12}
+                                            />
+                                        }
+                                        onClick={() => setPin(null)}
+                                    >
+                                        Return to latest (v
+                                        {latestReadyVersion?.version})
+                                    </Button>
+                                </Callout>
+                            </Box>
+                        )}
+                        {!wizardCoversInput && !isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
                                 <input
                                     ref={fileInputRef}

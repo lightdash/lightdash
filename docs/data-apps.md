@@ -173,6 +173,50 @@ a `previewRefreshKey` counter that gets baked into the iframe URL as `&r={key}`.
 which forces the browser to reload the iframe; the served bundle and the JWT are unaffected. The query inspector panel
 is cleared on refresh so the new query run isn't mixed with stale entries from the previous load.
 
+### Previewing older versions
+
+By default the preview iframe loads the **latest ready** version of the app — it auto-bumps every time a new iteration
+finishes building. Users can override that and pin the preview to any earlier ready version: each ready assistant
+bubble's meta row carries a "v{n}" badge (rendered by `ChatBubbleMeta` via its optional `version` prop) that is
+itself the click target. The preview is then derived as `pinnedVersion ?? latestReadyVersion`, so polling refetches
+that don't change the latest version do **not** kick the user back to a newer build.
+
+The chip has two visual states, mirroring the active-version pattern used by branch-switchers like Linear /
+ChatGPT's response-version selector:
+
+- **Inactive** — `Badge variant="light" color="gray"` rendered as `component="button"`; hovering shows a "Preview
+  this version" tooltip; clicking pins the preview to that version.
+- **Active** (currently previewed) — `Badge variant="light" color="indigo"` with an `IconEye` left section; not
+  interactive. The indigo matches the username accent already used in `ChatBubbleMeta` so the active state reads as
+  "the live one" without introducing a new color.
+
+Per-version actions beyond "preview this one" (e.g. the upcoming "Restore as new version" flow) will live elsewhere
+on the bubble — not stacked into the meta row — so the chip stays purely about *which version is shown*.
+
+When a pinned version differs from the latest ready one, the **prompt input area is replaced** with an info
+`Callout`: title `"You're viewing version {n}"`, body explaining that new prompts always continue from the latest
+build, plus a **Return to latest (v{m})** button that calls `setPin(null)`. The whole chat input (textarea, picker
+buttons, submit) is hidden in this state — iterations always branch from the latest build, so allowing the user to
+type while viewing an older version would imply an edit-from-here semantics that doesn't exist. Locking the input
+removes that ambiguity.
+
+**Pin lifecycle (all derived, no `useEffect → setState` chain — that pattern is flagged by the lightdash frontend
+review rules):**
+
+- The pin state is `{ appUuid, version, pinnedAtLatest }`. `pinnedAtLatest` is a snapshot of the latest ready
+  version at the moment of pinning.
+- `effectivePinnedVersion` is derived from `pin` in a `useMemo` and returns `null` (so the preview falls back to
+  the latest ready) when **any** of these hold: the pin's `appUuid` no longer matches `activeAppUuid` (user navigated
+  to a different app); a newer ready version exists than `pinnedAtLatest` (a fresh iteration finished — the user
+  authored a new prompt and almost certainly wants to see the result); or the pinned version is no longer in the
+  ready set.
+- Polling cycles where `latestReadyVersion.version` doesn't change leave the pin valid — the derivation only flips
+  when one of the invalidation conditions becomes true, not on every refetch.
+
+This is read-only — pinning an older version is preview-only and does **not** mutate `app_versions` or change which
+version is served outside the generation page (the public `/preview` route still shows the latest ready version). A
+true "restore this version as v_next" flow is a separate, later step ([GLITCH-443](https://linear.app/lightdash/issue/GLITCH-443)).
+
 ### Deletion
 
 Deleting an app goes through a single `DELETE /apps/{appUuid}` endpoint that routes to one of two modes based on the

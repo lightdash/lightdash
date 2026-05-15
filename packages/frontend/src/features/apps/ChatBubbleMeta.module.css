@@ -17,3 +17,8 @@
     flex-shrink: 0;
     white-space: nowrap;
 }
+
+.versionChip {
+    cursor: pointer;
+    border: 0;
+}
