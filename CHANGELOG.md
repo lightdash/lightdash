@@ -1,3 +1,10 @@
+# [0.2956.0](https://github.com/lightdash/lightdash/compare/0.2955.2...0.2956.0) (2026-05-15)
+
+
+### Features
+
+* **backend:** per-metric anchor CTE in PivotQueryBuilder ([#23045](https://github.com/lightdash/lightdash/issues/23045)) ([44aa113](https://github.com/lightdash/lightdash/commit/44aa1137cb43c1094a35c224b7c81b1103669d9f))
+
 ## [0.2955.2](https://github.com/lightdash/lightdash/compare/0.2955.1...0.2955.2) (2026-05-15)
 
 
