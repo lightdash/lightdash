@@ -1848,6 +1848,21 @@ export class ProjectService extends BaseService {
         const prevMetricsTreeNodes =
             await this.catalogModel.getAllMetricsTreeNodes(projectUuid);
 
+        // Best-effort: capture the explore names already in cache so we can
+        // emit an added/removed diff after the new explores are written
+        // (PROD-5931). Wrapped because this fetch must never interrupt the
+        // compile flow if the DB has a transient error.
+        let previousExploreNames: string[] | null = null;
+        try {
+            previousExploreNames =
+                await this.projectModel.getCachedExploreNames(projectUuid);
+        } catch (err) {
+            this.logger.warn('compile.completed previous-names fetch failed', {
+                projectUuid,
+                err: err instanceof Error ? err.message : String(err),
+            });
+        }
+
         const { cachedExploreUuids } =
             await this.projectModel.saveExploresToCache(projectUuid, explores);
         const { organizationUuid } =
@@ -1856,6 +1871,49 @@ export class ProjectService extends BaseService {
         this.logger.info(
             `Saved ${cachedExploreUuids.length} explores to cache for project ${projectUuid}`,
         );
+
+        // Wide observability event for explore lifecycle. Pair with the
+        // `dashboard.loaded` event to correlate "table removed at T1" with
+        // "dashboard loaded with stale reference at T2".
+        try {
+            const NAME_SAMPLE_CAP = 50;
+            const newNames = explores.map((explore) => explore.name);
+            const previousNameSet = new Set(previousExploreNames ?? []);
+            const newNameSet = new Set(newNames);
+            const removed = (previousExploreNames ?? []).filter(
+                (name) => !newNameSet.has(name),
+            );
+            const added = newNames.filter((name) => !previousNameSet.has(name));
+
+            this.logger.info('compile.completed', {
+                projectUuid,
+                organizationUuid,
+                jobUuid: jobUuid ?? null,
+                compilationSource,
+                requestMethod: requestMethod ?? null,
+                cliVersion: cliVersion ?? null,
+                // null distinguishes "fetch failed" from "no previous explores"
+                previousExploreCount: previousExploreNames?.length ?? null,
+                newExploreCount: newNames.length,
+                addedExploreCount:
+                    previousExploreNames === null ? null : added.length,
+                removedExploreCount:
+                    previousExploreNames === null ? null : removed.length,
+                addedExploreNames:
+                    previousExploreNames === null
+                        ? null
+                        : added.slice(0, NAME_SAMPLE_CAP),
+                removedExploreNames:
+                    previousExploreNames === null
+                        ? null
+                        : removed.slice(0, NAME_SAMPLE_CAP),
+            });
+        } catch (err) {
+            this.logger.warn('compile.completed log failed', {
+                projectUuid,
+                err: err instanceof Error ? err.message : String(err),
+            });
+        }
 
         const compilationReport = calculateCompilationReport({ explores });
         const project = await this.projectModel.get(projectUuid);

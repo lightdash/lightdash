@@ -600,7 +600,7 @@ export class ValidationService extends BaseService {
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
         dashboardUuid?: string,
     ): Promise<CreateDashboardValidation[]> {
-        const existingFieldIds = existingFields.map(getItemId);
+        const existingFieldIds = new Set(existingFields.map(getItemId));
 
         // Pre-build Map for O(1) broken chart lookup instead of O(n) array.find()
         const brokenChartMap = new Map(
@@ -631,13 +631,13 @@ export class ValidationService extends BaseService {
                         fieldName,
                     }: {
                         acc: CreateDashboardValidation[];
-                        fieldIds: string[];
+                        fieldIds: Set<string>;
                         fieldId: string;
                     } & Pick<
                         CreateDashboardValidation,
                         'error' | 'errorType' | 'fieldName'
                     >) => {
-                        if (!fieldIds?.includes(fieldId)) {
+                        if (!fieldIds?.has(fieldId)) {
                             return [
                                 ...acc,
                                 {
@@ -779,6 +779,79 @@ export class ValidationService extends BaseService {
                         }
                         return acc;
                     }, []);
+
+                    // Wide observability event for diagnosing validation
+                    // suppression (related to PROD-5931). Per-dashboard summary
+                    // of inputs vs outputs, with a capped sample of tile targets
+                    // that passed all checks without producing an error — these
+                    // are the suspicious ones to inspect when the bell icon is
+                    // silent but a stale filter exists.
+                    try {
+                        const SAMPLE_CAP = 5;
+                        const tileTargetSummaries = dashboardTileTargets.map(
+                            (tt) => {
+                                if (!tt) {
+                                    return { kind: 'falsy' as const };
+                                }
+                                if (!isDashboardFieldTarget(tt)) {
+                                    return { kind: 'notFieldTarget' as const };
+                                }
+                                if (tt.isSqlColumn) {
+                                    return { kind: 'sqlColumn' as const };
+                                }
+                                return {
+                                    kind: 'processed' as const,
+                                    fieldId: tt.fieldId,
+                                    tableName: tt.tableName,
+                                    fieldIdInExistingFields:
+                                        existingFieldIds.has(tt.fieldId),
+                                };
+                            },
+                        );
+                        const counts = tileTargetSummaries.reduce(
+                            (acc, t) => {
+                                acc[t.kind] = (acc[t.kind] ?? 0) + 1;
+                                return acc;
+                            },
+                            {} as Record<string, number>,
+                        );
+                        const processedWithoutError =
+                            tileTargetSummaries.filter(
+                                (t) =>
+                                    t.kind === 'processed' &&
+                                    t.fieldIdInExistingFields,
+                            );
+
+                        this.logger.info('validation.dashboardScanned', {
+                            projectUuid,
+                            dashboardUuid: uuid,
+                            existingFieldIdCount: existingFieldIds.size,
+                            filterRuleCount: dashboardFilterRules.length,
+                            tileTargetCount: dashboardTileTargets.length,
+                            filterErrorCount: filterErrors.length,
+                            tileTargetErrorCount: tileTargetErrors.length,
+                            chartErrorCount: chartErrors.length,
+                            tileTargetSkippedFalsyCount: counts.falsy ?? 0,
+                            tileTargetSkippedNotFieldTargetCount:
+                                counts.notFieldTarget ?? 0,
+                            tileTargetSkippedSqlColumnCount:
+                                counts.sqlColumn ?? 0,
+                            tileTargetProcessedCount: counts.processed ?? 0,
+                            tileTargetProcessedWithoutErrorCount:
+                                processedWithoutError.length,
+                            tileTargetProcessedWithoutErrorSamples:
+                                processedWithoutError.slice(0, SAMPLE_CAP),
+                        });
+                    } catch (e) {
+                        this.logger.warn(
+                            'validation.dashboardScanned log failed',
+                            {
+                                projectUuid,
+                                dashboardUuid: uuid,
+                                err: e instanceof Error ? e.message : String(e),
+                            },
+                        );
+                    }
 
                     return [
                         ...filterErrors,

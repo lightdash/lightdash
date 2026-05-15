@@ -78,6 +78,11 @@ const savedChartModel = {
         uuid: 'chart_uuid',
         projectUuid: 'project_uuid',
     })),
+    getInfoForAvailableFilters: jest.fn(async () => []),
+};
+
+const projectModel = {
+    getCachedExploreNames: jest.fn(async () => []),
 };
 
 const schedulerModel = {
@@ -143,7 +148,7 @@ describe('DashboardService', () => {
         schedulerService: {} as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
-        projectModel: {} as ProjectModel,
+        projectModel: projectModel as unknown as ProjectModel,
         slackClient: {} as SlackClient,
         schedulerClient: {} as SchedulerClient,
         catalogModel: {} as CatalogModel,
