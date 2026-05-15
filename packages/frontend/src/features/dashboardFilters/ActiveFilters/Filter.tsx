@@ -38,6 +38,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './Filter.module.css';
@@ -85,6 +87,7 @@ const Filter: FC<Props> = ({
     const isLockFilterEnabled =
         lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
     const isLockedOnActiveTab = isFilterLockedOnTab(filterRule, activeTabUuid);
+    const { track } = useTracking();
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
     );
@@ -339,6 +342,27 @@ const Filter: FC<Props> = ({
                                                                               ...existing,
                                                                               activeTabUuid,
                                                                           ];
+                                                                track({
+                                                                    name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                                                                    properties:
+                                                                        {
+                                                                            action: isLockedOnActiveTab
+                                                                                ? 'unlock'
+                                                                                : 'lock',
+                                                                            dashboardUuid:
+                                                                                dashboard?.uuid,
+                                                                            tabUuid:
+                                                                                activeTabUuid,
+                                                                            fieldId:
+                                                                                filterRule
+                                                                                    .target
+                                                                                    .fieldId,
+                                                                            tableName:
+                                                                                filterRule
+                                                                                    .target
+                                                                                    .tableName,
+                                                                        },
+                                                                });
                                                                 onUpdate({
                                                                     ...filterRule,
                                                                     lockedTabUuids:
