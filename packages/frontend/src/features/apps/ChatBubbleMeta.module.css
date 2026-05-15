@@ -18,6 +18,7 @@
     white-space: nowrap;
 }
 
-.versionMenuTrigger {
-    margin-left: -4px;
+.versionChip {
+    cursor: pointer;
+    border: 0;
 }

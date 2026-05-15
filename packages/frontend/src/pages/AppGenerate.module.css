@@ -267,11 +267,6 @@
     flex: 1;
 }
 
-.versionBadge {
-    cursor: pointer;
-    border: 0;
-}
-
 .previewContent {
     flex: 1;
     overflow: hidden;

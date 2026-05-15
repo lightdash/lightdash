@@ -34,16 +34,15 @@ import {
     IconArrowUp,
     IconDots,
     IconExternalLink,
+    IconArrowBackUp,
     IconFolderPlus,
     IconFolderSymlink,
-    IconHistory,
     IconPencil,
     IconLayoutDashboard,
     IconPlayerStop,
     IconRefresh,
     IconSparkles,
     IconTrash,
-    IconX,
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import ReactMarkdownPreview from '@uiw/react-markdown-preview';
@@ -65,6 +64,7 @@ import {
     useParams,
 } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
+import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
 import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../components/common/modal/AppUpdateModal';
@@ -1854,7 +1854,38 @@ const AppGenerate: FC = () => {
                         </Box>
 
                         {/* Chat Input */}
-                        {!wizardCoversInput && (
+                        {!wizardCoversInput && isViewingOlderVersion && (
+                            <Box className={classes.chatInputArea}>
+                                <Callout
+                                    variant="info"
+                                    title={`You're viewing version ${previewApp?.version}`}
+                                >
+                                    <Text size="sm">
+                                        New prompts always continue from the
+                                        latest build. Return to version{' '}
+                                        {latestReadyVersion?.version} to keep
+                                        iterating.
+                                    </Text>
+                                    <Button
+                                        mt="sm"
+                                        size="xs"
+                                        variant="light"
+                                        color="blue"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconArrowBackUp}
+                                                size={12}
+                                            />
+                                        }
+                                        onClick={() => setPin(null)}
+                                    >
+                                        Return to latest (v
+                                        {latestReadyVersion?.version})
+                                    </Button>
+                                </Callout>
+                            </Box>
+                        )}
+                        {!wizardCoversInput && !isViewingOlderVersion && (
                             <Box className={classes.chatInputArea}>
                                 <input
                                     ref={fileInputRef}
@@ -2077,38 +2108,6 @@ const AppGenerate: FC = () => {
                                         </Text>
                                     )}
                                 </Box>
-                                {isViewingOlderVersion && (
-                                    <Tooltip
-                                        label={`Return to latest (v${latestReadyVersion?.version})`}
-                                        withArrow
-                                        position="bottom"
-                                    >
-                                        <Badge
-                                            variant="light"
-                                            color="orange"
-                                            size="md"
-                                            ml="auto"
-                                            component="button"
-                                            type="button"
-                                            onClick={() => setPin(null)}
-                                            leftSection={
-                                                <MantineIcon
-                                                    icon={IconHistory}
-                                                    size={12}
-                                                />
-                                            }
-                                            rightSection={
-                                                <MantineIcon
-                                                    icon={IconX}
-                                                    size={12}
-                                                />
-                                            }
-                                            className={classes.versionBadge}
-                                        >
-                                            Viewing v{previewApp?.version}
-                                        </Badge>
-                                    </Tooltip>
-                                )}
                                 <Tooltip
                                     label="Refresh preview to re-run queries"
                                     withArrow
@@ -2118,7 +2117,7 @@ const AppGenerate: FC = () => {
                                         variant="subtle"
                                         size="sm"
                                         color="ldGray.6"
-                                        ml={isViewingOlderVersion ? 0 : 'auto'}
+                                        ml="auto"
                                         disabled={!previewApp}
                                         onClick={handleRefreshPreview}
                                         aria-label="Refresh preview"

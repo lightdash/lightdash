@@ -177,23 +177,28 @@ is cleared on refresh so the new query run isn't mixed with stale entries from t
 
 By default the preview iframe loads the **latest ready** version of the app — it auto-bumps every time a new iteration
 finishes building. Users can override that and pin the preview to any earlier ready version: each ready assistant
-bubble's meta row carries a "v{n}" badge plus a small `⋯` kebab menu (rendered by `ChatBubbleMeta` via its optional
-`version` prop). The badge itself is a non-interactive label; the menu currently exposes a single **Preview this
-version** entry that calls `setPinnedVersion(v)`. The preview is then derived as `pinnedVersion ?? latestReadyVersion`,
-so polling refetches that don't change the latest version do **not** kick the user back to a newer build.
+bubble's meta row carries a "v{n}" badge (rendered by `ChatBubbleMeta` via its optional `version` prop) that is
+itself the click target. The preview is then derived as `pinnedVersion ?? latestReadyVersion`, so polling refetches
+that don't change the latest version do **not** kick the user back to a newer build.
 
 The chip has two visual states, mirroring the active-version pattern used by branch-switchers like Linear /
 ChatGPT's response-version selector:
 
-- **Inactive** — `Badge variant="light" color="gray"`, no icon. The kebab's "Preview this version" item is enabled.
-- **Active** (currently previewed) — `Badge variant="light" color="indigo"` with an `IconEye` left section. The
-  indigo matches the username accent already used in `ChatBubbleMeta` so the active state reads as "the live one"
-  without introducing a new color. The kebab's "Preview this version" item is disabled (it would be a no-op).
+- **Inactive** — `Badge variant="light" color="gray"` rendered as `component="button"`; hovering shows a "Preview
+  this version" tooltip; clicking pins the preview to that version.
+- **Active** (currently previewed) — `Badge variant="light" color="indigo"` with an `IconEye` left section; not
+  interactive. The indigo matches the username accent already used in `ChatBubbleMeta` so the active state reads as
+  "the live one" without introducing a new color.
 
-When a pinned version differs from the latest ready one, the preview header additionally shows a small `Badge` chip
-("Viewing v{n}", `variant="light" color="orange"` — same convention as the "Pending" indicator in
-`UsersTable`/`CredentialsTable`) next to the refresh button. Hovering reveals a tooltip naming the latest version;
-clicking the badge clears the pin and returns the iframe to the latest build.
+Per-version actions beyond "preview this one" (e.g. the upcoming "Restore as new version" flow) will live elsewhere
+on the bubble — not stacked into the meta row — so the chip stays purely about *which version is shown*.
+
+When a pinned version differs from the latest ready one, the **prompt input area is replaced** with an info
+`Callout`: title `"You're viewing version {n}"`, body explaining that new prompts always continue from the latest
+build, plus a **Return to latest (v{m})** button that calls `setPin(null)`. The whole chat input (textarea, picker
+buttons, submit) is hidden in this state — iterations always branch from the latest build, so allowing the user to
+type while viewing an older version would imply an edit-from-here semantics that doesn't exist. Locking the input
+removes that ambiguity.
 
 **Pin lifecycle (all derived, no `useEffect → setState` chain — that pattern is flagged by the lightdash frontend
 review rules):**

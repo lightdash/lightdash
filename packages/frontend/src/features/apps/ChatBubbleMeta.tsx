@@ -1,5 +1,5 @@
-import { ActionIcon, Badge, Group, Menu, Text, Tooltip } from '@mantine-8/core';
-import { IconDots, IconEye } from '@tabler/icons-react';
+import { Badge, Group, Text, Tooltip } from '@mantine-8/core';
+import { IconEye } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
 import MantineIcon from '../../components/common/MantineIcon';
@@ -10,10 +10,8 @@ type VersionInfo = {
     version: number;
     /** True when the preview iframe is currently showing this version. */
     isActive: boolean;
-    /** Click handler for the kebab menu's "Preview this version" item.
-     *  Required even when `isActive` — the menu item is disabled in that
-     *  case, but a missing handler would be a wiring bug, not a valid
-     *  state, so the type stays non-optional. */
+    /** Click handler — pin the preview to this version. Required so a future
+     *  caller can't silently render a dead chip; ignored when `isActive`. */
     onPreview: () => void;
 };
 
@@ -26,10 +24,13 @@ type Props = {
     userName: string | null;
     /**
      * Version chip rendered on the left of the row for assistant replies
-     * tied to a specific ready version. The chip is a non-interactive
-     * label — actions live in the kebab menu on the right (`⋯`). For now
-     * the only entry is "Preview this version"; "Restore as new version"
-     * is the next thing to add (see GLITCH-443).
+     * tied to a specific ready version. The chip itself is the click
+     * target: clicking the (inactive) chip pins the preview to that
+     * version. Active chip renders in indigo with an eye icon and is
+     * non-interactive.
+     *
+     * Further per-version actions (e.g. "Restore as new version") live
+     * elsewhere on the bubble — not in this meta row.
      */
     version?: VersionInfo;
 };
@@ -38,8 +39,7 @@ type Props = {
  * Header row rendered inside a chat bubble. The left slot holds the sender
  * name (user bubbles) or a clickable version badge (assistant replies tied
  * to a ready version); the right slot holds the relative timestamp with a
- * tooltip for the absolute date, optionally followed by a version-actions
- * kebab menu.
+ * tooltip for the absolute date.
  */
 const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, version }) => {
     const timeAgo = useTimeAgo(timestamp);
@@ -60,20 +60,36 @@ const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, version }) => {
                     {userName}
                 </Text>
             )}
-            {version && (
-                <Badge
-                    size="sm"
-                    variant="light"
-                    color={version.isActive ? 'indigo' : 'gray'}
-                    leftSection={
-                        version.isActive ? (
-                            <MantineIcon icon={IconEye} size={10} />
-                        ) : undefined
-                    }
-                >
-                    v{version.version}
-                </Badge>
-            )}
+            {version &&
+                (version.isActive ? (
+                    <Badge
+                        size="sm"
+                        variant="light"
+                        color="indigo"
+                        leftSection={<MantineIcon icon={IconEye} size={10} />}
+                    >
+                        v{version.version}
+                    </Badge>
+                ) : (
+                    <Tooltip
+                        position="top-start"
+                        fz="xs"
+                        offset={2}
+                        label="Preview this version"
+                    >
+                        <Badge
+                            size="sm"
+                            variant="light"
+                            color="gray"
+                            component="button"
+                            type="button"
+                            onClick={version.onPreview}
+                            className={classes.versionChip}
+                        >
+                            v{version.version}
+                        </Badge>
+                    </Tooltip>
+                ))}
             <Tooltip
                 position={userName ? 'top-end' : 'top-start'}
                 fz="xs"
@@ -84,38 +100,6 @@ const ChatBubbleMeta: FC<Props> = ({ timestamp, userName, version }) => {
                     {timeAgo}
                 </Text>
             </Tooltip>
-            {version && (
-                <Menu
-                    shadow="md"
-                    position="bottom-end"
-                    withinPortal
-                    withArrow
-                    arrowPosition="center"
-                >
-                    <Menu.Target>
-                        <ActionIcon
-                            variant="subtle"
-                            size="xs"
-                            color="ldGray.6"
-                            className={classes.versionMenuTrigger}
-                            aria-label="Version actions"
-                        >
-                            <MantineIcon icon={IconDots} size={12} />
-                        </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown>
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconEye} size={14} />
-                            }
-                            disabled={version.isActive}
-                            onClick={version.onPreview}
-                        >
-                            Preview this version
-                        </Menu.Item>
-                    </Menu.Dropdown>
-                </Menu>
-            )}
         </Group>
     );
 };
