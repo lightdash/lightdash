@@ -184,7 +184,7 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets'
+    'tileTargets' | 'lockedTabUuids'
 >;
 
 export type DateFilterSettings = {
