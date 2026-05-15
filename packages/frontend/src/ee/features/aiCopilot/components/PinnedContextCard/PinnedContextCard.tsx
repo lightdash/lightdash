@@ -72,7 +72,7 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
                 fillOpacity={0.2}
                 strokeWidth={1.9}
             />
-            <Text fz="sm" fw={500} m={0}>
+            <Text fz="sm" fw={500} m={0} truncate>
                 {meta.label}
             </Text>
             <MantineIcon

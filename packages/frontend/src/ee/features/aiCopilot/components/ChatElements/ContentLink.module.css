@@ -16,6 +16,7 @@
     vertical-align: middle;
     margin-right: var(--mantine-spacing-two);
     line-height: 1;
+    min-width: 0;
 }
 
 .contentLink:hover {
