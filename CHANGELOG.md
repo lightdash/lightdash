@@ -1,3 +1,10 @@
+## [0.2955.1](https://github.com/lightdash/lightdash/compare/0.2955.0...0.2955.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **scheduler:** use translated Slack error in delivery failure email [SPK-460] ([#23128](https://github.com/lightdash/lightdash/issues/23128)) ([c9bd1d5](https://github.com/lightdash/lightdash/commit/c9bd1d53d4d38542977c8de2de56849346ca3e67))
+
 # [0.2955.0](https://github.com/lightdash/lightdash/compare/0.2954.0...0.2955.0) (2026-05-15)
 
 
