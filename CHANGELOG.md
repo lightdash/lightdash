@@ -1,3 +1,10 @@
+## [0.2953.1](https://github.com/lightdash/lightdash/compare/0.2953.0...0.2953.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **ai-agent:** dedupe discoverFields subagent yields to kill stream quadratic blowup ([#23126](https://github.com/lightdash/lightdash/issues/23126)) ([914b550](https://github.com/lightdash/lightdash/commit/914b5508d1c005b50430317ca03c0dd6a4f2e87b))
+
 # [0.2953.0](https://github.com/lightdash/lightdash/compare/0.2952.0...0.2953.0) (2026-05-15)
 
 
