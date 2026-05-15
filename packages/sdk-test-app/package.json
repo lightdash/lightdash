@@ -14,7 +14,7 @@
         "@mantine/core": "8.0.0",
         "i18next": "24.2.2",
         "i18next-browser-languagedetector": "8.0.3",
-        "i18next-http-backend": "3.0.2",
+        "i18next-http-backend": "3.0.5",
         "i18next-locize-backend": "7.0.3",
         "react": "19.2.0",
         "react-dom": "19.2.0",
