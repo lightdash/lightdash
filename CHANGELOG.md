@@ -1,3 +1,10 @@
+## [0.2950.4](https://github.com/lightdash/lightdash/compare/0.2950.3...0.2950.4) (2026-05-15)
+
+
+### Bug Fixes
+
+* **service-accounts:** bypass email verification lookup in getUserAttributes ([#23108](https://github.com/lightdash/lightdash/issues/23108)) ([ff75f24](https://github.com/lightdash/lightdash/commit/ff75f24ce0b8bcdb80e1f7dfa1c0a6b5d442696c))
+
 ## [0.2950.3](https://github.com/lightdash/lightdash/compare/0.2950.2...0.2950.3) (2026-05-15)
 
 
