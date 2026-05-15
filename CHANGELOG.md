@@ -1,3 +1,11 @@
+## [0.2949.1](https://github.com/lightdash/lightdash/compare/0.2949.0...0.2949.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **data-apps:** retry app generation on bad exit code ([#23094](https://github.com/lightdash/lightdash/issues/23094)) ([23f92fd](https://github.com/lightdash/lightdash/commit/23f92fdd61341aef4d2f7117ac39530ace1942bc))
+* **ee:** interpolate column name in ai_agent_tool_call length check ([#23092](https://github.com/lightdash/lightdash/issues/23092)) ([3c9ed50](https://github.com/lightdash/lightdash/commit/3c9ed50f25aeb01a633577c556bd4c1c6cd19e2b))
+
 # [0.2949.0](https://github.com/lightdash/lightdash/compare/0.2948.0...0.2949.0) (2026-05-15)
 
 
