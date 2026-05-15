@@ -210,3 +210,20 @@ jobs:
               uses: okteto/destroy-preview@f1897ba6c598f134ced128fb01c56ff5e9c92f73 # latest
               with:
                   name: ${{ steps.resolve.outputs.name }}
+
+            - name: Notify Slack on failure
+              # Fires when any earlier step failed — typically Okteto deploy timing out, the
+              # health probe never going green, or the agent session call returning non-2xx.
+              # The QA agent posts its own PASS/FAIL to #aqa-team when it runs, so this hook
+              # exists to surface the cases where the agent never got the chance to run.
+              if: failure()
+              run: |
+                  TAG="${{ steps.resolve.outputs.tag || github.event.release.tag_name || inputs.image_tag || 'unknown' }}"
+                  RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  curl -X POST -H 'Content-type: application/json' \
+                    --data "{
+                      \"channel\": \"#aqa-team\",
+                      \"username\": \"Release QA\",
+                      \"text\": \"<!channel> :x: Release QA workflow failed for *${TAG}* — the Claude QA agent likely never ran. <${RUN_URL}|View run logs>\"
+                    }" \
+                    ${{ secrets.SLACK_WEBHOOK_URL }}
