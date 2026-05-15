@@ -21,7 +21,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import type { useForm } from '@mantine/form';
+import { type useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustmentsAlt,
@@ -48,6 +48,7 @@ import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect
 import AiExploreAccessTree from '../../../pages/AiAgents/AiExploreAccessTree';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
+import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
 import {
     InstructionsGuidelines,
     InstructionsTemplates,
@@ -69,6 +70,7 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     spaceAccess: z.array(z.string()),
+    mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     version: z.number(),
@@ -401,6 +403,14 @@ export const AiAgentFormSetup = ({
                             />
                         </Stack>
                     </Paper>
+
+                    <AiAgentMcpServersInput
+                        projectUuid={projectUuid}
+                        value={form.values.mcpServerUuids}
+                        onChange={(value) => {
+                            form.setFieldValue('mcpServerUuids', value);
+                        }}
+                    />
 
                     <Paper p="xl">
                         <Group align="center" gap="xs" mb="md">

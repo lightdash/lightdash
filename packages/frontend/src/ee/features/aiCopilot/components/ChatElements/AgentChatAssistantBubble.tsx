@@ -193,8 +193,10 @@ const AssistantBubbleContent: FC<{
 
     const isPending = message.status === 'pending';
     const hasError = message.status === 'error';
-    const hasNoResponse = !isStreaming && !message.message && !isPending;
-    const shouldShowRetry = hasError || hasNoResponse;
+    const streamingError = streamingState?.error;
+    const hasNoResponse =
+        !isStreaming && !streamingError && !message.message && !isPending;
+    const shouldShowRetry = hasError || hasNoResponse || !!streamingError;
 
     const baseMessageContent =
         isStreaming && streamingState
@@ -259,7 +261,8 @@ const AssistantBubbleContent: FC<{
                                     Something went wrong
                                 </Text>
                                 <Text size="xs" c="dimmed">
-                                    {message.errorMessage ||
+                                    {streamingError ||
+                                        message.errorMessage ||
                                         'Failed to generate response. Please try again.'}
                                 </Text>
                             </Stack>
@@ -508,7 +511,7 @@ const AssistantBubbleContent: FC<{
              *  any tool call or text part. Reasoning alone doesn't count: it
              *  collapses by default and would otherwise leave the bubble silent.
              *  Once a part exists, the bento + rolling preview take over. */}
-            {(isStreaming || isPending) &&
+            {(isStreaming || (isPending && !streamingError)) &&
                 (streamingState?.parts?.length ?? 0) === 0 && <TypingDots />}
             {proposeChangeToolCall && (
                 <AiProposeChangeToolCall
