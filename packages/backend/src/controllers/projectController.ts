@@ -11,6 +11,7 @@ import {
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
+    ApiPreviewExpirationProjectSettingsResponse,
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
@@ -53,6 +54,7 @@ import {
     type DuplicateDashboardParams,
     type Tag,
     type UpdateMultipleDashboards,
+    type UpdatePreviewExpirationProjectSettings,
     type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -976,6 +978,62 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Get preview project expiration settings for a project
+     * @summary Get preview expiration settings
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/previews-config')
+    @OperationId('getProjectPreviewExpirationSettings')
+    async getProjectPreviewExpirationSettings(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiPreviewExpirationProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .getProjectPreviewExpirationSettings(
+                toSessionUser(req.account),
+                projectUuid,
+            );
+        return {
+            status: 'ok',
+            results: settings,
+        };
+    }
+
+    /**
+     * Update preview project expiration settings for a project
+     * @summary Update preview expiration settings
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/previews-config')
+    @OperationId('updateProjectPreviewExpirationSettings')
+    async updateProjectPreviewExpirationSettings(
+        @Path() projectUuid: string,
+        @Body() body: UpdatePreviewExpirationProjectSettings,
+        @Request() req: express.Request,
+    ): Promise<ApiPreviewExpirationProjectSettingsResponse> {
+        assertRegisteredAccount(req.account);
+        const settings = await this.services
+            .getProjectService()
+            .updateProjectPreviewExpirationSettings(
+                toSessionUser(req.account),
+                projectUuid,
+                body,
+            );
+        return {
+            status: 'ok',
+            results: settings,
         };
     }
 

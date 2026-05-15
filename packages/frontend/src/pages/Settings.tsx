@@ -1113,6 +1113,26 @@ const Settings: FC = () => {
                                         })}
                                     >
                                         <RouterNavLink
+                                            label="Preview settings"
+                                            exact
+                                            to={`/generalSettings/projectManagement/${project.projectUuid}/previewsConfig`}
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconUserCode}
+                                                />
+                                            }
+                                        />
+                                    </Can>
+
+                                    <Can
+                                        I="update"
+                                        this={subject('Project', {
+                                            organizationUuid:
+                                                organization.organizationUuid,
+                                            projectUuid: project.projectUuid,
+                                        })}
+                                    >
+                                        <RouterNavLink
                                             label="Appearance"
                                             exact
                                             to={`/generalSettings/projectManagement/${project.projectUuid}/appearance`}

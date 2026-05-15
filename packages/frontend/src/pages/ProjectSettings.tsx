@@ -14,6 +14,7 @@ import ProjectUserAccess from '../components/ProjectAccess';
 import ProjectAppearance from '../components/ProjectAppearance/ProjectAppearance';
 import { UpdateProjectConnection } from '../components/ProjectConnection';
 import ProjectParameters from '../components/ProjectParameters';
+import ProjectPreviewExpiration from '../components/ProjectPreviewExpiration';
 import ProjectTablesConfiguration from '../components/ProjectTablesConfiguration/ProjectTablesConfiguration';
 import SettingsQueryTimezone from '../components/SettingsQueryTimezone';
 import SettingsScheduler from '../components/SettingsScheduler';
@@ -104,6 +105,10 @@ const ProjectSettings: FC = () => {
             {
                 path: `/queryTimezone`,
                 element: <SettingsQueryTimezone projectUuid={projectUuid} />,
+            },
+            {
+                path: `/previewsConfig`,
+                element: <ProjectPreviewExpiration projectUuid={projectUuid} />,
             },
             {
                 path: `/compilationHistory`,

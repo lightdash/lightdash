@@ -2090,8 +2090,9 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
-                ProjectService.getPreviewExpiresAt(
+                await this.getPreviewExpiresAt(
                     createProject.type,
+                    createProject.upstreamProjectUuid,
                     createProject.expiresInHours,
                 ),
             );
@@ -2296,18 +2297,34 @@ export class ProjectService extends BaseService {
         return { jobUuid: job.jobUuid };
     }
 
-    static PREVIEW_PROJECT_TTL_DAYS = 30;
+    static PREVIEW_PROJECT_FALLBACK_TTL_HOURS = 720;
 
-    static getPreviewExpiresAt(
+    async getPreviewExpiresAt(
         type: ProjectType,
+        upstreamProjectUuid: string | undefined,
         expiresInHours?: number,
-    ): Date | null {
+    ): Promise<Date | null> {
         if (type !== ProjectType.PREVIEW) return null;
-        const now = new Date();
-        const ttlMs = expiresInHours
-            ? Number(expiresInHours) * 60 * 60 * 1000
-            : ProjectService.PREVIEW_PROJECT_TTL_DAYS * 24 * 60 * 60 * 1000;
-        return new Date(now.getTime() + ttlMs);
+
+        let defaultHours = ProjectService.PREVIEW_PROJECT_FALLBACK_TTL_HOURS;
+        let maxHours: number | null = null;
+        if (upstreamProjectUuid) {
+            const settings =
+                await this.projectModel.getPreviewExpirationSettings(
+                    upstreamProjectUuid,
+                );
+            defaultHours = settings.defaultPreviewExpirationHours;
+            maxHours = settings.maxPreviewExpirationHours;
+        }
+
+        const requestedHours = expiresInHours
+            ? Number(expiresInHours)
+            : defaultHours;
+        const clampedHours =
+            maxHours !== null
+                ? Math.min(requestedHours, maxHours)
+                : requestedHours;
+        return new Date(Date.now() + clampedHours * 60 * 60 * 1000);
     }
 
     static getAnalyticProperties(
@@ -2401,8 +2418,9 @@ export class ProjectService extends BaseService {
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
-                        ProjectService.getPreviewExpiresAt(
+                        await this.getPreviewExpiresAt(
                             createProject.type,
+                            createProject.upstreamProjectUuid,
                             createProject.expiresInHours,
                         ),
                     );
@@ -6397,6 +6415,85 @@ export class ProjectService extends BaseService {
             },
         });
         return this.projectModel.getTablesConfiguration(projectUuid);
+    }
+
+    async getProjectPreviewExpirationSettings(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        projectUuid: string;
+        defaultPreviewExpirationHours: number;
+        maxPreviewExpirationHours: number;
+    }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.projectModel.getPreviewExpirationSettings(projectUuid);
+        return { projectUuid, ...settings };
+    }
+
+    async updateProjectPreviewExpirationSettings(
+        user: SessionUser,
+        projectUuid: string,
+        settings: {
+            defaultPreviewExpirationHours: number;
+            maxPreviewExpirationHours: number;
+        },
+    ): Promise<{
+        projectUuid: string;
+        defaultPreviewExpirationHours: number;
+        maxPreviewExpirationHours: number;
+    }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { defaultPreviewExpirationHours, maxPreviewExpirationHours } =
+            settings;
+        if (
+            !Number.isInteger(defaultPreviewExpirationHours) ||
+            !Number.isInteger(maxPreviewExpirationHours)
+        ) {
+            throw new ParameterError(
+                'Preview expiration hours must be whole numbers',
+            );
+        }
+        if (
+            defaultPreviewExpirationHours < 1 ||
+            maxPreviewExpirationHours < 1
+        ) {
+            throw new ParameterError(
+                'Preview expiration hours must be at least 1',
+            );
+        }
+        if (defaultPreviewExpirationHours > maxPreviewExpirationHours) {
+            throw new ParameterError(
+                'Default preview expiration cannot exceed the maximum',
+            );
+        }
+        await this.projectModel.updatePreviewExpirationSettings(projectUuid, {
+            defaultPreviewExpirationHours,
+            maxPreviewExpirationHours,
+        });
+        const persisted =
+            await this.projectModel.getPreviewExpirationSettings(projectUuid);
+        return { projectUuid, ...persisted };
     }
 
     async getAvailableFiltersForSavedQuery(
