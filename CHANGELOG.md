@@ -1,3 +1,16 @@
+# [0.2950.0](https://github.com/lightdash/lightdash/compare/0.2949.1...0.2950.0) (2026-05-15)
+
+
+### Bug Fixes
+
+* **formula:** widen dividend so int/int no longer truncates on Redshift ([#23100](https://github.com/lightdash/lightdash/issues/23100)) ([9e6d586](https://github.com/lightdash/lightdash/commit/9e6d58694306be6bbedf1a1ef5a85b2689f84629))
+* **table-calc:** scroll required Name field into view on failed save (PROD-7757) ([#23101](https://github.com/lightdash/lightdash/issues/23101)) ([deb36aa](https://github.com/lightdash/lightdash/commit/deb36aafe31c84234e66b4a905c5ca69bf84f20a))
+
+
+### Features
+
+* add --expires-in CLI flag for custom preview TTL ([#3733](https://github.com/lightdash/lightdash/issues/3733)) ([#20938](https://github.com/lightdash/lightdash/issues/20938)) ([6889c33](https://github.com/lightdash/lightdash/commit/6889c337e7519cc887c3affd24d6fe13dba99884))
+
 ## [0.2949.1](https://github.com/lightdash/lightdash/compare/0.2949.0...0.2949.1) (2026-05-15)
 
 
