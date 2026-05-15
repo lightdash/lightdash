@@ -170,6 +170,17 @@ describe('TimeFrames', () => {
                     tz,
                 ),
             ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    '${TABLE}.created',
+                    DimensionType.TIMESTAMP,
+                    undefined,
+                    tz,
+                    tz,
+                ),
+            ).toEqual("DATE_TRUNC('DAY', ${TABLE}.created)");
         });
 
         test('BigQuery 2-arg TIMESTAMP_TRUNC keeps original expr unchanged (DATETIME overload still applies)', () => {
@@ -1006,6 +1017,17 @@ describe('TimeFrames', () => {
                     'America/New_York',
                 ),
             ).toEqual(`EXTRACT(MONTH FROM ${col})`);
+            expect(
+                getSqlForDatePart(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY_OF_WEEK_INDEX,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'America/New_York',
+                    'America/New_York',
+                ),
+            ).toEqual(`DATE_PART('DOW', ${col})`);
         });
 
         test('DATE base dimension with timezone short-circuits (no wrap)', () => {
@@ -1208,6 +1230,17 @@ describe('TimeFrames', () => {
                     'America/New_York',
                 ),
             ).toEqual(`TO_CHAR(${col}, 'FMMonth')`);
+            expect(
+                getSqlForDatePartName(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.MONTH_NAME,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'America/New_York',
+                    'America/New_York',
+                ),
+            ).toEqual(`FORMAT_DATETIME('%B', ${col})`);
         });
 
         test.each([

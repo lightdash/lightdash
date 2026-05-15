@@ -679,18 +679,25 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
  * performed in the project TZ and the result is converted back to a proper
  * UTC instant so downstream consumers apply .tz(project_tz) uniformly.
  */
+// Source defaults to UTC when unset (matches `getColumnTimezone`). A wrap when
+// target equals source is semantically a no-op and defeats partition pruning
+// on warehouses like BigQuery — every wrap site (dim trunc, extract, format,
+// filter literal) shares this predicate so symmetry is enforced centrally.
+export const isTimezoneRoundTripNoOp = (
+    timezone: string,
+    sourceTimezone?: string,
+): boolean => timezone === (sourceTimezone ?? 'UTC');
+
 // Returns the resolved (timezone, sourceTimezone) when the dim needs a tz
 // wrap, else null. Wrap conditions: TIMESTAMP-typed dim AND a target timezone
-// AND target != source (defaulting to UTC). Wrapping when target equals source
-// produces semantically-identical SQL that defeats partition pruning on
-// warehouses like BigQuery.
+// AND target != source.
 const resolveTimezoneWrap = (
     type: DimensionType,
     timezone?: string,
     sourceTimezone?: string,
 ): { timezone: string; sourceTimezone?: string } | null => {
     if (type !== DimensionType.TIMESTAMP || !timezone) return null;
-    if (timezone === (sourceTimezone ?? 'UTC')) return null;
+    if (isTimezoneRoundTripNoOp(timezone, sourceTimezone)) return null;
     return { timezone, sourceTimezone };
 };
 

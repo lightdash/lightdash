@@ -2802,4 +2802,164 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             expect(sql).not.toContain('TIMESTAMP(');
         });
     });
+
+    describe('target tz === source tz short-circuit (mirrors dim-side resolveTimezoneWrap)', () => {
+        test('BigQuery: UTC project tz + UTC source drops the TIMESTAMP wrap on the literal', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).not.toContain('TIMESTAMP(');
+            expect(sql).toContain("'2024-01-15'");
+        });
+
+        test('BigQuery: UTC project tz + undefined source (defaults to UTC) drops the wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.BIGQUERY,
+                'UTC',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+            );
+            expect(sql).not.toContain('TIMESTAMP(');
+        });
+
+        test('BigQuery: matching non-UTC source/target drops the wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.BIGQUERY,
+                'America/New_York',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'America/New_York',
+            );
+            expect(sql).not.toContain('TIMESTAMP(');
+        });
+
+        test('BigQuery: non-matching source/target preserves the wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.BIGQUERY,
+                'America/New_York',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).toContain(
+                "TIMESTAMP('2024-01-15', 'America/New_York')",
+            );
+        });
+
+        test('Postgres: matching source/target drops the AT TIME ZONE wrap on the literal', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                'UTC',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).not.toContain('AT TIME ZONE');
+            expect(sql).not.toContain('::timestamp');
+        });
+
+        test('ClickHouse: matching source/target drops the toDateTime wrap on the literal', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'UTC',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).not.toContain('toDateTime(');
+        });
+
+        test('Postgres: non-matching source/target preserves the AT TIME ZONE wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.POSTGRES,
+                'America/New_York',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).toContain("AT TIME ZONE 'America/New_York'");
+            expect(sql).toContain("'2024-01-15'::timestamp");
+        });
+
+        test('ClickHouse: non-matching source/target preserves the toDateTime wrap', () => {
+            const sql = renderFilterRuleSql(
+                equalsFilter,
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (s: string) => s,
+                null,
+                SupportedDbtAdapter.CLICKHOUSE,
+                'America/New_York',
+                true,
+                undefined,
+                true,
+                DimensionType.TIMESTAMP,
+                'UTC',
+            );
+            expect(sql).toContain(
+                "toDateTime('2024-01-15', 'America/New_York')",
+            );
+        });
+    });
 });
