@@ -169,14 +169,10 @@ type ToolArgs = {
  * handoff arrives already-typed — no JSON.parse, no fence stripping,
  * no post-stream coercion.
  *
- * Each iteration of `readUIMessageStream` yields the accumulated subagent
- * UIMessage as `metadata.streamingMessage` on the streaming tool output;
- * AI SDK forwards each as a preliminary `tool-result` chunk so the
- * frontend can render the trace live. The final yield extracts the
- * handoff from the submitResult tool call and renders the XML the parent
- * model sees via `toModelOutput`. Subagent's `storeToolCall` writes are
- * awaited before the final yield so the parent's tool-result row never
- * commits before the children rows.
+ * The final yield extracts the handoff from the submitResult tool call
+ * and renders the XML the parent model sees via `toModelOutput`.
+ * Subagent's `storeToolCall` writes are awaited before the final yield
+ * so the parent's tool-result row never commits before the children rows.
  */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
     tool({
@@ -203,17 +199,40 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                 );
 
                 let currentMessage: UIMessage | undefined;
+                // Yield only on tool-call structural changes; per-chunk
+                // yields re-emit the accumulated UIMessage and grow the
+                // parent stream quadratically.
+                let lastTraceSignature: string | null = null;
                 for await (const message of readUIMessageStream({
                     stream: stream.toUIMessageStream(),
                 })) {
                     currentMessage = message;
-                    yield {
-                        result: '',
-                        metadata: {
-                            status: 'streaming' as const,
-                            streamingMessage: message,
-                        },
-                    };
+                    const traceSignature = message.parts
+                        .filter((p) => p.type.startsWith('tool-'))
+                        .map((p) => {
+                            const toolPart = p as {
+                                type: string;
+                                toolCallId?: string;
+                                input?: unknown;
+                            };
+                            return `${toolPart.type}:${
+                                toolPart.toolCallId ?? ''
+                            }:${toolPart.input != null ? '1' : '0'}`;
+                        })
+                        .join('|');
+                    if (
+                        traceSignature &&
+                        traceSignature !== lastTraceSignature
+                    ) {
+                        lastTraceSignature = traceSignature;
+                        yield {
+                            result: '',
+                            metadata: {
+                                status: 'streaming' as const,
+                                streamingMessage: message,
+                            },
+                        };
+                    }
                 }
 
                 await flushPersistence();
