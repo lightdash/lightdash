@@ -350,6 +350,110 @@ describe('codegen', () => {
         });
     });
 
+    describe('division (/)', () => {
+        // `int / int` is integer division (truncates) on the Postgres family
+        // and on Trino / Athena. The formula language targets Google-Sheets-
+        // style semantics where `/` is always real-valued, so those dialects
+        // widen the dividend. Other dialects (BigQuery, Snowflake, DuckDB,
+        // Databricks, ClickHouse) auto-widen and stay bare.
+        it('Postgres casts the dividend to numeric', () => {
+            // Numeric (not DOUBLE PRECISION) preserves half-away-from-zero
+            // rounding when ROUND wraps a division — `round(double, n)` on
+            // Postgres uses banker's rounding and would silently flip
+            // `=ROUND(250.50 / 1)` from 251 to 250.
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'postgres',
+                    columns,
+                }),
+            ).toBe(`(("revenue")::numeric / NULLIF("region", 0))`);
+        });
+
+        it('Redshift pins numeric precision so the dividend keeps a non-zero scale', () => {
+            // Customer report (Redshift): `COUNT(orders) / COUNT(customers)`
+            // came back as 0 / 1 instead of the intended ratio. Bare
+            // `(x)::numeric` on Redshift is `numeric(18, 0)` (zero scale —
+            // still integer-like), so it would re-introduce the bug. Pin to
+            // `numeric(38, 10)` for the same reason as ROUND on Redshift.
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'redshift',
+                    columns,
+                }),
+            ).toBe(
+                `(("revenue")::numeric(38, 10) / NULLIF("region", 0))`,
+            );
+        });
+
+        it('Trino / Athena cast the dividend to DOUBLE via CAST(...AS DOUBLE)', () => {
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'trino',
+                    columns,
+                }),
+            ).toBe(`(CAST("revenue" AS DOUBLE) / NULLIF("region", 0))`);
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'athena',
+                    columns,
+                }),
+            ).toBe(`(CAST("revenue" AS DOUBLE) / NULLIF("region", 0))`);
+        });
+
+        it('BigQuery / Snowflake / DuckDB / Databricks / ClickHouse stay bare', () => {
+            // These warehouses auto-widen `int / int` to a real-valued
+            // type, so no dialect override is needed — the bare default
+            // emission is correct.
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'bigquery',
+                    columns,
+                }),
+            ).toBe('(`revenue` / NULLIF(`region`, 0))');
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'snowflake',
+                    columns,
+                }),
+            ).toBe(`("revenue" / NULLIF("region", 0))`);
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'duckdb',
+                    columns,
+                }),
+            ).toBe(`("revenue" / NULLIF("region", 0))`);
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'databricks',
+                    columns,
+                }),
+            ).toBe('(`revenue` / NULLIF(`region`, 0))');
+            expect(
+                compile('=revenue / region', {
+                    dialect: 'clickhouse',
+                    columns,
+                }),
+            ).toBe(`("revenue" / NULLIF("region", 0))`);
+        });
+
+        it('division-by-zero short-circuits to NULL via NULLIF on all dialects', () => {
+            // The dividend cast must not displace the NULLIF on the divisor —
+            // otherwise `/0` would raise instead of returning NULL.
+            expect(
+                compile('=revenue / 0', { dialect: 'postgres', columns }),
+            ).toBe(`(("revenue")::numeric / NULLIF(0, 0))`);
+            expect(
+                compile('=revenue / 0', { dialect: 'redshift', columns }),
+            ).toBe(`(("revenue")::numeric(38, 10) / NULLIF(0, 0))`);
+            expect(
+                compile('=revenue / 0', { dialect: 'trino', columns }),
+            ).toBe(`(CAST("revenue" AS DOUBLE) / NULLIF(0, 0))`);
+            expect(
+                compile('=revenue / 0', { dialect: 'snowflake', columns }),
+            ).toBe(`("revenue" / NULLIF(0, 0))`);
+        });
+    });
+
     describe('Redshift dialect', () => {
         it('emits bare aggregates by default (Postgres-equivalent output)', () => {
             expect(

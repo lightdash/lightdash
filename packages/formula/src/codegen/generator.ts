@@ -122,7 +122,7 @@ export class SqlGenerator {
             case '*':
                 return `(${left} ${node.op} ${right})`;
             case '/':
-                return `(${left} / NULLIF(${right}, 0))`;
+                return this.generateDivision(left, right);
             case '^':
                 return `POWER(${left}, ${right})`;
             case '%':
@@ -520,6 +520,13 @@ export class SqlGenerator {
         return (
             this.dialect.generateModulo?.(left, right) ??
             `MOD(${left}, ${right})`
+        );
+    }
+
+    protected generateDivision(left: string, right: string): string {
+        return (
+            this.dialect.generateDivision?.(left, right) ??
+            `(${left} / NULLIF(${right}, 0))`
         );
     }
 

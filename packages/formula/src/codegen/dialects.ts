@@ -15,6 +15,13 @@ export interface DialectConfig {
     quoteIdentifier: (name: string) => string;
     generateStringLiteral?: (node: StringLiteralNode) => string;
     generateModulo?: (left: string, right: string) => string;
+    // Division emission. Default `(left / NULLIF(right, 0))` matches the
+    // common case (BigQuery, Snowflake, Databricks, ClickHouse, DuckDB
+    // all auto-widen `int / int` to a real-valued type). Postgres/Redshift
+    // and Trino/Athena truncate `int / int` to integer, so they override
+    // to cast the dividend, forcing float division to match the formula
+    // language's Google-Sheets-style semantics.
+    generateDivision?: (left: string, right: string) => string;
     generateConcat?: (args: string[]) => string;
     // SUBSTRING emission. Default `SUBSTRING(t, s, l)` works everywhere except BigQuery, which calls it `SUBSTR`.
     generateSubstring?: (text: string, start: string, length: string) => string;
@@ -183,6 +190,17 @@ const postgresStyleRound = (value: string, digits?: string): string =>
     digits !== undefined
         ? `ROUND((${value})::numeric, ${digits})`
         : `ROUND(${value})`;
+// Division: Postgres's `int / int` is integer division (truncates), so a
+// table calc like `=COUNT(orders) / COUNT(customers)` over two BIGINTs comes
+// back as 0 or 1 instead of a real-valued ratio — the formula language
+// targets Google-Sheets-style semantics, where `/` is always real-valued.
+// Cast the dividend to numeric; PG promotes the divisor to numeric and the
+// result is numeric (full precision, no truncation). Numeric (rather than
+// DOUBLE PRECISION) keeps the half-away-from-zero rounding that Google
+// Sheets and Excel use — `round(double precision)` switches to banker's
+// rounding and would silently turn `=ROUND(250.50 / 1)` from 251 into 250.
+const postgresStyleDivision = (left: string, right: string): string =>
+    `((${left})::numeric / NULLIF(${right}, 0))`;
 // ANSI DATE_TRUNC — shared by Postgres/Redshift/Snowflake/DuckDB. Non-Monday
 // week handling composes in the INTERVAL form; see `defaultDateTrunc` in
 // generator.ts for the offset dance.
@@ -200,6 +218,7 @@ const postgresStyleLastDay = (arg: string): string =>
 const POSTGRES_CONFIG: DialectConfig = {
     quoteIdentifier: doubleQuoteIdentifier,
     generateModulo: infixPercentModulo,
+    generateDivision: postgresStyleDivision,
     generateAvg: postgresStyleAvg,
     generateConcat: postgresStyleConcat,
     generateRound: postgresStyleRound,
@@ -243,6 +262,13 @@ const REDSHIFT_CONFIG: DialectConfig = {
         digits !== undefined
             ? `ROUND((${value})::numeric(38, 10), ${digits})`
             : `ROUND(${value})`,
+    // Same precision-pinning rationale as `generateRound` above: bare
+    // `(x)::numeric` on Redshift is `numeric(18, 0)`, which would truncate
+    // the dividend to an integer before division and re-introduce the very
+    // bug `postgresStyleDivision` fixes on Postgres. Pin to `numeric(38, 10)`
+    // so `int / int` keeps a non-zero scale through the division.
+    generateDivision: (left, right) =>
+        `((${left})::numeric(38, 10) / NULLIF(${right}, 0))`,
     generateLagLead: ({ sqlFunc, args, emitWindow }) => {
         if (args.length >= 3) {
             const [value, offset, defaultValue] = args;
@@ -516,6 +542,12 @@ const TRINO_CONFIG: DialectConfig = {
     // any string with a literal `\`. We deliberately diverge from it here
     // and use the ANSI-correct form.)
     generateStringLiteral: ansiSingleQuoteDoubleStringLiteral,
+    // Trino / Athena treat `int / int` as integer division (`5 / 2 = 2`),
+    // same footgun as Postgres. Widen the LHS to DOUBLE; Trino implicitly
+    // promotes the RHS to match. `DECIMAL / DECIMAL` and `DOUBLE / *`
+    // already return real-valued types, so the cast is harmless there.
+    generateDivision: (left, right) =>
+        `(CAST(${left} AS DOUBLE) / NULLIF(${right}, 0))`,
     // Trino / Athena `CONCAT` requires two or more arguments — calling it
     // with a single arg fails with "There must be two or more concatenation
     // arguments". Pass single-arg through unchanged; otherwise use the
