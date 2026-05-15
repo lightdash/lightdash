@@ -1,3 +1,10 @@
+# [0.2954.0](https://github.com/lightdash/lightdash/compare/0.2953.1...0.2954.0) (2026-05-15)
+
+
+### Features
+
+* **data-apps:** preview older versions from chat ([#23113](https://github.com/lightdash/lightdash/issues/23113)) ([65bd0cd](https://github.com/lightdash/lightdash/commit/65bd0cd7fb9153a9bf5e326e0504d4c040128b21))
+
 ## [0.2953.1](https://github.com/lightdash/lightdash/compare/0.2953.0...0.2953.1) (2026-05-15)
 
 
