@@ -12,6 +12,7 @@ import {
     type ItemsMap,
 } from '../types/field';
 import { type MetricQuery } from '../types/metricQuery';
+import { type ParametersValuesMap } from '../types/parameters';
 import {
     type PivotColumn,
     type PivotConfig,
@@ -49,6 +50,7 @@ type PivotQueryResultsArgs = {
     };
     getField: FieldFunction;
     getFieldLabel: FieldLabelFunction;
+    parameters?: ParametersValuesMap;
 };
 
 type RecursiveRecord<T = unknown> = {
@@ -232,6 +234,7 @@ const combinedRetrofit = (
     data: PivotData,
     getField: FieldFunction,
     getFieldLabel: FieldLabelFunction,
+    parameters?: ParametersValuesMap,
 ) => {
     const indexValues = data.indexValues.length ? data.indexValues : [[]];
     const baseIdInfo = last(data.headerValues);
@@ -264,7 +267,7 @@ const combinedRetrofit = (
         if (!isSummable(item)) {
             return null;
         }
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
             raw: total,
@@ -279,7 +282,7 @@ const combinedRetrofit = (
         if (!field || !field.fieldId) throw new Error('Invalid pivot data');
         const item = getField(field.fieldId);
 
-        const formattedValue = formatItemValue(item, total, false, undefined);
+        const formattedValue = formatItemValue(item, total, false, parameters);
 
         return {
             raw: total,
@@ -530,6 +533,7 @@ export const pivotQueryResults = ({
     getField,
     getFieldLabel,
     groupedSubtotals,
+    parameters,
 }: PivotQueryResultsArgs): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot pivot results with no rows');
@@ -881,7 +885,7 @@ export const pivotQueryResults = ({
         },
         groupedSubtotals,
     };
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
 };
 
 /**
@@ -897,6 +901,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel,
     groupedSubtotals,
     columnLimit,
+    parameters,
 }: {
     rows: ResultRow[];
     pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
@@ -913,6 +918,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel: FieldLabelFunction;
     groupedSubtotals: PivotQueryResultsArgs['groupedSubtotals'];
     columnLimit?: number;
+    parameters?: ParametersValuesMap;
 }): PivotData => {
     if (rows.length === 0) {
         throw new Error('Cannot convert SQL pivoted results with no rows');
@@ -1030,7 +1036,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                               field,
                               pivotValue.value,
                               true,
-                              undefined,
+                              parameters,
                           )
                         : String(pivotValue.value));
                 const allColumnsWithSamePivotValues = columns.filter(
@@ -1408,7 +1414,7 @@ export const convertSqlPivotedRowsToPivotData = ({
                               field,
                               rowTotalValue,
                               false,
-                              undefined,
+                              parameters,
                           )
                         : String(rowTotalValue);
 
@@ -1512,7 +1518,7 @@ export const convertSqlPivotedRowsToPivotData = ({
         groupedSubtotals,
     };
 
-    return combinedRetrofit(pivotData, getField, getFieldLabel);
+    return combinedRetrofit(pivotData, getField, getFieldLabel, parameters);
 };
 
 export type PivotResultsDataCell = {

@@ -373,6 +373,7 @@ const useTableConfig = (
                     getField,
                     getFieldLabel,
                     groupedSubtotals,
+                    parameters,
                 })
                 .then((data) => {
                     setPivotTableData({
@@ -400,6 +401,7 @@ const useTableConfig = (
                     },
                     getField,
                     getFieldLabel,
+                    parameters,
                 })
                 .then((data) => {
                     setPivotTableData({
@@ -430,6 +432,7 @@ const useTableConfig = (
         worker,
         pivotTableMaxColumnLimit,
         groupedSubtotals,
+        parameters,
     ]);
 
     // Remove columnProperties from map if the column has been removed from results

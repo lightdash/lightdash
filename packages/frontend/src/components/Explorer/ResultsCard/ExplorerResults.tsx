@@ -272,6 +272,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         getField,
         getFieldLabel,
         columnLimit,
+        parameters,
     });
 
     const cellContextMenu = useCallback(
