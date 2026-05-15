@@ -1,3 +1,10 @@
+# [0.2953.0](https://github.com/lightdash/lightdash/compare/0.2952.0...0.2953.0) (2026-05-15)
+
+
+### Features
+
+* **ai-agent:** stream response line-by-line instead of word-by-word ([#23122](https://github.com/lightdash/lightdash/issues/23122)) ([f91d04e](https://github.com/lightdash/lightdash/commit/f91d04ed4a17203b17acb0e7d347277f0153f439))
+
 # [0.2952.0](https://github.com/lightdash/lightdash/compare/0.2951.1...0.2952.0) (2026-05-15)
 
 
