@@ -1,3 +1,10 @@
+## [0.2950.2](https://github.com/lightdash/lightdash/compare/0.2950.1...0.2950.2) (2026-05-15)
+
+
+### Bug Fixes
+
+* **prod-5672:** default SQL Runner chart tooltip to readable Day format ([#23072](https://github.com/lightdash/lightdash/issues/23072)) ([54a6ae6](https://github.com/lightdash/lightdash/commit/54a6ae6c182176dfd1cca26941ca27cb9ed90ff0))
+
 ## [0.2950.1](https://github.com/lightdash/lightdash/compare/0.2950.0...0.2950.1) (2026-05-15)
 
 
