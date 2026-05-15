@@ -41,6 +41,7 @@ import {
     IconLayoutDashboard,
     IconPlayerStop,
     IconRefresh,
+    IconRestore,
     IconSparkles,
     IconTrash,
 } from '@tabler/icons-react';
@@ -66,6 +67,7 @@ import {
 import { v4 as uuid4 } from 'uuid';
 import Callout from '../components/common/Callout';
 import MantineIcon from '../components/common/MantineIcon';
+import MantineModal from '../components/common/MantineModal';
 import AppDeleteModal from '../components/common/modal/AppDeleteModal';
 import AppUpdateModal from '../components/common/modal/AppUpdateModal';
 import { ChartIcon, IconBox } from '../components/common/ResourceIcon';
@@ -104,6 +106,7 @@ import { useClarifyApp } from '../features/apps/hooks/useClarifyApp';
 import { useGenerateApp } from '../features/apps/hooks/useGenerateApp';
 import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useIterateApp } from '../features/apps/hooks/useIterateApp';
+import { useRestoreAppVersion } from '../features/apps/hooks/useRestoreAppVersion';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import QueryInspector from '../features/apps/QueryInspector';
 import { getTemplate } from '../features/apps/templates';
@@ -528,6 +531,18 @@ const AppGenerate: FC = () => {
         useClarifyApp();
     const { mutate: cancelMutate, isLoading: isCancelling } =
         useCancelAppVersion();
+    const {
+        mutate: restoreVersionMutate,
+        isLoading: isRestoringVersion,
+        error: restoreVersionError,
+        reset: resetRestoreVersion,
+    } = useRestoreAppVersion();
+    // Which version the user is about to restore. `null` while the modal is
+    // closed. Set when the user clicks "Restore" on a bubble; consumed by
+    // the confirm modal at the bottom of the page.
+    const [restoreTargetVersion, setRestoreTargetVersion] = useState<
+        number | null
+    >(null);
     const { mutateAsync: uploadImage } = useAppImageUpload();
     const { showToastError, showToastWarning } = useToaster();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
@@ -1869,25 +1884,50 @@ const AppGenerate: FC = () => {
                                     <Text size="sm">
                                         New prompts always continue from the
                                         latest build. Return to version{' '}
-                                        {latestReadyVersion?.version} to keep
-                                        iterating.
+                                        {latestReadyVersion?.version}, or
+                                        restore this version as the new latest
+                                        to keep iterating from here.
                                     </Text>
-                                    <Button
-                                        mt="sm"
-                                        size="xs"
-                                        variant="light"
-                                        color="blue"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconArrowBackUp}
-                                                size={12}
-                                            />
-                                        }
-                                        onClick={() => setPin(null)}
-                                    >
-                                        Return to latest (v
-                                        {latestReadyVersion?.version})
-                                    </Button>
+                                    <Group gap="xs" mt="sm">
+                                        <Button
+                                            size="xs"
+                                            variant="light"
+                                            color="blue"
+                                            leftSection={
+                                                <MantineIcon
+                                                    icon={IconArrowBackUp}
+                                                    size={12}
+                                                />
+                                            }
+                                            onClick={() => setPin(null)}
+                                        >
+                                            Return to latest (v
+                                            {latestReadyVersion?.version})
+                                        </Button>
+                                        {previewApp &&
+                                            previewApp.version !==
+                                                latestReadyVersion?.version && (
+                                                <Button
+                                                    size="xs"
+                                                    variant="outline"
+                                                    color="blue"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconRestore}
+                                                            size={12}
+                                                        />
+                                                    }
+                                                    disabled={isAgentWorking}
+                                                    onClick={() =>
+                                                        setRestoreTargetVersion(
+                                                            previewApp.version,
+                                                        )
+                                                    }
+                                                >
+                                                    Restore this version
+                                                </Button>
+                                            )}
+                                    </Group>
                                 </Callout>
                             </Box>
                         )}
@@ -2287,6 +2327,52 @@ const AppGenerate: FC = () => {
                                     );
                                 }}
                             />
+                        )}
+                        {restoreTargetVersion !== null && activeAppUuid && (
+                            <MantineModal
+                                opened
+                                onClose={() => {
+                                    if (isRestoringVersion) return;
+                                    setRestoreTargetVersion(null);
+                                    resetRestoreVersion();
+                                }}
+                                title={`Restore version ${restoreTargetVersion}?`}
+                                icon={IconRestore}
+                                confirmLabel="Restore version"
+                                cancelDisabled={isRestoringVersion}
+                                confirmLoading={isRestoringVersion}
+                                onConfirm={() =>
+                                    restoreVersionMutate(
+                                        {
+                                            projectUuid,
+                                            appUuid: activeAppUuid,
+                                            version: restoreTargetVersion,
+                                        },
+                                        {
+                                            onSuccess: () => {
+                                                setRestoreTargetVersion(null);
+                                            },
+                                        },
+                                    )
+                                }
+                            >
+                                <Stack gap="sm">
+                                    <Text fz="sm">
+                                        This will create a new version on top of
+                                        the timeline that duplicates the
+                                        contents of version{' '}
+                                        {restoreTargetVersion}. Your next prompt
+                                        will iterate from there.
+                                    </Text>
+                                    {restoreVersionError && (
+                                        <Callout variant="danger">
+                                            {restoreVersionError.error
+                                                ?.message ??
+                                                'Failed to restore version.'}
+                                        </Callout>
+                                    )}
+                                </Stack>
+                            </MantineModal>
                         )}
 
                         <Box className={classes.previewContent}>

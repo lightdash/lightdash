@@ -12,6 +12,7 @@ import {
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
+    type ApiRestoreAppVersionResponse,
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
@@ -238,6 +239,39 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Restore an earlier ready version by duplicating it into a new ready
+     * version at the head of the timeline. Fast: no sandbox work, no rebuild —
+     * a single DB insert plus an S3 server-side copy of the source tarball.
+     * The preview iframe can serve the restored content immediately. The
+     * next generation triggered after this call resets the sandbox working
+     * tree from the restored tarball.
+     * @summary Restore app version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/restore')
+    @OperationId('restoreAppVersion')
+    async restoreAppVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+    ): Promise<ApiRestoreAppVersionResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().restoreVersion(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+            version,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
         };
     }
 

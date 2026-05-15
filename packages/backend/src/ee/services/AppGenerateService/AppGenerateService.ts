@@ -1,4 +1,5 @@
 import {
+    CopyObjectCommand,
     DeleteObjectsCommand,
     GetObjectCommand,
     ListObjectsV2Command,
@@ -3075,6 +3076,392 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         });
 
         return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Rollback action — promote an earlier ready version to a brand-new
+     * ready version on top of the timeline.
+     *
+     * Performed end-to-end at restore time so the next iteration can resume
+     * the existing sandbox without any special-case logic:
+     *   1. Server-side copy every S3 object under the source version's
+     *      prefix (source.tar AND every extracted dist/* asset) into the
+     *      new version's prefix. The preview iframe reads the dist assets
+     *      directly, so source.tar alone leaves the preview blank.
+     *   2. Resume the existing sandbox (if any), wipe `/app/src`, and
+     *      extract the source tarball into it. We keep the same sandbox
+     *      deliberately — killing it would lose installed deps and
+     *      implicitly upgrade the E2B SDK on the next start.
+     *   3. Insert the new app_version row as `ready`.
+     */
+    async restoreVersion(
+        user: SessionUser,
+        projectUuid: string,
+        appUuid: string,
+        sourceVersion: number,
+    ): Promise<{ appUuid: string; version: number }> {
+        await this.assertDataAppsEnabled(user);
+
+        const app = await this.appModel.getApp(appUuid, projectUuid);
+        await this.assertCanManageApp(
+            user,
+            app,
+            'Insufficient permissions to modify data apps',
+        );
+
+        const latestVersion = await this.appModel.getLatestVersion(appUuid);
+        if (
+            latestVersion?.status &&
+            isAppVersionInProgress(latestVersion.status)
+        ) {
+            // An in-flight generation would publish on top of the restore
+            // and silently win the version race. Refuse early.
+            throw new ParameterError(
+                'A version is already building for this app',
+            );
+        }
+        if (latestVersion && latestVersion.version === sourceVersion) {
+            throw new ParameterError(
+                `Version ${sourceVersion} is already the latest version`,
+            );
+        }
+
+        const source = await this.appModel.getVersion(appUuid, sourceVersion);
+        if (!source) {
+            throw new NotFoundError(
+                `Version ${sourceVersion} not found for app ${appUuid}`,
+            );
+        }
+        if (source.status !== 'ready') {
+            throw new ParameterError(
+                `Cannot restore version ${sourceVersion}: status is ${source.status}, expected ready`,
+            );
+        }
+
+        const newVersion = (latestVersion?.version ?? 0) + 1;
+        const { client: s3Client, bucket } = this.getS3Client();
+
+        // 1. Copy every S3 object under the source version's prefix.
+        const copiedKeys = await AppGenerateService.copyVersionS3Prefix(
+            s3Client,
+            bucket,
+            appUuid,
+            sourceVersion,
+            newVersion,
+        );
+
+        // 2. Resync the running sandbox so the next iteration sees the
+        // restored working tree. Skipped when no sandbox exists yet — the
+        // standard cold-start path will extract source.tar from S3 on its
+        // own.
+        if (app.sandbox_id) {
+            let sandbox: Sandbox | null = null;
+            try {
+                const resumed = await this.resumeSandbox(
+                    app.sandbox_id,
+                    appUuid,
+                    this.getE2bApiKey(),
+                );
+                sandbox = resumed.sandbox;
+                await this.resyncSandboxFromS3(
+                    sandbox,
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    sourceVersion,
+                );
+                // Best-effort: leave a breadcrumb in the persistent Claude
+                // session so the next iteration's `--continue` sees that
+                // the working tree was reset and doesn't try to diff
+                // against code we've undone. Failures here don't fail the
+                // restore — worst case the next reply is mildly confused.
+                await this.notifyClaudeOfRestore(
+                    sandbox,
+                    appUuid,
+                    sourceVersion,
+                );
+            } catch (error) {
+                // A half-synced sandbox would corrupt the next iteration —
+                // surface the failure and roll back the S3 copy.
+                await this.cleanupRestoredS3Keys(
+                    s3Client,
+                    bucket,
+                    appUuid,
+                    copiedKeys,
+                );
+                throw error;
+            } finally {
+                if (sandbox) {
+                    await this.pauseSandbox(sandbox, appUuid);
+                }
+            }
+        }
+
+        // 3. Insert the new version
+        await this.appModel.createVersion(
+            appUuid,
+            {
+                version: newVersion,
+                prompt: `Restore version ${sourceVersion}`,
+            },
+            'ready',
+            user.userUuid,
+            source.resources ?? undefined,
+        );
+        await this.appModel.updateStatusMessage(
+            appUuid,
+            newVersion,
+            `Restored from version ${sourceVersion}`,
+        );
+
+        this.analytics.track({
+            event: 'data_app.version.restored',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                appUuid,
+                version: newVersion,
+                restoredFromVersion: sourceVersion,
+            },
+        });
+
+        this.logger.info(
+            `App ${appUuid}: restored version ${sourceVersion} as ${newVersion} (user=${user.userUuid}, copied ${copiedKeys.length} S3 object(s))`,
+        );
+
+        return { appUuid, version: newVersion };
+    }
+
+    /**
+     * Server-side copy every object under
+     * `apps/{appUuid}/versions/{sourceVersion}/` into
+     * `apps/{appUuid}/versions/{newVersion}/`. Returns the list of
+     * destination keys so the caller can roll back on later failure.
+     */
+    private static async copyVersionS3Prefix(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        sourceVersion: number,
+        newVersion: number,
+    ): Promise<string[]> {
+        const sourcePrefix = `apps/${appUuid}/versions/${sourceVersion}/`;
+        const destinationPrefix = `apps/${appUuid}/versions/${newVersion}/`;
+        const copiedKeys: string[] = [];
+
+        let continuationToken: string | undefined;
+        /* eslint-disable no-await-in-loop */
+        do {
+            const listResponse = await s3Client.send(
+                new ListObjectsV2Command({
+                    Bucket: bucket,
+                    Prefix: sourcePrefix,
+                    ContinuationToken: continuationToken,
+                }),
+            );
+
+            const sourceKeys = (listResponse.Contents ?? [])
+                .map((obj) => obj.Key)
+                .filter((key): key is string => typeof key === 'string');
+
+            const pageCopies = await Promise.all(
+                sourceKeys.map(async (sourceKey) => {
+                    const relativePath = sourceKey.slice(sourcePrefix.length);
+                    const destinationKey = `${destinationPrefix}${relativePath}`;
+                    await s3Client.send(
+                        new CopyObjectCommand({
+                            Bucket: bucket,
+                            CopySource: `/${bucket}/${sourceKey}`,
+                            Key: destinationKey,
+                        }),
+                    );
+                    return destinationKey;
+                }),
+            );
+            copiedKeys.push(...pageCopies);
+
+            continuationToken = listResponse.IsTruncated
+                ? listResponse.NextContinuationToken
+                : undefined;
+        } while (continuationToken);
+        /* eslint-enable no-await-in-loop */
+
+        return copiedKeys;
+    }
+
+    /**
+     * Force the sandbox's `/app/src/**` to exactly match the source
+     * tarball stored for `version`. Used at restore time so the running
+     * sandbox reflects the restored working tree before the next
+     * iteration starts.
+     */
+    private async resyncSandboxFromS3(
+        sandbox: Sandbox,
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+    ): Promise<void> {
+        // -mindepth 1 keeps the directory itself; the source.tar expects
+        // `src/` to already exist as the extraction root.
+        const wipe = await sandbox.commands.run(
+            'find /app/src -mindepth 1 -delete',
+            { timeoutMs: 30_000 },
+        );
+        if (wipe.exitCode !== 0) {
+            throw new Error(
+                `Failed to wipe /app/src before restore (exit ${wipe.exitCode}): ${wipe.stderr}`,
+            );
+        }
+
+        const sourceKey = `apps/${appUuid}/versions/${version}/source.tar`;
+        const response = await s3Client.send(
+            new GetObjectCommand({ Bucket: bucket, Key: sourceKey }),
+        );
+        const stream = response.Body as Readable;
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+        const tarBuffer = Buffer.concat(chunks);
+
+        // The original packaging step writes /tmp/source.tar inside the
+        // sandbox during build, owned by the build user with strict perms.
+        // files.write to the same path then fails with EACCES. Stage to a
+        // restore-scoped path instead so we never collide with build state.
+        const stagedPath = `/tmp/source-restore-${version}.tar`;
+        const cleanup = await sandbox.commands.run(`rm -f ${stagedPath}`, {
+            timeoutMs: 5_000,
+        });
+        if (cleanup.exitCode !== 0) {
+            throw new Error(
+                `Failed to clear staged tarball path ${stagedPath} (exit ${cleanup.exitCode}): ${cleanup.stderr}`,
+            );
+        }
+        await sandbox.files.write(
+            stagedPath,
+            tarBuffer.buffer.slice(
+                tarBuffer.byteOffset,
+                tarBuffer.byteOffset + tarBuffer.byteLength,
+            ) as ArrayBuffer,
+        );
+        const extractResult = await sandbox.commands.run(
+            `tar -xf ${stagedPath} -C /app && rm -f ${stagedPath}`,
+            { timeoutMs: 60_000 },
+        );
+        if (extractResult.exitCode !== 0) {
+            throw new Error(
+                `Failed to extract restore tarball (exit ${extractResult.exitCode}): ${extractResult.stderr}`,
+            );
+        }
+
+        this.logger.info(
+            `App ${appUuid}: sandbox /app/src resynced to version ${version} (tarBytes=${tarBuffer.length})`,
+        );
+    }
+
+    /**
+     * Append a short "version X was restored" notice to the persistent
+     * Claude session via `--continue -p`. Costs one round-trip to the
+     * model and leaves Claude with a coherent picture of why its working
+     * tree changed under it.
+     *
+     * Failures (missing API key, no session yet, model error) are logged
+     * and swallowed — the restore is still well-formed without the FYI;
+     * the user's next prompt will simply not benefit from the heads-up.
+     */
+    private async notifyClaudeOfRestore(
+        sandbox: Sandbox,
+        appUuid: string,
+        sourceVersion: number,
+    ): Promise<void> {
+        let anthropicApiKey: string;
+        try {
+            anthropicApiKey = this.getAnthropicApiKey();
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: skipping restore FYI — ${getErrorMessage(error)}`,
+            );
+            return;
+        }
+
+        const noticePath = `/tmp/restore-notice-${sourceVersion}.txt`;
+        const notice =
+            `[System notice] The user just restored an older version of this app (version ${sourceVersion}). ` +
+            `The working tree in /app/src has been reset to match that version, ` +
+            `so the code now on disk may differ from what you remember writing. ` +
+            `This is informational only — no action required. ` +
+            `Reply with a brief acknowledgment.`;
+
+        try {
+            await sandbox.commands.run(`rm -f ${noticePath}`, {
+                timeoutMs: 5_000,
+            });
+            await sandbox.files.write(noticePath, notice);
+            const result = await sandbox.commands.run(
+                `cat ${noticePath} | claude --continue -p --model sonnet; rm -f ${noticePath}`,
+                {
+                    cwd: '/app',
+                    timeoutMs: 60_000,
+                    envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                },
+            );
+            if (result.exitCode !== 0) {
+                // `--continue` fails when no session exists yet (e.g.
+                // sandbox hasn't generated anything before this restore).
+                // Best-effort: log and move on.
+                this.logger.warn(
+                    `App ${appUuid}: restore FYI to Claude failed (exit ${result.exitCode}): ${AppGenerateService.truncateEnd(result.stderr, 500)}`,
+                );
+                return;
+            }
+            this.logger.info(
+                `App ${appUuid}: notified Claude session of restore (sourceVersion=${sourceVersion})`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: restore FYI to Claude errored: ${getErrorMessage(error)}`,
+            );
+        }
+    }
+
+    /**
+     * Best-effort delete of objects copied during a failed restore. The
+     * original error is what the caller surfaces — leftover S3 objects are
+     * harmless, so cleanup failures are logged and swallowed.
+     */
+    private async cleanupRestoredS3Keys(
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        keys: string[],
+    ): Promise<void> {
+        if (keys.length === 0) return;
+        try {
+            // DeleteObjects caps at 1000 keys per call. The current dist
+            // payload is well under that — chunking is defensive against
+            // future templates that inflate the asset count. The chunks
+            // are independent so we fire them in parallel.
+            const chunks: { Key: string }[][] = [];
+            for (let i = 0; i < keys.length; i += 1000) {
+                chunks.push(keys.slice(i, i + 1000).map((Key) => ({ Key })));
+            }
+            await Promise.all(
+                chunks.map((chunk) =>
+                    s3Client.send(
+                        new DeleteObjectsCommand({
+                            Bucket: bucket,
+                            Delete: { Objects: chunk, Quiet: true },
+                        }),
+                    ),
+                ),
+            );
+        } catch (cleanupError) {
+            this.logger.warn(
+                `App ${appUuid}: failed to clean up ${keys.length} orphaned restore object(s): ${getErrorMessage(cleanupError)}`,
+            );
+        }
     }
 
     async cancelVersion(
