@@ -110,6 +110,7 @@ export const lightdashConfigMock: LightdashConfig = {
         connectionUri: undefined,
         maxConnections: undefined,
         minConnections: undefined,
+        allowMissingMigrations: false,
     },
     intercom: {
         appId: '',

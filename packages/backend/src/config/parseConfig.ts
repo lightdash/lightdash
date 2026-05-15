@@ -1023,6 +1023,7 @@ export type LightdashConfig = {
         connectionUri: string | undefined;
         maxConnections: number | undefined;
         minConnections: number | undefined;
+        allowMissingMigrations: boolean;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -1794,6 +1795,8 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMAXCONNECTIONS'),
             minConnections:
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
+            allowMissingMigrations:
+                process.env.ALLOW_MISSING_MIGRATIONS === 'true',
         },
         auth: {
             pat: {
