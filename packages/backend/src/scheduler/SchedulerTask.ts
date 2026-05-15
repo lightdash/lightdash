@@ -3845,7 +3845,7 @@ export default class SchedulerTask {
                         user.email,
                         scheduler.name,
                         schedulerUrl,
-                        getErrorMessage(e),
+                        translatedSlackError?.error ?? getErrorMessage(e),
                     );
                 }
             } catch (emailError) {
