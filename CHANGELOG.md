@@ -1,3 +1,10 @@
+# [0.2955.0](https://github.com/lightdash/lightdash/compare/0.2954.0...0.2955.0) (2026-05-15)
+
+
+### Features
+
+* pivot sort foundation (types, migration, persistence) ([#23044](https://github.com/lightdash/lightdash/issues/23044)) ([e2befe1](https://github.com/lightdash/lightdash/commit/e2befe1d7682f335ce0470d305d7fafe27f4fd84))
+
 # [0.2954.0](https://github.com/lightdash/lightdash/compare/0.2953.1...0.2954.0) (2026-05-15)
 
 
