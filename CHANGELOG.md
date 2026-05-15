@@ -1,3 +1,19 @@
+# [0.2952.0](https://github.com/lightdash/lightdash/compare/0.2951.1...0.2952.0) (2026-05-15)
+
+
+### Bug Fixes
+
+* persist MCP tool results ([#23095](https://github.com/lightdash/lightdash/issues/23095)) ([70bfa6d](https://github.com/lightdash/lightdash/commit/70bfa6dbea429872c64fc4f94b395f9c86cd78fe)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* restrict mcp server urls ([#23096](https://github.com/lightdash/lightdash/issues/23096)) ([ddd41d0](https://github.com/lightdash/lightdash/commit/ddd41d033da482d0a90eaf2ceed22f5b56f0269b)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* show mcp stream errors ([#23111](https://github.com/lightdash/lightdash/issues/23111)) ([293f2dd](https://github.com/lightdash/lightdash/commit/293f2dd1bb325c19d0884111689fb01bad7d133c)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* add AI MCP server backend support ([#23073](https://github.com/lightdash/lightdash/issues/23073)) ([2928379](https://github.com/lightdash/lightdash/commit/29283798392eb098c46d3c4aaf36216273410dc5)), closes [#23074](https://github.com/lightdash/lightdash/issues/23074)
+* add AI MCP server setup UI ([#23074](https://github.com/lightdash/lightdash/issues/23074)) ([ee3879a](https://github.com/lightdash/lightdash/commit/ee3879a934de652876724112cadb19b0fa3b79cb)), closes [#23073](https://github.com/lightdash/lightdash/issues/23073) [#23073](https://github.com/lightdash/lightdash/issues/23073)
+* block navigation on unsaved AI agent changes ([#23112](https://github.com/lightdash/lightdash/issues/23112)) ([6da824e](https://github.com/lightdash/lightdash/commit/6da824e091fbcd802cb16f1b413592828c359295))
+
 ## [0.2951.1](https://github.com/lightdash/lightdash/compare/0.2951.0...0.2951.1) (2026-05-15)
 
 
