@@ -1,3 +1,10 @@
+## [0.2950.1](https://github.com/lightdash/lightdash/compare/0.2950.0...0.2950.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **logging:** own uncaughtException/unhandledRejection logging via Winston ([#22997](https://github.com/lightdash/lightdash/issues/22997)) ([12b0f85](https://github.com/lightdash/lightdash/commit/12b0f8520782f43d921e1bfe734b6fa361565ed1)), closes [#22824](https://github.com/lightdash/lightdash/issues/22824) [#22880](https://github.com/lightdash/lightdash/issues/22880)
+
 # [0.2950.0](https://github.com/lightdash/lightdash/compare/0.2949.1...0.2950.0) (2026-05-15)
 
 
