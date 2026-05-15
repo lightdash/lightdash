@@ -1,3 +1,11 @@
+# [0.2958.0](https://github.com/lightdash/lightdash/compare/0.2957.0...0.2958.0) (2026-05-15)
+
+
+### Features
+
+* **filters:** allow dashboard editors to lock filters (PROD-7564) ([#23106](https://github.com/lightdash/lightdash/issues/23106)) ([0b65cd3](https://github.com/lightdash/lightdash/commit/0b65cd3c734fd447486446e3cdcea57364ee8c6c))
+* **observability:** re-land wide-event logs for dashboard loads, project compiles, and validation runs ([#23137](https://github.com/lightdash/lightdash/issues/23137)) ([0acbe9a](https://github.com/lightdash/lightdash/commit/0acbe9ace88216ae71d91d137a1e123d81546d65)), closes [#23118](https://github.com/lightdash/lightdash/issues/23118)
+
 # [0.2957.0](https://github.com/lightdash/lightdash/compare/0.2956.1...0.2957.0) (2026-05-15)
 
 
