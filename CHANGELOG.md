@@ -1,3 +1,10 @@
+## [0.2956.1](https://github.com/lightdash/lightdash/compare/0.2956.0...0.2956.1) (2026-05-15)
+
+
+### Bug Fixes
+
+* **pivot-sort:** stringify pivot_values when copying chart versions ([#23130](https://github.com/lightdash/lightdash/issues/23130)) ([5db9769](https://github.com/lightdash/lightdash/commit/5db976930d60a1c90182cf5eade95b8165106345))
+
 # [0.2956.0](https://github.com/lightdash/lightdash/compare/0.2955.2...0.2956.0) (2026-05-15)
 
 
