@@ -1,5 +1,6 @@
 import { type AnyType } from '../../types/any';
 import { DimensionType, TableCalculationType } from '../../types/field';
+import { type PivotSortAnchor } from '../../types/metricQuery';
 import { type PivotConfiguration } from '../../types/pivot';
 import { type RawResultRow } from '../../types/results';
 import {
@@ -109,6 +110,8 @@ export type VizSortBy = {
     reference: string;
     direction: SortByDirection;
     nullsFirst?: boolean;
+    /** Pins the row-sort anchor to a specific pivot column. */
+    pivotValues?: PivotSortAnchor[];
 };
 
 export type VizPieChartDisplay = {

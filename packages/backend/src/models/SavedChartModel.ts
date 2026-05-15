@@ -271,6 +271,9 @@ const createSavedChartVersion = async (
                 saved_queries_version_id: version.saved_queries_version_id,
                 nulls_first: sort.nullsFirst ?? null,
                 order: index,
+                pivot_values: sort.pivotValues?.length
+                    ? JSON.stringify(sort.pivotValues)
+                    : null,
             })),
         );
         await createSavedChartVersionTableCalculations(
@@ -1088,7 +1091,12 @@ export class SavedChartModel {
                     .orderBy('order', 'asc');
 
                 const sortsQuery = this.database('saved_queries_version_sorts')
-                    .select(['field_name', 'descending', 'nulls_first'])
+                    .select([
+                        'field_name',
+                        'descending',
+                        'nulls_first',
+                        'pivot_values',
+                    ])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .orderBy('order', 'asc');
                 const tableCalculationsQuery = this.database(
@@ -1233,6 +1241,9 @@ export class SavedChartModel {
                             fieldId: sort.field_name,
                             descending: sort.descending,
                             nullsFirst: sort.nulls_first ?? undefined,
+                            ...(sort.pivot_values && {
+                                pivotValues: sort.pivot_values,
+                            }),
                         })),
                         limit: savedQuery.row_limit,
                         metricOverrides:
