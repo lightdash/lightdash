@@ -600,7 +600,7 @@ export class ValidationService extends BaseService {
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
         dashboardUuid?: string,
     ): Promise<CreateDashboardValidation[]> {
-        const existingFieldIds = existingFields.map(getItemId);
+        const existingFieldIds = new Set(existingFields.map(getItemId));
 
         // Pre-build Map for O(1) broken chart lookup instead of O(n) array.find()
         const brokenChartMap = new Map(
@@ -631,13 +631,13 @@ export class ValidationService extends BaseService {
                         fieldName,
                     }: {
                         acc: CreateDashboardValidation[];
-                        fieldIds: string[];
+                        fieldIds: Set<string>;
                         fieldId: string;
                     } & Pick<
                         CreateDashboardValidation,
                         'error' | 'errorType' | 'fieldName'
                     >) => {
-                        if (!fieldIds?.includes(fieldId)) {
+                        if (!fieldIds?.has(fieldId)) {
                             return [
                                 ...acc,
                                 {
@@ -804,7 +804,7 @@ export class ValidationService extends BaseService {
                                     fieldId: tt.fieldId,
                                     tableName: tt.tableName,
                                     fieldIdInExistingFields:
-                                        existingFieldIds.includes(tt.fieldId),
+                                        existingFieldIds.has(tt.fieldId),
                                 };
                             },
                         );
@@ -825,7 +825,7 @@ export class ValidationService extends BaseService {
                         this.logger.info('validation.dashboardScanned', {
                             projectUuid,
                             dashboardUuid: uuid,
-                            existingFieldIdCount: existingFieldIds.length,
+                            existingFieldIdCount: existingFieldIds.size,
                             filterRuleCount: dashboardFilterRules.length,
                             tileTargetCount: dashboardTileTargets.length,
                             filterErrorCount: filterErrors.length,
