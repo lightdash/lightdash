@@ -50,6 +50,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData,
         isLoading,
         isEditMode,
+        parameters,
     } = useVisualizationContext();
 
     const hasSignaledScreenshotReady = useRef(false);
@@ -296,6 +297,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 visualizationConfig.chartConfig.columnProperties
                             }
                             onColumnWidthChange={onColumnWidthChange}
+                            parameters={parameters}
                             {...rest}
                         />
                         {showResultsTotal && (
