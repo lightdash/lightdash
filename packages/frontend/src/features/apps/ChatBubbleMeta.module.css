@@ -17,3 +17,7 @@
     flex-shrink: 0;
     white-space: nowrap;
 }
+
+.versionMenuTrigger {
+    margin-left: -4px;
+}
