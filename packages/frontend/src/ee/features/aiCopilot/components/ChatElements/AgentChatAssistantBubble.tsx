@@ -226,10 +226,6 @@ const AssistantBubbleContent: FC<{
         isToolProposeChangeResult,
     );
 
-    const toolCalls = isStreaming
-        ? (streamingState?.toolCalls ?? [])
-        : message.toolCalls;
-
     return (
         <>
             {shouldShowRetry && (
@@ -416,6 +412,7 @@ const AssistantBubbleContent: FC<{
                                     toolGroups={liveToolGroups}
                                     isLive={isStreaming}
                                     toolResults={message.toolResults}
+                                    toolCalls={message.toolCalls}
                                     pendingContent={pendingApprovalContent}
                                 />
                             )}
@@ -431,10 +428,12 @@ const AssistantBubbleContent: FC<{
                 // Fallback (page reload, no streamingState): activity card ON
                 // TOP showing what the agent did + reasoning folded in, then
                 // the final markdown answer below as the hero.
-                const renderableToolCalls = toolCalls.filter(
+                const renderableToolCalls = message.toolCalls.filter(
                     (tc) =>
                         tc.toolName !== 'improveContext' &&
-                        tc.toolName !== 'proposeChange',
+                        tc.toolName !== 'proposeChange' &&
+                        // Subagent children render nested under their parent's row, not as top-level siblings.
+                        tc.parentToolCallId === null,
                 );
                 const persistedToolGroups: LiveActivityToolGroup[] =
                     groupPersistedToolCalls(renderableToolCalls);
@@ -451,6 +450,7 @@ const AssistantBubbleContent: FC<{
                                 toolGroups={persistedToolGroups}
                                 isLive={isStreaming || isPending}
                                 toolResults={message.toolResults}
+                                toolCalls={message.toolCalls}
                             />
                         )}
                         {message.reasoning && message.reasoning.length > 0 && (

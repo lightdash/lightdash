@@ -1,6 +1,7 @@
 import {
     TOOL_DISPLAY_MESSAGES,
     TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
     friendlyName,
@@ -47,6 +48,8 @@ type Props = {
      * trace renders below the parent row).
      */
     toolResults?: AiAgentToolResult[];
+    /** All tool calls for the message. Used to resolve subagent children via parentToolCallId. */
+    toolCalls?: AiAgentToolCall[];
     /**
      * Pending interactive content (e.g. SqlApprovalCard awaiting user
      * decision). When present, the card auto-expands and renders this in the
@@ -310,10 +313,34 @@ const extractTraceFromMessage = (
     return entries.length > 0 ? entries : null;
 };
 
+const extractTraceFromChildren = (
+    parentToolCallId: string,
+    allToolCalls: AiAgentToolCall[] | undefined,
+): TraceEntry[] | null => {
+    if (!allToolCalls) return null;
+    const children = allToolCalls.filter(
+        (tc) =>
+            tc.parentToolCallId === parentToolCallId &&
+            (tc.toolName === 'findExplores' || tc.toolName === 'findFields'),
+    );
+    if (children.length === 0) return null;
+    return children.map((tc) => ({
+        toolCallId: tc.toolCallId,
+        toolName: tc.toolName as 'findExplores' | 'findFields',
+        toolArgs: tc.toolArgs,
+    }));
+};
+
 const getDiscoverFieldsTrace = (
     toolResult: AiAgentToolResult | undefined,
+    allToolCalls?: AiAgentToolCall[],
 ): TraceEntry[] | null => {
     if (!toolResult || toolResult.toolName !== 'discoverFields') return null;
+    const fromFk = extractTraceFromChildren(
+        toolResult.toolCallId,
+        allToolCalls,
+    );
+    if (fromFk) return fromFk;
     const metadata = toolResult.metadata as
         | DiscoverFieldsOutputMetadata
         | undefined;
@@ -373,6 +400,7 @@ export const LiveActivityCard: FC<Props> = ({
     toolGroups,
     isLive,
     toolResults,
+    toolCalls,
     pendingContent,
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
@@ -545,6 +573,7 @@ export const LiveActivityCard: FC<Props> = ({
                                                                 r.toolCallId ===
                                                                 tc.toolCallId,
                                                         ),
+                                                        toolCalls,
                                                     ))
                                                   : null;
 
@@ -590,6 +619,7 @@ export const LiveActivityCard: FC<Props> = ({
                                                                   r.toolCallId ===
                                                                   tc.toolCallId,
                                                           ),
+                                                          toolCalls,
                                                       ),
                                               )
                                               .find((t) => t && t.length > 0)

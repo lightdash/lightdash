@@ -440,6 +440,7 @@ type AiAgentBaseToolCall = {
     uuid: string;
     promptUuid: string;
     toolCallId: string;
+    parentToolCallId: string | null;
     createdAt: Date;
     toolArgs: object;
 };
