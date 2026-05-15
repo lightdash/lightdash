@@ -1,3 +1,10 @@
+# [0.2959.0](https://github.com/lightdash/lightdash/compare/0.2958.0...0.2959.0) (2026-05-15)
+
+
+### Features
+
+* **ai-agent:** render discoverFields trace from structured FK rows ([#23117](https://github.com/lightdash/lightdash/issues/23117)) ([91e0296](https://github.com/lightdash/lightdash/commit/91e0296390a02cd5ef146be864359dd2dd55e698))
+
 # [0.2958.0](https://github.com/lightdash/lightdash/compare/0.2957.0...0.2958.0) (2026-05-15)
 
 
