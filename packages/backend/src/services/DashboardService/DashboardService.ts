@@ -521,7 +521,142 @@ export class DashboardService
             },
         });
 
+        // Wide observability event for diagnosing stale dashboard filter references
+        // (e.g. PROD-5931). Best-effort — never block the request on logging errors.
+        try {
+            await this.logDashboardLoadedEvent(dashboard);
+        } catch (err) {
+            this.logger.warn('dashboard.loaded log failed', {
+                dashboardUuid: dashboard.uuid,
+                err: err instanceof Error ? err.message : String(err),
+            });
+        }
+
         return dashboard;
+    }
+
+    private async logDashboardLoadedEvent(dashboard: Dashboard): Promise<void> {
+        const STALE_SAMPLE_CAP = 10;
+
+        const cachedExploreNames = new Set(
+            await this.projectModel.getCachedExploreNames(
+                dashboard.projectUuid,
+            ),
+        );
+
+        const chartTileUuids = dashboard.tiles
+            .filter(isDashboardChartTileType)
+            .map((tile) => tile.properties.savedChartUuid)
+            .filter((uuid): uuid is string => Boolean(uuid));
+
+        const chartInfos = chartTileUuids.length
+            ? await this.savedChartModel.getInfoForAvailableFilters(
+                  chartTileUuids,
+              )
+            : [];
+
+        const chartTables = new Set(
+            chartInfos.map((chart) => chart.tableName).filter(Boolean),
+        );
+        const chartTablesMissing = [...chartTables].filter(
+            (name) => !cachedExploreNames.has(name),
+        );
+
+        const staleFilterTargets: Array<{
+            path: string;
+            tableName: string;
+            fieldId: string;
+        }> = [];
+        const staleTileTargets: Array<{
+            path: string;
+            tableName: string;
+            fieldId: string;
+        }> = [];
+
+        const dimensions = dashboard.filters?.dimensions ?? [];
+        dimensions.forEach((dim, dimIndex) => {
+            const target = dim.target as
+                | {
+                      tableName?: string;
+                      fieldId?: string;
+                      isSqlColumn?: boolean;
+                  }
+                | undefined;
+            if (
+                target?.tableName &&
+                target.fieldId &&
+                !target.isSqlColumn &&
+                !cachedExploreNames.has(target.tableName)
+            ) {
+                staleFilterTargets.push({
+                    path: `dimensions[${dimIndex}].target`,
+                    tableName: target.tableName,
+                    fieldId: target.fieldId,
+                });
+            }
+
+            const { tileTargets } = dim as {
+                tileTargets?: Record<string, unknown>;
+            };
+            if (tileTargets) {
+                Object.entries(tileTargets).forEach(([tileUuid, raw]) => {
+                    if (!raw || typeof raw !== 'object') {
+                        return;
+                    }
+                    const tt = raw as {
+                        tableName?: string;
+                        fieldId?: string;
+                        isSqlColumn?: boolean;
+                    };
+                    if (
+                        tt.tableName &&
+                        tt.fieldId &&
+                        !tt.isSqlColumn &&
+                        !cachedExploreNames.has(tt.tableName)
+                    ) {
+                        staleTileTargets.push({
+                            path: `dimensions[${dimIndex}].tileTargets.${tileUuid}`,
+                            tableName: tt.tableName,
+                            fieldId: tt.fieldId,
+                        });
+                    }
+                });
+            }
+        });
+
+        const filterDimensionCount = dimensions.length;
+        const filterMetricCount = dashboard.filters?.metrics?.length ?? 0;
+        const tileTargetCount = dimensions.reduce(
+            (acc, dim) =>
+                acc +
+                Object.keys(
+                    (dim as { tileTargets?: Record<string, unknown> })
+                        .tileTargets ?? {},
+                ).length,
+            0,
+        );
+
+        this.logger.info('dashboard.loaded', {
+            projectUuid: dashboard.projectUuid,
+            organizationUuid: dashboard.organizationUuid,
+            dashboardUuid: dashboard.uuid,
+            dashboardVersionUuid: dashboard.versionUuid,
+
+            tileCount: dashboard.tiles.length,
+            chartTileCount: chartTileUuids.length,
+            filterDimensionCount,
+            filterMetricCount,
+            tileTargetCount,
+
+            cachedExploreCount: cachedExploreNames.size,
+            chartTablesMissingCount: chartTablesMissing.length,
+            staleFilterTargetCount: staleFilterTargets.length,
+            staleTileTargetCount: staleTileTargets.length,
+
+            chartTablesMissing: chartTablesMissing.slice(0, STALE_SAMPLE_CAP),
+            staleFilterTargets: staleFilterTargets.slice(0, STALE_SAMPLE_CAP),
+            staleTileTargets: staleTileTargets.slice(0, STALE_SAMPLE_CAP),
+        });
     }
 
     static findChartsThatBelongToDashboard(

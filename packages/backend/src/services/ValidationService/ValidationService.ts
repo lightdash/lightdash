@@ -780,6 +780,79 @@ export class ValidationService extends BaseService {
                         return acc;
                     }, []);
 
+                    // Wide observability event for diagnosing validation
+                    // suppression (related to PROD-5931). Per-dashboard summary
+                    // of inputs vs outputs, with a capped sample of tile targets
+                    // that passed all checks without producing an error — these
+                    // are the suspicious ones to inspect when the bell icon is
+                    // silent but a stale filter exists.
+                    try {
+                        const SAMPLE_CAP = 5;
+                        const tileTargetSummaries = dashboardTileTargets.map(
+                            (tt) => {
+                                if (!tt) {
+                                    return { kind: 'falsy' as const };
+                                }
+                                if (!isDashboardFieldTarget(tt)) {
+                                    return { kind: 'notFieldTarget' as const };
+                                }
+                                if (tt.isSqlColumn) {
+                                    return { kind: 'sqlColumn' as const };
+                                }
+                                return {
+                                    kind: 'processed' as const,
+                                    fieldId: tt.fieldId,
+                                    tableName: tt.tableName,
+                                    fieldIdInExistingFields:
+                                        existingFieldIds.includes(tt.fieldId),
+                                };
+                            },
+                        );
+                        const counts = tileTargetSummaries.reduce(
+                            (acc, t) => {
+                                acc[t.kind] = (acc[t.kind] ?? 0) + 1;
+                                return acc;
+                            },
+                            {} as Record<string, number>,
+                        );
+                        const processedWithoutError =
+                            tileTargetSummaries.filter(
+                                (t) =>
+                                    t.kind === 'processed' &&
+                                    t.fieldIdInExistingFields,
+                            );
+
+                        this.logger.info('validation.dashboardScanned', {
+                            projectUuid,
+                            dashboardUuid: uuid,
+                            existingFieldIdCount: existingFieldIds.length,
+                            filterRuleCount: dashboardFilterRules.length,
+                            tileTargetCount: dashboardTileTargets.length,
+                            filterErrorCount: filterErrors.length,
+                            tileTargetErrorCount: tileTargetErrors.length,
+                            chartErrorCount: chartErrors.length,
+                            tileTargetSkippedFalsyCount: counts.falsy ?? 0,
+                            tileTargetSkippedNotFieldTargetCount:
+                                counts.notFieldTarget ?? 0,
+                            tileTargetSkippedSqlColumnCount:
+                                counts.sqlColumn ?? 0,
+                            tileTargetProcessedCount: counts.processed ?? 0,
+                            tileTargetProcessedWithoutErrorCount:
+                                processedWithoutError.length,
+                            tileTargetProcessedWithoutErrorSamples:
+                                processedWithoutError.slice(0, SAMPLE_CAP),
+                        });
+                    } catch (e) {
+                        this.logger.warn(
+                            'validation.dashboardScanned log failed',
+                            {
+                                projectUuid,
+                                dashboardUuid: uuid,
+                                err: e instanceof Error ? e.message : String(e),
+                            },
+                        );
+                    }
+
                     return [
                         ...filterErrors,
                         ...tileTargetErrors,
