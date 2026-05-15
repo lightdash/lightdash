@@ -915,7 +915,7 @@ export class SlackClient {
             })
             .catch((e) => {
                 if (getSlackErrorCode(e) === 'invalid_blocks') {
-                    Logger.warn(
+                    Logger.error(
                         `Slack invalid_blocks error for channel ${channel}`,
                         {
                             blocks: JSON.stringify(slackMessageArgs.blocks),
