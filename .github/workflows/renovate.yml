@@ -1,0 +1,26 @@
+name: Renovate
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: renovatebot/github-action@e084b5ac6fd1493e529082bbdd370ba14e12e2b0 # v46.3.3
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+          renovate-version: full
+        env:
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^pnpm install --lockfile-only --ignore-scripts$"]'
+          LOG_LEVEL: info
