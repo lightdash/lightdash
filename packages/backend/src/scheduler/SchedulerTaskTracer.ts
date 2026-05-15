@@ -192,6 +192,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
 } as const;
 
 const getTagsFromPayload = <T extends SchedulerTaskName>(
