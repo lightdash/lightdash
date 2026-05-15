@@ -167,6 +167,13 @@ export type DashboardFilterRule<
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
     singleValue?: boolean;
+    /**
+     * Tab UUIDs where this filter is locked. When the active tab is in this
+     * list, viewers see the filter but cannot change it, and URL / embed
+     * filter overrides targeting the same field are ignored on that tab.
+     * Empty or omitted means the filter is not locked anywhere.
+     */
+    lockedTabUuids?: string[];
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -177,7 +184,7 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets'
+    'tileTargets' | 'lockedTabUuids'
 >;
 
 export type DateFilterSettings = {
@@ -394,6 +401,10 @@ export const applyDimensionOverrides = (
                 return {
                     ...override,
                     tileTargets: dimension.tileTargets,
+                    // Lock state belongs to the saved dashboard and must not
+                    // be assertable from URL/scheduler overrides — always
+                    // re-apply the saved rule's lockedTabUuids.
+                    lockedTabUuids: dimension.lockedTabUuids,
                 };
             }
             return dimension;

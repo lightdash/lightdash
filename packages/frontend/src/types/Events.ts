@@ -98,6 +98,7 @@ export enum EventName {
     LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     ADD_FILTER_CLICKED = 'add_filter.click',
+    DASHBOARD_FILTER_LOCK_TOGGLED = 'dashboard_filter_lock.toggled',
     GO_TO_LINK_CLICKED = 'go_to_link.click',
     ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
     REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',

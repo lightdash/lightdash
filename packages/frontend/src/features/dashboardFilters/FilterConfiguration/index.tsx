@@ -354,6 +354,15 @@ const FilterConfiguration: FC<Props> = ({
         isCreatingNew,
     );
 
+    const isLockedRequiredMissingValue =
+        !!draftFilterRule?.lockedTabUuids?.length &&
+        !!draftFilterRule?.required &&
+        !hasFilterValueSet(draftFilterRule);
+
+    const applyDisabledTooltipLabel = isLockedRequiredMissingValue
+        ? 'A locked, required filter must have a value'
+        : 'Filter field and value required';
+
     return (
         <Stack>
             <Tabs
@@ -538,14 +547,16 @@ const FilterConfiguration: FC<Props> = ({
                     )}
 
                 <Tooltip
-                    label="Filter field and value required"
-                    disabled={!isApplyDisabled}
+                    label={applyDisabledTooltipLabel}
+                    disabled={!isApplyDisabled && !isLockedRequiredMissingValue}
                 >
                     <Box>
                         <Button
                             size="xs"
                             variant="filled"
-                            disabled={isApplyDisabled}
+                            disabled={
+                                isApplyDisabled || isLockedRequiredMissingValue
+                            }
                             onClick={() => {
                                 setSelectedTabId(FilterTabs.SETTINGS);
 

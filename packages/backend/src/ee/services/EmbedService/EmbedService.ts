@@ -45,6 +45,7 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    isFilterLockedOnTab,
     isParameterInteractivityEnabled,
     MetricQuery,
     NotFoundError,
@@ -56,6 +57,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
     SortField,
+    stripOverridesForLockedFiltersOnTab,
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
@@ -966,7 +968,6 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
         account: AnonymousAccount,
         explore: Explore,
@@ -976,23 +977,56 @@ export class EmbedService extends BaseService {
     ) {
         const availableFieldIds = getAvailableFilterFieldIds(explore);
 
-        let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-            tileUuid,
-            availableFieldIds,
-            dashboard.filters,
-        );
+        // Look up which tab this tile belongs to so we can evaluate lock state
+        // for the right tab. Tiles created before tabs may have null/undefined.
+        const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
+        const tileTabUuid = tile?.tabUuid ?? undefined;
+
+        let effectiveFilters: DashboardFilters = dashboard.filters;
+
         if (
             dashboardFilters &&
             isFilterInteractivityEnabled(account.access.filtering)
         ) {
-            appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-                tileUuid,
-                availableFieldIds,
-                dashboardFilters,
+            const { filters: safeOverrides, droppedCount } =
+                stripOverridesForLockedFiltersOnTab(
+                    dashboard.filters,
+                    dashboardFilters,
+                    tileTabUuid,
+                );
+
+            if (droppedCount > 0) {
+                this.logger.debug(
+                    `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
+                );
+            }
+
+            const lockedDimensions = dashboard.filters.dimensions.filter(
+                (rule) => isFilterLockedOnTab(rule, tileTabUuid),
             );
+            const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
+                isFilterLockedOnTab(rule, tileTabUuid),
+            );
+            const lockedTableCalculations =
+                dashboard.filters.tableCalculations.filter((rule) =>
+                    isFilterLockedOnTab(rule, tileTabUuid),
+                );
+
+            effectiveFilters = {
+                dimensions: [...lockedDimensions, ...safeOverrides.dimensions],
+                metrics: [...lockedMetrics, ...safeOverrides.metrics],
+                tableCalculations: [
+                    ...lockedTableCalculations,
+                    ...safeOverrides.tableCalculations,
+                ],
+            };
         }
 
-        return appliedDashboardFilters;
+        return getDashboardFiltersForTileAndTables(
+            tileUuid,
+            availableFieldIds,
+            effectiveFilters,
+        );
     }
 
     async executeAsyncDashboardTileQuery({

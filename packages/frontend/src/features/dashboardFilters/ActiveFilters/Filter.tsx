@@ -1,7 +1,9 @@
 import {
     applyDefaultTileTargets,
     DimensionType,
+    FeatureFlags,
     getFilterTypeFromItemType,
+    isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
 } from '@lightdash/common';
@@ -10,6 +12,7 @@ import {
     Badge,
     Box,
     Button,
+    Group,
     HoverCard,
     Indicator,
     Popover,
@@ -18,8 +21,13 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine-8/hooks';
-import { IconGripVertical, IconX } from '@tabler/icons-react';
-import { useCallback, useMemo, type FC } from 'react';
+import {
+    IconGripVertical,
+    IconLock,
+    IconLockOpen,
+    IconX,
+} from '@tabler/icons-react';
+import { useCallback, useMemo, type FC, type MouseEvent } from 'react';
 import {
     formatDisplayValue,
     getConditionalRuleLabel,
@@ -27,8 +35,11 @@ import {
     getFilterRuleTables,
 } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './Filter.module.css';
@@ -65,8 +76,50 @@ const Filter: FC<Props> = ({
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
+    const activeTab = useDashboardContext((c) => c.activeTab);
+    const activeTabUuid = activeTab?.uuid;
     const allFilterableFields = useDashboardContext(
         (c) => c.allFilterableFields,
+    );
+    const { data: lockDashboardFiltersFlag } = useServerFeatureFlag(
+        FeatureFlags.LockDashboardFilters,
+    );
+    const isLockFilterEnabled =
+        lockDashboardFiltersFlag?.enabled ?? import.meta.env.DEV;
+    const isLockedOnActiveTab = isFilterLockedOnTab(filterRule, activeTabUuid);
+    const { track } = useTracking();
+    const handleLockToggle = useCallback(
+        (e: MouseEvent) => {
+            e.stopPropagation();
+            if (!activeTabUuid) return;
+            const existing = filterRule.lockedTabUuids ?? [];
+            const nextTabUuids = isLockedOnActiveTab
+                ? existing.filter((uuid) => uuid !== activeTabUuid)
+                : [...existing, activeTabUuid];
+            track({
+                name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED,
+                properties: {
+                    action: isLockedOnActiveTab ? 'unlock' : 'lock',
+                    dashboardUuid: dashboard?.uuid,
+                    tabUuid: activeTabUuid,
+                    fieldId: filterRule.target.fieldId,
+                    tableName: filterRule.target.tableName,
+                },
+            });
+            onUpdate({
+                ...filterRule,
+                lockedTabUuids:
+                    nextTabUuids.length > 0 ? nextTabUuids : undefined,
+            });
+        },
+        [
+            activeTabUuid,
+            dashboard?.uuid,
+            filterRule,
+            isLockedOnActiveTab,
+            onUpdate,
+            track,
+        ],
     );
     const sqlChartTilesMetadata = useDashboardTileStatusContext(
         (c) => c.sqlChartTilesMetadata,
@@ -187,6 +240,8 @@ const Filter: FC<Props> = ({
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
+    const isReadOnlyLocked = isLockedOnActiveTab && !isEditMode && !isTemporary;
+
     const handleClose = useCallback(() => {
         if (isPopoverOpen) onPopoverClose();
         closeSubPopover();
@@ -210,7 +265,7 @@ const Filter: FC<Props> = ({
                 closeOnClickOutside={!isSubPopoverOpen}
                 onClose={handleClose}
                 onDismiss={!isSubPopoverOpen ? handleClose : undefined}
-                disabled={disabled}
+                disabled={disabled || isReadOnlyLocked}
                 transitionProps={{ transition: 'pop-top-left' }}
                 withArrow
                 shadow="md"
@@ -239,9 +294,15 @@ const Filter: FC<Props> = ({
                     >
                         <Tooltip
                             fz="xs"
-                            label={orphanedTooltip}
-                            disabled={!isOrphaned}
+                            label={
+                                isReadOnlyLocked
+                                    ? 'Locked by the dashboard editor — switch to edit mode to change it'
+                                    : orphanedTooltip
+                            }
+                            disabled={!isOrphaned && !isReadOnlyLocked}
                             withinPortal
+                            multiline
+                            maw={300}
                         >
                             <Button
                                 pos="relative"
@@ -274,26 +335,91 @@ const Filter: FC<Props> = ({
                                     )
                                 }
                                 rightSection={
-                                    (isEditMode || isTemporary) && (
-                                        <ActionIcon
-                                            onClick={onRemove}
-                                            size="xs"
-                                            color="dark"
-                                            radius="xl"
-                                            variant="subtle"
-                                        >
-                                            <MantineIcon
-                                                size="sm"
-                                                icon={IconX}
-                                            />
-                                        </ActionIcon>
-                                    )
+                                    <Group gap={2} wrap="nowrap">
+                                        {isLockFilterEnabled &&
+                                            isEditMode &&
+                                            !isTemporary &&
+                                            activeTabUuid && (
+                                                <span
+                                                    className={
+                                                        isLockedOnActiveTab
+                                                            ? classes.lockSlotActive
+                                                            : classes.lockSlot
+                                                    }
+                                                >
+                                                    <Tooltip
+                                                        fz="xs"
+                                                        label={
+                                                            isLockedOnActiveTab
+                                                                ? 'Unlock filter on this tab'
+                                                                : 'Lock filter on this tab'
+                                                        }
+                                                        withinPortal
+                                                    >
+                                                        <ActionIcon
+                                                            onClick={
+                                                                handleLockToggle
+                                                            }
+                                                            size="xs"
+                                                            color="dark"
+                                                            radius="xl"
+                                                            variant="subtle"
+                                                            aria-label={
+                                                                isLockedOnActiveTab
+                                                                    ? 'Unlock filter on this tab'
+                                                                    : 'Lock filter on this tab'
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                size="sm"
+                                                                icon={
+                                                                    isLockedOnActiveTab
+                                                                        ? IconLock
+                                                                        : IconLockOpen
+                                                                }
+                                                            />
+                                                        </ActionIcon>
+                                                    </Tooltip>
+                                                </span>
+                                            )}
+                                        {!isEditMode && isLockedOnActiveTab && (
+                                            <span
+                                                className={
+                                                    classes.lockSlotActive
+                                                }
+                                                aria-label="Filter is locked on this tab"
+                                            >
+                                                <MantineIcon
+                                                    size="sm"
+                                                    icon={IconLock}
+                                                    color="gray"
+                                                />
+                                            </span>
+                                        )}
+                                        {(isEditMode || isTemporary) && (
+                                            <ActionIcon
+                                                onClick={onRemove}
+                                                size="xs"
+                                                color="dark"
+                                                radius="xl"
+                                                variant="subtle"
+                                            >
+                                                <MantineIcon
+                                                    size="sm"
+                                                    icon={IconX}
+                                                />
+                                            </ActionIcon>
+                                        )}
+                                    </Group>
                                 }
-                                onClick={() =>
-                                    isPopoverOpen
-                                        ? handleClose()
-                                        : onPopoverOpen(popoverId)
-                                }
+                                onClick={() => {
+                                    if (isReadOnlyLocked) return;
+                                    if (isPopoverOpen) {
+                                        handleClose();
+                                    } else {
+                                        onPopoverOpen(popoverId);
+                                    }
+                                }}
                             >
                                 <Box
                                     style={{

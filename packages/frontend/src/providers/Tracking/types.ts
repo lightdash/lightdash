@@ -513,6 +513,17 @@ type DashboardUiVersionToggledEvent = {
     };
 };
 
+type DashboardFilterLockToggledEvent = {
+    name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED;
+    properties: {
+        action: 'lock' | 'unlock';
+        dashboardUuid: string | undefined;
+        tabUuid: string | undefined;
+        fieldId: string;
+        tableName: string;
+    };
+};
+
 export type EventData =
     | GenericEvent
     | SetupStepClickedEvent
@@ -555,7 +566,8 @@ export type EventData =
     | ThemeToggledEvent
     | DashboardUiVersionToggledEvent
     | TableCalculationSaveEvent
-    | FormulaTableCalculationAiGenerateClickedEvent;
+    | FormulaTableCalculationAiGenerateClickedEvent
+    | DashboardFilterLockToggledEvent;
 
 export type IdentifyData = {
     id: string;
