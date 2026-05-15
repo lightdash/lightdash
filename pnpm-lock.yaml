@@ -375,6 +375,9 @@ importers:
       immer:
         specifier: 10.1.1
         version: 10.1.1
+      ipaddr.js:
+        specifier: 1.9.1
+        version: 1.9.1
       jose:
         specifier: 5.2.3
         version: 5.2.3

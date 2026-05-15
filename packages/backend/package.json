@@ -119,6 +119,7 @@
         "handlebars": "4.7.9",
         "helmet": "7.1.0",
         "immer": "10.1.1",
+        "ipaddr.js": "1.9.1",
         "jose": "5.2.3",
         "js-yaml": "4.1.1",
         "jsonwebtoken": "9.0.3",
