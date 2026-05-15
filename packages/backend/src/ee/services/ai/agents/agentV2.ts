@@ -139,6 +139,7 @@ const getAgentTools = async (
                   getExplore: dependencies.getExplore,
                   updateProgress: dependencies.updateProgress,
                   storeToolCall: dependencies.storeToolCall,
+                  storeToolResults: dependencies.storeToolResults,
               },
           )
         : null;
