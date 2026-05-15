@@ -187,6 +187,12 @@ const userAttributesModel = {
     getAttributeValuesForOrgMember: jest.fn(async () => ({})),
 };
 
+const emailModel = {
+    getPrimaryEmailStatus: jest.fn(async (_userUuid: string) => ({
+        isVerified: true,
+    })),
+};
+
 const schedulerClient = {
     deleteScheduledPreAggregateCronJobsForProject: jest.fn(
         async () => undefined,
@@ -233,11 +239,7 @@ const getMockedProjectService = (
             findForProjectWithSecrets: jest.fn(async () => undefined),
         } as unknown as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
-        emailModel: {
-            getPrimaryEmailStatus: (userUuid: string) => ({
-                isVerified: true,
-            }),
-        } as unknown as EmailModel,
+        emailModel: emailModel as unknown as EmailModel,
         schedulerClient: schedulerClient as unknown as SchedulerClient,
         downloadFileModel: {} as unknown as DownloadFileModel,
         fileStorageClient: {} as FileStorageClient,
@@ -2160,6 +2162,49 @@ describe('ProjectService', () => {
                     exploreName,
                 ),
             ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('getUserAttributes', () => {
+        // jest.clearAllMocks() in the outer afterEach does not drain
+        // mockImplementationOnce queues — reset the email mock per test so
+        // queued rejections don't leak between cases.
+        beforeEach(() => {
+            emailModel.getPrimaryEmailStatus.mockReset();
+            emailModel.getPrimaryEmailStatus.mockResolvedValue({
+                isVerified: true,
+            });
+        });
+
+        test('skips email lookup for service accounts and returns empty intrinsic attributes', async () => {
+            // Real service-account principals have no row in `emails`, so
+            // getPrimaryEmailStatus throws NotFoundError. Simulate that to
+            // prove the bypass runs before the lookup.
+            emailModel.getPrimaryEmailStatus.mockImplementation(() => {
+                throw new NotFoundError(
+                    "Cannot find matching verification status for user's email",
+                );
+            });
+
+            const serviceAccount = buildAccount({
+                accountType: 'service-account',
+            });
+
+            const result = await service.getUserAttributes({
+                account: serviceAccount,
+            });
+
+            expect(result.intrinsicUserAttributes).toEqual({});
+            expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
+        });
+
+        test('still attaches intrinsic email attributes for session users', async () => {
+            const result = await service.getUserAttributes({ account });
+
+            expect(emailModel.getPrimaryEmailStatus).toHaveBeenCalledWith(
+                account.user.id,
+            );
+            expect(result.intrinsicUserAttributes).not.toEqual({});
         });
     });
 });
