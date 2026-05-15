@@ -276,6 +276,7 @@ const TableCalculationModal: FC<Props> = ({
         null,
     );
     const formulaFormRef = useRef<FormulaFormHandle>(null);
+    const nameInputRef = useRef<HTMLInputElement>(null);
 
     const [sqlGeneratedByAi, setSqlGeneratedByAi] = useState(false);
     const [formulaGeneratedByAi, setFormulaGeneratedByAi] = useState(false);
@@ -386,7 +387,17 @@ const TableCalculationModal: FC<Props> = ({
 
     const handleConfirm = useCallback(() => {
         const validation = form.validate();
-        if (validation.hasErrors) return;
+        if (validation.hasErrors) {
+            // Name lives at the bottom of the modal body; on viewports
+            // shorter than the modal, the validation message renders
+            // off-screen and Save appears to silently no-op.
+            nameInputRef.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+            });
+            nameInputRef.current?.focus({ preventScroll: true });
+            return;
+        }
 
         const { name, sql, formula, format, type } = form.values;
         try {
@@ -959,6 +970,7 @@ const TableCalculationModal: FC<Props> = ({
                 />
 
                 <TextInput
+                    ref={nameInputRef}
                     label="Name"
                     required
                     placeholder="E.g. Cumulative order count"
