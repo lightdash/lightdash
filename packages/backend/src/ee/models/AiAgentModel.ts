@@ -3775,6 +3775,10 @@ export class AiAgentModel {
                 `${AiAgentToolResultTableName}.tool_call_id`,
             )
             .where(`${AiAgentToolCallTableName}.ai_prompt_uuid`, promptUuid)
+            // Subagent children are stored with `parent_tool_call_id` set so the
+            // thread viewer can render them nested. Exclude them from rebuilt
+            // model history — the parent tool's compact result is the handoff.
+            .whereNull(`${AiAgentToolCallTableName}.parent_tool_call_id`)
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
 
         return rows
