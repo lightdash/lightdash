@@ -689,7 +689,7 @@ export const streamAgentResponse = async ({
             },
             experimental_transform: smoothStream({
                 delayInMs: 40,
-                chunking: 'word',
+                chunking: 'line',
             }),
             onError: ({ error }) => {
                 console.error(error);
