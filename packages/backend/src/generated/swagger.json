@@ -11148,14 +11148,11 @@
                 ],
                 "type": "object"
             },
-            "AiAgentToolCall": {
+            "AiAgentBaseToolCall": {
                 "properties": {
                     "toolArgs": {
                         "additionalProperties": true,
                         "type": "object"
-                    },
-                    "toolName": {
-                        "type": "string"
                     },
                     "createdAt": {
                         "type": "string",
@@ -11173,9 +11170,78 @@
                 },
                 "required": [
                     "toolArgs",
-                    "toolName",
                     "createdAt",
                     "toolCallId",
+                    "promptUuid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "AiAgentMcpToolName": {
+                "type": "string"
+            },
+            "AiAgentToolCall": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/AiAgentBaseToolCall"
+                    },
+                    {
+                        "anyOf": [
+                            {
+                                "properties": {
+                                    "toolName": {
+                                        "type": "string"
+                                    },
+                                    "toolType": {
+                                        "type": "string",
+                                        "enum": ["built-in"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["toolName", "toolType"],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "toolName": {
+                                        "$ref": "#/components/schemas/AiAgentMcpToolName"
+                                    },
+                                    "toolType": {
+                                        "type": "string",
+                                        "enum": ["mcp"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["toolName", "toolType"],
+                                "type": "object"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "AiAgentBaseToolResult": {
+                "properties": {
+                    "toolCallId": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "result": {
+                        "type": "string"
+                    },
+                    "promptUuid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "toolCallId",
+                    "createdAt",
+                    "result",
                     "promptUuid",
                     "uuid"
                 ],
@@ -11208,32 +11274,7 @@
             "AiAgentToolResult": {
                 "allOf": [
                     {
-                        "properties": {
-                            "toolCallId": {
-                                "type": "string"
-                            },
-                            "createdAt": {
-                                "type": "string",
-                                "format": "date-time"
-                            },
-                            "result": {
-                                "type": "string"
-                            },
-                            "promptUuid": {
-                                "type": "string"
-                            },
-                            "uuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "toolCallId",
-                            "createdAt",
-                            "result",
-                            "promptUuid",
-                            "uuid"
-                        ],
-                        "type": "object"
+                        "$ref": "#/components/schemas/AiAgentBaseToolResult"
                     },
                     {
                         "anyOf": [
@@ -11282,9 +11323,18 @@
                                         "type": "string",
                                         "enum": ["proposeChange"],
                                         "nullable": false
+                                    },
+                                    "toolType": {
+                                        "type": "string",
+                                        "enum": ["built-in"],
+                                        "nullable": false
                                     }
                                 },
-                                "required": ["metadata", "toolName"],
+                                "required": [
+                                    "metadata",
+                                    "toolName",
+                                    "toolType"
+                                ],
                                 "type": "object"
                             },
                             {
@@ -11321,6 +11371,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -11532,9 +11595,44 @@
                                     },
                                     "toolName": {
                                         "$ref": "#/components/schemas/Exclude_ToolName.proposeChange_"
+                                    },
+                                    "toolType": {
+                                        "type": "string",
+                                        "enum": ["built-in"],
+                                        "nullable": false
                                     }
                                 },
-                                "required": ["metadata", "toolName"],
+                                "required": [
+                                    "metadata",
+                                    "toolName",
+                                    "toolType"
+                                ],
+                                "type": "object"
+                            },
+                            {
+                                "properties": {
+                                    "metadata": {
+                                        "allOf": [
+                                            {
+                                                "$ref": "#/components/schemas/Record_string.unknown_"
+                                            }
+                                        ],
+                                        "nullable": true
+                                    },
+                                    "toolName": {
+                                        "$ref": "#/components/schemas/AiAgentMcpToolName"
+                                    },
+                                    "toolType": {
+                                        "type": "string",
+                                        "enum": ["mcp"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": [
+                                    "metadata",
+                                    "toolName",
+                                    "toolType"
+                                ],
                                 "type": "object"
                             }
                         ]
@@ -21089,7 +21187,8 @@
                     "generateSlackChannelSyncJobs",
                     "checkForStuckJobs",
                     "cleanDeploySessions",
-                    "managedAgentHeartbeat"
+                    "managedAgentHeartbeat",
+                    "cleanExpiredPreviews"
                 ]
             },
             "BaseSchedulerLog": {
@@ -22546,6 +22645,11 @@
             },
             "Project": {
                 "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "colorPaletteUuid": {
                         "type": "string",
                         "nullable": true
@@ -22612,6 +22716,7 @@
                     }
                 },
                 "required": [
+                    "expiresAt",
                     "colorPaletteUuid",
                     "hasDefaultUserSpaces",
                     "createdByUserUuid",
@@ -23916,22 +24021,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -25886,6 +25991,11 @@
             },
             "OrganizationProject": {
                 "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "warehouseType": {
                         "$ref": "#/components/schemas/WarehouseTypes"
                     },
@@ -25918,6 +26028,7 @@
                     }
                 },
                 "required": [
+                    "expiresAt",
                     "upstreamProjectUuid",
                     "createdAt",
                     "createdByUserName",

@@ -53,6 +53,37 @@ type AgentToolSetup = {
     closeMcpClients: () => Promise<void>;
 };
 
+export const normalizeToolOutput = (
+    output: unknown,
+): { result: string; metadata?: AgentToolOutput['metadata'] } => {
+    if (
+        output !== null &&
+        typeof output === 'object' &&
+        'result' in output &&
+        typeof output.result === 'string'
+    ) {
+        const metadata =
+            'metadata' in output
+                ? (output.metadata as AgentToolOutput['metadata'])
+                : undefined;
+
+        return {
+            result: output.result,
+            metadata,
+        };
+    }
+
+    if (typeof output === 'string') {
+        return { result: output };
+    }
+
+    try {
+        return { result: JSON.stringify(output) ?? String(output) };
+    } catch {
+        return { result: String(output) };
+    }
+};
+
 export const defaultAgentOptions = {
     toolChoice: 'auto' as const,
     stopWhen: stepCountIs(STEP_CAP),
@@ -62,6 +93,7 @@ export const defaultAgentOptions = {
 const sanitizeMcpToolKeyPart = (value: string) => {
     const sanitized = value
         .replace(/[^a-zA-Z0-9_]+/g, '_')
+        .replace(/_+/g, '_')
         .replace(/^_+/, '')
         .replace(/_+$/, '');
     return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
@@ -252,7 +284,7 @@ const getAgentTools = async (
 
             for (const [toolName, toolDefinition] of Object.entries(mcpTools)) {
                 const toolSuffix = sanitizeMcpToolKeyPart(toolName);
-                const baseToolName = `mcp_${serverPrefix}_${toolSuffix}`;
+                const baseToolName = `mcp_${serverPrefix}__${toolSuffix}`;
                 let namespacedToolName = baseToolName;
                 let collisionCount = 1;
 
@@ -456,8 +488,9 @@ export const generateAgentResponse = async ({
                                         toolResult.toolCallId
                                     }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                                 );
-                                const output =
-                                    toolResult.output as AgentToolOutput;
+                                const output = normalizeToolOutput(
+                                    toolResult.output,
+                                );
                                 return {
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolResult.toolCallId,
@@ -661,12 +694,7 @@ export const streamAgentResponse = async ({
                                     promptUuid: args.promptUuid,
                                     toolCallId: event.chunk.toolCallId,
                                     toolName: event.chunk.toolName,
-                                    result: (
-                                        event.chunk.output as AgentToolOutput
-                                    ).result,
-                                    metadata: (
-                                        event.chunk.output as AgentToolOutput
-                                    ).metadata,
+                                    ...normalizeToolOutput(event.chunk.output),
                                 },
                             ])
                             .catch((error) => {

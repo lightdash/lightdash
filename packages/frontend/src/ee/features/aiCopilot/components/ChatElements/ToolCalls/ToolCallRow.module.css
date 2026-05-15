@@ -40,6 +40,10 @@
     letter-spacing: -0.005em;
 }
 
+.mcpToolChip {
+    vertical-align: middle;
+}
+
 .countBadge {
     display: inline-flex;
     align-items: center;

@@ -132,6 +132,15 @@
     animation: livePulse 1.8s ease-in-out infinite;
 }
 
+.latestMcpLabel {
+    min-width: 0;
+    animation: labelSettle 260ms ease-out;
+}
+
+.latestMcpToolChip {
+    flex-shrink: 1;
+}
+
 @keyframes iconSettle {
     0% {
         opacity: 0;

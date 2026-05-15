@@ -1,6 +1,6 @@
 import {
+    isAiAgentToolName,
     toolImproveContextArgsSchema,
-    ToolNameSchema,
     toolRunQueryOutputSchema,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
@@ -153,9 +153,13 @@ export function useAiAgentThreadStreamMutation() {
                                 type: 'text',
                                 text: part.text,
                             });
-                        } else if (part.type.startsWith('tool-')) {
+                        } else if (
+                            part.type.startsWith('tool-') ||
+                            part.type === 'dynamic-tool'
+                        ) {
                             const toolPart = part as {
                                 type: string;
+                                toolName?: string;
                                 toolCallId: string;
                                 input?: unknown;
                                 output?: unknown;
@@ -167,16 +171,18 @@ export function useAiAgentThreadStreamMutation() {
                                 toolPart.state === 'output-available' ||
                                 toolPart.state === 'output-error'
                             ) {
-                                const toolNameUnsafe = toolPart.type.slice(5);
-                                const parsed =
-                                    ToolNameSchema.safeParse(toolNameUnsafe);
-                                if (parsed.success) {
+                                const toolName =
+                                    toolPart.type === 'dynamic-tool'
+                                        ? toolPart.toolName
+                                        : toolPart.type.slice(5);
+
+                                if (toolName && isAiAgentToolName(toolName)) {
                                     const hasOutput =
                                         toolPart.state === 'output-available';
                                     orderedParts.push({
                                         type: 'toolCall',
                                         toolCallId: toolPart.toolCallId,
-                                        toolName: parsed.data,
+                                        toolName,
                                         toolArgs: toolPart.input,
                                         toolOutput: hasOutput
                                             ? toolPart.output
@@ -264,11 +270,12 @@ export function useAiAgentThreadStreamMutation() {
                                     break;
                                 }
 
-                                const toolNameUnsafe = part.type.split('-')[1];
+                                const toolName = part.type.split('-')[1];
 
                                 try {
-                                    const toolName =
-                                        ToolNameSchema.parse(toolNameUnsafe);
+                                    if (!isAiAgentToolName(toolName)) {
+                                        break;
+                                    }
 
                                     // Store raw tool args (will be validated in rendering components)
                                     dispatch(
@@ -325,6 +332,25 @@ export function useAiAgentThreadStreamMutation() {
                                 break;
                             case 'text':
                             case 'dynamic-tool':
+                                if (
+                                    part.state === 'input-available' ||
+                                    part.state === 'output-available' ||
+                                    part.state === 'output-error'
+                                ) {
+                                    if (!isAiAgentToolName(part.toolName)) {
+                                        break;
+                                    }
+
+                                    dispatch(
+                                        addToolCall({
+                                            threadUuid,
+                                            toolCallId: part.toolCallId,
+                                            toolName: part.toolName,
+                                            toolArgs: part.input,
+                                        }),
+                                    );
+                                }
+                                break;
                             case 'file':
                             case 'source-document':
                             case 'source-url':

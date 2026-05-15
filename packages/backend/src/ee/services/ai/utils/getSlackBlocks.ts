@@ -5,6 +5,7 @@ import {
     AiArtifact,
     FollowUpTools,
     followUpToolsText,
+    isToolProposeChangeResult,
     parseVizConfig,
     SlackPrompt,
     type Explore,
@@ -420,9 +421,7 @@ export function getProposeChangeBlocks(
         return [];
     }
 
-    const proposeChangeResults = toolResults.filter(
-        (result) => result.toolName === 'proposeChange',
-    );
+    const proposeChangeResults = toolResults.filter(isToolProposeChangeResult);
 
     if (proposeChangeResults.length === 0) {
         return [];

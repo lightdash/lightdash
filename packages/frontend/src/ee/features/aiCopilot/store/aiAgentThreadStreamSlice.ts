@@ -1,9 +1,9 @@
-import { type ToolName } from '@lightdash/common';
+import { type AiAgentToolName } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
 type ToolCall = {
     toolCallId: string;
-    toolName: ToolName;
+    toolName: AiAgentToolName;
     toolArgs: unknown;
 };
 
@@ -17,7 +17,7 @@ export type StreamPart =
     | {
           type: 'toolCall';
           toolCallId: string;
-          toolName: ToolName;
+          toolName: AiAgentToolName;
           toolArgs: unknown;
           /**
            * The tool's output once the call resolves. Populated for live

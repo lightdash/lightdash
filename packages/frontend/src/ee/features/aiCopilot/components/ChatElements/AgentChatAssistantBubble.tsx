@@ -1,7 +1,7 @@
 import {
-    ToolNameSchema,
+    type AiAgentToolName,
     type AiAgentMessageAssistant,
-    type ToolName,
+    isToolProposeChangeResult,
     type ToolProposeChangeArgs,
 } from '@lightdash/common';
 import {
@@ -76,7 +76,7 @@ import { TypingDots } from './TypingDots';
 
 type ToolGroup = {
     kind: 'toolGroup';
-    toolName: ToolName;
+    toolName: AiAgentToolName;
     calls: ToolCallSummary[];
     keyId: string;
 };
@@ -146,21 +146,19 @@ const segmentStreamParts = (
 
 const groupPersistedToolCalls = (
     calls: ToolCallSummary[],
-): { toolName: ToolName; calls: ToolCallSummary[]; keyId: string }[] => {
+): { toolName: AiAgentToolName; calls: ToolCallSummary[]; keyId: string }[] => {
     const groups: {
-        toolName: ToolName;
+        toolName: AiAgentToolName;
         calls: ToolCallSummary[];
         keyId: string;
     }[] = [];
     for (const tc of calls) {
-        const parsed = ToolNameSchema.safeParse(tc.toolName);
-        if (!parsed.success) continue;
         const last = groups[groups.length - 1];
-        if (last && last.toolName === parsed.data) {
+        if (last && last.toolName === tc.toolName) {
             last.calls.push(tc);
         } else {
             groups.push({
-                toolName: parsed.data,
+                toolName: tc.toolName,
                 calls: [tc],
                 keyId: tc.toolCallId,
             });
@@ -225,7 +223,7 @@ const AssistantBubbleContent: FC<{
               ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
 
     const proposeChangeToolResult = message.toolResults.find(
-        (result) => result.toolName === 'proposeChange',
+        isToolProposeChangeResult,
     );
 
     const toolCalls = isStreaming

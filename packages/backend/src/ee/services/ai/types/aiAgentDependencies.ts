@@ -144,7 +144,7 @@ export type StoreToolResultsFn = (
         toolCallId: string;
         toolName: string;
         result: string;
-        metadata?: AgentToolOutput['metadata'];
+        metadata?: AgentToolOutput['metadata'] | Record<string, unknown> | null;
     }>,
 ) => Promise<void>;
 
