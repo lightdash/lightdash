@@ -34,6 +34,13 @@ export type Filter = {
     operator: FilterOperator;
     value?: FilterValue | FilterValue[];
     unit?: UnitOfTime;
+    /**
+     * For relative date filters (`inThePast`, `notInThePast`, etc.), restrict
+     * the range to fully completed periods. e.g. `inThePast` + `unit: 'weeks'`
+     * + `completed: true` means "the last N completed weeks" — the current,
+     * in-progress week is excluded.
+     */
+    completed?: boolean;
 };
 
 export type Sort = {
@@ -102,7 +109,7 @@ export type InternalFilterDefinition = {
     fieldId: string;
     operator: string;
     values: FilterValue[];
-    settings: { unitOfTime: UnitOfTime } | null;
+    settings: { unitOfTime: UnitOfTime; completed?: boolean } | null;
 };
 
 export type QueryDefinition = {

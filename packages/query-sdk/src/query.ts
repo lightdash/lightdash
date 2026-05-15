@@ -111,7 +111,14 @@ export class QueryBuilder {
                 fieldId: f.field,
                 operator: f.operator,
                 values,
-                settings: f.unit ? { unitOfTime: f.unit } : null,
+                settings: f.unit
+                    ? {
+                          unitOfTime: f.unit,
+                          ...(f.completed !== undefined && {
+                              completed: f.completed,
+                          }),
+                      }
+                    : null,
             };
         });
 

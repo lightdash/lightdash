@@ -420,6 +420,7 @@ type Filter = {
     operator: FilterOperator;
     value?: FilterValue | FilterValue[];
     unit?: UnitOfTime; // required for date/time operators
+    completed?: boolean; // for `inThePast`/`notInThePast`: restrict to fully completed periods
 };
 ```
 
@@ -428,7 +429,7 @@ type Filter = {
 | Comparison | `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual` | Multi-value: `value: ['a', 'b']` |
 | Null | `isNull`, `notNull` | No `value` needed |
 | String | `startsWith`, `endsWith`, `include`, `doesNotInclude` | |
-| Date/time | `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent` | Requires `unit`: `'days'`/`'weeks'`/`'months'`/`'quarters'`/`'years'` |
+| Date/time | `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent` | Requires `unit`: `'days'`/`'weeks'`/`'months'`/`'quarters'`/`'years'`. Add `completed: true` to `inThePast`/`notInThePast` to exclude the current in-progress period — e.g. `{ operator: 'inThePast', unit: 'weeks', value: 4, completed: true }` means "the last 4 completed weeks", not including this week. |
 | Range | `inBetween`, `notInBetween` | |
 
 ### User context
