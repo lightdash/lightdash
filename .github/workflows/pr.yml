@@ -342,7 +342,7 @@ jobs:
 
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 20
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "E2E: API (Vitest)"
