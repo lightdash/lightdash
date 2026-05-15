@@ -1,3 +1,10 @@
+## [0.2955.2](https://github.com/lightdash/lightdash/compare/0.2955.1...0.2955.2) (2026-05-15)
+
+
+### Bug Fixes
+
+* **ai:** truncate pinned context card label and fix icon min-width ([#23125](https://github.com/lightdash/lightdash/issues/23125)) ([f9b2b32](https://github.com/lightdash/lightdash/commit/f9b2b32ef2c65075470b702054aea3994ff9b095))
+
 ## [0.2955.1](https://github.com/lightdash/lightdash/compare/0.2955.0...0.2955.1) (2026-05-15)
 
 
