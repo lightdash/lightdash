@@ -1,3 +1,10 @@
+## [0.2951.1](https://github.com/lightdash/lightdash/compare/0.2951.0...0.2951.1) (2026-05-15)
+
+
+### Reverts
+
+* "feat(observability): wide-event logs for dashboard loads and project …" ([#23118](https://github.com/lightdash/lightdash/issues/23118)) ([a3bb127](https://github.com/lightdash/lightdash/commit/a3bb1270bc378522e5b3d209d971fa87917e4b81))
+
 # [0.2951.0](https://github.com/lightdash/lightdash/compare/0.2950.5...0.2951.0) (2026-05-15)
 
 
