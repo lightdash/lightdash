@@ -8,6 +8,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     isDashboardChartTileType,
+    isFilterLockedOnTab,
     isStandardDateGranularity,
     isSubDayGranularity,
     stripOverridesForLockedFiltersOnTab,
@@ -752,8 +753,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                     activeTab?.uuid,
                 );
                 droppedLockedOverrides += sdkStripResult.droppedCount;
-                updatedDashboardFilters.dimensions =
-                    sdkStripResult.filters.dimensions;
+                // SDK filters replace embedded dashboard filters, but
+                // locked saved filters must be preserved — otherwise an
+                // SDK consumer could drop a lock by simply not sending
+                // a filter for that field. Mirrors how EmbedService
+                // merges locked saved rules with safe overrides
+                // server-side.
+                const lockedSavedDimensions =
+                    currentDashboard.filters.dimensions.filter((rule) =>
+                        isFilterLockedOnTab(rule, activeTab?.uuid),
+                    );
+                updatedDashboardFilters.dimensions = [
+                    ...lockedSavedDimensions,
+                    ...sdkStripResult.filters.dimensions,
+                ];
             }
 
             // Apply overrides from URL — but never override filters locked on
