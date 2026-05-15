@@ -11,8 +11,14 @@ describe('SQL Code Generation', () => {
         });
 
         it('compiles safe division', () => {
+            // Postgres-family `int / int` is integer division — the formula
+            // language targets Google-Sheets-style semantics where `/` is
+            // always real-valued, so the dividend is cast to numeric. See
+            // `division (/)` in codegen.test.ts for the cross-dialect matrix.
             const sql = compile('=A / B', { dialect: 'postgres', columns });
-            expect(sql).toBe('("order_amount" / NULLIF("tax", 0))');
+            expect(sql).toBe(
+                '(("order_amount")::numeric / NULLIF("tax", 0))',
+            );
         });
 
         it('compiles power', () => {
