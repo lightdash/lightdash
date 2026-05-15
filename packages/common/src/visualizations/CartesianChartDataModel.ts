@@ -797,6 +797,13 @@ export class CartesianChartDataModel {
             getFirstIndexColumns(transformedData.indexColumn)?.type ||
             DEFAULT_X_AXIS_TYPE;
 
+        // Under "None" on a time-typed X-axis, default to a readable Day
+        // format so the axis label formatter and tooltip header render the
+        // same clean date — fixes PROD-5672/PROD-2659.
+        const effectiveDateFormat: string | undefined =
+            display?.xAxis?.dateFormat ??
+            (xAxisType === VizIndexType.TIME ? 'MMM D, YYYY' : undefined);
+
         // Determine tooltip configuration
         let tooltipConfig = {};
         if (shouldStack100 && xAxisReference && originalValues) {
@@ -832,7 +839,7 @@ export class CartesianChartDataModel {
                     },
                     xAxisReference,
                     undefined,
-                    display?.xAxis?.dateFormat,
+                    effectiveDateFormat,
                 ),
             };
         } else if (xAxisType === VizIndexType.TIME && xAxisReference) {
@@ -849,13 +856,10 @@ export class CartesianChartDataModel {
                         }) => {
                             const rawValue =
                                 params.seriesData[0]?.value[xAxisReference];
-                            if (
-                                display?.xAxis?.dateFormat &&
-                                rawValue != null
-                            ) {
+                            if (effectiveDateFormat && rawValue != null) {
                                 return formatDateWithPattern(
                                     rawValue as string | number,
-                                    display.xAxis.dateFormat,
+                                    effectiveDateFormat,
                                 );
                             }
                             return rawValue;
@@ -892,7 +896,7 @@ export class CartesianChartDataModel {
                     flipAxes: false,
                     xFieldId: xAxisReference,
                     originalValues,
-                    xAxisDateFormat: display?.xAxis?.dateFormat,
+                    xAxisDateFormat: effectiveDateFormat,
                 }),
                 extraCssText: `overflow-y: auto; max-height:280px; ${
                     getTooltipStyle().extraCssText
@@ -921,13 +925,12 @@ export class CartesianChartDataModel {
                 nameTextStyle: getAxisTitleStyle(),
                 axisLabel: {
                     ...getAxisLabelStyle(),
-                    ...(xAxisType === VizIndexType.TIME &&
-                    display?.xAxis?.dateFormat
+                    ...(xAxisType === VizIndexType.TIME && effectiveDateFormat
                         ? {
                               formatter: (value: string | number) =>
                                   formatDateWithPattern(
                                       value,
-                                      display.xAxis!.dateFormat!,
+                                      effectiveDateFormat,
                                   ),
                           }
                         : {}),
