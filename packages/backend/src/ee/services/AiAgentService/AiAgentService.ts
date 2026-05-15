@@ -128,7 +128,7 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
-import { AiAgentModel } from '../../models/AiAgentModel';
+import { AiAgentModel, type AiMcpCredential } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { selectBestAgentWithContext } from '../ai/agents/agentSelector';
@@ -1500,7 +1500,12 @@ export class AiAgentService extends BaseService {
         }
 
         if (!args.code || !args.state) {
-            throw new ParameterError('OAuth callback is missing code or state');
+            const errorMessage = 'OAuth callback is missing code or state';
+            await this.persistSharedMcpOAuthConnectionError(
+                args.mcpServerUuid,
+                errorMessage,
+            );
+            throw new ParameterError(errorMessage);
         }
 
         const credential = await this.aiAgentModel.getCredential(
@@ -1513,7 +1518,13 @@ export class AiAgentService extends BaseService {
         }
 
         if (credential.credentials.state !== args.state) {
-            throw new ParameterError('Invalid OAuth state');
+            const errorMessage = 'Invalid OAuth state';
+            await this.persistSharedMcpOAuthConnectionError(
+                args.mcpServerUuid,
+                errorMessage,
+                credential,
+            );
+            throw new ParameterError(errorMessage);
         }
 
         await this.aiAgentMcpRuntimeClient.completeOAuthConnection({
@@ -1522,6 +1533,34 @@ export class AiAgentService extends BaseService {
             serverUrl: server.url,
             code: args.code,
             credential,
+        });
+    }
+
+    private async persistSharedMcpOAuthConnectionError(
+        mcpServerUuid: string,
+        errorMessage: string,
+        credential?: AiMcpCredential,
+    ): Promise<void> {
+        const existingCredential =
+            credential ??
+            (await this.aiAgentModel.getCredential(mcpServerUuid, 'shared'));
+
+        if (existingCredential?.credentials.type !== 'oauth') {
+            return;
+        }
+
+        await this.aiAgentModel.upsertCredential({
+            serverUuid: mcpServerUuid,
+            scope: 'shared',
+            credentials: {
+                ...existingCredential.credentials,
+                connectionStatus: 'error',
+                lastError: errorMessage,
+            },
+            actorUserUuid:
+                existingCredential.updatedByUserUuid ??
+                existingCredential.createdByUserUuid ??
+                null,
         });
     }
 
