@@ -411,7 +411,13 @@ const QueryInspector: FC<Props> = ({
     }
 
     return (
-        <Box className={classes.container}>
+        <Box
+            className={
+                collapsed
+                    ? `${classes.container} ${classes.containerCollapsed}`
+                    : classes.container
+            }
+        >
             <Group
                 gap="xs"
                 wrap="nowrap"
@@ -463,17 +469,15 @@ const QueryInspector: FC<Props> = ({
                         <MantineIcon icon={IconChevronDown} size={12} />
                     )}
                 </ActionIcon>
-                {!collapsed && (
-                    <ActionIcon
-                        variant="subtle"
-                        size="xs"
-                        color="gray"
-                        onClick={handleDismiss}
-                        aria-label="Close queries panel"
-                    >
-                        <MantineIcon icon={IconX} size={12} />
-                    </ActionIcon>
-                )}
+                <ActionIcon
+                    variant="subtle"
+                    size="xs"
+                    color="gray"
+                    onClick={handleDismiss}
+                    aria-label="Close queries panel"
+                >
+                    <MantineIcon icon={IconX} size={12} />
+                </ActionIcon>
             </Group>
             <Collapse in={!collapsed}>
                 <Box

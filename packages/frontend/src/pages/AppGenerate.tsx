@@ -1324,7 +1324,12 @@ const AppGenerate: FC = () => {
         <Box className={classes.layout}>
             <PanelGroup direction="horizontal">
                 {/* Chat Panel */}
-                <Panel defaultSize={30} minSize={20} maxSize={50}>
+                <Panel
+                    defaultSize={30}
+                    minSize={22}
+                    maxSize={50}
+                    className={classes.chatPanelOuter}
+                >
                     <Box className={classes.chatPanel}>
                         <Box className={classes.chatMessages}>
                             {hasUnloadedEarlierVersions && (
