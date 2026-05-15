@@ -1441,9 +1441,14 @@ export const convertSqlPivotedRowsToPivotData = ({
                         getField(valueCol.referenceField),
                         parameters,
                     );
-                    combinedRow[fieldId] = reformatted
-                        ? { value: reformatted }
-                        : cell;
+                    // Helper short-circuits to the input value reference when
+                    // no reformat is needed — fall back to `cell` in that case
+                    // so we don't allocate a fresh wrapper per non-parameterised
+                    // cell.
+                    combinedRow[fieldId] =
+                        reformatted && reformatted !== cell.value
+                            ? { value: reformatted }
+                            : cell;
                 }
             });
 
