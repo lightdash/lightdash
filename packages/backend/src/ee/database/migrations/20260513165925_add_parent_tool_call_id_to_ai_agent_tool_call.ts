@@ -12,7 +12,11 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.alterTable(AiAgentToolCallTableName, (table) => {
         table.text(ColumnName).nullable();
         table.index(['ai_prompt_uuid', ColumnName], IndexName);
-        table.check('length(??) <= 128', [ColumnName], CheckConstraintName);
+        // `length(?? )` does not work here: `table.check()` treats bindings
+        // as value placeholders, not identifier placeholders, so `??` would
+        // expand to `$1$2` in the generated SQL. Interpolate the column name
+        // directly — it's an internal constant, not user input.
+        table.check(`length(${ColumnName}) <= 128`, [], CheckConstraintName);
     });
 }
 
