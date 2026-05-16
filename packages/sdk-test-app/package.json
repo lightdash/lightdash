@@ -21,7 +21,7 @@
         "react-i18next": "15.4.1"
     },
     "devDependencies": {
-        "@types/jsonwebtoken": "9.0.5",
+        "@types/jsonwebtoken": "9.0.10",
         "@types/react": "19.2.2",
         "@types/react-dom": "19.2.2",
         "@vitejs/plugin-react": "6.0.1",
