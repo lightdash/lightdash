@@ -699,8 +699,8 @@ importers:
         specifier: 2.7.0
         version: 2.7.0(encoding@0.1.13)
       nunjucks:
-        specifier: 3.2.3
-        version: 3.2.3(chokidar@3.6.0)
+        specifier: 3.2.4
+        version: 3.2.4(chokidar@3.6.0)
       openid-client:
         specifier: 5.6.4
         version: 5.6.4
@@ -12849,8 +12849,8 @@ packages:
   numfmt@3.2.1:
     resolution: {integrity: sha512-rlkdBc2suovrHUP0Id6xA3uVtwuPvwMG7F5RUDGzl82B2gyzMGHLBpVUWJDiSdIsFDe8WaUHeSg95yAzDcDGwg==}
 
-  nunjucks@3.2.3:
-    resolution: {integrity: sha512-psb6xjLj47+fE76JdZwskvwG4MYsQKXUtMsPh6U0YMvmyjRtKRFcxnlXGWglNybtNTNVmGdp94K62/+NjF5FDQ==}
+  nunjucks@3.2.4:
+    resolution: {integrity: sha512-26XRV6BhkgK0VOxfbU5cQI+ICFUtMLixv1noZn1tGU38kQH5A5nmmbk/O45xdyBhD1esk47nKrY0mvQpZIhRjQ==}
     engines: {node: '>= 6.9.0'}
     hasBin: true
     peerDependencies:
@@ -30829,7 +30829,7 @@ snapshots:
 
   numfmt@3.2.1: {}
 
-  nunjucks@3.2.3(chokidar@3.6.0):
+  nunjucks@3.2.4(chokidar@3.6.0):
     dependencies:
       a-sync-waterfall: 1.0.1
       asap: 2.0.6
