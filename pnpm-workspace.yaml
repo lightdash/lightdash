@@ -7,3 +7,5 @@ minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min
 minimumReleaseAgeExclude:
   # Renovate security update: hono@4.12.18
   - hono@4.12.18
+  # Renovate security update: nunjucks@3.2.4
+  - nunjucks@3.2.4
