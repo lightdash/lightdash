@@ -17,3 +17,5 @@ minimumReleaseAgeExclude:
   - postcss@8.5.10
   # Renovate security update: i18next-http-backend@3.0.5
   - i18next-http-backend@3.0.5
+  # Renovate security update: dompurify@3.4.0
+  - dompurify@3.4.0
