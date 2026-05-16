@@ -9,3 +9,5 @@ minimumReleaseAgeExclude:
   - hono@4.12.18
   # Renovate security update: nunjucks@3.2.4
   - nunjucks@3.2.4
+  # Renovate security update: next@16.2.6
+  - next@16.2.6
