@@ -16,8 +16,9 @@
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "none",
   "rangeStrategy": "bump",
-  "prConcurrentLimit": 8,
+  "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
+  "commitMessageExtra": "({{updateType}})",
   "labels": ["dependencies"],
   "dependencyDashboardApproval": false,
   "lockFileMaintenance": {

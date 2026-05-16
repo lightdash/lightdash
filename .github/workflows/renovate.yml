@@ -9,22 +9,27 @@ permissions: {}
 
 jobs:
   renovate:
-    runs-on: ubuntu-latest
+    runs-on: depot-ubuntu-24.04-4
     permissions:
       contents: write
       pull-requests: write
       issues: write
     steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: 3732288
+          private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - uses: renovatebot/github-action@693b9ef15eec82123529a37c782242f091365961 # v46.1.14
         with:
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
           renovate-version: full
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
-          RENOVATE_GIT_AUTHOR: "lightdash-bot <131011178+lightdash-bot@users.noreply.github.com>"
-          RENOVATE_USERNAME: lightdash-bot
+          RENOVATE_PLATFORM_COMMIT: "true"
           RENOVATE_ALLOW_SCRIPTS: "true"
           RENOVATE_ALLOWED_COMMANDS: '["^pnpm install --lockfile-only --ignore-scripts$"]'
           LOG_LEVEL: info
