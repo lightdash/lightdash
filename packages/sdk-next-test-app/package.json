@@ -18,7 +18,7 @@
         "@types/node": "20.17.12",
         "@types/react": "19.2.2",
         "@types/react-dom": "19.2.2",
-        "postcss": "8.5.3",
+        "postcss": "8.5.10",
         "typescript": "6.0.0-beta"
     }
 }
