@@ -11,3 +11,5 @@ minimumReleaseAgeExclude:
   - nunjucks@3.2.4
   # Renovate security update: next@16.2.6
   - next@16.2.6
+  # Renovate security update: qs@6.14.2
+  - qs@6.14.2
