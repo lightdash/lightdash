@@ -19,3 +19,9 @@ minimumReleaseAgeExclude:
   - i18next-http-backend@3.0.5
   # Renovate security update: simple-git@3.36.0
   - simple-git@3.36.0
+  # Renovate security update: dompurify@3.4.0
+  - dompurify@3.4.0
+  # Renovate security update: yaml@2.8.3
+  - yaml@2.8.3
+  # Renovate security update: systeminformation@5.31.6
+  - systeminformation@5.31.6
