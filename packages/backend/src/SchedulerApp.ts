@@ -23,6 +23,7 @@ import {
     SchedulerWorkerHealth,
 } from './scheduler/SchedulerWorkerHealth';
 import { IGNORE_ERRORS } from './sentry';
+import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -85,6 +86,9 @@ const schedulerWorkerFactory = (context: {
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
         workerHealth: context.workerHealth,
+        resolveOrganizationName: createOrganizationNameResolver(
+            context.models.getOrganizationModel(),
+        ),
     });
 
 export default class SchedulerApp {
