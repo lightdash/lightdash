@@ -62,6 +62,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     KnexPaginatedData,
+    LightdashError,
     MetricQuery,
     normalizeIndexColumns,
     NotFoundError,
@@ -2432,6 +2433,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 getErrorMessage(e),
                 queryHistoryAccount,
+                e instanceof LightdashError ? e.name : null,
             );
 
             // Track error query in Prometheus
@@ -2457,6 +2459,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 getErrorMessage(e),
                 queryHistoryAccount,
+                e instanceof LightdashError ? e.name : null,
             );
 
             // Throw the error again so that it can be added to the span
@@ -3441,6 +3444,7 @@ export class AsyncQueryService extends ProjectService {
                                 projectUuid,
                                 `Failed to enqueue ${executionPlan.target} query: ${errorMessage}`,
                                 account,
+                                e instanceof LightdashError ? e.name : null,
                             );
 
                             this.prometheusMetrics?.trackQueryStateTransition(

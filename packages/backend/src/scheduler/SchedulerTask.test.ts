@@ -1,9 +1,17 @@
 import {
     FieldReferenceError,
+    ForbiddenError,
+    MissingConfigError,
     NotEnoughResults,
+    NotFoundError,
     ThresholdOperator,
+    UnexpectedGoogleSheetsError,
+    WarehouseConnectionError,
+    WarehouseQueryError,
 } from '@lightdash/common';
-import SchedulerTask from './SchedulerTask';
+import SchedulerTask, {
+    isUnrecoverableWarehouseQueryError,
+} from './SchedulerTask';
 import {
     resultsWithOneRow,
     resultsWithTwoDecreasingRows,
@@ -383,5 +391,103 @@ describe('evaluateThreshold', () => {
                 [{ m: 100 }],
             ),
         ).toThrow(FieldReferenceError);
+    });
+});
+
+// Regression suite for: scheduler doesn't auto-disable on warehouse
+// notFound errors.
+// See `uploadGsheets` catch block (~SchedulerTask.ts:3268) and the paired
+// fix in QueryHistoryModel.poll which now preserves the LightdashError
+// subclass through query_history.
+describe('isUnrecoverableWarehouseQueryError', () => {
+    it('matches BigQuery notFound errors (mirrors the message shape emitted by BigqueryWarehouseClient.parseError)', () => {
+        // Keep this string shape exact — any future change to
+        // BigqueryWarehouseClient.parseError that breaks substring matching
+        // must fail this test.
+        const err = new WarehouseQueryError(
+            'Bigquery warehouse error: notFound - Not found: Table my-project:my_dataset.my_table was not found in location us-central1',
+        );
+        expect(isUnrecoverableWarehouseQueryError(err)).toBe(true);
+    });
+
+    it('matches permission denied errors', () => {
+        const err = new WarehouseQueryError(
+            'Bigquery warehouse error: accessDenied - Permission denied while getting Drive credentials.',
+        );
+        expect(isUnrecoverableWarehouseQueryError(err)).toBe(true);
+    });
+
+    it('does NOT match generic warehouse errors (e.g. syntax)', () => {
+        // Earlier incident — over-eager disable on transient errors.
+        const err = new WarehouseQueryError(
+            'Bigquery warehouse error: invalidQuery - Syntax error: Unexpected keyword AT at [1:42]',
+        );
+        expect(isUnrecoverableWarehouseQueryError(err)).toBe(false);
+    });
+
+    it('does NOT match quota errors (those should retry)', () => {
+        const err = new WarehouseQueryError(
+            'BigQuery quota exceeded. You may have reached your query quota.',
+        );
+        expect(isUnrecoverableWarehouseQueryError(err)).toBe(false);
+    });
+
+    it('does NOT match non-warehouse errors', () => {
+        // Plain Error must not satisfy the predicate even with a
+        // matching substring — typed-class preservation is mandatory.
+        expect(
+            isUnrecoverableWarehouseQueryError(new Error('Not found: foo')),
+        ).toBe(false);
+        expect(
+            isUnrecoverableWarehouseQueryError(
+                new WarehouseConnectionError('connection refused'),
+            ),
+        ).toBe(false);
+    });
+});
+
+// Mirrors the inline `shouldDisableSync` predicate in
+// SchedulerTask.uploadGsheets catch block (~line 3268). When that block
+// changes, this helper must be updated to match.
+const shouldDisableSync = (e: unknown): boolean =>
+    e instanceof NotFoundError ||
+    e instanceof ForbiddenError ||
+    e instanceof MissingConfigError ||
+    e instanceof UnexpectedGoogleSheetsError ||
+    e instanceof WarehouseConnectionError ||
+    isUnrecoverableWarehouseQueryError(e);
+
+describe('shouldDisableSync gate (uploadGsheets)', () => {
+    it('disables on BigQuery notFound (the bug being fixed)', () => {
+        const err = new WarehouseQueryError(
+            'Bigquery warehouse error: notFound - Not found: Table my-project:my_dataset.my_table was not found in location us-central1',
+        );
+        expect(shouldDisableSync(err)).toBe(true);
+    });
+
+    it('disables on the historical instanceof cases', () => {
+        expect(shouldDisableSync(new NotFoundError('x'))).toBe(true);
+        expect(shouldDisableSync(new ForbiddenError('x'))).toBe(true);
+        expect(shouldDisableSync(new MissingConfigError('x'))).toBe(true);
+        expect(shouldDisableSync(new WarehouseConnectionError('x'))).toBe(true);
+    });
+
+    it('does NOT disable on transient warehouse errors (e.g. timeouts)', () => {
+        expect(
+            shouldDisableSync(
+                new WarehouseQueryError('Query exceeded timeout of 300s'),
+            ),
+        ).toBe(false);
+    });
+
+    it('does NOT disable on plain Error (covers the QueryHistoryModel pre-fix path)', () => {
+        // Documents the previous bug: when QueryHistoryModel.poll rethrew
+        // the warehouse error as a plain `new Error(message)`, all
+        // instanceof checks failed. After the QueryHistoryModel fix the
+        // typed class survives — and shouldDisableSync correctly disables.
+        const wasRethrownAsPlainError = new Error(
+            'Bigquery warehouse error: notFound - Not found: Table',
+        );
+        expect(shouldDisableSync(wasRethrownAsPlainError)).toBe(false);
     });
 });

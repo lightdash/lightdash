@@ -804,3 +804,35 @@ export class JobPollTimeoutError extends LightdashError {
         this.timeoutMs = timeoutMs;
     }
 }
+
+// Registry used to reconstruct a typed error from a stored class name +
+// message (e.g. when a query error is persisted to query_history and later
+// re-thrown by pollForQueryCompletion). Only includes errors that flow
+// through async query persistence boundaries.
+const RECONSTRUCTABLE_LIGHTDASH_ERRORS: Record<
+    string,
+    (message: string) => LightdashError
+> = {
+    WarehouseQueryError: (message) => new WarehouseQueryError(message),
+    WarehouseConnectionError: (message) =>
+        new WarehouseConnectionError(message),
+    NotFoundError: (message) => new NotFoundError(message),
+    ForbiddenError: (message) => new ForbiddenError(message),
+    MissingConfigError: (message) => new MissingConfigError(message),
+    MissingWarehouseCredentialsError: (message) =>
+        new MissingWarehouseCredentialsError(message),
+    UnexpectedServerError: (message) => new UnexpectedServerError(message),
+    ParameterError: (message) => new ParameterError(message),
+    TimeoutError: (message) => new TimeoutError(message),
+    SshTunnelError: (message) => new SshTunnelError(message),
+};
+
+export const reconstructLightdashError = (
+    errorName: string | null | undefined,
+    message: string,
+): Error => {
+    if (errorName && RECONSTRUCTABLE_LIGHTDASH_ERRORS[errorName]) {
+        return RECONSTRUCTABLE_LIGHTDASH_ERRORS[errorName](message);
+    }
+    return new Error(message);
+};

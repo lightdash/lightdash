@@ -31,6 +31,7 @@ export type DbQueryHistory = {
     total_row_count: number | null;
     warehouse_execution_time_ms: number | null;
     error: string | null;
+    error_name: string | null;
     errored_at: Date | null;
     status: QueryHistoryStatus;
     cache_key: string;
@@ -59,6 +60,7 @@ export type DbQueryHistoryUpdate = Partial<
         DbQueryHistory,
         | 'status'
         | 'error'
+        | 'error_name'
         | 'errored_at'
         | 'warehouse_execution_time_ms'
         | 'total_row_count'

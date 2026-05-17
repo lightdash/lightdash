@@ -5,6 +5,7 @@ import {
     NotFoundError,
     QueryHistory,
     QueryHistoryStatus,
+    reconstructLightdashError,
     sleep,
 } from '@lightdash/common';
 import crypto from 'crypto';
@@ -42,6 +43,7 @@ function convertDbQueryHistoryToQueryHistory(
         totalRowCount: queryHistory.total_row_count,
         warehouseExecutionTimeMs: queryHistory.warehouse_execution_time_ms,
         error: queryHistory.error,
+        errorName: queryHistory.error_name,
         erroredAt: queryHistory.errored_at,
         cacheKey: queryHistory.cache_key,
         pivotConfiguration: queryHistory.pivot_configuration,
@@ -116,6 +118,7 @@ export class QueryHistoryModel {
             | 'warehouseQueryMetadata'
             | 'warehouseExecutionTimeMs'
             | 'error'
+            | 'errorName'
             | 'erroredAt'
             | 'pivotValuesColumns'
             | 'pivotTotalColumnCount'
@@ -156,6 +159,7 @@ export class QueryHistoryModel {
                 warehouse_execution_time_ms: null,
                 warehouse_query_metadata: null,
                 error: null,
+                error_name: null,
                 errored_at: null,
                 cache_key: queryHistory.cacheKey,
                 pivot_configuration: queryHistory.pivotConfiguration,
@@ -230,6 +234,7 @@ export class QueryHistoryModel {
     async updateStatusToExpired(
         queryUuid: string,
         error: string,
+        errorName: string | null = null,
     ): Promise<number> {
         return this.database(QueryHistoryTableName)
             .where('query_uuid', queryUuid)
@@ -240,6 +245,7 @@ export class QueryHistoryModel {
             .update({
                 status: QueryHistoryStatus.EXPIRED,
                 error,
+                error_name: errorName,
                 processing_started_at: new Date(),
             });
     }
@@ -251,6 +257,7 @@ export class QueryHistoryModel {
         account: Pick<Account, 'isRegisteredUser'> & {
             user: Pick<Account['user'], 'id'>;
         },
+        errorName: string | null = null,
     ) {
         return this.update(
             queryUuid,
@@ -258,6 +265,7 @@ export class QueryHistoryModel {
             {
                 status: QueryHistoryStatus.ERROR,
                 error,
+                error_name: errorName,
                 errored_at: new Date(),
             },
             account,
@@ -370,7 +378,8 @@ export class QueryHistoryModel {
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED:
                     if (throwOnError) {
-                        throw new Error(
+                        throw reconstructLightdashError(
+                            queryHistory.errorName,
                             queryHistory.error ?? 'Warehouse query failed',
                         );
                     }

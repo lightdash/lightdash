@@ -92,6 +92,7 @@ import {
     ValidateProjectPayload,
     VizColumn,
     WarehouseConnectionError,
+    WarehouseQueryError,
     type Account as AccountType,
     type BatchDeliveryResult,
     type DeliveryResult,
@@ -191,6 +192,28 @@ export type SchedulerTaskArguments = {
     persistentDownloadFileService: PersistentDownloadFileService;
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
+};
+
+// Substrings on warehouse query errors that indicate the underlying object
+// will not come back on its own (table dropped, permission revoked).
+// Re-running the query is futile, so the scheduler should auto-disable.
+// Tuned conservatively after an earlier incident where an over-eager
+// disable predicate turned off working syncs — keep this list narrow.
+const UNRECOVERABLE_WAREHOUSE_ERROR_SUBSTRINGS = [
+    'Not found:',
+    'not found:',
+    'Permission denied',
+    'permission denied',
+    'access denied',
+    'Access Denied',
+];
+
+export const isUnrecoverableWarehouseQueryError = (e: unknown): boolean => {
+    if (!(e instanceof WarehouseQueryError)) return false;
+    const message = e.message ?? '';
+    return UNRECOVERABLE_WAREHOUSE_ERROR_SUBSTRINGS.some((s) =>
+        message.includes(s),
+    );
 };
 
 export default class SchedulerTask {
@@ -3251,7 +3274,8 @@ export default class SchedulerTask {
                 e instanceof ForbiddenError ||
                 e instanceof MissingConfigError ||
                 e instanceof UnexpectedGoogleSheetsError ||
-                e instanceof WarehouseConnectionError;
+                e instanceof WarehouseConnectionError ||
+                isUnrecoverableWarehouseQueryError(e);
 
             if (
                 this.slackClient.isEnabled &&
