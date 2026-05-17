@@ -29,7 +29,7 @@ overrides:
   handlebars: 4.7.9
   basic-ftp: 5.2.1
   vite@>=7.0.0 <7.3.2: 7.3.2
-  systeminformation: 5.31.0
+  systeminformation: 5.31.6
   path-to-regexp@0.1.12: 0.1.13
   ajv@<6.14.0: 6.15.0
   ajv@>=8.0.0 <8.18.0: 8.18.0
@@ -15271,8 +15271,8 @@ packages:
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
-  systeminformation@5.31.0:
-    resolution: {integrity: sha512-z5pjzvC8UnQJ/iu34z+mo3lAeMzTGdArjPQoG5uPyV5XY4BY+M6ZcRTl4XnZqudz6sP713LhWMKv6e0kGFGCgQ==}
+  systeminformation@5.31.6:
+    resolution: {integrity: sha512-Uv2b2uGGM6ns+26czgW2cYRabYdnswM0ddSOOlryHOaelzsmDSet1iM/NT7VOYxW8x/BW+HkY+b1Ve2pLTSGSA==}
     engines: {node: '>=8.0.0'}
     os: [darwin, linux, win32, freebsd, openbsd, netbsd, sunos, android]
     hasBin: true
@@ -31440,7 +31440,7 @@ snapshots:
       async: 3.2.6
       debug: 4.4.3(supports-color@9.1.0)
       pidusage: 2.0.21
-      systeminformation: 5.31.0
+      systeminformation: 5.31.6
       tx2: 1.0.5
     transitivePeerDependencies:
       - supports-color
@@ -33813,7 +33813,7 @@ snapshots:
 
   symbol-tree@3.2.4: {}
 
-  systeminformation@5.31.0:
+  systeminformation@5.31.6:
     optional: true
 
   tabbable@6.2.0: {}
