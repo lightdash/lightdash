@@ -29,3 +29,5 @@ minimumReleaseAgeExclude:
   - basic-ftp@5.3.1
   # Renovate security update: uuid@11.1.1
   - uuid@11.1.1
+  # Renovate security update: pm2@7.0.0
+  - pm2@7.0.0
