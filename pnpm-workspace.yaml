@@ -17,6 +17,8 @@ minimumReleaseAgeExclude:
   - postcss@8.5.10
   # Renovate security update: i18next-http-backend@3.0.5
   - i18next-http-backend@3.0.5
+  # Renovate security update: simple-git@3.36.0
+  - simple-git@3.36.0
   # Renovate security update: dompurify@3.4.0
   - dompurify@3.4.0
   # Renovate security update: yaml@2.8.3
@@ -25,3 +27,5 @@ minimumReleaseAgeExclude:
   - systeminformation@5.31.6
   # Renovate security update: basic-ftp@5.3.1
   - basic-ftp@5.3.1
+  # Renovate security update: uuid@11.1.1
+  - uuid@11.1.1
