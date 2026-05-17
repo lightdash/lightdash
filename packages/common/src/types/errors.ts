@@ -310,6 +310,27 @@ export class WarehouseQueryError extends LightdashError {
     }
 }
 
+// Subclass for cases where the warehouse reports the target object doesn't
+// exist (table dropped, schema renamed, dataset deleted). The query will
+// never succeed without operator action — scheduled jobs should auto-disable.
+export class WarehouseObjectNotFoundError extends WarehouseQueryError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super(message, data);
+        this.name = 'WarehouseObjectNotFoundError';
+    }
+}
+
+// Subclass for cases where the warehouse rejects the request for lack of
+// permission (revoked role, expired service account, IAM policy change).
+// Same auto-disable contract as WarehouseObjectNotFoundError — won't fix
+// itself on retry.
+export class WarehousePermissionDeniedError extends WarehouseQueryError {
+    constructor(message: string, data: { [key: string]: AnyType } = {}) {
+        super(message, data);
+        this.name = 'WarehousePermissionDeniedError';
+    }
+}
+
 export class SmptError extends LightdashError {
     constructor(message: string, data: { [key: string]: AnyType } = {}) {
         super({
@@ -814,6 +835,10 @@ const RECONSTRUCTABLE_LIGHTDASH_ERRORS: Record<
     (message: string) => LightdashError
 > = {
     WarehouseQueryError: (message) => new WarehouseQueryError(message),
+    WarehouseObjectNotFoundError: (message) =>
+        new WarehouseObjectNotFoundError(message),
+    WarehousePermissionDeniedError: (message) =>
+        new WarehousePermissionDeniedError(message),
     WarehouseConnectionError: (message) =>
         new WarehouseConnectionError(message),
     NotFoundError: (message) => new NotFoundError(message),

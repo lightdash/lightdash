@@ -25,6 +25,8 @@ import {
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
+    WarehouseObjectNotFoundError,
+    WarehousePermissionDeniedError,
     WarehouseQueryError,
     WarehouseResults,
     WarehouseTypes,
@@ -562,8 +564,17 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         }
         switch (error?.reason) {
             case 'accessDenied':
-                return new WarehouseQueryError(
+                return new WarehousePermissionDeniedError(
                     error?.message || 'Bigquery warehouse error: access denied',
+                );
+
+            // BigQuery returns reason='notFound' when the referenced table,
+            // view, dataset, or routine doesn't exist. Retry is futile.
+            case 'notFound':
+                return new WarehouseObjectNotFoundError(
+                    `Bigquery warehouse error: notFound${
+                        error?.message ? ` - ${error.message}` : ''
+                    }`,
                 );
 
             // if query is mistyped

@@ -92,7 +92,8 @@ import {
     ValidateProjectPayload,
     VizColumn,
     WarehouseConnectionError,
-    WarehouseQueryError,
+    WarehouseObjectNotFoundError,
+    WarehousePermissionDeniedError,
     type Account as AccountType,
     type BatchDeliveryResult,
     type DeliveryResult,
@@ -194,27 +195,19 @@ export type SchedulerTaskArguments = {
     preAggregateMaterializationService: PreAggregateMaterializationService;
 };
 
-// Substrings on warehouse query errors that indicate the underlying object
-// will not come back on its own (table dropped, permission revoked).
-// Re-running the query is futile, so the scheduler should auto-disable.
-// Tuned conservatively after an earlier incident where an over-eager
-// disable predicate turned off working syncs — keep this list narrow.
-const UNRECOVERABLE_WAREHOUSE_ERROR_SUBSTRINGS = [
-    'Not found:',
-    'not found:',
-    'Permission denied',
-    'permission denied',
-    'access denied',
-    'Access Denied',
-];
-
-export const isUnrecoverableWarehouseQueryError = (e: unknown): boolean => {
-    if (!(e instanceof WarehouseQueryError)) return false;
-    const message = e.message ?? '';
-    return UNRECOVERABLE_WAREHOUSE_ERROR_SUBSTRINGS.some((s) =>
-        message.includes(s),
-    );
-};
+// Predicate for whether a Google Sheets sync failure indicates an
+// unrecoverable condition — the underlying resource (warehouse table,
+// project, dashboard) won't come back on its own, so retrying is futile
+// and the scheduler should auto-disable. Tuned conservatively so that
+// transient warehouse errors (timeouts, quotas, syntax) keep retrying.
+export const shouldDisableGsheetsSync = (e: unknown): boolean =>
+    e instanceof NotFoundError ||
+    e instanceof ForbiddenError ||
+    e instanceof MissingConfigError ||
+    e instanceof UnexpectedGoogleSheetsError ||
+    e instanceof WarehouseConnectionError ||
+    e instanceof WarehouseObjectNotFoundError ||
+    e instanceof WarehousePermissionDeniedError;
 
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
@@ -3269,13 +3262,7 @@ export default class SchedulerTask {
                 },
             });
 
-            const shouldDisableSync =
-                e instanceof NotFoundError ||
-                e instanceof ForbiddenError ||
-                e instanceof MissingConfigError ||
-                e instanceof UnexpectedGoogleSheetsError ||
-                e instanceof WarehouseConnectionError ||
-                isUnrecoverableWarehouseQueryError(e);
+            const shouldDisableSync = shouldDisableGsheetsSync(e);
 
             if (
                 this.slackClient.isEnabled &&

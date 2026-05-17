@@ -10,12 +10,13 @@
  *        stripped the original class, so even adding WarehouseQueryError
  *        to the list above wouldn't have helped.
  *
- * Fix: errors are now persisted with their class name (`error_name`
- *      column) and reconstructed via `reconstructLightdashError`.
- *      The shouldDisableSync gate also includes
- *      `isUnrecoverableWarehouseQueryError`, which substring-matches
- *      WarehouseQueryError messages so transient errors don't trigger
- *      the over-eager-disable regression seen previously.
+ * Fix: warehouse adapters now throw typed subclasses for unrecoverable
+ *      query errors (`WarehouseObjectNotFoundError`,
+ *      `WarehousePermissionDeniedError`). Errors are persisted with
+ *      their class name (`error_name` column) and rehydrated via
+ *      `reconstructLightdashError` so `instanceof` survives the round
+ *      trip through query_history. `shouldDisableSync` then uses pure
+ *      type-based checks, no message substring matching.
  *
  * Exit 0 = fix verified. Exit 1 = bug still present.
  */
@@ -27,9 +28,10 @@ import {
     reconstructLightdashError,
     UnexpectedGoogleSheetsError,
     WarehouseConnectionError,
+    WarehouseObjectNotFoundError,
+    WarehousePermissionDeniedError,
     WarehouseQueryError,
 } from '@lightdash/common';
-import { isUnrecoverableWarehouseQueryError } from '../packages/backend/src/scheduler/SchedulerTask';
 
 const sep = '────────────────────────────────────────────────────────────';
 
@@ -41,7 +43,8 @@ function shouldDisableSync(e: unknown): boolean {
         e instanceof MissingConfigError ||
         e instanceof UnexpectedGoogleSheetsError ||
         e instanceof WarehouseConnectionError ||
-        isUnrecoverableWarehouseQueryError(e)
+        e instanceof WarehouseObjectNotFoundError ||
+        e instanceof WarehousePermissionDeniedError
     );
 }
 
@@ -54,25 +57,31 @@ function check(label: string, actual: unknown, expected: unknown) {
     console.log(`  ${ok ? '✓' : '✗'} ${label}: actual=${actual} expected=${expected}`);
 }
 
-// --- Bug A fix: WarehouseQueryError with notFound message disables sync ---
-console.log(`${sep}\nBUG A FIX: WarehouseQueryError + notFound message → disable\n${sep}`);
-const notFoundErr = new WarehouseQueryError(
+// --- Bug A fix: typed subclass disables sync, generic does not ---
+console.log(`${sep}\nBUG A FIX: typed subclass → disable, generic → no disable\n${sep}`);
+const notFoundErr = new WarehouseObjectNotFoundError(
     'Bigquery warehouse error: notFound - Not found: Table my-project:my_dataset.my_table was not found in location us-central1',
 );
-check('shouldDisableSync(notFound WarehouseQueryError)', shouldDisableSync(notFoundErr), true);
+check('shouldDisableSync(WarehouseObjectNotFoundError)', shouldDisableSync(notFoundErr), true);
 
-console.log('\n  Conservative: don\'t disable on transient errors:');
+const permissionErr = new WarehousePermissionDeniedError(
+    'Bigquery warehouse error: access denied',
+);
+check('shouldDisableSync(WarehousePermissionDeniedError)', shouldDisableSync(permissionErr), true);
+
+console.log('\n  Conservative: don\'t disable on generic WarehouseQueryError:');
 const transientErr = new WarehouseQueryError('Query exceeded timeout of 300s');
-check('shouldDisableSync(transient WarehouseQueryError)', shouldDisableSync(transientErr), false);
+check('shouldDisableSync(generic WarehouseQueryError)', shouldDisableSync(transientErr), false);
 
 // --- Bug B fix: type survives a DB round-trip via reconstructLightdashError ---
 console.log(`\n${sep}\nBUG B FIX: errorName + reconstructLightdashError round-trip\n${sep}`);
-console.log(`  Simulating query_history.error_name="WarehouseQueryError" being read back:`);
+console.log(`  Simulating query_history.error_name="WarehouseObjectNotFoundError" being read back:`);
 const rehydrated = reconstructLightdashError(
-    'WarehouseQueryError',
+    'WarehouseObjectNotFoundError',
     'Bigquery warehouse error: notFound - Not found: Table my-project:my_dataset.my_table was not found in location us-central1',
 );
-check('rehydrated instanceof WarehouseQueryError', rehydrated instanceof WarehouseQueryError, true);
+check('rehydrated instanceof WarehouseObjectNotFoundError', rehydrated instanceof WarehouseObjectNotFoundError, true);
+check('rehydrated also instanceof WarehouseQueryError (subclass contract)', rehydrated instanceof WarehouseQueryError, true);
 check('shouldDisableSync(rehydrated)', shouldDisableSync(rehydrated), true);
 
 console.log('\n  Backwards compat: null error_name → plain Error, no disable:');

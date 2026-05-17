@@ -5,6 +5,8 @@ import {
     NotFoundError,
     reconstructLightdashError,
     WarehouseConnectionError,
+    WarehouseObjectNotFoundError,
+    WarehousePermissionDeniedError,
     WarehouseQueryError,
 } from './errors';
 
@@ -16,6 +18,8 @@ describe('reconstructLightdashError', () => {
     // through the database.
     it.each([
         ['WarehouseQueryError', WarehouseQueryError],
+        ['WarehouseObjectNotFoundError', WarehouseObjectNotFoundError],
+        ['WarehousePermissionDeniedError', WarehousePermissionDeniedError],
         ['WarehouseConnectionError', WarehouseConnectionError],
         ['NotFoundError', NotFoundError],
         ['ForbiddenError', ForbiddenError],
@@ -48,13 +52,15 @@ describe('reconstructLightdashError', () => {
         expect(err.message).toBe('message');
     });
 
-    it('preserves the original BigQuery notFound message shape', () => {
-        // Matches the shape emitted by BigqueryWarehouseClient.parseError
-        // when a referenced table no longer exists in the warehouse.
-        const message =
-            'Bigquery warehouse error: notFound - Not found: Table my-project:my_dataset.my_table was not found in location us-central1';
-        const err = reconstructLightdashError('WarehouseQueryError', message);
+    it('reconstructed WarehouseObjectNotFoundError is also a WarehouseQueryError', () => {
+        // Subclass contract: code that catches the parent class continues
+        // to work after the round-trip — the type hierarchy survives.
+        const err = reconstructLightdashError(
+            'WarehouseObjectNotFoundError',
+            'Bigquery warehouse error: notFound - Not found: Table my-project:my_dataset.my_table was not found in location us-central1',
+        );
+        expect(err).toBeInstanceOf(WarehouseObjectNotFoundError);
         expect(err).toBeInstanceOf(WarehouseQueryError);
-        expect(err.message).toBe(message);
+        expect(err).toBeInstanceOf(LightdashError);
     });
 });
