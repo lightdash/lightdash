@@ -6,6 +6,7 @@ import {
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    FeatureFlags,
     type ApiErrorDetail,
     type ChartConfig,
     type ChartType,
@@ -34,6 +35,7 @@ import {
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
     selectSavedChart,
+    selectSorts,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
     selectUnsavedColorPaletteUuid,
@@ -46,6 +48,7 @@ import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -56,6 +59,7 @@ import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
+import SortButton from '../../SortButton';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
@@ -88,6 +92,13 @@ const VisualizationCard: FC<Props> = memo((props) => {
 
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
+
+    const sorts = useExplorerSelector(selectSorts);
+
+    const { data: pivotColumnSortFlag } = useServerFeatureFlag(
+        FeatureFlags.PivotColumnSort,
+    );
+    const isPivotColumnSortEnabled = pivotColumnSortFlag?.enabled ?? false;
 
     const projectUuid = savedChart?.projectUuid || fallBackUUid;
     const stagedColorPaletteUuid = useExplorerSelector(
@@ -350,17 +361,28 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     onToggle={toggleSection}
                     headerElement={
                         isOpen && (
-                            <VisualizationWarning
-                                dirtyPivotConfiguration={
-                                    dirtyPivotConfiguration
-                                }
-                                chartConfig={unsavedChartVersion.chartConfig}
-                                resultsData={resultsData}
-                                isLoading={isLoadingQueryResults}
-                                maxColumnLimit={
-                                    health.data?.pivotTable?.maxColumnLimit
-                                }
-                            />
+                            <>
+                                {isPivotColumnSortEnabled &&
+                                    sorts.length > 0 && (
+                                        <SortButton
+                                            sorts={sorts}
+                                            isEditMode={isEditMode}
+                                        />
+                                    )}
+                                <VisualizationWarning
+                                    dirtyPivotConfiguration={
+                                        dirtyPivotConfiguration
+                                    }
+                                    chartConfig={
+                                        unsavedChartVersion.chartConfig
+                                    }
+                                    resultsData={resultsData}
+                                    isLoading={isLoadingQueryResults}
+                                    maxColumnLimit={
+                                        health.data?.pivotTable?.maxColumnLimit
+                                    }
+                                />
+                            </>
                         )
                     }
                     rightHeaderElement={
