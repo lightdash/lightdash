@@ -392,6 +392,11 @@ const AssistantBubbleContent: FC<{
                             s.kind === 'text',
                     );
                     const latestTextSeg = textSegments[textSegments.length - 1];
+                    // bridges the gap between artifact landing and closing text.
+                    const showFinishingUp =
+                        isStreaming &&
+                        !!message.artifacts?.length &&
+                        segments[segments.length - 1]?.kind !== 'text';
                     const finalAnswerMd = latestTextSeg ? (
                         <Box
                             className={`${styles.aiMarkdown} ${
@@ -491,6 +496,9 @@ const AssistantBubbleContent: FC<{
                                     {finalAnswerMd}
                                 </Box>
                             ) : null}
+                            {showFinishingUp && (
+                                <TypingDots label="Finishing up" />
+                            )}
                         </Stack>
                     );
                 }
@@ -689,8 +697,10 @@ export const AssistantBubble: FC<Props> = memo(
                 message.uuid,
             ) || isPending;
 
-        const isArtifactAvailable =
-            !!(message.artifacts && message.artifacts.length > 0) && !isPending;
+        // status flips to 'idle' only at stream end; artifacts land earlier.
+        const isArtifactAvailable = !!(
+            message.artifacts && message.artifacts.length > 0
+        );
 
         return (
             <Stack
