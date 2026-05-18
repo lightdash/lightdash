@@ -428,6 +428,7 @@ const toOptimisticContextItem = (
         ? {
               type: 'chart',
               chartUuid: item.chartUuid,
+              chartSlug: item.chartSlug ?? null,
               displayName: null,
               pinnedVersionUuid: null,
               chartKind: null,
@@ -435,6 +436,7 @@ const toOptimisticContextItem = (
           }
         : {
               ...item,
+              dashboardSlug: item.dashboardSlug ?? null,
               displayName: null,
               pinnedVersionUuid: null,
           };

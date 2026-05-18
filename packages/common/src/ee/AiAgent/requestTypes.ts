@@ -89,9 +89,14 @@ export type AiPromptContextItemInput =
     | {
           type: 'chart';
           chartUuid: string;
+          chartSlug?: string | null;
           runtimeOverrides?: AiChartRuntimeOverrides;
       }
-    | { type: 'dashboard'; dashboardUuid: string };
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+          dashboardSlug?: string | null;
+      };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
 
@@ -99,6 +104,7 @@ export type AiPromptContextItem =
     | {
           type: 'chart';
           chartUuid: string;
+          chartSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
           runtimeOverrides: AiChartRuntimeOverrides | null;
@@ -107,6 +113,7 @@ export type AiPromptContextItem =
     | {
           type: 'dashboard';
           dashboardUuid: string;
+          dashboardSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
       };
