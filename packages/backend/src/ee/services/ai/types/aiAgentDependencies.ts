@@ -57,6 +57,7 @@ export type FindExploresFn = (args: {
         searchRank?: number;
         description?: string;
         chartUsage?: number;
+        verifiedChartUsage?: number;
     }>;
 }>;
 

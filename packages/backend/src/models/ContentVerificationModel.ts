@@ -1,5 +1,6 @@
 import {
     ContentType,
+    DBFieldTypes,
     type ContentVerificationInfo,
     type VerifiedContentListItem,
 } from '@lightdash/common';
@@ -9,7 +10,11 @@ import {
     type CreateDbContentVerification,
 } from '../database/entities/contentVerification';
 import { DashboardsTableName } from '../database/entities/dashboards';
-import { SavedChartsTableName } from '../database/entities/savedCharts';
+import {
+    SavedChartsTableName,
+    SavedChartVersionFieldsTableName,
+    SavedChartVersionsTableName,
+} from '../database/entities/savedCharts';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 
@@ -218,5 +223,59 @@ export class ContentVerificationModel {
             },
             verifiedAt: row.verified_at,
         }));
+    }
+
+    async getVerifiedFieldUsage(
+        projectUuid: string,
+    ): Promise<Map<string, number>> {
+        const rows = await this.database(ContentVerificationTableName)
+            .innerJoin(
+                SavedChartsTableName,
+                `${ContentVerificationTableName}.content_uuid`,
+                `${SavedChartsTableName}.saved_query_uuid`,
+            )
+            .innerJoin(
+                SavedChartVersionsTableName,
+                `${SavedChartsTableName}.saved_query_id`,
+                `${SavedChartVersionsTableName}.saved_query_id`,
+            )
+            .innerJoin(
+                SavedChartVersionFieldsTableName,
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                `${SavedChartVersionFieldsTableName}.saved_queries_version_id`,
+            )
+            .where(`${ContentVerificationTableName}.project_uuid`, projectUuid)
+            .where(
+                `${ContentVerificationTableName}.content_type`,
+                ContentType.CHART,
+            )
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .where(
+                `${SavedChartVersionsTableName}.saved_queries_version_id`,
+                this.database.raw(
+                    `(SELECT MAX(saved_queries_version_id) FROM ${SavedChartVersionsTableName} WHERE saved_query_id = ${SavedChartsTableName}.saved_query_id)`,
+                ),
+            )
+            .groupBy(
+                `${SavedChartVersionFieldsTableName}.name`,
+                `${SavedChartVersionFieldsTableName}.field_type`,
+            )
+            .select({
+                field_id: `${SavedChartVersionFieldsTableName}.name`,
+                field_type: `${SavedChartVersionFieldsTableName}.field_type`,
+                usage: this.database.raw(
+                    `count(distinct ${SavedChartsTableName}.saved_query_id)`,
+                ),
+            });
+
+        const result = new Map<string, number>();
+        for (const row of rows as Array<{
+            field_id: string;
+            field_type: DBFieldTypes;
+            usage: string;
+        }>) {
+            result.set(`${row.field_id}::${row.field_type}`, Number(row.usage));
+        }
+        return result;
     }
 }

@@ -51,6 +51,7 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
             )}
             searchRank={catalogField.searchRank}
             chartUsage={catalogField.chartUsage}
+            usageInVerifiedCharts={catalogField.verifiedChartUsage ?? 0}
             isFromJoinedTable={isFromJoinedTable}
         >
             {isFromJoinedTable && explore && (
@@ -169,6 +170,8 @@ export const getFindFields = ({
                                             fieldType: field.fieldType,
                                             searchRank: field.searchRank,
                                             chartUsage: field.chartUsage,
+                                            verifiedChartUsage:
+                                                field.verifiedChartUsage,
                                         }),
                                     ),
                                     pagination:

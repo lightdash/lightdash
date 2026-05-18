@@ -92,6 +92,7 @@ const generateExploreResponse = ({
                         fieldType={field.fieldType}
                         searchRank={field.searchRank?.toFixed(3) ?? 'N/A'}
                         usageInCharts={field.chartUsage ?? 0}
+                        usageInVerifiedCharts={field.verifiedChartUsage ?? 0}
                     />
                 ))}
             </topMatchingFields>
@@ -148,6 +149,8 @@ export const getFindExplores = ({
                                     fieldType: field.fieldType,
                                     searchRank: field.searchRank,
                                     chartUsage: field.chartUsage,
+                                    verifiedChartUsage:
+                                        field.verifiedChartUsage,
                                 }),
                             ),
                         },
