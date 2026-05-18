@@ -62,7 +62,16 @@ export const AGENT_SUGGESTION_TOOLS = [
 
 export type AgentSuggestionTool = (typeof AGENT_SUGGESTION_TOOLS)[number];
 
-export type AgentSuggestion = {
+export const AGENT_SUGGESTION_ACTIONS = [
+    'saveAsChart',
+    'pinToDashboard',
+    'openInExplore',
+] as const;
+
+export type AgentSuggestionAction = (typeof AGENT_SUGGESTION_ACTIONS)[number];
+
+export type AgentSuggestionPromptChip = {
+    kind: 'prompt';
     label: string;
     tool: AgentSuggestionTool;
     defaults: {
@@ -71,3 +80,14 @@ export type AgentSuggestion = {
         timeframe: string | null;
     };
 };
+
+export type AgentSuggestionActionChip = {
+    kind: 'action';
+    label: string;
+    action: AgentSuggestionAction;
+    artifactUuid: string;
+};
+
+export type AgentSuggestion =
+    | AgentSuggestionPromptChip
+    | AgentSuggestionActionChip;

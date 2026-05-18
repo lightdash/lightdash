@@ -337,12 +337,14 @@ export class AiAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Path() agentUuid: string,
+        @Query() threadUuid?: string,
+        @Query() afterMessageUuid?: string,
     ): Promise<ApiAgentSuggestionsResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         const results = await this.getAiAgentService().getAgentSuggestions(
             toSessionUser(req.account),
-            { projectUuid, agentUuid },
+            { projectUuid, agentUuid, threadUuid, afterMessageUuid },
         );
         return {
             status: 'ok',
