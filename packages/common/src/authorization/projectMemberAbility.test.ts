@@ -1253,6 +1253,32 @@ describe('Project member permissions', () => {
                     ).toEqual(false);
                 });
             });
+
+            describe('SourceCode', () => {
+                it('can manage SourceCode on a non-protected branch', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('SourceCode', {
+                                projectUuid,
+                                isProtectedBranch: false,
+                            }),
+                        ),
+                    ).toEqual(true);
+                });
+
+                it('cannot manage SourceCode on a protected branch', () => {
+                    expect(
+                        ability.can(
+                            'manage',
+                            subject('SourceCode', {
+                                projectUuid,
+                                isProtectedBranch: true,
+                            }),
+                        ),
+                    ).toEqual(false);
+                });
+            });
         });
         describe('when user is a viewer', () => {
             beforeEach(() => {
