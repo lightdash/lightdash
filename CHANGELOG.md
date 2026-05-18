@@ -1,3 +1,10 @@
+# [0.2969.0](https://github.com/lightdash/lightdash/compare/0.2968.0...0.2969.0) (2026-05-18)
+
+
+### Features
+
+* **cli:** support spark dbt adapter in deploy command ([#23253](https://github.com/lightdash/lightdash/issues/23253)) ([11b62f2](https://github.com/lightdash/lightdash/commit/11b62f234b16e45a32f65f1eb2d10f711a3be084)), closes [#21592](https://github.com/lightdash/lightdash/issues/21592) [#21592](https://github.com/lightdash/lightdash/issues/21592)
+
 # [0.2968.0](https://github.com/lightdash/lightdash/compare/0.2967.0...0.2968.0) (2026-05-18)
 
 
