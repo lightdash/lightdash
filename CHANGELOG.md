@@ -1,3 +1,18 @@
+# [0.2964.0](https://github.com/lightdash/lightdash/compare/0.2963.0...0.2964.0) (2026-05-18)
+
+
+### Bug Fixes
+
+* **ai:** render artifact viz on tool result, defer only panel auto-open ([#23224](https://github.com/lightdash/lightdash/issues/23224)) ([beb8a1f](https://github.com/lightdash/lightdash/commit/beb8a1f365eb0df69eb81dda32ab77f305d7b352)), closes [#23064](https://github.com/lightdash/lightdash/issues/23064) [pre-#23064](https://github.com/pre-/issues/23064)
+* improve geoJsonProxyController security ([#23218](https://github.com/lightdash/lightdash/issues/23218)) ([bcbfca9](https://github.com/lightdash/lightdash/commit/bcbfca99d262903189c8495189fec9af306a00f6))
+* **prod-7767:** pass isProtectedBranch in SourceCode gating subjects ([#23205](https://github.com/lightdash/lightdash/issues/23205)) ([5d8844a](https://github.com/lightdash/lightdash/commit/5d8844af070f3fb6932787bcd022aa7a615012ad))
+* **spaces:** include chain-inherited spaces under "Shared with me" filter ([#23221](https://github.com/lightdash/lightdash/issues/23221)) ([67859da](https://github.com/lightdash/lightdash/commit/67859da2e32fa341f00218a081eb34d758ea33ea))
+
+
+### Features
+
+* **apps:** UI for scheduling data app deliveries ([#23084](https://github.com/lightdash/lightdash/issues/23084)) ([ad8523f](https://github.com/lightdash/lightdash/commit/ad8523fa2e69dec1cd0e4f9ba34542c6084192bb))
+
 # [0.2963.0](https://github.com/lightdash/lightdash/compare/0.2962.2...0.2963.0) (2026-05-18)
 
 
