@@ -1,3 +1,10 @@
+## [0.2962.1](https://github.com/lightdash/lightdash/compare/0.2962.0...0.2962.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* use explicit column selects for MCP server queries ([#23212](https://github.com/lightdash/lightdash/issues/23212)) ([6562fa4](https://github.com/lightdash/lightdash/commit/6562fa4fed3d3f1f5d0f71be4220413c5f371627))
+
 # [0.2962.0](https://github.com/lightdash/lightdash/compare/0.2961.1...0.2962.0) (2026-05-18)
 
 
