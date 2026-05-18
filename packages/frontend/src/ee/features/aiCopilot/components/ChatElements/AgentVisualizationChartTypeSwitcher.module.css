@@ -1,0 +1,33 @@
+.pillRoot {
+    background: transparent;
+    padding: 0;
+    border-radius: 999px;
+}
+
+.pillControl {
+    border: none;
+}
+
+.pillIndicator {
+    background: rgba(255, 255, 255, 0.16);
+    border-radius: 999px;
+    box-shadow: none;
+}
+
+.pillLabel {
+    color: rgba(255, 255, 255, 0.55);
+    padding: 4px 8px;
+    border-radius: 999px;
+    transition:
+        color 120ms ease,
+        background 120ms ease;
+}
+
+.pillLabel[data-active] {
+    color: var(--mantine-color-white);
+}
+
+.pillLabel:not([data-active]):hover {
+    color: rgba(255, 255, 255, 0.85);
+    background: rgba(255, 255, 255, 0.06);
+}

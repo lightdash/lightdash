@@ -8,8 +8,6 @@
         0 1px 2px rgba(0, 0, 0, 0.04),
         0 8px 24px rgba(0, 0, 0, 0.06),
         0 32px 80px rgba(0, 0, 0, 0.08);
-    display: grid;
-    grid-template-rows: auto 1fr;
     overflow: visible;
     position: relative;
 }

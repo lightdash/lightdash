@@ -1,126 +1,51 @@
 import {
     AiResultType,
-    ChartType,
-    ECHARTS_DEFAULT_COLORS,
     getGroupByDimensions,
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
-    type ApiError,
-    type ChartConfig,
-    type EChartsSeries,
     type ToolRunQueryArgs,
     type ToolTableVizArgs,
     type ToolTimeSeriesArgs,
     type ToolVerticalBarArgs,
 } from '@lightdash/common';
-import {
-    Box,
-    Center,
-    Group,
-    Stack,
-    Text,
-    useMantineColorScheme,
-} from '@mantine-8/core';
+import { Box, Center, Group, Stack, Text } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { type QueryObserverSuccessResult } from '@tanstack/react-query';
-import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
-import { useParams } from 'react-router';
+import { useMemo, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
 import LightdashVisualization from '../../../../../components/LightdashVisualization';
-import VisualizationProvider from '../../../../../components/LightdashVisualization/VisualizationProvider';
-import { DrillDownModal } from '../../../../../components/MetricQueryData/DrillDownModal';
-import MetricQueryDataProvider from '../../../../../components/MetricQueryData/MetricQueryDataProvider';
-import UnderlyingDataModal from '../../../../../components/MetricQueryData/UnderlyingDataModal';
-import { type EchartsSeriesClickEvent } from '../../../../../components/SimpleChart';
 import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
-import { useProjectColorPalette } from '../../../../../hooks/appearance/useProjectColorPalette';
 import useHealth from '../../../../../hooks/health/useHealth';
-import { useExplore } from '../../../../../hooks/useExplore';
-import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
 
 type Props = {
-    results: InfiniteQueryResults;
-    queryExecutionHandle: QueryObserverSuccessResult<
-        ApiAiAgentThreadMessageVizQuery,
-        ApiError
-    >;
+    vizQueryData: ApiAiAgentThreadMessageVizQuery;
     chartConfig:
         | ToolTableVizArgs
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
         | ToolRunQueryArgs;
+    selectedChartType: AiAgentChartTypeOption | null;
+    // When provided, an inline switcher is shown above the chart. Omit it
+    // (e.g. on the floating panel) when a parent renders its own switcher.
+    onChartTypeChange?: (type: AiAgentChartTypeOption) => void;
     headerContent?: ReactNode;
-
-    onDashboardChartTypeChange?: (type: AiAgentChartTypeOption) => void;
-    onDashboardChartConfigChange?: (config: ChartConfig) => void;
-
-    // When provided, chart type is controlled externally and the
-    // internal switcher is suppressed (parent renders its own, e.g.
-    // the floating pill on the artifact panel).
-    controlledChartType?: AiAgentChartTypeOption | null;
-    onControlledChartTypeChange?: (type: AiAgentChartTypeOption) => void;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
-    results,
-    queryExecutionHandle,
+    vizQueryData,
     chartConfig,
+    selectedChartType,
+    onChartTypeChange,
     headerContent,
-    onDashboardChartTypeChange: onDashboardChartTypeChangeProp,
-    onDashboardChartConfigChange: onDashboardChartConfigChangeProp,
-    controlledChartType,
-    onControlledChartTypeChange,
 }) => {
     const { data: health } = useHealth();
-    const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: resolvedPalette } = useProjectColorPalette(projectUuid);
-    const { colorScheme } = useMantineColorScheme();
 
-    const colorPalette = useMemo(() => {
-        if (colorScheme === 'dark' && resolvedPalette?.darkColors) {
-            return resolvedPalette.darkColors;
-        }
-        return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
-    }, [colorScheme, resolvedPalette]);
+    const { metricQuery, fields } = vizQueryData.query;
 
-    const { metricQuery, fields, resolvedTimezone } =
-        queryExecutionHandle.data.query;
-    const tableName = metricQuery?.exploreName;
-    const { data: explore } = useExplore(tableName);
-    const [echartsClickEvent, setEchartsClickEvent] =
-        useState<EchartsSeriesClickEvent | null>(null);
-    const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
-
-    // Initialize from cached data if available
-    const [internalChartType, setInternalChartType] =
-        useState<AiAgentChartTypeOption | null>(null);
-
-    const isControlled = controlledChartType !== undefined;
-    const selectedChartType = isControlled
-        ? (controlledChartType ?? null)
-        : internalChartType;
-
-    // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
-    const [expandedChartConfig, setExpandedChartConfig] = useState<
-        ChartConfig | undefined
-    >(undefined);
-
-    const resultsData = useMemo(
-        () => ({
-            ...results,
-            metricQuery,
-            fields,
-            resolvedTimezone: resolvedTimezone ?? undefined,
-        }),
-        [results, metricQuery, fields, resolvedTimezone],
-    );
-
-    const chartConfigFromAiAgentVizConfig = useMemo(
+    const webAiChartConfig = useMemo(
         () =>
             getWebAiChartConfig({
                 vizConfig: chartConfig,
@@ -139,53 +64,20 @@ export const AiVisualizationRenderer: FC<Props> = ({
     );
 
     const groupByDimensions: string[] | undefined = useMemo(
-        () => getGroupByDimensions(chartConfigFromAiAgentVizConfig),
-        [chartConfigFromAiAgentVizConfig],
+        () => getGroupByDimensions(webAiChartConfig),
+        [webAiChartConfig],
     );
 
-    const displayMetricsAndDimensions = useMemo(
-        () =>
-            queryExecutionHandle.data &&
-            queryExecutionHandle.data.type !== AiResultType.TABLE_RESULT &&
-            queryExecutionHandle.data.type !== AiResultType.QUERY_RESULT,
-        [queryExecutionHandle.data],
-    );
+    const displayMetricsAndDimensions =
+        vizQueryData.type !== AiResultType.TABLE_RESULT &&
+        vizQueryData.type !== AiResultType.QUERY_RESULT;
 
-    const defaultChartType =
-        chartConfigFromAiAgentVizConfig.type === AiResultType.QUERY_RESULT
-            ? (chartConfigFromAiAgentVizConfig.vizTool.chartConfig
-                  ?.defaultVizType ?? 'table')
+    const defaultChartType: AiAgentChartTypeOption =
+        webAiChartConfig.type === AiResultType.QUERY_RESULT
+            ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
-    const handleChartConfigChange = useCallback(
-        (newConfig: ChartConfig) => {
-            setExpandedChartConfig(newConfig);
-            onDashboardChartConfigChangeProp?.(newConfig);
-        },
-        [onDashboardChartConfigChangeProp],
-    );
-
-    const handleChartTypeChange = useCallback(
-        (type: AiAgentChartTypeOption) => {
-            if (isControlled) {
-                onControlledChartTypeChange?.(type);
-            } else {
-                setInternalChartType(type);
-            }
-
-            // Reset expanded chart config to allow re-expansion
-            setExpandedChartConfig(undefined);
-
-            onDashboardChartTypeChangeProp?.(type);
-        },
-        [
-            isControlled,
-            onControlledChartTypeChange,
-            onDashboardChartTypeChangeProp,
-        ],
-    );
-
-    if (!chartConfigFromAiAgentVizConfig.echartsConfig) {
+    if (!webAiChartConfig.echartsConfig) {
         return (
             <Center h={300}>
                 <Stack gap="xs" align="center">
@@ -199,118 +91,53 @@ export const AiVisualizationRenderer: FC<Props> = ({
     }
 
     return (
-        <MetricQueryDataProvider
-            metricQuery={metricQuery}
-            tableName={tableName}
-            explore={explore}
-            queryUuid={queryExecutionHandle.data.query.queryUuid}
-            resolvedTimezone={resolvedTimezone}
-        >
-            <VisualizationProvider
-                key={selectedChartType ?? 'default'}
-                resultsData={resultsData}
-                chartConfig={
-                    expandedChartConfig ??
-                    chartConfigFromAiAgentVizConfig.echartsConfig
-                }
-                parameters={
-                    queryExecutionHandle.data.query.usedParametersValues
-                }
-                columnOrder={[
-                    ...metricQuery.dimensions,
-                    ...metricQuery.metrics,
-                    ...metricQuery.tableCalculations.map((tc) => tc.name),
-                ]}
-                pivotTableMaxColumnLimit={
-                    health?.pivotTable.maxColumnLimit ?? 60
-                }
-                initialPivotDimensions={groupByDimensions}
-                colorPalette={colorPalette}
-                isLoading={resultsData.isFetchingRows}
-                onSeriesContextMenu={(
-                    e: EchartsSeriesClickEvent,
-                    series: EChartsSeries[],
-                ) => {
-                    setEchartsClickEvent(e);
-                    setEchartsSeries(series);
-                }}
-                onChartConfigChange={handleChartConfigChange}
-                unsavedMetricQuery={metricQuery}
-            >
-                <Stack gap="md" h="100%">
-                    {headerContent && headerContent}
-                    {chartConfigFromAiAgentVizConfig.type ===
-                        AiResultType.QUERY_RESULT &&
-                        !isControlled && (
-                            <Group justify="flex-end">
-                                <AgentVisualizationChartTypeSwitcher
-                                    metricQuery={metricQuery}
-                                    selectedChartType={
-                                        selectedChartType ?? defaultChartType
-                                    }
-                                    hasGroupByDimensions={
-                                        (groupByDimensions?.length ?? 0) > 0
-                                    }
-                                    onChartTypeChange={handleChartTypeChange}
-                                />
-                            </Group>
-                        )}
-                    <Box
-                        flex="1"
-                        style={{
-                            // Scrolling for tables
-                            overflow: 'auto',
-                        }}
-                    >
-                        <LightdashVisualization
-                            className="sentry-block ph-no-capture"
-                            data-testid="ai-visualization"
+        <Stack gap="md" h="100%">
+            {headerContent}
+            {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+                onChartTypeChange && (
+                    <Group justify="flex-end">
+                        <AgentVisualizationChartTypeSwitcher
+                            metricQuery={metricQuery}
+                            selectedChartType={
+                                selectedChartType ?? defaultChartType
+                            }
+                            hasGroupByDimensions={
+                                (groupByDimensions?.length ?? 0) > 0
+                            }
+                            onChartTypeChange={onChartTypeChange}
                         />
+                    </Group>
+                )}
+            <Box
+                flex="1"
+                style={{
+                    // Scrolling for tables
+                    overflow: 'auto',
+                }}
+            >
+                <LightdashVisualization
+                    className="sentry-block ph-no-capture"
+                    data-testid="ai-visualization"
+                />
+            </Box>
 
-                        {chartConfigFromAiAgentVizConfig.echartsConfig.type ===
-                            ChartType.CARTESIAN && (
-                            <SeriesContextMenu
-                                echartsSeriesClickEvent={
-                                    echartsClickEvent ?? undefined
-                                }
-                                dimensions={metricQuery.dimensions}
-                                series={echartsSeries}
-                                explore={explore}
-                            />
-                        )}
-                        <UnderlyingDataModal />
-                        <DrillDownModal />
-                    </Box>
+            <Stack gap="xs">
+                <ErrorBoundary>
+                    {displayMetricsAndDimensions && (
+                        <AgentVisualizationMetricsAndDimensions
+                            metricQuery={metricQuery}
+                            fieldsMap={fields}
+                        />
+                    )}
 
-                    <Stack gap="xs">
-                        <ErrorBoundary>
-                            {displayMetricsAndDimensions && (
-                                <AgentVisualizationMetricsAndDimensions
-                                    metricQuery={
-                                        queryExecutionHandle.data.query
-                                            .metricQuery
-                                    }
-                                    fieldsMap={
-                                        queryExecutionHandle.data.query.fields
-                                    }
-                                />
-                            )}
-
-                            {chartConfig.filters ? (
-                                <AgentVisualizationFilters
-                                    filters={
-                                        queryExecutionHandle.data.query
-                                            .metricQuery.filters
-                                    }
-                                    fieldsMap={
-                                        queryExecutionHandle.data.query.fields
-                                    }
-                                />
-                            ) : null}
-                        </ErrorBoundary>
-                    </Stack>
-                </Stack>
-            </VisualizationProvider>
-        </MetricQueryDataProvider>
+                    {chartConfig.filters ? (
+                        <AgentVisualizationFilters
+                            filters={metricQuery.filters}
+                            fieldsMap={fields}
+                        />
+                    ) : null}
+                </ErrorBoundary>
+            </Stack>
+        </Stack>
     );
 };

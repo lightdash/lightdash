@@ -16,7 +16,7 @@ import {
 } from '@mantine-8/core';
 import { useMediaQuery } from '@mantine-8/hooks';
 import { IconExclamationCircle, IconX } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -24,6 +24,7 @@ import { useAiAgentArtifactVizQuery } from '../../hooks/useProjectAiAgents';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
+import { AiVisualizationProviders } from './AiVisualizationProviders';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import { ViewSqlButton } from './ViewSqlButton';
 
@@ -35,11 +36,6 @@ type Props = {
     versionUuid: string;
     message: AiAgentMessageAssistant;
     showCloseButton?: boolean;
-    // When false, the legacy inline header (title/description/actions) is
-    // suppressed so a parent (e.g. the floating panel) can render its own.
-    showInlineHeader?: boolean;
-    controlledChartType?: AiAgentChartTypeOption | null;
-    onControlledChartTypeChange?: (type: AiAgentChartTypeOption) => void;
 };
 
 export const AiChartVisualization: FC<Props> = ({
@@ -50,12 +46,12 @@ export const AiChartVisualization: FC<Props> = ({
     versionUuid,
     message,
     showCloseButton = true,
-    showInlineHeader = true,
-    controlledChartType,
-    onControlledChartTypeChange,
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const isMobile = useMediaQuery('(max-width: 768px)');
+
+    const [selectedChartType, setSelectedChartType] =
+        useState<AiAgentChartTypeOption | null>(null);
 
     const vizConfig = useMemo(() => {
         if (!artifactData?.chartConfig) return null;
@@ -131,7 +127,7 @@ export const AiChartVisualization: FC<Props> = ({
         return null;
     }
 
-    const inlineHeaderContent = showInlineHeader ? (
+    const inlineHeaderContent = (
         <Group gap="md" align="start">
             <Stack gap={0} flex={1}>
                 <Title order={5}>
@@ -168,18 +164,24 @@ export const AiChartVisualization: FC<Props> = ({
                 )}
             </Group>
         </Group>
-    ) : undefined;
+    );
 
     return (
         <Stack gap="md" h="100%">
-            <AiVisualizationRenderer
-                results={queryResults}
-                queryExecutionHandle={queryExecutionHandle}
+            <AiVisualizationProviders
+                vizQueryData={queryExecutionHandle.data}
+                queryResults={queryResults}
                 chartConfig={artifactData.chartConfig!}
-                headerContent={inlineHeaderContent}
-                controlledChartType={controlledChartType}
-                onControlledChartTypeChange={onControlledChartTypeChange}
-            />
+                selectedChartType={selectedChartType}
+            >
+                <AiVisualizationRenderer
+                    vizQueryData={queryExecutionHandle.data}
+                    chartConfig={artifactData.chartConfig!}
+                    selectedChartType={selectedChartType}
+                    onChartTypeChange={setSelectedChartType}
+                    headerContent={inlineHeaderContent}
+                />
+            </AiVisualizationProviders>
         </Stack>
     );
 };

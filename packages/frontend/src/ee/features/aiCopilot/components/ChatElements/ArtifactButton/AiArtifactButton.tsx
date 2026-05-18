@@ -99,7 +99,16 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
     }
 
     return (
-        <motion.div layoutId={layoutId} style={{ display: 'block' }}>
+        <motion.div
+            layoutId={layoutId}
+            // Static dep prevents self-layout animations when the sidebar
+            // collapses/expands; the panel morph still triggers on mount.
+            layoutDependency={false}
+            transition={{
+                layout: { duration: 0.22, ease: [0.32, 0.72, 0, 1] },
+            }}
+            style={{ display: 'block' }}
+        >
             <UnstyledButton
                 className={styles.artifactButton}
                 data-artifact-open={isArtifactOpen}
