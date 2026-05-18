@@ -271,6 +271,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: `${DashboardsTableName}.dashboard_uuid` },
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -305,6 +306,7 @@ export class SearchModel {
             .groupBy(
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${ProjectTableName}.project_uuid`,

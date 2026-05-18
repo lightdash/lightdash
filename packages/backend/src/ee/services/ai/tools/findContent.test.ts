@@ -40,6 +40,7 @@ const makeMockDashboard = (
 ): DashboardSearchResult => ({
     uuid: 'dash-uuid-1',
     name: 'Test Dashboard',
+    slug: 'test-dashboard',
     description: 'A test dashboard',
     spaceUuid: 'space-uuid-1',
     projectUuid: 'project-uuid-1',
