@@ -48,6 +48,7 @@ export const getAggregatedField = (
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.TRINO:
