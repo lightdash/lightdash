@@ -51,7 +51,7 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
             )}
             searchRank={catalogField.searchRank}
             chartUsage={catalogField.chartUsage}
-            verifiedChartUsage={catalogField.verifiedChartUsage ?? 0}
+            usageInVerifiedCharts={catalogField.verifiedChartUsage ?? 0}
             isFromJoinedTable={isFromJoinedTable}
         >
             {isFromJoinedTable && explore && (

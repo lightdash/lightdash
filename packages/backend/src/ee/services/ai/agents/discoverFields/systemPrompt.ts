@@ -45,7 +45,7 @@ Look at the topMatchingFields and exploreSearchResults from findExplores. Compar
 Count DISTINCT explores in topMatchingFields. If 2+ distinct explores appear with scores within 0.15 of each other:
 
 - First check joined tables. If one explore's joinedTables include another entity the user mentioned, that explore can handle the whole query → status: "resolved". Proceed to Step 4.
-- Then check usageInVerifiedCharts on the fields. Verified charts are admin-approved as canonical for this project; their fields are the authoritative ones. If one explore has fields appearing in verified charts and the other has none, prefer the explore with verified usage → status: "resolved". Proceed to Step 4.
+- Then check usageInVerifiedCharts on the fields. Verified charts are admin-approved as canonical for this project. If exactly one explore has fields with non-zero usageInVerifiedCharts and all the others have zero, that's the answer → status: "resolved". Do NOT also present the alternatives to the user; verification IS the decision. Proceed to Step 4.
 - Then check usageInCharts. If one explore's fields have meaningfully higher aggregate usage (3x+), prefer it → status: "resolved". Proceed to Step 4.
 - If still tied (or all usages are 0 / equal) → status: "ambiguous". DO NOT call findFields. Call submitResult with the candidate explores and a suggestedQuestion.
 
