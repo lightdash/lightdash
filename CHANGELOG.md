@@ -1,3 +1,10 @@
+# [0.2961.0](https://github.com/lightdash/lightdash/compare/0.2960.2...0.2961.0) (2026-05-18)
+
+
+### Features
+
+* **data-apps:** restore older versions as new latest ([#23133](https://github.com/lightdash/lightdash/issues/23133)) ([9f427e8](https://github.com/lightdash/lightdash/commit/9f427e89c5c830abd2ed30db09fb6a1e1119ae10))
+
 ## [0.2960.2](https://github.com/lightdash/lightdash/compare/0.2960.1...0.2960.2) (2026-05-18)
 
 
