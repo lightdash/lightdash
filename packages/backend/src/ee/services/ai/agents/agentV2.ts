@@ -15,8 +15,6 @@ import { createHttpMcpClient } from '../AiAgentMcpRuntimeClient';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
-import { getFindExplores } from '../tools/findExplores';
-import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getImproveContext } from '../tools/improveContext';
@@ -110,56 +108,31 @@ const getAgentTools = async (
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    // Gated by FeatureFlags.AiDiscoverFieldsSubagent.
-    // When the flag is ON: register `discoverFields` (the subagent) and omit
-    // `findExplores`/`findFields` from the parent toolset entirely.
-    // When OFF: keep the legacy `findExplores` + `findFields` pair and omit
-    // `discoverFields`. The legacy tools' implementations are also what the
-    // subagent uses internally, so they always exist as factories.
-    const discoverFields = args.useDiscoverFieldsSubagent
-        ? getDiscoverFields(
-              {
-                  model: args.model,
-                  callOptions: args.callOptions,
-                  providerOptions: args.providerOptions,
-                  availableExplores,
-                  findExploresFieldSearchSize: args.findExploresFieldSearchSize,
-                  findFieldsPageSize: args.findFieldsPageSize,
-                  promptUuid: args.promptUuid,
-                  telemetry: {
-                      agentSettings: args.agentSettings,
-                      threadUuid: args.threadUuid,
-                      promptUuid: args.promptUuid,
-                      telemetryEnabled: args.telemetryEnabled,
-                  },
-              },
-              {
-                  findExplores: dependencies.findExplores,
-                  findFields: dependencies.findFields,
-                  getExplore: dependencies.getExplore,
-                  updateProgress: dependencies.updateProgress,
-                  storeToolCall: dependencies.storeToolCall,
-                  storeToolResults: dependencies.storeToolResults,
-              },
-          )
-        : null;
-
-    const findExplores = args.useDiscoverFieldsSubagent
-        ? null
-        : getFindExplores({
-              fieldSearchSize: args.findExploresFieldSearchSize,
-              findExplores: dependencies.findExplores,
-              updateProgress: dependencies.updateProgress,
-          });
-
-    const findFields = args.useDiscoverFieldsSubagent
-        ? null
-        : getFindFields({
-              getExplore: dependencies.getExplore,
-              findFields: dependencies.findFields,
-              updateProgress: dependencies.updateProgress,
-              pageSize: args.findFieldsPageSize,
-          });
+    const discoverFields = getDiscoverFields(
+        {
+            model: args.model,
+            callOptions: args.callOptions,
+            providerOptions: args.providerOptions,
+            availableExplores,
+            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
+            findFieldsPageSize: args.findFieldsPageSize,
+            promptUuid: args.promptUuid,
+            telemetry: {
+                agentSettings: args.agentSettings,
+                threadUuid: args.threadUuid,
+                promptUuid: args.promptUuid,
+                telemetryEnabled: args.telemetryEnabled,
+            },
+        },
+        {
+            findExplores: dependencies.findExplores,
+            findFields: dependencies.findFields,
+            getExplore: dependencies.getExplore,
+            updateProgress: dependencies.updateProgress,
+            storeToolCall: dependencies.storeToolCall,
+            storeToolResults: dependencies.storeToolResults,
+        },
+    );
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
@@ -235,9 +208,7 @@ const getAgentTools = async (
     const tools: ToolSet = {
         findContent,
         getDashboardCharts,
-        ...(discoverFields ? { discoverFields } : {}),
-        ...(findExplores ? { findExplores } : {}),
-        ...(findFields ? { findFields } : {}),
+        discoverFields,
         runQuery,
         runSavedChart,
         generateDashboard,
@@ -340,7 +311,6 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
-            useDiscoverFieldsSubagent: args.useDiscoverFieldsSubagent,
         }),
         ...args.messageHistory,
     ];
