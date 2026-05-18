@@ -229,6 +229,7 @@ export default class SchedulerApp {
         workerHealth: SchedulerWorkerHealth,
     ) {
         const app = express();
+        app.use(this.prometheusMetrics.httpServerRequestMetricsMiddleware());
         const server = http.createServer(app);
 
         createTerminus(server, {
