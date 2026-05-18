@@ -61,7 +61,7 @@
         var(--mantine-color-ldDark-4)
     );
     border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-6));
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
     border-radius: 10px;
     padding: 3px;
     box-shadow:

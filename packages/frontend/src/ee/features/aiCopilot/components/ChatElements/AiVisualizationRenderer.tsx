@@ -22,14 +22,7 @@ import {
     useMantineColorScheme,
 } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import {
-    useCallback,
-    useEffect,
-    useMemo,
-    useState,
-    type FC,
-    type ReactNode,
-} from 'react';
+import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
@@ -99,17 +92,24 @@ export const AiVisualizationRenderer: FC<Props> = ({
         useState<EchartsSeriesClickEvent | null>(null);
     const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
 
+    // Tag the cached expanded config with the chart type it was computed
+    // for. Switching types makes the cached entry "for the wrong type" and
+    // we synchronously fall back to webAiChartConfig.echartsConfig — no
+    // useEffect race, no stale render. Critical for line↔scatter (both
+    // ChartType.CARTESIAN) where the provider doesn't always resync from
+    // a prop change alone.
     const [expandedChartConfig, setExpandedChartConfig] = useState<
-        ChartConfig | undefined
+        | {
+              forChartType: AiAgentChartTypeOption | null;
+              config: ChartConfig;
+          }
+        | undefined
     >(undefined);
 
-    // Reset the expanded config whenever the chart type changes — without
-    // this, switching types keeps feeding the stale expanded config to the
-    // VisualizationProvider via `expandedChartConfig ?? webAiChartConfig`,
-    // so the chart appears unchanged even though selectedChartType moved.
-    useEffect(() => {
-        setExpandedChartConfig(undefined);
-    }, [selectedChartType]);
+    const activeExpandedChartConfig =
+        expandedChartConfig?.forChartType === selectedChartType
+            ? expandedChartConfig.config
+            : undefined;
 
     const resultsData = useMemo(
         () => ({
@@ -155,10 +155,13 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const handleChartConfigChange = useCallback(
         (newConfig: ChartConfig) => {
-            setExpandedChartConfig(newConfig);
+            setExpandedChartConfig({
+                forChartType: selectedChartType,
+                config: newConfig,
+            });
             onExpandedChartConfigChange?.(newConfig);
         },
-        [onExpandedChartConfigChange],
+        [onExpandedChartConfigChange, selectedChartType],
     );
 
     if (!webAiChartConfig.echartsConfig) {
@@ -186,7 +189,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
                 chartConfig={
-                    expandedChartConfig ?? webAiChartConfig.echartsConfig
+                    activeExpandedChartConfig ?? webAiChartConfig.echartsConfig
                 }
                 parameters={vizQueryData.query.usedParametersValues}
                 columnOrder={[

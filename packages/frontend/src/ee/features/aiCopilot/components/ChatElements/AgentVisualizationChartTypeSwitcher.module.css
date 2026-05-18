@@ -1,10 +1,7 @@
 .pillRoot {
     padding: 0;
     border-radius: 8px;
-    background: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-ldDark-2)
-    );
+    background: transparent;
 }
 
 .pillControl {
@@ -14,7 +11,7 @@
 .pillIndicator {
     background: light-dark(
         var(--mantine-color-ldGray-1),
-        var(--mantine-color-ldDark-6)
+        var(--mantine-color-ldDark-3)
     );
     border-radius: 6px;
     box-shadow: none;
@@ -47,7 +44,7 @@
 .pillLabel:not([data-active]):hover {
     color: light-dark(
         var(--mantine-color-ldGray-8),
-        var(--mantine-color-ldGray-3)
+        var(--mantine-color-ldDark-9)
     );
     background: light-dark(
         var(--mantine-color-ldGray-0),
