@@ -9,6 +9,7 @@ import {
     IconChevronRight,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
+import { motion } from 'motion/react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import styles from './AiArtifactButton.module.css';
@@ -44,46 +45,70 @@ export const AiArtifactButton: FC<AiArtifactButtonProps> = ({
         }
     }, [artifact]);
 
-    return (
-        <UnstyledButton
-            className={styles.artifactButton}
-            data-artifact-open={isArtifactOpen}
-            data-loading={isLoading}
-            onClick={onClick}
-            disabled={isLoading}
-        >
-            <Box className={styles.container}>
-                <Box className={styles.iconChip}>
-                    {isLoading ? (
-                        <Loader size={12} color="ldGray.5" />
-                    ) : (
-                        <MantineIcon
-                            icon={ArtifactIcon}
-                            size={14}
-                            stroke={1.5}
-                            className={styles.icon}
-                        />
-                    )}
-                </Box>
+    const layoutId = artifact
+        ? `ai-artifact-${artifact.artifactUuid}-${artifact.versionUuid}`
+        : undefined;
 
-                <Box className={styles.content}>
-                    {isLoading ? (
-                        <Text className={styles.loadingLabel}>Creating…</Text>
-                    ) : (
-                        displayTitle && (
-                            <Text className={styles.title}>{displayTitle}</Text>
-                        )
-                    )}
-                </Box>
-
-                {!isLoading && (
+    const innerBody = (
+        <Box className={styles.container}>
+            <Box className={styles.iconChip}>
+                {isLoading ? (
+                    <Loader size={12} color="ldGray.5" />
+                ) : (
                     <MantineIcon
-                        icon={IconChevronRight}
+                        icon={ArtifactIcon}
                         size={14}
-                        className={styles.chevron}
+                        stroke={1.5}
+                        className={styles.icon}
                     />
                 )}
             </Box>
-        </UnstyledButton>
+
+            <Box className={styles.content}>
+                {isLoading ? (
+                    <Text className={styles.loadingLabel}>Creating…</Text>
+                ) : (
+                    displayTitle && (
+                        <Text className={styles.title}>{displayTitle}</Text>
+                    )
+                )}
+            </Box>
+
+            {!isLoading && (
+                <MantineIcon
+                    icon={IconChevronRight}
+                    size={14}
+                    className={styles.chevron}
+                />
+            )}
+        </Box>
+    );
+
+    if (isArtifactOpen) {
+        return (
+            <UnstyledButton
+                className={styles.artifactButton}
+                data-artifact-open={isArtifactOpen}
+                data-loading={isLoading}
+                onClick={onClick}
+                disabled
+            >
+                {innerBody}
+            </UnstyledButton>
+        );
+    }
+
+    return (
+        <motion.div layoutId={layoutId} style={{ display: 'block' }}>
+            <UnstyledButton
+                className={styles.artifactButton}
+                data-artifact-open={isArtifactOpen}
+                data-loading={isLoading}
+                onClick={onClick}
+                disabled={isLoading}
+            >
+                {innerBody}
+            </UnstyledButton>
+        </motion.div>
     );
 };
