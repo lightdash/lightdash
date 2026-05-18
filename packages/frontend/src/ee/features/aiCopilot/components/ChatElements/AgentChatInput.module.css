@@ -179,10 +179,10 @@
 .minimalInputWrapper {
     position: relative;
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    width: 100%;
     border-radius: var(--mantine-radius-lg);
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-md);
-    padding-top: var(--mantine-spacing-sm);
+    overflow: hidden;
     transition:
         background-color 150ms ease,
         border-color 150ms ease;
@@ -205,6 +205,34 @@
         @mixin dark {
             border-color: var(--mantine-color-ldDark-5);
         }
+    }
+}
+
+.minimalInputRow {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-md);
+    padding-top: var(--mantine-spacing-sm);
+}
+
+/* ------------------------------------------------------------------ *
+ *  Chip strip lives INSIDE the input card. Visually it reads as a     *
+ *  header band of suggestions that flows into the input chrome, with  *
+ *  a soft divider separating it from the typing area below.           *
+ * ------------------------------------------------------------------ */
+.chipStrip {
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    padding-bottom: 0;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border-bottom: 1px solid var(--mantine-color-ldGray-1);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-2);
+        border-bottom: 1px solid var(--mantine-color-ldDark-5);
     }
 }
 
