@@ -20,7 +20,7 @@
 .pillLabel {
     color: light-dark(
         var(--mantine-color-ldGray-6),
-        var(--mantine-color-ldGray-5)
+        var(--mantine-color-ldGray-7)
     );
     /* Equal vertical + horizontal padding so the icon sits dead-center. */
     padding: 6px 8px;
@@ -48,6 +48,6 @@
     );
     background: light-dark(
         var(--mantine-color-ldGray-0),
-        rgba(255, 255, 255, 0.04)
+        var(--mantine-color-ldGray-5)
     );
 }

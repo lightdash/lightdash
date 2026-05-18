@@ -41,9 +41,11 @@ import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
 import {
+    ARTIFACT_PANEL_SWITCH_VT_NAME,
     artifactKey,
     artifactVtName,
-    startArtifactTransition,
+    startArtifactMorph,
+    useArtifactTransitionMode,
 } from './artifactTransition';
 import { ChatElementsUtils } from './utils';
 
@@ -68,6 +70,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
     ({ artifact, showCloseButton = true, variant = 'floating' }) => {
         const dispatch = useAiAgentStoreDispatch();
         const { data: health } = useHealth();
+        // During a switch transition the panel takes a stable name so the
+        // browser cross-fades content in place instead of running a morph.
+        const transitionMode = useArtifactTransitionMode();
+        const panelVtName =
+            transitionMode === 'switch'
+                ? ARTIFACT_PANEL_SWITCH_VT_NAME
+                : artifactVtName(artifact.artifactUuid, artifact.versionUuid);
 
         const {
             data: artifactData,
@@ -265,10 +274,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                     className={styles.floatingPanel}
                     style={
                         {
-                            '--vt-name': artifactVtName(
-                                artifact.artifactUuid,
-                                artifact.versionUuid,
-                            ),
+                            '--vt-name': panelVtName,
                         } as CSSProperties
                     }
                 >
@@ -332,7 +338,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             variant="subtle"
                             color="ldGray.6"
                             onClick={() =>
-                                startArtifactTransition(
+                                startArtifactMorph(
                                     [
                                         artifactKey(
                                             artifact.artifactUuid,
@@ -356,10 +362,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                 className={styles.floatingPanel}
                 style={
                     {
-                        '--vt-name': artifactVtName(
-                            artifact.artifactUuid,
-                            artifact.versionUuid,
-                        ),
+                        '--vt-name': panelVtName,
                     } as CSSProperties
                 }
             >

@@ -62,7 +62,11 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
-import { artifactKey, startArtifactTransition } from './artifactTransition';
+import {
+    artifactKey,
+    startArtifactMorph,
+    startArtifactSwitch,
+} from './artifactTransition';
 import { ContentLink } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
@@ -733,48 +737,44 @@ export const AssistantBubble: FC<Props> = memo(
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
                                                   messageArtifact.versionUuid;
-                                          // Names every artifact that
-                                          // moves in this transition:
-                                          // the clicked one, plus the
-                                          // currently-open one when
-                                          // switching artifacts.
-                                          const involvedKeys = [
-                                              artifactKey(
-                                                  messageArtifact.artifactUuid,
-                                                  messageArtifact.versionUuid,
-                                              ),
-                                          ];
-                                          if (artifact && !isThisArtifactOpen) {
-                                              involvedKeys.push(
-                                                  artifactKey(
-                                                      artifact.artifactUuid,
-                                                      artifact.versionUuid,
-                                                  ),
+                                          const isSwitchingFromAnother =
+                                              !!artifact && !isThisArtifactOpen;
+                                          const doDispatch = () => {
+                                              if (isThisArtifactOpen) {
+                                                  dispatch(clearArtifact());
+                                                  return;
+                                              }
+                                              dispatch(
+                                                  setArtifact({
+                                                      artifactUuid:
+                                                          messageArtifact.artifactUuid,
+                                                      versionUuid:
+                                                          messageArtifact.versionUuid,
+                                                      messageUuid: message.uuid,
+                                                      threadUuid:
+                                                          message.threadUuid,
+                                                      projectUuid: projectUuid,
+                                                      agentUuid: agentUuid,
+                                                  }),
                                               );
+                                          };
+                                          // Switching artifacts uses an
+                                          // in-place panel cross-fade
+                                          // rather than running two
+                                          // button↔panel morphs in
+                                          // opposite directions.
+                                          if (isSwitchingFromAnother) {
+                                              startArtifactSwitch(doDispatch);
+                                              return;
                                           }
-                                          startArtifactTransition(
-                                              involvedKeys,
-                                              () => {
-                                                  if (isThisArtifactOpen) {
-                                                      dispatch(clearArtifact());
-                                                      return;
-                                                  }
-                                                  dispatch(
-                                                      setArtifact({
-                                                          artifactUuid:
-                                                              messageArtifact.artifactUuid,
-                                                          versionUuid:
-                                                              messageArtifact.versionUuid,
-                                                          messageUuid:
-                                                              message.uuid,
-                                                          threadUuid:
-                                                              message.threadUuid,
-                                                          projectUuid:
-                                                              projectUuid,
-                                                          agentUuid: agentUuid,
-                                                      }),
-                                                  );
-                                              },
+                                          startArtifactMorph(
+                                              [
+                                                  artifactKey(
+                                                      messageArtifact.artifactUuid,
+                                                      messageArtifact.versionUuid,
+                                                  ),
+                                              ],
+                                              doDispatch,
                                           );
                                       }}
                                       isArtifactOpen={

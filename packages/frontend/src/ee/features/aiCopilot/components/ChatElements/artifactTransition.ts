@@ -10,10 +10,25 @@ type DocumentWithViewTransition = Document & {
     };
 };
 
+// Three swappable morph styles. Edit the default below or flip at runtime
+// from the browser console: `setArtifactMorph('snap')`.
+export type ArtifactMorphStyle = 'lift' | 'snap' | 'expand';
+const DEFAULT_MORPH_STYLE: ArtifactMorphStyle = 'lift';
+
+if (typeof document !== 'undefined') {
+    document.documentElement.dataset.artifactMorph = DEFAULT_MORPH_STYLE;
+}
+if (typeof window !== 'undefined') {
+    (window as unknown as Record<string, unknown>).setArtifactMorph = (
+        style: ArtifactMorphStyle,
+    ) => {
+        document.documentElement.dataset.artifactMorph = style;
+    };
+}
+
 /**
- * Build the shared `view-transition-name` for a given artifact. Same
- * identifier on the button (when it's the morph source/target) and the
- * floating panel, so the browser pairs them across the snapshot.
+ * Build the shared `view-transition-name` for a given artifact. Used in
+ * morph mode — same identifier on the involved button + panel.
  */
 export function artifactVtName(
     artifactUuid: string,
@@ -22,19 +37,39 @@ export function artifactVtName(
     return `artifact-shell-${artifactUuid}-${versionUuid}`;
 }
 
+/**
+ * Stable name used by the panel while switching between artifacts.
+ * Identical name in old + new snapshots means the panel cross-fades in
+ * place instead of triggering a dual button↔panel morph.
+ */
+export const ARTIFACT_PANEL_SWITCH_VT_NAME = 'artifact-panel-shell';
+
 export function artifactKey(artifactUuid: string, versionUuid: string): string {
     return `${artifactUuid}-${versionUuid}`;
 }
 
+type TransitionMode = 'morph' | 'switch';
+
 // Module-level mutable store: which artifact keys are participating in
-// the in-flight view transition. Only those buttons opt into having a
-// `view-transition-name`; everyone else stays out of the snapshot tree
-// entirely (no name, no group, no animation).
-let transitioningKeys: ReadonlySet<string> = new Set();
+// the in-flight view transition, and which kind of transition it is.
+// Only buttons in the set opt into a `view-transition-name`; the panel
+// reads the mode to decide between its per-artifact name and the stable
+// switch name.
+type TransitionState = {
+    keys: ReadonlySet<string>;
+    mode: TransitionMode;
+};
+
+const IDLE_STATE: TransitionState = {
+    keys: new Set(),
+    mode: 'morph',
+};
+
+let state: TransitionState = IDLE_STATE;
 const listeners = new Set<() => void>();
 
-function setTransitioningKeys(next: ReadonlySet<string>) {
-    transitioningKeys = next;
+function setState(next: TransitionState) {
+    state = next;
     listeners.forEach((fn) => fn());
 }
 
@@ -45,44 +80,38 @@ function subscribe(fn: () => void) {
     };
 }
 
-function getSnapshot(): ReadonlySet<string> {
-    return transitioningKeys;
+function getSnapshot(): TransitionState {
+    return state;
 }
 
 /**
  * Reactive read for whether the given artifact key is part of the
- * currently-running view transition. Components return a stable
- * "no name" identifier when this is false so the browser ignores them.
+ * currently-running view transition.
  */
 export function useIsArtifactTransitioning(key: string | null): boolean {
-    const set = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-    return key != null && set.has(key);
+    const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    return key != null && current.keys.has(key);
 }
 
 /**
- * Wrap an artifact state change in a View Transitions snapshot so the
- * browser morphs the shared shell between the listed `involvedKeys`
- * (the clicked button, the currently-open one when switching, etc.).
- * Buttons that aren't in the set don't get a `view-transition-name`
- * and therefore don't animate. Falls back to a plain update on
- * browsers without `document.startViewTransition`.
+ * Reactive read for the current transition mode. The panel uses this
+ * to pick between its per-artifact name (morph mode) and the shared
+ * switch name (subtle in-place cross-fade).
  */
-export function startArtifactTransition(
-    involvedKeys: string[],
-    update: () => void,
-) {
+export function useArtifactTransitionMode(): TransitionMode {
+    const current = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    return current.mode;
+}
+
+function withTransition(next: TransitionState, update: () => void) {
     const doc = document as DocumentWithViewTransition;
     if (typeof doc.startViewTransition !== 'function') {
         update();
         return;
     }
 
-    const keys = new Set(involvedKeys);
-
-    // Force React to render the involved buttons WITH their vt-names
-    // before the browser snapshots the old state.
     flushSync(() => {
-        setTransitioningKeys(keys);
+        setState(next);
     });
 
     const transition = doc.startViewTransition(() => {
@@ -90,11 +119,46 @@ export function startArtifactTransition(
     });
 
     void transition.finished.finally(() => {
-        // Only clear if no newer transition has taken over the slot.
-        if (transitioningKeys === keys) {
+        // Only reset if no newer transition has taken over the slot.
+        if (state === next) {
             flushSync(() => {
-                setTransitioningKeys(new Set());
+                setState(IDLE_STATE);
             });
         }
     });
+}
+
+/**
+ * Open or close an artifact (button ↔ panel morph). Lists every
+ * artifact whose shell is part of the morph — typically just the
+ * clicked one for open/close, both the clicked and the previously-open
+ * one when switching to a new artifact from a different button.
+ *
+ * Buttons not in `involvedKeys` stay out of the snapshot tree entirely
+ * and don't animate.
+ */
+export function startArtifactMorph(involvedKeys: string[], update: () => void) {
+    withTransition(
+        {
+            keys: new Set(involvedKeys),
+            mode: 'morph',
+        },
+        update,
+    );
+}
+
+/**
+ * Subtler transition for switching the panel's content from one
+ * artifact to another. The panel takes a stable `view-transition-name`
+ * for the duration, so the browser cross-fades its content in place
+ * instead of running two button↔panel morphs in opposite directions.
+ */
+export function startArtifactSwitch(update: () => void) {
+    withTransition(
+        {
+            keys: new Set(),
+            mode: 'switch',
+        },
+        update,
+    );
 }
