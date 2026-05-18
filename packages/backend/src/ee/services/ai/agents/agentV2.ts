@@ -737,8 +737,8 @@ export const streamAgentResponse = async ({
                 await cleanupMcpClients();
             },
             experimental_transform: smoothStream({
-                delayInMs: 40,
-                chunking: 'line',
+                delayInMs: 20,
+                chunking: 'word',
             }),
             onError: ({ error }) => {
                 console.error(error);
