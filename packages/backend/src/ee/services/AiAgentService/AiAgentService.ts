@@ -3848,23 +3848,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             createChange,
         } = this.getAiAgentDependencies(user, prompt);
 
-        const canRunSqlFlag = await this.featureFlagService.get({
-            user,
-            featureFlagId: CommercialFeatureFlags.AiAgentRunSql,
-        });
-
         const enableSqlMode = options.enableSqlMode ?? false;
 
-        // For Slack prompts: only allow runSql when the org requires OAuth.
-        // Without OAuth, Slack messages run as a workspace-default user, so
-        // both the feature flag and the SqlRunner CASL check evaluate against
-        // that default — meaning ANYONE in the Slack workspace could trigger
-        // SQL execution under a different person's permissions. Fail-closed.
-        // Three-way gate: org-level flag, per-call CASL ability (added below),
-        // and per-thread toggle from the web client (default false for any
-        // caller that doesn't pass it — Slack/eval paths pass `true` to
-        // preserve their flag-only gating).
-        let canRunSql = canRunSqlFlag.enabled && enableSqlMode;
+        let canRunSql = enableSqlMode;
+        // Without OAuth, Slack messages run as a workspace-default user — the CASL check below would evaluate against that default, letting anyone in the workspace trigger SQL under another person's identity. Fail-closed.
         if (canRunSql && isSlackPrompt(prompt) && user.organizationUuid) {
             const slackSettings =
                 await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
