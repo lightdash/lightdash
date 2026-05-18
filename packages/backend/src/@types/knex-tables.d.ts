@@ -342,6 +342,12 @@ import {
     AiMcpServerTableName,
 } from '../ee/database/entities/aiAgent';
 import {
+    AiAgentDocumentAccessTable,
+    AiAgentDocumentAccessTableName,
+    AiAgentDocumentTable,
+    AiAgentDocumentTableName,
+} from '../ee/database/entities/aiAgentDocument';
+import {
     AiAgentUserPreferencesTable,
     AiAgentUserPreferencesTableName,
 } from '../ee/database/entities/aiAgentUserPreferences';
@@ -486,6 +492,8 @@ declare module 'knex/types/tables' {
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiAgentTableName]: AiAgentTable;
+        [AiAgentDocumentTableName]: AiAgentDocumentTable;
+        [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
         [AiAgentGroupAccessTableName]: AiAgentGroupAccessTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;

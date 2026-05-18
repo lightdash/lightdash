@@ -22,6 +22,7 @@ interface Organization {
 
 export type CaslSubjectNames =
     | 'AiAgent'
+    | 'AiAgentDocument'
     | 'AiAgentThread'
     | 'Analytics'
     | 'ChangeCsvResults'

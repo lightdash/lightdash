@@ -64,6 +64,7 @@ const BASE_ROLE_SCOPES = {
 
         // Enterprise scopes
         'view:AiAgent',
+        'view:AiAgentDocument',
         'create:AiAgentThread',
         'create:DataApp', // Personal apps (not yet in a space)
         'view:DataApp@self', // Own personal apps
@@ -130,6 +131,7 @@ const BASE_ROLE_SCOPES = {
         'manage:SpotlightTableConfig',
         'manage:ContentAsCode',
         'manage:AiAgent',
+        'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
     ],
 
@@ -234,9 +236,11 @@ export const getNonEnterpriseScopesForRole = (
         'view:SpotlightTableConfig',
         'manage:SpotlightTableConfig',
         'view:AiAgent',
+        'view:AiAgentDocument',
         'view:AiAgentThread',
         'create:AiAgentThread',
         'manage:AiAgent',
+        'manage:AiAgentDocument',
         'manage:AiAgentThread',
         'manage:ContentAsCode',
         'view:DataApp',
