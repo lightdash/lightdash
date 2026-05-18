@@ -1,3 +1,10 @@
+## [0.2961.1](https://github.com/lightdash/lightdash/compare/0.2961.0...0.2961.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* copy data app dashboard tiles when duplicating projects to preview ([#23209](https://github.com/lightdash/lightdash/issues/23209)) ([4b3a9ad](https://github.com/lightdash/lightdash/commit/4b3a9adac8db713eba13252e3613386631bbd1e9))
+
 # [0.2961.0](https://github.com/lightdash/lightdash/compare/0.2960.2...0.2961.0) (2026-05-18)
 
 
