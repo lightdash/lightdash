@@ -875,7 +875,16 @@ export class EmbedService extends BaseService {
         explore: Explore;
         queryTags: Omit<
             Required<RunQueryTags>,
-            'user_uuid' | 'chart_uuid' | 'dashboard_uuid'
+            | 'user_uuid'
+            | 'chart_uuid'
+            | 'dashboard_uuid'
+            // Scheduler-attribution tags only apply to scheduler-driven jobs,
+            // never to embed/JWT queries, so they're excluded from the
+            // required-shape enforced here.
+            | 'saved_sql_uuid'
+            | 'scheduler_uuid'
+            | 'scheduler_name'
+            | 'job_id'
         > & {
             embed: 'true';
             external_id: string;

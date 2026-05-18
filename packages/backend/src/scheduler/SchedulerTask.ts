@@ -112,6 +112,7 @@ import archiver from 'archiver';
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
+import ExecutionContext from 'node-execution-context';
 import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
@@ -139,6 +140,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
+import type { ExecutionContextInfo } from '../logging/winston';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -192,6 +194,39 @@ export type SchedulerTaskArguments = {
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
 };
+
+/**
+ * Stamps the current job's AsyncLocalStorage-backed ExecutionContext with
+ * scheduler/sync attribution so every downstream log line and warehouse
+ * `queryTags` row carries the originating scheduler_uuid, scheduler_name,
+ * saved_sql_uuid, job_id, and organization context.
+ *
+ * SchedulerWorkerEventEmitter has already opened a context per job, so we
+ * only need to `update()` — there is nothing to do outside a worker job.
+ */
+function setSchedulerJobLogContext(args: {
+    jobId?: string;
+    schedulerUuid?: string;
+    schedulerName?: string;
+    savedSqlUuid?: string | null;
+    organizationUuid?: string;
+    organizationName?: string;
+}) {
+    if (!ExecutionContext.exists()) return;
+    const updates: Partial<ExecutionContextInfo> = {};
+    if (args.organizationUuid)
+        updates.organization_uuid = args.organizationUuid;
+    if (args.organizationName)
+        updates.organization_name = args.organizationName;
+    const schedulerCtx: NonNullable<ExecutionContextInfo['scheduler']> = {};
+    if (args.schedulerUuid) schedulerCtx.scheduler_uuid = args.schedulerUuid;
+    if (args.schedulerName) schedulerCtx.scheduler_name = args.schedulerName;
+    if (args.savedSqlUuid) schedulerCtx.saved_sql_uuid = args.savedSqlUuid;
+    if (args.jobId) schedulerCtx.job_id = args.jobId;
+    if (Object.keys(schedulerCtx).length > 0) updates.scheduler = schedulerCtx;
+    if (Object.keys(updates).length === 0) return;
+    ExecutionContext.update(updates as unknown as Record<string, unknown>);
+}
 
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
@@ -1017,6 +1052,13 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -1387,6 +1429,13 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -2356,6 +2405,14 @@ export default class SchedulerTask {
             scheduler,
         } = notification;
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -2787,6 +2844,12 @@ export default class SchedulerTask {
         notification: GsheetsNotificationPayload,
     ) {
         const { schedulerUuid, scheduledTime } = notification;
+
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            organizationUuid: notification.organizationUuid,
+        });
 
         this.analytics.track({
             event: 'scheduler_notification_job.started',
@@ -3306,6 +3369,7 @@ export default class SchedulerTask {
                         deliveryUrl,
                         getErrorMessage(e),
                         shouldDisableSync,
+                        jobId,
                     );
                 }
             } catch (emailError) {
@@ -3872,6 +3936,7 @@ export default class SchedulerTask {
                         scheduler.name,
                         schedulerUrl,
                         translatedSlackError?.error ?? getErrorMessage(e),
+                        jobId,
                     );
                 }
             } catch (emailError) {
@@ -4077,6 +4142,10 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: ExportCsvDashboardPayload,
     ) {
+        setSchedulerJobLogContext({
+            jobId,
+            organizationUuid: payload.organizationUuid,
+        });
         await this.logWrapper(
             {
                 task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
@@ -4677,6 +4746,14 @@ export default class SchedulerTask {
 
         const results: DeliveryResult[] = [];
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -4902,6 +4979,14 @@ export default class SchedulerTask {
 
         const results: DeliveryResult[] = [];
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -5117,6 +5202,14 @@ export default class SchedulerTask {
 
         const results: DeliveryResult[] = [];
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -5330,6 +5423,13 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -5554,6 +5654,14 @@ export default class SchedulerTask {
             notification;
 
         const results: DeliveryResult[] = [];
+
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+            organizationUuid: notification.organizationUuid,
+        });
 
         this.analytics.track({
             event: 'scheduler_notification_job.started',

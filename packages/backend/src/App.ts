@@ -61,6 +61,7 @@ import Logger from './logging/logger';
 import {
     expressWinstonMiddleware,
     expressWinstonPreResponseMiddleware,
+    requestExecutionContextMiddleware,
 } from './logging/winston';
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
@@ -616,6 +617,9 @@ export default class App {
         // We'll also be able to add the user to Sentry for embedded users.
         expressApp.use(jwtAuthMiddleware);
         expressApp.use(sessionAccountMiddleware);
+        // Must run after auth so req.user is populated. Stamps every downstream
+        // log line with organization_uuid + organization_name via ExecutionContext.
+        expressApp.use(requestExecutionContextMiddleware);
 
         expressApp.use((req, res, next) => {
             if (req.user) {
