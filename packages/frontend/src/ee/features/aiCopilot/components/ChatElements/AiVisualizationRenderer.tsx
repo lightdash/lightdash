@@ -58,6 +58,12 @@ type Props = {
 
     onDashboardChartTypeChange?: (type: AiAgentChartTypeOption) => void;
     onDashboardChartConfigChange?: (config: ChartConfig) => void;
+
+    // When provided, chart type is controlled externally and the
+    // internal switcher is suppressed (parent renders its own, e.g.
+    // the floating pill on the artifact panel).
+    controlledChartType?: AiAgentChartTypeOption | null;
+    onControlledChartTypeChange?: (type: AiAgentChartTypeOption) => void;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
@@ -67,6 +73,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
     headerContent,
     onDashboardChartTypeChange: onDashboardChartTypeChangeProp,
     onDashboardChartConfigChange: onDashboardChartConfigChangeProp,
+    controlledChartType,
+    onControlledChartTypeChange,
 }) => {
     const { data: health } = useHealth();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -89,8 +97,13 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
 
     // Initialize from cached data if available
-    const [selectedChartType, setSelectedChartType] =
+    const [internalChartType, setInternalChartType] =
         useState<AiAgentChartTypeOption | null>(null);
+
+    const isControlled = controlledChartType !== undefined;
+    const selectedChartType = isControlled
+        ? (controlledChartType ?? null)
+        : internalChartType;
 
     // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
     const [expandedChartConfig, setExpandedChartConfig] = useState<
@@ -154,14 +167,22 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const handleChartTypeChange = useCallback(
         (type: AiAgentChartTypeOption) => {
-            setSelectedChartType(type);
+            if (isControlled) {
+                onControlledChartTypeChange?.(type);
+            } else {
+                setInternalChartType(type);
+            }
 
             // Reset expanded chart config to allow re-expansion
             setExpandedChartConfig(undefined);
 
             onDashboardChartTypeChangeProp?.(type);
         },
-        [onDashboardChartTypeChangeProp],
+        [
+            isControlled,
+            onControlledChartTypeChange,
+            onDashboardChartTypeChangeProp,
+        ],
     );
 
     if (!chartConfigFromAiAgentVizConfig.echartsConfig) {
@@ -219,20 +240,21 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 <Stack gap="md" h="100%">
                     {headerContent && headerContent}
                     {chartConfigFromAiAgentVizConfig.type ===
-                        AiResultType.QUERY_RESULT && (
-                        <Group justify="flex-end">
-                            <AgentVisualizationChartTypeSwitcher
-                                metricQuery={metricQuery}
-                                selectedChartType={
-                                    selectedChartType ?? defaultChartType
-                                }
-                                hasGroupByDimensions={
-                                    (groupByDimensions?.length ?? 0) > 0
-                                }
-                                onChartTypeChange={handleChartTypeChange}
-                            />
-                        </Group>
-                    )}
+                        AiResultType.QUERY_RESULT &&
+                        !isControlled && (
+                            <Group justify="flex-end">
+                                <AgentVisualizationChartTypeSwitcher
+                                    metricQuery={metricQuery}
+                                    selectedChartType={
+                                        selectedChartType ?? defaultChartType
+                                    }
+                                    hasGroupByDimensions={
+                                        (groupByDimensions?.length ?? 0) > 0
+                                    }
+                                    onChartTypeChange={handleChartTypeChange}
+                                />
+                            </Group>
+                        )}
                     <Box
                         flex="1"
                         style={{
