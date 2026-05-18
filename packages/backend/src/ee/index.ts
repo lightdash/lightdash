@@ -15,6 +15,7 @@ import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
 import { CommercialSlackClient } from './clients/Slack/SlackClient';
+import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
@@ -461,6 +462,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig,
                     encryptionUtil: utils.getEncryptionUtil(),
                 }),
+            aiAgentDocumentModel: ({ database }) =>
+                new AiAgentDocumentModel({ database }),
             aiOrganizationSettingsModel: ({ database }) =>
                 new AiOrganizationSettingsModel({ database }),
             embedModel: ({ database }) => new EmbedModel({ database }),

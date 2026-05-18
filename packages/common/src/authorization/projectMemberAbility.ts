@@ -192,6 +192,9 @@ export const projectMemberAbilities: Record<
         can('view', 'AiAgent', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'AiAgentDocument', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'AiAgentThread', {
             projectUuid: member.projectUuid,
         });
@@ -298,6 +301,9 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
         });
         can('manage', 'AiAgent', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'AiAgentDocument', {
             projectUuid: member.projectUuid,
         });
     },
