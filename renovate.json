@@ -20,6 +20,21 @@
   "prHourlyLimit": 2,
   "commitMessageExtra": "({{updateType}})",
   "labels": ["dependencies"],
+  "assignees": [
+    "IrakliJani",
+    "magnew",
+    "rephus",
+    "charliedowler",
+    "sdolidze",
+    "pimmey",
+    "joaoviana",
+    "tatianainama",
+    "ZeRego",
+    "notgiorgi",
+    "almeidabbm",
+    "Spissable"
+  ],
+  "assigneesSampleSize": 1,
   "dependencyDashboardApproval": false,
   "lockFileMaintenance": {
     "enabled": true,
