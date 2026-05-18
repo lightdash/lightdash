@@ -53,6 +53,9 @@ type Props = {
     // When provided, an inline switcher is rendered above the chart. Omit
     // it (e.g. on the floating panel) when a parent renders its own.
     onChartTypeChange?: (type: AiAgentChartTypeOption) => void;
+    // Visual style of the inline switcher. `pill` matches the floating
+    // panel chrome; default uses Mantine's standard SegmentedControl.
+    switcherVariant?: 'default' | 'pill';
     // Forwarded when the underlying viz expands its config — used by the
     // dashboard path to sync the change back into the query cache.
     onExpandedChartConfigChange?: (config: ChartConfig) => void;
@@ -65,6 +68,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     chartConfig,
     selectedChartType,
     onChartTypeChange,
+    switcherVariant = 'default',
     onExpandedChartConfigChange,
     headerContent,
 }) => {
@@ -205,6 +209,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                                         (groupByDimensions?.length ?? 0) > 0
                                     }
                                     onChartTypeChange={onChartTypeChange}
+                                    variant={switcherVariant}
                                 />
                             </Group>
                         )}

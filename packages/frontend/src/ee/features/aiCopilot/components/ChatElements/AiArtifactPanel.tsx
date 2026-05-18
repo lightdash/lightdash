@@ -208,11 +208,13 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             );
         }
 
-        // Dashboards: out of scope for v2 chrome — keep current rendering.
+        // Dashboards share the floating panel chrome with chart artifacts
+        // for visual parity, but skip the per-tile floating pill (each
+        // tile has its own inline switcher inside its Card).
         if (artifactData.artifactType === 'dashboard') {
             return (
-                <Box {...ChatElementsUtils.centeredElementProps} p="md">
-                    <Stack gap="md" h="100%">
+                <div className={styles.floatingPanel}>
+                    <div className={styles.dashboardContent}>
                         <AiDashboardVisualization
                             artifactData={artifactData}
                             projectUuid={artifact.projectUuid}
@@ -221,8 +223,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             message={message}
                             showCloseButton={showCloseButton}
                         />
-                    </Stack>
-                </Box>
+                    </div>
+                </div>
             );
         }
 

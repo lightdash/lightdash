@@ -272,6 +272,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     chartConfig={visualization}
                     selectedChartType={selectedChartType}
                     onChartTypeChange={handleChartTypeChange}
+                    switcherVariant="pill"
                     onExpandedChartConfigChange={
                         handleExpandedChartConfigChange
                     }
