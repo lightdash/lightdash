@@ -32,6 +32,8 @@ export const ToolNameSchema = z.enum([
     'runSql',
     'listWarehouseTables',
     'describeWarehouseTable',
+    'listKnowledgeDocuments',
+    'getKnowledgeDocumentContent',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -64,6 +66,8 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     runSql: 'Running SQL query',
     listWarehouseTables: 'Listing warehouse tables',
     describeWarehouseTable: 'Describing warehouse table',
+    listKnowledgeDocuments: 'Listing knowledge documents',
+    getKnowledgeDocumentContent: 'Reading knowledge document',
 });
 
 // after-tool-call messages
@@ -90,6 +94,8 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         runSql: 'Ran SQL query',
         listWarehouseTables: 'Listed warehouse tables',
         describeWarehouseTable: 'Described warehouse table',
+        listKnowledgeDocuments: 'Listed knowledge documents',
+        getKnowledgeDocumentContent: 'Read knowledge document',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

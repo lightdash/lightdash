@@ -8,8 +8,10 @@ import {
     IconChartHistogram,
     IconChartLine,
     IconDatabase,
+    IconFileText,
     IconLayoutDashboard,
     IconBook2,
+    IconBooks,
     IconPencil,
     IconPlugConnected,
     IconSchool,
@@ -46,6 +48,8 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             runSql: IconTerminal2,
             listWarehouseTables: IconDatabase,
             describeWarehouseTable: IconDatabase,
+            listKnowledgeDocuments: IconBooks,
+            getKnowledgeDocumentContent: IconFileText,
         };
 
     return isToolName(toolName) ? iconMap[toolName] : IconPlugConnected;

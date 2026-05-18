@@ -1,7 +1,13 @@
-import { Explore, WarehouseTypes } from '@lightdash/common';
+import {
+    AiAgentDocumentStructuredSummary,
+    AiAgentDocumentSummary,
+    Explore,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
 import { AiAgentSkillReference } from '../skills/types';
+import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
@@ -13,6 +19,7 @@ import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableSkills?: AiAgentSkillReference[];
+    knowledgeDocuments?: AiAgentDocumentSummary[];
     instructions?: string;
     agentName?: string;
     date?: string;
@@ -40,6 +47,48 @@ export const getSystemPromptV2 = (args: {
     const customSqlLimitation = canRunSql
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+
+    const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
+        const { summary } = doc;
+        const children: string[] = [
+            xmlBuilder('description', null, summary.description),
+        ];
+        if (summary.definedTerms.length > 0) {
+            children.push(
+                xmlBuilder('defines', null, summary.definedTerms.join(', ')),
+            );
+        }
+        if (summary.relatedExploreNames.length > 0) {
+            children.push(
+                xmlBuilder(
+                    'applies_to_explores',
+                    null,
+                    summary.relatedExploreNames.join(', '),
+                ),
+            );
+        }
+        if (summary.useWhen) {
+            children.push(xmlBuilder('use_when', null, summary.useWhen));
+        }
+        if (summary.warning) {
+            children.push(xmlBuilder('warning', null, summary.warning));
+        }
+        return xmlBuilder(
+            'knowledge_document',
+            {
+                uuid: doc.uuid,
+                name: doc.name,
+                relevance: summary.relevance,
+            },
+            ...children,
+        );
+    };
+
+    const knowledgeDocuments = args.knowledgeDocuments ?? [];
+    const knowledgeDocumentsContent =
+        knowledgeDocuments.length === 0
+            ? 'No knowledge documents have been curated for this agent.'
+            : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
@@ -78,7 +127,8 @@ export const getSystemPromptV2 = (args: {
             instructions ? `Special instructions: ${instructions}` : '',
         )
         .replace('{{date}}', date)
-        .replace('{{available_explores}}', availableExploresContent);
+        .replace('{{available_explores}}', availableExploresContent)
+        .replace('{{knowledge_documents}}', knowledgeDocumentsContent);
 
     const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
 
