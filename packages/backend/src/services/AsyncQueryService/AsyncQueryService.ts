@@ -3618,13 +3618,14 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         dateZoom,
         context,
-        metricQuery,
+        metricQuery: inputMetricQuery,
         invalidateCache,
         usePreAggregateCache,
         parameters,
         pivotConfiguration,
         userAttributeOverrides,
         materializationRole,
+        dashboardFilters,
     }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -3650,9 +3651,9 @@ export class AsyncQueryService extends ProjectService {
             subject('Explore', {
                 organizationUuid,
                 projectUuid,
-                exploreNames: [metricQuery.exploreName],
+                exploreNames: [inputMetricQuery.exploreName],
                 metadata: {
-                    exploreName: metricQuery.exploreName,
+                    exploreName: inputMetricQuery.exploreName,
                 },
             }),
         );
@@ -3665,7 +3666,7 @@ export class AsyncQueryService extends ProjectService {
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            explore_name: metricQuery.exploreName,
+            explore_name: inputMetricQuery.exploreName,
             query_context: context,
         };
 
@@ -3674,7 +3675,7 @@ export class AsyncQueryService extends ProjectService {
         const explore = await this.getExploreForMetricQueryExecution({
             account,
             projectUuid,
-            exploreName: metricQuery.exploreName,
+            exploreName: inputMetricQuery.exploreName,
             organizationUuid,
             materializationRole:
                 context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
@@ -3682,6 +3683,32 @@ export class AsyncQueryService extends ProjectService {
                     : undefined,
         });
         const getExploreMs = Date.now() - metricQueryStart;
+
+        // Dashboard filters (e.g. from a data-app tile) are merged once the
+        // explore is known so we can drop filters that target fields outside
+        // it — silent drop is intentional, see ExecuteAsyncMetricQueryRequestParams.
+        let metricQuery: MetricQuery = inputMetricQuery;
+        if (dashboardFilters) {
+            const availableFieldIds = getAvailableFilterFieldIds(explore);
+            metricQuery = addDashboardFiltersToMetricQuery(
+                inputMetricQuery,
+                {
+                    dimensions: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.dimensions,
+                    ),
+                    metrics: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.metrics,
+                    ),
+                    tableCalculations: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.tableCalculations,
+                    ),
+                },
+                explore,
+            );
+        }
 
         const whCredStart = Date.now();
         const warehouseCredentials = await this.getWarehouseCredentials({

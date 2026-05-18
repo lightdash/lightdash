@@ -76,6 +76,7 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
+    dashboardFilters?: DashboardFilters;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {

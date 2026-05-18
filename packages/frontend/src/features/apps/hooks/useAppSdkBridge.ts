@@ -1,3 +1,4 @@
+import { type DashboardFilters } from '@lightdash/common';
 import { useCallback, useEffect, type RefObject } from 'react';
 
 export type QueryEventTableCalculation = {
@@ -111,6 +112,13 @@ export function useAppSdkBridge(
     onElementSelected?: (event: ElementSelectedEvent) => void,
     onInspectorAvailable?: () => void,
     onScreenshotAvailable?: () => void,
+    /**
+     * When set, these filters are stamped onto every intercepted metric-query
+     * POST before it reaches the backend. Used by dashboard data-app tiles so
+     * the dashboard filter bar applies to the app's queries. The iframe SDK
+     * is not involved — generated apps stay filter-agnostic.
+     */
+    dashboardFilters?: DashboardFilters,
 ) {
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
@@ -169,6 +177,17 @@ export function useAppSdkBridge(
                 return;
             }
 
+            // Stamp dashboard filters onto outgoing metric-query bodies. The
+            // backend drops filters whose fields aren't in the query's
+            // explore, so it's safe to send the full set on every call.
+            const effectiveBody =
+                isMetricQueryPost(method, path) && dashboardFilters
+                    ? {
+                          ...(body as Record<string, unknown> | undefined),
+                          dashboardFilters,
+                      }
+                    : body;
+
             // Track metric query submissions
             if (isMetricQueryPost(method, path) && onQueryEvent && body) {
                 const query = (body as { query?: Record<string, unknown> })
@@ -207,7 +226,9 @@ export function useAppSdkBridge(
                 const res = await fetch(path, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
-                    ...(body ? { body: JSON.stringify(body) } : {}),
+                    ...(effectiveBody
+                        ? { body: JSON.stringify(effectiveBody) }
+                        : {}),
                 });
 
                 const json = await res.json();
@@ -325,6 +346,7 @@ export function useAppSdkBridge(
             onElementSelected,
             onInspectorAvailable,
             onScreenshotAvailable,
+            dashboardFilters,
         ],
     );
 
