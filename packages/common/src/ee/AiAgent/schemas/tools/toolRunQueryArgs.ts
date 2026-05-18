@@ -155,7 +155,7 @@ Configuration Tips:
 - At least one metric is required for all chart types except table
 - chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
 - chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series (e.g., one line per region). Do NOT include the x-axis dimension. Only include dimensions for series breakdown. Leave null for simple single-series charts.
+- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — that's what periodComparisons is for. Leave null for simple single-series charts.
 - For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
 - For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
 - For line charts: use lineType 'area' to fill the area under the line
@@ -164,7 +164,7 @@ Configuration Tips:
 - Users can switch between visualization types in the UI after creation
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
 - filters can contain filters on fields from joined tables as well as the base table
-- periodComparisons adds period-over-period (PoP) comparison columns next to a base metric. Use when the user asks to compare against a previous period (e.g. "vs last month", "year-over-year"). Requires the matching time dimension to be in queryConfig.dimensions.
+- periodComparisons: required path for time-based comparisons (e.g. "year-over-year", "vs last month", "compared to N periods ago"). Adds a shifted column next to the base metric. Do NOT instead add multiple time-dimension granularities to dimensions and groupBy by year/quarter — that produces a dimensional split, not a real period comparison.
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema({
