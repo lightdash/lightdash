@@ -1,5 +1,6 @@
 import {
     AiAgent,
+    AiAgentDocumentSummary,
     AiMcpServer,
     AiMcpServerConnectionStatus,
     WarehouseTypes,
@@ -21,9 +22,11 @@ import {
     GetDashboardChartsFn,
     GetExploreCompilerFn,
     GetExploreFn,
+    GetKnowledgeDocumentContentFn,
     GetPromptFn,
     GetSavedChartFn,
     ListExploresFn,
+    ListKnowledgeDocumentsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ReadContentFn,
@@ -60,6 +63,7 @@ export type UnavailableMcpServer = {
 
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
+    knowledgeDocuments: AiAgentDocumentSummary[];
     mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
@@ -112,6 +116,8 @@ export type AiAgentDependencies = {
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
+    listKnowledgeDocuments: ListKnowledgeDocumentsFn;
+    getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;

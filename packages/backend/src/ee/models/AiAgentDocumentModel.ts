@@ -1,5 +1,6 @@
 import {
     AiAgentDocument,
+    AiAgentDocumentContent,
     AiAgentDocumentStructuredSummary,
     AiAgentDocumentSummary,
     AlreadyExistsError,
@@ -173,6 +174,106 @@ export class AiAgentDocumentModel {
             }
             return created;
         });
+    }
+
+    private static agentAccessSubquery(qb: Knex, agentUuid: string) {
+        return qb.raw(
+            `(
+                NOT EXISTS (
+                    SELECT 1 FROM ?? AS access
+                    WHERE access.ai_agent_document_uuid = ??.ai_agent_document_uuid
+                )
+                OR EXISTS (
+                    SELECT 1 FROM ?? AS access
+                    WHERE access.ai_agent_document_uuid = ??.ai_agent_document_uuid
+                      AND access.ai_agent_uuid = ?
+                )
+            )`,
+            [
+                AiAgentDocumentAccessTableName,
+                AiAgentDocumentTableName,
+                AiAgentDocumentAccessTableName,
+                AiAgentDocumentTableName,
+                agentUuid,
+            ],
+        );
+    }
+
+    async findAllForAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        projectUuid: string | null;
+    }): Promise<AiAgentDocumentSummary[]> {
+        const query = this.baseSelect()
+            .where(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentAccessSubquery(
+                    this.database,
+                    args.agentUuid,
+                ),
+            );
+
+        if (args.projectUuid) {
+            void query.andWhere((builder) => {
+                void builder
+                    .whereNull(`${AiAgentDocumentTableName}.project_uuid`)
+                    .orWhere(
+                        `${AiAgentDocumentTableName}.project_uuid`,
+                        args.projectUuid!,
+                    );
+            });
+        } else {
+            void query.whereNull(`${AiAgentDocumentTableName}.project_uuid`);
+        }
+
+        const rows = await query.orderBy(
+            `${AiAgentDocumentTableName}.created_at`,
+            'desc',
+        );
+        return rows.map(mapRowToSummary);
+    }
+
+    async getContentForAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        documentUuid: string;
+    }): Promise<AiAgentDocumentContent | undefined> {
+        const row = await this.database(AiAgentDocumentTableName)
+            .select<
+                Pick<
+                    DbAiAgentDocument,
+                    'ai_agent_document_uuid' | 'name' | 'mime_type' | 'content'
+                >
+            >('ai_agent_document_uuid', 'name', 'mime_type', 'content')
+            .where(
+                `${AiAgentDocumentTableName}.ai_agent_document_uuid`,
+                args.documentUuid,
+            )
+            .andWhere(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentAccessSubquery(
+                    this.database,
+                    args.agentUuid,
+                ),
+            )
+            .first();
+
+        if (!row || row.content === null) {
+            return undefined;
+        }
+
+        return {
+            uuid: row.ai_agent_document_uuid,
+            name: row.name,
+            mimeType: row.mime_type,
+            content: row.content,
+        };
     }
 
     async delete(uuid: string): Promise<void> {

@@ -138,6 +138,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     userModel: models.getUserModel(),
                     aiAgentModel: models.getAiAgentModel(),
+                    aiAgentDocumentModel:
+                        models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     changesetModel: models.getChangesetModel(),
                     catalogModel: models.getCatalogModel(),
                     contentVerificationModel:

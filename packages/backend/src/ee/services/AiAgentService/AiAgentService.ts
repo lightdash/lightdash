@@ -146,6 +146,7 @@ import {
 } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
+import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { AiAgentModel, type AiMcpCredential } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -243,6 +244,7 @@ type AgentResponseStream = {
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
+    aiAgentDocumentModel: AiAgentDocumentModel;
     analytics: LightdashAnalytics;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
@@ -395,6 +397,8 @@ function validateGeneratedSuggestion(
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
 
+    private readonly aiAgentDocumentModel: AiAgentDocumentModel;
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly asyncQueryService: AsyncQueryService;
@@ -471,6 +475,7 @@ export class AiAgentService extends BaseService {
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
+        this.aiAgentDocumentModel = dependencies.aiAgentDocumentModel;
         this.analytics = dependencies.analytics;
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
@@ -4592,6 +4597,49 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 },
             );
 
+        const listKnowledgeDocuments = async () =>
+            wrapSentryTransaction(
+                'AiAgent.listKnowledgeDocuments',
+                {},
+                async () => {
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
+                    );
+                    return this.aiAgentDocumentModel.findAllForAgent({
+                        organizationUuid,
+                        agentUuid: agentSettings.uuid,
+                        projectUuid,
+                    });
+                },
+            );
+
+        const getKnowledgeDocumentContent = async (args: {
+            documentUuid: string;
+        }) =>
+            wrapSentryTransaction(
+                'AiAgent.getKnowledgeDocumentContent',
+                args,
+                async () => {
+                    const agentSettings = await this.getAgentSettings(
+                        user,
+                        prompt,
+                    );
+                    const content =
+                        await this.aiAgentDocumentModel.getContentForAgent({
+                            organizationUuid,
+                            agentUuid: agentSettings.uuid,
+                            documentUuid: args.documentUuid,
+                        });
+                    if (!content) {
+                        throw new NotFoundError(
+                            `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
+                        );
+                    }
+                    return content;
+                },
+            );
+
         const getExploreCompiler = async () => {
             const warehouseCredentials =
                 await this.projectModel.getWarehouseCredentialsForProject(
@@ -4648,6 +4696,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
+            listKnowledgeDocuments,
+            getKnowledgeDocumentContent,
             getSavedChart,
             sendFile,
             sendSlackBlocks,
@@ -4746,6 +4796,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
+            listKnowledgeDocuments,
+            getKnowledgeDocumentContent,
             getSavedChart,
             sendFile,
             sendSlackBlocks,
@@ -4813,6 +4865,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             : null;
 
         const agentSettings = await this.getAgentSettings(user, prompt);
+        const knowledgeDocuments =
+            await this.aiAgentDocumentModel.findAllForAgent({
+                organizationUuid: user.organizationUuid,
+                agentUuid: agentSettings.uuid,
+                projectUuid: prompt.projectUuid,
+            });
         const mcpServers = this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
             projectUuid: prompt.projectUuid,
             userUuid: user.userUuid,
@@ -4848,6 +4906,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...modelProperties,
 
             agentSettings,
+            knowledgeDocuments,
             mcpServers,
 
             messageHistory,
@@ -4898,6 +4957,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             runSqlJob,
             listWarehouseTables,
             describeWarehouseTable,
+            listKnowledgeDocuments,
+            getKnowledgeDocumentContent,
             getSavedChart,
             getPrompt,
             sendFile,
