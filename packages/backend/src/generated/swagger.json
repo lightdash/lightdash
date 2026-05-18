@@ -10482,7 +10482,7 @@
                     "findContent"
                 ]
             },
-            "AgentSuggestionPromptChip": {
+            "AgentSuggestion": {
                 "properties": {
                     "defaults": {
                         "properties": {
@@ -10509,49 +10509,10 @@
                     },
                     "label": {
                         "type": "string"
-                    },
-                    "kind": {
-                        "type": "string",
-                        "enum": ["prompt"],
-                        "nullable": false
                     }
                 },
-                "required": ["defaults", "tool", "label", "kind"],
+                "required": ["defaults", "tool", "label"],
                 "type": "object"
-            },
-            "AgentSuggestionAction": {
-                "type": "string",
-                "enum": ["saveAsChart", "pinToDashboard", "openInExplore"]
-            },
-            "AgentSuggestionActionChip": {
-                "properties": {
-                    "artifactUuid": {
-                        "type": "string"
-                    },
-                    "action": {
-                        "$ref": "#/components/schemas/AgentSuggestionAction"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "kind": {
-                        "type": "string",
-                        "enum": ["action"],
-                        "nullable": false
-                    }
-                },
-                "required": ["artifactUuid", "action", "label", "kind"],
-                "type": "object"
-            },
-            "AgentSuggestion": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/AgentSuggestionPromptChip"
-                    },
-                    {
-                        "$ref": "#/components/schemas/AgentSuggestionActionChip"
-                    }
-                ]
             },
             "ApiSuccess__chips-AgentSuggestion-Array__": {
                 "properties": {

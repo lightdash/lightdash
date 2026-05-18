@@ -1,5 +1,4 @@
 import {
-    AGENT_SUGGESTION_ACTIONS,
     AGENT_SUGGESTION_TOOLS,
     agentSuggestionsModelSchema,
     type AgentSuggestion,
@@ -13,74 +12,81 @@ const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an e
 Each chip is a concrete, executable question or task that a new user could click to get value from the agent immediately. Chips are not autocomplete — they are billboards for what the agent can do.
 
 Hard rules:
-- Always emit chips with kind="prompt". Action chips are not valid in empty-state.
 - Each label is 5-120 characters, imperative or interrogative, no trailing punctuation.
 - Each chip MUST pick exactly one of these tools: ${AGENT_SUGGESTION_TOOLS.join(', ')}.
 - Use real explore and dimension names from the catalogue. Never invent fields.
 - Mix tools when possible — avoid producing only \`runQuery\` chips.
-- Prefer verified questions and content tags when supplied — that's the user's curated context.
+
+Priority of context (use top-down, falling through when each is empty or doesn't fit):
+1. <recentUserConversations> — threads this user has worked on recently with this agent. Lead with chips that let them pick up where they left off ("Continue the {topic} analysis", "Update the {dashboard title} from last week"). Reference the thread topic; do NOT replay the same exact prompt.
+2. <verifiedContent> — admin-verified charts/dashboards this user can see. Chips that surface these read as authoritative ("Open the {name}", "Refresh the {name} for this week").
+3. <verifiedQuestions> and <verifiedContentTags> — agent-level curated context.
+4. <explores> — fall back to catalog-driven chips when no recent/verified signal applies.
 
 Tool guide:
 - \`runQuery\`: factual data questions answerable from the semantic layer ("Show revenue by week for last 90 days").
 - \`runSql\`: anything that needs warehouse-direct SQL (rare; only when the question can't be expressed in the semantic layer).
 - \`generateDashboard\`: when the value is a multi-chart overview ("Build me an executive summary").
-- \`findContent\`: when an existing chart or dashboard likely already answers it ("Find the weekly sales report").
+- \`findContent\`: when an existing chart or dashboard likely already answers it ("Find the weekly sales report"). Prefer this for chips that reference verifiedContent.
 - \`proposeChange\`: when the user is implicitly asking for a metric/dimension definition change.
 
-If the project has zero explores, return three generic chips that prompt the user to set up data (e.g. "Show me what data is available").`;
+If the project has zero explores AND no recent threads, return three generic chips that prompt the user to set up data.`;
 
 const POST_RESPONSE_PROMPT = `You write 2-5 chips that appear above the chat input AFTER the agent has just replied. Each chip is what the user is most likely to click NEXT in this conversation.
 
-You have three chip kinds:
+You only emit prompt chips — actions like "save as chart" are handled elsewhere. Every chip submits a new message to the agent when clicked.
 
-1. ANSWER (kind="prompt") — emit when <thread.latestAssistantTurn.askedClarifyingQuestion> is true. The label IS the user's likely answer back to the agent's question. 5-40 chars typically. Pull options from the choices the agent presented.
+Two modes:
 
-2. CONTINUE (kind="prompt") — a natural next prompt (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn.latestQuery> or <explores>. Never invent terms — if a concept does not appear in the data, do not propose it.
+1. ANSWER mode — when <thread.latestAssistantTurn.askedClarifyingQuestion> is true, the chips ARE the user's likely answers to the agent's question. Pull options from the choices the agent presented in its reply. 5-40 chars typically.
 
-3. ACTION (kind="action") — only when <thread.latestAssistantTurn.chartArtifactPresent> is true. At most ONE per response. Action chips trigger a UI workflow and do NOT submit text. Pick from: ${AGENT_SUGGESTION_ACTIONS.join(', ')}. The server binds the artifact reference — you only declare the action type.
+2. CONTINUE mode — natural next prompts (drill-in, refinement, comparison, follow-up). Use ONLY field labels visible in <thread.latestAssistantTurn> or <explores>. Never invent terms — if a concept doesn't appear in the data, do not propose it.
 
 HARD RULES:
-- Never reference a field name, segment, tier, or metric that does not appear in <explores> or <thread.latestAssistantTurn.latestQuery>. This is the #1 failure mode.
+- Never reference a field name, segment, tier, or metric that does not appear in <explores>, <thread.latestAssistantTurn.text>, or <verifiedContent>. This is the #1 failure mode.
 - If <thread.latestAssistantTurn.refused> is true (the agent just said it couldn't do something): do NOT repeat the refused line. Pivot — propose a different explore, a related verified question, or an adjacent angle the data actually supports.
-- 3 chips is ideal. 5 is the maximum. Density matters on a small chip row.
-- Verified questions and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot.
+- 3 chips is ideal. 5 is the maximum.
+- Verified questions, verified content, and content tags reflect the user's curated workflow — prefer them when they fit the next-step slot. A chip that points at a verified chart ("Open the {name}") via \`findContent\` is often stronger than a new query.
 - No trailing punctuation on labels. Imperative or interrogative tense.
 
-MODE SELECTION:
-- If <thread.latestAssistantTurn.askedClarifyingQuestion> is true → lead with 2-4 ANSWER chips.
-- Else if <thread.latestAssistantTurn.chartArtifactPresent> is true AND not refused → mostly CONTINUE chips + ONE ACTION chip.
-- Else if refused → CONTINUE chips that PIVOT. No action chips.
-- Else → CONTINUE chips only.
+For each chip, set defaults.explore, defaults.dimensions, defaults.timeframe based on what the chip implies. Use nulls / empty arrays when not applicable. Set tool to the best-fit value: ${AGENT_SUGGESTION_TOOLS.join(', ')}.
 
-TOOL GUIDE (for kind="prompt"):
+Tool guide:
 - \`runQuery\`: drill-ins, breakdowns, refinements of the data
 - \`runSql\`: rare; only when semantic layer can't express what's being asked
 - \`generateDashboard\`: "build me an overview" or multi-chart
-- \`findContent\`: "is there already a saved chart for this"
-- \`proposeChange\`: when the user is implicitly asking for a metric/dimension definition change
-
-For each prompt chip, set defaults.explore, defaults.dimensions, defaults.timeframe based on what the chip implies. Use nulls / empty arrays when not applicable.`;
+- \`findContent\`: "is there already a saved chart for this", or to surface a verified chart
+- \`proposeChange\`: when the user is implicitly asking for a metric/dimension definition change`;
 
 export const SUGGESTION_FALLBACK_CHIPS: AgentSuggestion[] = [
     {
-        kind: 'prompt',
         label: 'Show me what data is available',
         tool: 'findContent',
         defaults: { explore: null, dimensions: [], timeframe: null },
     },
     {
-        kind: 'prompt',
         label: 'Summarise activity from the last 30 days',
         tool: 'runQuery',
         defaults: { explore: null, dimensions: [], timeframe: 'last 30 days' },
     },
     {
-        kind: 'prompt',
         label: 'Build a quick overview dashboard',
         tool: 'generateDashboard',
         defaults: { explore: null, dimensions: [], timeframe: null },
     },
 ];
+
+export type RecentUserConversation = {
+    topic: string; // thread title or first user prompt snippet
+    lastUserMessage: string | null;
+    daysAgo: number;
+};
+
+export type VerifiedContentItem = {
+    title: string;
+    type: 'chart' | 'dashboard';
+    description: string | null;
+};
 
 export type SuggestionPromptContext = {
     agentName: string;
@@ -95,20 +101,17 @@ export type SuggestionPromptContext = {
     }>;
     verifiedQuestions: string[];
     verifiedContentTags: string[];
-    // Present only for post-response calls. When omitted, the empty-state
-    // system prompt is used and the result is starter chips.
+    verifiedContent: VerifiedContentItem[];
+    // Only set when generating empty-state chips. Lets the LLM pick up where
+    // the user left off.
+    recentUserConversations?: RecentUserConversation[];
+    // Only set when generating post-response chips.
     thread?: {
         recentMessages: Array<{ role: 'user' | 'assistant'; text: string }>;
         latestAssistantTurn: {
             text: string;
             askedClarifyingQuestion: boolean;
             refused: boolean;
-            latestQuery: {
-                exploreLabel: string;
-                dimensions: string[];
-                metrics: string[];
-            } | null;
-            chartArtifactPresent: boolean;
         };
     };
 };
@@ -130,6 +133,8 @@ export async function generateAgentSuggestions(
             explores: context.explores,
             verifiedQuestions: context.verifiedQuestions,
             verifiedContentTags: context.verifiedContentTags,
+            verifiedContent: context.verifiedContent,
+            recentUserConversations: context.recentUserConversations ?? null,
             thread: context.thread ?? null,
         },
         null,
