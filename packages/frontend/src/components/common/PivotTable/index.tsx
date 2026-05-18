@@ -15,6 +15,7 @@ import {
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
     type ItemsMap,
+    type ParametersValuesMap,
     type PivotData,
     type ResultRow,
     type ResultValue,
@@ -156,6 +157,7 @@ type PivotTableProps = BoxProps & // TODO: remove this
         isMinimal: boolean;
         isDashboard?: boolean;
         onColumnWidthChange?: (fieldId: string, width: number) => void;
+        parameters?: ParametersValuesMap;
     };
 
 const PivotTable: FC<PivotTableProps> = ({
@@ -171,6 +173,7 @@ const PivotTable: FC<PivotTableProps> = ({
     isMinimal = false,
     isDashboard = false,
     onColumnWidthChange,
+    parameters,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -434,7 +437,12 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 return (
                                     <Text span fw={600}>
-                                        {formatItemValue(item, subtotalValue)}
+                                        {formatItemValue(
+                                            item,
+                                            subtotalValue,
+                                            false,
+                                            parameters,
+                                        )}
                                     </Text>
                                 );
                             }
@@ -461,6 +469,7 @@ const PivotTable: FC<PivotTableProps> = ({
         columnProperties,
         frozenLayout,
         rowNumberWidth,
+        parameters,
     ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
@@ -511,14 +520,19 @@ const PivotTable: FC<PivotTableProps> = ({
             if (!isSummable(item)) {
                 return null;
             }
-            const formattedValue = formatItemValue(item, total);
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.headerValues, getField],
+        [data.headerValues, getField, parameters],
     );
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
@@ -528,14 +542,19 @@ const PivotTable: FC<PivotTableProps> = ({
 
             const item = getField(value.fieldId);
 
-            const formattedValue = formatItemValue(item, total);
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.columnTotalFields, getField],
+        [data.columnTotalFields, getField, parameters],
     );
 
     const getUnderlyingFieldValues = useCallback(

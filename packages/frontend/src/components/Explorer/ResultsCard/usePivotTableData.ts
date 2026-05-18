@@ -1,5 +1,6 @@
 import type {
     ItemsMap,
+    ParametersValuesMap,
     PivotData,
     ReadyQueryResultsPage,
     ResultRow,
@@ -19,6 +20,7 @@ type UsePivotTableDataArgs = {
     getField: (fieldId: string) => ItemsMap[string] | undefined;
     getFieldLabel: (fieldId: string | null | undefined) => string | undefined;
     columnLimit?: number;
+    parameters?: ParametersValuesMap;
 };
 
 type PivotTableDataState = {
@@ -44,6 +46,7 @@ export function usePivotTableData({
     getField,
     getFieldLabel,
     columnLimit,
+    parameters,
 }: UsePivotTableDataArgs): PivotTableDataState {
     const worker = useWorker(createWorker);
     const [state, setState] = useState<PivotTableDataState>({
@@ -74,6 +77,7 @@ export function usePivotTableData({
             getFieldLabel,
             groupedSubtotals: undefined,
             columnLimit,
+            parameters,
         };
     }, [
         enabled,
@@ -83,6 +87,7 @@ export function usePivotTableData({
         getField,
         getFieldLabel,
         columnLimit,
+        parameters,
     ]);
 
     useEffect(() => {

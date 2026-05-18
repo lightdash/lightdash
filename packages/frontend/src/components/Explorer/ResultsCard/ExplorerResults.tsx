@@ -8,6 +8,7 @@ import {
     selectColumnOrder,
     selectCustomDimensions,
     selectIsEditMode,
+    selectParameters,
     selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
@@ -72,6 +73,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const parameters = useExplorerSelector(selectParameters);
 
     // Get chart config for column properties
     const chartConfig = useExplorerSelector(selectChartConfig);
@@ -270,6 +272,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         getField,
         getFieldLabel,
         columnLimit,
+        parameters,
     });
 
     const cellContextMenu = useCallback(
@@ -382,6 +385,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 getField={getField}
                 showSubtotals={false}
                 isMinimal={false}
+                parameters={parameters}
             />
         );
     };
