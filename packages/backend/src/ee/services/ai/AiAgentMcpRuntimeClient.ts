@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     type AiMcpCredentialScope,
     type AiMcpServerAuthType,
+    type AiMcpServerConnectionStatus,
 } from '@lightdash/common';
 /* eslint-disable import/extensions */
 import {
@@ -17,19 +18,27 @@ import type {
     OAuthClientMetadata,
     OAuthTokens,
 } from '@modelcontextprotocol/sdk/shared/auth.js';
+import type { ToolSet } from 'ai';
 /* eslint-enable import/extensions */
 import { LightdashConfig } from '../../../config/parseConfig';
+import Logger from '../../../logging/logger';
 import type {
     AiMcpCredential,
     AiMcpOAuthCredentialPayload,
     AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
 import { AiAgentModel } from '../../models/AiAgentModel';
-import type { AiAgentMcpServer } from './types/aiAgent';
+import type { AiAgentMcpServer, UnavailableMcpServer } from './types/aiAgent';
 
 type Dependencies = {
     aiAgentModel: AiAgentModel;
     lightdashConfig: LightdashConfig;
+};
+
+export type ResolvedMcpTools = {
+    tools: ToolSet;
+    unavailableMcpServers: UnavailableMcpServer[];
+    closeMcpClients: () => Promise<void>;
 };
 
 const buildDefaultClientMetadata = (
@@ -306,6 +315,15 @@ export const isMcpAuthorizationError = (error: unknown): boolean =>
     (error instanceof Error &&
         (/401/.test(error.message) || /authorization/i.test(error.message)));
 
+const sanitizeMcpToolKeyPart = (value: string) => {
+    const sanitized = value
+        .replace(/[^a-zA-Z0-9_]+/g, '_')
+        .replace(/_+/g, '_')
+        .replace(/^_+/, '')
+        .replace(/_+$/, '');
+    return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
+};
+
 type McpServerConnectionArgs = {
     uuid: string;
     name: string;
@@ -349,19 +367,66 @@ const normalizeMcpError = (
     mcpServer: McpServerConnectionArgs,
     error: unknown,
 ): Error => {
-    if (
-        mcpServer.authType === 'oauth' &&
-        isMcpAuthorizationError(error) &&
-        mcpServer.resolvedCredentialScope
-    ) {
+    if (mcpServer.authType === 'oauth' && isMcpAuthorizationError(error)) {
         return new McpAuthorizationRequiredError(
             mcpServer.name,
             mcpServer.uuid,
-            mcpServer.resolvedCredentialScope,
+            mcpServer.resolvedCredentialScope ?? 'shared',
         );
     }
 
     return error instanceof Error ? error : new Error(String(error));
+};
+
+const getUnavailableMcpStatus = (
+    mcpServer: AiAgentMcpServer,
+    error: Error,
+): AiMcpServerConnectionStatus => {
+    if (
+        mcpServer.authType === 'bearer' &&
+        (!mcpServer.resolvedCredential ||
+            mcpServer.resolvedCredential.type !== 'bearer' ||
+            !mcpServer.resolvedCredential.bearerToken)
+    ) {
+        return 'not_connected';
+    }
+
+    if (
+        mcpServer.authType === 'oauth' &&
+        error instanceof McpAuthorizationRequiredError
+    ) {
+        if (mcpServer.connectionStatus === 'connecting') {
+            return 'connecting';
+        }
+
+        return 'not_connected';
+    }
+
+    return 'error';
+};
+
+const getMcpUserFacingErrorMessage = (error: Error): string => {
+    if (error instanceof McpAuthorizationRequiredError) {
+        return error.message;
+    }
+
+    if (error.message.includes('MCP HTTP Transport Error')) {
+        if (
+            error.message.includes('HTTP 401') ||
+            error.message.includes('Unauthorized')
+        ) {
+            return 'The MCP server rejected the saved credentials. Check the MCP server authentication settings, then try again.';
+        }
+
+        if (
+            error.message.includes('HTTP 403') ||
+            error.message.includes('Forbidden')
+        ) {
+            return 'The MCP server refused access. Check that the connected account has permission to use this MCP server.';
+        }
+    }
+
+    return 'We could not connect to the MCP server. Check that it is available and try again.';
 };
 
 export const createHttpMcpClient = async (
@@ -423,6 +488,21 @@ export class AiAgentMcpRuntimeClient {
     constructor(dependencies: Dependencies) {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.lightdashConfig = dependencies.lightdashConfig;
+    }
+
+    private async persistRuntimeState(args: {
+        serverUuid: string;
+        connectionStatus: AiMcpServerConnectionStatus;
+        error: string | null;
+    }) {
+        try {
+            await this.aiAgentModel.updateMcpServerRuntimeState(args);
+        } catch (error) {
+            Logger.error(
+                `[AiAgent][MCP][${args.serverUuid}] Failed to persist runtime state`,
+                error,
+            );
+        }
     }
 
     private getMcpOAuthCallbackUrl(
@@ -599,5 +679,149 @@ export class AiAgentMcpRuntimeClient {
                       })
                     : undefined,
         }));
+    }
+
+    async resolveTools(args: {
+        mcpServers: AiAgentMcpServer[];
+        debugLoggingEnabled: boolean;
+    }): Promise<ResolvedMcpTools> {
+        const log = (message: string) => {
+            if (args.debugLoggingEnabled) {
+                Logger.debug(`[AiAgent][MCP Resolver] ${message}`);
+            }
+        };
+
+        if (args.mcpServers.length === 0) {
+            return {
+                tools: {},
+                unavailableMcpServers: [],
+                closeMcpClients: async () => undefined,
+            };
+        }
+
+        const connectedClients: MCPClient[] = [];
+        const usedToolNames = new Set<string>();
+        const resolvedTools: ToolSet = {};
+        const unavailableMcpServers: UnavailableMcpServer[] = [];
+
+        const serverResults = await Promise.all(
+            args.mcpServers.map(async (mcpServer) => {
+                let mcpClient: MCPClient | undefined;
+
+                try {
+                    log(`Connecting to ${mcpServer.name} (${mcpServer.url})`);
+                    mcpClient = await createHttpMcpClient(
+                        mcpServer,
+                        (error) => {
+                            Logger.error(
+                                `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
+                                error,
+                            );
+                        },
+                    );
+
+                    const tools = await mcpClient.tools();
+                    await this.persistRuntimeState({
+                        serverUuid: mcpServer.uuid,
+                        connectionStatus: 'connected',
+                        error: null,
+                    });
+
+                    return {
+                        mcpServer,
+                        mcpClient,
+                        tools,
+                        unavailableMcpServer: null,
+                    };
+                } catch (error) {
+                    const normalizedError =
+                        error instanceof Error
+                            ? error
+                            : new Error(String(error));
+                    const userFacingErrorMessage =
+                        getMcpUserFacingErrorMessage(normalizedError);
+                    const status = getUnavailableMcpStatus(
+                        mcpServer,
+                        normalizedError,
+                    );
+
+                    await this.persistRuntimeState({
+                        serverUuid: mcpServer.uuid,
+                        connectionStatus: status,
+                        error: userFacingErrorMessage,
+                    });
+
+                    if (mcpClient) {
+                        await mcpClient.close().catch((closeError) => {
+                            Logger.error(
+                                `[AiAgent][MCP][${mcpServer.name}] Failed to close failed MCP client`,
+                                closeError,
+                            );
+                        });
+                    }
+
+                    return {
+                        mcpServer,
+                        mcpClient: null,
+                        tools: null,
+                        unavailableMcpServer: {
+                            serverUuid: mcpServer.uuid,
+                            serverName: mcpServer.name,
+                            message: userFacingErrorMessage,
+                            status,
+                        } satisfies UnavailableMcpServer,
+                    };
+                }
+            }),
+        );
+
+        for (const serverResult of serverResults) {
+            if (serverResult.unavailableMcpServer) {
+                unavailableMcpServers.push(serverResult.unavailableMcpServer);
+            } else if (serverResult.mcpClient && serverResult.tools) {
+                connectedClients.push(serverResult.mcpClient);
+
+                const serverPrefix = sanitizeMcpToolKeyPart(
+                    serverResult.mcpServer.name,
+                );
+
+                for (const [toolName, toolDefinition] of Object.entries(
+                    serverResult.tools,
+                )) {
+                    const toolSuffix = sanitizeMcpToolKeyPart(toolName);
+                    const baseToolName = `mcp_${serverPrefix}__${toolSuffix}`;
+                    let namespacedToolName = baseToolName;
+                    let collisionCount = 1;
+
+                    while (usedToolNames.has(namespacedToolName)) {
+                        collisionCount += 1;
+                        namespacedToolName = `${baseToolName}_${collisionCount}`;
+                    }
+
+                    usedToolNames.add(namespacedToolName);
+                    resolvedTools[namespacedToolName] =
+                        toolDefinition as ToolSet[string];
+                }
+            }
+        }
+
+        return {
+            tools: resolvedTools,
+            unavailableMcpServers,
+            closeMcpClients: async () => {
+                const results = await Promise.allSettled(
+                    connectedClients.map((client) => client.close()),
+                );
+
+                for (const result of results) {
+                    if (result.status === 'rejected') {
+                        Logger.error(
+                            '[AiAgent][MCP] Failed to close MCP client',
+                            result.reason,
+                        );
+                    }
+                }
+            },
+        };
     }
 }

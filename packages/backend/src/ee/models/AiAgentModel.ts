@@ -933,6 +933,64 @@ export class AiAgentModel {
         });
     }
 
+    async updateMcpServerRuntimeState(args: {
+        serverUuid: string;
+        connectionStatus: AiMcpServerConnectionStatus;
+        error: string | null;
+        actorUserUuid?: string | null;
+        trx?: Knex;
+    }): Promise<void> {
+        const trx = args.trx ?? this.database;
+        const row = await trx(AiMcpServerTableName)
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .first();
+
+        if (!row) {
+            throw new NotFoundError('MCP server not found');
+        }
+
+        if (row.auth_type === 'oauth') {
+            const credential = await this.getCredential(
+                args.serverUuid,
+                'shared',
+                {
+                    trx,
+                },
+            );
+
+            if (credential?.credentials.type !== 'oauth') {
+                throw new NotFoundError(
+                    'Shared OAuth credential was not found',
+                );
+            }
+
+            await this.upsertCredential({
+                serverUuid: args.serverUuid,
+                scope: 'shared',
+                credentials: {
+                    ...credential.credentials,
+                    connectionStatus: args.connectionStatus,
+                    lastError: args.error ?? undefined,
+                },
+                actorUserUuid:
+                    args.actorUserUuid ??
+                    credential.updatedByUserUuid ??
+                    credential.createdByUserUuid ??
+                    null,
+                trx,
+            });
+            return;
+        }
+
+        await trx(AiMcpServerTableName)
+            .where('ai_mcp_server_uuid', args.serverUuid)
+            .update({
+                connection_status: args.connectionStatus,
+                error: args.error,
+                updated_at: trx.fn.now(),
+            });
+    }
+
     async createAgent(
         args: Pick<
             ApiCreateAiAgent,
