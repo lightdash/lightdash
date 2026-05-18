@@ -1,3 +1,10 @@
+## [0.2962.2](https://github.com/lightdash/lightdash/compare/0.2962.1...0.2962.2) (2026-05-18)
+
+
+### Bug Fixes
+
+* apply truncation in case statement for rolling period buckets ([#22870](https://github.com/lightdash/lightdash/issues/22870)) ([258cd50](https://github.com/lightdash/lightdash/commit/258cd50fe9dc5c8bfc3d9330ad64cb4bdfd7f94d))
+
 ## [0.2962.1](https://github.com/lightdash/lightdash/compare/0.2962.0...0.2962.1) (2026-05-18)
 
 
