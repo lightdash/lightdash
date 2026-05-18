@@ -125,10 +125,48 @@ export const AgentChatInput = ({
     const onValueChangeRef = useRef(onValueChange);
     onValueChangeRef.current = onValueChange;
     const editorRef = useRef<Editor | null>(null);
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const loadingRef = useRef(loading);
     loadingRef.current = loading;
     const disabledRef = useRef(disabled);
     disabledRef.current = disabled;
+
+    // Hide the chip strip while the user is scrolled away from the input.
+    // Reappears as they scroll back toward the bottom of the thread — chips
+    // are noise when reading history.
+    const [chipsNearBottom, setChipsNearBottom] = useState(true);
+    useEffect(() => {
+        const el = rootRef.current;
+        if (!el) return undefined;
+        let scrollEl: HTMLElement | null = el.parentElement;
+        while (scrollEl) {
+            const overflow = window.getComputedStyle(scrollEl).overflowY;
+            if (overflow === 'auto' || overflow === 'scroll') break;
+            scrollEl = scrollEl.parentElement;
+        }
+        if (!scrollEl) return undefined;
+        const HIDE_AFTER_PX = 240;
+        let raf: number | null = null;
+        const measure = () => {
+            raf = null;
+            if (!scrollEl) return;
+            const distance =
+                scrollEl.scrollHeight -
+                scrollEl.scrollTop -
+                scrollEl.clientHeight;
+            setChipsNearBottom(distance < HIDE_AFTER_PX);
+        };
+        const onScroll = () => {
+            if (raf !== null) return;
+            raf = window.requestAnimationFrame(measure);
+        };
+        measure();
+        scrollEl.addEventListener('scroll', onScroll, { passive: true });
+        return () => {
+            if (raf !== null) window.cancelAnimationFrame(raf);
+            scrollEl?.removeEventListener('scroll', onScroll);
+        };
+    }, []);
 
     const { track } = useTracking();
 
@@ -334,7 +372,7 @@ export const AgentChatInput = ({
 
     if (isMinimalMode) {
         return (
-            <Box className={styles.minimalContainer}>
+            <Box className={styles.minimalContainer} ref={rootRef}>
                 {showWarningBanner && (
                     <Paper className={styles.warningBanner}>
                         <Text size="xs" c="ldGray.7" ta="center">
@@ -358,7 +396,16 @@ export const AgentChatInput = ({
                     </Paper>
                 )}
 
-                {chipRow}
+                {chipRow && (
+                    <Box
+                        className={`${styles.chipReveal} ${
+                            chipsNearBottom ? '' : styles.chipHidden
+                        }`}
+                        aria-hidden={!chipsNearBottom}
+                    >
+                        {chipRow}
+                    </Box>
+                )}
 
                 <Box
                     className={`${styles.minimalInputWrapper} ${
@@ -443,11 +490,21 @@ export const AgentChatInput = ({
 
     return (
         <Box
+            ref={rootRef}
             className={`${styles.container} ${
                 showWarningBanner ? styles.warningBannerVisible : ''
             } ${showDisabledBanner ? styles.disabledBannerVisible : ''}`}
         >
-            {chipRow}
+            {chipRow && (
+                <Box
+                    className={`${styles.chipReveal} ${
+                        chipsNearBottom ? '' : styles.chipHidden
+                    }`}
+                    aria-hidden={!chipsNearBottom}
+                >
+                    {chipRow}
+                </Box>
+            )}
 
             <Box
                 className={`${styles.inputCard} ${
