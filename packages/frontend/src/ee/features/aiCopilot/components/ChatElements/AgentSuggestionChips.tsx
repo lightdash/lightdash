@@ -1,14 +1,6 @@
-import type { AgentSuggestion, AgentSuggestionAction } from '@lightdash/common';
+import type { AgentSuggestion } from '@lightdash/common';
 import { Box, Button, Skeleton } from '@mantine-8/core';
-import {
-    IconChartHistogram,
-    IconCompass,
-    IconDeviceFloppy,
-    IconPin,
-    type Icon,
-} from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
-import MantineIcon from '../../../../../components/common/MantineIcon';
 import styles from './AgentSuggestionChips.module.css';
 
 type Props = {
@@ -20,22 +12,8 @@ type Props = {
 
 const SKELETON_COUNT = 4;
 
-const ACTION_ICONS: Record<AgentSuggestionAction, Icon> = {
-    saveAsChart: IconDeviceFloppy,
-    pinToDashboard: IconPin,
-    openInExplore: IconCompass,
-};
-
-const renderLeftIcon = (chip: AgentSuggestion) => {
-    if (chip.kind !== 'action') return undefined;
-    const Icon = ACTION_ICONS[chip.action] ?? IconChartHistogram;
-    return <MantineIcon icon={Icon} size={14} />;
-};
-
 const chipKey = (chip: AgentSuggestion, idx: number) =>
-    chip.kind === 'action'
-        ? `act-${chip.action}-${chip.label}-${idx}`
-        : `prom-${chip.tool}-${chip.label}-${idx}`;
+    `${chip.tool}-${chip.label}-${idx}`;
 
 export const AgentSuggestionChips = ({
     chips,
@@ -73,23 +51,18 @@ export const AgentSuggestionChips = ({
 
     return (
         <Box className={styles.row}>
-            {chips.map((chip, idx) => {
-                const classes = [styles.chip, styles.fadeIn];
-                if (chip.kind === 'action') classes.push(styles.actionChip);
-                return (
-                    <Button
-                        key={chipKey(chip, idx)}
-                        variant="default"
-                        size="xs"
-                        className={classes.join(' ')}
-                        style={{ ['--chip-idx' as string]: idx }}
-                        leftSection={renderLeftIcon(chip)}
-                        onClick={() => onChipClick(chip, idx)}
-                    >
-                        {chip.label}
-                    </Button>
-                );
-            })}
+            {chips.map((chip, idx) => (
+                <Button
+                    key={chipKey(chip, idx)}
+                    variant="default"
+                    size="xs"
+                    className={`${styles.chip} ${styles.fadeIn}`}
+                    style={{ ['--chip-idx' as string]: idx }}
+                    onClick={() => onChipClick(chip, idx)}
+                >
+                    {chip.label}
+                </Button>
+            ))}
         </Box>
     );
 };

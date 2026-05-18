@@ -25,7 +25,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
-import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
@@ -132,7 +131,6 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
 
     const { track } = useTracking();
-    const { showToastInfo } = useToaster();
 
     const showModelSelector =
         models && models.length > 1 && onModelChange !== undefined;
@@ -232,7 +230,7 @@ export const AgentChatInput = ({
 
     const handleChipClick = useCallback(
         (chip: AgentSuggestion, index: number) => {
-            const trackClick = (extra: Record<string, unknown>) => {
+            const trackClick = () => {
                 if (!projectUuid || !agentUuid) return;
                 track({
                     name: EventName.AI_AGENT_SUGGESTION_CLICK,
@@ -240,25 +238,15 @@ export const AgentChatInput = ({
                         projectId: projectUuid,
                         agentId: agentUuid,
                         chipLabel: chip.label,
+                        chipTool: chip.tool,
                         chipIndex: index,
-                        chipKind: chip.kind,
                         mode: emptyStateMode ? 'empty-state' : 'post-response',
-                        ...extra,
                     },
                 });
             };
 
-            if (chip.kind === 'action') {
-                trackClick({ chipAction: chip.action });
-                showToastInfo({
-                    title: chip.label,
-                    subtitle: `Action handler for ${chip.action} on artifact ${chip.artifactUuid} (wired up next).`,
-                });
-                return;
-            }
-
-            // prompt chip: empty-state inserts mention to compose around;
-            // post-response auto-submits the label.
+            // Empty-state: insert as a mention so the user can compose around it.
+            // Post-response: auto-submit because the user wants exactly that next.
             if (emptyStateMode) {
                 if (!editor) return;
                 editor
@@ -272,7 +260,7 @@ export const AgentChatInput = ({
                         { type: 'text', text: ' ' },
                     ])
                     .run();
-                trackClick({ chipTool: chip.tool });
+                trackClick();
                 return;
             }
 
@@ -283,9 +271,9 @@ export const AgentChatInput = ({
             });
             editor?.commands.clearContent();
             setValueState('');
-            trackClick({ chipTool: chip.tool });
+            trackClick();
         },
-        [editor, projectUuid, agentUuid, track, showToastInfo, emptyStateMode],
+        [editor, projectUuid, agentUuid, track, emptyStateMode],
     );
 
     const handleImpression = useCallback(

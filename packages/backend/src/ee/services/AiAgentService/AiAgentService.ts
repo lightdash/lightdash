@@ -693,6 +693,19 @@ export class AiAgentService extends BaseService {
             .slice(0, 6)
             .map((q) => q.question);
 
+        const verifiedContent = await this.fetchSuggestionsVerifiedContent(
+            user,
+            projectUuid,
+        );
+
+        const recentUserConversations = threadUuid
+            ? undefined
+            : await this.fetchSuggestionsRecentConversations({
+                  organizationUuid,
+                  agentUuid,
+                  userUuid: user.userUuid,
+              });
+
         const threadContext = threadUuid
             ? await this.buildSuggestionsThreadContext({
                   organizationUuid,
@@ -721,7 +734,9 @@ export class AiAgentService extends BaseService {
                     explores,
                     verifiedQuestions,
                     verifiedContentTags: agent.tags ?? [],
-                    thread: threadContext?.contextForPrompt,
+                    verifiedContent,
+                    recentUserConversations,
+                    thread: threadContext ?? undefined,
                 },
                 {
                     organizationId: organizationUuid,
@@ -731,14 +746,7 @@ export class AiAgentService extends BaseService {
                 },
             );
 
-            const chartArtifactUuid = threadContext?.chartArtifactUuid ?? null;
-            chips = generated.chips
-                .map((chip): AgentSuggestion | null => {
-                    if (chip.kind === 'prompt') return chip;
-                    if (!chartArtifactUuid) return null;
-                    return { ...chip, artifactUuid: chartArtifactUuid };
-                })
-                .filter((chip): chip is AgentSuggestion => chip !== null);
+            chips = generated.chips;
             usingFallback = false;
             modelId = String(modelOptions.model.modelId ?? 'unknown');
         } catch (error) {
@@ -779,10 +787,7 @@ export class AiAgentService extends BaseService {
         organizationUuid: string;
         threadUuid: string;
         afterMessageUuid?: string;
-    }): Promise<{
-        contextForPrompt: NonNullable<SuggestionPromptContext['thread']>;
-        chartArtifactUuid: string | null;
-    } | null> {
+    }): Promise<NonNullable<SuggestionPromptContext['thread']> | null> {
         const messages = await this.aiAgentModel.findThreadMessages({
             organizationUuid,
             threadUuid,
@@ -809,33 +814,97 @@ export class AiAgentService extends BaseService {
         const askedClarifyingQuestion =
             detectClarifyingQuestion(latestAssistantText);
         const refused = detectRefusal(latestAssistantText);
-        const chartArtifact = (latestAssistant.artifacts ?? []).find(
-            (a) => a.artifactType === 'chart',
-        );
 
-        // Last 6 messages, truncated text. The transcript gives the LLM enough
-        // grounding without dumping the full thread.
         const recentMessages = messages.slice(-6).map((m) => ({
             role: m.role,
-            text:
-                m.role === 'user'
-                    ? (m.message ?? '').slice(0, 600)
-                    : (m.message ?? '').slice(0, 600),
+            text: (m.message ?? '').slice(0, 600),
         }));
 
         return {
-            contextForPrompt: {
-                recentMessages,
-                latestAssistantTurn: {
-                    text: latestAssistantText,
-                    askedClarifyingQuestion,
-                    refused,
-                    latestQuery: null,
-                    chartArtifactPresent: !!chartArtifact,
-                },
+            recentMessages,
+            latestAssistantTurn: {
+                text: latestAssistantText,
+                askedClarifyingQuestion,
+                refused,
             },
-            chartArtifactUuid: chartArtifact?.artifactUuid ?? null,
         };
+    }
+
+    private async fetchSuggestionsRecentConversations({
+        organizationUuid,
+        agentUuid,
+        userUuid,
+    }: {
+        organizationUuid: string;
+        agentUuid: string;
+        userUuid: string;
+    }): Promise<SuggestionPromptContext['recentUserConversations']> {
+        try {
+            const threads = await this.aiAgentModel.findThreads({
+                organizationUuid,
+                agentUuid,
+                userUuid,
+                createdFrom: ['web_app', 'slack'],
+            });
+            const sorted = [...threads].sort(
+                (a, b) =>
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime(),
+            );
+            const now = Date.now();
+            return sorted.slice(0, 5).map((thread) => {
+                const createdAt = new Date(thread.createdAt).getTime();
+                const daysAgo = Math.max(
+                    0,
+                    Math.floor((now - createdAt) / (1000 * 60 * 60 * 24)),
+                );
+                const topic =
+                    thread.title ??
+                    thread.firstMessage?.message ??
+                    'Untitled thread';
+                return {
+                    topic: topic.slice(0, 200),
+                    lastUserMessage:
+                        thread.firstMessage?.message?.slice(0, 200) ?? null,
+                    daysAgo,
+                };
+            });
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to fetch recent conversations for suggestions: ${String(
+                    error,
+                )}`,
+            );
+            return [];
+        }
+    }
+
+    private async fetchSuggestionsVerifiedContent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<SuggestionPromptContext['verifiedContent']> {
+        try {
+            const items =
+                await this.projectService.getVerifiedContentForHomepage(
+                    user,
+                    projectUuid,
+                );
+            return items.slice(0, 10).map((item) => {
+                const isDashboard = 'spaceUuid' in item && 'tiles' in item;
+                return {
+                    title: item.name,
+                    type: isDashboard ? 'dashboard' : 'chart',
+                    description: item.description ?? null,
+                };
+            });
+        } catch (error) {
+            Logger.warn(
+                `[AiAgentService] Failed to fetch verified content for suggestions: ${String(
+                    error,
+                )}`,
+            );
+            return [];
+        }
     }
 
     private async executeAsyncAiMetricQuery(
