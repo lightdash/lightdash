@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    type AgentSuggestion,
-    type AiModelOption,
-} from '@lightdash/common';
+import { FeatureFlags, type AiModelOption } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -25,12 +21,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
+import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
+import { usePostResponseChips } from '../../hooks/usePostResponseChips';
 import styles from './AgentChatInput.module.css';
-import { AgentSuggestionChips } from './AgentSuggestionChips';
+import { AgentSuggestionChips, type DisplayChip } from './AgentSuggestionChips';
 
 const MAX_RECOMMENDED_THREAD_MESSAGE_COUNT = 15;
 
@@ -127,6 +125,7 @@ export const AgentChatInput = ({
     disabledRef.current = disabled;
 
     const { track } = useTracking();
+    const { showToastInfo } = useToaster();
 
     const showModelSelector =
         models && models.length > 1 && onModelChange !== undefined;
@@ -135,15 +134,22 @@ export const AgentChatInput = ({
     const suggestionsFlag = useServerFeatureFlag(
         FeatureFlags.AiAgentSuggestions,
     );
-    const suggestionsEnabled =
+    const emptyStateEnabled =
         !isMinimalMode &&
         messageCount === 0 &&
         suggestionsFlag.data?.enabled === true;
 
+    const postResponseEnabled = messageCount > 0 && !loading;
+
     const suggestionsQuery = useAgentSuggestions({
         projectUuid,
         agentUuid,
-        enabled: suggestionsEnabled,
+        enabled: emptyStateEnabled,
+    });
+
+    const postResponseChips = usePostResponseChips({
+        messageCount,
+        enabled: postResponseEnabled,
     });
 
     const editor = useEditor({
@@ -214,34 +220,57 @@ export const AgentChatInput = ({
     }, [editor, disabled]);
 
     const handleChipClick = useCallback(
-        (chip: AgentSuggestion, index: number) => {
-            if (!editor) return;
-            editor
-                .chain()
-                .focus()
-                .insertContent([
-                    {
-                        type: SUGGESTION_CHIP_MENTION_NAME,
-                        attrs: { id: chip.tool, label: chip.label },
-                    },
-                    { type: 'text', text: ' ' },
-                ])
-                .run();
+        (chip: DisplayChip, index: number) => {
+            if (chip.source === 'empty-state') {
+                if (!editor) return;
+                editor
+                    .chain()
+                    .focus()
+                    .insertContent([
+                        {
+                            type: SUGGESTION_CHIP_MENTION_NAME,
+                            attrs: {
+                                id: chip.data.tool,
+                                label: chip.data.label,
+                            },
+                        },
+                        { type: 'text', text: ' ' },
+                    ])
+                    .run();
 
-            if (projectUuid && agentUuid) {
-                track({
-                    name: EventName.AI_AGENT_SUGGESTION_CLICK,
-                    properties: {
-                        projectId: projectUuid,
-                        agentId: agentUuid,
-                        chipLabel: chip.label,
-                        chipTool: chip.tool,
-                        chipIndex: index,
-                    },
-                });
+                if (projectUuid && agentUuid) {
+                    track({
+                        name: EventName.AI_AGENT_SUGGESTION_CLICK,
+                        properties: {
+                            projectId: projectUuid,
+                            agentId: agentUuid,
+                            chipLabel: chip.data.label,
+                            chipTool: chip.data.tool,
+                            chipIndex: index,
+                        },
+                    });
+                }
+                return;
             }
+
+            if (chip.data.kind === 'prompt') {
+                if (loadingRef.current || disabledRef.current) return;
+                onSubmitRef.current({
+                    message: chip.data.label,
+                    toolHints: [],
+                });
+                editor?.commands.clearContent();
+                setValueState('');
+                return;
+            }
+
+            showToastInfo({
+                title: chip.data.label,
+                subtitle:
+                    'Prototype only — this is where the matching workflow would open.',
+            });
         },
-        [editor, projectUuid, agentUuid, track],
+        [editor, projectUuid, agentUuid, track, showToastInfo],
     );
 
     const handleImpression = useCallback(
@@ -277,24 +306,47 @@ export const AgentChatInput = ({
         setValueState('');
     };
 
+    const displayChips: DisplayChip[] = useMemo(() => {
+        if (emptyStateEnabled) {
+            const llmChips = suggestionsQuery.data?.chips ?? [];
+            return llmChips.map((data) => ({
+                source: 'empty-state' as const,
+                data,
+            }));
+        }
+        if (postResponseEnabled) {
+            return postResponseChips.map((data) => ({
+                source: 'post-response' as const,
+                data,
+            }));
+        }
+        return [];
+    }, [
+        emptyStateEnabled,
+        postResponseEnabled,
+        suggestionsQuery.data,
+        postResponseChips,
+    ]);
+
     const chipRow = useMemo(() => {
-        if (!suggestionsEnabled) return null;
-        if (suggestionsQuery.isError) return null;
-        const chips = suggestionsQuery.data?.chips ?? [];
-        if (!suggestionsQuery.isLoading && chips.length === 0) return null;
+        if (!emptyStateEnabled && !postResponseEnabled) return null;
+        if (emptyStateEnabled && suggestionsQuery.isError) return null;
+        const isLoadingChips = emptyStateEnabled && suggestionsQuery.isLoading;
+        if (!isLoadingChips && displayChips.length === 0) return null;
         return (
             <AgentSuggestionChips
-                chips={chips}
-                isLoading={suggestionsQuery.isLoading}
+                chips={displayChips}
+                isLoading={isLoadingChips}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
             />
         );
     }, [
-        suggestionsEnabled,
+        emptyStateEnabled,
+        postResponseEnabled,
         suggestionsQuery.isError,
         suggestionsQuery.isLoading,
-        suggestionsQuery.data,
+        displayChips,
         handleChipClick,
         handleImpression,
     ]);
@@ -302,6 +354,8 @@ export const AgentChatInput = ({
     if (isMinimalMode) {
         return (
             <Box className={styles.minimalContainer}>
+                {chipRow}
+
                 {showWarningBanner && (
                     <Paper className={styles.warningBanner}>
                         <Text size="xs" c="ldGray.7" ta="center">

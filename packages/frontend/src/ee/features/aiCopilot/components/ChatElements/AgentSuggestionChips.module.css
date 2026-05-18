@@ -39,3 +39,60 @@
     height: 28px;
     border-radius: var(--mantine-radius-xl);
 }
+
+.actionChip {
+    @mixin light {
+        background-color: var(--mantine-color-indigo-0);
+        border-color: var(--mantine-color-indigo-2);
+        color: var(--mantine-color-indigo-7);
+    }
+
+    @mixin dark {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-9) 25%,
+            var(--mantine-color-ldDark-6)
+        );
+        border-color: color-mix(
+            in srgb,
+            var(--mantine-color-indigo-7) 35%,
+            var(--mantine-color-ldDark-4)
+        );
+        color: var(--mantine-color-indigo-2);
+    }
+
+    &:hover {
+        @mixin light {
+            background-color: var(--mantine-color-indigo-1);
+            border-color: var(--mantine-color-indigo-3);
+        }
+
+        @mixin dark {
+            background-color: color-mix(
+                in srgb,
+                var(--mantine-color-indigo-8) 35%,
+                var(--mantine-color-ldDark-6)
+            );
+            border-color: color-mix(
+                in srgb,
+                var(--mantine-color-indigo-6) 45%,
+                var(--mantine-color-ldDark-4)
+            );
+        }
+    }
+}
+
+.fadeIn {
+    animation: chipFadeIn 220ms ease-out both;
+}
+
+@keyframes chipFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
