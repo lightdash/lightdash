@@ -1,5 +1,6 @@
 import {
     AllChartsSearchResult,
+    ContentVerificationInfo,
     DashboardSearchResult,
     isDashboardSearchResult,
     isSavedChartSearchResult,
@@ -19,9 +20,23 @@ import {
 } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
 
+const renderVerified = (verification: ContentVerificationInfo | null) =>
+    verification ? (
+        <verified
+            by={`${verification.verifiedBy.firstName} ${verification.verifiedBy.lastName}`}
+            at={moment(verification.verifiedAt).fromNow()}
+        />
+    ) : null;
+
 type Dependencies = {
     findContent: FindContentFn;
     siteUrl: string;
+    trackCoverage: (coverage: {
+        searchQuery: string;
+        totalResultCount: number;
+        verifiedResultCount: number;
+        topResultVerified: boolean;
+    }) => void;
 };
 
 const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
@@ -51,6 +66,7 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
                     {truncate(chart.description, CONTENT_DESCRIPTION_MAX_CHARS)}
                 </description>
             )}
+            {renderVerified(chart.verification)}
             {chart.firstViewedAt && (
                 <firstviewedat>
                     {moment(chart.firstViewedAt).fromNow()}
@@ -90,6 +106,7 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
                 {truncate(dashboard.description, CONTENT_DESCRIPTION_MAX_CHARS)}
             </description>
         )}
+        {renderVerified(dashboard.verification)}
 
         {dashboard.firstViewedAt && (
             <firstviewedat>
@@ -113,7 +130,12 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
             </lastupdatedby>
         )}
         <charts count={dashboard.charts.length}>
-            {dashboard.charts
+            {[...dashboard.charts]
+                .sort(
+                    (a, b) =>
+                        Number(b.verification !== null) -
+                        Number(a.verification !== null),
+                )
                 .slice(0, DASHBOARD_CHARTS_PREVIEW_COUNT)
                 .map((chart) => (
                     <chart chartUuid={chart.uuid} chartType={chart.chartType}>
@@ -126,6 +148,7 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
                                 )}
                             </description>
                         )}
+                        {renderVerified(chart.verification)}
                     </chart>
                 ))}
         </charts>
@@ -138,17 +161,27 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
     siteUrl: string,
-) => (
-    <searchresult searchQuery={args.searchQuery}>
-        {args.content.map((content) =>
-            isDashboardSearchResult(content)
-                ? renderDashboard(content, siteUrl)
-                : renderChart(content, siteUrl),
-        )}
-    </searchresult>
-);
+) => {
+    const sortedContent = [...args.content].sort(
+        (a, b) =>
+            Number(b.verification !== null) - Number(a.verification !== null),
+    );
+    return (
+        <searchresult searchQuery={args.searchQuery}>
+            {sortedContent.map((content) =>
+                isDashboardSearchResult(content)
+                    ? renderDashboard(content, siteUrl)
+                    : renderChart(content, siteUrl),
+            )}
+        </searchresult>
+    );
+};
 
-export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
+export const getFindContent = ({
+    findContent,
+    siteUrl,
+    trackCoverage,
+}: Dependencies) =>
     tool({
         description: toolFindContentArgsSchema.description,
         inputSchema: toolFindContentArgsSchema,
@@ -163,6 +196,22 @@ export const getFindContent = ({ findContent, siteUrl }: Dependencies) =>
                         })),
                     })),
                 );
+
+                for (const searchQueryResult of searchQueryResults) {
+                    const totalResultCount = searchQueryResult.content.length;
+                    const verifiedResultCount =
+                        searchQueryResult.content.filter(
+                            (c) => c.verification !== null,
+                        ).length;
+                    const topResultVerified =
+                        verifiedResultCount > 0 && totalResultCount > 0;
+                    trackCoverage({
+                        searchQuery: searchQueryResult.searchQuery,
+                        totalResultCount,
+                        verifiedResultCount,
+                        topResultVerified,
+                    });
+                }
 
                 return {
                     result: (

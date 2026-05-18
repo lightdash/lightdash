@@ -2,6 +2,7 @@ import {
     AllChartsSearchResult,
     ChartKind,
     ContentType,
+    ContentVerificationInfo,
     DashboardSearchResult,
     DashboardTabResult,
     DataAppSearchResult,
@@ -443,6 +444,12 @@ export class SearchModel {
             ...(tileCharts ?? []),
         ];
 
+        const innerChartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                dashboardCharts.map((chart) => chart.uuid),
+            );
+
         const chartsByDashboard = dashboardCharts.reduce<
             Record<
                 string,
@@ -452,6 +459,7 @@ export class SearchModel {
                     description: string;
                     chartType: string;
                     viewsCount: number;
+                    verification: ContentVerificationInfo | null;
                 }>
             >
         >((acc, chart) => {
@@ -464,6 +472,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.views_count,
+                verification: innerChartVerificationMap.get(chart.uuid) ?? null,
             });
             return acc;
         }, {});
@@ -601,6 +610,12 @@ export class SearchModel {
             { page, pageSize },
         );
 
+        const chartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                charts.map((chart) => chart.uuid),
+            );
+
         return {
             dashboardName: dashboard.name,
             charts: charts.map((chart) => ({
@@ -609,6 +624,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.viewsCount,
+                verification: chartVerificationMap.get(chart.uuid) ?? null,
             })),
             pagination: {
                 page,

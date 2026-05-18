@@ -580,6 +580,7 @@ export class McpService extends BaseService {
                 const findContentTool = getFindContent({
                     findContent,
                     siteUrl: this.lightdashConfig.siteUrl,
+                    trackCoverage: () => {},
                 });
                 const result = await findContentTool.execute!(argsWithProject, {
                     toolCallId: '',

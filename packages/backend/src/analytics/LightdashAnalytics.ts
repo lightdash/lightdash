@@ -1928,6 +1928,23 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentFindContentCoverageEvent = BaseTrack & {
+    event: 'ai_agent.find_content_coverage';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        threadId: string;
+        promptId: string;
+        searchQuery: string;
+        totalResultCount: number;
+        verifiedResultCount: number;
+        topResultVerified: boolean;
+    };
+};
+
 export type SchedulerOwnershipReassignedEvent = BaseTrack & {
     event: 'scheduler.ownership_reassigned';
     properties: {
@@ -2065,6 +2082,7 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
+    | AiAgentFindContentCoverageEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;

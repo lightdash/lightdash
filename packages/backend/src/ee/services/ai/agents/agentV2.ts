@@ -129,6 +129,24 @@ const getAgentTools = (
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
+        trackCoverage: (coverage) => {
+            dependencies.trackEvent({
+                event: 'ai_agent.find_content_coverage',
+                userId: args.userId,
+                properties: {
+                    organizationId: args.organizationId,
+                    projectId: args.agentSettings.projectUuid,
+                    aiAgentId: args.agentSettings.uuid,
+                    agentName: args.agentSettings.name,
+                    threadId: args.threadUuid,
+                    promptId: args.promptUuid,
+                    searchQuery: coverage.searchQuery,
+                    totalResultCount: coverage.totalResultCount,
+                    verifiedResultCount: coverage.verifiedResultCount,
+                    topResultVerified: coverage.topResultVerified,
+                },
+            });
+        },
     });
 
     const getDashboardCharts = getGetDashboardCharts({
