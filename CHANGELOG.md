@@ -1,3 +1,16 @@
+# [0.2962.0](https://github.com/lightdash/lightdash/compare/0.2961.1...0.2962.0) (2026-05-18)
+
+
+### Bug Fixes
+
+* isolate mcp setup failures per server ([#23199](https://github.com/lightdash/lightdash/issues/23199)) ([1029529](https://github.com/lightdash/lightdash/commit/10295292febcecbb90d9f6d1919ee9dbd8551f10)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Features
+
+* persist mcp runtime status and errors ([#23196](https://github.com/lightdash/lightdash/issues/23196)) ([857a35a](https://github.com/lightdash/lightdash/commit/857a35a6f28542cac234a432596e840bdd7de653)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* surface mcp connection issues in ai agent ui ([#23200](https://github.com/lightdash/lightdash/issues/23200)) ([8d76fb3](https://github.com/lightdash/lightdash/commit/8d76fb368b415eb4a96f6bf15399fecfb35fa06b)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.2961.1](https://github.com/lightdash/lightdash/compare/0.2961.0...0.2961.1) (2026-05-18)
 
 
