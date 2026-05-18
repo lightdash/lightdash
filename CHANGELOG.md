@@ -1,3 +1,10 @@
+# [0.2965.0](https://github.com/lightdash/lightdash/compare/0.2964.0...0.2965.0) (2026-05-18)
+
+
+### Features
+
+* **cli:** support --combine-manifest on deploy ([#23227](https://github.com/lightdash/lightdash/issues/23227)) ([27a3de7](https://github.com/lightdash/lightdash/commit/27a3de704f5d5baa06551287d259f74eab14372c))
+
 # [0.2964.0](https://github.com/lightdash/lightdash/compare/0.2963.0...0.2964.0) (2026-05-18)
 
 
