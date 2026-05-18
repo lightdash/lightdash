@@ -49,7 +49,7 @@ import {
     useUpdatePromptFeedbackMutation,
 } from '../../hooks/useProjectAiAgents';
 import { type StreamPart } from '../../store/aiAgentThreadStreamSlice';
-import { setArtifact } from '../../store/aiArtifactSlice';
+import { clearArtifact, setArtifact } from '../../store/aiArtifactSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -737,12 +737,13 @@ export const AssistantBubble: FC<Props> = memo(
                                   <AiArtifactButton
                                       key={`${messageArtifact.artifactUuid}-${messageArtifact.versionUuid}`}
                                       onClick={() => {
-                                          if (
+                                          const isThisArtifactOpen =
                                               artifact?.artifactUuid ===
                                                   messageArtifact.artifactUuid &&
                                               artifact?.versionUuid ===
-                                                  messageArtifact.versionUuid
-                                          ) {
+                                                  messageArtifact.versionUuid;
+                                          if (isThisArtifactOpen) {
+                                              dispatch(clearArtifact());
                                               return;
                                           }
                                           dispatch(

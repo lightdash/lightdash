@@ -20,6 +20,7 @@ import ErrorBoundary from '../../../../../features/errorBoundary/ErrorBoundary';
 import { clearArtifact } from '../../store/aiArtifactSlice';
 import { useAiAgentStoreDispatch } from '../../store/hooks';
 import { AiDashboardQuickOptions } from './AiDashboardQuickOptions';
+import styles from './AiDashboardVisualization.module.css';
 import { AiDashboardVisualizationItem } from './AiDashboardVisualizationItem';
 
 type Props = {
@@ -105,6 +106,14 @@ export const AiDashboardVisualization: FC<Props> = memo(
                                     h={400}
                                     display="flex"
                                     dir="column"
+                                    className={styles.tile}
+                                    style={{
+                                        // Cap delay so a 20-tile dashboard
+                                        // doesn't take forever to settle.
+                                        animationDelay: `${
+                                            Math.min(index, 8) * 35
+                                        }ms`,
+                                    }}
                                 >
                                     <ErrorBoundary>
                                         <AiDashboardVisualizationItem
