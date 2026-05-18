@@ -6,6 +6,7 @@ import {
 import { getFieldIdSchema } from '../fieldId';
 import { filtersSchemaTransformed, filtersSchemaV2 } from '../filters';
 import { baseOutputMetadataSchema } from '../outputMetadata';
+import { periodComparisonsSchema } from '../periodComparisons';
 import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
@@ -163,6 +164,7 @@ Configuration Tips:
 - Users can switch between visualization types in the UI after creation
 - xAxisLabel and yAxisLabel provide helpful context for chart axes
 - filters can contain filters on fields from joined tables as well as the base table
+- periodComparisons adds period-over-period (PoP) comparison columns next to a base metric. Use when the user asks to compare against a previous period (e.g. "vs last month", "year-over-year"). Requires the matching time dimension to be in queryConfig.dimensions.
 `;
 
 export const toolRunQueryArgsSchema = createToolSchema({
@@ -171,6 +173,7 @@ export const toolRunQueryArgsSchema = createToolSchema({
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,
+        periodComparisons: periodComparisonsSchema,
         tableCalculations: tableCalcsSchema,
         queryConfig: queryConfigSchema,
         chartConfig: chartConfigSchema,
@@ -183,6 +186,7 @@ export type ToolRunQueryArgs = z.infer<typeof toolRunQueryArgsSchema>;
 export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
     .extend({
         customMetrics: customMetricsSchema.default(null),
+        periodComparisons: periodComparisonsSchema.default(null),
         tableCalculations: tableCalcsSchema.default(null),
         chartConfig: chartConfigSchema.default(null),
     })
