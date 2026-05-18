@@ -14,6 +14,7 @@ import {
     isPeriodOverPeriodAdditionalMetric,
     isTableCalculation,
     isTimeBasedDimension,
+    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
@@ -44,6 +45,7 @@ import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useCannotAuthorCustomSql } from '../../../hooks/user/useCannotAuthorCustomSql';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { SortDirection } from '../../../utils/sortUtils';
 import { BetaBadge } from '../../common/BetaBadge';
 import MantineIcon from '../../common/MantineIcon';
 import { type HeaderProps, type TableColumn } from '../../common/Table/types';
@@ -106,6 +108,20 @@ const ContextMenu: FC<ContextMenuProps> = ({
     const isPopAdditionalMetric =
         isPeriodOverPeriodAdditionalMetric(additionalMetric);
 
+    const sortSelectedDirection = sort
+        ? sort.descending
+            ? SortDirection.DESC
+            : SortDirection.ASC
+        : undefined;
+    const onSortSelect = (direction: SortDirection) => {
+        if (!item) return;
+        const newSort: SortField = {
+            fieldId: getItemId(item),
+            descending: direction === SortDirection.DESC,
+        };
+        dispatch(explorerActions.setSortFields([newSort]));
+    };
+
     if (item && isField(item)) {
         const itemFieldId = getItemId(item);
         return (
@@ -160,7 +176,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 {!isPopAdditionalMetric && (
                     <>
-                        <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+                        <ColumnHeaderSortMenuOptions
+                            item={item}
+                            selectedDirection={sortSelectedDirection}
+                            onSelect={onSortSelect}
+                        />
                         <Menu.Divider />
                     </>
                 )}
@@ -278,7 +298,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+                <ColumnHeaderSortMenuOptions
+                    item={item}
+                    selectedDirection={sortSelectedDirection}
+                    onSelect={onSortSelect}
+                />
 
                 {!hideRemove && (
                     <>
@@ -334,7 +358,11 @@ const ContextMenu: FC<ContextMenuProps> = ({
 
                 <Menu.Divider />
 
-                <ColumnHeaderSortMenuOptions item={item} sort={sort} />
+                <ColumnHeaderSortMenuOptions
+                    item={item}
+                    selectedDirection={sortSelectedDirection}
+                    onSelect={onSortSelect}
+                />
 
                 <Menu.Divider />
 
