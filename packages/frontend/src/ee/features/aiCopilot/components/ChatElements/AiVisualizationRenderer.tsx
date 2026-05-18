@@ -22,7 +22,14 @@ import {
     useMantineColorScheme,
 } from '@mantine-8/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
-import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useMemo,
+    useState,
+    type FC,
+    type ReactNode,
+} from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SeriesContextMenu } from '../../../../../components/Explorer/VisualizationCard/SeriesContextMenu';
@@ -95,6 +102,14 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [expandedChartConfig, setExpandedChartConfig] = useState<
         ChartConfig | undefined
     >(undefined);
+
+    // Reset the expanded config whenever the chart type changes — without
+    // this, switching types keeps feeding the stale expanded config to the
+    // VisualizationProvider via `expandedChartConfig ?? webAiChartConfig`,
+    // so the chart appears unchanged even though selectedChartType moved.
+    useEffect(() => {
+        setExpandedChartConfig(undefined);
+    }, [selectedChartType]);
 
     const resultsData = useMemo(
         () => ({
