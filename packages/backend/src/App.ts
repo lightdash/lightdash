@@ -74,6 +74,7 @@ import {
 } from './routers/oauthRouter';
 import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
+import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
 import {
     OperationContext,
@@ -146,6 +147,9 @@ const schedulerWorkerFactory = (context: {
         preAggregateModel: context.models.getPreAggregateModel(),
         preAggregateMaterializationService:
             context.serviceRepository.getPreAggregateMaterializationService(),
+        resolveOrganizationName: createOrganizationNameResolver(
+            context.models.getOrganizationModel(),
+        ),
     });
 
 export type AppArguments = {
@@ -615,6 +619,18 @@ export default class App {
                     email: req.user.email,
                     username: req.user.email,
                 });
+                if (req.user.organizationUuid) {
+                    Sentry.setTag(
+                        'organization.uuid',
+                        req.user.organizationUuid,
+                    );
+                }
+                if (req.user.organizationName) {
+                    Sentry.setTag(
+                        'organization.name',
+                        req.user.organizationName,
+                    );
+                }
             }
             next();
         });

@@ -17,6 +17,7 @@ import { STREAM_CONFIGS, type NatsWorkerStream } from './nats/natsConfig';
 import { NatsWorker } from './nats/NatsWorker';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { IGNORE_ERRORS } from './sentry';
+import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -45,13 +46,18 @@ const natsWorkerFactory = (context: {
     lightdashConfig: LightdashConfig;
     natsClient: NatsClient;
     serviceRepository: ServiceRepository;
+    modelRepository: ModelRepository;
     streams: NatsWorkerStream[];
 }) =>
     new NatsWorker({
         natsClient: context.natsClient,
         asyncQueryService: context.serviceRepository.getAsyncQueryService(),
+        queryHistoryModel: context.modelRepository.getQueryHistoryModel(),
         streams: context.streams,
         workerConcurrency: context.lightdashConfig.natsWorker.workerConcurrency,
+        resolveOrganizationName: createOrganizationNameResolver(
+            context.modelRepository.getOrganizationModel(),
+        ),
     });
 
 /**
@@ -190,6 +196,7 @@ export default class NatsWorkerApp {
             lightdashConfig: this.lightdashConfig,
             natsClient,
             serviceRepository: this.serviceRepository,
+            modelRepository: this.modelRepository,
             streams: this.streams,
         });
         await worker.run();

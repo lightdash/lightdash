@@ -17,6 +17,7 @@ import {
 import moment from 'moment';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { SchedulerClient } from './SchedulerClient';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
@@ -29,6 +30,7 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     // When omitted, no pg-ping interval runs and the health probe falls back to
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
+    resolveOrganizationName?: OrganizationNameResolver;
 };
 
 const workerLogger = new GraphileLogger(
@@ -59,10 +61,14 @@ export class SchedulerWorker extends SchedulerTask {
 
     private pgPingInterval: NodeJS.Timeout | null = null;
 
+    private readonly resolveOrganizationName?: OrganizationNameResolver;
+
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
+        this.resolveOrganizationName =
+            schedulerWorkerArgs.resolveOrganizationName;
     }
 
     async run() {
@@ -93,7 +99,9 @@ export class SchedulerWorker extends SchedulerTask {
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
             parsedCronItems: parseCronItems(this.getCronItems()),
-            taskList: traceTasks(this.getTaskList()),
+            taskList: traceTasks(this.getTaskList(), {
+                resolveOrganizationName: this.resolveOrganizationName,
+            }),
             events: schedulerWorkerEventEmitter,
         });
 
