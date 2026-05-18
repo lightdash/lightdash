@@ -7,22 +7,6 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     overflow: hidden;
     position: relative;
-    /* CSS fallback entrance for browsers without View Transitions API. */
-    animation: floatingPanelEnter 240ms cubic-bezier(0.32, 0.72, 0, 1);
-    transform-origin: top right;
-    /* Shared name with the originating button — set via inline --vt-name. */
-    view-transition-name: var(--vt-name, none);
-}
-
-@supports (view-transition-name: none) {
-    .floatingPanel {
-        animation: none;
-    }
-}
-
-/* Snap variant bypasses view transitions, so the CSS keyframe runs
- * on mount. Faster than the default fallback to match snap's feel. */
-:global(html[data-artifact-morph='snap']) .floatingPanel {
     animation: floatingPanelEnter 160ms cubic-bezier(0.4, 0, 0.2, 1);
     transform-origin: top right;
 }
@@ -85,7 +69,7 @@
 @keyframes floatingPanelEnter {
     from {
         opacity: 0;
-        transform: translateY(6px) scale(0.985);
+        transform: translateY(4px) scale(0.99);
     }
     to {
         opacity: 1;
@@ -96,126 +80,5 @@
 @media (prefers-reduced-motion: reduce) {
     .floatingPanel {
         animation: none;
-    }
-}
-
-/* View Transitions API tuning — applies when the panel mounts/unmounts
- * inside a `document.startViewTransition` snapshot. The shared
- * --vt-name on button + panel lets the browser morph between them. */
-
-/* ---- Variant tokens ---- Three swappable morph styles. Each is meant
- * to feel categorically different: `snap` is near-instant, `lift` is
- * the polished default, `expand` is dramatic with a clear scale-up.
- * Flip at runtime with `setArtifactMorph('snap' | 'lift' | 'expand')`. */
-:global(html),
-:global(html[data-artifact-morph='lift']) {
-    /* Polished default — soft asymmetric hand-off with subtle scale-up. */
-    --vt-group-duration: 360ms;
-    --vt-group-ease: cubic-bezier(0.32, 0.72, 0, 1);
-    --vt-old-anim: 180ms cubic-bezier(0.32, 0.72, 0, 1) both vtFadeOut;
-    --vt-new-anim: 320ms cubic-bezier(0.32, 0.72, 0, 1) 100ms both vtLiftIn;
-    --vt-blend: plus-lighter;
-}
-
-:global(html[data-artifact-morph='snap']) {
-    /* Near-instant. Sharp ease, no scale, no plus-lighter — feels like
-     * a state change with the tiniest visual confirmation. */
-    --vt-group-duration: 140ms;
-    --vt-group-ease: cubic-bezier(0.4, 0, 0.2, 1);
-    --vt-old-anim: 100ms cubic-bezier(0.4, 0, 0.2, 1) both vtFadeOut;
-    --vt-new-anim: 140ms cubic-bezier(0.4, 0, 0.2, 1) both vtFadeIn;
-    --vt-blend: normal;
-}
-
-:global(html[data-artifact-morph='expand']) {
-    /* Dramatic. Long duration, big scale-up with an overshoot ease —
-     * panel visibly grows out of the button with a flourish. */
-    --vt-group-duration: 720ms;
-    --vt-group-ease: cubic-bezier(0.16, 1, 0.3, 1);
-    --vt-old-anim: 220ms cubic-bezier(0.16, 1, 0.3, 1) both vtFadeOut;
-    --vt-new-anim: 600ms cubic-bezier(0.16, 1, 0.3, 1) 140ms both vtExpandBig;
-    --vt-blend: plus-lighter;
-}
-
-/* Disable the default root cross-fade — without this every element on
- * the page (sibling chat bubbles, page chrome) gets blended old→new
- * during the transition, which reads as a sitewide flicker. */
-:global(::view-transition-old(root)),
-:global(::view-transition-new(root)) {
-    animation: none;
-    mix-blend-mode: normal;
-}
-
-/* Group = the bounding box that morphs between old and new positions
- * and sizes. Tokens picked from the active variant above. */
-:global(::view-transition-group(*)) {
-    animation-duration: var(--vt-group-duration);
-    animation-timing-function: var(--vt-group-ease);
-}
-
-/* Old/new pseudo-elements run the variant's keyframes. Safe to be
- * asymmetric here because only elements that are actually morphing
- * carry a view-transition-name — siblings never enter the snapshot
- * tree (see useIsArtifactTransitioning in artifactTransition.ts). */
-:global(::view-transition-old(*)) {
-    animation: var(--vt-old-anim);
-    mix-blend-mode: var(--vt-blend);
-}
-
-:global(::view-transition-new(*)) {
-    animation: var(--vt-new-anim);
-    mix-blend-mode: var(--vt-blend);
-}
-
-/* Subtle in-place cross-fade for switching the panel's content from
- * one artifact to another (`artifact-panel-shell` is the stable name
- * used during switch mode — see ARTIFACT_PANEL_SWITCH_VT_NAME). Always
- * symmetric so the panel stays visually solid through the swap. */
-:global(::view-transition-group(artifact-panel-shell)) {
-    animation-duration: 220ms;
-    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-:global(::view-transition-old(artifact-panel-shell)) {
-    animation: vtFadeOut 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
-    mix-blend-mode: plus-lighter;
-}
-
-:global(::view-transition-new(artifact-panel-shell)) {
-    animation: vtFadeIn 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
-    mix-blend-mode: plus-lighter;
-}
-
-@keyframes vtFadeOut {
-    to {
-        opacity: 0;
-    }
-}
-
-@keyframes vtFadeIn {
-    from {
-        opacity: 0;
-    }
-}
-
-@keyframes vtLiftIn {
-    from {
-        opacity: 0;
-        transform: scale(0.97);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
-    }
-}
-
-@keyframes vtExpandBig {
-    from {
-        opacity: 0;
-        transform: scale(0.82);
-    }
-    to {
-        opacity: 1;
-        transform: scale(1);
     }
 }

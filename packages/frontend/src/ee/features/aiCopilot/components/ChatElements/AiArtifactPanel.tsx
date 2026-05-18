@@ -21,7 +21,7 @@ import {
     IconInfoCircle,
     IconX,
 } from '@tabler/icons-react';
-import { memo, useMemo, useState, type CSSProperties, type FC } from 'react';
+import { memo, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import useHealth from '../../../../../hooks/health/useHealth';
@@ -40,13 +40,6 @@ import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiChartVisualization } from './AiChartVisualization';
 import { AiDashboardVisualization } from './AiDashboardVisualization';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import {
-    ARTIFACT_PANEL_SWITCH_VT_NAME,
-    artifactKey,
-    artifactVtName,
-    startArtifactMorph,
-    useArtifactTransitionMode,
-} from './artifactTransition';
 import { ChatElementsUtils } from './utils';
 
 type ArtifactRef = {
@@ -70,13 +63,6 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
     ({ artifact, showCloseButton = true, variant = 'floating' }) => {
         const dispatch = useAiAgentStoreDispatch();
         const { data: health } = useHealth();
-        // During a switch transition the panel takes a stable name so the
-        // browser cross-fades content in place instead of running a morph.
-        const transitionMode = useArtifactTransitionMode();
-        const panelVtName =
-            transitionMode === 'switch'
-                ? ARTIFACT_PANEL_SWITCH_VT_NAME
-                : artifactVtName(artifact.artifactUuid, artifact.versionUuid);
 
         const {
             data: artifactData,
@@ -270,14 +256,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             queryResults.error
         ) {
             return (
-                <div
-                    className={styles.floatingPanel}
-                    style={
-                        {
-                            '--vt-name': panelVtName,
-                        } as CSSProperties
-                    }
-                >
+                <div className={styles.floatingPanel}>
                     <Center className={styles.loading}>
                         <Loader
                             type="dots"
@@ -337,17 +316,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
                             size="sm"
                             variant="subtle"
                             color="ldGray.6"
-                            onClick={() =>
-                                startArtifactMorph(
-                                    [
-                                        artifactKey(
-                                            artifact.artifactUuid,
-                                            artifact.versionUuid,
-                                        ),
-                                    ],
-                                    () => dispatch(clearArtifact()),
-                                )
-                            }
+                            onClick={() => dispatch(clearArtifact())}
                             aria-label="Close"
                         >
                             <MantineIcon icon={IconX} />
@@ -358,14 +327,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
         );
 
         return (
-            <div
-                className={styles.floatingPanel}
-                style={
-                    {
-                        '--vt-name': panelVtName,
-                    } as CSSProperties
-                }
-            >
+            <div className={styles.floatingPanel}>
                 <div className={styles.floatingContent}>
                     <AiVisualizationRenderer
                         vizQueryData={queryExecutionHandle.data}
