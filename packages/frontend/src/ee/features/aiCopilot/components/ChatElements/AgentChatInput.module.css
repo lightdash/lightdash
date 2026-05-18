@@ -154,9 +154,9 @@
  * ------------------------------------------------------------------ */
 .chipReveal {
     transition:
-        opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
-        max-height 280ms cubic-bezier(0.22, 1, 0.36, 1),
-        transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        opacity 360ms cubic-bezier(0.22, 1, 0.36, 1),
+        max-height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+        transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
     max-height: 80px;
     overflow: hidden;
 }

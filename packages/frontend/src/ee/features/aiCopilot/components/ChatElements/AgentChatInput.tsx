@@ -145,7 +145,12 @@ export const AgentChatInput = ({
             scrollEl = scrollEl.parentElement;
         }
         if (!scrollEl) return undefined;
-        const HIDE_AFTER_PX = 80;
+        // Hysteresis: collapsing the chip strip changes scrollHeight, which
+        // can flip the threshold and cause a flicker loop. We hide once the
+        // user is past HIDE_PX and only re-show when they're back inside
+        // SHOW_PX — the gap absorbs the height change.
+        const HIDE_PX = 40;
+        const SHOW_PX = 8;
         let raf: number | null = null;
         const measure = () => {
             raf = null;
@@ -154,7 +159,11 @@ export const AgentChatInput = ({
                 scrollEl.scrollHeight -
                 scrollEl.scrollTop -
                 scrollEl.clientHeight;
-            setChipsNearBottom(distance < HIDE_AFTER_PX);
+            setChipsNearBottom((prev) => {
+                if (prev && distance > HIDE_PX) return false;
+                if (!prev && distance < SHOW_PX) return true;
+                return prev;
+            });
         };
         const onScroll = () => {
             if (raf !== null) return;
