@@ -147,6 +147,16 @@ export enum FeatureFlags {
      * if the flag is later turned off.
      */
     LockDashboardFilters = 'lock-dashboard-filters',
+
+    /**
+     * Enable the new pivot-column-sort UI: per-pivot-column sort menu on
+     * pivot table headers, sort-direction indicators, and the pinned
+     * pivot-column entries in the Sort popover. Backend support
+     * (per-metric anchor CTE, pivot_values persistence) is always on;
+     * this flag only gates the UI/UX so we can validate with design
+     * partners before announcing GA.
+     */
+    PivotColumnSort = 'pivot-column-sort',
 }
 
 export type FeatureFlag = {
