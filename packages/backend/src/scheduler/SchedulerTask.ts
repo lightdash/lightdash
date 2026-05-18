@@ -112,6 +112,7 @@ import archiver from 'archiver';
 import fsSync from 'fs';
 import fs from 'fs/promises';
 import { nanoid } from 'nanoid';
+import ExecutionContext from 'node-execution-context';
 import pLimit from 'p-limit';
 import slackifyMarkdown from 'slackify-markdown';
 import { Readable } from 'stream';
@@ -139,6 +140,7 @@ import { LightdashConfig } from '../config/parseConfig';
 import type { PreAggregateModel } from '../ee/models/PreAggregateModel';
 import type { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
 import Logger from '../logging/logger';
+import type { ExecutionContextInfo } from '../logging/winston';
 import { AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../services/AsyncQueryService/types';
 import type { CatalogService } from '../services/CatalogService/CatalogService';
@@ -192,6 +194,70 @@ export type SchedulerTaskArguments = {
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
 };
+
+/**
+ * Builds the scheduler sub-context from a partial set of attribution fields.
+ * Pure function — used directly in tests; the default updater calls it.
+ *
+ * Returns `null` when no fields are populated so callers can short-circuit
+ * the ExecutionContext write.
+ */
+export function buildSchedulerLogContext(args: {
+    jobId?: string;
+    schedulerUuid?: string;
+    schedulerName?: string;
+    savedSqlUuid?: string | null;
+}): NonNullable<ExecutionContextInfo['scheduler']> | null {
+    const schedulerCtx: NonNullable<ExecutionContextInfo['scheduler']> = {};
+    if (args.schedulerUuid) schedulerCtx.scheduler_uuid = args.schedulerUuid;
+    if (args.schedulerName) schedulerCtx.scheduler_name = args.schedulerName;
+    if (args.savedSqlUuid) schedulerCtx.saved_sql_uuid = args.savedSqlUuid;
+    if (args.jobId) schedulerCtx.job_id = args.jobId;
+    return Object.keys(schedulerCtx).length === 0 ? null : schedulerCtx;
+}
+
+/**
+ * Strategy used to write scheduler attribution into the surrounding log
+ * context. Injected so tests can supply a spy; the default writes through
+ * the AsyncLocalStorage-backed `ExecutionContext`.
+ */
+export type SchedulerLogContextUpdater = (
+    update: Pick<ExecutionContextInfo, 'scheduler'>,
+) => void;
+
+const defaultSchedulerLogContextUpdater: SchedulerLogContextUpdater = (
+    update,
+) => {
+    if (!ExecutionContext.exists()) return;
+    ExecutionContext.update(update as unknown as Record<string, unknown>);
+};
+
+/**
+ * Stamps the current job's log context with scheduler/sync attribution so
+ * every downstream log line and warehouse `queryTags` row carries the
+ * originating scheduler_uuid, scheduler_name, saved_sql_uuid, and job_id.
+ *
+ * Called once per scheduler task entry point. Replaces any prior scheduler
+ * sub-context. Organization context (organization_uuid, organization_name)
+ * is set centrally by SchedulerTaskTracer before the task runs.
+ *
+ * The context updater is injected (default: writes through ExecutionContext)
+ * so unit tests can verify the built sub-context without setting up
+ * AsyncLocalStorage.
+ */
+export function setSchedulerJobLogContext(
+    args: {
+        jobId?: string;
+        schedulerUuid?: string;
+        schedulerName?: string;
+        savedSqlUuid?: string | null;
+    },
+    update: SchedulerLogContextUpdater = defaultSchedulerLogContextUpdater,
+) {
+    const scheduler = buildSchedulerLogContext(args);
+    if (!scheduler) return;
+    update({ scheduler });
+}
 
 export default class SchedulerTask {
     protected readonly lightdashConfig: LightdashConfig;
@@ -1017,6 +1083,12 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -1387,6 +1459,12 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -1831,6 +1909,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: MaterializePreAggregatePayload,
     ) {
+        setSchedulerJobLogContext({ jobId });
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
                 task: SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE,
@@ -2164,6 +2243,7 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: UploadMetricGsheetPayload,
     ) {
+        setSchedulerJobLogContext({ jobId });
         const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
             {
                 task: SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
@@ -2355,6 +2435,13 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
 
         this.analytics.track({
             event: 'scheduler_notification_job.started',
@@ -2787,6 +2874,11 @@ export default class SchedulerTask {
         notification: GsheetsNotificationPayload,
     ) {
         const { schedulerUuid, scheduledTime } = notification;
+
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+        });
 
         this.analytics.track({
             event: 'scheduler_notification_job.started',
@@ -3306,6 +3398,7 @@ export default class SchedulerTask {
                         deliveryUrl,
                         getErrorMessage(e),
                         shouldDisableSync,
+                        jobId,
                     );
                 }
             } catch (emailError) {
@@ -3872,6 +3965,7 @@ export default class SchedulerTask {
                         scheduler.name,
                         schedulerUrl,
                         translatedSlackError?.error ?? getErrorMessage(e),
+                        jobId,
                     );
                 }
             } catch (emailError) {
@@ -4077,6 +4171,9 @@ export default class SchedulerTask {
         scheduledTime: Date,
         payload: ExportCsvDashboardPayload,
     ) {
+        setSchedulerJobLogContext({
+            jobId,
+        });
         await this.logWrapper(
             {
                 task: SCHEDULER_TASKS.EXPORT_CSV_DASHBOARD,
@@ -4677,6 +4774,13 @@ export default class SchedulerTask {
 
         const results: DeliveryResult[] = [];
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -4902,6 +5006,13 @@ export default class SchedulerTask {
 
         const results: DeliveryResult[] = [];
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -5117,6 +5228,13 @@ export default class SchedulerTask {
 
         const results: DeliveryResult[] = [];
 
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
+
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -5330,6 +5448,12 @@ export default class SchedulerTask {
             scheduledTime,
             scheduler,
         } = notification;
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
         this.analytics.track({
             event: 'scheduler_notification_job.started',
             anonymousId: LightdashAnalytics.anonymousId,
@@ -5554,6 +5678,13 @@ export default class SchedulerTask {
             notification;
 
         const results: DeliveryResult[] = [];
+
+        setSchedulerJobLogContext({
+            jobId,
+            schedulerUuid,
+            schedulerName: scheduler.name,
+            savedSqlUuid: scheduler.savedSqlUuid,
+        });
 
         this.analytics.track({
             event: 'scheduler_notification_job.started',

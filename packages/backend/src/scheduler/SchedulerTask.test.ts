@@ -3,7 +3,12 @@ import {
     NotEnoughResults,
     ThresholdOperator,
 } from '@lightdash/common';
-import SchedulerTask from './SchedulerTask';
+import ExecutionContext from 'node-execution-context';
+import type { ExecutionContextInfo } from '../logging/winston';
+import SchedulerTask, {
+    buildSchedulerLogContext,
+    setSchedulerJobLogContext,
+} from './SchedulerTask';
 import {
     resultsWithOneRow,
     resultsWithTwoDecreasingRows,
@@ -11,6 +16,74 @@ import {
     thresholdIncreasedByMock,
     thresholdLessThanMock,
 } from './SchedulerTask.mock';
+
+describe('buildSchedulerLogContext', () => {
+    it('returns null when no attribution fields are set', () => {
+        expect(buildSchedulerLogContext({})).toBeNull();
+    });
+
+    it('returns null when only nullish values are passed', () => {
+        expect(
+            buildSchedulerLogContext({
+                jobId: undefined,
+                savedSqlUuid: null,
+            }),
+        ).toBeNull();
+    });
+
+    it('includes only populated fields', () => {
+        expect(
+            buildSchedulerLogContext({
+                jobId: 'job-1',
+                schedulerUuid: 'sched-1',
+            }),
+        ).toEqual({
+            job_id: 'job-1',
+            scheduler_uuid: 'sched-1',
+        });
+    });
+
+    it('omits a null savedSqlUuid', () => {
+        expect(
+            buildSchedulerLogContext({
+                jobId: 'job-1',
+                savedSqlUuid: null,
+            }),
+        ).toEqual({ job_id: 'job-1' });
+    });
+});
+
+describe('setSchedulerJobLogContext', () => {
+    it('skips the updater entirely when no attribution fields are set', () => {
+        const update = jest.fn();
+        setSchedulerJobLogContext({}, update);
+        expect(update).not.toHaveBeenCalled();
+    });
+
+    it('writes through the default ExecutionContext updater', () => {
+        const initial: ExecutionContextInfo = {};
+        ExecutionContext.run(() => {
+            setSchedulerJobLogContext({
+                jobId: 'job-42',
+                schedulerUuid: 'sched-42',
+                schedulerName: 'Weekly sync',
+            });
+            const ctx = ExecutionContext.get<ExecutionContextInfo>();
+            expect(ctx.scheduler).toEqual({
+                job_id: 'job-42',
+                scheduler_uuid: 'sched-42',
+                scheduler_name: 'Weekly sync',
+            });
+        }, initial);
+    });
+
+    it('is a no-op when called outside an ExecutionContext', () => {
+        expect(ExecutionContext.exists()).toBe(false);
+        expect(() =>
+            setSchedulerJobLogContext({ jobId: 'job-1' }),
+        ).not.toThrow();
+    });
+});
 
 describe('isPositiveThresholdAlert', () => {
     it('should return false if there are no results or no thresholds', () => {

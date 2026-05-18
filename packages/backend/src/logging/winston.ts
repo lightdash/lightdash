@@ -62,6 +62,14 @@ export type ExecutionContextInfo = {
         priority: number;
         attempts: number;
     };
+    organization_uuid?: string;
+    organization_name?: string;
+    scheduler?: {
+        scheduler_uuid?: string;
+        scheduler_name?: string;
+        saved_sql_uuid?: string;
+        job_id?: string;
+    };
 };
 
 const addExecutionContent = winston.format(
@@ -73,6 +81,31 @@ const addExecutionContent = winston.format(
               }
             : info,
 );
+
+export const getSchedulerContext = ():
+    | NonNullable<ExecutionContextInfo['scheduler']>
+    | undefined => {
+    if (!ExecutionContext.exists()) return undefined;
+    return ExecutionContext.get<ExecutionContextInfo>().scheduler;
+};
+
+export const getOrganizationContext = (): Pick<
+    ExecutionContextInfo,
+    'organization_uuid' | 'organization_name'
+> => {
+    if (!ExecutionContext.exists()) return {};
+    const ctx = ExecutionContext.get<ExecutionContextInfo>();
+    return {
+        organization_uuid: ctx.organization_uuid,
+        organization_name: ctx.organization_name,
+    };
+};
+
+const ALIAS_RESPONSE_TIME_AS_DURATION = winston.format((info) => {
+    if (typeof info.responseTime === 'number' && info.duration_ms === undefined)
+        return { ...info, duration_ms: info.responseTime };
+    return info;
+});
 
 const printMessage = (
     info: winston.Logform.TransformableInfo & ExecutionContextInfo & SentryInfo,
@@ -94,6 +127,7 @@ const formatters = {
     plain: winston.format.combine(
         addSentryTraceId(),
         addExecutionContent(),
+        ALIAS_RESPONSE_TIME_AS_DURATION(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.uncolorize(),
         winston.format.printf(printMessage),
@@ -101,6 +135,7 @@ const formatters = {
     pretty: winston.format.combine(
         addSentryTraceId(),
         addExecutionContent(),
+        ALIAS_RESPONSE_TIME_AS_DURATION(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.colorize({ all: true }),
         winston.format.printf(printMessage),
@@ -108,6 +143,7 @@ const formatters = {
     json: winston.format.combine(
         addSentryTraceId(),
         addExecutionContent(),
+        ALIAS_RESPONSE_TIME_AS_DURATION(),
         winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
         winston.format.json(),
     ),
@@ -284,4 +320,36 @@ export const expressWinstonPreResponseMiddleware: express.RequestHandler = (
         });
     }
     next();
+};
+
+// Stamps every log emitted while processing this request with the requesting
+// user's organization context, by attaching it to the AsyncLocalStorage-backed
+// ExecutionContext that `addExecutionContent` already merges into log payloads.
+// Place this AFTER session/auth middlewares so req.user and req.account are
+// populated. req.user is set for session-authenticated requests; embed/JWT
+// requests populate req.account only, so we fall back to it.
+export const requestExecutionContextMiddleware: express.RequestHandler = (
+    req,
+    _res,
+    next,
+) => {
+    const organizationUuid =
+        req.user?.organizationUuid ??
+        req.account?.organization?.organizationUuid;
+    const organizationName =
+        req.user?.organizationName ?? req.account?.organization?.name;
+    if (!organizationUuid && !organizationName) {
+        next();
+        return;
+    }
+    const context: ExecutionContextInfo = {
+        organization_uuid: organizationUuid,
+        organization_name: organizationName,
+    };
+    if (ExecutionContext.exists()) {
+        ExecutionContext.update(context as unknown as Record<string, unknown>);
+        next();
+        return;
+    }
+    ExecutionContext.run(() => next(), context);
 };

@@ -317,6 +317,12 @@ export const traceTask = <T extends SchedulerTaskName>(
                                     priority: job.priority,
                                     attempts: job.attempts,
                                 },
+                                ...(organizationUuid && {
+                                    organization_uuid: organizationUuid,
+                                }),
+                                ...(organizationName && {
+                                    organization_name: organizationName,
+                                }),
                             };
                             await ExecutionContext.run(
                                 () => task(payload, helpers),
