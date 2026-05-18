@@ -18,7 +18,10 @@ type SpaceSelectorProps = {
     selectedSpaceUuid: string | null;
     spaces:
         | Array<
-              Pick<SpaceSummary, 'inheritsFromOrgOrProject' | 'access'> &
+              Pick<
+                  SpaceSummary,
+                  'inheritsFromOrgOrProject' | 'access' | 'userAccess'
+              > &
                   NestableItem
           >
         | undefined;
@@ -62,9 +65,7 @@ const SpaceSelector = ({
                 // tree as non-selectable placeholders so hierarchy is preserved
                 // and same-named children remain visually distinguishable.
                 return spaces.map((space) => {
-                    const isAccessible =
-                        space.inheritsFromOrgOrProject ||
-                        space.access.includes(user.data.userUuid);
+                    const isAccessible = space.userAccess;
                     if (isAccessible) return space;
                     return { ...space, restricted: true };
                 });
