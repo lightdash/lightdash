@@ -302,6 +302,18 @@ pm2 restart ${LD_INSTANCE_ID}-scheduler # Restart only the scheduler
 pm2 restart ${LD_INSTANCE_ID}-frontend  # Restart only the frontend
 \`\`\`
 
+### Picking up new env vars
+
+\`pm2 restart --update-env\` only inherits env from the **current shell**, not from \`.env.development.local\`. The dotenv loader inside Node only runs at *spawn* time, so PM2's cached env wins on restart. After editing the env file:
+
+\`\`\`bash
+pm2 delete ${LD_INSTANCE_ID}-api && pnpm pm2:start   # reliable path
+# or, set the var in the shell first:
+# export FLAG=value && pm2 restart ${LD_INSTANCE_ID}-api --update-env
+\`\`\`
+
+Symptom if you forget: you change a flag, restart, and nothing changes. \`pm2 jlist\` will still show the old value.
+
 ## Debugging
 
 Use the \`/debug-local\` skill for comprehensive debugging combining PM2 logs, Spotlight traces, and browser automation.
