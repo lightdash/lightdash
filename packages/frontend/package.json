@@ -190,7 +190,7 @@
         "rollup-plugin-postcss": "4.0.2",
         "storybook": "10.3.4",
         "ts-unused-exports": "9.0.4",
-        "typescript": "6.0.0-beta",
+        "typescript": "6.0.3",
         "unified": "11.0.5",
         "vite": "8.0.5",
         "vite-plugin-compression2": "2.5.3",
