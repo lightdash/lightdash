@@ -13,6 +13,7 @@ import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getFindContent } from '../tools/findContent';
+import { getFrontendAction } from '../tools/frontendAction';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
 import { getImproveContext } from '../tools/improveContext';
@@ -208,6 +209,13 @@ const getAgentTools = (
 
     const improveContext = getImproveContext();
 
+    const frontendAction = getFrontendAction({
+        promptUuid: args.promptUuid,
+        threadUuid: args.threadUuid,
+        createFrontendToolExecution: dependencies.createFrontendToolExecution,
+        waitForFrontendToolResult: dependencies.waitForFrontendToolResult,
+    });
+
     const proposeChange = getProposeChange({
         createChange: dependencies.createChange,
         getExploreCompiler: dependencies.getExploreCompiler,
@@ -236,6 +244,7 @@ const getAgentTools = (
         findContent,
         getDashboardCharts,
         discoverFields,
+        frontendAction,
         runQuery,
         runSavedChart,
         generateDashboard,

@@ -20,6 +20,7 @@ import {
     AiWebAppPrompt,
     AlreadyExistsError,
     AnyType,
+    ApiAiAgentFrontendToolResultRequest,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
@@ -159,6 +160,7 @@ import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
     CreateChangeFn,
+    CreateFrontendToolExecutionFn,
     DescribeWarehouseTableFn,
     FindContentFn,
     FindExploresFn,
@@ -1094,6 +1096,101 @@ export class AiAgentService extends BaseService {
         }
 
         return { decision };
+    }
+
+    async submitFrontendToolResult(
+        user: SessionUser,
+        {
+            agentUuid,
+            threadUuid,
+            toolCallId,
+            body,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            toolCallId: string;
+            body: ApiAiAgentFrontendToolResultRequest;
+        },
+    ): Promise<{ status: 'success' | 'error' }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        if (!(await this.getIsCopilotEnabled(user))) {
+            throw new ForbiddenError('Copilot is not enabled');
+        }
+
+        const context =
+            await this.aiAgentModel.findFrontendToolExecutionContext(
+                toolCallId,
+            );
+        if (!context) {
+            throw new NotFoundError(
+                `Frontend tool call not found: ${toolCallId}`,
+            );
+        }
+        if (context.threadUuid !== threadUuid) {
+            throw new ForbiddenError(
+                'Tool call does not belong to the supplied thread',
+            );
+        }
+        if (context.agentUuid !== agentUuid) {
+            throw new ForbiddenError(
+                'Tool call does not belong to the supplied agent',
+            );
+        }
+        if (context.toolName !== 'frontendAction') {
+            throw new ParameterError(
+                `Tool call ${toolCallId} is not a frontendAction`,
+            );
+        }
+        if (context.status !== 'pending') {
+            throw new AlreadyExistsError(
+                `Tool call ${toolCallId} has already been resolved`,
+            );
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to resolve this frontend action',
+            );
+        }
+
+        const recorded = await this.aiAgentModel.recordFrontendToolResult(
+            toolCallId,
+            body.result,
+            body.status,
+        );
+        if (!recorded) {
+            this.logger.info(
+                `Frontend tool result for ${toolCallId} was already recorded; ignoring duplicate.`,
+            );
+        }
+
+        return { status: body.status };
     }
 
     async createAgentThread(
@@ -3671,6 +3768,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         };
 
+        const createFrontendToolExecution: CreateFrontendToolExecutionFn =
+            async (args) => {
+                await wrapSentryTransaction(
+                    'AiAgent.createFrontendToolExecution',
+                    {
+                        promptUuid: args.promptUuid,
+                        threadUuid: args.threadUuid,
+                        toolCallId: args.toolCallId,
+                        action: args.action,
+                    },
+                    () => this.aiAgentModel.createFrontendToolExecution(args),
+                );
+            };
+
         const findContent: FindContentFn = async (args) =>
             wrapSentryTransaction('AiAgent.findContent', args, async () => {
                 const dashboardSearchResults =
@@ -3817,6 +3928,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            createFrontendToolExecution,
             searchFieldValues,
             createChange,
             getExploreCompiler,
@@ -3905,6 +4017,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolCall,
             storeToolResults,
             storeReasoning,
+            createFrontendToolExecution,
             searchFieldValues,
             getExploreCompiler,
             createChange,
@@ -4041,6 +4154,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             getExploreCompiler,
             createChange,
+            createFrontendToolExecution,
             updateProgress: (progress: string) => updateProgress(progress),
             updatePrompt: (
                 update: UpdateSlackResponse | UpdateWebAppResponse,
@@ -4066,6 +4180,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     toolCallId,
                     decision,
                     decidedByUserUuid,
+                ),
+            waitForFrontendToolResult: (toolCallId, timeoutMs) =>
+                this.aiAgentModel.waitForFrontendToolResult(
+                    toolCallId,
+                    timeoutMs,
+                ),
+            recordFrontendToolResult: (toolCallId, result, status) =>
+                this.aiAgentModel.recordFrontendToolResult(
+                    toolCallId,
+                    result,
+                    status,
                 ),
             loadSkill: async (name) => getAiAgentSkill(name),
             loadSkillResource: async ({ skillName, resourceName }) =>

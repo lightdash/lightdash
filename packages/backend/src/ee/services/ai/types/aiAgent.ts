@@ -12,6 +12,7 @@ import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import {
     CreateChangeFn,
+    CreateFrontendToolExecutionFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
     FindContentFn,
@@ -26,6 +27,7 @@ import {
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     LoadAgentSkillResourceFn,
+    RecordFrontendToolResultFn,
     RecordSqlApprovalFn,
     RunAsyncQueryFn,
     RunSqlJobFn,
@@ -39,6 +41,7 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
+    WaitForFrontendToolResultFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
@@ -119,8 +122,11 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     createChange: CreateChangeFn;
+    createFrontendToolExecution: CreateFrontendToolExecutionFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    waitForFrontendToolResult: WaitForFrontendToolResultFn;
+    recordFrontendToolResult: RecordFrontendToolResultFn;
     loadSkill: LoadAgentSkillFn;
     loadSkillResource: LoadAgentSkillResourceFn;
     perf: PerformanceMetrics;

@@ -13,6 +13,7 @@ import {
     type ToolFindExploresArgsV2,
     type ToolFindExploresArgsV3,
     type ToolFindFieldsArgs,
+    type ToolFrontendActionArgs,
     type ToolGetDashboardChartsArgs,
     type ToolName,
     type ToolRunQueryArgs,
@@ -28,6 +29,7 @@ import { DashboardToolCallDescription } from './DashboardToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { FrontendActionToolCallDescription } from './FrontendActionToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
@@ -156,7 +158,16 @@ export const ToolCallDescription: FC<{
                     limit={sqlToolArgs.limit}
                 />
             );
+        case 'frontendAction':
+            const frontendActionArgs =
+                toolCall.toolArgs as ToolFrontendActionArgs;
+            return (
+                <FrontendActionToolCallDescription
+                    action={frontendActionArgs.action}
+                />
+            );
         case 'discoverFields':
+            return <> </>;
         case 'listWarehouseTables':
         case 'describeWarehouseTable':
         case 'improveContext':

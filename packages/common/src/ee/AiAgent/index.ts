@@ -336,6 +336,11 @@ export type ApiAiAgentSqlApprovalRequest = {
     decision: 'approved' | 'rejected';
 };
 
+export type ApiAiAgentFrontendToolResultRequest = {
+    status: 'success' | 'error';
+    result: string;
+};
+
 export type ApiAiAgentThreadStreamRequest = {
     /**
      * Per-thread toggle that decides whether the agent gets access to the
@@ -350,6 +355,13 @@ export type ApiAiAgentThreadStreamRequest = {
 export type ApiAiAgentSqlApprovalResponse = ApiSuccess<{
     decision: 'approved' | 'rejected';
 }>;
+
+export type ApiAiAgentFrontendToolResultResponse = {
+    status: 'ok';
+    results: {
+        status: 'success' | 'error';
+    };
+};
 
 export type ApiAiAgentThreadMessageCreateResponse = ApiSuccess<
     AiAgentMessageUser<AiAgentUser>

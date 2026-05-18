@@ -8,6 +8,8 @@ import {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentExploreAccessSummaryResponse,
+    ApiAiAgentFrontendToolResultRequest,
+    ApiAiAgentFrontendToolResultResponse,
     ApiAiAgentModelOptionsResponse,
     ApiAiAgentResponse,
     ApiAiAgentSqlApprovalRequest,
@@ -608,6 +610,40 @@ export class AiAgentController extends BaseController {
                     threadUuid,
                     toolCallId,
                     decision: body.decision,
+                },
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post(
+        '/{agentUuid}/threads/{threadUuid}/tool-calls/{toolCallId}/frontend-result',
+    )
+    @OperationId('submitAgentFrontendToolResult')
+    async submitAgentFrontendToolResult(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+        @Path() toolCallId: string,
+        @Body() body: ApiAiAgentFrontendToolResultRequest,
+    ): Promise<ApiAiAgentFrontendToolResultResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().submitFrontendToolResult(
+                toSessionUser(req.account),
+                {
+                    agentUuid,
+                    threadUuid,
+                    toolCallId,
+                    body,
                 },
             ),
         };

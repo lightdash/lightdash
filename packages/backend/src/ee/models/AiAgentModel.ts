@@ -88,6 +88,7 @@ import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AiAgentToolCallTableName,
     AiAgentToolResultTableName,
+    AiFrontendToolExecutionTableName,
     AiPromptContextEntityType,
     AiPromptContextTableName,
     AiPromptTableName,
@@ -99,6 +100,7 @@ import {
     AiWebAppThreadTableName,
     DbAiAgentToolCall,
     DbAiAgentToolResult,
+    DbAiFrontendToolExecution,
     DbAiPrompt,
     DbAiPromptContext,
     DbAiSlackPrompt,
@@ -106,6 +108,7 @@ import {
     DbAiSqlApproval,
     DbAiThread,
     DbAiWebAppPrompt,
+    type AiFrontendToolExecutionStatus,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
 import {
@@ -3861,6 +3864,28 @@ export class AiAgentModel {
         return toolCall.ai_agent_tool_call_uuid;
     }
 
+    async createFrontendToolExecution(data: {
+        promptUuid: string;
+        threadUuid: string;
+        toolCallId: string;
+        toolName: string;
+        action: string;
+        payload: object | null;
+    }): Promise<void> {
+        await this.database(AiFrontendToolExecutionTableName)
+            .insert({
+                tool_call_id: data.toolCallId,
+                ai_prompt_uuid: data.promptUuid,
+                ai_thread_uuid: data.threadUuid,
+                tool_name: data.toolName,
+                action: data.action,
+                payload: data.payload,
+                status: 'pending',
+            })
+            .onConflict('tool_call_id')
+            .ignore();
+    }
+
     // eslint-disable-next-line class-methods-use-this
     private parseToolCall(row: DbAiAgentToolCall): AiAgentToolCall {
         const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
@@ -4071,6 +4096,53 @@ export class AiAgentModel {
         };
     }
 
+    async findFrontendToolExecutionContext(toolCallId: string): Promise<
+        | {
+              promptUuid: string;
+              threadUuid: string;
+              agentUuid: string | null;
+              toolName: string;
+              action: string;
+              status: AiFrontendToolExecutionStatus;
+          }
+        | undefined
+    > {
+        const row = await this.database(AiFrontendToolExecutionTableName)
+            .where(
+                `${AiFrontendToolExecutionTableName}.tool_call_id`,
+                toolCallId,
+            )
+            .innerJoin(
+                AiThreadTableName,
+                `${AiFrontendToolExecutionTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .select<
+                Array<{
+                    promptUuid: string;
+                    threadUuid: string;
+                    agentUuid: string | null;
+                    toolName: string;
+                    action: string;
+                    status: AiFrontendToolExecutionStatus;
+                }>
+            >(
+                `${AiFrontendToolExecutionTableName}.ai_prompt_uuid as promptUuid`,
+                `${AiFrontendToolExecutionTableName}.ai_thread_uuid as threadUuid`,
+                `${AiThreadTableName}.agent_uuid as agentUuid`,
+                `${AiFrontendToolExecutionTableName}.tool_name as toolName`,
+                `${AiFrontendToolExecutionTableName}.action as action`,
+                `${AiFrontendToolExecutionTableName}.status as status`,
+            )
+            .first();
+
+        if (!row) {
+            return undefined;
+        }
+
+        return row;
+    }
+
     // ---------------------------------------------------------------
     // SQL approval bus — DB-backed so it works across pods and
     // survives restarts. See `ai_sql_approval` migration.
@@ -4132,6 +4204,74 @@ export class AiAgentModel {
         }
         /* eslint-enable no-await-in-loop */
         return 'timeout';
+    }
+
+    async recordFrontendToolResult(
+        toolCallId: string,
+        result: string,
+        status: Exclude<AiFrontendToolExecutionStatus, 'pending'>,
+    ): Promise<boolean> {
+        const updated = await this.database(AiFrontendToolExecutionTableName)
+            .where({
+                tool_call_id: toolCallId,
+                status: 'pending',
+            })
+            .update({
+                status,
+                result,
+                resolved_at: new Date(),
+            })
+            .returning('tool_call_id');
+
+        return updated.length > 0;
+    }
+
+    async waitForFrontendToolResult(
+        toolCallId: string,
+        timeoutMs: number = 60 * 1000,
+        pollIntervalMs: number = 500,
+    ): Promise<
+        | { status: 'success'; result: string }
+        | { status: 'error'; result: string }
+        | { status: 'timeout' }
+    > {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const row = await this.database<DbAiFrontendToolExecution>(
+                    AiFrontendToolExecutionTableName,
+                )
+                    .where({ tool_call_id: toolCallId })
+                    .select('status', 'result')
+                    .first();
+
+                if (
+                    row &&
+                    (row.status === 'success' || row.status === 'error') &&
+                    row.result !== null
+                ) {
+                    return {
+                        status: row.status,
+                        result: row.result,
+                    };
+                }
+
+                const remaining = deadline - Date.now();
+                if (remaining <= 0) break;
+                // eslint-disable-next-line no-await-in-loop
+                await new Promise<void>((resolve) => {
+                    setTimeout(resolve, Math.min(pollIntervalMs, remaining));
+                });
+            } catch (err) {
+                return {
+                    status: 'error',
+                    result: `Error polling for tool result: ${err instanceof Error ? err.message : String(err)}`,
+                };
+            }
+        }
+
+        return { status: 'timeout' };
     }
 
     async getToolResultsForPrompt(

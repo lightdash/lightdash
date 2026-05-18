@@ -306,6 +306,8 @@ import {
     AiAgentToolCallTableName,
     AiAgentToolResultTable,
     AiAgentToolResultTableName,
+    AiFrontendToolExecutionTable,
+    AiFrontendToolExecutionTableName,
     AiPromptContextTable,
     AiPromptContextTableName,
     AiPromptTable,
@@ -494,6 +496,7 @@ declare module 'knex/types/tables' {
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
+        [AiFrontendToolExecutionTableName]: AiFrontendToolExecutionTable;
         [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;

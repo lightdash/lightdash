@@ -31,7 +31,7 @@ export const ChatElementsUtils = {
     centeredElementProps: {
         h: '100%',
         w: '100%',
-        maw: '62rem',
+        maw: '70rem',
         mx: 'auto',
         px: 'sm',
     } satisfies BoxProps,

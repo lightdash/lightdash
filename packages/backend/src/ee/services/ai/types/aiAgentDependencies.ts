@@ -224,6 +224,30 @@ export type RecordSqlApprovalFn = (
     decidedByUserUuid: string | null,
 ) => Promise<boolean>;
 
+export type CreateFrontendToolExecutionFn = (data: {
+    promptUuid: string;
+    threadUuid: string;
+    toolCallId: string;
+    toolName: string;
+    action: string;
+    payload: object | null;
+}) => Promise<void>;
+
+export type WaitForFrontendToolResultFn = (
+    toolCallId: string,
+    timeoutMs?: number,
+) => Promise<
+    | { status: 'success'; result: string }
+    | { status: 'error'; result: string }
+    | { status: 'timeout' }
+>;
+
+export type RecordFrontendToolResultFn = (
+    toolCallId: string,
+    result: string,
+    status: 'success' | 'error',
+) => Promise<boolean>;
+
 export type LoadAgentSkillFn = (
     name: string,
 ) => Promise<AiAgentSkill | undefined>;

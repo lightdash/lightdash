@@ -193,6 +193,40 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
     Partial<Pick<DbAiAgentToolResult, 'metadata'>>
 >;
 
+export const AiFrontendToolExecutionTableName = 'ai_frontend_tool_execution';
+
+export type AiFrontendToolExecutionStatus = 'pending' | 'success' | 'error';
+
+export type DbAiFrontendToolExecution = {
+    tool_call_id: string;
+    ai_prompt_uuid: string;
+    ai_thread_uuid: string;
+    tool_name: string;
+    action: string;
+    payload: object | null;
+    status: AiFrontendToolExecutionStatus;
+    result: string | null;
+    created_at: Date;
+    resolved_at: Date | null;
+};
+
+export type AiFrontendToolExecutionTable = Knex.CompositeTableType<
+    DbAiFrontendToolExecution,
+    Pick<
+        DbAiFrontendToolExecution,
+        | 'tool_call_id'
+        | 'ai_prompt_uuid'
+        | 'ai_thread_uuid'
+        | 'tool_name'
+        | 'action'
+        | 'status'
+    > &
+        Partial<Pick<DbAiFrontendToolExecution, 'payload' | 'result'>>,
+    Partial<
+        Pick<DbAiFrontendToolExecution, 'status' | 'result' | 'resolved_at'>
+    >
+>;
+
 export const AiPromptContextTableName = 'ai_prompt_context';
 
 export type AiPromptContextEntityType = 'chart' | 'dashboard';

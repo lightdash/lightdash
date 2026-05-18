@@ -1,6 +1,8 @@
 import {
     isAiAgentToolName,
+    type ApiAiAgentFrontendToolResultRequest,
     toolImproveContextArgsSchema,
+    type ToolFrontendActionArgs,
     toolRunQueryOutputSchema,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
@@ -12,7 +14,7 @@ import {
     type UIMessage,
 } from 'ai';
 import { useCallback } from 'react';
-import { lightdashApiStream } from '../../../../api';
+import { lightdashApi, lightdashApiStream } from '../../../../api';
 import {
     addReasoning,
     addMcpUnavailableNotice,
@@ -28,6 +30,7 @@ import {
 } from '../store/aiAgentThreadStreamSlice';
 import { useAiAgentStoreDispatch } from '../store/hooks';
 import { useAiAgentThreadStreamAbortController } from './AiAgentThreadStreamAbortControllerContext';
+import { getFrontendActionHandler } from './frontendActionRegistry';
 
 export interface AiAgentThreadStreamOptions {
     projectUuid: string;
@@ -70,6 +73,19 @@ const getAgentThreadReadableStream = async (
 
     return body;
 };
+
+const submitFrontendToolResult = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+    toolCallId: string,
+    body: ApiAiAgentFrontendToolResultRequest,
+) =>
+    lightdashApi({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/tool-calls/${toolCallId}/frontend-result`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
 
 class ChatStreamParser extends DefaultChatTransport<UIMessage> {
     public parseStream(stream: ReadableStream<Uint8Array>) {
@@ -164,6 +180,7 @@ export function useAiAgentThreadStreamMutation() {
                 const rawChunkReader = rawChunkStream.getReader();
 
                 const handledToolOutputIds = new Set<string>();
+                const startedFrontendToolCallIds = new Set<string>();
 
                 const consumeRawChunks = (async () => {
                     while (true) {
@@ -269,6 +286,7 @@ export function useAiAgentThreadStreamMutation() {
                             case 'tool-findDashboards':
                             case 'tool-findContent':
                             case 'tool-findCharts':
+                            case 'tool-frontendAction':
                             case 'tool-improveContext':
                             case 'tool-searchFieldValues':
                             case 'tool-runQuery':
@@ -363,6 +381,80 @@ export function useAiAgentThreadStreamMutation() {
                                                 }),
                                             );
                                         }
+                                    }
+
+                                    if (
+                                        toolName === 'frontendAction' &&
+                                        !startedFrontendToolCallIds.has(
+                                            part.toolCallId,
+                                        )
+                                    ) {
+                                        startedFrontendToolCallIds.add(
+                                            part.toolCallId,
+                                        );
+
+                                        const frontendActionArgs =
+                                            part.input as ToolFrontendActionArgs;
+                                        const handler =
+                                            getFrontendActionHandler(
+                                                frontendActionArgs.action,
+                                            );
+
+                                        void (async () => {
+                                            try {
+                                                const handlerResult = handler
+                                                    ? await handler({
+                                                          toolCallId:
+                                                              part.toolCallId,
+                                                          threadUuid,
+                                                          action: frontendActionArgs.action,
+                                                          payload:
+                                                              frontendActionArgs.payload,
+                                                          signal: abortController.signal,
+                                                      })
+                                                    : {
+                                                          status: 'error' as const,
+                                                          result: `No frontend handler registered for action "${frontendActionArgs.action}"`,
+                                                      };
+
+                                                if (
+                                                    abortController.signal
+                                                        .aborted
+                                                ) {
+                                                    return;
+                                                }
+
+                                                await submitFrontendToolResult(
+                                                    projectUuid,
+                                                    agentUuid,
+                                                    threadUuid,
+                                                    part.toolCallId,
+                                                    handlerResult,
+                                                );
+                                            } catch (error) {
+                                                if (
+                                                    abortController.signal
+                                                        .aborted
+                                                ) {
+                                                    return;
+                                                }
+
+                                                await submitFrontendToolResult(
+                                                    projectUuid,
+                                                    agentUuid,
+                                                    threadUuid,
+                                                    part.toolCallId,
+                                                    {
+                                                        status: 'error',
+                                                        result:
+                                                            error instanceof
+                                                            Error
+                                                                ? error.message
+                                                                : 'Frontend action failed',
+                                                    },
+                                                );
+                                            }
+                                        })();
                                     }
                                 } catch (error) {
                                     console.error(

@@ -97,9 +97,9 @@
     position: absolute;
     bottom: calc(100% + var(--mantine-spacing-xs));
     right: 0;
-    width: min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2));
-    height: rem(640px);
-    max-height: min(rem(640px), calc(100vh - rem(80px)));
+    width: min(rem(560px), calc(100vw - var(--mantine-spacing-md) * 2));
+    height: rem(700px);
+    max-height: min(rem(700px), calc(100vh - rem(80px)));
     border-radius: var(--mantine-radius-lg);
     background: var(--mantine-color-body);
     color: var(--mantine-color-text);
