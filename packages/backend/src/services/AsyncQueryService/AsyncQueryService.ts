@@ -6079,8 +6079,6 @@ export class AsyncQueryService extends ProjectService {
                 queryTags: {
                     ...this.getUserQueryTags(account),
                     ...AsyncQueryService.getSchedulerQueryTags(),
-                    ...AsyncQueryService.getSchedulerQueryTags(),
-                    ...AsyncQueryService.getSchedulerQueryTags(),
                     organization_uuid: savedChart.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: explore.name,
@@ -6147,8 +6145,6 @@ export class AsyncQueryService extends ProjectService {
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     ...this.getUserQueryTags(account),
-                    ...AsyncQueryService.getSchedulerQueryTags(),
-                    ...AsyncQueryService.getSchedulerQueryTags(),
                     ...AsyncQueryService.getSchedulerQueryTags(),
                     organization_uuid: account.organization.organizationUuid,
                     project_uuid: projectUuid,
@@ -6237,7 +6233,6 @@ export class AsyncQueryService extends ProjectService {
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
                 ...this.getUserQueryTags(account),
-                ...AsyncQueryService.getSchedulerQueryTags(),
                 ...AsyncQueryService.getSchedulerQueryTags(),
                 organization_uuid: account.organization.organizationUuid,
                 project_uuid: projectUuid,
