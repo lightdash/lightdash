@@ -981,6 +981,7 @@ export class EmbedService extends BaseService {
         // for the right tab. Tiles created before tabs may have null/undefined.
         const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
         const tileTabUuid = tile?.tabUuid ?? undefined;
+        const hasTabs = (dashboard.tabs?.length ?? 0) > 0;
 
         let effectiveFilters: DashboardFilters = dashboard.filters;
 
@@ -993,6 +994,7 @@ export class EmbedService extends BaseService {
                     dashboard.filters,
                     dashboardFilters,
                     tileTabUuid,
+                    hasTabs,
                 );
 
             if (droppedCount > 0) {
@@ -1002,14 +1004,14 @@ export class EmbedService extends BaseService {
             }
 
             const lockedDimensions = dashboard.filters.dimensions.filter(
-                (rule) => isFilterLockedOnTab(rule, tileTabUuid),
+                (rule) => isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
             );
             const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
-                isFilterLockedOnTab(rule, tileTabUuid),
+                isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
             );
             const lockedTableCalculations =
                 dashboard.filters.tableCalculations.filter((rule) =>
-                    isFilterLockedOnTab(rule, tileTabUuid),
+                    isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
                 );
 
             effectiveFilters = {
