@@ -35,3 +35,5 @@ minimumReleaseAgeExclude:
   - sanitize-html@2.17.4
   # Renovate security update: nodemailer@8.0.5
   - nodemailer@8.0.5
+  # Renovate security update: @tiptap/extension-link@2.10.4
+  - "@tiptap/extension-link@2.10.4"
