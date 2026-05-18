@@ -39,9 +39,7 @@ import {
     filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
-    isAggregationCustomMetric,
     isExploreError,
-    isPeriodComparisonCustomMetric,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
@@ -68,6 +66,7 @@ import {
     WarehouseQueryError,
     type AiPromptContextInput,
     type SessionUser,
+    type TransformedCustomMetric,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -177,7 +176,6 @@ import {
     UpdateProgressFn,
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
-import { buildPopAdditionalMetricsFromAiInput } from '../ai/utils/buildPopAdditionalMetrics';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     getAgentConfirmationBlocks,
@@ -193,7 +191,10 @@ import {
     getThinkingBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
-import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    populateCustomMetricsSQL,
+} from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 
@@ -616,11 +617,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
-        periodComparisons?:
-            | NonNullable<
-                  ReturnType<typeof parseVizConfig>
-              >['periodComparisons']
-            | null,
+        customMetrics?: TransformedCustomMetric[] | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -640,29 +637,10 @@ export class AiAgentService extends BaseService {
             metricQuery.additionalMetrics,
         );
 
-        const populatedAggregations = populateCustomMetricsSQL(
-            metricQuery.additionalMetrics,
+        const populatedCustomMetrics = populateCustomMetricsSQL(
+            customMetrics ?? metricQuery.additionalMetrics,
             explore,
         );
-
-        // Saved tool args store PoP custom metrics separately from the
-        // aggregation customMetrics; the agent's customMetrics array is
-        // unified but split here for SQL expansion (PoP needs the explore).
-        const { popAdditionalMetrics, popMetricIdsByBase } =
-            buildPopAdditionalMetricsFromAiInput({
-                periodComparisons: periodComparisons ?? null,
-                explore,
-                customMetrics: populatedAggregations,
-            });
-        const expandWithPop = (ids: string[]): string[] => {
-            const out: string[] = [];
-            for (const id of ids) {
-                out.push(id);
-                const pops = popMetricIdsByBase.get(id);
-                if (pops?.length) out.push(...pops);
-            }
-            return out;
-        };
 
         const asyncQuery = await this.asyncQueryService.executeAsyncMetricQuery(
             {
@@ -670,11 +648,11 @@ export class AiAgentService extends BaseService {
                 projectUuid,
                 metricQuery: {
                     ...metricQuery,
-                    metrics: expandWithPop(metricQuery.metrics),
-                    additionalMetrics: [
-                        ...populatedAggregations,
-                        ...popAdditionalMetrics,
-                    ],
+                    metrics: expandMetricsWithPopAdditionalMetrics(
+                        metricQuery.metrics,
+                        populatedCustomMetrics,
+                    ),
+                    additionalMetrics: populatedCustomMetrics,
                 },
                 context: QueryExecutionContext.AI,
             },
@@ -2101,9 +2079,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
-            parsedVizConfig.type === AiResultType.QUERY_RESULT
-                ? parsedVizConfig.periodComparisons
-                : null,
+            parsedVizConfig.vizTool.customMetrics,
         );
 
         const metadata = {
@@ -2238,9 +2214,7 @@ export class AiAgentService extends BaseService {
             user,
             projectUuid,
             parsedVizConfig.metricQuery,
-            parsedVizConfig.type === AiResultType.QUERY_RESULT
-                ? parsedVizConfig.periodComparisons
-                : null,
+            parsedVizConfig.vizTool.customMetrics,
         );
 
         const metadata = {

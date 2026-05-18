@@ -154,14 +154,6 @@ export type PeriodComparisonCustomMetric = z.infer<
     typeof periodComparisonCustomMetricSchema
 >;
 
-// --------------------------------------------------------------------------
-// Transformed output. Aggregation entries fold into the existing
-// CustomMetricBaseTransformed shape (Omit<AdditionalMetric, 'sql'>) so
-// downstream validators and SQL-population helpers keep their existing
-// signatures. Period-comparison entries pass through unchanged — the
-// server uses the four fields to build the AdditionalMetric via
-// buildPopAdditionalMetric.
-// --------------------------------------------------------------------------
 const aggregationTransformed = aggregationCustomMetricSchema
     .extend({
         filters: metricFiltersSchema.default(null),
@@ -204,19 +196,8 @@ export type CustomMetricBaseTransformed = z.infer<
     typeof customMetricBaseSchemaTransformed
 >;
 
-// Each transformed entry keeps its `kind` discriminator. Aggregation
-// entries fold into the existing CustomMetricBaseTransformed shape
-// (Omit<AdditionalMetric, 'sql'>) so existing validators and SQL
-// population helpers keep their signatures. Period-comparison entries
-// pass through with their four fields plus kind — the server builds the
-// AdditionalMetric via buildPopAdditionalMetric (it needs the explore
-// at runtime, so we can't fully expand at parse time).
-export type TransformedAggregationCustomMetric = CustomMetricBaseTransformed & {
-    kind: 'aggregation';
-};
-
 export type TransformedCustomMetric =
-    | TransformedAggregationCustomMetric
+    | CustomMetricBaseTransformed
     | PeriodComparisonCustomMetric;
 
 export const customMetricsSchemaTransformed = z
@@ -226,36 +207,25 @@ export const customMetricsSchemaTransformed = z
         if (!entries) return null;
         const transformed: TransformedCustomMetric[] = entries.map((entry) => {
             if (entry.kind === 'aggregation') {
-                return {
-                    kind: 'aggregation' as const,
-                    ...aggregationTransformed.parse(entry),
-                };
+                return aggregationTransformed.parse(entry);
             }
             return entry;
         });
         return transformed.length > 0 ? transformed : null;
     });
 
-// Helpers for the common "I only want the aggregation entries" / "I only
-// want the period-comparison entries" downstream lookups.
-export const isAggregationCustomMetric = (
-    cm: TransformedCustomMetric,
-): cm is TransformedAggregationCustomMetric => cm.kind === 'aggregation';
-
 export const isPeriodComparisonCustomMetric = (
     cm: TransformedCustomMetric,
-): cm is PeriodComparisonCustomMetric => cm.kind === 'periodComparison';
+): cm is PeriodComparisonCustomMetric =>
+    'kind' in cm && cm.kind === 'periodComparison';
 
-// Aggregation-only view of a heterogeneous customMetrics array, ready to
-// drop into MetricQuery.additionalMetrics (which only admits the
-// Omit<AdditionalMetric, 'sql'> shape — PoP entries need server-side
-// expansion separately).
 export const filterAggregationCustomMetrics = (
     cms: TransformedCustomMetric[] | null | undefined,
 ): CustomMetricBaseTransformed[] =>
-    (cms ?? [])
-        .filter(isAggregationCustomMetric)
-        .map(({ kind: _kind, ...rest }) => rest);
+    (cms ?? []).filter(
+        (cm): cm is CustomMetricBaseTransformed =>
+            !isPeriodComparisonCustomMetric(cm),
+    );
 
 export const customMetricsSchema = z
     .array(customMetricBaseSchema)

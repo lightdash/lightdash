@@ -17,7 +17,6 @@ import {
 export * from './customMetrics';
 export * from './filters';
 export * from './outputMetadata';
-export * from './periodComparisons';
 export * from './sortField';
 export * from './tableCalcs/tableCalcs';
 export * from './tools';

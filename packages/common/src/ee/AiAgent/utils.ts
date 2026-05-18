@@ -1,8 +1,7 @@
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
-    isAggregationCustomMetric,
-    isPeriodComparisonCustomMetric,
+    filterAggregationCustomMetrics,
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
@@ -89,17 +88,6 @@ export const parseVizConfig = (
     if (toolRunQueryArgsParsed.success) {
         const vizTool = toolRunQueryArgsParsed.data;
 
-        // customMetrics is the unified discriminated union. Aggregation
-        // entries are ready to drop into additionalMetrics (the existing
-        // pipeline populates their SQL later); periodComparison entries
-        // need the explore to expand into PoP additionalMetrics, so we
-        // surface them separately for the caller to expand server-side.
-        const allCustomMetrics = vizTool.customMetrics ?? [];
-        const aggregations = allCustomMetrics.filter(isAggregationCustomMetric);
-        const periodComparisons = allCustomMetrics.filter(
-            isPeriodComparisonCustomMetric,
-        );
-
         const metricQuery = {
             exploreName: vizTool.queryConfig.exploreName,
             dimensions: vizTool.queryConfig.dimensions,
@@ -113,7 +101,9 @@ export const parseVizConfig = (
                 maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             ),
             filters: vizTool.filters,
-            additionalMetrics: aggregations,
+            additionalMetrics: filterAggregationCustomMetrics(
+                vizTool.customMetrics,
+            ),
             tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                 vizTool.tableCalculations,
             ),
@@ -123,8 +113,6 @@ export const parseVizConfig = (
             type: AiResultType.QUERY_RESULT,
             vizTool,
             metricQuery,
-            periodComparisons:
-                periodComparisons.length > 0 ? periodComparisons : null,
         } as const;
     }
 

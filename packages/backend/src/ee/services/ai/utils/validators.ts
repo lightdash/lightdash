@@ -23,11 +23,11 @@ import {
     isAdditionalMetric,
     isDimension,
     isMetric,
+    isPeriodComparisonCustomMetric,
     isTableCalculation,
     MetricType,
     nullaryWindowFunctions,
     numberFilterSchema,
-    PeriodComparison,
     renderFilterRuleSql,
     renderFilterRuleSqlFromField,
     renderTableCalculationFilterRuleSql,
@@ -38,6 +38,7 @@ import {
     TableCalculation,
     ToolRunQueryArgsTransformed,
     ToolSortField,
+    TransformedCustomMetric,
     WeekDay,
     WindowFunctionType,
 } from '@lightdash/common';
@@ -1233,25 +1234,28 @@ Remember:
  */
 export function validatePeriodComparisons(
     explore: Explore,
-    periodComparisons: PeriodComparison[] | null,
+    customMetrics: TransformedCustomMetric[] | null,
     dimensions: string[],
     metrics: string[],
-    customMetrics: CustomMetricBaseTransformed[] | null,
+    aggregationCustomMetrics: CustomMetricBaseTransformed[] | null,
 ) {
-    if (!periodComparisons?.length) return;
+    const periodComparisonMetrics =
+        customMetrics?.filter(isPeriodComparisonCustomMetric) ?? [];
+
+    if (!periodComparisonMetrics.length) return;
 
     const dimensionSet = new Set(dimensions);
     const metricSet = new Set(metrics);
     const customMetricIds = new Set(
-        (customMetrics ?? []).map((cm) => getItemId(cm)),
+        (aggregationCustomMetrics ?? []).map((cm) => getItemId(cm)),
     );
     const exploreFields = getFields(explore);
     const errors: string[] = [];
 
-    for (const pc of periodComparisons) {
+    for (const pc of periodComparisonMetrics) {
         if (!dimensionSet.has(pc.timeDimensionId)) {
             errors.push(
-                `Error: periodComparisons.timeDimensionId "${pc.timeDimensionId}" must be present in queryConfig.dimensions.`,
+                `Error: customMetrics periodComparison timeDimensionId "${pc.timeDimensionId}" must be present in queryConfig.dimensions.`,
             );
         } else {
             const dimField = exploreFields.find(
@@ -1259,15 +1263,15 @@ export function validatePeriodComparisons(
             );
             if (!dimField || !isDimension(dimField)) {
                 errors.push(
-                    `Error: periodComparisons.timeDimensionId "${pc.timeDimensionId}" is not a dimension in the explore.`,
+                    `Error: customMetrics periodComparison timeDimensionId "${pc.timeDimensionId}" is not a dimension in the explore.`,
                 );
             } else if (!dimField.timeInterval) {
                 errors.push(
-                    `Error: periodComparisons.timeDimensionId "${pc.timeDimensionId}" is not a time-interval dimension.`,
+                    `Error: customMetrics periodComparison timeDimensionId "${pc.timeDimensionId}" is not a time-interval dimension.`,
                 );
             } else if (dimField.timeInterval !== pc.granularity) {
                 errors.push(
-                    `Error: periodComparisons.granularity "${pc.granularity}" must match the time dimension's granularity "${dimField.timeInterval}" (for "${pc.timeDimensionId}").`,
+                    `Error: customMetrics periodComparison granularity "${pc.granularity}" must match the time dimension's granularity "${dimField.timeInterval}" (for "${pc.timeDimensionId}").`,
                 );
             }
         }
@@ -1276,7 +1280,7 @@ export function validatePeriodComparisons(
         const baseInCustom = customMetricIds.has(pc.baseMetricId);
         if (!baseInQuery && !baseInCustom) {
             errors.push(
-                `Error: periodComparisons.baseMetricId "${pc.baseMetricId}" must appear in queryConfig.metrics or in customMetrics.`,
+                `Error: customMetrics periodComparison baseMetricId "${pc.baseMetricId}" must appear in queryConfig.metrics or in customMetrics.`,
             );
         }
     }

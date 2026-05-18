@@ -12,9 +12,7 @@ import {
     getItemLabelWithoutTableName,
     getSlackAiEchartsConfig,
     getValidAiQueryLimit,
-    isAggregationCustomMetric,
     isExploreError,
-    isPeriodComparisonCustomMetric,
     JobPollTimeoutError,
     mcpToolListExploresArgsSchema,
     MissingConfigError,
@@ -104,9 +102,11 @@ import {
     SearchFieldValuesFn,
 } from '../ai/types/aiAgentDependencies';
 import { AgentContext } from '../ai/utils/AgentContext';
-import { buildPopAdditionalMetricsFromAiInput } from '../ai/utils/buildPopAdditionalMetrics';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
-import { populateCustomMetricsSQL } from '../ai/utils/populateCustomMetricsSQL';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    populateCustomMetricsSQL,
+} from '../ai/utils/populateCustomMetricsSQL';
 import { serializeData } from '../ai/utils/serializeData';
 import { AiAgentService } from '../AiAgentService/AiAgentService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
@@ -1145,45 +1145,18 @@ export class McpService extends BaseService {
                     const maxLimit =
                         this.lightdashConfig.ai.copilot.maxQueryLimit;
 
-                    const allCustomMetrics = queryTool.customMetrics ?? [];
-                    const aggregations = allCustomMetrics.filter(
-                        isAggregationCustomMetric,
-                    );
-                    const periodComparisons = allCustomMetrics.filter(
-                        isPeriodComparisonCustomMetric,
-                    );
-                    const populatedAggregations = populateCustomMetricsSQL(
-                        aggregations,
+                    const additionalMetrics = populateCustomMetricsSQL(
+                        queryTool.customMetrics,
                         explore,
                     );
-                    const { popAdditionalMetrics, popMetricIdsByBase } =
-                        buildPopAdditionalMetricsFromAiInput({
-                            periodComparisons:
-                                periodComparisons.length > 0
-                                    ? periodComparisons
-                                    : null,
-                            explore,
-                            customMetrics: populatedAggregations,
-                        });
-                    const expandWithPop = (ids: string[]): string[] => {
-                        const out: string[] = [];
-                        for (const id of ids) {
-                            out.push(id);
-                            const pops = popMetricIdsByBase.get(id);
-                            if (pops?.length) out.push(...pops);
-                        }
-                        return out;
-                    };
-
-                    const allAdditionalMetrics = [
-                        ...populatedAggregations,
-                        ...popAdditionalMetrics,
-                    ];
 
                     const query = {
                         exploreName: queryTool.queryConfig.exploreName,
                         dimensions: queryTool.queryConfig.dimensions,
-                        metrics: expandWithPop(queryTool.queryConfig.metrics),
+                        metrics: expandMetricsWithPopAdditionalMetrics(
+                            queryTool.queryConfig.metrics,
+                            additionalMetrics,
+                        ),
                         sorts: queryTool.queryConfig.sorts.map((sort) => ({
                             ...sort,
                             nullsFirst: sort.nullsFirst ?? undefined,
@@ -1193,7 +1166,7 @@ export class McpService extends BaseService {
                             maxLimit,
                         ),
                         filters: queryTool.filters,
-                        additionalMetrics: allAdditionalMetrics,
+                        additionalMetrics,
                         tableCalculations:
                             convertAiTableCalcsSchemaToTableCalcs(
                                 queryTool.tableCalculations,
@@ -1202,7 +1175,7 @@ export class McpService extends BaseService {
 
                     const results = await runAsyncQuery(
                         query,
-                        allAdditionalMetrics,
+                        additionalMetrics,
                     );
 
                     if (results.rows.length === 0) {
@@ -1272,11 +1245,11 @@ export class McpService extends BaseService {
                         metricQuery: {
                             exploreName: queryTool.queryConfig.exploreName,
                             dimensions: queryTool.queryConfig.dimensions,
-                            metrics: queryTool.queryConfig.metrics,
+                            metrics: query.metrics,
                             sorts: queryTool.queryConfig.sorts,
                             limit: query.limit,
                             filters: queryTool.filters ?? {},
-                            additionalMetrics: allAdditionalMetrics,
+                            additionalMetrics,
                             tableCalculations: query.tableCalculations,
                         },
                         tableConfig: {

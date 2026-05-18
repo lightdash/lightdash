@@ -1,11 +1,16 @@
 import {
+    getItemId,
     isPeriodOverPeriodAdditionalMetric,
     MetricType,
     TimeFrames,
     type AdditionalMetric,
-    type PeriodComparison,
+    type PeriodComparisonCustomMetric,
 } from '@lightdash/common';
-import { buildPopAdditionalMetricsFromAiInput } from './buildPopAdditionalMetrics';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    getPopMetricIdsByBaseMetricId,
+    populateCustomMetricsSQL,
+} from './populateCustomMetricsSQL';
 import { mockOrdersExplore } from './validationExplore.mock';
 
 const baseCustomMetric: AdditionalMetric = {
@@ -17,42 +22,29 @@ const baseCustomMetric: AdditionalMetric = {
     baseDimensionName: 'order_id',
 };
 
-describe('buildPopAdditionalMetricsFromAiInput', () => {
-    it('returns empty when periodComparisons is null', () => {
-        const result = buildPopAdditionalMetricsFromAiInput({
-            periodComparisons: null,
-            explore: mockOrdersExplore,
-            customMetrics: [],
-        });
-        expect(result.popAdditionalMetrics).toEqual([]);
-        expect(result.popMetricIdsByBase.size).toBe(0);
+describe('populateCustomMetricsSQL', () => {
+    it('returns empty when customMetrics is null', () => {
+        const result = populateCustomMetricsSQL(null, mockOrdersExplore);
+        expect(result).toEqual([]);
     });
 
-    it('returns empty when periodComparisons is an empty array', () => {
-        const result = buildPopAdditionalMetricsFromAiInput({
-            periodComparisons: [],
-            explore: mockOrdersExplore,
-            customMetrics: [],
-        });
-        expect(result.popAdditionalMetrics).toEqual([]);
-        expect(result.popMetricIdsByBase.size).toBe(0);
+    it('returns empty when customMetrics is an empty array', () => {
+        const result = populateCustomMetricsSQL([], mockOrdersExplore);
+        expect(result).toEqual([]);
     });
 
     it('builds a PoP additional metric for a real base metric', () => {
-        const pc: PeriodComparison = {
+        const pc: PeriodComparisonCustomMetric = {
+            kind: 'periodComparison',
             baseMetricId: 'orders_total_revenue',
             timeDimensionId: 'orders_order_date',
             granularity: TimeFrames.MONTH,
             periodOffset: 1,
         };
-        const result = buildPopAdditionalMetricsFromAiInput({
-            periodComparisons: [pc],
-            explore: mockOrdersExplore,
-            customMetrics: [],
-        });
+        const result = populateCustomMetricsSQL([pc], mockOrdersExplore);
 
-        expect(result.popAdditionalMetrics).toHaveLength(1);
-        const pop = result.popAdditionalMetrics[0]!;
+        expect(result).toHaveLength(1);
+        const pop = result[0]!;
         expect(isPeriodOverPeriodAdditionalMetric(pop)).toBe(true);
         expect(pop.table).toBe('orders');
         expect(pop.baseMetricId).toBe('orders_total_revenue');
@@ -60,27 +52,28 @@ describe('buildPopAdditionalMetricsFromAiInput', () => {
         expect(pop.periodOffset).toBe(1);
         expect(pop.sql).toBe('SUM(${TABLE}.amount)');
 
-        const ids = result.popMetricIdsByBase.get('orders_total_revenue');
+        const ids = getPopMetricIdsByBaseMetricId(result).get(
+            'orders_total_revenue',
+        );
         expect(ids).toHaveLength(1);
         expect(ids![0]!).toBe(`orders_${pop.name}`);
     });
 
     it('builds a PoP additional metric for a custom base metric', () => {
-        const customByItemId = baseCustomMetric;
-        const pc: PeriodComparison = {
+        const pc: PeriodComparisonCustomMetric = {
+            kind: 'periodComparison',
             baseMetricId: 'orders_high_value_order_count',
             timeDimensionId: 'orders_order_date',
             granularity: TimeFrames.WEEK,
             periodOffset: 2,
         };
-        const result = buildPopAdditionalMetricsFromAiInput({
-            periodComparisons: [pc],
-            explore: mockOrdersExplore,
-            customMetrics: [customByItemId],
-        });
+        const result = populateCustomMetricsSQL(
+            [baseCustomMetric, pc],
+            mockOrdersExplore,
+        );
 
-        expect(result.popAdditionalMetrics).toHaveLength(1);
-        const pop = result.popAdditionalMetrics[0]!;
+        expect(result).toHaveLength(2);
+        const pop = result[1]!;
         expect(pop.baseMetricId).toBe('orders_high_value_order_count');
         expect(pop.sql).toBe('${TABLE}.order_id');
         expect(pop.granularity).toBe(TimeFrames.WEEK);
@@ -88,70 +81,93 @@ describe('buildPopAdditionalMetricsFromAiInput', () => {
     });
 
     it('dedupes identical (base, dim, granularity, offset) tuples', () => {
-        const pc: PeriodComparison = {
+        const pc: PeriodComparisonCustomMetric = {
+            kind: 'periodComparison',
             baseMetricId: 'orders_total_revenue',
             timeDimensionId: 'orders_order_date',
             granularity: TimeFrames.MONTH,
             periodOffset: 1,
         };
-        const result = buildPopAdditionalMetricsFromAiInput({
-            periodComparisons: [pc, pc],
-            explore: mockOrdersExplore,
-            customMetrics: [],
-        });
+        const result = populateCustomMetricsSQL([pc, pc], mockOrdersExplore);
 
-        expect(result.popAdditionalMetrics).toHaveLength(1);
+        expect(result).toHaveLength(1);
         expect(
-            result.popMetricIdsByBase.get('orders_total_revenue'),
+            getPopMetricIdsByBaseMetricId(result).get('orders_total_revenue'),
         ).toHaveLength(1);
     });
 
     it('keeps distinct entries with different granularity or offset', () => {
-        const result = buildPopAdditionalMetricsFromAiInput({
-            periodComparisons: [
+        const result = populateCustomMetricsSQL(
+            [
                 {
+                    kind: 'periodComparison',
                     baseMetricId: 'orders_total_revenue',
                     timeDimensionId: 'orders_order_date',
                     granularity: TimeFrames.MONTH,
                     periodOffset: 1,
                 },
                 {
+                    kind: 'periodComparison',
                     baseMetricId: 'orders_total_revenue',
                     timeDimensionId: 'orders_order_date',
                     granularity: TimeFrames.YEAR,
                     periodOffset: 1,
                 },
                 {
+                    kind: 'periodComparison',
                     baseMetricId: 'orders_total_revenue',
                     timeDimensionId: 'orders_order_date',
                     granularity: TimeFrames.MONTH,
                     periodOffset: 12,
                 },
             ],
-            explore: mockOrdersExplore,
-            customMetrics: [],
-        });
+            mockOrdersExplore,
+        );
 
-        expect(result.popAdditionalMetrics).toHaveLength(3);
+        expect(result).toHaveLength(3);
         expect(
-            result.popMetricIdsByBase.get('orders_total_revenue'),
+            getPopMetricIdsByBaseMetricId(result).get('orders_total_revenue'),
         ).toHaveLength(3);
+    });
+
+    it('expands generated PoP metric ids next to their base metric', () => {
+        const additionalMetrics = populateCustomMetricsSQL(
+            [
+                {
+                    kind: 'periodComparison',
+                    baseMetricId: 'orders_total_revenue',
+                    timeDimensionId: 'orders_order_date',
+                    granularity: TimeFrames.MONTH,
+                    periodOffset: 1,
+                },
+            ],
+            mockOrdersExplore,
+        );
+
+        const expanded = expandMetricsWithPopAdditionalMetrics(
+            ['orders_total_revenue', 'orders_order_count'],
+            additionalMetrics,
+        );
+
+        expect(expanded[0]).toBe('orders_total_revenue');
+        expect(expanded[1]).toBe(getItemId(additionalMetrics[0]!));
+        expect(expanded[2]).toBe('orders_order_count');
     });
 
     it('throws AiAgentValidatorError when baseMetricId is unknown', () => {
         expect(() =>
-            buildPopAdditionalMetricsFromAiInput({
-                periodComparisons: [
+            populateCustomMetricsSQL(
+                [
                     {
+                        kind: 'periodComparison',
                         baseMetricId: 'orders_does_not_exist',
                         timeDimensionId: 'orders_order_date',
                         granularity: TimeFrames.MONTH,
                         periodOffset: 1,
                     },
                 ],
-                explore: mockOrdersExplore,
-                customMetrics: [],
-            }),
+                mockOrdersExplore,
+            ),
         ).toThrow(/orders_does_not_exist/);
     });
 });

@@ -2,11 +2,10 @@ import {
     AiAgentValidatorError,
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
+    filterAggregationCustomMetrics,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
-    isAggregationCustomMetric,
-    isPeriodComparisonCustomMetric,
     isSlackPrompt,
     toolRunQueryArgsSchema,
     toolRunQueryArgsSchemaTransformed,
@@ -24,10 +23,12 @@ import type {
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
-import { buildPopAdditionalMetricsFromAiInput } from '../utils/buildPopAdditionalMetrics';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getPivotedResults } from '../utils/getPivotedResults';
-import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    populateCustomMetricsSQL,
+} from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -69,16 +70,12 @@ export const validateRunQueryTool = (
         tableCalculations,
     } = queryTool;
 
-    const aggregations =
-        customMetrics?.filter(isAggregationCustomMetric) ?? null;
-    const periodComparisons =
-        customMetrics?.filter(isPeriodComparisonCustomMetric) ?? null;
+    const aggregations = filterAggregationCustomMetrics(customMetrics);
 
     const hasFields =
         dimensions.length > 0 ||
         metrics.length > 0 ||
-        (aggregations && aggregations.length > 0) ||
-        (periodComparisons && periodComparisons.length > 0) ||
+        (customMetrics && customMetrics.length > 0) ||
         (tableCalculations && tableCalculations.length > 0);
 
     if (!hasFields) {
@@ -160,7 +157,7 @@ export const validateRunQueryTool = (
     // Validate period-over-period comparisons (entries from customMetrics)
     validatePeriodComparisons(
         explore,
-        periodComparisons,
+        customMetrics,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         aggregations,
@@ -196,45 +193,18 @@ export const getRunQuery = ({
 
                 const prompt = await getPrompt();
 
-                const aggregationCustomMetrics =
-                    queryTool.customMetrics?.filter(
-                        isAggregationCustomMetric,
-                    ) ?? null;
-                const periodComparisonCustomMetrics =
-                    queryTool.customMetrics?.filter(
-                        isPeriodComparisonCustomMetric,
-                    ) ?? null;
+                const aggregationCustomMetrics = filterAggregationCustomMetrics(
+                    queryTool.customMetrics,
+                );
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
-                    aggregationCustomMetrics,
+                    queryTool.customMetrics,
                     explore,
                 );
 
-                const { popAdditionalMetrics, popMetricIdsByBase } =
-                    buildPopAdditionalMetricsFromAiInput({
-                        periodComparisons: periodComparisonCustomMetrics,
-                        explore,
-                        customMetrics: populatedCustomMetrics,
-                    });
-
-                // Each PoP metric id is placed immediately after its base in
-                // any field-id list so result columns and chart series appear
-                // adjacent (matches Explorer behaviour).
-                const expandWithPop = (
-                    ids: readonly string[] | null | undefined,
-                ): string[] => {
-                    if (!ids) return [];
-                    const out: string[] = [];
-                    for (const id of ids) {
-                        out.push(id);
-                        const pops = popMetricIdsByBase.get(id);
-                        if (pops?.length) out.push(...pops);
-                    }
-                    return out;
-                };
-
-                const expandedMetrics = expandWithPop(
+                const expandedMetrics = expandMetricsWithPopAdditionalMetrics(
                     queryTool.queryConfig.metrics,
+                    populatedCustomMetrics,
                 );
 
                 // Mirror the expansion into the saved tool args so the chart
@@ -243,14 +213,18 @@ export const getRunQuery = ({
                 // know the auto-generated PoP ids); the server fills them
                 // in here before persisting the artifact.
                 const expandedToolArgs =
-                    popAdditionalMetrics.length > 0 && toolArgs.chartConfig
+                    expandedMetrics.length >
+                        queryTool.queryConfig.metrics.length &&
+                    toolArgs.chartConfig
                         ? {
                               ...toolArgs,
                               chartConfig: {
                                   ...toolArgs.chartConfig,
-                                  yAxisMetrics: expandWithPop(
-                                      toolArgs.chartConfig.yAxisMetrics,
-                                  ),
+                                  yAxisMetrics:
+                                      expandMetricsWithPopAdditionalMetrics(
+                                          toolArgs.chartConfig.yAxisMetrics,
+                                          populatedCustomMetrics,
+                                      ),
                               },
                           }
                         : toolArgs;
@@ -266,9 +240,7 @@ export const getRunQuery = ({
                     });
 
                 const selfImprovementResultFollowUp =
-                    enableSelfImprovement &&
-                    aggregationCustomMetrics &&
-                    aggregationCustomMetrics.length > 0
+                    enableSelfImprovement && aggregationCustomMetrics.length > 0
                         ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
                         : '';
 
@@ -280,11 +252,6 @@ export const getRunQuery = ({
                         metadata: { status: 'success' },
                     };
                 }
-
-                const allAdditionalMetrics: typeof populatedCustomMetrics = [
-                    ...populatedCustomMetrics,
-                    ...popAdditionalMetrics,
-                ];
 
                 const metricQuery = {
                     exploreName: queryTool.queryConfig.exploreName,
@@ -299,7 +266,7 @@ export const getRunQuery = ({
                         maxLimit,
                     ),
                     filters: queryTool.filters,
-                    additionalMetrics: allAdditionalMetrics,
+                    additionalMetrics: populatedCustomMetrics,
                     tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                         queryTool.tableCalculations,
                     ),
@@ -307,7 +274,7 @@ export const getRunQuery = ({
 
                 const queryResults = await runAsyncQuery(
                     metricQuery,
-                    allAdditionalMetrics,
+                    populatedCustomMetrics,
                 );
 
                 if (queryResults.rows.length === 0) {

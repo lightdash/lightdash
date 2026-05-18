@@ -6,7 +6,7 @@ import {
     TimeFrames,
     type CustomMetricBaseTransformed,
     type Explore,
-    type PeriodComparison,
+    type PeriodComparisonCustomMetric,
 } from '@lightdash/common';
 import { validatePeriodComparisons } from './validators';
 
@@ -103,7 +103,8 @@ const customAvgRevenue: CustomMetricBaseTransformed = {
     filters: undefined,
 };
 
-const validPc: PeriodComparison = {
+const validPc: PeriodComparisonCustomMetric = {
+    kind: 'periodComparison',
     baseMetricId: 'orders_revenue',
     timeDimensionId: 'orders_created_at_month',
     granularity: TimeFrames.MONTH,

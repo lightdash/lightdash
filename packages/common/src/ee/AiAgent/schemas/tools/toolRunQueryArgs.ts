@@ -154,7 +154,7 @@ Configuration Tips:
 - At least one metric is required for all chart types except table
 - chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
 - chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — that's what periodComparisons is for. Leave null for simple single-series charts.
+- chartConfig.groupBy: Use to split data into multiple series along a CATEGORICAL dimension (e.g., one line per region, one bar per product). Do NOT include the x-axis dimension. Do NOT use to split along a time dimension to simulate a period comparison — use a kind: "periodComparison" customMetric for that. Leave null for simple single-series charts.
 - For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
 - For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
 - For line charts: use lineType 'area' to fill the area under the line

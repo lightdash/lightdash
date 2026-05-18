@@ -1,10 +1,16 @@
 import {
     AdditionalMetric,
+    AiAgentValidatorError,
+    buildPopAdditionalMetric,
     CustomMetricBaseTransformed,
     getFields,
     getItemId,
+    isPeriodComparisonCustomMetric,
     isPeriodOverPeriodAdditionalMetric,
     type Explore,
+    type Metric,
+    type PeriodComparisonCustomMetric,
+    type TransformedCustomMetric,
 } from '@lightdash/common';
 
 /**
@@ -63,6 +69,7 @@ export function populateCustomMetricSQL(
 export function populateCustomMetricsSQL(
     customMetrics:
         | (
+              | TransformedCustomMetric
               | CustomMetricBaseTransformed
               | Omit<AdditionalMetric, 'sql'>
               | AdditionalMetric
@@ -75,11 +82,122 @@ export function populateCustomMetricsSQL(
         return [];
     }
 
-    return customMetrics.reduce<AdditionalMetric[]>((acc, metric) => {
+    const aggregationMetrics = customMetrics.filter(
+        (
+            metric,
+        ): metric is
+            | CustomMetricBaseTransformed
+            | Omit<AdditionalMetric, 'sql'>
+            | AdditionalMetric =>
+            !isPeriodComparisonCustomMetric(metric as TransformedCustomMetric),
+    );
+
+    const populatedAggregationMetrics = aggregationMetrics.reduce<
+        AdditionalMetric[]
+    >((acc, metric) => {
         const populatedMetric = populateCustomMetricSQL(metric, explore);
         if (populatedMetric) {
             acc.push(populatedMetric);
         }
         return acc;
     }, []);
+
+    const periodComparisonMetrics = customMetrics.filter(
+        (metric): metric is PeriodComparisonCustomMetric =>
+            isPeriodComparisonCustomMetric(metric as TransformedCustomMetric),
+    );
+
+    if (periodComparisonMetrics.length === 0) {
+        return populatedAggregationMetrics;
+    }
+
+    const realMetricsById = new Map<string, Metric>();
+    for (const table of Object.values(explore.tables)) {
+        for (const metric of Object.values(table.metrics)) {
+            realMetricsById.set(getItemId(metric), metric);
+        }
+    }
+
+    const customMetricsById = new Map<string, AdditionalMetric>();
+    for (const metric of populatedAggregationMetrics) {
+        customMetricsById.set(getItemId(metric), metric);
+    }
+
+    const populatedPopMetrics: AdditionalMetric[] = [];
+    const seenMetricIds = new Set<string>();
+
+    for (const metric of periodComparisonMetrics) {
+        const baseMetric =
+            realMetricsById.get(metric.baseMetricId) ??
+            customMetricsById.get(metric.baseMetricId);
+
+        if (!baseMetric) {
+            throw new AiAgentValidatorError(
+                `customMetrics periodComparison baseMetricId "${metric.baseMetricId}" is not a metric in this query. It must be in queryConfig.metrics or defined as an aggregation custom metric.`,
+            );
+        }
+
+        const { additionalMetric, metricId } = buildPopAdditionalMetric({
+            metric: {
+                table: baseMetric.table,
+                name: baseMetric.name,
+                label: baseMetric.label ?? baseMetric.name,
+                description: baseMetric.description,
+                type: baseMetric.type,
+                sql: baseMetric.sql,
+                round: baseMetric.round,
+                compact: baseMetric.compact,
+                format: baseMetric.format,
+                formatOptions: baseMetric.formatOptions,
+            },
+            timeDimensionId: metric.timeDimensionId,
+            granularity: metric.granularity,
+            periodOffset: metric.periodOffset,
+        });
+
+        if (!seenMetricIds.has(metricId)) {
+            seenMetricIds.add(metricId);
+            populatedPopMetrics.push(additionalMetric);
+        }
+    }
+
+    return [...populatedAggregationMetrics, ...populatedPopMetrics];
 }
+
+export const getPopMetricIdsByBaseMetricId = (
+    additionalMetrics: AdditionalMetric[],
+): Map<string, string[]> => {
+    const popMetricIdsByBase = new Map<string, string[]>();
+
+    for (const additionalMetric of additionalMetrics) {
+        if (isPeriodOverPeriodAdditionalMetric(additionalMetric)) {
+            const metricId = getItemId(additionalMetric);
+            const existing = popMetricIdsByBase.get(
+                additionalMetric.baseMetricId,
+            );
+
+            if (existing) {
+                existing.push(metricId);
+            } else {
+                popMetricIdsByBase.set(additionalMetric.baseMetricId, [
+                    metricId,
+                ]);
+            }
+        }
+    }
+
+    return popMetricIdsByBase;
+};
+
+export const expandMetricsWithPopAdditionalMetrics = (
+    metricIds: readonly string[] | null | undefined,
+    additionalMetrics: AdditionalMetric[],
+): string[] => {
+    if (!metricIds) return [];
+
+    const popMetricIdsByBase = getPopMetricIdsByBaseMetricId(additionalMetrics);
+    return metricIds.flatMap((metricId) => [
+        metricId,
+        ...(popMetricIdsByBase.get(metricId) ?? []),
+    ]);
+};
