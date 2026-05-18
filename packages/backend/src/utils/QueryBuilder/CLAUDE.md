@@ -73,10 +73,10 @@ const { sql, parameterReferences } = builder.getSqlAndReferences();
 ```mermaid
 graph TD
     A[original_query] --> B[group_by_query]
-    B --> C["column_anchor — FIRST_VALUE per groupBy value"]
+    B --> C["{ref}_ca (column anchor) — FIRST_VALUE per groupBy value"]
     C --> D["column_ranking — DENSE_RANK for col_idx"]
     D --> E["anchor_column — picks col_idx = 1"]
-    E --> F["row_anchor — metric value at anchor column via CROSS JOIN"]
+    E --> F["{ref}_ra (row anchor) — metric value at anchor column via CROSS JOIN"]
     F --> G["row_ranking — DENSE_RANK for row_index"]
     D --> H["pivot_query — JOINs row_ranking + column_ranking"]
     G --> H
@@ -87,7 +87,7 @@ graph TD
 
 **Precomputed rankings for Databricks/Spark**: Databricks inlines CTEs instead of materializing them. When `pivot_query` had inline DENSE_RANK with anchor column references, Spark couldn't resolve them across the inlined CTE boundary. Fix: `row_ranking` and `column_ranking` are self-contained CTEs with their own JOINs; `pivot_query` just JOINs the precomputed results. This activates automatically when metric sorting + index columns are present.
 
-**CTE name quoting**: Anchor CTE names are derived from field names (e.g., `revenue_column_anchor`). Since field names can contain spaces, all dynamic CTE names must be quoted with `${q}${cteName}${q}`. Hardcoded CTE names (`row_ranking`, `pivot_query`, etc.) don't need quoting.
+**CTE name quoting**: Anchor CTE names are derived from field names (e.g., `revenue_ca` for column anchor, `revenue_ra` for row anchor). The `_ca`/`_ra` suffixes are kept short to stay within Postgres' 63-char identifier limit when field references are long. Since field names can contain spaces, all dynamic CTE names must be quoted with `${q}${cteName}${q}`. Hardcoded CTE names (`row_ranking`, `pivot_query`, etc.) don't need quoting.
 
 **Two-phase pivot**: PivotQueryBuilder outputs rows tagged with `row_index` + `column_index`. The actual pivot (spreading values into `{field}_{aggregation}_{groupByValue}` columns) happens in `AsyncQueryService.runQueryAndTransformRows` which streams results and pivots on `row_index` changes.
 
