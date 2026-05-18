@@ -3,6 +3,8 @@ import {
     NotEnoughResults,
     ThresholdOperator,
 } from '@lightdash/common';
+import ExecutionContext from 'node-execution-context';
+import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
     buildSchedulerLogContext,
     setSchedulerJobLogContext,
@@ -78,6 +80,30 @@ describe('setSchedulerJobLogContext', () => {
         const update = jest.fn();
         setSchedulerJobLogContext({}, update);
         expect(update).not.toHaveBeenCalled();
+    });
+
+    it('writes through the default ExecutionContext updater', () => {
+        const initial: ExecutionContextInfo = {};
+        ExecutionContext.run(() => {
+            setSchedulerJobLogContext({
+                jobId: 'job-42',
+                schedulerUuid: 'sched-42',
+                schedulerName: 'Weekly sync',
+            });
+            const ctx = ExecutionContext.get<ExecutionContextInfo>();
+            expect(ctx.scheduler).toEqual({
+                job_id: 'job-42',
+                scheduler_uuid: 'sched-42',
+                scheduler_name: 'Weekly sync',
+            });
+        }, initial);
+    });
+
+    it('is a no-op when called outside an ExecutionContext', () => {
+        expect(ExecutionContext.exists()).toBe(false);
+        expect(() =>
+            setSchedulerJobLogContext({ jobId: 'job-1' }),
+        ).not.toThrow();
     });
 });
 
