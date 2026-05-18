@@ -31,7 +31,6 @@ import {
 } from '../../hooks/useProjectAiAgents';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import { ViewSqlButton } from './ViewSqlButton';
 
 type Props = {
     visualization: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
@@ -175,7 +174,6 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     )}
                 </Stack>
                 <Group gap="sm">
-                    <ViewSqlButton sql={compiledSql?.query} />
                     <AiChartQuickOptions
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
